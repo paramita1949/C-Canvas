@@ -114,3 +114,6 @@ Desktop.ini
 *.temp
 *.cache
 
+# Project-specific ignores
+Canvas/
+
