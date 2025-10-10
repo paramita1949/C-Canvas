@@ -223,18 +223,16 @@ namespace ImageColorChanger.UI
                 // 添加文件夹到项目树
                 foreach (var folder in folders)
                 {
-                    // 获取文件夹原图标记图标
-                    string folderIcon = originalManager.GetFolderIcon(folder.Id, false);
-                    if (string.IsNullOrEmpty(folderIcon))
-                    {
-                        folderIcon = "📁";
-                    }
+                    // 获取文件夹 Material Design 图标
+                    var (iconKind, iconColor) = originalManager.GetFolderIconKind(folder.Id, false);
                     
                     var folderItem = new ProjectTreeItem
                     {
                         Id = folder.Id,
                         Name = folder.Name,
-                        Icon = folderIcon,
+                        Icon = iconKind,  // 保留用于后备
+                        IconKind = iconKind,
+                        IconColor = iconColor,
                         Type = TreeItemType.Folder,
                         Path = folder.Path,
                         Children = new ObservableCollection<ProjectTreeItem>()
@@ -244,18 +242,21 @@ namespace ImageColorChanger.UI
                     var files = dbManager.GetMediaFilesByFolder(folder.Id);
                     foreach (var file in files)
                     {
-                        // 获取原图标记图标
-                        string icon = "";
+                        // 获取 Material Design 图标
+                        string fileIconKind = "File";
+                        string fileIconColor = "#95E1D3";
                         if (file.FileType == FileType.Image)
                         {
-                            icon = originalManager.GetImageIcon(file.Id);
+                            (fileIconKind, fileIconColor) = originalManager.GetImageIconKind(file.Id);
                         }
                         
                         folderItem.Children.Add(new ProjectTreeItem
                         {
                             Id = file.Id,
                             Name = file.Name,
-                            Icon = icon,
+                            Icon = fileIconKind,
+                            IconKind = fileIconKind,
+                            IconColor = fileIconColor,
                             Type = TreeItemType.File,
                             Path = file.Path,
                             FileType = file.FileType
@@ -268,26 +269,21 @@ namespace ImageColorChanger.UI
                 // 添加根目录的独立文件
                 foreach (var file in rootFiles)
                 {
-                    // 获取原图标记图标（根目录文件可以显示图标）
-                    string icon = "";
+                    // 获取 Material Design 图标
+                    string rootFileIconKind = "File";
+                    string rootFileIconColor = "#95E1D3";
                     if (file.FileType == FileType.Image)
                     {
-                        icon = originalManager.GetImageIcon(file.Id);
-                        if (string.IsNullOrEmpty(icon))
-                        {
-                            icon = GetFileIcon(file.FileType);
-                        }
-                    }
-                    else
-                    {
-                        icon = GetFileIcon(file.FileType);
+                        (rootFileIconKind, rootFileIconColor) = originalManager.GetImageIconKind(file.Id);
                     }
                     
                     projectTreeItems.Add(new ProjectTreeItem
                     {
                         Id = file.Id,
                         Name = file.Name,
-                        Icon = icon,
+                        Icon = rootFileIconKind,
+                        IconKind = rootFileIconKind,
+                        IconColor = rootFileIconColor,
                         Type = TreeItemType.File,
                         Path = file.Path,
                         FileType = file.FileType
@@ -2040,6 +2036,8 @@ namespace ImageColorChanger.UI
         public int Id { get; set; }
         public string Name { get; set; }
         public string Icon { get; set; }
+        public string IconKind { get; set; }  // Material Design 图标类型
+        public string IconColor { get; set; } = "#666666";  // 图标颜色
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }

@@ -417,9 +417,9 @@ namespace ImageColorChanger.Managers
         #region 项目树图标更新
 
         /// <summary>
-        /// 获取文件夹的显示图标
+        /// 获取文件夹的 Material Design 图标类型
         /// </summary>
-        public string GetFolderIcon(int folderId, bool isManualSort)
+        public (string iconKind, string color) GetFolderIconKind(int folderId, bool isManualSort)
         {
             try
             {
@@ -430,43 +430,57 @@ namespace ImageColorChanger.Managers
                     var markType = GetOriginalMarkType(ItemType.Folder, folderId);
                     if (markType == MarkType.Sequence)
                     {
-                        // 顺序原图标记 - 使用向下三角
-                        return isManualSort ? "▼ 🔢" : "▼";
+                        // 顺序原图标记 - 使用 PlayArrow 图标
+                        return isManualSort ? ("FolderPlay", "#FF6B35") : ("PlayArrow", "#FF6B35");
                     }
                     else
                     {
-                        // 循环原图标记 - 使用循环箭头
-                        return isManualSort ? "🔁 🔢" : "🔁";
+                        // 循环原图标记 - 使用 Repeat 图标
+                        return isManualSort ? ("FolderSync", "#4ECDC4") : ("Repeat", "#4ECDC4");
                     }
                 }
                 else
                 {
                     // 无原图标记
-                    return isManualSort ? "🔢" : "📁";
+                    return isManualSort ? ("FolderCog", "#FDB44B") : ("Folder", "#FDB44B");
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取文件夹图标失败: {ex.Message}");
-                return "📁";
+                return ("Folder", "#FDB44B");
             }
         }
 
         /// <summary>
-        /// 获取独立图片的显示图标
+        /// 获取独立图片的 Material Design 图标类型
         /// </summary>
-        public string GetImageIcon(int imageId)
+        public (string iconKind, string color) GetImageIconKind(int imageId)
         {
             try
             {
                 bool hasMark = CheckOriginalMark(ItemType.Image, imageId);
-                return hasMark ? "⭐" : "🖼️";
+                // 有标记使用 Star，无标记使用 Image
+                return hasMark ? ("Star", "#FFD700") : ("Image", "#95E1D3");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取图片图标失败: {ex.Message}");
-                return "🖼️";
+                return ("Image", "#95E1D3");
             }
+        }
+
+        // 保留旧方法以兼容
+        public string GetFolderIcon(int folderId, bool isManualSort)
+        {
+            var (iconKind, _) = GetFolderIconKind(folderId, isManualSort);
+            return iconKind;
+        }
+
+        public string GetImageIcon(int imageId)
+        {
+            var (iconKind, _) = GetImageIconKind(imageId);
+            return iconKind;
         }
 
         #endregion
