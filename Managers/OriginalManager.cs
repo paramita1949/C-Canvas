@@ -216,23 +216,8 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public (bool success, int? newImageId, string newImagePath) SwitchSimilarImage(bool isNext, int currentImageId)
         {
-            System.Diagnostics.Debug.WriteLine($"🔍 SwitchSimilarImage: isNext={isNext}, currentImageId={currentImageId}, _similarImages.Count={_similarImages.Count}");
+            System.Diagnostics.Debug.WriteLine($"🔍 SwitchSimilarImage: isNext={isNext}, currentImageId={currentImageId}");
             
-            // 如果相似图片列表为空，先查找相似图片
-            if (_similarImages.Count == 0)
-            {
-                System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空，自动查找相似图片...");
-                bool found = FindSimilarImages(currentImageId);
-                
-                if (!found || _similarImages.Count == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("❌ 没有相似图片,无法切换");
-                    return (false, null, null);
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"✅ 已找到 {_similarImages.Count} 张相似图片");
-            }
-
             try
             {
                 // 获取当前图片的标记类型来决定切换模式
@@ -258,30 +243,112 @@ namespace ImageColorChanger.Managers
                     }
                 }
 
-                // 计算新的索引
-                int newIndex;
-                if (switchMode == MarkType.Loop)
+                System.Diagnostics.Debug.WriteLine($"📷 切换模式: {(switchMode == MarkType.Loop ? "循环" : "顺序")}");
+
+                // 顺序模式：在文件夹所有图片中按顺序切换
+                if (switchMode == MarkType.Sequence)
                 {
-                    // 循环模式：到最后一张时回到第一张
-                    if (isNext)
+                    return SwitchInSequenceMode(isNext, currentImageId);
+                }
+                
+                // 循环模式：在相似图片列表中循环切换
+                return SwitchInLoopMode(isNext, currentImageId);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"切换图片失败: {ex.Message}");
+                return (false, null, null);
+            }
+        }
+
+        /// <summary>
+        /// 顺序模式：在文件夹所有图片中按顺序切换
+        /// </summary>
+        private (bool success, int? newImageId, string newImagePath) SwitchInSequenceMode(bool isNext, int currentImageId)
+        {
+            try
+            {
+                var currentFile = _dbManager.GetMediaFileById(currentImageId);
+                if (currentFile == null || !currentFile.FolderId.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ 当前图片不在文件夹中");
+                    return (false, null, null);
+                }
+
+                int folderId = currentFile.FolderId.Value;
+                
+                // 获取文件夹中所有图片
+                var allImages = _dbManager.GetMediaFilesByFolder(folderId)
+                    .Where(f => f.FileType == FileType.Image)
+                    .OrderBy(f => f.Name) // 按文件名排序
+                    .ToList();
+
+                if (allImages.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ 文件夹中没有图片");
+                    return (false, null, null);
+                }
+
+                // 找到当前图片的索引
+                int currentIndex = allImages.FindIndex(f => f.Id == currentImageId);
+                if (currentIndex == -1)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ 未找到当前图片在列表中的位置");
+                    return (false, null, null);
+                }
+
+                // 计算下一张图片的索引（顺序模式：到边界时停止）
+                int newIndex = isNext ? currentIndex + 1 : currentIndex - 1;
+                
+                if (newIndex < 0 || newIndex >= allImages.Count)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ 顺序模式已到达边界 (当前索引: {currentIndex}, 总数: {allImages.Count})");
+                    return (false, null, null);
+                }
+
+                var targetImage = allImages[newIndex];
+                System.Diagnostics.Debug.WriteLine($"📷 顺序切换: {targetImage.Name} (索引 {newIndex + 1}/{allImages.Count})");
+
+                return (true, targetImage.Id, targetImage.Path);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"顺序模式切换失败: {ex.Message}");
+                return (false, null, null);
+            }
+        }
+
+        /// <summary>
+        /// 循环模式：在相似图片列表中循环切换
+        /// </summary>
+        private (bool success, int? newImageId, string newImagePath) SwitchInLoopMode(bool isNext, int currentImageId)
+        {
+            try
+            {
+                // 如果相似图片列表为空，先查找相似图片
+                if (_similarImages.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空，自动查找相似图片...");
+                    bool found = FindSimilarImages(currentImageId);
+                    
+                    if (!found || _similarImages.Count == 0)
                     {
-                        newIndex = (_currentSimilarIndex + 1) % _similarImages.Count;
+                        System.Diagnostics.Debug.WriteLine("❌ 没有相似图片,无法切换");
+                        return (false, null, null);
                     }
-                    else
-                    {
-                        newIndex = (_currentSimilarIndex - 1 + _similarImages.Count) % _similarImages.Count;
-                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"✅ 已找到 {_similarImages.Count} 张相似图片");
+                }
+
+                // 循环模式：到最后一张时回到第一张
+                int newIndex;
+                if (isNext)
+                {
+                    newIndex = (_currentSimilarIndex + 1) % _similarImages.Count;
                 }
                 else
                 {
-                    // 顺序模式：按照顺序切换，到边界时返回false
-                    newIndex = isNext ? _currentSimilarIndex + 1 : _currentSimilarIndex - 1;
-                    
-                    if (newIndex < 0 || newIndex >= _similarImages.Count)
-                    {
-                        // 顺序模式下到达边界，需要切换到不同系列的图片
-                        return SwitchToDifferentImage(isNext, currentImageId);
-                    }
+                    newIndex = (_currentSimilarIndex - 1 + _similarImages.Count) % _similarImages.Count;
                 }
 
                 // 更新当前索引
@@ -289,14 +356,13 @@ namespace ImageColorChanger.Managers
 
                 var (targetId, targetName, targetPath) = _similarImages[newIndex];
                 
-                string modeText = switchMode == MarkType.Loop ? "循环" : "顺序";
-                System.Diagnostics.Debug.WriteLine($"📷 {modeText}切换: {targetName} (索引 {newIndex}/{_similarImages.Count})");
+                System.Diagnostics.Debug.WriteLine($"📷 循环切换: {targetName} (索引 {newIndex + 1}/{_similarImages.Count})");
 
                 return (true, targetId, targetPath);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"切换相似图片失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"循环模式切换失败: {ex.Message}");
                 return (false, null, null);
             }
         }
