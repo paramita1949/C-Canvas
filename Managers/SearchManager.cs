@@ -65,6 +65,8 @@ namespace ImageColorChanger.Managers
                 {
                     Name = displayName,
                     Icon = "", // 搜索结果不显示图标
+                    IconKind = null, // 不设置图标类型
+                    IconColor = null, // 不设置图标颜色
                     Type = TreeItemType.File,
                     Id = file.Id,
                     Path = file.Path,

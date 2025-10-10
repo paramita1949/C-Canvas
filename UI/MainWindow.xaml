@@ -226,7 +226,20 @@
                                                             Width="18" 
                                                             Height="18" 
                                                             Margin="0,0,8,0"
-                                                            VerticalAlignment="Center"/>
+                                                            VerticalAlignment="Center">
+                                        <materialDesign:PackIcon.Style>
+                                            <Style TargetType="materialDesign:PackIcon">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IconKind}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IconKind}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </materialDesign:PackIcon.Style>
+                                    </materialDesign:PackIcon>
                                     <TextBlock Text="{Binding Name}" 
                                                FontSize="13"
                                                VerticalAlignment="Center"/>
