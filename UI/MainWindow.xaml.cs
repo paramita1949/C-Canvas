@@ -696,6 +696,10 @@ namespace ImageColorChanger.UI
         {
             SearchBox.Clear();
             SearchBox.Focus();
+            
+            // 🆕 新增: 折叠所有展开的文件夹节点
+            CollapseAllFolders();
+            ShowStatus("✅ 已清除搜索并折叠所有文件夹");
         }
 
         /// <summary>
@@ -739,6 +743,9 @@ namespace ImageColorChanger.UI
                     // 处理文件夹节点：单击展开/折叠
                     if (selectedItem.Type == TreeItemType.Folder)
                     {
+                        // 🆕 新增: 折叠其他所有文件夹节点
+                        CollapseOtherFolders(selectedItem);
+                        
                         // 切换展开/折叠状态(通过数据绑定的属性,更可靠)
                         selectedItem.IsExpanded = !selectedItem.IsExpanded;
                         
@@ -1146,6 +1153,75 @@ namespace ImageColorChanger.UI
                 child = VisualTreeHelper.GetParent(child);
             }
             return null;
+        }
+
+        /// <summary>
+        /// 折叠所有文件夹节点
+        /// </summary>
+        private void CollapseAllFolders()
+        {
+            try
+            {
+                var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+                foreach (var item in treeItems)
+                {
+                    if (item.Type == TreeItemType.Folder)
+                    {
+                        CollapseFolder(item);
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine("📁 已折叠所有文件夹节点");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"折叠所有文件夹失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 折叠除指定文件夹外的所有其他文件夹
+        /// </summary>
+        private void CollapseOtherFolders(ProjectTreeItem exceptFolder)
+        {
+            try
+            {
+                var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+                foreach (var item in treeItems)
+                {
+                    if (item.Type == TreeItemType.Folder && item.Id != exceptFolder.Id)
+                    {
+                        CollapseFolder(item);
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine($"📁 已折叠除 {exceptFolder.Name} 外的所有文件夹");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"折叠其他文件夹失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 递归折叠文件夹及其子文件夹
+        /// </summary>
+        private void CollapseFolder(ProjectTreeItem folder)
+        {
+            if (folder == null) return;
+            
+            // 折叠当前文件夹
+            folder.IsExpanded = false;
+            
+            // 递归折叠子文件夹
+            if (folder.Children != null)
+            {
+                foreach (var child in folder.Children)
+                {
+                    if (child.Type == TreeItemType.Folder)
+                    {
+                        CollapseFolder(child);
+                    }
+                }
+            }
         }
 
         #endregion
