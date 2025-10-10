@@ -218,10 +218,19 @@ namespace ImageColorChanger.Managers
         {
             System.Diagnostics.Debug.WriteLine($"🔍 SwitchSimilarImage: isNext={isNext}, currentImageId={currentImageId}, _similarImages.Count={_similarImages.Count}");
             
+            // 如果相似图片列表为空，先查找相似图片
             if (_similarImages.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("❌ 没有相似图片,无法切换");
-                return (false, null, null);
+                System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空，自动查找相似图片...");
+                bool found = FindSimilarImages(currentImageId);
+                
+                if (!found || _similarImages.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ 没有相似图片,无法切换");
+                    return (false, null, null);
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"✅ 已找到 {_similarImages.Count} 张相似图片");
             }
 
             try
