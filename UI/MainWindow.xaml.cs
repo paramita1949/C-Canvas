@@ -62,6 +62,7 @@ namespace ImageColorChanger.UI
 
         // 数据库和管理器
         private DatabaseManager dbManager;
+        private ConfigManager configManager;
         private ImportManager importManager;
         private ImageSaveManager imageSaveManager;
         private SearchManager searchManager;
@@ -177,6 +178,9 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 创建配置管理器
+                configManager = new ConfigManager();
+                
                 // 创建数据库管理器
                 dbManager = new DatabaseManager("pyimages.db");
                 
@@ -316,20 +320,20 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 加载用户设置
+        /// 加载用户设置 - 从 config.json
         /// </summary>
         private void LoadSettings()
         {
             try
             {
-                // 加载原图显示模式
-                string displayModeStr = dbManager.GetSetting("original_display_mode", "Stretch");
-                if (Enum.TryParse<OriginalDisplayMode>(displayModeStr, out var displayMode))
-                {
-                    originalDisplayMode = displayMode;
-                    imageProcessor.OriginalDisplayModeValue = originalDisplayMode;
-                    System.Diagnostics.Debug.WriteLine($"✅ 已加载原图显示模式: {originalDisplayMode}");
-                }
+                // 从 ConfigManager 加载原图显示模式
+                originalDisplayMode = configManager.OriginalDisplayMode;
+                imageProcessor.OriginalDisplayModeValue = originalDisplayMode;
+                System.Diagnostics.Debug.WriteLine($"✅ 已加载原图显示模式: {originalDisplayMode}");
+                
+                // 加载缩放比例
+                currentZoom = configManager.ZoomRatio;
+                System.Diagnostics.Debug.WriteLine($"✅ 已加载缩放比例: {currentZoom}");
             }
             catch (Exception ex)
             {
@@ -338,15 +342,19 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 保存用户设置
+        /// 保存用户设置 - 到 config.json
         /// </summary>
         private void SaveSettings()
         {
             try
             {
-                // 保存原图显示模式
-                dbManager.SaveSetting("original_display_mode", originalDisplayMode.ToString());
-                System.Diagnostics.Debug.WriteLine($"✅ 已保存原图显示模式: {originalDisplayMode}");
+                // 保存原图显示模式到 ConfigManager
+                configManager.OriginalDisplayMode = originalDisplayMode;
+                
+                // 保存缩放比例
+                configManager.ZoomRatio = currentZoom;
+                
+                System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json");
             }
             catch (Exception ex)
             {
