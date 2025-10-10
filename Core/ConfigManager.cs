@@ -31,6 +31,8 @@ namespace ImageColorChanger.Core
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
                     Debug.WriteLine($"✅ 配置文件已加载: {_configFilePath}");
+                    Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
+                    Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
                 }
                 else
                 {
@@ -42,6 +44,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
                 Debug.WriteLine($"❌ 加载配置文件失败: {ex.Message}");
+                Debug.WriteLine($"   错误详情: {ex}");
                 _config = new AppConfig();
             }
         }
@@ -62,6 +65,8 @@ namespace ImageColorChanger.Core
                 string json = JsonSerializer.Serialize(_config, options);
                 File.WriteAllText(_configFilePath, json);
                 Debug.WriteLine($"✅ 配置文件已保存: {_configFilePath}");
+                Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
+                Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
             }
             catch (Exception ex)
             {
