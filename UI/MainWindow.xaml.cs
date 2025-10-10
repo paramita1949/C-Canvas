@@ -184,13 +184,16 @@ namespace ImageColorChanger.UI
                 sortManager = new SortManager();
                 searchManager = new SearchManager(dbManager);
                 
-                // 创建导入管理器
-                importManager = new ImportManager(dbManager, sortManager);
-                
-                // 加载搜索范围选项
-                LoadSearchScopes();
-                
-                System.Diagnostics.Debug.WriteLine("✅ 数据库初始化成功");
+            // 创建导入管理器
+            importManager = new ImportManager(dbManager, sortManager);
+            
+            // 加载搜索范围选项
+            LoadSearchScopes();
+            
+            // 加载用户设置
+            LoadSettings();
+            
+            System.Diagnostics.Debug.WriteLine("✅ 数据库初始化成功");
             }
             catch (Exception ex)
             {
@@ -310,6 +313,45 @@ namespace ImageColorChanger.UI
                 FileType.Audio => "🎵",
                 _ => "📄"
             };
+        }
+
+        /// <summary>
+        /// 加载用户设置
+        /// </summary>
+        private void LoadSettings()
+        {
+            try
+            {
+                // 加载原图显示模式
+                string displayModeStr = dbManager.GetSetting("original_display_mode", "Stretch");
+                if (Enum.TryParse<OriginalDisplayMode>(displayModeStr, out var displayMode))
+                {
+                    originalDisplayMode = displayMode;
+                    imageProcessor.OriginalDisplayModeValue = originalDisplayMode;
+                    System.Diagnostics.Debug.WriteLine($"✅ 已加载原图显示模式: {originalDisplayMode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 保存用户设置
+        /// </summary>
+        private void SaveSettings()
+        {
+            try
+            {
+                // 保存原图显示模式
+                dbManager.SaveSetting("original_display_mode", originalDisplayMode.ToString());
+                System.Diagnostics.Debug.WriteLine($"✅ 已保存原图显示模式: {originalDisplayMode}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败: {ex.Message}");
+            }
         }
 
         #endregion
@@ -1660,6 +1702,9 @@ namespace ImageColorChanger.UI
             
             // 更新投影窗口
             UpdateProjection();
+            
+            // 保存设置到数据库
+            SaveSettings();
         }
 
         private void ImageDisplay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1894,6 +1939,9 @@ namespace ImageColorChanger.UI
             try
             {
                 System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
+                
+                // 保存用户设置
+                SaveSettings();
                 
                 // 关闭投影窗口
                 if (projectionManager != null)
