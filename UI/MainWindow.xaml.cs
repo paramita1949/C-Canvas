@@ -118,6 +118,9 @@ namespace ImageColorChanger.UI
             // 初始化图片处理器
             imageProcessor = new ImageProcessor(this, ImageScrollViewer, ImageDisplay, ImageContainer);
             
+            // 加载用户设置（必须在 imageProcessor 创建之后）
+            LoadSettings();
+            
             // 初始化保存管理器
             imageSaveManager = new ImageSaveManager(imageProcessor);
             
@@ -193,9 +196,6 @@ namespace ImageColorChanger.UI
             
             // 加载搜索范围选项
             LoadSearchScopes();
-            
-            // 加载用户设置
-            LoadSettings();
             
             System.Diagnostics.Debug.WriteLine("✅ 数据库初始化成功");
             }
