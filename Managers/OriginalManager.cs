@@ -418,7 +418,6 @@ namespace ImageColorChanger.Managers
 
         /// <summary>
         /// 获取文件夹的显示图标
-        /// 使用 Segoe Fluent Icons 字体提供现代化图标
         /// </summary>
         public string GetFolderIcon(int folderId, bool isManualSort)
         {
@@ -431,45 +430,42 @@ namespace ImageColorChanger.Managers
                     var markType = GetOriginalMarkType(ItemType.Folder, folderId);
                     if (markType == MarkType.Sequence)
                     {
-                        // 顺序原图标记 - 使用 Segoe Fluent Icons: Play (▶)
-                        return isManualSort ? "▶ \uE8FD" : "▶";
+                        // 顺序原图标记 - 使用向下三角
+                        return isManualSort ? "▼ 🔢" : "▼";
                     }
                     else
                     {
-                        // 循环原图标记 - 使用 Segoe Fluent Icons: Repeat All (🔁)
-                        return isManualSort ? "\uE8EE \uE8FD" : "\uE8EE";
+                        // 循环原图标记 - 使用循环箭头
+                        return isManualSort ? "🔁 🔢" : "🔁";
                     }
                 }
                 else
                 {
-                    // 无原图标记 - 使用 Segoe Fluent Icons: Folder
-                    return isManualSort ? "\uE8FD" : "\uE8B7";
+                    // 无原图标记
+                    return isManualSort ? "🔢" : "📁";
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取文件夹图标失败: {ex.Message}");
-                return "\uE8B7";
+                return "📁";
             }
         }
 
         /// <summary>
         /// 获取独立图片的显示图标
-        /// 使用 Segoe Fluent Icons 字体提供现代化图标
         /// </summary>
         public string GetImageIcon(int imageId)
         {
             try
             {
                 bool hasMark = CheckOriginalMark(ItemType.Image, imageId);
-                // \uEB9F = Picture/Image icon
-                // \uE735 = CircleRing (标记)
-                return hasMark ? "\uE735" : "\uEB9F";
+                return hasMark ? "⭐" : "🖼️";
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取图片图标失败: {ex.Message}");
-                return "\uEB9F";
+                return "🖼️";
             }
         }
 
