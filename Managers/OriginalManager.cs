@@ -430,25 +430,25 @@ namespace ImageColorChanger.Managers
                     var markType = GetOriginalMarkType(ItemType.Folder, folderId);
                     if (markType == MarkType.Sequence)
                     {
-                        // 顺序原图标记
-                        return isManualSort ? "⇅ 🔢" : "⇅";
+                        // 顺序原图标记 - 使用向下箭头图标
+                        return isManualSort ? "⬇️ 🔢" : "⬇️";
                     }
                     else
                     {
-                        // 循环原图标记
-                        return isManualSort ? "★ 🔢" : "★";
+                        // 循环原图标记 - 使用循环箭头图标
+                        return isManualSort ? "🔄 🔢" : "🔄";
                     }
                 }
                 else
                 {
                     // 无原图标记
-                    return isManualSort ? "🔢" : "☆";
+                    return isManualSort ? "🔢" : "📁";
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取文件夹图标失败: {ex.Message}");
-                return "☆";
+                return "📁";
             }
         }
 
@@ -460,12 +460,12 @@ namespace ImageColorChanger.Managers
             try
             {
                 bool hasMark = CheckOriginalMark(ItemType.Image, imageId);
-                return hasMark ? "●" : "";
+                return hasMark ? "🔸" : "🖼️";
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"获取图片图标失败: {ex.Message}");
-                return "";
+                return "🖼️";
             }
         }
 
