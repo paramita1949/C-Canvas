@@ -430,8 +430,8 @@ namespace ImageColorChanger.Managers
                     var markType = GetOriginalMarkType(ItemType.Folder, folderId);
                     if (markType == MarkType.Sequence)
                     {
-                        // 顺序原图标记 - 使用 PlayArrow 图标
-                        return isManualSort ? ("FolderPlay", "#FF6B35") : ("PlayArrow", "#FF6B35");
+                        // 顺序原图标记 - 使用 ArrowDownward 图标（向下箭头，表示从上到下的顺序）
+                        return isManualSort ? ("FolderDownload", "#FF6B35") : ("ArrowDownward", "#FF6B35");
                     }
                     else
                     {
