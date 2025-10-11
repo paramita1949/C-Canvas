@@ -13,7 +13,7 @@
         Icon="/baodian.ico"
         PreviewKeyDown="Window_PreviewKeyDown"
         Closing="Window_Closing">
-    
+
     <Window.Resources>
         <!-- 按钮样式 -->
         <Style x:Key="MenuButtonStyle" TargetType="Button">
@@ -34,7 +34,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="5"/>
         </Style>
-        
+
         <!-- ComboBox样式 - 白色背景 -->
         <Style x:Key="WhiteComboBoxPopup" TargetType="ComboBox">
             <Setter Property="Foreground" Value="Black"/>
@@ -46,7 +46,7 @@
             <Setter Property="Height" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        
+
         <!-- ComboBoxItem样式 - 白色背景 -->
         <Style x:Key="WhiteComboBoxItem" TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="Black"/>
@@ -65,41 +65,44 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- 单排按钮菜单栏 -->
-            <RowDefinition Height="*"/>     <!-- 主内容区 -->
-            <RowDefinition Height="Auto"/>  <!-- 媒体播放器控制栏 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 单排按钮菜单栏 -->
+            <RowDefinition Height="*"/>
+            <!-- 主内容区 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 媒体播放器控制栏 -->
         </Grid.RowDefinitions>
 
         <!-- ========== 单排按钮菜单栏 ========== -->
         <Border Grid.Row="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="10,5">
             <Grid>
-        <Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
+                </Grid.ColumnDefinitions>
 
                 <!-- 左侧：所有按钮在一排 -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <!-- 基础功能按钮 -->
                     <Button x:Name="BtnImport" Content="导入" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
-                    
+
                     <Button x:Name="BtnProjection" Content="投影" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="开启/关闭投影" Click="BtnProjection_Click"/>
-                    
+
                     <Button x:Name="BtnSync" Content="同步" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="同步所有文件夹" Click="BtnSync_Click"/>
-                    
+
                     <Button x:Name="BtnReset" Content="返回" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="重置视图" Click="BtnReset_Click"/>
-                    
+
                     <Button x:Name="BtnOriginal" Content="原图" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换原图模式" Click="BtnOriginal_Click"/>
-                    
+
                     <Button x:Name="BtnZoomReset" Content="缩放" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="重置缩放比例" Click="BtnZoomReset_Click"/>
-                    
+
                     <Button x:Name="BtnColorEffect" Content="变色" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换颜色效果" 
                             Click="BtnColorEffect_Click"/>
@@ -110,78 +113,81 @@
                     <!-- 关键帧控制按钮 -->
                     <Button x:Name="BtnAddKeyframe" Content="加帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="在当前位置添加关键帧" Click="BtnAddKeyframe_Click"/>
-                    
+
                     <Button x:Name="BtnClearKeyframes" Content="清帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="清除所有关键帧" Click="BtnClearKeyframes_Click"/>
-                    
+
                     <Button x:Name="BtnPrevKeyframe" Content="上帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="跳转到上一个关键帧" Click="BtnPrevKeyframe_Click"/>
-                    
+
                     <Button x:Name="BtnNextKeyframe" Content="下帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="跳转到下一个关键帧" Click="BtnNextKeyframe_Click"/>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Button x:Name="BtnPlay" Content="播放" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
 
                     <!-- 播放控制按钮 -->
-                    <Button x:Name="BtnPlayCount" Content="次数: 1" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnPlayCount" Content="5次" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="点击设置播放次数，滚轮调节" 
                             Click="BtnPlayCount_Click"
                             MouseWheel="BtnPlayCount_MouseWheel"/>
-                    
+
                     <Button x:Name="BtnRecord" Content="录制" Style="{StaticResource MenuButtonStyle}"
                             Background="#FFCCCC" ToolTip="开始/停止时间录制" 
                             Click="BtnRecord_Click"/>
-                    
-                    <Button x:Name="BtnPlay" Content="播放" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
-                    
+                    <Button x:Name="BtnScript" Content="脚本" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="显示脚本信息" Click="BtnScript_Click" RenderTransformOrigin="-0.81,0.548"/>
+
                     <Button x:Name="BtnClearTiming" Content="清时" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="清除时间录制数据" Click="BtnClearTiming_Click"/>
-                    
-                    <Button x:Name="BtnScript" Content="脚本" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="显示脚本信息" Click="BtnScript_Click"/>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Button x:Name="BtnPauseResume" Content="暂停" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click"/>
 
                     <!-- 倒计时显示 -->
                     <Border Background="#FFFFCC" BorderBrush="#CCAA00" BorderThickness="1" 
-                            CornerRadius="3" Padding="8,5" Margin="3,0">
-                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="13" 
-                                   FontWeight="Bold" Foreground="#CC6600"/>
+                            CornerRadius="3" Padding="8,5" Margin="3,0" Width="90">
+                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="16" 
+                                   FontWeight="Bold" Foreground="#CC6600" Height="19" Margin="-1,0,1,0"/>
                     </Border>
 
                     <!-- 暂停/继续按钮 -->
-                    <Button x:Name="BtnPauseResume" Content="暂停" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click"/>
-                            </StackPanel>
-                            
+                </StackPanel>
+
                 <!-- 右侧：屏幕选择 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <TextBlock Text="屏幕：" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13"/>
                     <ComboBox x:Name="ScreenSelector" Width="120" Height="30" 
                               VerticalAlignment="Center" SelectedIndex="0" FontSize="12"/>
-                            </StackPanel>
-                        </Grid>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- ========== 主内容区 ========== -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>  <!-- 左侧导航栏 -->
-                <ColumnDefinition Width="Auto"/> <!-- 分隔条 -->
-                <ColumnDefinition Width="*"/>    <!-- 右侧图片显示区 -->
+                <ColumnDefinition Width="280"/>
+                <!-- 左侧导航栏 -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- 分隔条 -->
+                <ColumnDefinition Width="*"/>
+                <!-- 右侧图片显示区 -->
             </Grid.ColumnDefinitions>
 
             <!-- 左侧：文件导航栏 -->
             <Border Grid.Column="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
                 <Grid>
-            <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>  <!-- 搜索区域 -->
-                        <RowDefinition Height="*"/>     <!-- 项目树 -->
-            </Grid.RowDefinitions>
-            
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <!-- 搜索区域 -->
+                        <RowDefinition Height="*"/>
+                        <!-- 项目树 -->
+                    </Grid.RowDefinitions>
+
                     <!-- 搜索区域 -->
                     <StackPanel Grid.Row="0" Background="White" Margin="8">
                         <!-- 搜索框 -->
@@ -249,12 +255,12 @@
                                             </Style>
                                         </materialDesign:PackIcon.Style>
                                     </materialDesign:PackIcon>
-                                    
+
                                     <!-- 文件/文件夹名称 -->
                                     <TextBlock Text="{Binding Name}" 
                                                FontSize="13"
                                                VerticalAlignment="Center"/>
-                                    
+
                                     <!-- 文件夹标签（搜索时显示）-->
                                     <Border Background="{Binding FolderColor}" 
                                             CornerRadius="3" 
@@ -282,15 +288,15 @@
                     </TreeView>
                 </Grid>
             </Border>
-            
+
             <!-- 分隔条 -->
             <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" 
                           Background="#E0E0E0" Cursor="SizeWE"/>
 
             <!-- 右侧：图片显示区 -->
             <Grid Grid.Column="2" Background="#000000">
-           <!-- 图片显示区域（支持滚动和缩放） -->
-           <ScrollViewer x:Name="ImageScrollViewer"
+                <!-- 图片显示区域（支持滚动和缩放） -->
+                <ScrollViewer x:Name="ImageScrollViewer"
                      HorizontalScrollBarVisibility="Auto"
                      VerticalScrollBarVisibility="Auto"
                      Background="#000000"
@@ -298,30 +304,30 @@
                      PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
                      SizeChanged="ImageScrollViewer_SizeChanged"
                      MouseRightButtonUp="ImageScrollViewer_RightClick">
-               <ScrollViewer.ContextMenu>
-                   <ContextMenu x:Name="CanvasContextMenu">
-                       <MenuItem Header="滚动速度">
-                           <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
-                           <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
-                           <MenuItem Header="1.0秒" Click="SetScrollSpeed_Click" Tag="1.0" IsCheckable="True"/>
-                           <MenuItem Header="8.0秒" Click="SetScrollSpeed_Click" Tag="8.0" IsCheckable="True" IsChecked="True"/>
-                           <MenuItem Header="9.0秒" Click="SetScrollSpeed_Click" Tag="9.0" IsCheckable="True"/>
-                           <MenuItem Header="10.0秒" Click="SetScrollSpeed_Click" Tag="10.0" IsCheckable="True"/>
-                           <MenuItem Header="11.0秒" Click="SetScrollSpeed_Click" Tag="11.0" IsCheckable="True"/>
-                           <MenuItem Header="12.0秒" Click="SetScrollSpeed_Click" Tag="12.0" IsCheckable="True"/>
-                           <MenuItem Header="13.0秒" Click="SetScrollSpeed_Click" Tag="13.0" IsCheckable="True"/>
-                           <MenuItem Header="14.0秒" Click="SetScrollSpeed_Click" Tag="14.0" IsCheckable="True"/>
-                           <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
-                       </MenuItem>
-                       <MenuItem Header="滚动函数">
-                           <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
-                           <MenuItem Header="优化三次" Click="SetScrollEasing_Click" Tag="OptimizedCubic" IsCheckable="True"/>
-                           <MenuItem Header="快速启动" Click="SetScrollEasing_Click" Tag="EaseOutExpo" IsCheckable="True"/>
-                           <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
-                           <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
-                       </MenuItem>
-                   </ContextMenu>
-               </ScrollViewer.ContextMenu>
+                    <ScrollViewer.ContextMenu>
+                        <ContextMenu x:Name="CanvasContextMenu">
+                            <MenuItem Header="滚动速度">
+                                <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
+                                <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
+                                <MenuItem Header="1.0秒" Click="SetScrollSpeed_Click" Tag="1.0" IsCheckable="True"/>
+                                <MenuItem Header="8.0秒" Click="SetScrollSpeed_Click" Tag="8.0" IsCheckable="True" IsChecked="True"/>
+                                <MenuItem Header="9.0秒" Click="SetScrollSpeed_Click" Tag="9.0" IsCheckable="True"/>
+                                <MenuItem Header="10.0秒" Click="SetScrollSpeed_Click" Tag="10.0" IsCheckable="True"/>
+                                <MenuItem Header="11.0秒" Click="SetScrollSpeed_Click" Tag="11.0" IsCheckable="True"/>
+                                <MenuItem Header="12.0秒" Click="SetScrollSpeed_Click" Tag="12.0" IsCheckable="True"/>
+                                <MenuItem Header="13.0秒" Click="SetScrollSpeed_Click" Tag="13.0" IsCheckable="True"/>
+                                <MenuItem Header="14.0秒" Click="SetScrollSpeed_Click" Tag="14.0" IsCheckable="True"/>
+                                <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
+                            </MenuItem>
+                            <MenuItem Header="滚动函数">
+                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
+                                <MenuItem Header="优化三次" Click="SetScrollEasing_Click" Tag="OptimizedCubic" IsCheckable="True"/>
+                                <MenuItem Header="快速启动" Click="SetScrollEasing_Click" Tag="EaseOutExpo" IsCheckable="True"/>
+                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
+                                <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
+                            </MenuItem>
+                        </ContextMenu>
+                    </ScrollViewer.ContextMenu>
                     <Grid x:Name="ImageContainer" Background="#000000">
                         <Image x:Name="ImageDisplay" 
                                Stretch="Fill"
@@ -337,7 +343,7 @@
                                 <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1"/>
                             </Image.LayoutTransform>
                         </Image>
-                        
+
                         <!-- 关键帧预览线容器 - 直接叠加在图片上 -->
                         <Canvas x:Name="KeyframePreviewLinesCanvas"
                                 IsHitTestVisible="False"
@@ -345,7 +351,7 @@
                                 Panel.ZIndex="10"/>
                     </Grid>
                 </ScrollViewer>
-                
+
                 <!-- 白色分割线 -->
                 <Border HorizontalAlignment="Right"
                         VerticalAlignment="Stretch"
@@ -353,7 +359,7 @@
                         Margin="0,0,28,0"
                         Background="#FFFFFF"
                         Panel.ZIndex="199"/>
-                
+
                 <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
                 <Border x:Name="ScrollbarIndicatorsBorder"
                         HorizontalAlignment="Right"
@@ -386,15 +392,15 @@
                     <Button x:Name="BtnMediaPrev" Content="⏮" Width="40" Height="40"
                             ToolTip="上一首" Click="BtnMediaPrev_Click"
                             Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
-                    
+
                     <Button x:Name="BtnMediaPlayPause" Content="▶" Width="50" Height="50" Margin="10,0"
                             ToolTip="播放/暂停" Click="BtnMediaPlayPause_Click"
                             Style="{StaticResource MaterialDesignFloatingActionButton}"/>
-                    
+
                     <Button x:Name="BtnMediaNext" Content="⏭" Width="40" Height="40"
                             ToolTip="下一首" Click="BtnMediaNext_Click"
                             Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
-                    
+
                     <Button x:Name="BtnMediaStop" Content="⏹" Width="40" Height="40" Margin="10,0,0,0"
                             ToolTip="停止" Click="BtnMediaStop_Click"
                             Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
@@ -424,15 +430,15 @@
                     <Button x:Name="BtnPlayMode" Content="🔀" Width="40" Height="40"
                             ToolTip="播放模式：随机" Click="BtnPlayMode_Click"
                             Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
-                    
+
                     <TextBlock Text="🔊" FontSize="16" VerticalAlignment="Center" 
                                Foreground="White" Margin="15,0,5,0"/>
-                    
+
                     <Slider x:Name="VolumeSlider" Width="100" VerticalAlignment="Center"
                             Minimum="0" Maximum="100" Value="50"
                             ValueChanged="VolumeSlider_ValueChanged"/>
                 </StackPanel>
             </Grid>
-            </Border>
+        </Border>
     </Grid>
 </Window>
