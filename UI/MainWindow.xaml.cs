@@ -51,6 +51,7 @@ namespace ImageColorChanger.UI
         // 变色功能相关
         private bool isColorEffectEnabled = false;
         private Rgba32 currentTargetColor = new Rgba32(174, 159, 112); // 默认颜色
+        private string currentTargetColorName = "淡黄"; // 默认颜色名称
 
         // 项目数据
         private ObservableCollection<ProjectTreeItem> projectTreeItems = new ObservableCollection<ProjectTreeItem>();
@@ -189,7 +190,7 @@ namespace ImageColorChanger.UI
                 
                 // 创建排序和搜索管理器
                 sortManager = new SortManager();
-                searchManager = new SearchManager(dbManager);
+                searchManager = new SearchManager(dbManager, configManager);
                 
             // 创建导入管理器
             importManager = new ImportManager(dbManager, sortManager);
@@ -334,6 +335,15 @@ namespace ImageColorChanger.UI
                 // 加载缩放比例
                 currentZoom = configManager.ZoomRatio;
                 System.Diagnostics.Debug.WriteLine($"✅ 已加载缩放比例: {currentZoom}");
+                
+                // 加载目标颜色
+                currentTargetColor = new Rgba32(
+                    configManager.TargetColorR,
+                    configManager.TargetColorG,
+                    configManager.TargetColorB
+                );
+                currentTargetColorName = configManager.TargetColorName ?? "淡黄";
+                System.Diagnostics.Debug.WriteLine($"✅ 已加载目标颜色: {currentTargetColorName} RGB({currentTargetColor.R}, {currentTargetColor.G}, {currentTargetColor.B})");
             }
             catch (Exception ex)
             {
@@ -354,7 +364,10 @@ namespace ImageColorChanger.UI
                 // 保存缩放比例
                 configManager.ZoomRatio = currentZoom;
                 
-                System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json");
+                // 使用 ConfigManager 的统一方法保存目标颜色
+                configManager.SetCurrentColor(currentTargetColor.R, currentTargetColor.G, currentTargetColor.B, currentTargetColorName);
+                
+                System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {currentTargetColorName})");
             }
             catch (Exception ex)
             {
@@ -1516,7 +1529,7 @@ namespace ImageColorChanger.UI
             if (isColorEffectEnabled)
             {
                 BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 浅绿色
-                ShowStatus("✨ 已启用颜色效果");
+                ShowStatus($"✨ 已启用颜色效果 (当前颜色: {currentTargetColorName})");
             }
             else
             {
@@ -1547,7 +1560,7 @@ namespace ImageColorChanger.UI
                 );
                 
                 DisplayImage(currentImage);
-                ShowStatus($"✨ 已应用颜色效果 (GPU加速)");
+                ShowStatus($"✨ 已应用颜色效果: {currentTargetColorName} (GPU加速)");
             }
             catch (Exception ex)
             {
@@ -1575,6 +1588,10 @@ namespace ImageColorChanger.UI
                     var selectedColor = colorDialog.Color;
                     currentTargetColor = new Rgba32(selectedColor.R, selectedColor.G, selectedColor.B);
                     
+                    // 使用 ConfigManager 查找预设名称
+                    var presetName = configManager.FindPresetName(selectedColor.R, selectedColor.G, selectedColor.B);
+                    currentTargetColorName = presetName ?? "自定义";
+                    
                     // 如果颜色效果已启用，清除缓存并更新显示
                     if (isColorEffectEnabled)
                     {
@@ -1582,8 +1599,129 @@ namespace ImageColorChanger.UI
                         imageProcessor.UpdateImage();
                     }
                     
-                    ShowStatus($"✨ 已设置自定义颜色: RGB({selectedColor.R}, {selectedColor.G}, {selectedColor.B})");
+                    // 保存颜色设置
+                    SaveSettings();
+                    
+                    string colorInfo = presetName != null 
+                        ? $"{presetName}" 
+                        : $"自定义颜色: RGB({selectedColor.R}, {selectedColor.G}, {selectedColor.B})";
+                    ShowStatus($"✨ 已设置{colorInfo}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// 保存当前颜色为预设
+        /// </summary>
+        private void SaveCurrentColorAsPreset()
+        {
+            try
+            {
+                // 创建输入对话框
+                var inputDialog = new Window
+                {
+                    Title = "保存颜色预设",
+                    Width = 380,
+                    Height = 175,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    ResizeMode = ResizeMode.NoResize
+                };
+
+                var stackPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(15) };
+                
+                var label = new System.Windows.Controls.TextBlock 
+                { 
+                    Text = $"请输入预设名称\n当前颜色: RGB({currentTargetColor.R}, {currentTargetColor.G}, {currentTargetColor.B})",
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                
+                var textBox = new System.Windows.Controls.TextBox 
+                { 
+                    Margin = new Thickness(0, 0, 0, 10),
+                    FontSize = 14
+                };
+                
+                var buttonPanel = new System.Windows.Controls.StackPanel 
+                { 
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+                };
+                
+                var okButton = new System.Windows.Controls.Button 
+                { 
+                    Content = "确定",
+                    Width = 70,
+                    Height = 30,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    IsDefault = true
+                };
+                
+                var cancelButton = new System.Windows.Controls.Button 
+                { 
+                    Content = "取消",
+                    Width = 70,
+                    Height = 30,
+                    IsCancel = true
+                };
+
+                bool? dialogResult = null;
+                
+                okButton.Click += (s, e) => 
+                {
+                    dialogResult = true;
+                    inputDialog.Close();
+                };
+                
+                cancelButton.Click += (s, e) => 
+                {
+                    dialogResult = false;
+                    inputDialog.Close();
+                };
+
+                buttonPanel.Children.Add(okButton);
+                buttonPanel.Children.Add(cancelButton);
+                
+                stackPanel.Children.Add(label);
+                stackPanel.Children.Add(textBox);
+                stackPanel.Children.Add(buttonPanel);
+                
+                inputDialog.Content = stackPanel;
+                
+                // 聚焦文本框
+                inputDialog.Loaded += (s, e) => textBox.Focus();
+                
+                inputDialog.ShowDialog();
+
+                if (dialogResult == true && !string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    string presetName = textBox.Text.Trim();
+                    
+                    // 添加到配置管理器
+                    bool success = configManager.AddCustomColorPreset(
+                        presetName,
+                        currentTargetColor.R,
+                        currentTargetColor.G,
+                        currentTargetColor.B
+                    );
+
+                    if (success)
+                    {
+                        currentTargetColorName = presetName;
+                        SaveSettings();
+                        ShowStatus($"✅ 已保存颜色预设: {presetName}");
+                        MessageBox.Show($"颜色预设 '{presetName}' 已保存成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("该颜色预设已存在或颜色已被使用，请使用其他名称。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 保存颜色预设失败: {ex.Message}");
+                MessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1801,8 +1939,11 @@ namespace ImageColorChanger.UI
 
         private void ShowStatus(string message)
         {
-            // TODO: 实现状态栏显示
-            Title = $"Canvas Cast V2.5.5 - {message}";
+            // 保持固定标题，不显示状态信息
+            // Title = $"Canvas Cast V2.5.5 - {message}";
+            
+            // 可以在这里输出到调试控制台（可选）
+            System.Diagnostics.Debug.WriteLine($"状态: {message}");
         }
 
         public Rgba32 GetCurrentTargetColor()
@@ -1834,39 +1975,37 @@ namespace ImageColorChanger.UI
 
             // 变色颜色子菜单
             var colorMenuItem = new MenuItem { Header = "变色颜色" };
-            
-            // 预设颜色选项（与Python版本一致）
-            var presetColors = new[]
-            {
-                new { Name = "淡黄", Color = new Rgba32(174, 159, 112) },
-                new { Name = "纯黄", Color = new Rgba32(255, 255, 0) },
-                new { Name = "秋麒麟", Color = new Rgba32(218, 165, 32) },
-                new { Name = "晒黑", Color = new Rgba32(210, 180, 140) },
-                new { Name = "结实的树", Color = new Rgba32(222, 184, 135) },
-                new { Name = "沙棕色", Color = new Rgba32(244, 164, 96) },
-                new { Name = "纯白", Color = new Rgba32(255, 255, 255) }
-            };
 
-            foreach (var preset in presetColors)
+            // 从 ConfigManager 获取所有颜色预设
+            var allPresets = configManager.GetAllColorPresets();
+            
+            foreach (var preset in allPresets)
             {
                 var menuItem = new MenuItem 
                 { 
                     Header = preset.Name,
                     IsCheckable = true,
-                    IsChecked = currentTargetColor.R == preset.Color.R && 
-                               currentTargetColor.G == preset.Color.G && 
-                               currentTargetColor.B == preset.Color.B
+                    IsChecked = currentTargetColor.R == preset.R && 
+                               currentTargetColor.G == preset.G && 
+                               currentTargetColor.B == preset.B
                 };
+                
+                // 捕获当前预设到局部变量
+                var currentPreset = preset;
+                
                 menuItem.Click += (s, args) =>
                 {
-                    currentTargetColor = preset.Color;
+                    currentTargetColor = currentPreset.ToRgba32();
+                    currentTargetColorName = currentPreset.Name; // 保存颜色名称
                     if (isColorEffectEnabled)
                     {
                         // 如果颜色效果已启用，清除缓存并更新显示
                         imageProcessor.ClearCache();
                         imageProcessor.UpdateImage();
                     }
-                    ShowStatus($"✨ 已切换颜色: {preset.Name}");
+                    // 保存颜色设置
+                    SaveSettings();
+                    ShowStatus($"✨ 已切换颜色: {currentPreset.Name}");
                 };
                 colorMenuItem.Items.Add(menuItem);
             }
@@ -1878,6 +2017,14 @@ namespace ImageColorChanger.UI
             var customColorItem = new MenuItem { Header = "自定义颜色..." };
             customColorItem.Click += (s, args) => OpenColorPicker();
             colorMenuItem.Items.Add(customColorItem);
+            
+            // 保存当前颜色为预设
+            if (currentTargetColorName == "自定义")
+            {
+                var savePresetItem = new MenuItem { Header = "保存当前颜色为预设..." };
+                savePresetItem.Click += (s, args) => SaveCurrentColorAsPreset();
+                colorMenuItem.Items.Add(savePresetItem);
+            }
 
             contextMenu.Items.Add(colorMenuItem);
 
@@ -2098,6 +2245,11 @@ namespace ImageColorChanger.UI
         public string Path { get; set; }
         public FileType FileType { get; set; }
         public ObservableCollection<ProjectTreeItem> Children { get; set; } = new ObservableCollection<ProjectTreeItem>();
+        
+        // 文件夹标签（用于在搜索结果中显示所属文件夹）
+        public string FolderName { get; set; }  // 所属文件夹名称
+        public string FolderColor { get; set; } = "#666666";  // 文件夹标记颜色
+        public bool ShowFolderTag { get; set; } = false;  // 是否显示文件夹标签
 
         private bool _isSelected;
         public bool IsSelected

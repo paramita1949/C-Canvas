@@ -229,7 +229,13 @@
                                                             VerticalAlignment="Center">
                                         <materialDesign:PackIcon.Style>
                                             <Style TargetType="materialDesign:PackIcon">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
                                                 <Style.Triggers>
+                                                    <!-- 只在文件夹节点显示图标 -->
+                                                    <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <!-- 如果没有IconKind也隐藏 -->
                                                     <DataTrigger Binding="{Binding IconKind}" Value="{x:Null}">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                     </DataTrigger>
@@ -240,10 +246,34 @@
                                             </Style>
                                         </materialDesign:PackIcon.Style>
                                     </materialDesign:PackIcon>
+                                    
+                                    <!-- 文件/文件夹名称 -->
                                     <TextBlock Text="{Binding Name}" 
                                                FontSize="13"
                                                VerticalAlignment="Center"/>
-                </StackPanel>
+                                    
+                                    <!-- 文件夹标签（搜索时显示）-->
+                                    <Border Background="{Binding FolderColor}" 
+                                            CornerRadius="3" 
+                                            Padding="6,2" 
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowFolderTag}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding FolderName}" 
+                                                   FontSize="11" 
+                                                   Foreground="White"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>

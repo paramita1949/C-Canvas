@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.UI;
+using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Managers
 {
@@ -14,10 +15,12 @@ namespace ImageColorChanger.Managers
     public class SearchManager
     {
         private readonly DatabaseManager _dbManager;
+        private readonly ConfigManager _configManager;
 
-        public SearchManager(DatabaseManager dbManager)
+        public SearchManager(DatabaseManager dbManager, ConfigManager configManager = null)
         {
             _dbManager = dbManager;
+            _configManager = configManager;
         }
 
         /// <summary>
@@ -58,19 +61,31 @@ namespace ImageColorChanger.Managers
             // 将搜索结果转换为树项
             foreach (var file in files)
             {
-                var folderName = file.Folder?.Name ?? "未分类";
-                var displayName = $"{file.Name} (来自: {folderName})";
+                var folderName = file.Folder?.Name ?? "根目录";
+                var folderId = file.FolderId ?? 0;
+                
+                // 获取文件夹颜色
+                string folderColor = "#666666"; // 默认颜色
+                if (_configManager != null && folderId > 0)
+                {
+                    folderColor = _configManager.GetFolderColor(folderId);
+                }
 
                 results.Add(new ProjectTreeItem
                 {
-                    Name = displayName,
+                    Name = file.Name,  // 只显示文件名，不包含文件夹信息
                     Icon = "", // 搜索结果不显示图标
-                    IconKind = null, // 不设置图标类型
-                    IconColor = null, // 不设置图标颜色
+                    IconKind = "Image", // 设置为图片图标
+                    IconColor = "#95E1D3", // 图片图标颜色
                     Type = TreeItemType.File,
                     Id = file.Id,
                     Path = file.Path,
-                    FileType = file.FileType
+                    FileType = file.FileType,
+                    
+                    // 文件夹标签信息
+                    FolderName = folderName,
+                    FolderColor = folderColor,
+                    ShowFolderTag = true  // 在搜索结果中始终显示文件夹标签
                 });
             }
 
