@@ -97,6 +97,9 @@
                     <Button x:Name="BtnOriginal" Content="原图" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换原图模式" Click="BtnOriginal_Click"/>
                     
+                    <Button x:Name="BtnZoomReset" Content="缩放" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="重置缩放比例" Click="BtnZoomReset_Click"/>
+                    
                     <Button x:Name="BtnColorEffect" Content="变色" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换颜色效果" 
                             Click="BtnColorEffect_Click"/>

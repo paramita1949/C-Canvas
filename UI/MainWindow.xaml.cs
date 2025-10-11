@@ -535,6 +535,12 @@ namespace ImageColorChanger.UI
         {
             ToggleOriginalMode();
         }
+
+        private void BtnZoomReset_Click(object sender, RoutedEventArgs e)
+        {
+            ResetZoom();
+            ShowStatus("已重置缩放比例");
+        }
         
         /// <summary>
         /// 切换原图模式
@@ -572,8 +578,6 @@ namespace ImageColorChanger.UI
             // 更新投影窗口
             UpdateProjection();
         }
-
-        // 缩放重置按钮已移除
 
         private void BtnColorEffect_Click(object sender, RoutedEventArgs e)
         {
@@ -1766,15 +1770,20 @@ namespace ImageColorChanger.UI
             }
         }
 
-        // 缩放按钮已移除，缩放功能通过Ctrl+滚轮和双击实现
-
         private void ResetZoom()
         {
             if (ImageDisplay.Source == null) return;
             
-            // 使用ImageProcessor的ResetZoom方法
+            // 重置UI缩放变换
+            SetZoom(1.0);
+            
+            // 使用ImageProcessor的ResetZoom方法（重置zoomRatio到1.0）
             imageProcessor?.ResetZoom();
             
+            // 触发图片更新（恢复到初始显示状态）
+            imageProcessor?.UpdateImage();
+            
+            // 滚动到顶部
             ImageScrollViewer.ScrollToHorizontalOffset(0);
             ImageScrollViewer.ScrollToVerticalOffset(0);
         }
