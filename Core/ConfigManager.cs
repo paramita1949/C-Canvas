@@ -57,9 +57,20 @@ namespace ImageColorChanger.Core
             "#FF006E"  // 玫红
         };
 
-        public ConfigManager(string configFilePath = "config.json")
+        public ConfigManager(string configFilePath = null)
         {
-            _configFilePath = configFilePath;
+            // 如果没有指定路径，则使用主程序所在目录
+            if (string.IsNullOrEmpty(configFilePath))
+            {
+                string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                _configFilePath = Path.Combine(appDirectory, "config.json");
+            }
+            else
+            {
+                _configFilePath = configFilePath;
+            }
+            
+            Debug.WriteLine($"📁 配置文件路径: {_configFilePath}");
             LoadConfig();
         }
 

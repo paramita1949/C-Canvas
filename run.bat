@@ -1,17 +1,23 @@
 @echo off
 chcp 65001 >nul
-title 图片变色工具 - 启动
+title Canvas Cast - 启动
 
 echo.
 echo ================================
-echo    图片变色工具 - Canvas Cast
+echo        Canvas Cast
+echo    专业的图片浏览与管理工具
 echo ================================
 echo.
 
-if exist "bin\Release\net8.0-windows\ImageColorChanger.exe" (
+if exist "bin\Release\net8.0-windows\Canvas.exe" (
     echo 正在启动程序...
     echo.
-    start "" "bin\Release\net8.0-windows\ImageColorChanger.exe"
+    start "" "bin\Release\net8.0-windows\Canvas.exe"
+    timeout /t 2 >nul
+) else if exist "bin\Debug\net8.0-windows\Canvas.exe" (
+    echo 正在启动程序（Debug版本）...
+    echo.
+    start "" "bin\Debug\net8.0-windows\Canvas.exe"
     timeout /t 2 >nul
 ) else (
     echo [错误] 找不到可执行文件

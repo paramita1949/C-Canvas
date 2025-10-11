@@ -16,8 +16,8 @@ namespace ImageColorChanger.Database
         /// <summary>
         /// 构造函数
         /// </summary>
-        /// <param name="dbPath">数据库文件路径，默认为 pyimages.db</param>
-        public CanvasDbContext(string dbPath = "pyimages.db")
+        /// <param name="dbPath">数据库文件路径（必须提供完整路径）</param>
+        public CanvasDbContext(string dbPath)
         {
             _dbPath = dbPath;
         }

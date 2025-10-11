@@ -20,9 +20,17 @@ namespace ImageColorChanger.Database
         /// <summary>
         /// 构造函数
         /// </summary>
-        /// <param name="dbPath">数据库文件路径，默认为 pyimages.db</param>
-        public DatabaseManager(string dbPath = "pyimages.db")
+        /// <param name="dbPath">数据库文件路径，默认为主程序目录下的 pyimages.db</param>
+        public DatabaseManager(string dbPath = null)
         {
+            // 如果没有指定路径，则使用主程序所在目录
+            if (string.IsNullOrEmpty(dbPath))
+            {
+                string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                dbPath = System.IO.Path.Combine(appDirectory, "pyimages.db");
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"📁 数据库文件路径: {dbPath}");
             _context = new CanvasDbContext(dbPath);
             _context.InitializeDatabase();
         }
@@ -686,6 +694,19 @@ namespace ImageColorChanger.Database
             }
 
             return allFiles.FirstOrDefault();
+        }
+
+        #endregion
+
+        #region 数据库上下文
+
+        /// <summary>
+        /// 获取数据库上下文
+        /// </summary>
+        /// <returns>数据库上下文</returns>
+        public CanvasDbContext GetDbContext()
+        {
+            return _context;
         }
 
         #endregion

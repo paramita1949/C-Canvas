@@ -289,15 +289,39 @@
 
             <!-- 右侧：图片显示区 -->
             <Grid Grid.Column="2" Background="#000000">
-                <!-- 图片显示区域（支持滚动和缩放） -->
-                <ScrollViewer x:Name="ImageScrollViewer"
-                          HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto"
-                          Background="#000000"
-                          BorderThickness="0"
-                          PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
-                          SizeChanged="ImageScrollViewer_SizeChanged"
-                          MouseRightButtonUp="ImageScrollViewer_RightClick">
+           <!-- 图片显示区域（支持滚动和缩放） -->
+           <ScrollViewer x:Name="ImageScrollViewer"
+                     HorizontalScrollBarVisibility="Auto"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="#000000"
+                     BorderThickness="0"
+                     PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
+                     SizeChanged="ImageScrollViewer_SizeChanged"
+                     MouseRightButtonUp="ImageScrollViewer_RightClick">
+               <ScrollViewer.ContextMenu>
+                   <ContextMenu x:Name="CanvasContextMenu">
+                       <MenuItem Header="滚动速度">
+                           <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
+                           <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
+                           <MenuItem Header="1.0秒" Click="SetScrollSpeed_Click" Tag="1.0" IsCheckable="True"/>
+                           <MenuItem Header="8.0秒" Click="SetScrollSpeed_Click" Tag="8.0" IsCheckable="True" IsChecked="True"/>
+                           <MenuItem Header="9.0秒" Click="SetScrollSpeed_Click" Tag="9.0" IsCheckable="True"/>
+                           <MenuItem Header="10.0秒" Click="SetScrollSpeed_Click" Tag="10.0" IsCheckable="True"/>
+                           <MenuItem Header="11.0秒" Click="SetScrollSpeed_Click" Tag="11.0" IsCheckable="True"/>
+                           <MenuItem Header="12.0秒" Click="SetScrollSpeed_Click" Tag="12.0" IsCheckable="True"/>
+                           <MenuItem Header="13.0秒" Click="SetScrollSpeed_Click" Tag="13.0" IsCheckable="True"/>
+                           <MenuItem Header="14.0秒" Click="SetScrollSpeed_Click" Tag="14.0" IsCheckable="True"/>
+                           <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
+                       </MenuItem>
+                       <MenuItem Header="滚动函数">
+                           <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
+                           <MenuItem Header="优化三次" Click="SetScrollEasing_Click" Tag="OptimizedCubic" IsCheckable="True"/>
+                           <MenuItem Header="快速启动" Click="SetScrollEasing_Click" Tag="EaseOutExpo" IsCheckable="True"/>
+                           <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
+                           <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
+                       </MenuItem>
+                   </ContextMenu>
+               </ScrollViewer.ContextMenu>
                     <Grid x:Name="ImageContainer" Background="#000000">
                         <Image x:Name="ImageDisplay" 
                                Stretch="Fill"
@@ -313,8 +337,36 @@
                                 <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1"/>
                             </Image.LayoutTransform>
                         </Image>
+                        
+                        <!-- 关键帧预览线容器 - 直接叠加在图片上 -->
+                        <Canvas x:Name="KeyframePreviewLinesCanvas"
+                                IsHitTestVisible="False"
+                                Background="Transparent"
+                                Panel.ZIndex="10"/>
                     </Grid>
                 </ScrollViewer>
+                
+                <!-- 白色分割线 -->
+                <Border HorizontalAlignment="Right"
+                        VerticalAlignment="Stretch"
+                        Width="1"
+                        Margin="0,0,28,0"
+                        Background="#FFFFFF"
+                        Panel.ZIndex="199"/>
+                
+                <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
+                <Border x:Name="ScrollbarIndicatorsBorder"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Stretch"
+                        Width="10"
+                        Margin="0,0,18,0"
+                        Background="#CC303030"
+                        Panel.ZIndex="200">
+                    <Canvas x:Name="ScrollbarIndicatorsCanvas"
+                            Background="Transparent"
+                            MouseLeftButtonDown="ScrollbarIndicatorsCanvas_Click"
+                            ToolTip="点击跳转到关键帧"/>
+                </Border>
             </Grid>
         </Grid>
 

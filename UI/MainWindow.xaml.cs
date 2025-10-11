@@ -116,6 +116,9 @@ namespace ImageColorChanger.UI
             // 初始化数据库
             InitializeDatabase();
             
+            // 初始化关键帧系统（必须在数据库初始化之后）
+            InitializeKeyframeSystem();
+            
             // 初始化图片处理器
             imageProcessor = new ImageProcessor(this, ImageScrollViewer, ImageDisplay, ImageContainer);
             
@@ -154,17 +157,20 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 滚动事件处理 - 同步投影
+        /// 滚动事件处理 - 同步投影和更新预览线
         /// </summary>
         private void ImageScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             projectionManager?.SyncProjectionScroll();
+            
+            // 更新关键帧预览线和指示块
+            _keyframeManager?.UpdatePreviewLines();
         }
         
         /// <summary>
         /// 更新投影内容
         /// </summary>
-        private void UpdateProjection()
+        public void UpdateProjection()
         {
             if (imageProcessor.CurrentImage != null)
             {
@@ -182,11 +188,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 创建配置管理器
+                // 创建配置管理器（使用默认路径：主程序目录/config.json）
                 configManager = new ConfigManager();
                 
-                // 创建数据库管理器
-                dbManager = new DatabaseManager("pyimages.db");
+                // 创建数据库管理器（使用默认路径：主程序目录/pyimages.db）
+                dbManager = new DatabaseManager();
                 
                 // 创建排序和搜索管理器
                 sortManager = new SortManager();
@@ -587,30 +593,7 @@ namespace ImageColorChanger.UI
         #endregion
 
         #region 关键帧控制栏事件
-
-        private void BtnAddKeyframe_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: 实现添加关键帧
-            MessageBox.Show("添加关键帧功能开发中...", "提示");
-        }
-
-        private void BtnClearKeyframes_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: 实现清除关键帧
-            MessageBox.Show("清除关键帧功能开发中...", "提示");
-        }
-
-        private void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: 实现上一个关键帧
-            MessageBox.Show("上一个关键帧功能开发中...", "提示");
-        }
-
-        private void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: 实现下一个关键帧
-            MessageBox.Show("下一个关键帧功能开发中...", "提示");
-        }
+        // 注意：关键帧相关方法已移至 MainWindow.Keyframe.cs partial class
 
         private void BtnPlayCount_Click(object sender, RoutedEventArgs e)
         {
@@ -633,12 +616,6 @@ namespace ImageColorChanger.UI
         {
             // TODO: 实现自动播放
             MessageBox.Show("自动播放功能开发中...", "提示");
-        }
-
-        private void BtnClearTiming_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: 实现清除时间数据
-            MessageBox.Show("清除时间数据功能开发中...", "提示");
         }
 
         private void BtnScript_Click(object sender, RoutedEventArgs e)
@@ -1350,6 +1327,9 @@ namespace ImageColorChanger.UI
                     // 更新投影
                     UpdateProjection();
                     
+                    // 更新关键帧预览线和指示块
+                    _keyframeManager?.UpdatePreviewLines();
+                    
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
                 else
@@ -1802,6 +1782,9 @@ namespace ImageColorChanger.UI
             {
                 FitImageToView();
             }
+            
+            // 更新关键帧预览线和指示块
+            _keyframeManager?.UpdatePreviewLines();
         }
 
         private void SetZoom(double zoom)
@@ -1946,7 +1929,7 @@ namespace ImageColorChanger.UI
             ShowStatus("✅ 视图已重置");
         }
 
-        private void ShowStatus(string message)
+        public void ShowStatus(string message)
         {
             // 保持固定标题，不显示状态信息
             // Title = $"Canvas Cast V2.5.5 - {message}";
@@ -1978,9 +1961,71 @@ namespace ImageColorChanger.UI
             if (imageProcessor.CurrentImage == null)
                 return;
 
-            // 创建右键菜单
-            var contextMenu = new ContextMenu();
+            // 使用XAML中定义的ContextMenu
+            var contextMenu = ImageScrollViewer.ContextMenu;
+            if (contextMenu == null)
+            {
+                contextMenu = new ContextMenu();
+                ImageScrollViewer.ContextMenu = contextMenu;
+            }
+            
             contextMenu.FontSize = 14;
+            
+            // 清除除了"滚动速度"和"滚动函数"之外的所有菜单项
+            var scrollSpeedMenu = contextMenu.Items.Cast<object>()
+                .FirstOrDefault(item => item is MenuItem mi && mi.Header.ToString() == "滚动速度");
+            var scrollEasingMenu = contextMenu.Items.Cast<object>()
+                .FirstOrDefault(item => item is MenuItem mi && mi.Header.ToString() == "滚动函数");
+            
+            contextMenu.Items.Clear();
+            
+            // 重新添加滚动速度和滚动函数菜单
+            if (scrollSpeedMenu != null)
+            {
+                contextMenu.Items.Add(scrollSpeedMenu);
+                // 更新滚动速度菜单的选中状态
+                if (_keyframeManager != null)
+                {
+                    foreach (var item in ((MenuItem)scrollSpeedMenu).Items)
+                    {
+                        if (item is MenuItem subMenu && subMenu.Tag != null)
+                        {
+                            if (double.TryParse(subMenu.Tag.ToString(), out double speed))
+                            {
+                                subMenu.IsChecked = Math.Abs(speed - _keyframeManager.ScrollDuration) < 0.01;
+                            }
+                        }
+                    }
+                }
+            }
+            if (scrollEasingMenu != null)
+            {
+                contextMenu.Items.Add(scrollEasingMenu);
+                // 更新滚动函数菜单的选中状态
+                if (_keyframeManager != null)
+                {
+                    foreach (var item in ((MenuItem)scrollEasingMenu).Items)
+                    {
+                        if (item is MenuItem subMenu && subMenu.Tag != null)
+                        {
+                            string tag = subMenu.Tag.ToString();
+                            if (tag == "Linear")
+                            {
+                                subMenu.IsChecked = _keyframeManager.IsLinearScrolling;
+                            }
+                            else
+                            {
+                                subMenu.IsChecked = !_keyframeManager.IsLinearScrolling && 
+                                                    tag == _keyframeManager.ScrollEasingType;
+                            }
+                        }
+                    }
+                }
+            }
+            if (scrollSpeedMenu != null || scrollEasingMenu != null)
+            {
+                contextMenu.Items.Add(new Separator());
+            }
 
             // 变色颜色子菜单
             var colorMenuItem = new MenuItem { Header = "变色颜色" };

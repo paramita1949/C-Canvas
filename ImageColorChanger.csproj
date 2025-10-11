@@ -7,10 +7,14 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>ImageColorChanger</AssemblyName>
-    <Product>图片变色工具</Product>
-    <Version>1.0.0</Version>
+    <AssemblyName>Canvas</AssemblyName>
+    <Product>Canvas Cast</Product>
+    <Company>Canvas Cast</Company>
+    <Title>Canvas Cast</Title>
+    <Description>Canvas Cast - 专业的图片浏览与管理工具</Description>
+    <Version>2.0.0</Version>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
+    <Copyright>Copyright © 2025 Canvas Cast</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

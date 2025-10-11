@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
-title 图片变色工具 - 编译脚本
+title Canvas Cast - 编译脚本
 
 echo.
 echo ================================
-echo   图片变色工具 - 编译脚本
-echo   WPF + Material Design
+echo   Canvas Cast - 编译脚本
+echo   专业的图片浏览与管理工具
 echo ================================
 echo.
 
@@ -59,7 +59,7 @@ echo        编译成功！
 echo ================================
 echo.
 echo 可执行文件位置：
-echo bin\Release\net8.0-windows\ImageColorChanger.exe
+echo bin\Release\net8.0-windows\Canvas.exe
 echo.
 echo 提示：可以运行 run.bat 来启动程序
 echo.
