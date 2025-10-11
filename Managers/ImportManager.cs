@@ -233,6 +233,12 @@ namespace ImageColorChanger.Managers
                     _dbManager.DeleteMediaFile(file.Id);
                 }
 
+                // 🔑 关键修复：同步后重新应用排序规则
+                if (newFiles.Count > 0 || deletedFiles.Count > 0)
+                {
+                    ReapplySortRuleForFolder(folderId);
+                }
+
                 System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
@@ -241,6 +247,54 @@ namespace ImageColorChanger.Managers
             {
                 System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
                 return (0, 0, 0);
+            }
+        }
+
+        /// <summary>
+        /// 为指定文件夹重新应用排序规则
+        /// </summary>
+        private void ReapplySortRuleForFolder(int folderId)
+        {
+            try
+            {
+                // 🔑 关键：检查文件夹是否为手动排序，如果是则跳过自动排序
+                if (_dbManager.IsManualSortFolder(folderId))
+                {
+                    System.Diagnostics.Debug.WriteLine($"⏭️ 跳过手动排序文件夹 {folderId} 的自动排序");
+                    return;
+                }
+
+                // 获取文件夹中的所有文件
+                var files = _dbManager.GetMediaFilesByFolder(folderId);
+                if (files.Count == 0) return;
+
+                // 使用SortManager的排序键对文件进行排序
+                var sortedFiles = files
+                    .Select(f => new
+                    {
+                        File = f,
+                        SortKey = _sortManager.GetSortKey(f.Name + Path.GetExtension(f.Path))
+                    })
+                    .OrderBy(x => x.SortKey.prefixNumber)
+                    .ThenBy(x => x.SortKey.pinyinPart)
+                    .ThenBy(x => x.SortKey.suffixNumber)
+                    .Select(x => x.File)
+                    .ToList();
+
+                // 更新OrderIndex
+                for (int i = 0; i < sortedFiles.Count; i++)
+                {
+                    sortedFiles[i].OrderIndex = i + 1;
+                }
+
+                // 使用DatabaseManager的UpdateMediaFilesOrder方法保存更改
+                _dbManager.UpdateMediaFilesOrder(sortedFiles);
+
+                System.Diagnostics.Debug.WriteLine($"✅ 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
             }
         }
 

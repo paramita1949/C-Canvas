@@ -230,6 +230,26 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
+        /// 批量更新媒体文件的排序顺序
+        /// </summary>
+        public void UpdateMediaFilesOrder(List<MediaFile> mediaFiles)
+        {
+            if (mediaFiles == null || mediaFiles.Count == 0)
+                return;
+
+            try
+            {
+                // EF Core会自动跟踪这些对象的变化
+                _context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新媒体文件排序失败: {ex}");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 根据文件扩展名判断文件类型
         /// </summary>
         private FileType GetFileType(string extension)
@@ -694,6 +714,74 @@ namespace ImageColorChanger.Database
             }
 
             return allFiles.FirstOrDefault();
+        }
+
+        #endregion
+
+        #region 手动排序管理
+
+        /// <summary>
+        /// 检查文件夹是否为手动排序
+        /// </summary>
+        public bool IsManualSortFolder(int folderId)
+        {
+            var manualSort = _context.ManualSortFolders
+                .FirstOrDefault(m => m.FolderId == folderId);
+            
+            return manualSort != null && manualSort.IsManualSort;
+        }
+
+        /// <summary>
+        /// 标记文件夹为手动排序
+        /// </summary>
+        public void MarkFolderAsManualSort(int folderId)
+        {
+            var manualSort = _context.ManualSortFolders
+                .FirstOrDefault(m => m.FolderId == folderId);
+
+            if (manualSort == null)
+            {
+                manualSort = new ManualSortFolder
+                {
+                    FolderId = folderId,
+                    IsManualSort = true,
+                    LastManualSortTime = DateTime.Now
+                };
+                _context.ManualSortFolders.Add(manualSort);
+            }
+            else
+            {
+                manualSort.IsManualSort = true;
+                manualSort.LastManualSortTime = DateTime.Now;
+            }
+
+            _context.SaveChanges();
+        }
+
+        /// <summary>
+        /// 取消文件夹的手动排序标记
+        /// </summary>
+        public void UnmarkFolderAsManualSort(int folderId)
+        {
+            var manualSort = _context.ManualSortFolders
+                .FirstOrDefault(m => m.FolderId == folderId);
+
+            if (manualSort != null)
+            {
+                _context.ManualSortFolders.Remove(manualSort);
+                _context.SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 获取所有手动排序的文件夹ID
+        /// </summary>
+        public List<int> GetManualSortFolderIds()
+        {
+            return _context.ManualSortFolders
+                .Where(m => m.IsManualSort)
+                .Select(m => m.FolderId)
+                .ToList();
         }
 
         #endregion

@@ -1,39 +1,31 @@
 using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ImageColorChanger.Database.Models
 {
     /// <summary>
-    /// 手动排序文件夹实体
+    /// 手动排序文件夹模型
+    /// 用于标记哪些文件夹使用手动排序（拖拽排序），这些文件夹在同步时不会被自动排序
     /// </summary>
-    [Table("manual_sort_folders")]
     public class ManualSortFolder
     {
         /// <summary>
-        /// 文件夹ID（主键）
+        /// 文件夹ID（主键，外键关联到Folders表）
         /// </summary>
-        [Key]
-        [Column("folder_id")]
         public int FolderId { get; set; }
 
         /// <summary>
-        /// 是否手动排序
+        /// 是否为手动排序
         /// </summary>
-        [Column("is_manual_sort")]
-        public bool IsManualSort { get; set; } = false;
+        public bool IsManualSort { get; set; }
 
         /// <summary>
-        /// 最后手动排序时间
+        /// 最后一次手动排序的时间
         /// </summary>
-        [Column("last_manual_sort_time")]
-        public DateTime LastManualSortTime { get; set; } = DateTime.Now;
+        public DateTime LastManualSortTime { get; set; }
 
         /// <summary>
-        /// 导航属性：所属文件夹
+        /// 关联的文件夹
         /// </summary>
-        [ForeignKey("FolderId")]
-        public virtual Folder Folder { get; set; }
+        public Folder Folder { get; set; }
     }
 }
-

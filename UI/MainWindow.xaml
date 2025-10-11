@@ -422,15 +422,15 @@
 
                     <!-- 项目树 -->
                     <TreeView Grid.Row="1" x:Name="ProjectTree" 
-                              Style="{StaticResource ProjectTreeStyle}"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling"
-                              PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
-                              PreviewMouseRightButtonDown="ProjectTree_RightClick">
+                                  Style="{StaticResource ProjectTreeStyle}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
+                                  PreviewMouseRightButtonDown="ProjectTree_RightClick">
                         <TreeView.ItemContainerStyle>
                             <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=OneWay}"/>
                             </Style>
                         </TreeView.ItemContainerStyle>
                         <TreeView.ItemTemplate>
@@ -492,6 +492,22 @@
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
+                    
+                    <!-- 拖拽插入位置指示器 -->
+                    <Canvas Grid.Row="1" 
+                            x:Name="DragIndicatorCanvas" 
+                            IsHitTestVisible="False"
+                            Background="Transparent">
+                        <Line x:Name="DragIndicatorLine"
+                              Stroke="#2196F3"
+                              StrokeThickness="2"
+                              X1="20" Y1="0" X2="200" Y2="0"
+                              Visibility="Collapsed">
+                            <Line.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.5" Color="#2196F3"/>
+                            </Line.Effect>
+                        </Line>
+                    </Canvas>
                 </Grid>
             </Border>
 

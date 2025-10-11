@@ -58,14 +58,14 @@ namespace ImageColorChanger.Database
         public DbSet<OriginalMark> OriginalMarks { get; set; }
 
         /// <summary>
-        /// 原图模式时间记录表
-        /// </summary>
-        public DbSet<OriginalModeTiming> OriginalModeTimings { get; set; }
-
-        /// <summary>
         /// 手动排序文件夹表
         /// </summary>
         public DbSet<ManualSortFolder> ManualSortFolders { get; set; }
+
+        /// <summary>
+        /// 原图模式时间记录表
+        /// </summary>
+        public DbSet<OriginalModeTiming> OriginalModeTimings { get; set; }
 
         /// <summary>
         /// 图片显示位置表
@@ -185,6 +185,9 @@ namespace ImageColorChanger.Database
             // ========== 手动排序文件夹表配置 ==========
             modelBuilder.Entity<ManualSortFolder>(entity =>
             {
+                // 主键：FolderId
+                entity.HasKey(e => e.FolderId);
+                
                 // 文件夹ID索引
                 entity.HasIndex(e => e.FolderId).HasDatabaseName("idx_manual_sort");
 
@@ -193,6 +196,13 @@ namespace ImageColorChanger.Database
                     .WithOne(f => f.ManualSortFolder)
                     .HasForeignKey<ManualSortFolder>(m => m.FolderId)
                     .OnDelete(DeleteBehavior.Cascade);
+                    
+                // 默认值
+                entity.Property(e => e.IsManualSort)
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.LastManualSortTime)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
             // ========== 图片显示位置表配置 ==========

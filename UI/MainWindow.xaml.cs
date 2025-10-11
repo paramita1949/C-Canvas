@@ -61,6 +61,11 @@ namespace ImageColorChanger.UI
         private bool originalMode = false;
         private OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch;
 
+        // TreeView拖拽相关
+        private ProjectTreeItem draggedItem = null;
+        private ProjectTreeItem dragOverItem = null;
+        private bool isDragInProgress = false;
+
         // 数据库和管理器
         private DatabaseManager dbManager;
         private ConfigManager configManager;
@@ -145,6 +150,14 @@ namespace ImageColorChanger.UI
             
             // 初始化项目树
             ProjectTree.ItemsSource = projectTreeItems;
+            
+            // 添加拖拽事件处理
+            ProjectTree.PreviewMouseLeftButtonDown += ProjectTree_PreviewMouseLeftButtonDown;
+            ProjectTree.PreviewMouseMove += ProjectTree_PreviewMouseMove;
+            ProjectTree.Drop += ProjectTree_Drop;
+            ProjectTree.DragOver += ProjectTree_DragOver;
+            ProjectTree.DragLeave += ProjectTree_DragLeave;
+            ProjectTree.AllowDrop = true;
             
             // 初始化屏幕选择器
             InitializeScreenSelector();
@@ -234,16 +247,22 @@ namespace ImageColorChanger.UI
                 // 获取根目录的文件
                 var rootFiles = dbManager.GetRootMediaFiles();
 
+                // 获取所有手动排序的文件夹ID
+                var manualSortFolderIds = dbManager.GetManualSortFolderIds();
+
                 // 添加文件夹到项目树
                 foreach (var folder in folders)
                 {
-                    // 获取文件夹 Material Design 图标
-                    var (iconKind, iconColor) = originalManager.GetFolderIconKind(folder.Id, false);
+                    // 检查是否为手动排序文件夹
+                    bool isManualSort = manualSortFolderIds.Contains(folder.Id);
+                    
+                    // 获取文件夹 Material Design 图标（传入手动排序状态）
+                    var (iconKind, iconColor) = originalManager.GetFolderIconKind(folder.Id, isManualSort);
                     
                     var folderItem = new ProjectTreeItem
                     {
                         Id = folder.Id,
-                        Name = folder.Name,
+                        Name = folder.Name,  // 不再在名称前添加emoji，改用图标样式
                         Icon = iconKind,  // 保留用于后备
                         IconKind = iconKind,
                         IconColor = iconColor,
@@ -480,14 +499,14 @@ namespace ImageColorChanger.UI
             {
                 if (isActive)
                 {
-                    BtnProjection.Content = "结束";
+                    BtnProjection.Content = "🖥 结束";
                     BtnProjection.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 淡绿色
                     ShowStatus("✅ 投影已开启");
                 }
                 else
                 {
-                    BtnProjection.Content = "投影";
-                    BtnProjection.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 灰白色
+                    BtnProjection.Content = "🖥 投影";
+                    BtnProjection.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                     ShowStatus("🔴 投影已关闭");
                 }
             });
@@ -510,7 +529,7 @@ namespace ImageColorChanger.UI
             try
             {
                 BtnSync.IsEnabled = false;
-                BtnSync.Content = "同步中...";
+                BtnSync.Content = "🔄 同步中...";
                 BtnSync.Background = new SolidColorBrush(Colors.LightGreen);
 
                 var (added, removed, updated) = importManager.SyncAllFolders();
@@ -527,8 +546,8 @@ namespace ImageColorChanger.UI
             finally
             {
                 BtnSync.IsEnabled = true;
-                BtnSync.Content = "同步";
-                BtnSync.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
+                BtnSync.Content = "🔄 同步";
+                BtnSync.Background = Brushes.Transparent; // 使用透明背景，让样式生效
             }
         }
 
@@ -574,7 +593,7 @@ namespace ImageColorChanger.UI
             }
             else
             {
-                BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 默认灰色
+                BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                 ShowStatus("✅ 已关闭原图模式");
             }
             
@@ -823,7 +842,7 @@ namespace ImageColorChanger.UI
                             System.Diagnostics.Debug.WriteLine($"🎯 文件夹无原图标记,自动关闭原图模式: {selectedItem.Name}");
                             originalMode = false;
                             imageProcessor.OriginalMode = false;
-                            BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 灰色
+                            BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                             
                             // 🔑 关键修复: 检查当前显示的图片是否属于其他文件夹,如果是则清空显示
                             if (currentImageId > 0 && !string.IsNullOrEmpty(imagePath))
@@ -875,7 +894,7 @@ namespace ImageColorChanger.UI
                                 System.Diagnostics.Debug.WriteLine($"🎯 文件所在文件夹无原图标记,自动关闭原图模式");
                                 originalMode = false;
                                 imageProcessor.OriginalMode = false;
-                                BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 灰色
+                                BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                             }
                         }
                         
@@ -951,6 +970,16 @@ namespace ImageColorChanger.UI
                         }
                         
                         contextMenu.Items.Add(new Separator());
+                        
+                        // 检查是否为手动排序文件夹
+                        bool isManualSort = dbManager.IsManualSortFolder(item.Id);
+                        if (isManualSort)
+                        {
+                            var resetSortItem = new MenuItem { Header = "🔄 重置排序" };
+                            resetSortItem.Click += (s, args) => ResetFolderSort(item);
+                            contextMenu.Items.Add(resetSortItem);
+                            contextMenu.Items.Add(new Separator());
+                        }
                         
                         var deleteItem = new MenuItem { Header = "删除文件夹" };
                         deleteItem.Click += (s, args) => DeleteFolder(item);
@@ -1036,6 +1065,62 @@ namespace ImageColorChanger.UI
             var (added, removed, updated) = importManager.SyncFolder(item.Id);
             LoadProjects();
             ShowStatus($"🔄 同步完成: {item.Name} (新增 {added}, 删除 {removed})");
+        }
+
+        /// <summary>
+        /// 重置文件夹排序（取消手动排序，恢复自动排序）
+        /// </summary>
+        private void ResetFolderSort(ProjectTreeItem item)
+        {
+            var result = MessageBox.Show(
+                $"确定要重置文件夹 '{item.Name}' 的排序吗？\n将按照文件名自动排序。",
+                "确认重置",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question
+            );
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // 取消手动排序标记
+                    dbManager.UnmarkFolderAsManualSort(item.Id);
+                    
+                    // 重新应用自动排序规则
+                    var files = dbManager.GetMediaFilesByFolder(item.Id);
+                    if (files.Count > 0)
+                    {
+                        // 使用SortManager的排序键对文件进行排序
+                        var sortedFiles = files
+                            .Select(f => new
+                            {
+                                File = f,
+                                SortKey = sortManager.GetSortKey(f.Name + System.IO.Path.GetExtension(f.Path))
+                            })
+                            .OrderBy(x => x.SortKey.prefixNumber)
+                            .ThenBy(x => x.SortKey.pinyinPart)
+                            .ThenBy(x => x.SortKey.suffixNumber)
+                            .Select(x => x.File)
+                            .ToList();
+
+                        // 更新OrderIndex
+                        for (int i = 0; i < sortedFiles.Count; i++)
+                        {
+                            sortedFiles[i].OrderIndex = i + 1;
+                        }
+
+                        // 保存更改
+                        dbManager.UpdateMediaFilesOrder(sortedFiles);
+                    }
+                    
+                    LoadProjects();
+                    ShowStatus($"✅ 已重置文件夹排序: {item.Name}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"重置排序失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         /// <summary>
@@ -1144,7 +1229,7 @@ namespace ImageColorChanger.UI
                     imageProcessor.OriginalMode = false;
                     
                     // 更新按钮样式
-                    BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 灰色
+                    BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                     
                     // 重新显示图片
                     imageProcessor.UpdateImage();
@@ -1517,7 +1602,7 @@ namespace ImageColorChanger.UI
             }
             else
             {
-                BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)); // 默认灰色
+                BtnColorEffect.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                 ShowStatus("✅ 已关闭颜色效果");
             }
             
@@ -2284,6 +2369,432 @@ namespace ImageColorChanger.UI
         }
 
         #endregion
+
+        #region 拖拽事件处理
+
+        /// <summary>
+        /// 鼠标按下事件 - 记录拖拽起始点
+        /// </summary>
+        private void ProjectTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            dragStartPoint = e.GetPosition(null);
+            
+            // 获取点击的TreeViewItem
+            var treeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+            if (treeViewItem != null)
+            {
+                draggedItem = treeViewItem.DataContext as ProjectTreeItem;
+            }
+        }
+
+        /// <summary>
+        /// 鼠标移动事件 - 开始拖拽
+        /// </summary>
+        private void ProjectTree_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && draggedItem != null)
+            {
+                System.Windows.Point currentPosition = e.GetPosition(null);
+                System.Windows.Vector diff = dragStartPoint - currentPosition;
+
+                // 检查是否移动了足够的距离
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    // 只允许拖拽文件，不允许拖拽文件夹
+                    if (draggedItem.Type == TreeItemType.File)
+                    {
+                        System.Windows.DragDrop.DoDragDrop(ProjectTree, draggedItem, System.Windows.DragDropEffects.Move);
+                    }
+                    
+                    draggedItem = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 拖拽悬停事件 - 显示拖拽效果
+        /// </summary>
+        private void ProjectTree_DragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(ProjectTreeItem)))
+            {
+                // 获取当前悬停的TreeViewItem
+                var targetTreeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+                if (targetTreeViewItem != null)
+                {
+                    var targetItem = targetTreeViewItem.DataContext as ProjectTreeItem;
+                    
+                    dragOverItem = targetItem;
+                    
+                    // 检查是否是有效的拖放目标
+                    if (targetItem != null && targetItem.Type == TreeItemType.File)
+                    {
+                        e.Effects = System.Windows.DragDropEffects.Move;
+                        
+                        // 显示拖拽插入位置指示器（蓝色横线）
+                        ShowDragIndicator(targetTreeViewItem);
+                    }
+                    else
+                    {
+                        e.Effects = System.Windows.DragDropEffects.None;
+                        HideDragIndicator();
+                    }
+                }
+                else
+                {
+                    e.Effects = System.Windows.DragDropEffects.None;
+                    HideDragIndicator();
+                }
+            }
+            else
+            {
+                e.Effects = System.Windows.DragDropEffects.None;
+                HideDragIndicator();
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 拖拽离开事件 - 清除高亮
+        /// </summary>
+        private void ProjectTree_DragLeave(object sender, System.Windows.DragEventArgs e)
+        {
+            ClearDragHighlight();
+        }
+
+        /// <summary>
+        /// 放置事件 - 执行拖拽排序
+        /// </summary>
+        private void ProjectTree_Drop(object sender, System.Windows.DragEventArgs e)
+        {
+            // 清除拖拽高亮
+            ClearDragHighlight();
+            
+            if (e.Data.GetDataPresent(typeof(ProjectTreeItem)))
+            {
+                var sourceItem = e.Data.GetData(typeof(ProjectTreeItem)) as ProjectTreeItem;
+                
+                // 获取目标TreeViewItem
+                var targetTreeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+                if (targetTreeViewItem != null)
+                {
+                    var targetItem = targetTreeViewItem.DataContext as ProjectTreeItem;
+                    
+                    if (sourceItem != null && targetItem != null && sourceItem != targetItem)
+                    {
+                        // 只允许在同一文件夹内拖拽排序
+                        if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
+                        {
+                            ReorderFiles(sourceItem, targetItem);
+                        }
+                    }
+                }
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 显示拖拽插入位置指示器
+        /// </summary>
+        private void ShowDragIndicator(TreeViewItem targetItem)
+        {
+            try
+            {
+                if (DragIndicatorLine == null || targetItem == null) return;
+
+                // 获取TreeViewItem相对于ProjectTree的位置
+                var position = targetItem.TranslatePoint(new System.Windows.Point(0, 0), ProjectTree);
+                
+                // 获取目标项的数据
+                var targetData = targetItem.DataContext as ProjectTreeItem;
+                if (targetData == null) return;
+                
+                // 精确计算文件名的起始位置
+                // TreeView缩进 + 图标宽度 + 图标右边距 = 文件名起始位置
+                double treeViewIndent = targetData.Type == TreeItemType.File ? 19 : 0; // 文件的TreeView缩进
+                double iconWidth = 18; // PackIcon宽度
+                double iconMargin = 8; // PackIcon右边距
+                double textStartPosition = treeViewIndent + iconWidth + iconMargin; // 文件名实际开始位置
+                
+                // 根据文件名长度智能调整横线长度
+                double lineLength;
+                if (!string.IsNullOrEmpty(targetData.Name))
+                {
+                    // 基于文件名长度估算宽度（每个字符约7px，中文字符约12px）
+                    double estimatedWidth = 0;
+                    foreach (char c in targetData.Name)
+                    {
+                        estimatedWidth += (c > 127) ? 12 : 7; // 中文字符宽度更大
+                    }
+                    lineLength = Math.Min(estimatedWidth + 10, 160); // 最大160px，加10px缓冲
+                    lineLength = Math.Max(lineLength, 60); // 最小60px
+                }
+                else
+                {
+                    lineLength = 80; // 默认长度
+                }
+                
+                // 设置指示线的位置和长度
+                Canvas.SetTop(DragIndicatorLine, position.Y);
+                DragIndicatorLine.X1 = textStartPosition;
+                DragIndicatorLine.X2 = textStartPosition + lineLength;
+                DragIndicatorLine.Y1 = 0;
+                DragIndicatorLine.Y2 = 0;
+                
+                // 显示指示线
+                DragIndicatorLine.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"显示拖拽指示器失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 隐藏拖拽插入位置指示器
+        /// </summary>
+        private void HideDragIndicator()
+        {
+            try
+            {
+                if (DragIndicatorLine != null)
+                {
+                    DragIndicatorLine.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"隐藏拖拽指示器失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 清除拖拽高亮效果
+        /// </summary>
+        private void ClearDragHighlight()
+        {
+            dragOverItem = null;
+            HideDragIndicator();
+        }
+
+        /// <summary>
+        /// 递归清除TreeView中所有项的边框
+        /// </summary>
+        private void ClearTreeViewItemBorders(ItemsControl itemsControl)
+        {
+            if (itemsControl == null) return;
+
+            for (int i = 0; i < itemsControl.Items.Count; i++)
+            {
+                var item = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as TreeViewItem;
+                if (item != null)
+                {
+                    item.BorderThickness = new Thickness(0);
+                    item.BorderBrush = null;
+                    
+                    // 递归处理子项
+                    if (item.HasItems)
+                    {
+                        ClearTreeViewItemBorders(item);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 查找指定类型的父元素
+        /// </summary>
+        private T FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            do
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            while (current != null);
+            return null;
+        }
+
+        /// <summary>
+        /// 重新排序文件
+        /// </summary>
+        private void ReorderFiles(ProjectTreeItem sourceItem, ProjectTreeItem targetItem)
+        {
+            // 防止重复执行
+            if (isDragInProgress) return;
+            isDragInProgress = true;
+            
+            try
+            {
+                // 获取源文件和目标文件所属的文件夹
+                int? sourceFolderId = GetFileFolderId(sourceItem);
+                int? targetFolderId = GetFileFolderId(targetItem);
+
+                // 只允许在同一文件夹内排序
+                if (sourceFolderId != targetFolderId)
+                {
+                    ShowStatus("❌ 只能在同一文件夹内拖拽排序");
+                    return;
+                }
+
+                // 如果有文件夹ID，标记为手动排序
+                if (sourceFolderId.HasValue)
+                {
+                    dbManager.MarkFolderAsManualSort(sourceFolderId.Value);
+                }
+
+                // 获取文件夹中的所有文件
+                var files = sourceFolderId.HasValue 
+                    ? dbManager.GetMediaFilesByFolder(sourceFolderId.Value)
+                    : dbManager.GetRootMediaFiles();
+
+                // 找到源文件和目标文件的索引
+                int sourceIndex = files.FindIndex(f => f.Id == sourceItem.Id);
+                int targetIndex = files.FindIndex(f => f.Id == targetItem.Id);
+
+                if (sourceIndex == -1 || targetIndex == -1)
+                {
+                    ShowStatus("❌ 无法找到文件");
+                    return;
+                }
+
+                // 移除源文件
+                var sourceFile = files[sourceIndex];
+                files.RemoveAt(sourceIndex);
+
+                // 插入到目标位置
+                if (sourceIndex < targetIndex)
+                {
+                    files.Insert(targetIndex, sourceFile);
+                }
+                else
+                {
+                    files.Insert(targetIndex, sourceFile);
+                }
+
+                // 更新所有文件的OrderIndex
+                for (int i = 0; i < files.Count; i++)
+                {
+                    files[i].OrderIndex = i + 1;
+                }
+
+                // 保存更改
+                dbManager.UpdateMediaFilesOrder(files);
+
+                // 🔑 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
+                UpdateTreeItemOrder(sourceFolderId, files);
+                
+                ShowStatus($"✅ 已重新排序: {sourceItem.Name}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"重新排序失败: {ex}");
+                ShowStatus($"❌ 排序失败: {ex.Message}");
+            }
+            finally
+            {
+                // 确保标志被重置
+                isDragInProgress = false;
+            }
+        }
+
+        /// <summary>
+        /// 轻量级更新TreeView中的文件顺序（避免重新加载整个TreeView）
+        /// </summary>
+        private void UpdateTreeItemOrder(int? folderId, List<MediaFile> sortedFiles)
+        {
+            try
+            {
+                if (folderId.HasValue)
+                {
+                    // 更新文件夹内的文件顺序
+                    var folderItem = projectTreeItems.FirstOrDefault(f => f.Type == TreeItemType.Folder && f.Id == folderId.Value);
+                    if (folderItem?.Children != null)
+                    {
+                        // 保存当前展开状态
+                        bool wasExpanded = folderItem.IsExpanded;
+                        
+                        // 清空并重新添加文件（保持正确顺序）
+                        folderItem.Children.Clear();
+                        
+                        foreach (var file in sortedFiles)
+                        {
+                            // 获取图标
+                            string fileIconKind = "File";
+                            string fileIconColor = "#95E1D3";
+                            if (file.FileType == FileType.Image)
+                            {
+                                (fileIconKind, fileIconColor) = originalManager.GetImageIconKind(file.Id);
+                            }
+                            
+                            folderItem.Children.Add(new ProjectTreeItem
+                            {
+                                Id = file.Id,
+                                Name = file.Name,
+                                Icon = fileIconKind,
+                                IconKind = fileIconKind,
+                                IconColor = fileIconColor,
+                                Type = TreeItemType.File,
+                                Path = file.Path,
+                                FileType = file.FileType
+                            });
+                        }
+                        
+                        // 恢复展开状态（延迟执行避免绑定冲突）
+                        if (wasExpanded)
+                        {
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                folderItem.IsExpanded = true;
+                            }), System.Windows.Threading.DispatcherPriority.Background);
+                        }
+                        
+                        // 更新文件夹图标（现在是手动排序了）
+                        var (iconKind, iconColor) = originalManager.GetFolderIconKind(folderId.Value, true);
+                        folderItem.IconKind = iconKind;
+                        folderItem.IconColor = iconColor;
+                    }
+                }
+                else
+                {
+                    // 更新根目录文件顺序 - 这种情况比较复杂，暂时还是用LoadProjects
+                    LoadProjects();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
+                // 如果轻量级更新失败，回退到完整刷新
+                LoadProjects();
+            }
+        }
+
+        /// <summary>
+        /// 获取文件所属的文件夹ID
+        /// </summary>
+        private int? GetFileFolderId(ProjectTreeItem fileItem)
+        {
+            // 在projectTreeItems中查找该文件所属的文件夹
+            foreach (var item in projectTreeItems)
+            {
+                if (item.Type == TreeItemType.Folder && item.Children != null)
+                {
+                    if (item.Children.Any(c => c.Id == fileItem.Id))
+                    {
+                        return item.Id;
+                    }
+                }
+            }
+            
+            // 如果没找到，说明是根目录文件
+            return null;
+        }
+
+        #endregion
     }
 
     #region 数据模型
@@ -2293,8 +2804,33 @@ namespace ImageColorChanger.UI
         public int Id { get; set; }
         public string Name { get; set; }
         public string Icon { get; set; }
-        public string IconKind { get; set; }  // Material Design 图标类型
-        public string IconColor { get; set; } = "#666666";  // 图标颜色
+        private string _iconKind;
+        public string IconKind 
+        { 
+            get => _iconKind; 
+            set 
+            { 
+                if (_iconKind != value) 
+                { 
+                    _iconKind = value; 
+                    OnPropertyChanged(nameof(IconKind)); 
+                } 
+            } 
+        }
+
+        private string _iconColor = "#666666";
+        public string IconColor 
+        { 
+            get => _iconColor; 
+            set 
+            { 
+                if (_iconColor != value) 
+                { 
+                    _iconColor = value; 
+                    OnPropertyChanged(nameof(IconColor)); 
+                } 
+            } 
+        }
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }
