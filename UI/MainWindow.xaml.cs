@@ -811,11 +811,22 @@ namespace ImageColorChanger.UI
                     BtnProjection.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                     ShowStatus("🔴 投影已关闭");
                     
-                    // 如果当前正在播放视频，停止播放
+                    // 如果当前正在播放视频，停止播放并重置VideoView绑定
                     if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
                     {
                         System.Diagnostics.Debug.WriteLine("📹 关闭投影，停止视频播放");
+                        
+                        // 先停止播放
                         videoPlayerManager.Stop();
+                        
+                        // 重置VideoView绑定状态，确保下次播放时不会出错
+                        // 将VideoView切换回主窗口（但不播放）
+                        System.Diagnostics.Debug.WriteLine("🔧 重置VideoView绑定到主窗口");
+                        var mainVideoView = this.FindName("MainVideoView") as LibVLCSharp.WPF.VideoView;
+                        if (mainVideoView != null)
+                        {
+                            videoPlayerManager.SetMainVideoView(mainVideoView);
+                        }
                         
                         // 隐藏媒体控制栏
                         MediaPlayerPanel.Visibility = Visibility.Collapsed;
@@ -828,6 +839,9 @@ namespace ImageColorChanger.UI
                         
                         ShowStatus("⏹ 视频播放已停止");
                     }
+                    
+                    // 重置投影模式标志
+                    videoPlayerManager?.ResetProjectionMode();
                 }
             });
         }
@@ -2380,7 +2394,7 @@ namespace ImageColorChanger.UI
                     // 确保父节点展开
                     ExpandParentNodes(item);
                     
-                    System.Diagnostics.Debug.WriteLine($"✅ 已选中项目树节点: {item.Name}");
+                    // System.Diagnostics.Debug.WriteLine($"✅ 已选中项目树节点: {item.Name}");
                     return true;
                 }
                 
@@ -3333,11 +3347,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool SwitchSimilarImage(bool isNext)
         {
-            System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 被调用: isNext={isNext}, currentImageId={currentImageId}");
+            // System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 被调用: isNext={isNext}, currentImageId={currentImageId}");
             
             var result = originalManager.SwitchSimilarImage(isNext, currentImageId);
             
-            System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 结果: success={result.success}, newImageId={result.newImageId}, isLoopCompleted={result.isLoopCompleted}");
+            // System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 结果: success={result.success}, newImageId={result.newImageId}, isLoopCompleted={result.isLoopCompleted}");
             
             if (result.success && result.newImageId.HasValue)
             {
@@ -3871,7 +3885,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnVideoMediaChanged(object sender, string mediaPath)
         {
-            System.Diagnostics.Debug.WriteLine($"📹 媒体已改变: {System.IO.Path.GetFileName(mediaPath)}");
+            // System.Diagnostics.Debug.WriteLine($"📹 媒体已改变: {System.IO.Path.GetFileName(mediaPath)}");
             
             // 自动选中正在播放的文件
             SelectMediaFileByPath(mediaPath);
@@ -4120,6 +4134,9 @@ namespace ImageColorChanger.UI
                 
                 // 隐藏媒体控制栏（改用快捷键控制）
                 // MediaPlayerPanel.Visibility = Visibility.Visible;
+                
+                // 强制刷新布局，确保VideoView就绪
+                VideoContainer.UpdateLayout();
                 
                 // 构建播放列表（获取当前文件所在文件夹的所有视频文件）
                 BuildVideoPlaylist(videoPath);

@@ -641,15 +641,15 @@ namespace ImageColorChanger.ViewModels
                     if (baseImageId.HasValue)
                     {
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(baseImageId.Value);
-                        Utils.Logger.Debug("原图模式SetCurrentImage: ImageId={ImageId}, BaseImageId={BaseId}, HasData={HasData}",
-                            imageId, baseImageId.Value, HasTimingData);
+                        // Utils.Logger.Debug("原图模式SetCurrentImage: ImageId={ImageId}, BaseImageId={BaseId}, HasData={HasData}",
+                        //     imageId, baseImageId.Value, HasTimingData);
                     }
                     else
                     {
                         // 如果找不到BaseImageId，尝试直接用imageId查询
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(imageId);
-                        Utils.Logger.Debug("原图模式SetCurrentImage(直接): ImageId={ImageId}, HasData={HasData}",
-                            imageId, HasTimingData);
+                        // Utils.Logger.Debug("原图模式SetCurrentImage(直接): ImageId={ImageId}, HasData={HasData}",
+                        //     imageId, HasTimingData);
                     }
                 }
             }
