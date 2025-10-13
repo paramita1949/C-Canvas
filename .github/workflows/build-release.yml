@@ -46,7 +46,7 @@ jobs:
         if ($env:GITHUB_REF -like 'refs/tags/v*') {
           $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
         } else {
-          # 从项目文件中读取版本号
+          # 从项目文件中读取版本号（支持V前缀格式）
           $projectFile = "ImageColorChanger.csproj"
           $versionMatch = Select-String -Path $projectFile -Pattern '<Version>([^<]+)</Version>' | ForEach-Object { $_.Matches[0].Groups[1].Value }
           if ($versionMatch) {
@@ -55,13 +55,18 @@ jobs:
           } else {
             # 如果读取失败，使用时间戳作为后备
             $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-            $version = "dev-$timestamp"
+            $version = "Vdev-$timestamp"
             echo "无法读取项目版本，使用时间戳: $version"
           }
         }
         
-        # 创建标签格式（添加V前缀）
-        $tag = "V$version"
+        # 如果版本号已经有V前缀，直接使用；否则添加V前缀
+        if ($version -like 'V*') {
+          $tag = $version
+        } else {
+          $tag = "V$version"
+        }
+        
         echo "version=$version" >> $env:GITHUB_OUTPUT
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
         echo "构建版本: $version"
