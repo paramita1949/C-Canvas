@@ -56,7 +56,7 @@ namespace ImageColorChanger.Managers
                 ? _dbManager.SearchFiles(searchTerm, FileType.Image)
                 : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
 
-            System.Diagnostics.Debug.WriteLine($"📁 数据库返回 {files.Count} 个文件");
+            // System.Diagnostics.Debug.WriteLine($"📁 数据库返回 {files.Count} 个文件");
 
             // 将搜索结果转换为树项
             foreach (var file in files)

@@ -1053,10 +1053,9 @@ namespace ImageColorChanger.Managers
                     // 触发事件通知主窗口
                     VideoTrackDetected?.Invoke(this, hasVideo);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"❌ 视频轨道检测失败: {ex.Message}");
-                    // System.Diagnostics.Debug.WriteLine($"堆栈: {ex.StackTrace}");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 视频轨道检测失败");
                     // 出错时假设有视频
                     VideoTrackDetected?.Invoke(this, true);
                 }

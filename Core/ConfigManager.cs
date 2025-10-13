@@ -307,6 +307,38 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 导航栏宽度
+        /// </summary>
+        public double NavigationPanelWidth
+        {
+            get => _config.NavigationPanelWidth;
+            set
+            {
+                if (Math.Abs(_config.NavigationPanelWidth - value) > 0.001)
+                {
+                    _config.NavigationPanelWidth = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 文件夹标签字号（搜索结果显示）
+        /// </summary>
+        public double FolderTagFontSize
+        {
+            get => _config.FolderTagFontSize;
+            set
+            {
+                if (Math.Abs(_config.FolderTagFontSize - value) > 0.001)
+                {
+                    _config.FolderTagFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -506,14 +538,24 @@ namespace ImageColorChanger.Core
         public List<ColorPreset> CustomColorPresets { get; set; } = new List<ColorPreset>();
 
         /// <summary>
-        /// 文件夹字号（默认：13）
+        /// 文件夹字号（默认：26）
         /// </summary>
-        public double FolderFontSize { get; set; } = 13.0;
+        public double FolderFontSize { get; set; } = 26.0;
 
         /// <summary>
-        /// 文件字号（默认：13）
+        /// 文件字号（默认：26）
         /// </summary>
-        public double FileFontSize { get; set; } = 13.0;
+        public double FileFontSize { get; set; } = 26.0;
+
+        /// <summary>
+        /// 导航栏宽度（默认：280）
+        /// </summary>
+        public double NavigationPanelWidth { get; set; } = 280.0;
+
+        /// <summary>
+        /// 文件夹标签字号（搜索结果显示，默认：18）
+        /// </summary>
+        public double FolderTagFontSize { get; set; } = 18.0;
     }
 
     /// <summary>

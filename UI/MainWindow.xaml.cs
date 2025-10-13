@@ -109,12 +109,17 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 文件夹字号（用于XAML绑定）
         /// </summary>
-        public double FolderFontSize => configManager?.FolderFontSize ?? 13.0;
+        public double FolderFontSize => configManager?.FolderFontSize ?? 26.0;
 
         /// <summary>
         /// 文件字号（用于XAML绑定）
         /// </summary>
-        public double FileFontSize => configManager?.FileFontSize ?? 13.0;
+        public double FileFontSize => configManager?.FileFontSize ?? 26.0;
+
+        /// <summary>
+        /// 文件夹标签字号（搜索结果显示，用于XAML绑定）
+        /// </summary>
+        public double FolderTagFontSize => configManager?.FolderTagFontSize ?? 18.0;
 
         #endregion
 
@@ -609,7 +614,7 @@ namespace ImageColorChanger.UI
                     });
                 }
 
-                System.Diagnostics.Debug.WriteLine($"📂 加载项目: {folders.Count} 个文件夹, {rootFiles.Count} 个独立文件");
+                // System.Diagnostics.Debug.WriteLine($"📂 加载项目: {folders.Count} 个文件夹, {rootFiles.Count} 个独立文件");
             }
             catch (Exception ex)
             {
@@ -655,6 +660,13 @@ namespace ImageColorChanger.UI
                 );
                 currentTargetColorName = configManager.TargetColorName ?? "淡黄";
                 System.Diagnostics.Debug.WriteLine($"✅ 已加载目标颜色: {currentTargetColorName} RGB({currentTargetColor.R}, {currentTargetColor.G}, {currentTargetColor.B})");
+                
+                // 加载导航栏宽度
+                if (NavigationPanelColumn != null)
+                {
+                    NavigationPanelColumn.Width = new GridLength(configManager.NavigationPanelWidth);
+                    System.Diagnostics.Debug.WriteLine($"✅ 已加载导航栏宽度: {configManager.NavigationPanelWidth}");
+                }
             }
             catch (Exception ex)
             {
@@ -678,7 +690,7 @@ namespace ImageColorChanger.UI
                 // 使用 ConfigManager 的统一方法保存目标颜色
                 configManager.SetCurrentColor(currentTargetColor.R, currentTargetColor.G, currentTargetColor.B, currentTargetColorName);
                 
-                System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {currentTargetColorName})");
+                // System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {currentTargetColorName})");
             }
             catch (Exception ex)
             {
@@ -720,7 +732,7 @@ namespace ImageColorChanger.UI
             
             // 文件夹字号子菜单
             var folderFontSizeItem = new MenuItem { Header = "文件夹字号" };
-            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 36.0, 40.0 })
+            foreach (var size in new[] { 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0 })
             {
                 var menuItem = new MenuItem 
                 { 
@@ -735,7 +747,7 @@ namespace ImageColorChanger.UI
 
             // 文件字号子菜单
             var fileFontSizeItem = new MenuItem { Header = "文件字号" };
-            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 36.0, 40.0 })
+            foreach (var size in new[] { 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0 })
             {
                 var menuItem = new MenuItem 
                 { 
@@ -747,6 +759,21 @@ namespace ImageColorChanger.UI
                 fileFontSizeItem.Items.Add(menuItem);
             }
             fontSizeItem.Items.Add(fileFontSizeItem);
+
+            // 文件夹标签字号子菜单（搜索结果显示）
+            var folderTagFontSizeItem = new MenuItem { Header = "文件夹标签字号" };
+            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0 })
+            {
+                var menuItem = new MenuItem 
+                { 
+                    Header = $"{size}",
+                    IsCheckable = true,
+                    IsChecked = Math.Abs(configManager.FolderTagFontSize - size) < 0.1
+                };
+                menuItem.Click += (s, args) => SetFolderTagFontSize(size);
+                folderTagFontSizeItem.Items.Add(menuItem);
+            }
+            fontSizeItem.Items.Add(folderTagFontSizeItem);
 
             contextMenu.Items.Add(fontSizeItem);
 
@@ -831,6 +858,16 @@ namespace ImageColorChanger.UI
             configManager.FileFontSize = size;
             OnPropertyChanged(nameof(FileFontSize));
             ShowStatus($"✅ 文件字号已设置为: {size}");
+        }
+
+        /// <summary>
+        /// 设置文件夹标签字号（搜索结果显示）
+        /// </summary>
+        private void SetFolderTagFontSize(double size)
+        {
+            configManager.FolderTagFontSize = size;
+            OnPropertyChanged(nameof(FolderTagFontSize));
+            ShowStatus($"✅ 文件夹标签字号已设置为: {size}");
         }
 
         /// <summary>
@@ -1407,7 +1444,7 @@ namespace ImageColorChanger.UI
                 string searchTerm = SearchBox.Text?.Trim() ?? "";
                 string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
 
-                System.Diagnostics.Debug.WriteLine($"🔍 搜索: 关键词='{searchTerm}', 范围='{searchScope}'");
+                // System.Diagnostics.Debug.WriteLine($"🔍 搜索: 关键词='{searchTerm}', 范围='{searchScope}'");
 
                 // 如果搜索词为空，重新加载所有项目
                 if (string.IsNullOrWhiteSpace(searchTerm))
@@ -1419,7 +1456,7 @@ namespace ImageColorChanger.UI
                 // 执行搜索
                 var searchResults = searchManager.SearchProjects(searchTerm, searchScope);
                 
-                System.Diagnostics.Debug.WriteLine($"📊 搜索结果: {searchResults?.Count ?? 0} 项");
+                // System.Diagnostics.Debug.WriteLine($"📊 搜索结果: {searchResults?.Count ?? 0} 项");
 
                 if (searchResults == null)
                 {
@@ -1644,7 +1681,7 @@ namespace ImageColorChanger.UI
                                     SwitchToImageMode();
                                     // 加载图片
                                     LoadImage(selectedItem.Path);
-                                    ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    // ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     break;
                                 
                                 case FileType.Video:
@@ -1704,7 +1741,7 @@ namespace ImageColorChanger.UI
                                     // 图片双击也加载（保持原有行为）
                                     SwitchToImageMode();
                                     LoadImage(selectedItem.Path);
-                                    ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    // ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     break;
                             }
                         }
@@ -2265,7 +2302,7 @@ namespace ImageColorChanger.UI
                         CollapseFolder(item);
                     }
                 }
-                System.Diagnostics.Debug.WriteLine("📁 已折叠所有文件夹节点");
+                // System.Diagnostics.Debug.WriteLine("📁 已折叠所有文件夹节点");
             }
             catch (Exception ex)
             {
@@ -3107,6 +3144,19 @@ namespace ImageColorChanger.UI
 
         #region 右键菜单
 
+        /// <summary>
+        /// 导航栏分隔条拖动完成事件 - 保存宽度
+        /// </summary>
+        private void NavigationSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            if (NavigationPanelColumn != null)
+            {
+                double newWidth = NavigationPanelColumn.ActualWidth;
+                configManager.NavigationPanelWidth = newWidth;
+                // System.Diagnostics.Debug.WriteLine($"✅ 导航栏宽度已保存: {newWidth}");
+            }
+        }
+
         private void ImageScrollViewer_RightClick(object sender, MouseButtonEventArgs e)
         {
             if (imageProcessor.CurrentImage == null)
@@ -3298,7 +3348,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
+                // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
                 
                 // 保存用户设置
                 SaveSettings();

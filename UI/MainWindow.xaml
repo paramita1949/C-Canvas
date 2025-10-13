@@ -380,9 +380,9 @@
         </Border>
 
         <!-- ========== 主内容区 ========== -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" x:Name="MainContentGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition x:Name="NavigationPanelColumn" Width="280"/>
                 <!-- 左侧导航栏 -->
                 <ColumnDefinition Width="Auto"/>
                 <!-- 分隔条 -->
@@ -508,56 +508,60 @@
                         </TreeView.ItemContainerStyle>
                         <TreeView.ItemTemplate>
                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <materialDesign:PackIcon Kind="{Binding IconKind}" 
-                                                            Foreground="{Binding IconColor}"
-                                                            Width="18" 
-                                                            Height="18" 
-                                                            Margin="0,0,8,0"
-                                                            VerticalAlignment="Center">
-                                        <materialDesign:PackIcon.Style>
-                                            <Style TargetType="materialDesign:PackIcon">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <!-- 只在文件夹节点显示图标 -->
-                                                    <DataTrigger Binding="{Binding Type}" Value="Folder">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                    <!-- 如果没有IconKind也隐藏 -->
-                                                    <DataTrigger Binding="{Binding IconKind}" Value="{x:Null}">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IconKind}" Value="">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </materialDesign:PackIcon.Style>
-                                    </materialDesign:PackIcon>
+                                <!-- 纵向布局：第一行是图标+文件名，第二行是文件夹标签 -->
+                                <StackPanel Orientation="Vertical" Margin="0,2">
+                                    <!-- 第一行：图标 + 文件/文件夹名称 -->
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="{Binding IconKind}" 
+                                                                Foreground="{Binding IconColor}"
+                                                                Width="18" 
+                                                                Height="18" 
+                                                                Margin="0,0,8,0"
+                                                                VerticalAlignment="Center">
+                                            <materialDesign:PackIcon.Style>
+                                                <Style TargetType="materialDesign:PackIcon">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <!-- 只在文件夹节点显示图标 -->
+                                                        <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <!-- 如果没有IconKind也隐藏 -->
+                                                        <DataTrigger Binding="{Binding IconKind}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IconKind}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </materialDesign:PackIcon.Style>
+                                        </materialDesign:PackIcon>
 
-                                    <!-- 文件/文件夹名称 -->
-                                    <TextBlock Text="{Binding Name}" 
-                                               VerticalAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <!-- 默认使用文件字号 -->
-                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
-                                                <Style.Triggers>
-                                                    <!-- 如果是文件夹，使用文件夹字号 -->
-                                                    <DataTrigger Binding="{Binding Type}" Value="Folder">
-                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                        <!-- 文件/文件夹名称 -->
+                                        <TextBlock Text="{Binding Name}" 
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <!-- 默认使用文件字号 -->
+                                                    <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                    <Style.Triggers>
+                                                        <!-- 如果是文件夹，使用文件夹字号 -->
+                                                        <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                            <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
 
-                                    <!-- 文件夹标签（搜索时显示）-->
+                                    <!-- 第二行：文件夹标签（搜索时显示，在名称下方）-->
                                     <Border Background="{Binding FolderColor}" 
                                             CornerRadius="3" 
                                             Padding="6,2" 
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center">
+                                            Margin="26,2,0,0"
+                                            HorizontalAlignment="Left">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -569,7 +573,7 @@
                                             </Style>
                                         </Border.Style>
                                         <TextBlock Text="{Binding FolderName}" 
-                                                   FontSize="11" 
+                                                   FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderTagFontSize}" 
                                                    Foreground="White"
                                                    FontWeight="SemiBold"/>
                                     </Border>
@@ -597,8 +601,10 @@
             </Border>
 
             <!-- 分隔条 -->
-            <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" 
-                          Background="#E0E0E0" Cursor="SizeWE"/>
+            <GridSplitter x:Name="NavigationSplitter" 
+                          Grid.Column="1" Width="3" HorizontalAlignment="Stretch" 
+                          Background="#E0E0E0" Cursor="SizeWE"
+                          DragCompleted="NavigationSplitter_DragCompleted"/>
 
             <!-- 右侧：图片显示区 -->
             <Grid Grid.Column="2" Background="#000000">

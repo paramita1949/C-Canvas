@@ -102,7 +102,7 @@ namespace ImageColorChanger.Managers
                 }
 
                 var folderName = Path.GetFileName(folderPath);
-                System.Diagnostics.Debug.WriteLine($"📁 开始导入文件夹: {folderName}");
+                // System.Diagnostics.Debug.WriteLine($"📁 开始导入文件夹: {folderName}");
 
                 // 递归扫描所有支持的媒体文件
                 var mediaFiles = ScanMediaFilesRecursively(folderPath);
@@ -113,7 +113,7 @@ namespace ImageColorChanger.Managers
                     return (null, new List<MediaFile>(), new List<string>());
                 }
 
-                System.Diagnostics.Debug.WriteLine($"📊 找到 {mediaFiles.Count} 个媒体文件");
+                // System.Diagnostics.Debug.WriteLine($"📊 找到 {mediaFiles.Count} 个媒体文件");
 
                 // 导入文件夹到数据库
                 var folder = _dbManager.ImportFolder(folderPath, folderName);
@@ -135,7 +135,7 @@ namespace ImageColorChanger.Managers
                 // 批量添加新文件
                 var newFiles = _dbManager.AddMediaFiles(newFilePaths, folder.Id);
 
-                System.Diagnostics.Debug.WriteLine($"✅ 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
+                // System.Diagnostics.Debug.WriteLine($"✅ 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
 
                 return (folder, newFiles, existingFiles);
             }
