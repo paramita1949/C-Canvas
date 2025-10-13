@@ -275,6 +275,38 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 文件夹字号
+        /// </summary>
+        public double FolderFontSize
+        {
+            get => _config.FolderFontSize;
+            set
+            {
+                if (Math.Abs(_config.FolderFontSize - value) > 0.001)
+                {
+                    _config.FolderFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 文件字号
+        /// </summary>
+        public double FileFontSize
+        {
+            get => _config.FileFontSize;
+            set
+            {
+                if (Math.Abs(_config.FileFontSize - value) > 0.001)
+                {
+                    _config.FileFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -472,6 +504,16 @@ namespace ImageColorChanger.Core
         /// 自定义颜色预设列表
         /// </summary>
         public List<ColorPreset> CustomColorPresets { get; set; } = new List<ColorPreset>();
+
+        /// <summary>
+        /// 文件夹字号（默认：13）
+        /// </summary>
+        public double FolderFontSize { get; set; } = 13.0;
+
+        /// <summary>
+        /// 文件字号（默认：13）
+        /// </summary>
+        public double FileFontSize { get; set; } = 13.0;
     }
 
     /// <summary>

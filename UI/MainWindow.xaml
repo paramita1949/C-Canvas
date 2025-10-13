@@ -537,8 +537,20 @@
 
                                     <!-- 文件/文件夹名称 -->
                                     <TextBlock Text="{Binding Name}" 
-                                               FontSize="13"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <!-- 默认使用文件字号 -->
+                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                <Style.Triggers>
+                                                    <!-- 如果是文件夹，使用文件夹字号 -->
+                                                    <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                     <!-- 文件夹标签（搜索时显示）-->
                                     <Border Background="{Binding FolderColor}" 

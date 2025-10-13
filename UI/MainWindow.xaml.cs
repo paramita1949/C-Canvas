@@ -28,8 +28,19 @@ using LibVLCSharp.WPF;
 
 namespace ImageColorChanger.UI
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        #region INotifyPropertyChanged 实现
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        #endregion
+
         #region 字段
 
         // 图像处理相关
@@ -90,6 +101,20 @@ namespace ImageColorChanger.UI
         
         // MVVM - 新架构的PlaybackControlViewModel
         internal ViewModels.PlaybackControlViewModel _playbackViewModel;
+
+        #endregion
+
+        #region 公共属性（用于数据绑定）
+
+        /// <summary>
+        /// 文件夹字号（用于XAML绑定）
+        /// </summary>
+        public double FolderFontSize => configManager?.FolderFontSize ?? 13.0;
+
+        /// <summary>
+        /// 文件字号（用于XAML绑定）
+        /// </summary>
+        public double FileFontSize => configManager?.FileFontSize ?? 13.0;
 
         #endregion
 
@@ -688,6 +713,43 @@ namespace ImageColorChanger.UI
             saveImageItem.Click += (s, args) => SaveCurrentImage();
             contextMenu.Items.Add(saveImageItem);
 
+            contextMenu.Items.Add(new Separator());
+
+            // 字号设置
+            var fontSizeItem = new MenuItem { Header = "字号设置" };
+            
+            // 文件夹字号子菜单
+            var folderFontSizeItem = new MenuItem { Header = "文件夹字号" };
+            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 36.0, 40.0 })
+            {
+                var menuItem = new MenuItem 
+                { 
+                    Header = $"{size}",
+                    IsCheckable = true,
+                    IsChecked = Math.Abs(configManager.FolderFontSize - size) < 0.1
+                };
+                menuItem.Click += (s, args) => SetFolderFontSize(size);
+                folderFontSizeItem.Items.Add(menuItem);
+            }
+            fontSizeItem.Items.Add(folderFontSizeItem);
+
+            // 文件字号子菜单
+            var fileFontSizeItem = new MenuItem { Header = "文件字号" };
+            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 36.0, 40.0 })
+            {
+                var menuItem = new MenuItem 
+                { 
+                    Header = $"{size}",
+                    IsCheckable = true,
+                    IsChecked = Math.Abs(configManager.FileFontSize - size) < 0.1
+                };
+                menuItem.Click += (s, args) => SetFileFontSize(size);
+                fileFontSizeItem.Items.Add(menuItem);
+            }
+            fontSizeItem.Items.Add(fileFontSizeItem);
+
+            contextMenu.Items.Add(fontSizeItem);
+
             // 显示菜单
             contextMenu.PlacementTarget = BtnImport;
             contextMenu.IsOpen = true;
@@ -749,6 +811,26 @@ namespace ImageColorChanger.UI
             {
                 imageSaveManager.SaveEffectImage(imagePath);
             }
+        }
+
+        /// <summary>
+        /// 设置文件夹字号
+        /// </summary>
+        private void SetFolderFontSize(double size)
+        {
+            configManager.FolderFontSize = size;
+            OnPropertyChanged(nameof(FolderFontSize));
+            ShowStatus($"✅ 文件夹字号已设置为: {size}");
+        }
+
+        /// <summary>
+        /// 设置文件字号
+        /// </summary>
+        private void SetFileFontSize(double size)
+        {
+            configManager.FileFontSize = size;
+            OnPropertyChanged(nameof(FileFontSize));
+            ShowStatus($"✅ 文件字号已设置为: {size}");
         }
 
         /// <summary>
