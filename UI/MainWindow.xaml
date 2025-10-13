@@ -1,0 +1,768 @@
+<Window x:Class="ImageColorChanger.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="Canvas Cast V2.5.5"
+        Height="1004" Width="1600"
+        MinHeight="800" MinWidth="1400"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F5F5F5"
+        FontFamily="Microsoft YaHei UI"
+        ResizeMode="CanResize"
+        Icon="/baodian.ico"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Closing="Window_Closing">
+
+    <Window.Resources>
+        <!-- 现代化按钮样式 -->
+        <Style x:Key="MenuButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="MinWidth" Value="70"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="0" 
+                                                  BlurRadius="4" 
+                                                  Opacity="0.1" 
+                                                  Color="#000000"/>
+                            </Border.Effect>
+                            <ContentPresenter x:Name="contentPresenter"
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            RecognizesAccessKey="True"
+                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- 鼠标悬停效果 -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                                <Setter Property="Foreground" Value="#1976D2"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.2" Color="#2196F3"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <!-- 按下效果 -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#1976D2"/>
+                                <Setter Property="Foreground" Value="#0D47A1"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Opacity="0.15" Color="#1976D2"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <!-- 禁用效果 -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E0E0E0"/>
+                                <Setter Property="Foreground" Value="#BDBDBD"/>
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 主要操作按钮样式（如播放、录制） -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#1976D2"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" 
+                                                  BlurRadius="6" 
+                                                  Opacity="0.3" 
+                                                  Color="#2196F3"/>
+                            </Border.Effect>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1E88E5"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#2196F3"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1565C0"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#1565C0"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 警告/录制按钮样式 -->
+        <Style x:Key="RecordButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="#FF5252"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E53935"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" 
+                                                  BlurRadius="6" 
+                                                  Opacity="0.3" 
+                                                  Color="#FF5252"/>
+                            </Border.Effect>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#EF5350"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#FF5252"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C62828"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#C62828"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 成功/确认按钮样式 -->
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#388E3C"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" 
+                                                  BlurRadius="6" 
+                                                  Opacity="0.3" 
+                                                  Color="#4CAF50"/>
+                            </Border.Effect>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#43A047"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#4CAF50"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2E7D32"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#2E7D32"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TreeView样式 -->
+        <Style x:Key="ProjectTreeStyle" TargetType="TreeView">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+
+        <!-- ComboBox样式 - 白色背景 -->
+        <Style x:Key="WhiteComboBoxPopup" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ComboBoxItem样式 - 白色背景 -->
+        <Style x:Key="WhiteComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFF9C4"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FFD54F"/>
+                    <Setter Property="Foreground" Value="#212121"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 单排按钮菜单栏 -->
+            <RowDefinition Height="*"/>
+            <!-- 主内容区 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 媒体播放器控制栏 -->
+        </Grid.RowDefinitions>
+
+        <!-- ========== 单排按钮菜单栏 ========== -->
+        <Border Grid.Row="0" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,2" Padding="12,8">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.08" Color="#000000"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左侧：所有按钮在一排 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <!-- 基础功能按钮 -->
+                    <Button x:Name="BtnImport" Content="📁 导入" Style="{StaticResource MenuButtonStyle}" 
+                            ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
+
+                    <Button x:Name="BtnProjection" Content="🖥 投影" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="开启/关闭投影" Click="BtnProjection_Click"/>
+
+                    <Button x:Name="BtnSync" Content="🔄 同步" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="同步所有文件夹" Click="BtnSync_Click"/>
+
+                    <Button x:Name="BtnReset" Content="↩ 返回" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="重置视图" Click="BtnReset_Click"/>
+
+                    <Button x:Name="BtnOriginal" Content="🖼 原图" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="切换原图模式" Click="BtnOriginal_Click"/>
+
+                    <Button x:Name="BtnZoomReset" Content="🔍 缩放" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="重置缩放比例" Click="BtnZoomReset_Click"/>
+
+                    <Button x:Name="BtnColorEffect" Content="🎨 变色" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="切换颜色效果" 
+                            Click="BtnColorEffect_Click"/>
+
+                    <!-- 分隔线 -->
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+
+                    <!-- 关键帧控制按钮 -->
+                    <Button x:Name="BtnAddKeyframe" Content="➕ 加帧" Style="{StaticResource SuccessButtonStyle}"
+                            ToolTip="在当前位置添加关键帧" Click="BtnAddKeyframe_Click"/>
+
+                    <Button x:Name="BtnClearKeyframes" Content="🗑 清帧" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="清除所有关键帧" Click="BtnClearKeyframes_Click"/>
+
+                    <Button x:Name="BtnPrevKeyframe" Content="◀ 上帧" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="跳转到上一个关键帧" Click="BtnPrevKeyframe_Click"/>
+
+                    <Button x:Name="BtnNextKeyframe" Content="下帧 ▶" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="跳转到下一个关键帧" Click="BtnNextKeyframe_Click"/>
+
+                    <!-- 分隔线 -->
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Button x:Name="BtnPlay" Content="▶ 播放" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
+
+                    <!-- 播放控制按钮 -->
+                    <Button x:Name="BtnPlayCount" Content="🔄 5次" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="单击循环切换，双击输入数字，滚轮微调 (1-10或∞)" 
+                            Click="BtnPlayCount_Click"
+                            MouseWheel="BtnPlayCount_MouseWheel"
+                            MouseDoubleClick="BtnPlayCount_MouseDoubleClick"/>
+
+                    <Button x:Name="BtnRecord" Content="⏺ 录制" Style="{StaticResource RecordButtonStyle}"
+                            ToolTip="开始/停止时间录制" 
+                            Click="BtnRecord_Click"/>
+                    <Button x:Name="BtnScript" Content="📄 脚本" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="显示脚本信息" Click="BtnScript_Click" RenderTransformOrigin="-0.81,0.548"/>
+
+                    <Button x:Name="BtnClearTiming" Content="清时" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="清除时间录制数据" Click="BtnClearTiming_Click"/>
+
+                    <!-- 分隔线 -->
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Button x:Name="BtnPauseResume" Content="暂停" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click"/>
+
+                    <!-- 倒计时显示 -->
+                    <Border Background="#FFFFCC" BorderBrush="#CCAA00" BorderThickness="1" 
+                            CornerRadius="3" Padding="8,5" Margin="3,0" Width="90">
+                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="16" 
+                                   FontWeight="Bold" Foreground="#CC6600" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- 暂停/继续按钮 -->
+                </StackPanel>
+
+                <!-- 右侧：屏幕选择 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="屏幕：" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13"/>
+                    <ComboBox x:Name="ScreenSelector" Width="120" Height="30" 
+                              VerticalAlignment="Center" SelectedIndex="0" FontSize="12"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ========== 主内容区 ========== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>
+                <!-- 左侧导航栏 -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- 分隔条 -->
+                <ColumnDefinition Width="*"/>
+                <!-- 右侧图片显示区 -->
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧：文件导航栏 -->
+            <Border Grid.Column="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <!-- 搜索区域 -->
+                        <RowDefinition Height="*"/>
+                        <!-- 项目树 -->
+                    </Grid.RowDefinitions>
+
+                    <!-- 搜索区域 -->
+                    <StackPanel Grid.Row="0" Background="White" Margin="8">
+                        <!-- 搜索框 -->
+                        <TextBox x:Name="SearchBox" 
+                                 Height="40" 
+                                 Margin="0,4,0,8"
+                                 Padding="12,8"
+                                 materialDesign:HintAssist.Hint="搜索..."
+                                 materialDesign:HintAssist.Foreground="#666666"
+                                 materialDesign:TextFieldAssist.UnderlineBrush="#2196F3"
+                                 Style="{StaticResource MaterialDesignFilledTextBox}"
+                                 TextChanged="SearchBox_TextChanged"
+                                 MouseDoubleClick="SearchBox_MouseDoubleClick"
+                                 FontSize="14"
+                                 Foreground="Black"
+                                 VerticalContentAlignment="Center"/>
+
+                        <!-- 搜索范围 -->
+                        <ComboBox x:Name="SearchScope" 
+                                  Style="{StaticResource WhiteComboBoxPopup}"
+                                  ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
+                            <ComboBoxItem Content="全部" IsSelected="True"/>
+                            <ComboBoxItem Content="当前文件夹"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- 项目树 -->
+                    <TreeView Grid.Row="1" x:Name="ProjectTree" 
+                                  Style="{StaticResource ProjectTreeStyle}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
+                                  MouseDoubleClick="ProjectTree_MouseDoubleClick"
+                                  PreviewMouseRightButtonDown="ProjectTree_RightClick">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=OneWay}"/>
+                                <!-- 自定义模板：对于文件节点隐藏展开/折叠按钮 -->
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="0"/>
+                                                    <!-- 不显示展开按钮 -->
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition/>
+                                                </Grid.RowDefinitions>
+                                                
+                                                <!-- 展开/折叠按钮（隐藏但保留功能） -->
+                                                <ToggleButton x:Name="Expander" 
+                                                              Grid.Column="0"
+                                                              Width="0"
+                                                              Height="0"
+                                                              Visibility="Collapsed"
+                                                              ClickMode="Press"
+                                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                                
+                                                <!-- 内容区域 -->
+                                                <Border x:Name="Bd" Grid.Column="1"
+                                                        Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter x:Name="PART_Header"
+                                                                      ContentSource="Header"
+                                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                                                </Border>
+                                                
+                                                <!-- 子项容器 -->
+                                                <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1"/>
+                                            </Grid>
+                                            
+                                            <ControlTemplate.Triggers>
+                                                <!-- 未展开时隐藏子项 -->
+                                                <Trigger Property="IsExpanded" Value="False">
+                                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
+                                                </Trigger>
+                                                <!-- 选中状态 - 黄色高亮 -->
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#FFD54F"/>
+                                                    <Setter Property="Foreground" Value="#212121"/>
+                                                </Trigger>
+                                                <!-- 非激活选中状态 - 浅黄色高亮 -->
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsSelectionActive" Value="False"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="Bd" Property="Background" Value="#FFF59D"/>
+                                                    <Setter Property="Foreground" Value="#424242"/>
+                                                </MultiTrigger>
+                                                <!-- 禁用状态 -->
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <materialDesign:PackIcon Kind="{Binding IconKind}" 
+                                                            Foreground="{Binding IconColor}"
+                                                            Width="18" 
+                                                            Height="18" 
+                                                            Margin="0,0,8,0"
+                                                            VerticalAlignment="Center">
+                                        <materialDesign:PackIcon.Style>
+                                            <Style TargetType="materialDesign:PackIcon">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <!-- 只在文件夹节点显示图标 -->
+                                                    <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <!-- 如果没有IconKind也隐藏 -->
+                                                    <DataTrigger Binding="{Binding IconKind}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IconKind}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </materialDesign:PackIcon.Style>
+                                    </materialDesign:PackIcon>
+
+                                    <!-- 文件/文件夹名称 -->
+                                    <TextBlock Text="{Binding Name}" 
+                                               FontSize="13"
+                                               VerticalAlignment="Center"/>
+
+                                    <!-- 文件夹标签（搜索时显示）-->
+                                    <Border Background="{Binding FolderColor}" 
+                                            CornerRadius="3" 
+                                            Padding="6,2" 
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowFolderTag}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding FolderName}" 
+                                                   FontSize="11" 
+                                                   Foreground="White"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                    
+                    <!-- 拖拽插入位置指示器 -->
+                    <Canvas Grid.Row="1" 
+                            x:Name="DragIndicatorCanvas" 
+                            IsHitTestVisible="False"
+                            Background="Transparent">
+                        <Line x:Name="DragIndicatorLine"
+                              Stroke="#2196F3"
+                              StrokeThickness="2"
+                              X1="20" Y1="0" X2="200" Y2="0"
+                              Visibility="Collapsed">
+                            <Line.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.5" Color="#2196F3"/>
+                            </Line.Effect>
+                        </Line>
+                    </Canvas>
+                </Grid>
+            </Border>
+
+            <!-- 分隔条 -->
+            <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" 
+                          Background="#E0E0E0" Cursor="SizeWE"/>
+
+            <!-- 右侧：图片显示区 -->
+            <Grid Grid.Column="2" Background="#000000">
+                <!-- 图片显示区域（支持滚动和缩放） -->
+                <ScrollViewer x:Name="ImageScrollViewer"
+                     HorizontalScrollBarVisibility="Auto"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="#000000"
+                     BorderThickness="0"
+                     PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
+                     SizeChanged="ImageScrollViewer_SizeChanged"
+                     MouseRightButtonUp="ImageScrollViewer_RightClick">
+                    <ScrollViewer.ContextMenu>
+                        <ContextMenu x:Name="CanvasContextMenu">
+                            <MenuItem Header="滚动速度">
+                                <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
+                                <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
+                                <MenuItem Header="1.0秒" Click="SetScrollSpeed_Click" Tag="1.0" IsCheckable="True"/>
+                                <MenuItem Header="8.0秒" Click="SetScrollSpeed_Click" Tag="8.0" IsCheckable="True" IsChecked="True"/>
+                                <MenuItem Header="9.0秒" Click="SetScrollSpeed_Click" Tag="9.0" IsCheckable="True"/>
+                                <MenuItem Header="10.0秒" Click="SetScrollSpeed_Click" Tag="10.0" IsCheckable="True"/>
+                                <MenuItem Header="11.0秒" Click="SetScrollSpeed_Click" Tag="11.0" IsCheckable="True"/>
+                                <MenuItem Header="12.0秒" Click="SetScrollSpeed_Click" Tag="12.0" IsCheckable="True"/>
+                                <MenuItem Header="13.0秒" Click="SetScrollSpeed_Click" Tag="13.0" IsCheckable="True"/>
+                                <MenuItem Header="14.0秒" Click="SetScrollSpeed_Click" Tag="14.0" IsCheckable="True"/>
+                                <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
+                            </MenuItem>
+                            <MenuItem Header="滚动函数">
+                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
+                                <MenuItem Header="优化三次" Click="SetScrollEasing_Click" Tag="OptimizedCubic" IsCheckable="True"/>
+                                <MenuItem Header="快速启动" Click="SetScrollEasing_Click" Tag="EaseOutExpo" IsCheckable="True"/>
+                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
+                                <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
+                            </MenuItem>
+                        </ContextMenu>
+                    </ScrollViewer.ContextMenu>
+                    <Grid x:Name="ImageContainer" Background="#000000">
+                        <Image x:Name="ImageDisplay" 
+                               Stretch="Fill"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Top"
+                               MouseLeftButtonDown="ImageDisplay_MouseLeftButtonDown"
+                               MouseLeftButtonUp="ImageDisplay_MouseLeftButtonUp"
+                               MouseMove="ImageDisplay_MouseMove"
+                               MouseDown="ImageDisplay_MouseDown"
+                               PreviewMouseDown="ImageDisplay_PreviewMouseDown"
+                               Cursor="Hand">
+                            <Image.LayoutTransform>
+                                <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1"/>
+                            </Image.LayoutTransform>
+                        </Image>
+
+                        <!-- 关键帧预览线容器 - 直接叠加在图片上 -->
+                        <Canvas x:Name="KeyframePreviewLinesCanvas"
+                                IsHitTestVisible="False"
+                                Background="Transparent"
+                                Panel.ZIndex="10"/>
+                    </Grid>
+                </ScrollViewer>
+                
+                <!-- 视频播放区域（默认隐藏，播放视频时显示） -->
+                <Grid x:Name="VideoContainer" Background="#000000" Visibility="Collapsed">
+                    <!-- VideoView控件将在代码中动态添加 -->
+                    
+                    <!-- 媒体文件名称显示（用于纯音频文件，铺满整个区域） -->
+                    <Grid x:Name="MediaFileNameBorder" 
+                          Background="#000000"
+                          Visibility="Collapsed">
+                        <!-- 文件名内容，居中显示 -->
+                        <StackPanel VerticalAlignment="Center" 
+                                    HorizontalAlignment="Center">
+                            <TextBlock Text="🎵" 
+                                       FontSize="80" 
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,20"
+                                       Foreground="White"/>
+                            <TextBlock x:Name="MediaFileNameText"
+                                       Text="媒体文件"
+                                       FontSize="28"
+                                       FontWeight="Medium"
+                                       Foreground="White"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       HorizontalAlignment="Center"
+                                       MaxWidth="800"
+                                       Padding="20,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- 白色分割线 -->
+                <Border HorizontalAlignment="Right"
+                        VerticalAlignment="Stretch"
+                        Width="1"
+                        Margin="0,0,28,0"
+                        Background="#FFFFFF"
+                        Panel.ZIndex="199"/>
+
+                <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
+                <Border x:Name="ScrollbarIndicatorsBorder"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Stretch"
+                        Width="10"
+                        Margin="0,0,18,0"
+                        Background="#CC303030"
+                        Panel.ZIndex="200">
+                    <Canvas x:Name="ScrollbarIndicatorsCanvas"
+                            Background="Transparent"
+                            MouseLeftButtonDown="ScrollbarIndicatorsCanvas_Click"
+                            MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
+                            ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ========== 媒体播放器控制栏（默认隐藏） ========== -->
+        <Border Grid.Row="2" x:Name="MediaPlayerPanel" Background="#2C2C2C" 
+                BorderBrush="#404040" BorderThickness="0,1,0,0" Padding="15,10"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 播放控制按钮 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnMediaPrev" Content="⏮" Width="40" Height="40"
+                            ToolTip="上一首" Click="BtnMediaPrev_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+
+                    <Button x:Name="BtnMediaPlayPause" Content="▶" Width="50" Height="50" Margin="10,0"
+                            ToolTip="播放/暂停" Click="BtnMediaPlayPause_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionButton}"/>
+
+                    <Button x:Name="BtnMediaNext" Content="⏭" Width="40" Height="40"
+                            ToolTip="下一首" Click="BtnMediaNext_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+
+                    <Button x:Name="BtnMediaStop" Content="⏹" Width="40" Height="40" Margin="10,0,0,0"
+                            ToolTip="停止" Click="BtnMediaStop_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+                </StackPanel>
+
+                <!-- 进度条和时间 -->
+                <Grid Grid.Column="1" Margin="20,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Slider x:Name="MediaProgressSlider" Grid.Row="0" 
+                            VerticalAlignment="Center" Margin="0,0,0,5"
+                            Minimum="0" Maximum="100" Value="0"
+                            ValueChanged="MediaProgressSlider_ValueChanged"/>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock x:Name="MediaCurrentTime" Text="00:00" Foreground="White" FontSize="12"/>
+                        <TextBlock Text=" / " Foreground="#999999" FontSize="12" Margin="5,0"/>
+                        <TextBlock x:Name="MediaTotalTime" Text="00:00" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 音量控制和播放模式 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnPlayMode" Content="🔀" Width="40" Height="40"
+                            ToolTip="播放模式：随机 (默认)" Click="BtnPlayMode_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+
+                    <TextBlock Text="🔊" FontSize="16" VerticalAlignment="Center" 
+                               Foreground="White" Margin="15,0,5,0"/>
+
+                    <Slider x:Name="VolumeSlider" Width="100" VerticalAlignment="Center"
+                            Minimum="0" Maximum="100" Value="50"
+                            ValueChanged="VolumeSlider_ValueChanged"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
