@@ -34,10 +34,10 @@ jobs:
       run: dotnet restore
     
     - name: 编译项目
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ImageColorChanger.csproj --configuration Release --no-restore
     
     - name: 发布项目
-      run: dotnet publish -c Release -o publish --self-contained false -p:PublishSingleFile=false
+      run: dotnet publish ImageColorChanger.csproj -c Release -o publish --self-contained false -p:PublishSingleFile=false
     
     - name: 获取版本号
       id: get_version
@@ -115,6 +115,20 @@ jobs:
         path: ${{ steps.create_package.outputs.zip_name }}
         retention-days: 30
     
+    - name: 调试Release信息
+      shell: pwsh
+      run: |
+        echo "=== Release调试信息 ==="
+        echo "版本号: ${{ steps.get_version.outputs.version }}"
+        echo "标签: ${{ steps.get_version.outputs.tag }}"
+        echo "包文件: ${{ steps.create_package.outputs.zip_name }}"
+        echo "包文件存在: $(Test-Path '${{ steps.create_package.outputs.zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.zip_name }}').Length / 1MB
+          echo "包文件大小: $([math]::Round($size, 2)) MB"
+        }
+        echo "======================"
+    
     - name: 创建 GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -122,7 +136,7 @@ jobs:
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: Canvas Cast ${{ steps.get_version.outputs.tag }}
         draft: false
-        prerelease: true
+        prerelease: false
         generate_release_notes: true
         body: |
           ## 🎉 Canvas Cast ${{ steps.get_version.outputs.tag }}
