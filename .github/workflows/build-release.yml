@@ -45,10 +45,18 @@ jobs:
         if ($env:GITHUB_REF -like 'refs/tags/v*') {
           $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
         } else {
-          # 使用时间戳和随机数确保唯一性
-          $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-          $random = Get-Random -Minimum 1000 -Maximum 9999
-          $version = "dev-$timestamp-$random"
+          # 从项目文件中读取版本号
+          $projectFile = "ImageColorChanger.csproj"
+          $versionMatch = Select-String -Path $projectFile -Pattern '<Version>([^<]+)</Version>' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if ($versionMatch) {
+            $version = $versionMatch
+            echo "从项目文件读取版本: $version"
+          } else {
+            # 如果读取失败，使用时间戳作为后备
+            $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+            $version = "dev-$timestamp"
+            echo "无法读取项目版本，使用时间戳: $version"
+          }
         }
         echo "version=$version" >> $env:GITHUB_OUTPUT
         echo "构建版本: $version"
