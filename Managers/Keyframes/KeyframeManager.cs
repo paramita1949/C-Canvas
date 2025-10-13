@@ -119,7 +119,7 @@ namespace ImageColorChanger.Managers.Keyframes
                         // 保持在当前位置（防止回退到初始位置）
                         scrollViewer.ScrollToVerticalOffset(currentOffset);
                         
-                        System.Diagnostics.Debug.WriteLine($"🛑 已停止滚动动画，保持在位置: {currentOffset:F0}");
+                        // System.Diagnostics.Debug.WriteLine($"🛑 已停止滚动动画，保持在位置: {currentOffset:F0}");
                     }
                 });
             }
@@ -290,7 +290,7 @@ namespace ImageColorChanger.Managers.Keyframes
                     }
 
                     // 执行平滑滚动动画
-                    System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 开始: {currentPosition:F0}→{targetOffset:F0} (持续:{ScrollDuration}秒, 缓动:{(IsLinearScrolling ? "Linear" : ScrollEasingType)})");
+                    // System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 开始: {currentPosition:F0}→{targetOffset:F0} (持续:{ScrollDuration}秒, 缓动:{(IsLinearScrolling ? "Linear" : ScrollEasingType)})");
                     _currentScrollAnimation = Utils.AnimationHelper.AnimateScroll(
                         scrollViewer,
                         currentPosition,
@@ -300,7 +300,7 @@ namespace ImageColorChanger.Managers.Keyframes
                         {
                             // 动画完成后清除引用
                             _currentScrollAnimation = null;
-                            System.Diagnostics.Debug.WriteLine($"✅ [滚动动画] 完成");
+                            // System.Diagnostics.Debug.WriteLine($"✅ [滚动动画] 完成");
                             
                             // 更新投影
                             if (_mainWindow.IsProjectionEnabled)
@@ -312,9 +312,9 @@ namespace ImageColorChanger.Managers.Keyframes
                         IsLinearScrolling   // 是否线性滚动
                     );
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 平滑滚动异常: {ex.Message}");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 平滑滚动异常: {ex.Message}");
                 }
             });
         }
@@ -410,9 +410,9 @@ namespace ImageColorChanger.Managers.Keyframes
                             break;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"❌ UI更新异常: {ex.Message}");
+                    // Console.WriteLine($"❌ UI更新异常: {ex.Message}");
                 }
             });
         }

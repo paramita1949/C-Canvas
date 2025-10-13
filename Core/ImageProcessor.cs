@@ -192,9 +192,9 @@ namespace ImageColorChanger.Core
                 
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"加载图片失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"加载图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -290,9 +290,9 @@ namespace ImageColorChanger.Core
                 
                 return success;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"更新图片失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"更新图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -405,11 +405,11 @@ namespace ImageColorChanger.Core
             // 检查缓存
             if (imageCache.TryGetValue(cacheKey, out var cachedPhoto))
             {
-                System.Diagnostics.Debug.WriteLine($"✅ 缓存命中: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+                // System.Diagnostics.Debug.WriteLine($"✅ 缓存命中: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
                 return cachedPhoto;
             }
             
-            System.Diagnostics.Debug.WriteLine($"⚡ 生成新图片: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+            // System.Diagnostics.Debug.WriteLine($"⚡ 生成新图片: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
             
             // 生成新图片
             var resizedImage = ResizeAndApplyEffects(newWidth, newHeight);
@@ -478,9 +478,9 @@ namespace ImageColorChanger.Core
                 
                 return resizedImage;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"调整图片尺寸失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"调整图片尺寸失败: {ex.Message}");
                 return null;
             }
         }
@@ -560,13 +560,13 @@ namespace ImageColorChanger.Core
                 });
                 
                 var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-                System.Diagnostics.Debug.WriteLine($"✨ 变色处理完成: {elapsed:F1}ms ({image.Width}x{image.Height})");
+                // System.Diagnostics.Debug.WriteLine($"✨ 变色处理完成: {elapsed:F1}ms ({image.Width}x{image.Height})");
                 
                 return image;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 应用黄字效果失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 应用黄字效果失败: {ex.Message}");
                 return image;
             }
         }
@@ -615,13 +615,13 @@ namespace ImageColorChanger.Core
                 // 判断背景类型
                 var bgType = avgLuminance < Constants.DarkBackgroundThreshold ? BackgroundType.Black : BackgroundType.White;
                 
-                System.Diagnostics.Debug.WriteLine($"🔍 背景检测: 平均亮度={avgLuminance:F1}, 类型={bgType}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 背景检测: 平均亮度={avgLuminance:F1}, 类型={bgType}");
                 
                 return bgType;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"检测背景类型失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"检测背景类型失败: {ex.Message}");
                 return BackgroundType.White; // 默认返回浅色背景
             }
         }
@@ -664,9 +664,9 @@ namespace ImageColorChanger.Core
                     return bitmapImage;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"转换BitmapSource失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"转换BitmapSource失败: {ex.Message}");
                 return null;
             }
         }
@@ -706,9 +706,9 @@ namespace ImageColorChanger.Core
                 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"更新画布显示失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"更新画布显示失败: {ex.Message}");
                 return false;
             }
         }
@@ -765,11 +765,11 @@ namespace ImageColorChanger.Core
                 // 这样滚动到底部时，图片下方会有额外的空间（与Python一致）
                 imageContainer.Height = scrollHeight;
                 
-                System.Diagnostics.Debug.WriteLine($"📏 滚动区域: 图片高度={imageHeight:F0}, 画布高度={canvasHeight:F0}, 滚动高度={scrollHeight:F0}");
+                // System.Diagnostics.Debug.WriteLine($"📏 滚动区域: 图片高度={imageHeight:F0}, 画布高度={canvasHeight:F0}, 滚动高度={scrollHeight:F0}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"设置滚动区域失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"设置滚动区域失败: {ex.Message}");
             }
         }
 

@@ -70,7 +70,7 @@ namespace ImageColorChanger.Core
                 _configFilePath = configFilePath;
             }
             
-            Debug.WriteLine($"📁 配置文件路径: {_configFilePath}");
+            // Debug.WriteLine($"📁 配置文件路径: {_configFilePath}");
             LoadConfig();
         }
 
@@ -85,21 +85,21 @@ namespace ImageColorChanger.Core
                 {
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
-                    Debug.WriteLine($"✅ 配置文件已加载: {_configFilePath}");
-                    Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
-                    Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
+                    // Debug.WriteLine($"✅ 配置文件已加载: {_configFilePath}");
+                    // Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
+                    // Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
                 }
                 else
                 {
-                    Debug.WriteLine($"⚠️ 配置文件不存在，使用默认配置");
+                    // Debug.WriteLine($"⚠️ 配置文件不存在，使用默认配置");
                     _config = new AppConfig();
                     SaveConfig();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"❌ 加载配置文件失败: {ex.Message}");
-                Debug.WriteLine($"   错误详情: {ex}");
+                // Debug.WriteLine($"❌ 加载配置文件失败: {ex.Message}");
+                // Debug.WriteLine($"   错误详情: {ex}");
                 _config = new AppConfig();
             }
         }
@@ -119,13 +119,13 @@ namespace ImageColorChanger.Core
 
                 string json = JsonSerializer.Serialize(_config, options);
                 File.WriteAllText(_configFilePath, json);
-                Debug.WriteLine($"✅ 配置文件已保存: {_configFilePath}");
-                Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
-                Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
+                // Debug.WriteLine($"✅ 配置文件已保存: {_configFilePath}");
+                // Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
+                // Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"❌ 保存配置文件失败: {ex.Message}");
+                // Debug.WriteLine($"❌ 保存配置文件失败: {ex.Message}");
             }
         }
 
@@ -305,14 +305,14 @@ namespace ImageColorChanger.Core
                 var allPresets = GetAllColorPresets();
                 if (allPresets.Any(p => p.Name == name))
                 {
-                    Debug.WriteLine($"⚠️ 颜色预设已存在: {name}");
+                    // Debug.WriteLine($"⚠️ 颜色预设已存在: {name}");
                     return false;
                 }
 
                 // 检查是否已存在相同颜色
                 if (allPresets.Any(p => p.R == r && p.G == g && p.B == b))
                 {
-                    Debug.WriteLine($"⚠️ 该颜色已在预设中: RGB({r}, {g}, {b})");
+                    // Debug.WriteLine($"⚠️ 该颜色已在预设中: RGB({r}, {g}, {b})");
                     return false;
                 }
 
@@ -330,12 +330,12 @@ namespace ImageColorChanger.Core
                 });
                 
                 SaveConfig();
-                Debug.WriteLine($"✅ 已添加自定义颜色预设: {name} RGB({r}, {g}, {b})");
+                // Debug.WriteLine($"✅ 已添加自定义颜色预设: {name} RGB({r}, {g}, {b})");
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"❌ 添加自定义颜色预设失败: {ex.Message}");
+                // Debug.WriteLine($"❌ 添加自定义颜色预设失败: {ex.Message}");
                 return false;
             }
         }
@@ -355,15 +355,15 @@ namespace ImageColorChanger.Core
                 {
                     _config.CustomColorPresets.Remove(preset);
                     SaveConfig();
-                    Debug.WriteLine($"✅ 已删除自定义颜色预设: {name}");
+                    // Debug.WriteLine($"✅ 已删除自定义颜色预设: {name}");
                     return true;
                 }
                 
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"❌ 删除自定义颜色预设失败: {ex.Message}");
+                // Debug.WriteLine($"❌ 删除自定义颜色预设失败: {ex.Message}");
                 return false;
             }
         }

@@ -269,15 +269,15 @@ namespace ImageColorChanger.Database
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🔧 开始初始化数据库: {_dbPath}");
+                // System.Diagnostics.Debug.WriteLine($"🔧 开始初始化数据库: {_dbPath}");
                 
                 // 确保数据库已创建
                 Database.EnsureCreated();
-                System.Diagnostics.Debug.WriteLine($"✅ Database.EnsureCreated() 完成");
+                // System.Diagnostics.Debug.WriteLine($"✅ Database.EnsureCreated() 完成");
 
                 // 检查并创建关键帧表（兼容旧数据库）
                 EnsureKeyframesTableExists();
-                System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
 
                 // 执行SQLite性能优化配置
                 Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
@@ -286,11 +286,11 @@ namespace ImageColorChanger.Database
                 Database.ExecuteSqlRaw("PRAGMA foreign_keys=ON;");
                 Database.ExecuteSqlRaw("PRAGMA temp_store=MEMORY;");
                 
-                System.Diagnostics.Debug.WriteLine($"✅ 数据库初始化完成");
+                // System.Diagnostics.Debug.WriteLine($"✅ 数据库初始化完成");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
         }
@@ -302,25 +302,25 @@ namespace ImageColorChanger.Database
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔍 开始检查关键帧表...");
+                // System.Diagnostics.Debug.WriteLine("🔍 开始检查关键帧表...");
                 
                 // 检查 keyframes 表是否存在
                 var connection = Database.GetDbConnection();
                 if (connection.State != System.Data.ConnectionState.Open)
                 {
                     connection.Open();
-                    System.Diagnostics.Debug.WriteLine("📂 数据库连接已打开");
+                    // System.Diagnostics.Debug.WriteLine("📂 数据库连接已打开");
                 }
 
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='keyframes'";
                     var result = command.ExecuteScalar();
-                    System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframes 表: {(result == null ? "不存在" : "已存在")}");
+                    // System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframes 表: {(result == null ? "不存在" : "已存在")}");
 
                     if (result == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("⚠️ keyframes表不存在，正在创建...");
+                        // System.Diagnostics.Debug.WriteLine("⚠️ keyframes表不存在，正在创建...");
                         
                         // 创建 keyframes 表
                         Database.ExecuteSqlRaw(@"
@@ -338,21 +338,21 @@ namespace ImageColorChanger.Database
                         Database.ExecuteSqlRaw("CREATE INDEX idx_keyframes_image ON keyframes(ImageId)");
                         Database.ExecuteSqlRaw("CREATE INDEX idx_keyframes_order ON keyframes(OrderIndex)");
                         
-                        System.Diagnostics.Debug.WriteLine("✅ keyframes表创建成功");
+                        // System.Diagnostics.Debug.WriteLine("✅ keyframes表创建成功");
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("ℹ️ keyframes表已存在，跳过创建");
+                        // System.Diagnostics.Debug.WriteLine("ℹ️ keyframes表已存在，跳过创建");
                     }
 
                     // 检查 keyframe_timings 表是否存在
                     command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='keyframe_timings'";
                     result = command.ExecuteScalar();
-                    System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframe_timings 表: {(result == null ? "不存在" : "已存在")}");
+                    // System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframe_timings 表: {(result == null ? "不存在" : "已存在")}");
 
                     if (result == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("⚠️ keyframe_timings表不存在，正在创建...");
+                        // System.Diagnostics.Debug.WriteLine("⚠️ keyframe_timings表不存在，正在创建...");
                         
                         // 创建 keyframe_timings 表
                         Database.ExecuteSqlRaw(@"
@@ -371,23 +371,23 @@ namespace ImageColorChanger.Database
                         Database.ExecuteSqlRaw("CREATE INDEX idx_timing_image ON keyframe_timings(ImageId)");
                         Database.ExecuteSqlRaw("CREATE INDEX idx_timing_sequence ON keyframe_timings(ImageId, SequenceOrder)");
                         
-                        System.Diagnostics.Debug.WriteLine("✅ keyframe_timings表创建成功");
+                        // System.Diagnostics.Debug.WriteLine("✅ keyframe_timings表创建成功");
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("ℹ️ keyframe_timings表已存在，跳过创建");
+                        // System.Diagnostics.Debug.WriteLine("ℹ️ keyframe_timings表已存在，跳过创建");
                     }
                 }
 
                 if (connection.State == System.Data.ConnectionState.Open)
                 {
                     connection.Close();
-                    System.Diagnostics.Debug.WriteLine("📂 数据库连接已关闭");
+                    // System.Diagnostics.Debug.WriteLine("📂 数据库连接已关闭");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查/创建关键帧表失败: {ex.Message}\n{ex.StackTrace}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 检查/创建关键帧表失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
         }

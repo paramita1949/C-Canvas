@@ -42,7 +42,7 @@ namespace ImageColorChanger.UI
             if (_keyframeManager != null)
             {
                 _keyframeManager.CurrentKeyframeIndex = -1;
-                System.Diagnostics.Debug.WriteLine("🔄 [图片加载] 重置关键帧索引为-1");
+                // System.Diagnostics.Debug.WriteLine("🔄 [图片加载] 重置关键帧索引为-1");
                 
                 // 更新关键帧预览线和指示块
                 _keyframeManager?.UpdatePreviewLines();
@@ -64,7 +64,7 @@ namespace ImageColorChanger.UI
                 var dbContext = dbManager?.GetDbContext();
                 if (dbContext == null)
                 {
-                    Console.WriteLine("❌ 数据库上下文未就绪");
+                    // Console.WriteLine("❌ 数据库上下文未就绪");
                     return;
                 }
 
@@ -86,11 +86,11 @@ namespace ImageColorChanger.UI
                     UpdateScrollEasingMenuCheck(easingName);
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
-                System.Diagnostics.Debug.WriteLine("✅ 关键帧和播放系统初始化完成");
+                // System.Diagnostics.Debug.WriteLine("✅ 关键帧和播放系统初始化完成");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 关键帧系统初始化异常: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 关键帧系统初始化异常: {ex.Message}");
                 MessageBox.Show($"关键帧系统初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -155,7 +155,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 ShowStatus($"❌ 添加关键帧出错: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"添加关键帧异常: {ex}");
+                // System.Diagnostics.Debug.WriteLine($"添加关键帧异常: {ex}");
             }
         }
 
@@ -507,9 +507,9 @@ namespace ImageColorChanger.UI
                     DrawCurrentKeyframeIndicator(scrollbarCanvasHeight, imageCanvasHeight);
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 更新预览线失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 更新预览线失败: {ex.Message}");
             }
         }
 
@@ -576,9 +576,9 @@ namespace ImageColorChanger.UI
                 Canvas.SetLeft(currentContainer, -4);  // 稍微向左
                 ScrollbarIndicatorsCanvas.Children.Add(currentContainer);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 绘制当前关键帧指示块失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 绘制当前关键帧指示块失败: {ex.Message}");
             }
         }
 
@@ -696,9 +696,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 点击跳转失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 点击跳转失败: {ex.Message}");
             }
         }
 
@@ -796,7 +796,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 设置循环次数失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 设置循环次数失败: {ex.Message}");
                 ShowStatus($"❌ 设置失败: {ex.Message}");
             }
         }
@@ -827,9 +827,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载滚动速度失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 加载滚动速度失败: {ex.Message}");
             }
         }
         
@@ -859,9 +859,9 @@ namespace ImageColorChanger.UI
                 
                 dbContext.SaveChanges();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 保存滚动速度失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 保存滚动速度失败: {ex.Message}");
             }
         }
         
@@ -929,9 +929,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
             }
         }
         
@@ -1031,9 +1031,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
             }
         }
         
@@ -1066,9 +1066,9 @@ namespace ImageColorChanger.UI
                 
                 dbContext.SaveChanges();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 保存滚动函数失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 保存滚动函数失败: {ex.Message}");
             }
         }
         
@@ -1106,9 +1106,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载滚动函数失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 加载滚动函数失败: {ex.Message}");
             }
         }
         
@@ -1164,9 +1164,9 @@ namespace ImageColorChanger.UI
 
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查原图模式失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 检查原图模式失败: {ex.Message}");
                 return false;
             }
         }
@@ -1190,7 +1190,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 切换上一个媒体失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 切换上一个媒体失败: {ex.Message}");
                 ShowStatus($"❌ 切换失败: {ex.Message}");
             }
             return Task.CompletedTask;
@@ -1215,7 +1215,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 切换下一个媒体失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 切换下一个媒体失败: {ex.Message}");
                 ShowStatus($"❌ 切换失败: {ex.Message}");
             }
             return Task.CompletedTask;

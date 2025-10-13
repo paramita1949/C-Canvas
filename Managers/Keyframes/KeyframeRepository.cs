@@ -22,7 +22,7 @@ namespace ImageColorChanger.Managers.Keyframes
             _context = context;
             // 调试：输出数据库连接信息
             var connection = _context.Database.GetDbConnection();
-            System.Diagnostics.Debug.WriteLine($"🔍 [KeyframeRepository] 使用数据库: {connection.DataSource ?? connection.ConnectionString}");
+            // System.Diagnostics.Debug.WriteLine($"🔍 [KeyframeRepository] 使用数据库: {connection.DataSource ?? connection.ConnectionString}");
         }
 
         #region 关键帧操作
@@ -71,17 +71,17 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🔍 [GetKeyframesAsync] 查询图片 {imageId} 的关键帧...");
+                // System.Diagnostics.Debug.WriteLine($"🔍 [GetKeyframesAsync] 查询图片 {imageId} 的关键帧...");
                 var result = await _context.Keyframes
                     .Where(k => k.ImageId == imageId)
                     .OrderBy(k => k.OrderIndex)
                     .ToListAsync();
-                System.Diagnostics.Debug.WriteLine($"✅ [GetKeyframesAsync] 找到 {result.Count} 个关键帧");
+                // System.Diagnostics.Debug.WriteLine($"✅ [GetKeyframesAsync] 找到 {result.Count} 个关键帧");
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [GetKeyframesAsync] 查询失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ [GetKeyframesAsync] 查询失败: {ex.Message}");
                 throw;
             }
         }
@@ -166,9 +166,9 @@ namespace ImageColorChanger.Managers.Keyframes
                 await _context.SaveChangesAsync();
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"保存时间序列失败: {ex.Message}");
+                // Console.WriteLine($"保存时间序列失败: {ex.Message}");
                 return false;
             }
         }
@@ -265,9 +265,9 @@ namespace ImageColorChanger.Managers.Keyframes
                 await _context.SaveChangesAsync();
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"保存原图模式时间序列失败: {ex.Message}");
+                // Console.WriteLine($"保存原图模式时间序列失败: {ex.Message}");
                 return false;
             }
         }

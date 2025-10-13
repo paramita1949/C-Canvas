@@ -171,11 +171,11 @@ namespace ImageColorChanger.Managers
                 _mediaPlayer.Stopped += OnMediaPlayerStopped;
                 _mediaPlayer.EncounteredError += OnMediaPlayerError;
 
-                System.Diagnostics.Debug.WriteLine("✅ LibVLC 初始化成功");
+                // System.Diagnostics.Debug.WriteLine("✅ LibVLC 初始化成功");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ LibVLC 初始化失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ LibVLC 初始化失败: {ex.Message}");
                 System.Windows.MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n请确保已安装VLC播放器组件。", 
                     "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
@@ -211,7 +211,7 @@ namespace ImageColorChanger.Managers
                 // 确保VideoView可见
                 _mainVideoView.Visibility = System.Windows.Visibility.Visible;
                 
-                System.Diagnostics.Debug.WriteLine("✅ 主窗口视频视图已设置并绑定到MediaPlayer");
+                // System.Diagnostics.Debug.WriteLine("✅ 主窗口视频视图已设置并绑定到MediaPlayer");
             }
         }
 
@@ -221,7 +221,7 @@ namespace ImageColorChanger.Managers
         public void SetProjectionVideoView(VideoView videoView)
         {
             _projectionVideoView = videoView;
-            System.Diagnostics.Debug.WriteLine("✅ 投影窗口视频视图已设置");
+            // System.Diagnostics.Debug.WriteLine("✅ 投影窗口视频视图已设置");
         }
 
         /// <summary>
@@ -231,41 +231,41 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"📥 LoadMedia 开始: {System.IO.Path.GetFileName(mediaPath)}");
+                // System.Diagnostics.Debug.WriteLine($"📥 LoadMedia 开始: {System.IO.Path.GetFileName(mediaPath)}");
                 
                 if (string.IsNullOrEmpty(mediaPath) || !System.IO.File.Exists(mediaPath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 文件不存在");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 文件不存在");
                     return false;
                 }
 
                 // 停止当前播放
                 if (_isPlaying)
                 {
-                    System.Diagnostics.Debug.WriteLine("⏹ 停止当前播放");
+                    // System.Diagnostics.Debug.WriteLine("⏹ 停止当前播放");
                     Stop();
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"🔍 当前模式: _isProjectionEnabled={_isProjectionEnabled}");
-                System.Diagnostics.Debug.WriteLine($"🔍 VideoView状态: Main={(_mainVideoView?.MediaPlayer != null ? "已绑定" : "未绑定")}, Projection={(_projectionVideoView?.MediaPlayer != null ? "已绑定" : "未绑定")}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 当前模式: _isProjectionEnabled={_isProjectionEnabled}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 VideoView状态: Main={(_mainVideoView?.MediaPlayer != null ? "已绑定" : "未绑定")}, Projection={(_projectionVideoView?.MediaPlayer != null ? "已绑定" : "未绑定")}");
 
                 // 创建媒体对象
-                System.Diagnostics.Debug.WriteLine("📦 创建Media对象");
+                // System.Diagnostics.Debug.WriteLine("📦 创建Media对象");
                 var media = new Media(_libVLC, new Uri(mediaPath));
                 _mediaPlayer.Media = media;
                 
                 _currentMediaPath = mediaPath;
                 
-                System.Diagnostics.Debug.WriteLine($"✅ 媒体已加载到MediaPlayer");
+                // System.Diagnostics.Debug.WriteLine($"✅ 媒体已加载到MediaPlayer");
                 
                 // 触发媒体改变事件
                 MediaChanged?.Invoke(this, mediaPath);
                 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载媒体失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 加载媒体失败: {ex.Message}");
                 return false;
             }
         }
@@ -277,40 +277,40 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"▶ ===== Play 开始 =====");
-                System.Diagnostics.Debug.WriteLine($"▶ 参数: mediaPath={mediaPath ?? "null"}");
-                System.Diagnostics.Debug.WriteLine($"▶ 状态: _isProjectionEnabled={_isProjectionEnabled}, _isPaused={_isPaused}");
+                // System.Diagnostics.Debug.WriteLine($"▶ ===== Play 开始 =====");
+                // System.Diagnostics.Debug.WriteLine($"▶ 参数: mediaPath={mediaPath ?? "null"}");
+                // System.Diagnostics.Debug.WriteLine($"▶ 状态: _isProjectionEnabled={_isProjectionEnabled}, _isPaused={_isPaused}");
                 
                 // 确保VideoView已绑定
                 if (_isProjectionEnabled)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔍 投影模式 - 检查绑定");
+                    // System.Diagnostics.Debug.WriteLine($"🔍 投影模式 - 检查绑定");
                     if (_projectionVideoView != null)
                     {
                         if (_projectionVideoView.MediaPlayer == null)
                         {
-                            System.Diagnostics.Debug.WriteLine("🔧 绑定投影VideoView.MediaPlayer");
+                            // System.Diagnostics.Debug.WriteLine("🔧 绑定投影VideoView.MediaPlayer");
                             _projectionVideoView.MediaPlayer = _mediaPlayer;
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("✅ 投影VideoView已绑定");
+                            // System.Diagnostics.Debug.WriteLine("✅ 投影VideoView已绑定");
                         }
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔍 主屏幕模式 - 检查绑定");
+                    // System.Diagnostics.Debug.WriteLine($"🔍 主屏幕模式 - 检查绑定");
                     if (_mainVideoView != null)
                     {
                         if (_mainVideoView.MediaPlayer == null)
                         {
-                            System.Diagnostics.Debug.WriteLine("🔧 绑定主VideoView.MediaPlayer");
+                            // System.Diagnostics.Debug.WriteLine("🔧 绑定主VideoView.MediaPlayer");
                             _mainVideoView.MediaPlayer = _mediaPlayer;
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("✅ 主VideoView已绑定");
+                            // System.Diagnostics.Debug.WriteLine("✅ 主VideoView已绑定");
                         }
                     }
                 }
@@ -318,7 +318,7 @@ namespace ImageColorChanger.Managers
                 // 如果提供了新的媒体路径，先加载
                 if (!string.IsNullOrEmpty(mediaPath))
                 {
-                    System.Diagnostics.Debug.WriteLine("📂 加载新媒体文件");
+                    // System.Diagnostics.Debug.WriteLine("📂 加载新媒体文件");
                     if (!LoadMedia(mediaPath))
                     {
                         return false;
@@ -331,7 +331,7 @@ namespace ImageColorChanger.Managers
                         if (index >= 0)
                         {
                             _currentIndex = index;
-                            System.Diagnostics.Debug.WriteLine($"📍 播放索引: {_currentIndex + 1}/{_playlist.Count}");
+                            // System.Diagnostics.Debug.WriteLine($"📍 播放索引: {_currentIndex + 1}/{_playlist.Count}");
                         }
                     }
                 }
@@ -339,32 +339,32 @@ namespace ImageColorChanger.Managers
                 // 如果是暂停状态，恢复播放
                 if (_isPaused)
                 {
-                    System.Diagnostics.Debug.WriteLine("⏯ 从暂停恢复播放");
+                    // System.Diagnostics.Debug.WriteLine("⏯ 从暂停恢复播放");
                     _mediaPlayer.SetPause(false);
                     _isPaused = false;
                 }
                 else
                 {
                     // 延迟10ms确保VideoView完全就绪
-                    System.Diagnostics.Debug.WriteLine("⏳ 等待10ms确保VideoView就绪");
+                    // System.Diagnostics.Debug.WriteLine("⏳ 等待10ms确保VideoView就绪");
                     System.Threading.Thread.Sleep(10);
                     
-                    System.Diagnostics.Debug.WriteLine("▶ 调用 _mediaPlayer.Play()");
+                    // System.Diagnostics.Debug.WriteLine("▶ 调用 _mediaPlayer.Play()");
                     _mediaPlayer.Play();
                 }
 
                 _isPlaying = true;
                 _updateTimer.Start();
                 
-                System.Diagnostics.Debug.WriteLine($"✅ ===== Play 完成 =====");
+                // System.Diagnostics.Debug.WriteLine($"✅ ===== Play 完成 =====");
                 
                 PlayStateChanged?.Invoke(this, true);
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 播放失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 播放失败: {ex.Message}");
                 return false;
             }
         }
@@ -382,15 +382,15 @@ namespace ImageColorChanger.Managers
                     _isPaused = true;
                     _updateTimer.Stop();
 
-                    System.Diagnostics.Debug.WriteLine("⏸ 播放已暂停");
+                    // System.Diagnostics.Debug.WriteLine("⏸ 播放已暂停");
                     
                     // 触发播放状态改变事件
                     PlayStateChanged?.Invoke(this, false);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 暂停失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 暂停失败: {ex.Message}");
             }
         }
 
@@ -406,14 +406,14 @@ namespace ImageColorChanger.Managers
                 _isPaused = false;
                 _updateTimer.Stop();
 
-                System.Diagnostics.Debug.WriteLine("⏹ 播放已停止");
+                // System.Diagnostics.Debug.WriteLine("⏹ 播放已停止");
                 
                 // 触发播放状态改变事件
                 PlayStateChanged?.Invoke(this, false);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 停止失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 停止失败: {ex.Message}");
             }
         }
 
@@ -427,9 +427,9 @@ namespace ImageColorChanger.Managers
                 volume = Math.Clamp(volume, 0, 100);
                 _mediaPlayer.Volume = volume;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 设置音量失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 设置音量失败: {ex.Message}");
             }
         }
 
@@ -457,11 +457,11 @@ namespace ImageColorChanger.Managers
             {
                 position = Math.Clamp(position, 0.0f, 1.0f);
                 _mediaPlayer.Position = position;
-                System.Diagnostics.Debug.WriteLine($"📍 播放进度已设置: {position:P1}");
+                // System.Diagnostics.Debug.WriteLine($"📍 播放进度已设置: {position:P1}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 设置播放进度失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 设置播放进度失败: {ex.Message}");
             }
         }
 
@@ -516,7 +516,7 @@ namespace ImageColorChanger.Managers
         public void SetPlayMode(PlayMode mode)
         {
             _playMode = mode;
-            System.Diagnostics.Debug.WriteLine($"🔄 播放模式已设置: {mode}");
+            // System.Diagnostics.Debug.WriteLine($"🔄 播放模式已设置: {mode}");
         }
 
         /// <summary>
@@ -526,7 +526,7 @@ namespace ImageColorChanger.Managers
         {
             _playlist = mediaPaths ?? new List<string>();
             _currentIndex = -1;
-            System.Diagnostics.Debug.WriteLine($"📋 播放列表已设置: {_playlist.Count} 个文件");
+            // System.Diagnostics.Debug.WriteLine($"📋 播放列表已设置: {_playlist.Count} 个文件");
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace ImageColorChanger.Managers
         {
             if (_playlist == null || _playlist.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("❌ 播放列表为空");
+                // System.Diagnostics.Debug.WriteLine("❌ 播放列表为空");
                 return false;
             }
 
@@ -558,7 +558,7 @@ namespace ImageColorChanger.Managers
                         // 随机播放
                         _currentIndex = _random.Next(0, _playlist.Count);
                         nextMedia = _playlist[_currentIndex];
-                        System.Diagnostics.Debug.WriteLine($"🎲 随机播放: {System.IO.Path.GetFileName(nextMedia)} ({_currentIndex + 1}/{_playlist.Count})");
+                        // System.Diagnostics.Debug.WriteLine($"🎲 随机播放: {System.IO.Path.GetFileName(nextMedia)} ({_currentIndex + 1}/{_playlist.Count})");
                         break;
 
                     case PlayMode.Sequential:
@@ -576,7 +576,7 @@ namespace ImageColorChanger.Managers
                             else
                             {
                                 // 顺序播放结束
-                                System.Diagnostics.Debug.WriteLine("📋 播放列表已结束");
+                                // System.Diagnostics.Debug.WriteLine("📋 播放列表已结束");
                                 return false;
                             }
                         }
@@ -592,9 +592,9 @@ namespace ImageColorChanger.Managers
 
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 播放下一个失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 播放下一个失败: {ex.Message}");
                 return false;
             }
         }
@@ -606,7 +606,7 @@ namespace ImageColorChanger.Managers
         {
             if (_playlist == null || _playlist.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("❌ 播放列表为空");
+                // System.Diagnostics.Debug.WriteLine("❌ 播放列表为空");
                 return false;
             }
 
@@ -648,9 +648,9 @@ namespace ImageColorChanger.Managers
 
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 播放上一个失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 播放上一个失败: {ex.Message}");
                 return false;
             }
         }
@@ -660,17 +660,17 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public void SwitchToProjectionMode()
         {
-            System.Diagnostics.Debug.WriteLine("🔄 SwitchToProjectionMode 开始");
+            // System.Diagnostics.Debug.WriteLine("🔄 SwitchToProjectionMode 开始");
             if (_projectionVideoView != null)
             {
-                System.Diagnostics.Debug.WriteLine($"🔧 设置 _projectionVideoView.MediaPlayer = _mediaPlayer");
+                // System.Diagnostics.Debug.WriteLine($"🔧 设置 _projectionVideoView.MediaPlayer = _mediaPlayer");
                 _projectionVideoView.MediaPlayer = _mediaPlayer;
                 _isProjectionEnabled = true;
-                System.Diagnostics.Debug.WriteLine($"✅ 投影模式已切换: _isProjectionEnabled={_isProjectionEnabled}");
+                // System.Diagnostics.Debug.WriteLine($"✅ 投影模式已切换: _isProjectionEnabled={_isProjectionEnabled}");
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("❌ _projectionVideoView 为 null");
+                // System.Diagnostics.Debug.WriteLine("❌ _projectionVideoView 为 null");
             }
         }
         
@@ -683,7 +683,7 @@ namespace ImageColorChanger.Managers
             {
                 if (_projectionVideoView == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("❌ 投影视频视图未设置");
+                    // System.Diagnostics.Debug.WriteLine("❌ 投影视频视图未设置");
                     return;
                 }
 
@@ -701,7 +701,7 @@ namespace ImageColorChanger.Managers
                 _projectionVideoView.MediaPlayer = _mediaPlayer;
                 _isProjectionEnabled = true;
 
-                System.Diagnostics.Debug.WriteLine("✅ 投影播放已启用");
+                // System.Diagnostics.Debug.WriteLine("✅ 投影播放已启用");
 
                 // 如果之前在播放，恢复播放
                 if (wasPlaying && !string.IsNullOrEmpty(_currentMediaPath))
@@ -721,9 +721,9 @@ namespace ImageColorChanger.Managers
                     }), DispatcherPriority.Background);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 启用投影播放失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 启用投影播放失败: {ex.Message}");
             }
         }
 
@@ -736,7 +736,7 @@ namespace ImageColorChanger.Managers
             {
                 if (_mainVideoView == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("❌ 主窗口视频视图未设置");
+                    // System.Diagnostics.Debug.WriteLine("❌ 主窗口视频视图未设置");
                     return;
                 }
 
@@ -754,7 +754,7 @@ namespace ImageColorChanger.Managers
                 _mainVideoView.MediaPlayer = _mediaPlayer;
                 _isProjectionEnabled = false;
 
-                System.Diagnostics.Debug.WriteLine("✅ 投影播放已禁用");
+                // System.Diagnostics.Debug.WriteLine("✅ 投影播放已禁用");
 
                 // 如果之前在播放，恢复播放
                 if (wasPlaying && !string.IsNullOrEmpty(_currentMediaPath))
@@ -774,9 +774,9 @@ namespace ImageColorChanger.Managers
                     }), DispatcherPriority.Background);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 禁用投影播放失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 禁用投影播放失败: {ex.Message}");
             }
         }
 
@@ -791,7 +791,7 @@ namespace ImageColorChanger.Managers
         {
             _mainWindow.Dispatcher.Invoke(() =>
             {
-                System.Diagnostics.Debug.WriteLine("🏁 媒体播放结束");
+                // System.Diagnostics.Debug.WriteLine("🏁 媒体播放结束");
                 
                 _isPlaying = false;
                 _isPaused = false;
@@ -813,7 +813,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnMediaPlayerPlaying(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("▶ 媒体开始播放");
+            // System.Diagnostics.Debug.WriteLine("▶ 媒体开始播放");
             
             // 检测是否有视频轨道
             _mainWindow.Dispatcher.BeginInvoke(new Action(() =>
@@ -826,34 +826,34 @@ namespace ImageColorChanger.Managers
                     // 检查是否有视频轨道
                     bool hasVideo = _mediaPlayer.VideoTrackCount > 0;
                     
-                    System.Diagnostics.Debug.WriteLine($"🎬 视频轨道检测: VideoTrackCount={_mediaPlayer.VideoTrackCount}, HasVideo={hasVideo}");
+                    // System.Diagnostics.Debug.WriteLine($"🎬 视频轨道检测: VideoTrackCount={_mediaPlayer.VideoTrackCount}, HasVideo={hasVideo}");
                     
                     // 如果没有视频轨道，解绑 VideoView，让音频在后台播放
                     if (!hasVideo)
                     {
-                        System.Diagnostics.Debug.WriteLine("🎵 无视频轨道，解绑VideoView，后台播放音频");
+                        // System.Diagnostics.Debug.WriteLine("🎵 无视频轨道，解绑VideoView，后台播放音频");
                         
                         // 解绑主窗口 VideoView
                         if (_mainVideoView != null && _mainVideoView.MediaPlayer != null)
                         {
                             _mainVideoView.MediaPlayer = null;
-                            System.Diagnostics.Debug.WriteLine("✅ 已解绑主窗口VideoView");
+                            // System.Diagnostics.Debug.WriteLine("✅ 已解绑主窗口VideoView");
                         }
                         
                         // 解绑投影窗口 VideoView
                         if (_projectionVideoView != null && _projectionVideoView.MediaPlayer != null)
                         {
                             _projectionVideoView.MediaPlayer = null;
-                            System.Diagnostics.Debug.WriteLine("✅ 已解绑投影窗口VideoView");
+                            // System.Diagnostics.Debug.WriteLine("✅ 已解绑投影窗口VideoView");
                         }
                     }
                     
                     // 触发事件通知主窗口
                     VideoTrackDetected?.Invoke(this, hasVideo);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 视频轨道检测失败: {ex.Message}");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 视频轨道检测失败: {ex.Message}");
                     // 出错时假设有视频
                     VideoTrackDetected?.Invoke(this, true);
                 }
@@ -865,7 +865,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnMediaPlayerPaused(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("⏸ 媒体已暂停");
+            // System.Diagnostics.Debug.WriteLine("⏸ 媒体已暂停");
         }
 
         /// <summary>
@@ -873,7 +873,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnMediaPlayerStopped(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("⏹ 媒体已停止");
+            // System.Diagnostics.Debug.WriteLine("⏹ 媒体已停止");
         }
 
         /// <summary>
@@ -883,7 +883,7 @@ namespace ImageColorChanger.Managers
         {
             _mainWindow.Dispatcher.Invoke(() =>
             {
-                System.Diagnostics.Debug.WriteLine("❌ 媒体播放错误");
+                // System.Diagnostics.Debug.WriteLine("❌ 媒体播放错误");
                 System.Windows.MessageBox.Show("媒体播放出现错误，请检查文件格式是否支持。", "播放错误", 
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             });
@@ -905,9 +905,9 @@ namespace ImageColorChanger.Managers
                     // 触发进度更新事件
                     ProgressUpdated?.Invoke(this, (position, currentTime, totalTime));
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 更新播放进度失败: {ex.Message}");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 更新播放进度失败: {ex.Message}");
                 }
             }
         }
@@ -936,11 +936,11 @@ namespace ImageColorChanger.Managers
                     _libVLC = null;
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ VideoPlayerManager 资源已清理");
+                // System.Diagnostics.Debug.WriteLine("✅ VideoPlayerManager 资源已清理");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 清理资源失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 清理资源失败: {ex.Message}");
             }
         }
 

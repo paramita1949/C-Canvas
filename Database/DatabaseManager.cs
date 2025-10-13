@@ -31,7 +31,7 @@ namespace ImageColorChanger.Database
                 dbPath = System.IO.Path.Combine(appDirectory, "pyimages.db");
             }
             
-            System.Diagnostics.Debug.WriteLine($"📁 数据库文件路径: {dbPath}");
+            // System.Diagnostics.Debug.WriteLine($"📁 数据库文件路径: {dbPath}");
             _context = new CanvasDbContext(dbPath);
             _context.InitializeDatabase();
         }
@@ -243,9 +243,9 @@ namespace ImageColorChanger.Database
                 // EF Core会自动跟踪这些对象的变化
                 _context.SaveChanges();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"更新媒体文件排序失败: {ex}");
+                // System.Diagnostics.Debug.WriteLine($"更新媒体文件排序失败: {ex}");
                 throw;
             }
         }
@@ -578,9 +578,9 @@ namespace ImageColorChanger.Database
                 _context.SaveChanges();
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"添加原图标记失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"添加原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -604,9 +604,9 @@ namespace ImageColorChanger.Database
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"移除原图标记失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"移除原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -622,9 +622,9 @@ namespace ImageColorChanger.Database
                 return _context.OriginalMarks
                     .Any(m => m.ItemTypeString == itemTypeStr && m.ItemId == itemId);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"检查原图标记失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"检查原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -642,9 +642,9 @@ namespace ImageColorChanger.Database
 
                 return mark?.MarkType;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"获取原图标记类型失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"获取原图标记类型失败: {ex.Message}");
                 return null;
             }
         }
@@ -799,7 +799,7 @@ namespace ImageColorChanger.Database
             {
                 folder.AutoColorEffect = 1;
                 _context.SaveChanges();
-                System.Diagnostics.Debug.WriteLine($"✅ 已标记文件夹 [{folder.Name}] 自动开启变色");
+                // System.Diagnostics.Debug.WriteLine($"✅ 已标记文件夹 [{folder.Name}] 自动开启变色");
             }
         }
         
@@ -813,7 +813,7 @@ namespace ImageColorChanger.Database
             {
                 folder.AutoColorEffect = null;
                 _context.SaveChanges();
-                System.Diagnostics.Debug.WriteLine($"✅ 已取消文件夹 [{folder.Name}] 的变色标记");
+                // System.Diagnostics.Debug.WriteLine($"✅ 已取消文件夹 [{folder.Name}] 的变色标记");
             }
         }
         
@@ -840,7 +840,7 @@ namespace ImageColorChanger.Database
             {
                 folder.VideoPlayMode = playMode;
                 _context.SaveChanges();
-                System.Diagnostics.Debug.WriteLine($"✅ 已设置文件夹 [{folder.Name}] 的播放模式: {playMode}");
+                // System.Diagnostics.Debug.WriteLine($"✅ 已设置文件夹 [{folder.Name}] 的播放模式: {playMode}");
             }
         }
         
@@ -863,7 +863,7 @@ namespace ImageColorChanger.Database
             {
                 folder.VideoPlayMode = null;
                 _context.SaveChanges();
-                System.Diagnostics.Debug.WriteLine($"✅ 已清除文件夹 [{folder.Name}] 的播放模式");
+                // System.Diagnostics.Debug.WriteLine($"✅ 已清除文件夹 [{folder.Name}] 的播放模式");
             }
         }
 
@@ -905,19 +905,19 @@ namespace ImageColorChanger.Database
                     {
                         // 列不存在，执行添加
                         _context.Database.ExecuteSqlRaw("ALTER TABLE keyframes ADD COLUMN loop_count INTEGER NULL");
-                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 loop_count 列");
+                        // System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 loop_count 列");
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("ℹ️ loop_count 列已存在，跳过迁移");
+                        // System.Diagnostics.Debug.WriteLine("ℹ️ loop_count 列已存在，跳过迁移");
                     }
                 }
                 
                 connection.Close();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
             }
         }
 

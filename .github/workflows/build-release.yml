@@ -1,0 +1,109 @@
+name: 构建和发布
+
+on:
+  push:
+    paths:
+      - 'updata.txt'
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: ImageColorChanger
+  OUTPUT_NAME: Canvas
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    name: 编译和打包
+    runs-on: windows-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 还原依赖
+      run: dotnet restore
+    
+    - name: 编译项目
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: 发布项目
+      run: dotnet publish -c Release -o publish --self-contained false -p:PublishSingleFile=false
+    
+    - name: 获取版本号
+      id: get_version
+      shell: pwsh
+      run: |
+        if ($env:GITHUB_REF -like 'refs/tags/v*') {
+          $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        } else {
+          $version = "dev-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "构建版本: $version"
+    
+    - name: 创建发布包
+      shell: pwsh
+      run: |
+        $version = "${{ steps.get_version.outputs.version }}"
+        $zipName = "${{ env.OUTPUT_NAME }}-$version-win-x64.zip"
+        
+        # 压缩发布文件
+        Compress-Archive -Path publish\* -DestinationPath $zipName
+        
+        # 计算文件大小
+        $size = (Get-Item $zipName).Length / 1MB
+        echo "包大小: $([math]::Round($size, 2)) MB"
+        
+        # 输出文件名供后续步骤使用
+        echo "zip_name=$zipName" >> $env:GITHUB_OUTPUT
+      id: create_package
+    
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.OUTPUT_NAME }}-${{ steps.get_version.outputs.version }}
+        path: ${{ steps.create_package.outputs.zip_name }}
+        retention-days: 30
+    
+    - name: 创建 GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.create_package.outputs.zip_name }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.version }}
+          
+          ### 📦 下载说明
+          - 下载 `${{ steps.create_package.outputs.zip_name }}` 
+          - 解压到任意目录
+          - 运行 `Canvas.exe`
+          
+          ### ⚙️ 系统要求
+          - Windows 10 或更高版本
+          - .NET 8.0 Runtime (如未安装会自动提示下载)
+          
+          ### 📝 更新日志
+          请查看下方自动生成的变更记录
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 构建摘要
+      shell: pwsh
+      run: |
+        echo "### ✅ 构建成功" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **版本**: ${{ steps.get_version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **包名**: ${{ steps.create_package.outputs.zip_name }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
+

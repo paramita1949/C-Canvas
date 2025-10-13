@@ -505,7 +505,7 @@ namespace ImageColorChanger.ViewModels
             {
                 var recordingService = GetRecordingService();
                 await recordingService.RecordTimingAsync(keyframeId);
-                System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 已记录关键帧时间: KeyframeId={keyframeId}");
+                // System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 已记录关键帧时间: KeyframeId={keyframeId}");
             }
             catch (Exception ex)
             {
@@ -544,17 +544,17 @@ namespace ImageColorChanger.ViewModels
                 CompletedPlayCount = playbackService.CompletedPlayCount;
             }
             
-            System.Diagnostics.Debug.WriteLine($"📊 [ViewModel] 播放进度更新: 当前={e.CurrentIndex + 1}/{e.TotalCount}, 倒计时={e.RemainingTime:F1}秒");
+            // System.Diagnostics.Debug.WriteLine($"📊 [ViewModel] 播放进度更新: 当前={e.CurrentIndex + 1}/{e.TotalCount}, 倒计时={e.RemainingTime:F1}秒");
             
             // 启动倒计时
             if (e.RemainingTime > 0)
             {
-                System.Diagnostics.Debug.WriteLine($"⏱️ [ViewModel] 启动倒计时服务: {e.RemainingTime:F1}秒");
+                // System.Diagnostics.Debug.WriteLine($"⏱️ [ViewModel] 启动倒计时服务: {e.RemainingTime:F1}秒");
                 _countdownService.Start(e.RemainingTime);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [ViewModel] 倒计时时长无效: {e.RemainingTime}秒");
+                // System.Diagnostics.Debug.WriteLine($"⚠️ [ViewModel] 倒计时时长无效: {e.RemainingTime}秒");
             }
         }
 
