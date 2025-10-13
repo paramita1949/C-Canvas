@@ -84,7 +84,7 @@ jobs:
         tag_name: ${{ steps.get_version.outputs.version }}
         name: Canvas Cast ${{ steps.get_version.outputs.version }}
         draft: false
-        prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        prerelease: true
         generate_release_notes: true
         body: |
           ## 🎉 Canvas Cast ${{ steps.get_version.outputs.version }}
