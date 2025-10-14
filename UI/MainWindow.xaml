@@ -431,13 +431,17 @@
                                   Style="{StaticResource ProjectTreeStyle}"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
                                   MouseDoubleClick="ProjectTree_MouseDoubleClick"
-                                  PreviewMouseRightButtonDown="ProjectTree_RightClick">
+                                  PreviewMouseRightButtonDown="ProjectTree_RightClick"
+                                  MouseMove="ProjectTree_MouseMove">
                         <TreeView.ItemContainerStyle>
                             <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=OneWay}"/>
+                                <EventSetter Event="MouseEnter" Handler="TreeViewItem_MouseEnter"/>
+                                <EventSetter Event="MouseLeave" Handler="TreeViewItem_MouseLeave"/>
                                 <!-- 自定义模板：对于文件节点隐藏展开/折叠按钮 -->
                                 <Setter Property="Template">
                                     <Setter.Value>
@@ -597,6 +601,34 @@
                             </Line.Effect>
                         </Line>
                     </Canvas>
+                    
+                    <!-- 文件名完整显示提示框 -->
+                    <Popup x:Name="FileNameTooltipPopup"
+                           AllowsTransparency="True"
+                           Placement="Relative"
+                           PlacementTarget="{Binding ElementName=ProjectTree}"
+                           StaysOpen="True"
+                           IsHitTestVisible="False">
+                        <Border Background="#E0000000"
+                                BorderBrush="#80FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,8"
+                                MaxWidth="500">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" 
+                                                  BlurRadius="8" 
+                                                  Opacity="0.5" 
+                                                  Color="#000000"/>
+                            </Border.Effect>
+                            <TextBlock x:Name="FileNameTooltipText"
+                                       Text=""
+                                       Foreground="White"
+                                       FontSize="14"
+                                       FontWeight="Medium"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+                    </Popup>
                 </Grid>
             </Border>
 

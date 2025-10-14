@@ -3787,6 +3787,73 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// TreeViewItem鼠标进入事件 - 显示完整文件名提示
+        /// </summary>
+        private void TreeViewItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            try
+            {
+                if (sender is TreeViewItem treeViewItem && treeViewItem.DataContext is ProjectTreeItem item)
+                {
+                    // 获取显示文本（文件名或文件夹名）
+                    string displayText = item.Name;
+                    
+                    if (!string.IsNullOrEmpty(displayText))
+                    {
+                        // 设置提示框文本
+                        FileNameTooltipText.Text = displayText;
+                        
+                        // 显示提示框
+                        FileNameTooltipPopup.IsOpen = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"显示文件名提示时出错: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// TreeViewItem鼠标离开事件 - 隐藏提示框
+        /// </summary>
+        private void TreeViewItem_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            try
+            {
+                // 隐藏提示框
+                FileNameTooltipPopup.IsOpen = false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// TreeView鼠标移动事件 - 更新提示框位置跟随鼠标
+        /// </summary>
+        private void ProjectTree_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            try
+            {
+                if (FileNameTooltipPopup.IsOpen)
+                {
+                    // 获取鼠标相对于ProjectTree的位置
+                    System.Windows.Point mousePos = e.GetPosition(ProjectTree);
+                    
+                    // 设置提示框位置（鼠标右下方偏移一点）
+                    FileNameTooltipPopup.HorizontalOffset = mousePos.X + 15;
+                    FileNameTooltipPopup.VerticalOffset = mousePos.Y + 15;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新提示框位置时出错: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 显示拖拽插入位置指示器
         /// </summary>
         private void ShowDragIndicator(TreeViewItem targetItem)
