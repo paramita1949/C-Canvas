@@ -48,7 +48,7 @@
                                             Margin="{TemplateBinding Padding}"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            RecognizesAccessKey="True"
+                                            RecognizesAccessKey="False"
                                             SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -370,15 +370,10 @@
                     <!-- 暂停/继续按钮 -->
                 </StackPanel>
 
-                <!-- 右侧：屏幕选择 + 热键帮助 -->
+                <!-- 右侧：屏幕选择 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <TextBlock Text="屏幕：" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13"/>
                     <ComboBox x:Name="ScreenSelector" Width="120" Height="30" 
                               VerticalAlignment="Center" SelectedIndex="0" FontSize="12"/>
-                    
-                    <!-- 热键说明按钮 -->
-                    <Button x:Name="BtnHotKeyHelp" Content="⌨️ 热键" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="查看全局热键说明" Click="BtnHotKeyHelp_Click" Margin="10,0,0,0"/>
                 </StackPanel>
             </Grid>
         </Border>

@@ -1821,52 +1821,6 @@ namespace ImageColorChanger.UI
             await _playbackViewModel.TogglePauseCommand.ExecuteAsync(null);
         }
         
-        /// <summary>
-        /// 显示全局热键帮助信息
-        /// </summary>
-        private void BtnHotKeyHelp_Click(object sender, RoutedEventArgs e)
-        {
-            string helpMessage = @"🎹 全局热键说明
-
-仅在投影模式下有效，使用原来的按键：
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📷 媒体/关键帧控制
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-← : 上一个媒体/关键帧
-→ : 下一个媒体/关键帧
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🖼️ 相似图片/关键帧控制
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PageUp : 上一个相似图片（原图模式）/ 上一个关键帧（关键帧模式）
-PageDown : 下一个相似图片（原图模式）/ 下一个关键帧（关键帧模式）
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-▶️ 播放控制
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-F2 : 播放/暂停
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛑 退出控制
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ESC : 停止播放视频并关闭投影
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 提示
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• 仅在投影模式下启用全局热键
-• 前台模式使用正常按键（F2、方向键、PageUp/PageDown、ESC等）
-• 投影关闭时自动禁用全局热键
-• 软件在后台时，热键依然有效";
-
-            MessageBox.Show(
-                helpMessage,
-                "全局热键说明",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information
-            );
-        }
 
         #endregion
 
