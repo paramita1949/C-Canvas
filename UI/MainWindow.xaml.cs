@@ -93,6 +93,7 @@ namespace ImageColorChanger.UI
         private VideoPlayerManager videoPlayerManager;
         private VideoView mainVideoView;
         private bool isUpdatingProgress = false; // 防止进度条更新时触发事件
+        private string pendingProjectionVideoPath = null; // 待投影播放的视频路径
         
         // 按钮防抖动
         private DateTime lastPlayModeClickTime = DateTime.MinValue;
@@ -328,6 +329,9 @@ namespace ImageColorChanger.UI
             // 订阅投影状态改变事件
             projectionManager.ProjectionStateChanged += OnProjectionStateChanged;
             
+            // 订阅投影VideoView加载完成事件
+            projectionManager.ProjectionVideoViewLoaded += OnProjectionVideoViewLoaded;
+            
             // 初始化原图管理器
             originalManager = new OriginalManager(dbManager, this);
             
@@ -428,7 +432,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 创建视频播放管理器
+                // 创建视频播放管理器（此时只初始化LibVLC，不创建MediaPlayer）
                 videoPlayerManager = new VideoPlayerManager(this);
                 
                 // 订阅视频轨道检测事件
@@ -438,26 +442,44 @@ namespace ImageColorChanger.UI
                 mainVideoView = new VideoView();
                 VideoContainer.Children.Add(mainVideoView);
                 
-                // 延迟设置视频视图，确保控件已完全加载
-                this.Loaded += (s, e) =>
+                // 等待VideoView完成布局并有了实际尺寸后，再创建MediaPlayer（避免小窗口）
+                bool mediaPlayerInitialized = false;
+                SizeChangedEventHandler sizeChangedHandler = null;
+                
+                sizeChangedHandler = (s, e) =>
                 {
                     try
                     {
-                        // 等待VideoView完全加载后再绑定MediaPlayer
-                        Dispatcher.BeginInvoke(new Action(() =>
+                        // 只在VideoView有实际尺寸且MediaPlayer未初始化时执行
+                        if (!mediaPlayerInitialized && mainVideoView.ActualWidth > 0 && mainVideoView.ActualHeight > 0)
                         {
-                            if (mainVideoView != null && videoPlayerManager != null)
-                            {
-                                videoPlayerManager.SetMainVideoView(mainVideoView);
-                                System.Diagnostics.Debug.WriteLine("✅ VideoView已绑定到MediaPlayer");
-                            }
-                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                            System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 尺寸就绪 =====");
+                            System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualWidth: {mainVideoView.ActualWidth}");
+                            System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualHeight: {mainVideoView.ActualHeight}");
+                            
+                            // 创建MediaPlayer并立即绑定到VideoView（此时VideoView已有尺寸）
+                            videoPlayerManager.InitializeMediaPlayer(mainVideoView);
+                            
+                            // 设置为主窗口VideoView
+                            videoPlayerManager.SetMainVideoView(mainVideoView);
+                            
+                            mediaPlayerInitialized = true;
+                            
+                            // 取消订阅，避免重复触发
+                            mainVideoView.SizeChanged -= sizeChangedHandler;
+                            
+                            System.Diagnostics.Debug.WriteLine("✅ 主窗口VideoView处理完成（有尺寸）");
+                            System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 初始化完成 =====");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ VideoView绑定失败: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer绑定失败: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                     }
                 };
+                
+                mainVideoView.SizeChanged += sizeChangedHandler;
                 
                 // 订阅事件
                 videoPlayerManager.PlayStateChanged += OnVideoPlayStateChanged;
@@ -891,7 +913,6 @@ namespace ImageColorChanger.UI
                     // 如果选中了视频文件但未播放，直接在投影屏幕播放
                     else if (!string.IsNullOrEmpty(imagePath) && IsVideoFile(imagePath))
                     {
-                        
                         // 先准备投影环境
                         var projectionVideoView = projectionManager.GetProjectionVideoView();
                         if (projectionVideoView != null)
@@ -900,9 +921,6 @@ namespace ImageColorChanger.UI
                             ImageScrollViewer.Visibility = Visibility.Collapsed;
                             VideoContainer.Visibility = Visibility.Collapsed;
                             
-                            // 隐藏媒体控制栏（改用快捷键控制）
-                            // MediaPlayerPanel.Visibility = Visibility.Visible;
-                            
                             // 切换到视频投影模式
                             projectionManager.ShowVideoProjection();
                             
@@ -910,17 +928,11 @@ namespace ImageColorChanger.UI
                             string fileName = System.IO.Path.GetFileName(imagePath);
                             projectionManager.SetProjectionMediaFileName(fileName, false);
                             
-                            // 设置投影VideoView并切换到投影模式
-                            videoPlayerManager.SetProjectionVideoView(projectionVideoView);
-                            videoPlayerManager.SwitchToProjectionMode();
+                            // 设置待播放视频路径，等待MediaPlayer创建完成后播放
+                            pendingProjectionVideoPath = imagePath;
+                            System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {fileName}");
                             
-                            // 构建播放列表
-                            BuildVideoPlaylist(imagePath);
-                            
-                            // 开始播放（此时已是投影模式，直接在投影屏幕播放）
-                            videoPlayerManager.Play(imagePath);
-                            
-                            ShowStatus($"🎬 正在投影播放: {fileName}");
+                            ShowStatus($"🎬 准备投影播放: {fileName}");
                         }
                     }
                 }
@@ -963,6 +975,112 @@ namespace ImageColorChanger.UI
                     videoPlayerManager?.ResetProjectionMode();
                 }
             });
+        }
+
+        /// <summary>
+        /// 投影VideoView加载完成事件处理
+        /// </summary>
+        private void OnProjectionVideoViewLoaded(object sender, VideoView projectionVideoView)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView Loaded事件触发 =====");
+                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView: {(projectionVideoView != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualWidth: {projectionVideoView?.ActualWidth}");
+                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualHeight: {projectionVideoView?.ActualHeight}");
+                
+                // 如果VideoView尺寸为0，等待SizeChanged事件
+                if (projectionVideoView != null && (projectionVideoView.ActualWidth == 0 || projectionVideoView.ActualHeight == 0))
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ 投影VideoView尺寸为0，等待SizeChanged事件");
+                    
+                    bool initialized = false;
+                    SizeChangedEventHandler sizeChangedHandler = null;
+                    
+                    sizeChangedHandler = (s, e) =>
+                    {
+                        if (!initialized && projectionVideoView.ActualWidth > 0 && projectionVideoView.ActualHeight > 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView 尺寸就绪 =====");
+                            System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView尺寸: {projectionVideoView.ActualWidth}x{projectionVideoView.ActualHeight}");
+                            
+                            if (videoPlayerManager != null)
+                            {
+                                videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
+                                videoPlayerManager.SetProjectionVideoView(projectionVideoView);
+                            }
+                            
+                            initialized = true;
+                            projectionVideoView.SizeChanged -= sizeChangedHandler;
+                            
+                            System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定（有尺寸）");
+                            
+                            // 如果有待播放的视频，现在开始播放
+                            if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                                PlayPendingProjectionVideo();
+                            }
+                        }
+                    };
+                    
+                    projectionVideoView.SizeChanged += sizeChangedHandler;
+                }
+                else if (projectionVideoView != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("✅ 投影VideoView已有尺寸，直接初始化");
+                    
+                    // VideoView已有尺寸，直接创建MediaPlayer
+                    if (videoPlayerManager != null)
+                    {
+                        videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
+                        videoPlayerManager.SetProjectionVideoView(projectionVideoView);
+                        System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定到VideoView");
+                        
+                        // 如果有待播放的视频，现在开始播放
+                        if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                            PlayPendingProjectionVideo();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 投影MediaPlayer绑定失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
+            }
+        }
+        
+        /// <summary>
+        /// 播放待投影的视频
+        /// </summary>
+        private void PlayPendingProjectionVideo()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(pendingProjectionVideoPath))
+                    return;
+                
+                string videoPath = pendingProjectionVideoPath;
+                pendingProjectionVideoPath = null; // 清除待播放路径
+                
+                // 切换到投影模式
+                videoPlayerManager.SwitchToProjectionMode();
+                
+                // 构建播放列表
+                BuildVideoPlaylist(videoPath);
+                
+                // 开始播放
+                videoPlayerManager.Play(videoPath);
+                
+                ShowStatus($"🎬 正在投影播放: {System.IO.Path.GetFileName(videoPath)}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 播放待投影视频失败: {ex.Message}");
+            }
         }
 
         private void BtnProjection_Click(object sender, RoutedEventArgs e)
@@ -4182,20 +4300,12 @@ namespace ImageColorChanger.UI
                     System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     projectionManager.ShowVideoProjection();
                     
-                    System.Diagnostics.Debug.WriteLine("步骤3: 设置投影VideoView");
-                    videoPlayerManager.SetProjectionVideoView(projectionVideoView);
-                    
-                    System.Diagnostics.Debug.WriteLine("步骤4: 切换到投影模式");
-                    videoPlayerManager.SwitchToProjectionMode();
-                    
-                    System.Diagnostics.Debug.WriteLine("步骤5: 构建播放列表");
-                    BuildVideoPlaylist(videoPath);
-                    
-                    System.Diagnostics.Debug.WriteLine("步骤6: 开始播放");
-                    videoPlayerManager.Play(videoPath);
+                    // 设置待播放视频路径，等待MediaPlayer创建完成后播放
+                    pendingProjectionVideoPath = videoPath;
+                    System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
                     
                     System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 完成 =====");
-                    ShowStatus($"🎬 正在投影播放: {System.IO.Path.GetFileName(videoPath)}");
+                    ShowStatus($"🎬 准备投影播放: {System.IO.Path.GetFileName(videoPath)}");
                 }
             }
             catch (Exception ex)
@@ -4441,21 +4551,10 @@ namespace ImageColorChanger.UI
                 
                 System.Diagnostics.Debug.WriteLine("📹 启用视频投屏");
                 
-                // 获取投影窗口的VideoView
-                var projectionVideoView = projectionManager.GetProjectionVideoView();
-                if (projectionVideoView == null)
-                {
-                    System.Diagnostics.Debug.WriteLine("❌ 投影窗口VideoView未创建");
-                    return;
-                }
-                
-                // 设置投影VideoView到VideoPlayerManager
-                videoPlayerManager.SetProjectionVideoView(projectionVideoView);
-                
                 // 切换到视频投影模式
                 projectionManager.ShowVideoProjection();
                 
-                // 启用视频投影
+                // 启用视频投影（VideoView已在Loaded事件中绑定）
                 videoPlayerManager.EnableProjection();
                 
                 ShowStatus("✅ 视频投屏已启用");

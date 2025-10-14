@@ -37,6 +37,11 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public event EventHandler<bool> ProjectionStateChanged;
 
+        /// <summary>
+        /// 投影VideoView加载完成事件
+        /// </summary>
+        public event EventHandler<VideoView> ProjectionVideoViewLoaded;
+
         #endregion
 
         // 主应用引用
@@ -598,6 +603,12 @@ namespace ImageColorChanger.Managers
                     {
                         HorizontalAlignment = WpfHorizontalAlignment.Stretch,
                         VerticalAlignment = System.Windows.VerticalAlignment.Stretch
+                    };
+                    
+                    // 在VideoView加载完成后触发事件
+                    _projectionVideoView.Loaded += (s, e) =>
+                    {
+                        ProjectionVideoViewLoaded?.Invoke(this, _projectionVideoView);
                     };
                     
                     _projectionVideoContainer.Children.Add(_projectionVideoView);
