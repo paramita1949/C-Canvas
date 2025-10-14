@@ -8,7 +8,7 @@ on:
 
 env:
   PROJECT_NAME: ImageColorChanger
-  OUTPUT_NAME: Canvas
+  OUTPUT_NAME: Canvas Cast
   DOTNET_VERSION: '8.0.x'
 
 permissions:
@@ -82,12 +82,14 @@ jobs:
     - name: 验证构建产物
       shell: pwsh
       run: |
-        if (Test-Path "publish\Canvas.exe") {
+        if (Test-Path "publish\Canvas Cast.exe") {
           echo "✅ 构建产物验证成功"
-          $exeInfo = Get-Item "publish\Canvas.exe"
+          $exeInfo = Get-Item "publish\Canvas Cast.exe"
           echo "文件大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
         } else {
-          echo "❌ 构建产物验证失败 - Canvas.exe 不存在"
+          echo "❌ 构建产物验证失败 - Canvas Cast.exe 不存在"
+          echo "publish目录内容:"
+          Get-ChildItem "publish" -ErrorAction SilentlyContinue | ForEach-Object { echo "  - $($_.Name)" }
           exit 1
         }
     
@@ -96,7 +98,7 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $zipName = "${{ env.OUTPUT_NAME }}-CSharp-$tag-win-x64.zip"
+        $zipName = "Canvas-Cast-CSharp-$tag-win-x64.zip"
         
         # 压缩发布文件
         Compress-Archive -Path publish\* -DestinationPath $zipName
@@ -118,7 +120,7 @@ jobs:
     - name: 上传构建产物
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.OUTPUT_NAME }}-${{ steps.get_version.outputs.version }}
+        name: Canvas-Cast-${{ steps.get_version.outputs.version }}
         path: ${{ steps.create_package.outputs.zip_name }}
         retention-days: 30
     
@@ -153,7 +155,7 @@ jobs:
           ### 📦 下载说明
           - 下载 `${{ steps.create_package.outputs.zip_name }}` 
           - 解压到任意目录
-          - 运行 `Canvas.exe`
+          - 运行 `Canvas Cast.exe`
           
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
