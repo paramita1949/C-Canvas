@@ -93,11 +93,15 @@ namespace ImageColorChanger.UI
         private VideoPlayerManager videoPlayerManager;
         private VideoView mainVideoView;
         private bool isUpdatingProgress = false; // 防止进度条更新时触发事件
-        private string pendingProjectionVideoPath = null; // 待投影播放的视频路径
+        private string pendingProjectionVideoPath = null;
+        private System.Windows.Threading.DispatcherTimer projectionTimeoutTimer = null; // 待投影播放的视频路径
         
         // 按钮防抖动
         private DateTime lastPlayModeClickTime = DateTime.MinValue;
         private DateTime lastMediaPrevClickTime = DateTime.MinValue;
+        
+        // 全局热键管理器
+        private Utils.GlobalHotKeyManager _globalHotKeyManager;
         private DateTime lastMediaNextClickTime = DateTime.MinValue;
         
         // MVVM - 新架构的PlaybackControlViewModel
@@ -357,6 +361,9 @@ namespace ImageColorChanger.UI
             
             // 加载项目
             LoadProjects();
+            
+            // 初始化全局热键
+            InitializeGlobalHotKeys();
         }
         
         /// <summary>
@@ -416,6 +423,210 @@ namespace ImageColorChanger.UI
             {
                 MessageBox.Show($"数据库初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"数据库初始化失败: {ex}");
+            }
+        }
+        
+        /// <summary>
+        /// 初始化全局热键管理器（不立即注册热键）
+        /// </summary>
+        private void InitializeGlobalHotKeys()
+        {
+            try
+            {
+                // 创建全局热键管理器，但不立即注册热键
+                _globalHotKeyManager = new Utils.GlobalHotKeyManager(this);
+                
+                System.Diagnostics.Debug.WriteLine("✅ 全局热键管理器初始化成功（热键将在投影模式下启用）");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败: {ex.Message}");
+                MessageBox.Show($"全局热键管理器初始化失败: {ex.Message}", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 启用全局热键（仅在投影模式下调用）
+        /// </summary>
+        private void EnableGlobalHotKeys()
+        {
+            if (_globalHotKeyManager == null)
+            {
+                System.Diagnostics.Debug.WriteLine("❌ 全局热键管理器未初始化");
+                return;
+            }
+
+            try
+            {
+                // 注册热键（使用原来的按键功能）
+                
+                // 左方向键: 上一个媒体/关键帧
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.Left,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Left");
+                        Dispatcher.InvokeAsync(async () =>
+                        {
+                            if (IsMediaPlaybackMode())
+                            {
+                                await SwitchToPreviousMediaFile();
+                            }
+                            else
+                            {
+                                // 关键帧模式
+                                BtnPrevKeyframe_Click(null, null);
+                            }
+                        });
+                    });
+                
+                // 右方向键: 下一个媒体/关键帧
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.Right,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Right");
+                        Dispatcher.InvokeAsync(async () =>
+                        {
+                            if (IsMediaPlaybackMode())
+                            {
+                                await SwitchToNextMediaFile();
+                            }
+                            else
+                            {
+                                // 关键帧模式
+                                BtnNextKeyframe_Click(null, null);
+                            }
+                        });
+                    });
+                
+                // PageUp: 上一个相似图片（原图模式）/ 上一个关键帧（关键帧模式）
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.PageUp,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageUp");
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            if (originalMode)
+                            {
+                                // 原图模式：切换到上一张相似图片
+                                SwitchSimilarImage(false);
+                            }
+                            else
+                            {
+                                // 关键帧模式：上一个关键帧
+                                BtnPrevKeyframe_Click(null, null);
+                            }
+                        });
+                    });
+                
+                // PageDown: 下一个相似图片（原图模式）/ 下一个关键帧（关键帧模式）
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.PageDown,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageDown");
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            if (originalMode)
+                            {
+                                // 原图模式：切换到下一张相似图片
+                                SwitchSimilarImage(true);
+                            }
+                            else
+                            {
+                                // 关键帧模式：下一个关键帧
+                                BtnNextKeyframe_Click(null, null);
+                            }
+                        });
+                    });
+                
+                // F2键: 播放/暂停
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.F2,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: F2");
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            if (IsMediaPlaybackMode())
+                            {
+                                // 视频播放/暂停
+                                if (videoPlayerManager.IsPaused)
+                                {
+                                    videoPlayerManager.Play();
+                                }
+                                else
+                                {
+                                    videoPlayerManager.Pause();
+                                }
+                            }
+                            else
+                            {
+                                // 关键帧/原图模式的播放/暂停
+                                BtnPlay_Click(null, null);
+                            }
+                        });
+                    });
+                
+                // ESC键: 取消投影/停止播放视频
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.Escape,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Escape");
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            // 如果正在播放视频，先停止播放
+                            if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
+                            {
+                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 停止视频播放");
+                                videoPlayerManager.Stop();
+                            }
+                            
+                            // 关闭投影
+                            if (projectionManager != null)
+                            {
+                                bool wasClosed = projectionManager.CloseProjection();
+                                if (wasClosed)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
+                                }
+                            }
+                        });
+                    });
+                
+                System.Diagnostics.Debug.WriteLine("✅ 全局热键已启用（投影模式）- 使用原来的按键");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 启用全局热键失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 禁用全局热键（退出投影模式时调用）
+        /// </summary>
+        private void DisableGlobalHotKeys()
+        {
+            if (_globalHotKeyManager == null)
+                return;
+
+            try
+            {
+                _globalHotKeyManager.UnregisterAllHotKeys();
+                System.Diagnostics.Debug.WriteLine("✅ 全局热键已禁用（前台模式）");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 禁用全局热键失败: {ex.Message}");
             }
         }
 
@@ -905,10 +1116,15 @@ namespace ImageColorChanger.UI
                     BtnProjection.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 淡绿色
                     ShowStatus("✅ 投影已开启");
                     
-                    // 如果当前正在播放视频，启用视频投屏
-                    if (videoPlayerManager != null && videoPlayerManager.IsPlaying && VideoContainer.Visibility == Visibility.Visible)
+                    // 启用全局热键（投影模式下）
+                    EnableGlobalHotKeys();
+                    
+                    // 如果当前正在播放视频，立即切换到视频投影模式
+                    if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
                     {
-                        EnableVideoProjection();
+                        // 立即切换到视频投影模式，让VideoView获得正确尺寸
+                        projectionManager.ShowVideoProjection();
+                        System.Diagnostics.Debug.WriteLine("📹 检测到正在播放视频，立即切换到视频投影模式");
                     }
                     // 如果选中了视频文件但未播放，直接在投影屏幕播放
                     else if (!string.IsNullOrEmpty(imagePath) && IsVideoFile(imagePath))
@@ -941,6 +1157,17 @@ namespace ImageColorChanger.UI
                     BtnProjection.Content = "🖥 投影";
                     BtnProjection.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                     ShowStatus("🔴 投影已关闭");
+                    
+                    // 禁用全局热键（前台模式）
+                    DisableGlobalHotKeys();
+                    
+                    // 清理投影超时定时器
+                    if (projectionTimeoutTimer != null)
+                    {
+                        projectionTimeoutTimer.Stop();
+                        projectionTimeoutTimer = null;
+                        System.Diagnostics.Debug.WriteLine("🧹 已清理投影超时定时器");
+                    }
                     
                     // 如果当前正在播放视频，停止播放并重置VideoView绑定
                     if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
@@ -1008,6 +1235,13 @@ namespace ImageColorChanger.UI
                             {
                                 videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
                                 videoPlayerManager.SetProjectionVideoView(projectionVideoView);
+                                
+                                // 如果当前正在播放视频，现在启用视频投屏
+                                if (videoPlayerManager.IsPlaying)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("📹 投影VideoView加载完成，现在启用视频投屏");
+                                    EnableVideoProjection();
+                                }
                             }
                             
                             initialized = true;
@@ -1025,6 +1259,37 @@ namespace ImageColorChanger.UI
                     };
                     
                     projectionVideoView.SizeChanged += sizeChangedHandler;
+                    
+                    // 添加超时机制，如果3秒后SizeChanged事件没有触发，强制启用视频投屏
+                    projectionTimeoutTimer = new System.Windows.Threading.DispatcherTimer();
+                    projectionTimeoutTimer.Interval = TimeSpan.FromSeconds(3);
+                    projectionTimeoutTimer.Tick += (s, e) =>
+                    {
+                        projectionTimeoutTimer.Stop();
+                        projectionTimeoutTimer = null;
+                        if (!initialized)
+                        {
+                            System.Diagnostics.Debug.WriteLine("⏰ 投影VideoView尺寸检测超时，强制启用视频投屏");
+                            
+                            if (videoPlayerManager != null)
+                            {
+                                // 强制创建新的MediaPlayer给投影VideoView
+                                videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
+                                videoPlayerManager.SetProjectionVideoView(projectionVideoView);
+                                
+                                // 如果当前正在播放视频，现在启用视频投屏
+                                if (videoPlayerManager.IsPlaying)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("📹 超时后强制启用视频投屏");
+                                    EnableVideoProjection();
+                                }
+                            }
+                            
+                            initialized = true;
+                            projectionVideoView.SizeChanged -= sizeChangedHandler;
+                        }
+                    };
+                    projectionTimeoutTimer.Start();
                 }
                 else if (projectionVideoView != null)
                 {
@@ -1036,6 +1301,13 @@ namespace ImageColorChanger.UI
                         videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
                         videoPlayerManager.SetProjectionVideoView(projectionVideoView);
                         System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定到VideoView");
+                        
+                        // 如果当前正在播放视频，现在启用视频投屏
+                        if (videoPlayerManager.IsPlaying)
+                        {
+                            System.Diagnostics.Debug.WriteLine("📹 投影VideoView直接初始化完成，现在启用视频投屏");
+                            EnableVideoProjection();
+                        }
                         
                         // 如果有待播放的视频，现在开始播放
                         if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
@@ -1547,6 +1819,53 @@ namespace ImageColorChanger.UI
         {
             if (_playbackViewModel == null) return;
             await _playbackViewModel.TogglePauseCommand.ExecuteAsync(null);
+        }
+        
+        /// <summary>
+        /// 显示全局热键帮助信息
+        /// </summary>
+        private void BtnHotKeyHelp_Click(object sender, RoutedEventArgs e)
+        {
+            string helpMessage = @"🎹 全局热键说明
+
+仅在投影模式下有效，使用原来的按键：
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📷 媒体/关键帧控制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+← : 上一个媒体/关键帧
+→ : 下一个媒体/关键帧
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🖼️ 相似图片/关键帧控制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PageUp : 上一个相似图片（原图模式）/ 上一个关键帧（关键帧模式）
+PageDown : 下一个相似图片（原图模式）/ 下一个关键帧（关键帧模式）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+▶️ 播放控制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+F2 : 播放/暂停
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛑 退出控制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESC : 停止播放视频并关闭投影
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 提示
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• 仅在投影模式下启用全局热键
+• 前台模式使用正常按键（F2、方向键、PageUp/PageDown、ESC等）
+• 投影关闭时自动禁用全局热键
+• 软件在后台时，热键依然有效";
+
+            MessageBox.Show(
+                helpMessage,
+                "全局热键说明",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
         }
 
         #endregion
@@ -3491,6 +3810,13 @@ namespace ImageColorChanger.UI
                 originalImage?.Dispose();
                 currentImage?.Dispose();
                 
+                // 释放全局热键
+                if (_globalHotKeyManager != null)
+                {
+                    _globalHotKeyManager.Dispose();
+                    System.Diagnostics.Debug.WriteLine("✅ 全局热键已清理");
+                }
+                
                 System.Diagnostics.Debug.WriteLine("✅ 资源清理完成");
             }
             catch (Exception ex)
@@ -3523,6 +3849,21 @@ namespace ImageColorChanger.UI
                 }
             }
             
+            // 在投影模式下，让全局热键处理这些按键，前台不处理
+            if (projectionManager != null && projectionManager.IsProjectionActive)
+            {
+                // 检查是否是全局热键相关的按键
+                bool isGlobalHotKey = (e.Key == Key.Left || e.Key == Key.Right || e.Key == Key.F2 || 
+                                     e.Key == Key.PageUp || e.Key == Key.PageDown || e.Key == Key.Escape);
+                
+                if (isGlobalHotKey)
+                {
+                    // 在投影模式下，让全局热键处理这些按键
+                    System.Diagnostics.Debug.WriteLine($"⌨️ 投影模式下，让全局热键处理: {e.Key}");
+                    return; // 不处理，让全局热键处理
+                }
+            }
+            
             // 视频播放控制快捷键
             if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
             {
@@ -3530,17 +3871,17 @@ namespace ImageColorChanger.UI
                 
                 switch (e.Key)
                 {
-                    case Key.Space:
-                        // 空格键：播放/暂停
+                    case Key.F2:
+                        // F2键：播放/暂停
                         if (videoPlayerManager.IsPaused)
                         {
                             videoPlayerManager.Play();
-                            System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 继续播放");
+                            System.Diagnostics.Debug.WriteLine("⌨️ F2键: 继续播放");
                         }
                         else
                         {
                             videoPlayerManager.Pause();
-                            System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 暂停播放");
+                            System.Diagnostics.Debug.WriteLine("⌨️ F2键: 暂停播放");
                         }
                         handled = true;
                         break;
@@ -3582,6 +3923,33 @@ namespace ImageColorChanger.UI
                     case Key.PageDown:
                         // 切换到下一张相似图片
                         handled = SwitchSimilarImage(true);
+                        break;
+                }
+                
+                if (handled)
+                {
+                    e.Handled = true;
+                }
+            }
+            // 关键帧模式下的关键帧切换
+            else if (!originalMode && currentImageId > 0)
+            {
+                bool handled = false;
+                
+                switch (e.Key)
+                {
+                    case Key.PageUp:
+                        // 上一个关键帧
+                        BtnPrevKeyframe_Click(null, null);
+                        System.Diagnostics.Debug.WriteLine("⌨️ PageUp: 上一个关键帧");
+                        handled = true;
+                        break;
+                        
+                    case Key.PageDown:
+                        // 下一个关键帧
+                        BtnNextKeyframe_Click(null, null);
+                        System.Diagnostics.Debug.WriteLine("⌨️ PageDown: 下一个关键帧");
+                        handled = true;
                         break;
                 }
                 
@@ -4189,6 +4557,13 @@ namespace ImageColorChanger.UI
                 if (isPlaying)
                 {
                     BtnMediaPlayPause.Content = "⏸";
+                    
+                    // 如果投影已开启且当前在主屏幕播放视频，自动启用视频投影
+                    if (projectionManager != null && projectionManager.IsProjectionActive)
+                    {
+                        System.Diagnostics.Debug.WriteLine("📹 视频开始播放，自动启用视频投影");
+                        EnableVideoProjection();
+                    }
                 }
                 else
                 {
@@ -4456,11 +4831,7 @@ namespace ImageColorChanger.UI
                     videoPlayerManager.Play(videoPath);
                 }
                 
-                // 如果投影已开启，自动启用视频投影
-                if (projectionManager != null && projectionManager.IsProjectionActive)
-                {
-                    EnableVideoProjection();
-                }
+                // 如果投影已开启，视频投影会在OnVideoPlayStateChanged事件中自动启用
                 
                 string fileName = System.IO.Path.GetFileName(videoPath);
                 ShowStatus($"📹 正在加载: {fileName}");
@@ -4617,6 +4988,9 @@ namespace ImageColorChanger.UI
                 if (videoPlayerManager == null || projectionManager == null) return;
                 
                 System.Diagnostics.Debug.WriteLine("📹 启用视频投屏");
+                
+                // 隐藏主屏幕的视频容器
+                VideoContainer.Visibility = Visibility.Collapsed;
                 
                 // 切换到视频投影模式
                 projectionManager.ShowVideoProjection();

@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
@@ -23,7 +24,7 @@ namespace ImageColorChanger
             // 初始化日志系统
             Logger.Initialize();
             Logger.Info("========== Canvas Cast 应用程序启动 ==========");
-            Logger.Info("版本: {Version}", typeof(App).Assembly.GetName().Version);
+            Logger.Info("版本: {Version}", GetVersionFromTitle());
 
             try
             {
@@ -112,6 +113,35 @@ namespace ImageColorChanger
         public static T GetRequiredService<T>() where T : class
         {
             return ServiceProvider?.GetRequiredService<T>();
+        }
+
+        /// <summary>
+        /// 从MainWindow.xaml的Title属性中提取版本号
+        /// </summary>
+        /// <returns>版本号字符串，如果提取失败则返回默认值</returns>
+        private static string GetVersionFromTitle()
+        {
+            try
+            {
+                // 从MainWindow.xaml的Title属性中提取版本号
+                // Title格式: "Canvas Cast V2.5.8"
+                string title = "Canvas Cast V2.5.8"; // 从MainWindow.xaml中获取的实际Title
+                
+                // 使用正则表达式提取版本号
+                var match = Regex.Match(title, @"V(\d+\.\d+\.\d+)");
+                if (match.Success)
+                {
+                    return match.Groups[1].Value; // 返回版本号部分，如 "2.5.8"
+                }
+                
+                // 如果正则匹配失败，返回默认版本号
+                return "2.5.8";
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "提取版本号失败");
+                return "2.5.8"; // 返回默认版本号
+            }
         }
     }
 }

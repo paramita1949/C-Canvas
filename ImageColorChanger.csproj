@@ -7,12 +7,12 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Canvas</AssemblyName>
+    <AssemblyName>Canvas Cast</AssemblyName>
     <Product>Canvas Cast</Product>
     <Company>Canvas Cast</Company>
     <Title>Canvas Cast</Title>
     <Description>Canvas Cast - 专业的图片浏览与管理工具</Description>
-    <Version>2.5.8</Version>
+    <Version>2.0</Version>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 Canvas Cast</Copyright>
   </PropertyGroup>
@@ -45,5 +45,11 @@
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="V257\**" />
+    <EmbeddedResource Remove="V257\**" />
+    <None Remove="V257\**" />
+  </ItemGroup>
 
 </Project>

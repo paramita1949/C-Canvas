@@ -173,9 +173,10 @@ namespace ImageColorChanger.Managers
                 System.Diagnostics.Debug.WriteLine($"🔵 参数 VideoView: {(videoView != null ? "存在" : "null")}");
                 System.Diagnostics.Debug.WriteLine($"🔵 当前 _mediaPlayer: {(_mediaPlayer != null ? "已存在" : "null")}");
                 
-                if (_mediaPlayer != null)
+                // 检查是否已经为这个VideoView创建了MediaPlayer
+                if (videoView.MediaPlayer != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ MediaPlayer已存在，跳过重复创建");
+                    System.Diagnostics.Debug.WriteLine("⚠️ VideoView已有MediaPlayer，跳过重复创建");
                     System.Diagnostics.Debug.WriteLine("🔵 ===== InitializeMediaPlayer 结束（跳过） =====");
                     return;
                 }
@@ -187,32 +188,37 @@ namespace ImageColorChanger.Managers
                     return;
                 }
 
-                System.Diagnostics.Debug.WriteLine("🟢 开始创建MediaPlayer...");
-                
-                // 创建媒体播放器
-                _mediaPlayer = new MediaPlayer(_libVLC)
+                // 如果主MediaPlayer不存在，创建它
+                if (_mediaPlayer == null)
                 {
-                    EnableHardwareDecoding = true,
-                    EnableMouseInput = false,
-                    EnableKeyInput = false
-                };
+                    System.Diagnostics.Debug.WriteLine("🟢 开始创建主MediaPlayer...");
+                    
+                    // 创建媒体播放器
+                    _mediaPlayer = new MediaPlayer(_libVLC)
+                    {
+                        EnableHardwareDecoding = true,
+                        EnableMouseInput = false,
+                        EnableKeyInput = false
+                    };
 
-                System.Diagnostics.Debug.WriteLine($"🟢 MediaPlayer已创建，HashCode: {_mediaPlayer.GetHashCode()}");
+                    System.Diagnostics.Debug.WriteLine($"🟢 主MediaPlayer已创建，HashCode: {_mediaPlayer.GetHashCode()}");
+                    
+                    // 绑定事件
+                    _mediaPlayer.EndReached += OnMediaPlayerEndReached;
+                    _mediaPlayer.Playing += OnMediaPlayerPlaying;
+                    _mediaPlayer.Paused += OnMediaPlayerPaused;
+                    _mediaPlayer.Stopped += OnMediaPlayerStopped;
+                    _mediaPlayer.EncounteredError += OnMediaPlayerError;
+
+                    System.Diagnostics.Debug.WriteLine("✅ 主MediaPlayer事件已绑定");
+                }
+
                 System.Diagnostics.Debug.WriteLine("🟢 立即绑定到VideoView...");
                 
                 // 立即绑定到VideoView，避免小窗口闪现
                 videoView.MediaPlayer = _mediaPlayer;
 
                 System.Diagnostics.Debug.WriteLine($"✅ MediaPlayer已绑定到VideoView，VideoView.MediaPlayer: {(videoView.MediaPlayer != null ? "已绑定" : "null")}");
-
-                // 绑定事件
-                _mediaPlayer.EndReached += OnMediaPlayerEndReached;
-                _mediaPlayer.Playing += OnMediaPlayerPlaying;
-                _mediaPlayer.Paused += OnMediaPlayerPaused;
-                _mediaPlayer.Stopped += OnMediaPlayerStopped;
-                _mediaPlayer.EncounteredError += OnMediaPlayerError;
-
-                System.Diagnostics.Debug.WriteLine("✅ MediaPlayer事件已绑定");
                 System.Diagnostics.Debug.WriteLine("🔵 ===== InitializeMediaPlayer 结束（成功） =====");
             }
             catch (Exception ex)
