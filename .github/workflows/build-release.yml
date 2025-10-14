@@ -1,4 +1,4 @@
-name: 构建和发布
+name: C#/WPF构建和发布
 
 on:
   push:
@@ -89,7 +89,7 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $zipName = "${{ env.OUTPUT_NAME }}-$tag-win-x64.zip"
+        $zipName = "${{ env.OUTPUT_NAME }}-CSharp-$tag-win-x64.zip"
         
         # 压缩发布文件
         Compress-Archive -Path publish\* -DestinationPath $zipName
@@ -134,12 +134,14 @@ jobs:
       with:
         files: ${{ steps.create_package.outputs.zip_name }}
         tag_name: ${{ steps.get_version.outputs.tag }}
-        name: Canvas Cast ${{ steps.get_version.outputs.tag }}
+        name: Canvas Cast CSharp ${{ steps.get_version.outputs.tag }}
         draft: false
         prerelease: false
         generate_release_notes: true
         body: |
-          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.tag }}
+          ## 🎉 Canvas Cast CSharp ${{ steps.get_version.outputs.tag }}
+          
+          > 💡 **版本说明**：本版本使用 C# / WPF 开发，基于 .NET 8.0 框架
           
           ### 📦 下载说明
           - 下载 `${{ steps.create_package.outputs.zip_name }}` 
@@ -149,6 +151,11 @@ jobs:
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
           - .NET 8.0 Runtime (如未安装会自动提示下载)
+          
+          ### 🔧 技术栈
+          - 开发语言：C# 
+          - UI框架：WPF
+          - 运行时：.NET 8.0
           
           ### 📝 更新日志
           请查看下方自动生成的变更记录
