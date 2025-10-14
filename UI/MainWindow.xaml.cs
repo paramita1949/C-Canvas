@@ -4513,10 +4513,18 @@ namespace ImageColorChanger.UI
                     BtnMediaPlayPause.Content = "⏸";
                     
                     // 如果投影已开启且当前在主屏幕播放视频，自动启用视频投影
+                    // 但如果已经在投影模式播放，就不要重复调用（避免闪烁）
                     if (projectionManager != null && projectionManager.IsProjectionActive)
                     {
-                        System.Diagnostics.Debug.WriteLine("📹 视频开始播放，自动启用视频投影");
-                        EnableVideoProjection();
+                        if (videoPlayerManager != null && !videoPlayerManager.IsProjectionEnabled)
+                        {
+                            System.Diagnostics.Debug.WriteLine("📹 视频开始播放，自动启用视频投影");
+                            EnableVideoProjection();
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("✅ 已在投影模式播放，跳过重复启用");
+                        }
                     }
                 }
                 else

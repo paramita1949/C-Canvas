@@ -50,6 +50,11 @@ namespace ImageColorChanger.Managers
         // 投影相关
         private bool _isProjectionEnabled;
         
+        /// <summary>
+        /// 获取是否已启用投影模式
+        /// </summary>
+        public bool IsProjectionEnabled => _isProjectionEnabled;
+        
         // 更新定时器
         private DispatcherTimer _updateTimer;
         
