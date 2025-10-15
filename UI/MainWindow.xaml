@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V2.5.8"
+        Title="Canvas Cast V2.5.9"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -256,8 +256,8 @@
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Background" Value="White"/>
             <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <!-- 移除了HorizontalContentAlignment和VerticalContentAlignment以避免绑定警告 -->
+            <!-- 这些属性会自动从父级ComboBox继承 -->
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#FFF9C4"/>
@@ -373,7 +373,9 @@
                 <!-- 右侧：屏幕选择 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <ComboBox x:Name="ScreenSelector" Width="120" Height="30" 
-                              VerticalAlignment="Center" SelectedIndex="0" FontSize="12"/>
+                              VerticalAlignment="Center" SelectedIndex="0" FontSize="12"
+                              Style="{StaticResource WhiteComboBoxPopup}"
+                              ItemContainerStyle="{StaticResource WhiteComboBoxItem}"/>
                 </StackPanel>
             </Grid>
         </Border>

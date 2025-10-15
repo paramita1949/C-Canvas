@@ -650,8 +650,16 @@ namespace ImageColorChanger.UI
                 videoPlayerManager.VideoTrackDetected += VideoPlayerManager_VideoTrackDetected;
                 
                 // 创建VideoView控件并添加到VideoContainer
-                mainVideoView = new VideoView();
+                mainVideoView = new VideoView
+                {
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                    Margin = new Thickness(0)
+                };
+                
                 VideoContainer.Children.Add(mainVideoView);
+                
+                System.Diagnostics.Debug.WriteLine("📺 VideoView创建完成: HorizontalAlignment=Stretch, VerticalAlignment=Stretch");
                 
                 // 等待VideoView完成布局并有了实际尺寸后，再创建MediaPlayer（避免小窗口）
                 bool mediaPlayerInitialized = false;
@@ -1133,8 +1141,7 @@ namespace ImageColorChanger.UI
                         var projectionVideoView = projectionManager.GetProjectionVideoView();
                         if (projectionVideoView != null)
                         {
-                            // 主屏幕：隐藏图片和视频（不在主屏幕显示）
-                            ImageScrollViewer.Visibility = Visibility.Collapsed;
+                            // 主屏幕：隐藏视频（不在主屏幕显示）
                             VideoContainer.Visibility = Visibility.Collapsed;
                             
                             // 切换到视频投影模式
@@ -1191,9 +1198,6 @@ namespace ImageColorChanger.UI
                         
                         // 隐藏视频容器
                         VideoContainer.Visibility = Visibility.Collapsed;
-                        
-                        // 显示图片显示区域
-                        ImageScrollViewer.Visibility = Visibility.Visible;
                         
                         ShowStatus("⏹ 视频播放已停止");
                     }
@@ -4697,19 +4701,37 @@ namespace ImageColorChanger.UI
                 
                 if (projectionVideoView != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕");
-                    ImageScrollViewer.Visibility = Visibility.Collapsed;
+                    System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
                     VideoContainer.Visibility = Visibility.Collapsed;
                     
                     System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     projectionManager.ShowVideoProjection();
                     
-                    // 设置待播放视频路径，等待MediaPlayer创建完成后播放
-                    pendingProjectionVideoPath = videoPath;
-                    System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
+                    // 🔥 关键修复：检查投影窗口是否已经初始化完成
+                    if (videoPlayerManager != null && videoPlayerManager.IsProjectionEnabled)
+                    {
+                        // 投影已经初始化完成，直接播放
+                        System.Diagnostics.Debug.WriteLine("✅ 投影已初始化，直接播放");
+                        
+                        // 切换到投影模式（如果还没切换）
+                        videoPlayerManager.SwitchToProjectionMode();
+                        
+                        // 构建播放列表并播放
+                        BuildVideoPlaylist(videoPath);
+                        videoPlayerManager.Play(videoPath);
+                        
+                        var fileName = System.IO.Path.GetFileName(videoPath);
+                        ShowStatus($"🎬 正在投影播放: {fileName}");
+                    }
+                    else
+                    {
+                        // 投影还未初始化，设置待播放路径，等待初始化完成后播放
+                        pendingProjectionVideoPath = videoPath;
+                        System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
+                        ShowStatus($"🎬 准备投影播放: {System.IO.Path.GetFileName(videoPath)}");
+                    }
                     
                     System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 完成 =====");
-                    ShowStatus($"🎬 准备投影播放: {System.IO.Path.GetFileName(videoPath)}");
                 }
             }
             catch (Exception ex)
@@ -4729,7 +4751,11 @@ namespace ImageColorChanger.UI
             {
                 System.Diagnostics.Debug.WriteLine($"🎬 收到视频轨道检测结果: HasVideo={hasVideo}");
                 
-                string fileName = System.IO.Path.GetFileName(imagePath);
+                // 🔥 关键修复：使用 VideoPlayerManager 的当前播放文件，而不是 imagePath
+                string currentPath = videoPlayerManager?.CurrentMediaPath;
+                string fileName = !string.IsNullOrEmpty(currentPath) 
+                    ? System.IO.Path.GetFileName(currentPath) 
+                    : "未知文件";
                 
                 // 主窗口：显示或隐藏文件名
                 if (!hasVideo)
@@ -4768,10 +4794,6 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                
-                // 隐藏图片显示区域
-                ImageScrollViewer.Visibility = Visibility.Collapsed;
-                
                 // 显示视频播放区域
                 VideoContainer.Visibility = Visibility.Visible;
                 
@@ -4935,9 +4957,6 @@ namespace ImageColorChanger.UI
             
             // 隐藏媒体控制栏
             MediaPlayerPanel.Visibility = Visibility.Collapsed;
-            
-            // 显示图片显示区域
-            ImageScrollViewer.Visibility = Visibility.Visible;
         }
         
         /// <summary>

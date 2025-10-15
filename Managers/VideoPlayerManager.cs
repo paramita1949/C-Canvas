@@ -151,17 +151,31 @@ namespace ImageColorChanger.Managers
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("🔧 ===== LibVLC 初始化开始 =====");
                 LibVLCSharp.Shared.Core.Initialize();
+                System.Diagnostics.Debug.WriteLine("✅ LibVLCSharp.Core 初始化完成");
                 
                 // 只创建LibVLC实例，MediaPlayer将在VideoView加载后创建
                 _libVLC = new LibVLC(
-                    "--no-osd",
-                    "--no-video-title-show",
-                    "--quiet"
+                    "--no-osd",                    // 禁用屏显信息
+                    "--no-video-title-show",       // 禁用视频标题显示
+                    //"--quiet",                     // 静默模式
+                    "--verbose=2",                 // 详细日志级别 
+                    "--no-video-deco",             // 禁用视频窗口装饰
+                    //"--no-embedded-video",         // 🔥 关键：禁用嵌入式视频窗口
+                    "--vout=directdraw",           // 视频输出方式
+                    "--aspect-ratio=",             // 🔥 空字符串 = 自动拉伸
+                    "--autoscale",                 // 🔥 自动缩放
+                    "--no-video-title"             // 不显示视频标题
                 );
+                
+                System.Diagnostics.Debug.WriteLine($"✅ LibVLC实例创建成功，版本: {_libVLC.Version}");
+                System.Diagnostics.Debug.WriteLine("🔧 ===== LibVLC 初始化完成 =====");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ LibVLC初始化失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                 System.Windows.MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n请确保已安装VLC播放器组件。", 
                     "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
@@ -208,6 +222,13 @@ namespace ImageColorChanger.Managers
 
                     System.Diagnostics.Debug.WriteLine($"🟢 主MediaPlayer已创建，HashCode: {_mediaPlayer.GetHashCode()}");
                     
+                    // 🔥 关键设置：视频缩放模式
+                    // 注意：AspectRatio会在OnMediaPlayerPlaying事件中动态设置为容器的实际宽高比
+                    // 这样可以确保视频强制拉伸填充整个VideoView，无论视频本身的宽高比
+                    _mediaPlayer.AspectRatio = null;  // 初始设置为null，播放时动态设置
+                    _mediaPlayer.Scale = 0;           // 0 = 自适应填充（FitScreen）
+                    System.Diagnostics.Debug.WriteLine("🎬 初始化视频缩放: AspectRatio=null (播放时动态设置), Scale=0");
+                    
                     // 绑定事件
                     _mediaPlayer.EndReached += OnMediaPlayerEndReached;
                     _mediaPlayer.Playing += OnMediaPlayerPlaying;
@@ -219,11 +240,23 @@ namespace ImageColorChanger.Managers
                 }
 
                 System.Diagnostics.Debug.WriteLine("🟢 立即绑定到VideoView...");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView: {(videoView != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - MediaPlayer: {(_mediaPlayer != null ? $"存在 (HashCode:{_mediaPlayer.GetHashCode()})" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.IsLoaded: {videoView.IsLoaded}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualWidth: {videoView.ActualWidth}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualHeight: {videoView.ActualHeight}");
                 
                 // 立即绑定到VideoView，避免小窗口闪现
                 videoView.MediaPlayer = _mediaPlayer;
-
-                System.Diagnostics.Debug.WriteLine($"✅ MediaPlayer已绑定到VideoView，VideoView.MediaPlayer: {(videoView.MediaPlayer != null ? "已绑定" : "null")}");
+                
+                // 🔥 验证绑定是否成功
+                System.Threading.Thread.Sleep(50); // 给WPF时间完成绑定
+                bool bindingSuccess = videoView.MediaPlayer != null && 
+                                    videoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
+                
+                System.Diagnostics.Debug.WriteLine($"✅ MediaPlayer绑定{(bindingSuccess ? "成功" : "失败")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - VideoView.MediaPlayer: {(videoView.MediaPlayer != null ? $"已绑定 (HashCode:{videoView.MediaPlayer.GetHashCode()})" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - 是否同一实例: {bindingSuccess}");
                 System.Diagnostics.Debug.WriteLine("🔵 ===== InitializeMediaPlayer 结束（成功） =====");
             }
             catch (Exception ex)
@@ -256,11 +289,20 @@ namespace ImageColorChanger.Managers
         public void SetMainVideoView(VideoView videoView)
         {
             _mainVideoView = videoView;
-            if (_mainVideoView != null)
+            if (_mainVideoView != null && _mediaPlayer != null)
             {
-                // MediaPlayer已在InitializeMediaPlayer中绑定，这里只设置可见性和模式
+                System.Diagnostics.Debug.WriteLine("🔧 强制重新绑定MediaPlayer到主窗口VideoView");
+                
+                // 🔥 关键修复：从投影切回主窗口时，必须重新绑定MediaPlayer
+                // 否则MediaPlayer可能记住投影窗口句柄，导致创建独立小窗口
+                _mainVideoView.MediaPlayer = null;  // 先解除绑定
+                System.Threading.Thread.Sleep(50);   // 等待解除生效
+                _mainVideoView.MediaPlayer = _mediaPlayer;  // 重新绑定
+                
                 _mainVideoView.Visibility = System.Windows.Visibility.Visible;
                 _isProjectionEnabled = false;
+                
+                System.Diagnostics.Debug.WriteLine($"✅ MediaPlayer已重新绑定到主窗口 (HashCode:{_mediaPlayer.GetHashCode()})");
             }
         }
 
@@ -280,58 +322,49 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🟣 ===== LoadMedia 开始 =====");
-                System.Diagnostics.Debug.WriteLine($"🟣 参数: {System.IO.Path.GetFileName(mediaPath)}");
-                System.Diagnostics.Debug.WriteLine($"🟣 _isPlaying={_isPlaying}, _isPaused={_isPaused}");
-                
-                if (_mediaPlayer == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer未创建，无法加载媒体");
-                    return false;
-                }
-                
-                if (string.IsNullOrEmpty(mediaPath) || !System.IO.File.Exists(mediaPath))
-                    return false;
+                if (_mediaPlayer == null) return false;
+                if (string.IsNullOrEmpty(mediaPath) || !System.IO.File.Exists(mediaPath)) return false;
 
                 // 确保VideoView已绑定
                 VideoView targetVideoView = _isProjectionEnabled ? _projectionVideoView : _mainVideoView;
-                System.Diagnostics.Debug.WriteLine($"🟣 targetVideoView: {(targetVideoView != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🟣 targetVideoView.MediaPlayer绑定状态: {(targetVideoView?.MediaPlayer != null ? "已绑定" : "未绑定")}");
                 
                 if (targetVideoView != null && targetVideoView.MediaPlayer == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ targetVideoView.MediaPlayer为null，重新绑定");
+                    System.Diagnostics.Debug.WriteLine("⚠️ VideoView绑定丢失，重新绑定");
                     targetVideoView.MediaPlayer = _mediaPlayer;
-                    System.Threading.Thread.Sleep(30);
-                    System.Diagnostics.Debug.WriteLine("✅ 已重新绑定");
+                    System.Threading.Thread.Sleep(50);
+                }
+                else if (targetVideoView != null)
+                {
+                    // 验证当前绑定
+                    bool currentBindingValid = targetVideoView.MediaPlayer != null && 
+                                             targetVideoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
+                    
+                    if (!currentBindingValid)
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ 绑定异常，重新绑定");
+                        targetVideoView.MediaPlayer = _mediaPlayer;
+                        System.Threading.Thread.Sleep(50);
+                    }
                 }
 
                 // 创建并加载媒体（不调用Stop，直接切换）
-                System.Diagnostics.Debug.WriteLine("🟣 创建新Media对象...");
                 var oldMedia = _mediaPlayer.Media;
                 var media = new Media(_libVLC, new Uri(mediaPath));
-                System.Diagnostics.Debug.WriteLine("🟣 直接设置新Media（不Stop，避免小窗口）...");
                 _mediaPlayer.Media = media;
-                System.Diagnostics.Debug.WriteLine("🟣 新Media已设置");
                 
                 // 清理播放状态标志
                 if (_isPlaying || _isPaused)
                 {
-                    System.Diagnostics.Debug.WriteLine("🟣 重置播放状态标志");
                     _isPlaying = false;
                     _isPaused = false;
                     _updateTimer.Stop();
                 }
                 
                 oldMedia?.Dispose();
-                
                 _currentMediaPath = mediaPath;
-                
-                // 触发媒体改变事件
                 MediaChanged?.Invoke(this, mediaPath);
                 
-                System.Diagnostics.Debug.WriteLine("✅ LoadMedia完成");
-                System.Diagnostics.Debug.WriteLine($"🟣 ===== LoadMedia 结束 =====");
                 return true;
             }
             catch (Exception ex)
@@ -350,17 +383,14 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🔴 ===== Play 开始 =====");
-                System.Diagnostics.Debug.WriteLine($"🔴 参数: mediaPath={mediaPath ?? "null"}");
-                System.Diagnostics.Debug.WriteLine($"🔴 _mediaPlayer状态: {(_mediaPlayer != null ? $"存在 HashCode:{_mediaPlayer.GetHashCode()}" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔴 _isProjectionEnabled={_isProjectionEnabled}, _isPaused={_isPaused}, _isPlaying={_isPlaying}");
-                
                 if (_mediaPlayer == null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer未创建，无法播放");
-                    System.Diagnostics.Debug.WriteLine($"🔴 ===== Play 结束（失败） =====");
+                    System.Diagnostics.Debug.WriteLine("❌ MediaPlayer未创建");
                     return false;
                 }
+                
+                string fileName = System.IO.Path.GetFileName(mediaPath);
+                System.Diagnostics.Debug.WriteLine($"▶ 播放: {fileName}");
                 
                 VideoView targetVideoView = null;
                 
@@ -383,7 +413,7 @@ namespace ImageColorChanger.Managers
                         {
                             _mainWindow.Dispatcher.Invoke(() =>
                             {
-                                _projectionVideoView.UpdateLayout();
+                                // _projectionVideoView.UpdateLayout();
                             }, System.Windows.Threading.DispatcherPriority.Render);
                             System.Threading.Thread.Sleep(100);
                         }
@@ -391,34 +421,24 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔴 主屏幕模式 - 检查绑定");
-                    
                     if (_mainVideoView != null)
                     {
                         targetVideoView = _mainVideoView;
                         
-                        System.Diagnostics.Debug.WriteLine($"🔴 _mainVideoView存在，MediaPlayer绑定状态: {(_mainVideoView.MediaPlayer != null ? "已绑定" : "未绑定")}");
-                        
                         if (_mainVideoView.MediaPlayer == null)
                         {
-                            System.Diagnostics.Debug.WriteLine("⚠️ _mainVideoView.MediaPlayer为null，重新绑定");
+                            System.Diagnostics.Debug.WriteLine("⚠️ 重新绑定MediaPlayer");
                             _mainVideoView.MediaPlayer = _mediaPlayer;
                             System.Threading.Thread.Sleep(30);
-                            System.Diagnostics.Debug.WriteLine("✅ 已重新绑定MediaPlayer到_mainVideoView");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"✅ _mainVideoView.MediaPlayer已绑定，HashCode: {_mainVideoView.MediaPlayer.GetHashCode()}");
                         }
                         
                         // 如果VideoView尺寸为0，强制刷新布局
-                        System.Diagnostics.Debug.WriteLine($"🔴 _mainVideoView尺寸: {_mainVideoView.ActualWidth}x{_mainVideoView.ActualHeight}");
                         if (_mainVideoView.ActualWidth == 0 || _mainVideoView.ActualHeight == 0)
                         {
                             System.Diagnostics.Debug.WriteLine("⚠️ VideoView尺寸为0，强制刷新布局");
                             _mainWindow.Dispatcher.Invoke(() =>
                             {
-                                _mainVideoView.UpdateLayout();
+                                // _mainVideoView.UpdateLayout();
                             }, System.Windows.Threading.DispatcherPriority.Render);
                             System.Threading.Thread.Sleep(100);
                             System.Diagnostics.Debug.WriteLine($"🔴 刷新后尺寸: {_mainVideoView.ActualWidth}x{_mainVideoView.ActualHeight}");
@@ -478,31 +498,24 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("🔴 准备调用_mediaPlayer.Play()");
-                    System.Diagnostics.Debug.WriteLine($"🔴 当前targetVideoView: {(targetVideoView != null ? $"存在，MediaPlayer绑定: {(targetVideoView.MediaPlayer != null ? "是" : "否")}" : "null")}");
+                    // 播放前进行小窗检测和修复
+                    DetectAndFixSmallWindow();
                     
                     // 延迟确保VideoView完全就绪
                     System.Threading.Thread.Sleep(50);
                     
-                    System.Diagnostics.Debug.WriteLine("🔴 调用_mediaPlayer.Play()...");
                     _mediaPlayer.Play();
-                    System.Diagnostics.Debug.WriteLine("🔴 _mediaPlayer.Play()调用完成");
                 }
 
                 _isPlaying = true;
                 _updateTimer.Start();
                 
                 PlayStateChanged?.Invoke(this, true);
-
-                System.Diagnostics.Debug.WriteLine("✅ Play成功完成");
-                System.Diagnostics.Debug.WriteLine($"🔴 ===== Play 结束（成功） =====");
                 return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 播放失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
-                System.Diagnostics.Debug.WriteLine($"🔴 ===== Play 结束（异常） =====");
                 return false;
             }
         }
@@ -1100,6 +1113,77 @@ namespace ImageColorChanger.Managers
             }
         }
 
+        /// <summary>
+        /// 检测并修复VLC小窗口问题
+        /// </summary>
+        private void DetectAndFixSmallWindow()
+        {
+            try
+            {
+                if (_mediaPlayer == null) return;
+                
+                VideoView expectedVideoView = _isProjectionEnabled ? _projectionVideoView : _mainVideoView;
+                if (expectedVideoView == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ 目标VideoView为null");
+                    return;
+                }
+                
+                // 检查绑定状态
+                bool isCorrectlyBound = expectedVideoView.MediaPlayer != null && 
+                                       expectedVideoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
+                
+                if (!isCorrectlyBound)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ 检测到绑定异常，重新绑定");
+                    
+                    // 解绑其他VideoView
+                    if (_mainVideoView != null && _mainVideoView.MediaPlayer != null && !_isProjectionEnabled)
+                    {
+                        _mainVideoView.MediaPlayer = null;
+                    }
+                    
+                    if (_projectionVideoView != null && _projectionVideoView.MediaPlayer != null && _isProjectionEnabled)
+                    {
+                        _projectionVideoView.MediaPlayer = null;
+                    }
+                    
+                    // 重新绑定
+                    System.Threading.Thread.Sleep(30);
+                    expectedVideoView.MediaPlayer = _mediaPlayer;
+                    System.Threading.Thread.Sleep(50);
+                    
+                    System.Diagnostics.Debug.WriteLine("✅ 已重新绑定");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 小窗检测异常: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 获取当前MediaPlayer绑定状态的诊断信息
+        /// </summary>
+        public string GetBindingDiagnostics()
+        {
+            var diagnostics = new System.Text.StringBuilder();
+            diagnostics.AppendLine("=== MediaPlayer绑定诊断 ===");
+            diagnostics.AppendLine($"MediaPlayer: {(_mediaPlayer != null ? $"存在 (HashCode:{_mediaPlayer.GetHashCode()})" : "null")}");
+            diagnostics.AppendLine($"投影模式: {_isProjectionEnabled}");
+            diagnostics.AppendLine($"主窗口VideoView: {(_mainVideoView != null ? "存在" : "null")}");
+            diagnostics.AppendLine($"主WindowVideoView绑定: {(_mainVideoView?.MediaPlayer != null ? $"已绑定 (HashCode:{_mainVideoView.MediaPlayer.GetHashCode()})" : "未绑定")}");
+            diagnostics.AppendLine($"投影VideoView: {(_projectionVideoView != null ? "存在" : "null")}");
+            diagnostics.AppendLine($"投影VideoView绑定: {(_projectionVideoView?.MediaPlayer != null ? $"已绑定 (HashCode:{_projectionVideoView.MediaPlayer.GetHashCode()})" : "未绑定")}");
+            
+            VideoView expectedView = _isProjectionEnabled ? _projectionVideoView : _mainVideoView;
+            bool correctBinding = expectedView?.MediaPlayer != null && 
+                                expectedView.MediaPlayer.GetHashCode() == _mediaPlayer?.GetHashCode();
+            diagnostics.AppendLine($"预期绑定正确性: {correctBinding}");
+            
+            return diagnostics.ToString();
+        }
+
         #endregion
 
         #region 事件处理
@@ -1133,7 +1217,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnMediaPlayerPlaying(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("▶ OnMediaPlayerPlaying 事件触发");
+            System.Diagnostics.Debug.WriteLine("▶ 播放开始");
             
             // 检测是否有视频轨道
             _mainWindow.Dispatcher.BeginInvoke(new Action(() =>
@@ -1142,12 +1226,38 @@ namespace ImageColorChanger.Managers
                 {
                     if (_mediaPlayer == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("⚠️ MediaPlayer为null，跳过视频轨道检测");
+                        System.Diagnostics.Debug.WriteLine("⚠️ MediaPlayer为null");
                         return;
                     }
                     
                     // 等待一小段时间让媒体信息加载完成
                     System.Threading.Thread.Sleep(100);
+                    
+                    // 🔥 在播放开始后强制设置视频缩放模式（确保生效）
+                    try
+                    {
+                        VideoView currentView = _isProjectionEnabled ? _projectionVideoView : _mainVideoView;
+                        
+                        // 设置AspectRatio为VideoView容器的实际宽高比，强制视频拉伸填充
+                        if (currentView != null && currentView.ActualWidth > 0 && currentView.ActualHeight > 0)
+                        {
+                            string containerRatio = $"{(int)currentView.ActualWidth}:{(int)currentView.ActualHeight}";
+                            _mediaPlayer.AspectRatio = containerRatio;
+                            _mediaPlayer.Scale = 0;  // 自适应填充
+                            _mediaPlayer.CropGeometry = null;  // 不裁剪
+                            System.Diagnostics.Debug.WriteLine($"✅ 视频缩放: {containerRatio}, Scale=0");
+                        }
+                        else
+                        {
+                            _mediaPlayer.AspectRatio = null;
+                            _mediaPlayer.Scale = 0;
+                            _mediaPlayer.CropGeometry = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ 设置视频缩放失败: {ex.Message}");
+                    }
                     
                     // 检查是否有视频轨道
                     bool hasVideo = _mediaPlayer.VideoTrackCount > 0;
