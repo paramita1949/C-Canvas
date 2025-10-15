@@ -462,11 +462,19 @@ namespace ImageColorChanger.Core
         #region 文件夹颜色管理
 
         /// <summary>
-        /// 获取文件夹的标记颜色
+        /// 获取文件夹的标记颜色（优先使用自定义颜色，否则使用默认颜色池）
         /// </summary>
-        public string GetFolderColor(int folderId)
+        /// <param name="folderId">文件夹ID</param>
+        /// <param name="customColor">自定义颜色（如果为null或空，则使用默认颜色池）</param>
+        public string GetFolderColor(int folderId, string customColor = null)
         {
-            // 使用文件夹ID对颜色池取模，确保相同文件夹总是相同颜色
+            // 如果有自定义颜色，优先使用
+            if (!string.IsNullOrEmpty(customColor))
+            {
+                return customColor;
+            }
+            
+            // 否则使用文件夹ID对颜色池取模，确保相同文件夹总是相同颜色
             int colorIndex = (folderId - 1) % FolderColorPool.Length;
             return FolderColorPool[colorIndex];
         }

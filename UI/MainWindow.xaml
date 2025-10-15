@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V2.5.9"
+        Title="Canvas Cast V2.6"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -231,6 +231,70 @@
             </Setter>
         </Style>
 
+        <!-- 联系按钮样式 - 淡橙色 -->
+        <Style x:Key="BreathingContactButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="#FFE0B2"/>
+            <Setter Property="Foreground" Value="#E65100"/>
+            <Setter Property="BorderBrush" Value="#FFB74D"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="0" 
+                                                  BlurRadius="4" 
+                                                  Opacity="0.15" 
+                                                  Color="#FF9800"/>
+                            </Border.Effect>
+                            <ContentPresenter x:Name="contentPresenter"
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            RecognizesAccessKey="False"
+                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- 鼠标悬停效果 -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFCC80"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF9800"/>
+                                <Setter Property="Foreground" Value="#E65100"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.25" Color="#FF9800"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <!-- 按下效果 -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFB74D"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#F57C00"/>
+                                <Setter Property="Foreground" Value="#BF360C"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Opacity="0.2" Color="#F57C00"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <!-- 禁用效果 -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E0E0E0"/>
+                                <Setter Property="Foreground" Value="#BDBDBD"/>
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- TreeView样式 -->
         <Style x:Key="ProjectTreeStyle" TargetType="TreeView">
             <Setter Property="Background" Value="White"/>
@@ -256,17 +320,36 @@
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Background" Value="White"/>
             <Setter Property="Padding" Value="12,8"/>
-            <!-- 移除了HorizontalContentAlignment和VerticalContentAlignment以避免绑定警告 -->
-            <!-- 这些属性会自动从父级ComboBox继承 -->
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FFF9C4"/>
-                </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#FFD54F"/>
-                    <Setter Property="Foreground" Value="#212121"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFF9C4"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFD54F"/>
+                                <Setter Property="Foreground" Value="#212121"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#BDBDBD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -368,6 +451,9 @@
                     </Border>
 
                     <!-- 暂停/继续按钮 -->
+                    
+                    <Button x:Name="BtnContact" Content="💬 联系" Style="{StaticResource BreathingContactButtonStyle}"
+                            ToolTip="Wechat" Click="BtnContact_Click" Margin="15,0,4,0"/>
                 </StackPanel>
 
                 <!-- 右侧：屏幕选择 -->
@@ -422,8 +508,8 @@
                         <ComboBox x:Name="SearchScope" 
                                   Style="{StaticResource WhiteComboBoxPopup}"
                                   ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
-                            <ComboBoxItem Content="全部" IsSelected="True"/>
-                            <ComboBoxItem Content="当前文件夹"/>
+                            <ComboBoxItem Content="全部" IsSelected="True" Style="{StaticResource WhiteComboBoxItem}"/>
+                            <ComboBoxItem Content="当前文件夹" Style="{StaticResource WhiteComboBoxItem}"/>
                         </ComboBox>
                     </StackPanel>
 

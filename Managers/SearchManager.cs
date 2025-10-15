@@ -64,11 +64,13 @@ namespace ImageColorChanger.Managers
                 var folderName = file.Folder?.Name ?? "根目录";
                 var folderId = file.FolderId ?? 0;
                 
-                // 获取文件夹颜色
+                // 获取文件夹颜色（优先使用自定义颜色）
                 string folderColor = "#666666"; // 默认颜色
                 if (_configManager != null && folderId > 0)
                 {
-                    folderColor = _configManager.GetFolderColor(folderId);
+                    // 从数据库获取自定义颜色
+                    string customColor = _dbManager.GetFolderHighlightColor(folderId);
+                    folderColor = _configManager.GetFolderColor(folderId, customColor);
                 }
 
                 results.Add(new ProjectTreeItem

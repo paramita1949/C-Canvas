@@ -55,6 +55,12 @@ namespace ImageColorChanger.Database.Models
         /// </summary>
         [Column("auto_color_effect")]
         public int? AutoColorEffect { get; set; }
+        
+        /// <summary>
+        /// 自定义高亮颜色 (格式: #RRGGBB, null表示使用默认颜色池)
+        /// </summary>
+        [Column("highlight_color")]
+        public string HighlightColor { get; set; }
 
         /// <summary>
         /// 导航属性：文件夹下的媒体文件

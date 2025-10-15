@@ -40,6 +40,8 @@
   
   <ItemGroup>
     <Resource Include="baodian.ico" />
+    <Resource Include="weixin.png" />
+    <Resource Include="pay.png" />
   </ItemGroup>
   
   <PropertyGroup>

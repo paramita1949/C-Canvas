@@ -921,6 +921,65 @@ namespace ImageColorChanger.Database
             }
         }
 
+        /// <summary>
+        /// 执行数据库迁移 - 添加 highlight_color 列
+        /// </summary>
+        public void MigrateAddHighlightColor()
+        {
+            try
+            {
+                // 检查列是否已存在
+                var checkSql = "SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name='highlight_color'";
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    
+                    if (count == 0)
+                    {
+                        // 列不存在，执行添加
+                        _context.Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN highlight_color TEXT NULL");
+                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 highlight_color 列");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("ℹ️ highlight_color 列已存在，跳过迁移");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 设置文件夹高亮颜色
+        /// </summary>
+        public void SetFolderHighlightColor(int folderId, string color)
+        {
+            var folder = _context.Folders.Find(folderId);
+            if (folder != null)
+            {
+                folder.HighlightColor = color;
+                _context.SaveChanges();
+            }
+        }
+        
+        /// <summary>
+        /// 获取文件夹高亮颜色
+        /// </summary>
+        public string GetFolderHighlightColor(int folderId)
+        {
+            return _context.Folders.Find(folderId)?.HighlightColor;
+        }
+
         #endregion
     }
 }

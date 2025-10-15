@@ -406,6 +406,7 @@ namespace ImageColorChanger.UI
                 
                 // 执行数据库迁移
                 dbManager.MigrateAddLoopCount();
+                dbManager.MigrateAddHighlightColor();
                 
                 // 创建排序和搜索管理器
                 sortManager = new SortManager();
@@ -1413,6 +1414,21 @@ namespace ImageColorChanger.UI
             ResetZoom();
             ShowStatus("已重置缩放比例");
         }
+
+        private void BtnContact_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var contactWindow = new ContactWindow();
+                contactWindow.Owner = this;
+                contactWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开联系窗口失败: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         
         /// <summary>
         /// 切换原图模式
@@ -2282,6 +2298,13 @@ namespace ImageColorChanger.UI
                             contextMenu.Items.Add(new Separator());
                         }
                         
+                        // 标记高亮色菜单
+                        var highlightColorItem = new MenuItem { Header = "🎨 标记高亮色" };
+                        highlightColorItem.Click += (s, args) => SetFolderHighlightColor(item);
+                        contextMenu.Items.Add(highlightColorItem);
+                        
+                        contextMenu.Items.Add(new Separator());
+                        
                         var deleteItem = new MenuItem { Header = "删除文件夹" };
                         deleteItem.Click += (s, args) => DeleteFolder(item);
                         contextMenu.Items.Add(deleteItem);
@@ -2452,6 +2475,71 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 设置文件夹高亮颜色
+        /// </summary>
+        private void SetFolderHighlightColor(ProjectTreeItem item)
+        {
+            try
+            {
+                // 创建系统颜色选择对话框
+                var colorDialog = new System.Windows.Forms.ColorDialog();
+                colorDialog.FullOpen = true; // 默认展开自定义颜色面板
+                colorDialog.AnyColor = true; // 允许选择任意颜色
+                
+                // 如果文件夹已有自定义颜色，设置为初始颜色
+                string existingColor = dbManager.GetFolderHighlightColor(item.Id);
+                if (!string.IsNullOrEmpty(existingColor))
+                {
+                    try
+                    {
+                        var wpfColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(existingColor);
+                        colorDialog.Color = System.Drawing.Color.FromArgb(wpfColor.A, wpfColor.R, wpfColor.G, wpfColor.B);
+                    }
+                    catch { }
+                }
+                
+                // 显示颜色选择对话框
+                if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    // 将选中的颜色转换为十六进制格式
+                    var selectedColor = colorDialog.Color;
+                    string colorHex = $"#{selectedColor.R:X2}{selectedColor.G:X2}{selectedColor.B:X2}";
+                    
+                    // 设置自定义颜色
+                    dbManager.SetFolderHighlightColor(item.Id, colorHex);
+                    ShowStatus($"✅ 已设置文件夹 [{item.Name}] 的高亮颜色: {colorHex}");
+                    
+                    // 刷新项目树
+                    LoadProjects();
+                    
+                    // 如果当前有搜索内容，刷新搜索结果
+                    string searchTerm = SearchBox.Text?.Trim() ?? "";
+                    if (!string.IsNullOrWhiteSpace(searchTerm))
+                    {
+                        string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
+                        var searchResults = searchManager.SearchProjects(searchTerm, searchScope);
+                        
+                        if (searchResults != null)
+                        {
+                            projectTreeItems.Clear();
+                            foreach (var result in searchResults)
+                            {
+                                projectTreeItems.Add(result);
+                            }
+                            ProjectTree.ItemsSource = projectTreeItems;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 设置高亮颜色失败: {ex.Message}");
+                MessageBox.Show($"设置高亮颜色失败: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         
