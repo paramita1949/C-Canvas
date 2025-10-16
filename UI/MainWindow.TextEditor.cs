@@ -451,8 +451,23 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ShowTextEditor()
         {
+            // 隐藏图片/视频区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
+            
+            // 隐藏左侧导航栏和分割线
+            NavigationPanel.Visibility = Visibility.Collapsed;
+            NavigationSplitter.Visibility = Visibility.Collapsed;
+            
+            // 隐藏右侧的白色分割线和指示块
+            RightDividerLine.Visibility = Visibility.Collapsed;
+            ScrollbarIndicatorsBorder.Visibility = Visibility.Collapsed;
+            
+            // 清空关键帧指示块（文本编辑器模式不需要显示）
+            KeyframePreviewLinesCanvas.Children.Clear();
+            ScrollbarIndicatorsCanvas.Children.Clear();
+            
+            // 显示文本编辑器
             TextEditorPanel.Visibility = Visibility.Visible;
             
             // 🆕 重置投影状态：清空之前的图片投影状态
@@ -477,8 +492,19 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void HideTextEditor()
         {
+            // 隐藏文本编辑器
             TextEditorPanel.Visibility = Visibility.Collapsed;
+            
+            // 显示图片区域
             ImageScrollViewer.Visibility = Visibility.Visible;
+            
+            // 恢复左侧导航栏和分割线
+            NavigationPanel.Visibility = Visibility.Visible;
+            NavigationSplitter.Visibility = Visibility.Visible;
+            
+            // 恢复右侧的白色分割线和指示块
+            RightDividerLine.Visibility = Visibility.Visible;
+            ScrollbarIndicatorsBorder.Visibility = Visibility.Visible;
         }
 
         /// <summary>
