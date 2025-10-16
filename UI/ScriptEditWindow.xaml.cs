@@ -73,7 +73,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败: {ex.Message}");
             }
             
             return mapping;
@@ -370,7 +370,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败: {ex.Message}");
                 return false;
             }
         }
@@ -424,7 +424,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
                 return false;
             }
         }

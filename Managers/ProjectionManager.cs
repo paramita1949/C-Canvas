@@ -153,7 +153,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败");
+                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
                 _screens.Add(Screen.PrimaryScreen);
             }
         }
@@ -409,7 +409,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步投影滚动失败");
+                //System.Diagnostics.Debug.WriteLine($"同步投影滚动失败: {ex.Message}");
             }
         }
 
@@ -800,7 +800,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"关闭投影失败");
+                //System.Diagnostics.Debug.WriteLine($"关闭投影失败: {ex.Message}");
                 return false;
             }
         }
@@ -1134,7 +1134,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败: {ex.Message}");
             }
         }
 

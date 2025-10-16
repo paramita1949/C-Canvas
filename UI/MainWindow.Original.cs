@@ -148,7 +148,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败: {ex.Message}");
             }
         }
 
@@ -245,7 +245,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败: {ex.Message}");
             }
         }
 

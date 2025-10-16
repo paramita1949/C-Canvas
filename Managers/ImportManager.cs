@@ -245,7 +245,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败");
+                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
                 return (0, 0, 0);
             }
         }
@@ -294,7 +294,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败");
+                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
             }
         }
 
@@ -323,7 +323,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败");
+                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败: {ex}");
             }
 
             return (totalAdded, totalRemoved, totalUpdated);

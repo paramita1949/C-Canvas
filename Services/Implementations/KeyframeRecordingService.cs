@@ -115,7 +115,7 @@ namespace ImageColorChanger.Services.Implementations
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情");
+                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情: {ex}");
                 throw;
             }
         }

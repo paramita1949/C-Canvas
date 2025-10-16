@@ -336,7 +336,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常");
+                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常: {ex.Message}");
             }
         }
 
@@ -370,7 +370,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败: {ex.Message}");
             }
         }
     }

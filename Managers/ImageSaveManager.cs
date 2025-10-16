@@ -162,7 +162,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"快速保存失败");
+                //System.Diagnostics.Debug.WriteLine($"快速保存失败: {ex}");
                 return false;
             }
         }

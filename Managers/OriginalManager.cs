@@ -66,7 +66,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"添加原图标记失败");
+                //System.Diagnostics.Debug.WriteLine($"添加原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -82,7 +82,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"移除原图标记失败");
+                //System.Diagnostics.Debug.WriteLine($"移除原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -98,7 +98,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"检查原图标记失败");
+                //System.Diagnostics.Debug.WriteLine($"检查原图标记失败: {ex.Message}");
                 return false;
             }
         }
@@ -114,7 +114,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"获取原图标记类型失败");
+                //System.Diagnostics.Debug.WriteLine($"获取原图标记类型失败: {ex.Message}");
                 return null;
             }
         }
@@ -151,7 +151,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"判断原图模式失败");
+                //System.Diagnostics.Debug.WriteLine($"判断原图模式失败: {ex.Message}");
                 return false;
             }
         }
@@ -276,7 +276,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"查找相似图片失败");
+                //System.Diagnostics.Debug.WriteLine($"查找相似图片失败: {ex.Message}");
                 _similarImages.Clear();
                 _currentSimilarIndex = 0;
                 return false;
@@ -330,7 +330,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"切换图片失败");
+                //System.Diagnostics.Debug.WriteLine($"切换图片失败: {ex.Message}");
                 return (false, null, null, false);
             }
         }
@@ -387,7 +387,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"顺序模式切换失败");
+                //System.Diagnostics.Debug.WriteLine($"顺序模式切换失败: {ex.Message}");
                 return (false, null, null);
             }
         }
@@ -447,7 +447,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"循环模式切换失败");
+                //System.Diagnostics.Debug.WriteLine($"循环模式切换失败: {ex.Message}");
                 return (false, null, null, false);
             }
         }
@@ -488,7 +488,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"切换到不同图片失败");
+                //System.Diagnostics.Debug.WriteLine($"切换到不同图片失败: {ex.Message}");
                 return (false, null, null);
             }
         }
@@ -607,7 +607,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"获取文件夹图标失败");
+                //System.Diagnostics.Debug.WriteLine($"获取文件夹图标失败: {ex.Message}");
                 return ("Folder", "#FDB44B");
             }
         }
@@ -625,7 +625,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"获取图片图标失败");
+                //System.Diagnostics.Debug.WriteLine($"获取图片图标失败: {ex.Message}");
                 return ("Image", "#95E1D3");
             }
         }

@@ -165,7 +165,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}: {ex.Message}");
                 return false;
             }
         }
@@ -319,7 +319,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -992,7 +992,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败]");
+                //System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败] {ex.Message}");
                 // 失败时简单清空
                 imageCache.Clear();
                 imageCacheAccessTime.Clear();

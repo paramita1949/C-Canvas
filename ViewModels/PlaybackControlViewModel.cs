@@ -310,7 +310,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败: {ex.Message}");
             }
         }
 
@@ -358,7 +358,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败: {ex.Message}");
             }
         }
 
@@ -395,7 +395,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败: {ex.Message}");
             }
         }
 
@@ -424,7 +424,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败: {ex.Message}");
             }
         }
 
@@ -499,7 +499,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
             }
         }
 
@@ -640,7 +640,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败: {ex.Message}");
                 HasTimingData = false;
             }
             
@@ -677,7 +677,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败: {ex.Message}");
             }
             finally
             {
@@ -717,7 +717,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败: {ex.Message}");
             }
         }
 
@@ -756,7 +756,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败: {ex.Message}");
                 HasTimingData = false;
             }
         }

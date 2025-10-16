@@ -169,7 +169,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ LibVLC初始化失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ LibVLC初始化失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                 System.Windows.MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n请确保已安装VLC播放器组件。", 
                     "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
@@ -256,7 +256,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer创建失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer创建失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                 //System.Diagnostics.Debug.WriteLine("🔵 ===== InitializeMediaPlayer 结束（异常） =====");
             }
@@ -364,7 +364,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载媒体失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载媒体失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                 //System.Diagnostics.Debug.WriteLine($"🟣 ===== LoadMedia 结束（异常） =====");
                 return false;
@@ -510,7 +510,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 播放失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放失败: {ex.Message}");
                 return false;
             }
         }
@@ -538,7 +538,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 暂停失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 暂停失败: {ex.Message}");
             }
         }
 
@@ -563,7 +563,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 停止失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 停止失败: {ex.Message}");
             }
         }
 
@@ -584,7 +584,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 设置音量失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 设置音量失败: {ex.Message}");
             }
         }
 
@@ -619,7 +619,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 设置播放进度失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 设置播放进度失败: {ex.Message}");
             }
         }
 
@@ -755,7 +755,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 播放下一个失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 播放下一个失败: {ex.Message}");
                 return false;
             }
         }
@@ -811,7 +811,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 播放上一个失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 播放上一个失败: {ex.Message}");
                 return false;
             }
         }
@@ -958,7 +958,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 启用投影播放失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 启用投影播放失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"堆栈: {ex.StackTrace}");
             }
         }
@@ -1080,7 +1080,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 禁用投影播放失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 禁用投影播放失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"堆栈: {ex.StackTrace}");
             }
         }
@@ -1103,7 +1103,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 重置投影模式失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 重置投影模式失败: {ex.Message}");
             }
         }
 
@@ -1152,7 +1152,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 小窗检测异常");
+                //System.Diagnostics.Debug.WriteLine($"❌ 小窗检测异常: {ex.Message}");
             }
         }
         
@@ -1250,7 +1250,7 @@ namespace ImageColorChanger.Managers
                     }
                     catch (Exception)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ 设置视频缩放失败");
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ 设置视频缩放失败: {ex.Message}");
                     }
                     
                     // 检查是否有视频轨道
@@ -1368,7 +1368,7 @@ namespace ImageColorChanger.Managers
                 }
                 catch (Exception)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"❌ 更新播放进度失败");
+                    // System.Diagnostics.Debug.WriteLine($"❌ 更新播放进度失败: {ex.Message}");
                 }
             }
         }
@@ -1401,7 +1401,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 清理资源失败");
+                // System.Diagnostics.Debug.WriteLine($"❌ 清理资源失败: {ex.Message}");
             }
         }
 

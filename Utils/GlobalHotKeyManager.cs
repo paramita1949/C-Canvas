@@ -113,7 +113,7 @@ namespace ImageColorChanger.Utils
                     }
                     catch (Exception)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败");
+                        //System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败: {ex.Message}");
                     }
                 }
             }
