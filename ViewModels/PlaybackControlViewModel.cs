@@ -6,7 +6,6 @@ using CommunityToolkit.Mvvm.Input;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.Services.StateMachine;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.ViewModels
 {
@@ -295,7 +294,6 @@ namespace ImageColorChanger.ViewModels
                     // 更新时间数据标志（录制完成后肯定有数据了）
                     HasTimingData = true;
                     
-                    Logger.Info("停止录制");
                 }
                 else
                 {
@@ -305,7 +303,6 @@ namespace ImageColorChanger.ViewModels
                         await recordingService.StartRecordingAsync(CurrentImageId, CurrentMode);
                         IsRecording = true;
                         RecordButtonText = "停止录制";
-                        Logger.Info("开始录制");
                     }
                 }
 
@@ -313,7 +310,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "录制操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败: {ex.Message}");
             }
         }
 
@@ -337,7 +334,6 @@ namespace ImageColorChanger.ViewModels
                     PlayButtonText = "开始播放";
                     CountdownText = "--"; // 重置倒计时显示
                     _stateMachine.TryTransition(PlaybackStatus.Idle);
-                    Logger.Info("停止播放");
                 }
                 else
                 {
@@ -355,7 +351,6 @@ namespace ImageColorChanger.ViewModels
                         IsPlaying = true;
                         IsPaused = false;
                         PlayButtonText = "停止播放";
-                        Logger.Info("开始播放");
                     }
                 }
 
@@ -363,7 +358,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "播放操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败: {ex.Message}");
             }
         }
 
@@ -385,7 +380,6 @@ namespace ImageColorChanger.ViewModels
                     IsPaused = false;
                     PauseButtonText = "暂停";
                     _stateMachine.TryTransition(PlaybackStatus.Playing);
-                    Logger.Info("继续播放");
                 }
                 else
                 {
@@ -395,14 +389,13 @@ namespace ImageColorChanger.ViewModels
                     IsPaused = true;
                     PauseButtonText = "继续";
                     _stateMachine.TryTransition(PlaybackStatus.Paused);
-                    Logger.Info("暂停播放");
                 }
 
                 UpdateButtonStates();
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "暂停操作失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败: {ex.Message}");
             }
         }
 
@@ -414,7 +407,6 @@ namespace ImageColorChanger.ViewModels
         {
             PlayCount = count;
             SavePlayCountSetting();
-            Logger.Info("设置播放次数: {Count}", count == -1 ? "无限循环" : count.ToString());
         }
 
         /// <summary>
@@ -429,11 +421,10 @@ namespace ImageColorChanger.ViewModels
                 await recordingService.ClearTimingDataAsync(CurrentImageId, CurrentMode);
                 HasTimingData = false;
                 UpdateButtonStates();
-                Logger.Info("清除时间数据");
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "清除时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败: {ex.Message}");
             }
         }
 
@@ -475,7 +466,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "获取脚本信息失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 获取脚本信息失败: {ex.Message}");
                 return $"获取脚本信息失败: {ex.Message}";
             }
         }
@@ -487,7 +478,6 @@ namespace ImageColorChanger.ViewModels
         private void ShowScript()
         {
             // 注意：这里只是触发命令，实际显示由外部处理（MainWindow）
-            Logger.Info("请求显示脚本信息");
         }
 
         /// <summary>
@@ -509,7 +499,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "录制关键帧时间失败: KeyframeId={KeyframeId}", keyframeId);
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
             }
         }
 
@@ -569,7 +559,6 @@ namespace ImageColorChanger.ViewModels
             CountdownText = "--"; // 重置倒计时显示
             _stateMachine.TryTransition(PlaybackStatus.Idle);
             UpdateButtonStates();
-            Logger.Info("播放完成");
         }
 
         /// <summary>
@@ -641,21 +630,17 @@ namespace ImageColorChanger.ViewModels
                     if (baseImageId.HasValue)
                     {
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(baseImageId.Value);
-                        // Utils.Logger.Debug("原图模式SetCurrentImage: ImageId={ImageId}, BaseImageId={BaseId}, HasData={HasData}",
-                        //     imageId, baseImageId.Value, HasTimingData);
                     }
                     else
                     {
                         // 如果找不到BaseImageId，尝试直接用imageId查询
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(imageId);
-                        // Utils.Logger.Debug("原图模式SetCurrentImage(直接): ImageId={ImageId}, HasData={HasData}",
-                        //     imageId, HasTimingData);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Utils.Logger.Error(ex, "检查时间数据失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败: {ex.Message}");
                 HasTimingData = false;
             }
             
@@ -688,12 +673,11 @@ namespace ImageColorChanger.ViewModels
                         PlayCount = count;
                     }
                     
-                    Utils.Logger.Info("加载播放次数设置: {0}", PlayCount == -1 ? "无限循环" : PlayCount.ToString());
                 }
             }
             catch (Exception ex)
             {
-                Utils.Logger.Error(ex, "加载播放次数设置失败，使用默认值5");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败: {ex.Message}");
             }
             finally
             {
@@ -730,11 +714,10 @@ namespace ImageColorChanger.ViewModels
                 }
                 
                 context.SaveChanges();
-                Utils.Logger.Debug("保存播放次数设置: {0}", PlayCount);
             }
             catch (Exception ex)
             {
-                Utils.Logger.Error(ex, "保存播放次数设置失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败: {ex.Message}");
             }
         }
 
@@ -761,15 +744,11 @@ namespace ImageColorChanger.ViewModels
                     if (baseImageId.HasValue)
                     {
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(baseImageId.Value);
-                        Utils.Logger.Debug("原图模式HasTimingData检测: CurrentImageId={CurrentId}, BaseImageId={BaseId}, HasData={HasData}",
-                            CurrentImageId, baseImageId.Value, HasTimingData);
                     }
                     else
                     {
                         // 如果找不到BaseImageId，尝试直接用CurrentImageId查询
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(CurrentImageId);
-                        Utils.Logger.Debug("原图模式HasTimingData检测(直接): CurrentImageId={CurrentId}, HasData={HasData}",
-                            CurrentImageId, HasTimingData);
                     }
                 }
                 
@@ -777,7 +756,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception ex)
             {
-                Utils.Logger.Error(ex, "更新时间数据状态失败");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败: {ex.Message}");
                 HasTimingData = false;
             }
         }

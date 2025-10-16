@@ -1,5 +1,4 @@
 using System;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Services.Algorithms
 {
@@ -42,13 +41,10 @@ namespace ImageColorChanger.Services.Algorithms
                 // 如果有循环标记，回跳到循环开始
                 if (loopStartIndex.HasValue && loopStartIndex.Value >= 0)
                 {
-                    Logger.Debug("检测到循环，回跳: currentIndex={Current}, loopStart={LoopStart}",
-                        currentIndex, loopStartIndex.Value);
                     return JumpDecision.JumpToLoopStart;
                 }
 
                 // 否则结束播放
-                Logger.Debug("到达最后一帧，准备结束播放");
                 return JumpDecision.EndPlayback;
             }
 

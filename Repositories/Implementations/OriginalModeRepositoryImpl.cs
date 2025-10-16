@@ -9,7 +9,6 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.DTOs;
 using ImageColorChanger.Repositories.Interfaces;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Repositories.Implementations
 {
@@ -57,9 +56,8 @@ namespace ImageColorChanger.Repositories.Implementations
 
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "获取原图时间序列失败: BaseImageId={BaseImageId}", baseImageId);
                 throw;
             }
         }
@@ -73,9 +71,8 @@ namespace ImageColorChanger.Repositories.Implementations
             {
                 return await _dbSet.AnyAsync(t => t.BaseImageId == baseImageId);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "检查原图时间数据失败: BaseImageId={BaseImageId}", baseImageId);
                 throw;
             }
         }
@@ -95,14 +92,10 @@ namespace ImageColorChanger.Repositories.Implementations
                 {
                     _dbSet.RemoveRange(timings);
                     await _context.SaveChangesAsync();
-
-                    Logger.Info("清除原图时间数据: BaseImageId={BaseImageId}, Count={Count}", 
-                        baseImageId, timings.Count);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "清除原图时间数据失败: BaseImageId={BaseImageId}", baseImageId);
                 throw;
             }
         }
@@ -134,14 +127,10 @@ namespace ImageColorChanger.Repositories.Implementations
 
                 // 3. 提交事务
                 await transaction.CommitAsync();
-
-                Logger.Info("批量保存原图时间序列: BaseImageId={BaseImageId}, Count={Count}", 
-                    baseImageId, timings.Count);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
-                Logger.Error(ex, "批量保存原图时间序列失败: BaseImageId={BaseImageId}", baseImageId);
                 throw;
             }
         }
@@ -176,9 +165,8 @@ namespace ImageColorChanger.Repositories.Implementations
 
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "获取相似图片失败: ImageId={ImageId}", imageId);
                 throw;
             }
         }
@@ -237,12 +225,10 @@ namespace ImageColorChanger.Repositories.Implementations
                     .OrderBy(m => m.Name)
                     .ToList();
 
-                Logger.Debug("查找相似图片: 基础名={BaseName}, 找到{Count}张", baseName, similarFiles.Count);
                 return similarFiles;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "查找相似图片失败: Path={Path}", imagePath);
                 throw;
             }
         }
@@ -265,20 +251,10 @@ namespace ImageColorChanger.Repositories.Implementations
                 {
                     timing.Duration = newDuration;
                     await _context.SaveChangesAsync();
-
-                    Logger.Info("更新原图时长: BaseImageId={BaseImageId}, ToImageId={ToImageId}, NewDuration={Duration}s",
-                        baseImageId, similarImageId, newDuration);
-                }
-                else
-                {
-                    Logger.Warning("未找到原图时间记录: BaseImageId={BaseImageId}, ToImageId={ToImageId}",
-                        baseImageId, similarImageId);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "更新原图时长失败: BaseImageId={BaseImageId}, ToImageId={ToImageId}",
-                    baseImageId, similarImageId);
                 throw;
             }
         }
@@ -291,18 +267,6 @@ namespace ImageColorChanger.Repositories.Implementations
         {
             try
             {
-                // 🔍 先查看数据库中有哪些记录（调试用）
-                var allTimings = await _dbSet
-                    .Where(t => t.BaseImageId == baseImageId)
-                    .ToListAsync();
-                
-                Logger.Debug("🔍 数据库中BaseImageId={BaseImageId}的所有记录:", baseImageId);
-                foreach (var t in allTimings)
-                {
-                    Logger.Debug("  记录: {FromId} -> {ToId}, Duration={Duration}s, SequenceOrder={Order}",
-                        t.FromImageId, t.ToImageId, t.Duration, t.SequenceOrder);
-                }
-                
                 // 查找对应的时间记录（base_image_id + from_image_id + to_image_id）
                 var timing = await _dbSet
                     .FirstOrDefaultAsync(t => 
@@ -314,25 +278,15 @@ namespace ImageColorChanger.Repositories.Implementations
                 {
                     timing.Duration = newDuration;
                     await _context.SaveChangesAsync();
-
-                    Logger.Info("🔧 手动修正原图时长: BaseImageId={BaseImageId}, {FromId} -> {ToId}, NewDuration={Duration}s",
-                        baseImageId, fromImageId, toImageId, newDuration);
-                    
                     return true;
                 }
                 else
                 {
-                    Logger.Warning("未找到原图时间记录: BaseImageId={BaseImageId}, {FromId} -> {ToId}",
-                        baseImageId, fromImageId, toImageId);
-                    Logger.Warning("  查询条件: BaseImageId={BaseImageId} AND FromImageId={FromId} AND ToImageId={ToId}",
-                        baseImageId, fromImageId, toImageId);
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "手动修正原图时长失败: BaseImageId={BaseImageId}, {FromId} -> {ToId}",
-                    baseImageId, fromImageId, toImageId);
                 return false;
             }
         }
@@ -352,7 +306,6 @@ namespace ImageColorChanger.Repositories.Implementations
                 
                 if (asBase != null)
                 {
-                    Logger.Debug("图片{ImageId}本身就是BaseImageId", similarImageId);
                     return similarImageId;
                 }
 
@@ -363,8 +316,6 @@ namespace ImageColorChanger.Repositories.Implementations
                 
                 if (asFrom != null)
                 {
-                    Logger.Debug("通过FromImageId找到BaseImageId: {SimilarId} -> {BaseId}", 
-                        similarImageId, asFrom.BaseImageId);
                     return asFrom.BaseImageId;
                 }
 
@@ -375,17 +326,13 @@ namespace ImageColorChanger.Repositories.Implementations
                 
                 if (asTo != null)
                 {
-                    Logger.Debug("通过ToImageId找到BaseImageId: {SimilarId} -> {BaseId}", 
-                        similarImageId, asTo.BaseImageId);
                     return asTo.BaseImageId;
                 }
 
-                // Logger.Debug("未找到图片{ImageId}对应的BaseImageId", similarImageId);
                 return null;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "查找BaseImageId失败: SimilarImageId={ImageId}", similarImageId);
                 return null;
             }
         }

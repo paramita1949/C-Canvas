@@ -73,7 +73,7 @@ namespace ImageColorChanger.Managers
 
                 if (mediaFile != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"✅ 成功导入文件: {mediaFile.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"✅ 成功导入文件: {mediaFile.Name}");
                 }
 
                 return mediaFile;
@@ -81,7 +81,7 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
                 MessageBox.Show($"导入文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"导入文件失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"导入文件失败: {ex}");
                 return null;
             }
         }
@@ -142,7 +142,7 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
                 MessageBox.Show($"导入文件夹失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"导入文件夹失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"导入文件夹失败: {ex}");
                 return (null, null, null);
             }
         }
@@ -181,11 +181,11 @@ namespace ImageColorChanger.Managers
             }
             catch (UnauthorizedAccessException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ 无权访问某些子目录: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ 无权访问某些子目录: {ex.Message}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"扫描文件失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"扫描文件失败: {ex}");
             }
 
             return mediaFiles;
@@ -203,7 +203,7 @@ namespace ImageColorChanger.Managers
                 
                 if (folder == null || !Directory.Exists(folder.Path))
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ 文件夹不存在: ID={folderId}");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ 文件夹不存在: ID={folderId}");
                     return (0, 0, 0);
                 }
 
@@ -239,13 +239,13 @@ namespace ImageColorChanger.Managers
                     ReapplySortRuleForFolder(folderId);
                 }
 
-                System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
+                //System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
                 return (0, 0, 0);
             }
         }
@@ -260,7 +260,7 @@ namespace ImageColorChanger.Managers
                 // 🔑 关键：检查文件夹是否为手动排序，如果是则跳过自动排序
                 if (_dbManager.IsManualSortFolder(folderId))
                 {
-                    System.Diagnostics.Debug.WriteLine($"⏭️ 跳过手动排序文件夹 {folderId} 的自动排序");
+                    //System.Diagnostics.Debug.WriteLine($"⏭️ 跳过手动排序文件夹 {folderId} 的自动排序");
                     return;
                 }
 
@@ -290,11 +290,11 @@ namespace ImageColorChanger.Managers
                 // 使用DatabaseManager的UpdateMediaFilesOrder方法保存更改
                 _dbManager.UpdateMediaFilesOrder(sortedFiles);
 
-                System.Diagnostics.Debug.WriteLine($"✅ 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
+                //System.Diagnostics.Debug.WriteLine($"✅ 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
             }
         }
 
@@ -319,11 +319,11 @@ namespace ImageColorChanger.Managers
                     totalUpdated += updated;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
+                //System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败: {ex}");
             }
 
             return (totalAdded, totalRemoved, totalUpdated);

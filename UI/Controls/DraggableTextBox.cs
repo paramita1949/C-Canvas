@@ -94,6 +94,31 @@ namespace ImageColorChanger.UI.Controls
 
         #region 初始化
 
+        /// <summary>
+        /// 创建无内边距的TextBox样式
+        /// </summary>
+        private System.Windows.Style CreateNoPaddingTextBoxStyle()
+        {
+            var style = new System.Windows.Style(typeof(WpfTextBox));
+            
+            // 设置Padding为0
+            style.Setters.Add(new System.Windows.Setter(WpfTextBox.PaddingProperty, new System.Windows.Thickness(0)));
+            
+            // 🔧 关键：创建自定义模板，移除内部ScrollViewer的Margin
+            var template = new System.Windows.Controls.ControlTemplate(typeof(WpfTextBox));
+            
+            // 创建模板内容：一个没有Margin的ScrollViewer
+            var factory = new System.Windows.FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer));
+            factory.Name = "PART_ContentHost";
+            factory.SetValue(System.Windows.FrameworkElement.MarginProperty, new System.Windows.Thickness(0));
+            factory.SetValue(System.Windows.Controls.ScrollViewer.PaddingProperty, new System.Windows.Thickness(0));
+            
+            template.VisualTree = factory;
+            style.Setters.Add(new System.Windows.Setter(WpfTextBox.TemplateProperty, template));
+            
+            return style;
+        }
+
         private void InitializeComponent()
         {
             // 主边框（默认完全透明）
@@ -118,13 +143,14 @@ namespace ImageColorChanger.UI.Controls
                 BorderThickness = new System.Windows.Thickness(0),
                 BorderBrush = WpfBrushes.Transparent,
                 Background = WpfBrushes.Transparent,
-                Padding = new System.Windows.Thickness(8),
+                Padding = new System.Windows.Thickness(0),  // 🔧 修改：移除内边距，让文字可以真正贴边
                 VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
                 HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
                 // 移除默认的焦点视觉样式
                 FocusVisualStyle = null,
                 IsEnabled = true,  // 确保TextBox可用
-                Focusable = true   // 确保TextBox可获得焦点
+                Focusable = true,   // 确保TextBox可获得焦点
+                Style = CreateNoPaddingTextBoxStyle()  // 🔧 使用自定义样式完全移除内边距
             };
             
             // 禁用所有文本装饰和下划线
@@ -151,8 +177,24 @@ namespace ImageColorChanger.UI.Controls
                             }
                         }
                     }
+                    
+                    // 🔧 强制移除TextBox内部ScrollViewer的Margin
+                    // TextBox的默认模板内部有一个ScrollViewer（PART_ContentHost），它有默认的2px边距
+                    var template = _textBox.Template;
+                    if (template != null)
+                    {
+                        var scrollViewer = template.FindName("PART_ContentHost", _textBox) as System.Windows.FrameworkElement;
+                        if (scrollViewer != null)
+                        {
+                            scrollViewer.Margin = new System.Windows.Thickness(0);
+                            //System.Diagnostics.Debug.WriteLine($"✅ [TextBox] 已移除PART_ContentHost的Margin");
+                        }
+                    }
                 }
-                catch { /* 忽略错误 */ }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [TextBox] 移除内部边距失败: {ex.Message}");
+                }
             };
 
             // 监听文本变化
@@ -166,7 +208,7 @@ namespace ImageColorChanger.UI.Controls
             _textBox.GotFocus += (s, e) =>
             {
                 _textBox.Cursor = WpfCursors.IBeam;
-                System.Diagnostics.Debug.WriteLine($"📝 TextBox 获得焦点: IsEnabled={_textBox.IsEnabled}, Focusable={_textBox.Focusable}");
+                //System.Diagnostics.Debug.WriteLine($"📝 TextBox 获得焦点: IsEnabled={_textBox.IsEnabled}, Focusable={_textBox.Focusable}");
                 
                 // 如果是占位符文字，清空内容并恢复正常颜色
                 if (_isPlaceholderText)
@@ -175,13 +217,13 @@ namespace ImageColorChanger.UI.Controls
                     Data.Content = "";
                     _textBox.Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString(Data.FontColor));
                     _isPlaceholderText = false;
-                    System.Diagnostics.Debug.WriteLine($"✨ 清除占位符文字");
+                    //System.Diagnostics.Debug.WriteLine($"✨ 清除占位符文字");
                 }
             };
             _textBox.LostFocus += (s, e) =>
             {
                 _textBox.Cursor = WpfCursors.Arrow;
-                System.Diagnostics.Debug.WriteLine($"📝 TextBox 失去焦点");
+                //System.Diagnostics.Debug.WriteLine($"📝 TextBox 失去焦点");
                 
                 // 如果失去焦点时内容为空，恢复占位符
                 if (string.IsNullOrWhiteSpace(_textBox.Text))
@@ -190,14 +232,14 @@ namespace ImageColorChanger.UI.Controls
                     Data.Content = DEFAULT_PLACEHOLDER;
                     _textBox.Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(150, 150, 150));
                     _isPlaceholderText = true;
-                    System.Diagnostics.Debug.WriteLine($"✨ 恢复占位符文字");
+                    //System.Diagnostics.Debug.WriteLine($"✨ 恢复占位符文字");
                 }
             };
             
             // 监听键盘输入
             _textBox.PreviewKeyDown += (s, e) =>
             {
-                System.Diagnostics.Debug.WriteLine($"⌨️ TextBox 键盘输入: Key={e.Key}");
+                //System.Diagnostics.Debug.WriteLine($"⌨️ TextBox 键盘输入: Key={e.Key}");
             };
 
             // 虚线选中框（叠加在文本框上方）
@@ -265,7 +307,7 @@ namespace ImageColorChanger.UI.Controls
             _isPlaceholderText = (Data.Content == DEFAULT_PLACEHOLDER);
 
             // 样式
-            System.Diagnostics.Debug.WriteLine($"🔍 LoadFromData - 字体: {Data.FontFamily}");
+            //System.Diagnostics.Debug.WriteLine($"🔍 LoadFromData - 字体: {Data.FontFamily}");
             _textBox.FontFamily = new WpfFontFamily(Data.FontFamily);
             _textBox.FontSize = Data.FontSize * 2;  // 实际渲染时放大2倍
             
@@ -297,13 +339,13 @@ namespace ImageColorChanger.UI.Controls
         {
             if (e.ChangedButton == WpfMouseButton.Left)
             {
-                System.Diagnostics.Debug.WriteLine($"🖱️ OnMouseDown: OriginalSource={e.OriginalSource?.GetType().Name}");
+                //System.Diagnostics.Debug.WriteLine($"🖱️ OnMouseDown: OriginalSource={e.OriginalSource?.GetType().Name}");
                 
                 // 如果点击在文本框内部或Grid内部（文本区域），允许文本编辑
                 if (e.OriginalSource is WpfTextBox || e.OriginalSource is WpfGrid)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🖱️ 点击文本区域，尝试获取焦点");
-                    System.Diagnostics.Debug.WriteLine($"   TextBox状态: IsEnabled={_textBox.IsEnabled}, Focusable={_textBox.Focusable}, IsVisible={_textBox.IsVisible}, Visibility={_textBox.Visibility}");
+                    //System.Diagnostics.Debug.WriteLine($"🖱️ 点击文本区域，尝试获取焦点");
+                    //System.Diagnostics.Debug.WriteLine($"   TextBox状态: IsEnabled={_textBox.IsEnabled}, Focusable={_textBox.Focusable}, IsVisible={_textBox.IsVisible}, Visibility={_textBox.Visibility}");
                     
                     // 先选中控件（显示选中框）
                     Focus();
@@ -315,16 +357,16 @@ namespace ImageColorChanger.UI.Controls
                         _textBox.IsEnabled = true;
                         _textBox.Focusable = true;
                         bool focused = _textBox.Focus();
-                        System.Diagnostics.Debug.WriteLine($"🖱️ TextBox.Focus() 结果: {focused}, IsFocused={_textBox.IsFocused}");
+                        //System.Diagnostics.Debug.WriteLine($"🖱️ TextBox.Focus() 结果: {focused}, IsFocused={_textBox.IsFocused}");
                         if (focused)
                         {
-                            System.Diagnostics.Debug.WriteLine($"✅ TextBox 成功获得焦点");
+                            //System.Diagnostics.Debug.WriteLine($"✅ TextBox 成功获得焦点");
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine($"❌ TextBox 无法获得焦点");
-                            System.Diagnostics.Debug.WriteLine($"   父容器: Parent={Parent?.GetType().Name}");
-                            System.Diagnostics.Debug.WriteLine($"   IsLoaded={_textBox.IsLoaded}");
+                            //System.Diagnostics.Debug.WriteLine($"❌ TextBox 无法获得焦点");
+                            //System.Diagnostics.Debug.WriteLine($"   父容器: Parent={Parent?.GetType().Name}");
+                            //System.Diagnostics.Debug.WriteLine($"   IsLoaded={_textBox.IsLoaded}");
                         }
                     }), System.Windows.Threading.DispatcherPriority.Input);
                     
@@ -363,18 +405,9 @@ namespace ImageColorChanger.UI.Controls
                 double newX = Data.X + deltaX;
                 double newY = Data.Y + deltaY;
 
-                // 获取父容器尺寸（Canvas）
-                var parentCanvas = Parent as System.Windows.FrameworkElement;
-                if (parentCanvas != null)
-                {
-                    // 限制边界：确保文本框不超出Canvas范围
-                    double maxX = parentCanvas.ActualWidth - Width;
-                    double maxY = parentCanvas.ActualHeight - Height;
-
-                    newX = Math.Max(0, Math.Min(newX, maxX));
-                    newY = Math.Max(0, Math.Min(newY, maxY));
-                }
-
+                // 🔧 完全移除边界限制，允许文本框自由拖拽到任何位置
+                // 这样文字可以真正贴到Canvas边缘甚至超出
+                
                 Data.X = newX;
                 Data.Y = newY;
 
@@ -409,17 +442,8 @@ namespace ImageColorChanger.UI.Controls
             double newWidth = Width + e.HorizontalChange;
             double newHeight = Height + e.VerticalChange;
 
-            // 获取父容器尺寸（Canvas）
-            var parentCanvas = Parent as System.Windows.FrameworkElement;
-            if (parentCanvas != null)
-            {
-                // 限制最大尺寸：不能超出Canvas右边界和下边界
-                double maxWidth = parentCanvas.ActualWidth - Data.X;
-                double maxHeight = parentCanvas.ActualHeight - Data.Y;
-                
-                newWidth = Math.Min(newWidth, maxWidth);
-                newHeight = Math.Min(newHeight, maxHeight);
-            }
+            // 🔧 完全移除Canvas边界限制，只保留最小尺寸限制
+            // 这样调整大小时也可以自由超出Canvas边界
 
             // 最小尺寸限制
             if (newWidth > 50)
@@ -501,7 +525,7 @@ namespace ImageColorChanger.UI.Controls
             if (fontFamily != null)
             {
                 _textBox.FontFamily = fontFamily;
-                System.Diagnostics.Debug.WriteLine($"🎨 应用字体到TextBox: {fontFamily.Source}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 应用字体到TextBox: {fontFamily.Source}");
             }
         }
 

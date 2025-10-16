@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Repositories.Interfaces;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Repositories.Implementations
 {
@@ -29,9 +28,8 @@ namespace ImageColorChanger.Repositories.Implementations
                 return await _dbSet
                     .FirstOrDefaultAsync(m => m.Path == path);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "根据路径获取媒体文件失败: Path={Path}", path);
                 throw;
             }
         }
@@ -68,9 +66,8 @@ namespace ImageColorChanger.Repositories.Implementations
                     .ThenBy(m => m.Name)
                     .ToListAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "获取文件夹媒体文件失败: FolderId={FolderId}", folderId);
                 throw;
             }
         }
@@ -90,9 +87,8 @@ namespace ImageColorChanger.Repositories.Implementations
                     .OrderBy(m => m.Name)
                     .ToListAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "搜索媒体文件失败: SearchTerm={SearchTerm}", searchTerm);
                 throw;
             }
         }
@@ -110,9 +106,8 @@ namespace ImageColorChanger.Repositories.Implementations
                     .ThenBy(m => m.Name)
                     .ToListAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "获取指定类型媒体文件失败: FileType={FileType}", fileType);
                 throw;
             }
         }
@@ -130,12 +125,10 @@ namespace ImageColorChanger.Repositories.Implementations
                 await _dbSet.AddRangeAsync(mediaFiles);
                 var count = await _context.SaveChangesAsync();
 
-                Logger.Info("批量导入媒体文件: Count={Count}", count);
                 return count;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "批量导入媒体文件失败");
                 throw;
             }
         }
@@ -152,12 +145,9 @@ namespace ImageColorChanger.Repositories.Implementations
                     _dbSet.Update(file);
                 }
                 await _context.SaveChangesAsync();
-
-                Logger.Info("更新媒体文件排序: Count={Count}", mediaFiles.Count);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "更新媒体文件排序失败");
                 throw;
             }
         }

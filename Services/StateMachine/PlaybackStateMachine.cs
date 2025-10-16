@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using ImageColorChanger.Database.Models.Enums;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Services.StateMachine
 {
@@ -71,14 +70,11 @@ namespace ImageColorChanger.Services.StateMachine
         {
             if (!CanTransition(newStatus))
             {
-                Logger.Warning("非法的状态转换: {CurrentStatus} -> {NewStatus}", CurrentStatus, newStatus);
                 return false;
             }
 
             var oldStatus = CurrentStatus;
             CurrentStatus = newStatus;
-
-            Logger.Info("状态转换: {OldStatus} -> {NewStatus}", oldStatus, newStatus);
 
             // 触发状态变化事件
             StatusChanged?.Invoke(this, new PlaybackStatusChangedEventArgs(oldStatus, newStatus));
@@ -112,7 +108,6 @@ namespace ImageColorChanger.Services.StateMachine
         /// <param name="status">要设置的状态</param>
         public void ForceSetStatus(PlaybackStatus status)
         {
-            Logger.Warning("强制设置状态: {OldStatus} -> {NewStatus}", CurrentStatus, status);
             CurrentStatus = status;
         }
 

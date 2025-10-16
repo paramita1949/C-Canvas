@@ -945,13 +945,13 @@ namespace ImageColorChanger.Database
                     {
                         // 列不存在，执行添加
                         _context.Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN highlight_color TEXT NULL");
-                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 highlight_color 列");
+                        //System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 highlight_color 列");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
             }
         }
         

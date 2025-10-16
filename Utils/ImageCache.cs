@@ -69,16 +69,11 @@ namespace ImageColorChanger.Utils
                     // 更新LRU（移到链表头部）
                     _lruList.Remove(item.LruNode);
                     item.LruNode = _lruList.AddFirst(imagePath);
-                    item.LastAccessTime = DateTime.Now;
-
-                    Logger.Debug("缓存命中: {Path}", Path.GetFileName(imagePath));
-                    return item.Image;
+                    item.LastAccessTime = DateTime.Now;                    return item.Image;
                 }
 
                 // 缓存未命中
-                MissCount++;
-                Logger.Debug("缓存未命中: {Path}", Path.GetFileName(imagePath));
-                return null;
+                MissCount++;                return null;
             }
         }
 
@@ -111,11 +106,7 @@ namespace ImageColorChanger.Utils
                     Image = image,
                     LruNode = node,
                     LastAccessTime = DateTime.Now
-                };
-
-                Logger.Debug("添加到缓存: {Path}, 当前大小={Size}/{Max}", 
-                    Path.GetFileName(imagePath), _cache.Count, _maxCacheSize);
-            }
+                };            }
         }
 
         /// <summary>
@@ -149,7 +140,6 @@ namespace ImageColorChanger.Utils
                 {
                     if (!File.Exists(imagePath))
                     {
-                        Logger.Warning("图片文件不存在: {Path}", imagePath);
                         return null;
                     }
 
@@ -159,13 +149,11 @@ namespace ImageColorChanger.Utils
                     bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
                     bitmap.EndInit();
                     bitmap.Freeze(); // 冻结以便跨线程使用
-
-                    Logger.Debug("加载图片: {Path}", Path.GetFileName(imagePath));
+                    
                     return bitmap;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Logger.Error(ex, "加载图片失败: {Path}", imagePath);
                     return null;
                 }
             });
@@ -188,9 +176,7 @@ namespace ImageColorChanger.Utils
                 }
             }
 
-            await Task.WhenAll(tasks);
-            Logger.Debug("预加载完成: {Count}张图片", tasks.Count);
-        }
+            await Task.WhenAll(tasks);        }
 
         /// <summary>
         /// 移除图片
@@ -202,9 +188,7 @@ namespace ImageColorChanger.Utils
                 if (_cache.TryGetValue(imagePath, out var item))
                 {
                     _lruList.Remove(item.LruNode);
-                    _cache.Remove(imagePath);
-                    Logger.Debug("移除缓存: {Path}", Path.GetFileName(imagePath));
-                }
+                    _cache.Remove(imagePath);                }
             }
         }
 
@@ -217,9 +201,7 @@ namespace ImageColorChanger.Utils
             {
                 var oldestKey = _lruList.Last.Value;
                 _lruList.RemoveLast();
-                _cache.Remove(oldestKey);
-                Logger.Debug("LRU移除: {Path}", Path.GetFileName(oldestKey));
-            }
+                _cache.Remove(oldestKey);            }
         }
 
         /// <summary>
@@ -232,9 +214,7 @@ namespace ImageColorChanger.Utils
                 _cache.Clear();
                 _lruList.Clear();
                 HitCount = 0;
-                MissCount = 0;
-                Logger.Debug("清空缓存");
-            }
+                MissCount = 0;            }
         }
 
         /// <summary>

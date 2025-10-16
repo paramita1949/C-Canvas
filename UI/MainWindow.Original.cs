@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.Implementations;
-using ImageColorChanger.Utils;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ImageColorChanger.UI
@@ -84,7 +83,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🎬 [原图录制] 开始录制: ImageId={currentImageId}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [原图录制] 开始录制: ImageId={currentImageId}");
 
                 // 使用ViewModel的命令
                 _playbackViewModel.CurrentImageId = currentImageId;
@@ -93,11 +92,11 @@ namespace ImageColorChanger.UI
                 await _playbackViewModel.StartRecordingCommand.ExecuteAsync(null);
 
                 ShowStatus($"✅ 开始原图模式录制，请使用方向键切换图片");
-                System.Diagnostics.Debug.WriteLine("📝 [原图录制] 已开始，等待图片切换...");
+                //System.Diagnostics.Debug.WriteLine("📝 [原图录制] 已开始，等待图片切换...");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 启动失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 启动失败: {ex.Message}");
                 MessageBox.Show($"开始录制失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -110,12 +109,12 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"⏹️ [原图录制] 停止录制");
+                //System.Diagnostics.Debug.WriteLine($"⏹️ [原图录制] 停止录制");
 
                 await _playbackViewModel.StopRecordingCommand.ExecuteAsync(null);
 
                 ShowStatus("✅ 原图模式录制完成");
-                System.Diagnostics.Debug.WriteLine("📝 [原图录制] 已保存时间数据到数据库");
+                //System.Diagnostics.Debug.WriteLine("📝 [原图录制] 已保存时间数据到数据库");
 
                 // 延迟200ms后自动启动播放（与Python版本一致）
                 await Task.Delay(200);
@@ -123,7 +122,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 停止失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 停止失败: {ex.Message}");
                 MessageBox.Show($"停止录制失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -145,11 +144,11 @@ namespace ImageColorChanger.UI
 
                 await recordingService.RecordTimingAsync(targetImageId);
 
-                System.Diagnostics.Debug.WriteLine($"📝 [原图录制] 记录切换: → ImageId={targetImageId}");
+                //System.Diagnostics.Debug.WriteLine($"📝 [原图录制] 记录切换: → ImageId={targetImageId}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败: {ex.Message}");
             }
         }
 
@@ -182,7 +181,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 开始播放: ImageId={currentImageId}");
+                //System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 开始播放: ImageId={currentImageId}");
 
                 // 同步播放次数设置
                 var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
@@ -196,10 +195,7 @@ namespace ImageColorChanger.UI
                     originalPlayback.SwitchImageRequested -= OnOriginalPlaybackSwitchImageRequested;
                     
                     // 订阅新事件
-                    originalPlayback.SwitchImageRequested += OnOriginalPlaybackSwitchImageRequested;
-                    
-                    Logger.Info("✅ [原图播放] 已订阅SwitchImageRequested事件");
-                }
+                    originalPlayback.SwitchImageRequested += OnOriginalPlaybackSwitchImageRequested;                }
 
                 // 使用ViewModel的命令
                 _playbackViewModel.CurrentImageId = currentImageId;
@@ -208,11 +204,11 @@ namespace ImageColorChanger.UI
                 await _playbackViewModel.StartPlaybackCommand.ExecuteAsync(null);
 
                 ShowStatus($"✅ 开始原图模式播放");
-                System.Diagnostics.Debug.WriteLine("📺 [原图播放] 播放已启动");
+                //System.Diagnostics.Debug.WriteLine("📺 [原图播放] 播放已启动");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 启动失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 启动失败: {ex.Message}");
                 MessageBox.Show($"播放失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -224,7 +220,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"⏹️ [原图播放] 停止播放");
+                //System.Diagnostics.Debug.WriteLine($"⏹️ [原图播放] 停止播放");
 
                 // 取消订阅事件
                 var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
@@ -232,7 +228,7 @@ namespace ImageColorChanger.UI
                 if (playbackService is OriginalPlaybackService originalPlayback)
                 {
                     originalPlayback.SwitchImageRequested -= OnOriginalPlaybackSwitchImageRequested;
-                    System.Diagnostics.Debug.WriteLine("🔌 [原图播放] 已取消订阅事件");
+                    //System.Diagnostics.Debug.WriteLine("🔌 [原图播放] 已取消订阅事件");
                 }
 
                 await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
@@ -245,11 +241,11 @@ namespace ImageColorChanger.UI
                 });
 
                 ShowStatus("⏹ 原图模式播放已停止");
-                System.Diagnostics.Debug.WriteLine("📺 [原图播放] 已停止");
+                //System.Diagnostics.Debug.WriteLine("📺 [原图播放] 已停止");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败: {ex.Message}");
             }
         }
 
@@ -258,17 +254,12 @@ namespace ImageColorChanger.UI
         /// 参考Python版本：keytime.py 行1830-1900
         /// </summary>
         private void OnOriginalPlaybackSwitchImageRequested(object sender, SwitchImageEventArgs e)
-        {
-            Logger.Info("🎯 [事件触发] OnOriginalPlaybackSwitchImageRequested: ImageId={ImageId}, Path={Path}", 
-                e.ImageId, e.ImagePath ?? "null");
-            
+        {            
             // 必须在UI线程上执行
             Dispatcher.InvokeAsync(() =>
             {
                 try
                 {
-                    Logger.Debug("🔄 [原图播放] 开始切换图片: ImageId={ImageId}", e.ImageId);
-
                     // 🎯 更新当前图片ID（必须先更新，否则项目树选择逻辑会错乱）
                     currentImageId = e.ImageId;
 
@@ -313,14 +304,9 @@ namespace ImageColorChanger.UI
                             false,
                             ImageColorChanger.Core.OriginalDisplayMode.Stretch
                         );
-                    }
-
-                    Logger.Info("✅ [原图播放] 图片切换完成: ImageId={ImageId}", e.ImageId);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, "❌ [原图播放] 切换图片失败");
-                }
+                    }                }
+                catch (Exception)
+                {                }
             });
         }
 
@@ -483,7 +469,7 @@ namespace ImageColorChanger.UI
             // 🎯 如果正在播放原图模式，记录手动操作进行时间修正
             if (_playbackViewModel.IsPlaying && _playbackViewModel.CurrentMode == PlaybackMode.Original)
             {
-                System.Diagnostics.Debug.WriteLine($"🔧 检测到播放时手动跳转: {fromImageId} -> {toImageId}");
+                //System.Diagnostics.Debug.WriteLine($"🔧 检测到播放时手动跳转: {fromImageId} -> {toImageId}");
                 
                 var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
                     .GetPlaybackService(PlaybackMode.Original);
@@ -492,7 +478,7 @@ namespace ImageColorChanger.UI
                 {
                     // 记录手动操作进行时间修正
                     await originalPlayback.RecordManualSwitchAsync(fromImageId, toImageId);
-                    System.Diagnostics.Debug.WriteLine("✅ 播放时手动跳转已记录，将继续播放下一帧");
+                    //System.Diagnostics.Debug.WriteLine("✅ 播放时手动跳转已记录，将继续播放下一帧");
                 }
             }
             
@@ -504,7 +490,7 @@ namespace ImageColorChanger.UI
                 // 🎯 检测循环完成：如果在循环模式下回到第一张图，自动停止录制并开始播放
                 if (isLoopCompleted)
                 {
-                    System.Diagnostics.Debug.WriteLine("🔄 检测到循环完成，自动停止录制并开始播放");
+                    //System.Diagnostics.Debug.WriteLine("🔄 检测到循环完成，自动停止录制并开始播放");
                     
                     // 停止录制
                     await _playbackViewModel.StopRecordingCommand.ExecuteAsync(null);
@@ -516,7 +502,7 @@ namespace ImageColorChanger.UI
                     // 🎯 自动开始播放（调用完整的播放方法，确保事件订阅正确）
                     await StartOriginalModePlaybackAsync();
                     
-                    System.Diagnostics.Debug.WriteLine("▶️ 循环录制完成，已自动开始播放");
+                    //System.Diagnostics.Debug.WriteLine("▶️ 循环录制完成，已自动开始播放");
                 }
             }
         }
@@ -552,14 +538,14 @@ namespace ImageColorChanger.UI
                     await recordingService.ClearTimingDataAsync(currentImageId, PlaybackMode.Original);
 
                     ShowStatus("✅ 已清除原图模式时间数据");
-                    System.Diagnostics.Debug.WriteLine($"🗑️ [原图] 已清除时间数据: ImageId={currentImageId}");
+                    //System.Diagnostics.Debug.WriteLine($"🗑️ [原图] 已清除时间数据: ImageId={currentImageId}");
 
                     // 更新HasTimingData状态
                     await _playbackViewModel.UpdateTimingDataStatus();
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ [原图] 清除时间数据失败: {ex.Message}");
+                    //System.Diagnostics.Debug.WriteLine($"❌ [原图] 清除时间数据失败: {ex.Message}");
                     MessageBox.Show($"清除失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }

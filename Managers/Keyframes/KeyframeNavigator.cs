@@ -54,7 +54,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
                 }
 
@@ -62,7 +62,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_mainWindow._playbackViewModel?.IsPlaying == true)
                 {
                     forceDirectJump = true;
-                    System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
                 }
 
                 // 检测回跳
@@ -70,7 +70,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
                 }
 
                 // 处理循环
@@ -93,7 +93,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转 #{targetIndex + 1} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转 #{targetIndex + 1} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
                     var scrollViewer = _mainWindow.ImageScrollViewer;
                     var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                     scrollViewer.ScrollToVerticalOffset(targetOffset);
@@ -106,7 +106,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
-                    System.Diagnostics.Debug.WriteLine($"🎬 [上一帧] 平滑滚动 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [上一帧] 平滑滚动 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 
@@ -118,7 +118,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 跳转上一关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 跳转上一关键帧异常: {ex.Message}");
                 _mainWindow.ShowStatus($"跳转失败: {ex.Message}");
             }
         }
@@ -155,7 +155,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
                 }
 
@@ -163,7 +163,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_mainWindow._playbackViewModel?.IsPlaying == true)
                 {
                     forceDirectJump = true;
-                    System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
                 }
 
                 // 计算目标索引
@@ -181,19 +181,19 @@ namespace ImageColorChanger.Managers.Keyframes
                     
                     // 检查录制状态（优先使用新的ViewModel系统）
                     bool wasRecording = _mainWindow._playbackViewModel?.IsRecording ?? false;
-                    System.Diagnostics.Debug.WriteLine($"🔍 [循环检测] 是否正在录制: {wasRecording}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [循环检测] 是否正在录制: {wasRecording}");
                     
                     // 如果正在录制，自动停止录制（参考Python版本 playback_controller.py 第50-64行）
                     if (wasRecording)
                     {
-                        System.Diagnostics.Debug.WriteLine("📹 [录制] 检测到循环，准备自动停止录制");
+                        //System.Diagnostics.Debug.WriteLine("📹 [录制] 检测到循环，准备自动停止录制");
                         
                         // 1. 先记录最后一帧的时间（重要！参考Python版本第50-56行）
                         if (currentIndex >= 0 && currentIndex < keyframes.Count)
                         {
                             var lastKeyframe = keyframes[currentIndex];
                             await _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id);
-                            System.Diagnostics.Debug.WriteLine($"📝 [录制] 循环前记录最后一帧: #{currentIndex + 1}, KeyframeId={lastKeyframe.Id}");
+                            //System.Diagnostics.Debug.WriteLine($"📝 [录制] 循环前记录最后一帧: #{currentIndex + 1}, KeyframeId={lastKeyframe.Id}");
                         }
                         
                         // 2. 然后停止录制
@@ -201,13 +201,13 @@ namespace ImageColorChanger.Managers.Keyframes
                         var command = viewModel?.ToggleRecordingCommand;
                         bool canExecute = command?.CanExecute(null) ?? false;
                         
-                        System.Diagnostics.Debug.WriteLine($"🔍 [命令检查] ViewModel存在: {viewModel != null}, Command存在: {command != null}, CanExecute: {canExecute}");
+                        //System.Diagnostics.Debug.WriteLine($"🔍 [命令检查] ViewModel存在: {viewModel != null}, Command存在: {command != null}, CanExecute: {canExecute}");
                         
                         // 使用ViewModel的录制命令停止录制
                         if (canExecute)
                         {
                             await command.ExecuteAsync(null);
-                            System.Diagnostics.Debug.WriteLine("✅ [录制] 停止完成");
+                            //System.Diagnostics.Debug.WriteLine("✅ [录制] 停止完成");
                             
                             // 等待一小段时间确保录制状态完全清除
                             await System.Threading.Tasks.Task.Delay(50);
@@ -221,7 +221,7 @@ namespace ImageColorChanger.Managers.Keyframes
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("⚠️ [录制] 命令无法执行");
+                            //System.Diagnostics.Debug.WriteLine("⚠️ [录制] 命令无法执行");
                         }
                         
                         // 无论停止录制是否成功，都标记为不再记录时间
@@ -237,7 +237,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
                 }
 
                 // 更新当前帧索引
@@ -254,7 +254,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 直接跳转 #{targetIndex + 1} (首次:{isFirstExecution}, 滚动中:{forceDirectJump}, 循环回:{isLoopingBack}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 直接跳转 #{targetIndex + 1} (首次:{isFirstExecution}, 滚动中:{forceDirectJump}, 循环回:{isLoopingBack}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
                     var scrollViewer = _mainWindow.ImageScrollViewer;
                     var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                     scrollViewer.ScrollToVerticalOffset(targetOffset);
@@ -267,7 +267,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
-                    System.Diagnostics.Debug.WriteLine($"🎬 [下一帧] 平滑滚动 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [下一帧] 平滑滚动 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 
@@ -283,7 +283,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 跳转下一关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 跳转下一关键帧异常: {ex.Message}");
                 _mainWindow.ShowStatus($"跳转失败: {ex.Message}");
                 return false; // 异常情况下，不记录时间
             }
@@ -336,7 +336,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常: {ex.Message}");
             }
         }
 
@@ -347,30 +347,30 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🎬 [自动播放] 录制结束，准备启动播放: ImageId={imageId}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [自动播放] 录制结束，准备启动播放: ImageId={imageId}");
                 
                 // 检查是否有录制的时间数据
                 var keyframes = await _keyframeManager.GetKeyframesAsync(imageId);
                 if (keyframes == null || keyframes.Count == 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 没有关键帧，取消自动播放");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 没有关键帧，取消自动播放");
                     return;
                 }
                 
                 // 使用ViewModel的播放命令
                 if (_mainWindow._playbackViewModel?.TogglePlaybackCommand?.CanExecute(null) == true)
                 {
-                    System.Diagnostics.Debug.WriteLine("▶️ [自动播放] 启动播放");
+                    //System.Diagnostics.Debug.WriteLine("▶️ [自动播放] 启动播放");
                     await _mainWindow._playbackViewModel.TogglePlaybackCommand.ExecuteAsync(null);
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 播放命令不可执行");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 播放命令不可执行");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败: {ex.Message}");
             }
         }
     }

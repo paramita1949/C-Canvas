@@ -3,7 +3,6 @@ using System.Windows;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger
 {
@@ -21,8 +20,6 @@ namespace ImageColorChanger
         {
             base.OnStartup(e);
 
-            // 初始化日志系统
-            Logger.Initialize();
 
             try
             {
@@ -37,7 +34,7 @@ namespace ImageColorChanger
             }
             catch (Exception ex)
             {
-                Logger.Fatal(ex, "应用程序启动失败");
+                System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 应用程序启动失败: {ex.Message}");
                 System.Windows.MessageBox.Show($"应用程序启动失败：{ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
@@ -61,8 +58,6 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnExit(ExitEventArgs e)
         {
-            Logger.Shutdown();
-
             base.OnExit(e);
         }
 
@@ -73,8 +68,8 @@ namespace ImageColorChanger
         {
             if (e.ExceptionObject is Exception ex)
             {
-                Logger.Fatal(ex, "未处理的异常");
-                System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}\n\n请查看日志文件获取详细信息。", 
+                System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
+                System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}", 
                     "严重错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -84,8 +79,8 @@ namespace ImageColorChanger
         /// </summary>
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            Logger.Error(e.Exception, "UI线程未处理的异常");
-            System.Windows.MessageBox.Show($"发生错误：{e.Exception.Message}\n\n请查看日志文件获取详细信息。", 
+            System.Diagnostics.Debug.WriteLine($"❌ [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
+            System.Windows.MessageBox.Show($"发生错误：{e.Exception.Message}", 
                 "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             
             // 标记为已处理，防止应用程序崩溃
@@ -130,9 +125,8 @@ namespace ImageColorChanger
                 // 如果正则匹配失败，返回默认版本号
                 return "3.0.4";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "提取版本号失败");
                 return "3.0.4"; // 返回默认版本号
             }
         }

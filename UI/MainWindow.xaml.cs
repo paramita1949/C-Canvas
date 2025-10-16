@@ -233,13 +233,13 @@ namespace ImageColorChanger.UI
                                 {
                                     // 直接跳转，不使用滚动动画（用于循环回第一帧或首次播放）
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
-                                    System.Diagnostics.Debug.WriteLine($"⚡ [播放] 直接跳转到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
+                                    //System.Diagnostics.Debug.WriteLine($"⚡ [播放] 直接跳转到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
                                 }
                                 else
                                 {
                                     // 使用平滑滚动动画
                                     _keyframeManager.SmoothScrollTo(e.Position);
-                                    System.Diagnostics.Debug.WriteLine($"🎬 [播放] 平滑滚动到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
+                                    //System.Diagnostics.Debug.WriteLine($"🎬 [播放] 平滑滚动到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
                                 }
                                 
                                 // 🔧 更新关键帧索引和指示器（参考Python版本：keytime.py 第1184-1221行）
@@ -253,7 +253,7 @@ namespace ImageColorChanger.UI
                                         {
                                             // 2. 更新关键帧索引
                                             _keyframeManager.UpdateKeyframeIndex(i);
-                                            System.Diagnostics.Debug.WriteLine($"🎯 [播放] 更新关键帧索引: #{i + 1}");
+                                            //System.Diagnostics.Debug.WriteLine($"🎯 [播放] 更新关键帧索引: #{i + 1}");
                                             break;
                                         }
                                     }
@@ -273,7 +273,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ PlaybackControlViewModel 初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ PlaybackControlViewModel 初始化失败: {ex.Message}");
             }
         }
 
@@ -417,7 +417,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 MessageBox.Show($"数据库初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"数据库初始化失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"数据库初始化失败: {ex}");
             }
         }
         
@@ -434,7 +434,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败: {ex.Message}");
                 MessageBox.Show($"全局热键管理器初始化失败: {ex.Message}", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -446,7 +446,7 @@ namespace ImageColorChanger.UI
         {
             if (_globalHotKeyManager == null)
             {
-                System.Diagnostics.Debug.WriteLine("❌ 全局热键管理器未初始化");
+                //System.Diagnostics.Debug.WriteLine("❌ 全局热键管理器未初始化");
                 return;
             }
 
@@ -460,13 +460,13 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Left");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Left");
                         Dispatcher.InvokeAsync(async () =>
                         {
                             // 🆕 如果在文本编辑器模式，切换到上一张幻灯片
                             if (TextEditorPanel.Visibility == Visibility.Visible)
                             {
-                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
                                 NavigateToPreviousSlide();
                                 return;
                             }
@@ -489,13 +489,13 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Right");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Right");
                         Dispatcher.InvokeAsync(async () =>
                         {
                             // 🆕 如果在文本编辑器模式，切换到下一张幻灯片
                             if (TextEditorPanel.Visibility == Visibility.Visible)
                             {
-                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
                                 NavigateToNextSlide();
                                 return;
                             }
@@ -518,13 +518,13 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageUp");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageUp");
                         Dispatcher.InvokeAsync(() =>
                         {
                             // 🆕 如果在文本编辑器模式，切换到上一张幻灯片
                             if (TextEditorPanel.Visibility == Visibility.Visible)
                             {
-                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
                                 NavigateToPreviousSlide();
                                 return;
                             }
@@ -548,13 +548,13 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageDown");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageDown");
                         Dispatcher.InvokeAsync(() =>
                         {
                             // 🆕 如果在文本编辑器模式，切换到下一张幻灯片
                             if (TextEditorPanel.Visibility == Visibility.Visible)
                             {
-                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
                                 NavigateToNextSlide();
                                 return;
                             }
@@ -578,7 +578,7 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: F2");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: F2");
                         Dispatcher.InvokeAsync(() =>
                         {
                             if (IsMediaPlaybackMode())
@@ -607,13 +607,13 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Escape");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Escape");
                         Dispatcher.InvokeAsync(() =>
                         {
                             // 如果正在播放视频，先停止播放
                             if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
                             {
-                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 停止视频播放");
+                                //System.Diagnostics.Debug.WriteLine("📹 ESC键: 停止视频播放");
                                 videoPlayerManager.Stop();
                             }
                             
@@ -623,17 +623,17 @@ namespace ImageColorChanger.UI
                                 bool wasClosed = projectionManager.CloseProjection();
                                 if (wasClosed)
                                 {
-                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
+                                    //System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
                                 }
                             }
                         });
                     });
                 
-                System.Diagnostics.Debug.WriteLine("✅ 全局热键已启用（投影模式）- 使用原来的按键");
+                //System.Diagnostics.Debug.WriteLine("✅ 全局热键已启用（投影模式）- 使用原来的按键");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 启用全局热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 启用全局热键失败: {ex.Message}");
             }
         }
 
@@ -651,7 +651,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 禁用全局热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 禁用全局热键失败: {ex.Message}");
             }
         }
 
@@ -696,9 +696,9 @@ namespace ImageColorChanger.UI
                         // 只在VideoView有实际尺寸且MediaPlayer未初始化时执行
                         if (!mediaPlayerInitialized && mainVideoView.ActualWidth > 0 && mainVideoView.ActualHeight > 0)
                         {
-                            System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 尺寸就绪 =====");
-                            System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualWidth: {mainVideoView.ActualWidth}");
-                            System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualHeight: {mainVideoView.ActualHeight}");
+                            //System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 尺寸就绪 =====");
+                            //System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualWidth: {mainVideoView.ActualWidth}");
+                            //System.Diagnostics.Debug.WriteLine($"🟡 mainVideoView.ActualHeight: {mainVideoView.ActualHeight}");
                             
                             // 创建MediaPlayer并立即绑定到VideoView（此时VideoView已有尺寸）
                             videoPlayerManager.InitializeMediaPlayer(mainVideoView);
@@ -711,14 +711,14 @@ namespace ImageColorChanger.UI
                             // 取消订阅，避免重复触发
                             mainVideoView.SizeChanged -= sizeChangedHandler;
                             
-                            System.Diagnostics.Debug.WriteLine("✅ 主窗口VideoView处理完成（有尺寸）");
-                            System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 初始化完成 =====");
+                            //System.Diagnostics.Debug.WriteLine("✅ 主窗口VideoView处理完成（有尺寸）");
+                            //System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 初始化完成 =====");
                         }
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer绑定失败: {ex.Message}");
-                        System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer绑定失败: {ex.Message}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
                     }
                 };
                 
@@ -741,7 +741,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 视频播放器初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 视频播放器初始化失败: {ex.Message}");
                 MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n部分功能可能无法使用。", 
                     "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -885,7 +885,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"加载项目失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"加载项目失败: {ex}");
             }
         }
 
@@ -901,7 +901,7 @@ namespace ImageColorChanger.UI
                 {
                     if (dbManager == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("⚠️ dbManager 未初始化，跳过加载文本项目");
+                        //System.Diagnostics.Debug.WriteLine("⚠️ dbManager 未初始化，跳过加载文本项目");
                         return;
                     }
                     
@@ -912,7 +912,7 @@ namespace ImageColorChanger.UI
                 
                 foreach (var project in textProjects)
                 {
-                    System.Diagnostics.Debug.WriteLine($"  - 添加文本项目到树: ID={project.Id}, Name={project.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"  - 添加文本项目到树: ID={project.Id}, Name={project.Name}");
                     
                     projectTreeItems.Add(new ProjectTreeItem
                     {
@@ -928,8 +928,8 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
             }
         }
 
@@ -977,7 +977,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
             }
         }
 
@@ -1001,7 +1001,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败: {ex.Message}");
             }
         }
 
@@ -1141,7 +1141,7 @@ namespace ImageColorChanger.UI
                     // ⚡ 清除投影缓存
                     projectionManager?.ClearProjectionCache();
                     
-                    System.Diagnostics.Debug.WriteLine("🔄 文件夹导入完成，已清除所有缓存");
+                    //System.Diagnostics.Debug.WriteLine("🔄 文件夹导入完成，已清除所有缓存");
                     
                     ShowStatus($"✅ 已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
                 }
@@ -1210,7 +1210,7 @@ namespace ImageColorChanger.UI
                     {
                         // 立即切换到视频投影模式，让VideoView获得正确尺寸
                         projectionManager.ShowVideoProjection();
-                        System.Diagnostics.Debug.WriteLine("📹 检测到正在播放视频，立即切换到视频投影模式");
+                        //System.Diagnostics.Debug.WriteLine("📹 检测到正在播放视频，立即切换到视频投影模式");
                     }
                     // 如果选中了视频文件但未播放，直接在投影屏幕播放
                     else if (!string.IsNullOrEmpty(imagePath) && IsVideoFile(imagePath))
@@ -1231,7 +1231,7 @@ namespace ImageColorChanger.UI
                             
                             // 设置待播放视频路径，等待MediaPlayer创建完成后播放
                             pendingProjectionVideoPath = imagePath;
-                            System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {fileName}");
+                            //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {fileName}");
                             
                             ShowStatus($"🎬 准备投影播放: {fileName}");
                         }
@@ -1250,20 +1250,20 @@ namespace ImageColorChanger.UI
                     {
                         projectionTimeoutTimer.Stop();
                         projectionTimeoutTimer = null;
-                        System.Diagnostics.Debug.WriteLine("🧹 已清理投影超时定时器");
+                        //System.Diagnostics.Debug.WriteLine("🧹 已清理投影超时定时器");
                     }
                     
                     // 如果当前正在播放视频，停止播放并重置VideoView绑定
                     if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
                     {
-                        System.Diagnostics.Debug.WriteLine("📹 关闭投影，停止视频播放");
+                        //System.Diagnostics.Debug.WriteLine("📹 关闭投影，停止视频播放");
                         
                         // 先停止播放
                         videoPlayerManager.Stop();
                         
                         // 重置VideoView绑定状态，确保下次播放时不会出错
                         // 将VideoView切换回主窗口（但不播放）
-                        System.Diagnostics.Debug.WriteLine("🔧 重置VideoView绑定到主窗口");
+                        //System.Diagnostics.Debug.WriteLine("🔧 重置VideoView绑定到主窗口");
                         var mainVideoView = this.FindName("MainVideoView") as LibVLCSharp.WPF.VideoView;
                         if (mainVideoView != null)
                         {
@@ -1292,15 +1292,15 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView Loaded事件触发 =====");
-                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView: {(projectionVideoView != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualWidth: {projectionVideoView?.ActualWidth}");
-                System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualHeight: {projectionVideoView?.ActualHeight}");
+                //System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView Loaded事件触发 =====");
+                //System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView: {(projectionVideoView != null ? "存在" : "null")}");
+                //System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualWidth: {projectionVideoView?.ActualWidth}");
+                //System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView.ActualHeight: {projectionVideoView?.ActualHeight}");
                 
                 // 如果VideoView尺寸为0，等待SizeChanged事件
                 if (projectionVideoView != null && (projectionVideoView.ActualWidth == 0 || projectionVideoView.ActualHeight == 0))
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ 投影VideoView尺寸为0，等待SizeChanged事件");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ 投影VideoView尺寸为0，等待SizeChanged事件");
                     
                     bool initialized = false;
                     SizeChangedEventHandler sizeChangedHandler = null;
@@ -1309,8 +1309,8 @@ namespace ImageColorChanger.UI
                     {
                         if (!initialized && projectionVideoView.ActualWidth > 0 && projectionVideoView.ActualHeight > 0)
                         {
-                            System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView 尺寸就绪 =====");
-                            System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView尺寸: {projectionVideoView.ActualWidth}x{projectionVideoView.ActualHeight}");
+                            //System.Diagnostics.Debug.WriteLine("🟠 ===== 投影窗口 VideoView 尺寸就绪 =====");
+                            //System.Diagnostics.Debug.WriteLine($"🟠 projectionVideoView尺寸: {projectionVideoView.ActualWidth}x{projectionVideoView.ActualHeight}");
                             
                             if (videoPlayerManager != null)
                             {
@@ -1320,7 +1320,7 @@ namespace ImageColorChanger.UI
                                 // 如果当前正在播放视频，现在启用视频投屏
                                 if (videoPlayerManager.IsPlaying)
                                 {
-                                    System.Diagnostics.Debug.WriteLine("📹 投影VideoView加载完成，现在启用视频投屏");
+                                    //System.Diagnostics.Debug.WriteLine("📹 投影VideoView加载完成，现在启用视频投屏");
                                     EnableVideoProjection();
                                 }
                             }
@@ -1328,12 +1328,12 @@ namespace ImageColorChanger.UI
                             initialized = true;
                             projectionVideoView.SizeChanged -= sizeChangedHandler;
                             
-                            System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定（有尺寸）");
+                            //System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定（有尺寸）");
                             
                             // 如果有待播放的视频，现在开始播放
                             if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
                             {
-                                System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                                //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
                                 PlayPendingProjectionVideo();
                             }
                         }
@@ -1350,7 +1350,7 @@ namespace ImageColorChanger.UI
                         projectionTimeoutTimer = null;
                         if (!initialized)
                         {
-                            System.Diagnostics.Debug.WriteLine("⏰ 投影VideoView尺寸检测超时，强制启用视频投屏");
+                            //System.Diagnostics.Debug.WriteLine("⏰ 投影VideoView尺寸检测超时，强制启用视频投屏");
                             
                             if (videoPlayerManager != null)
                             {
@@ -1361,7 +1361,7 @@ namespace ImageColorChanger.UI
                                 // 如果当前正在播放视频，现在启用视频投屏
                                 if (videoPlayerManager.IsPlaying)
                                 {
-                                    System.Diagnostics.Debug.WriteLine("📹 超时后强制启用视频投屏");
+                                    //System.Diagnostics.Debug.WriteLine("📹 超时后强制启用视频投屏");
                                     EnableVideoProjection();
                                 }
                             }
@@ -1374,26 +1374,26 @@ namespace ImageColorChanger.UI
                 }
                 else if (projectionVideoView != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("✅ 投影VideoView已有尺寸，直接初始化");
+                    //System.Diagnostics.Debug.WriteLine("✅ 投影VideoView已有尺寸，直接初始化");
                     
                     // VideoView已有尺寸，直接创建MediaPlayer
                     if (videoPlayerManager != null)
                     {
                         videoPlayerManager.InitializeMediaPlayer(projectionVideoView);
                         videoPlayerManager.SetProjectionVideoView(projectionVideoView);
-                        System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定到VideoView");
+                        //System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定到VideoView");
                         
                         // 如果当前正在播放视频，现在启用视频投屏
                         if (videoPlayerManager.IsPlaying)
                         {
-                            System.Diagnostics.Debug.WriteLine("📹 投影VideoView直接初始化完成，现在启用视频投屏");
+                            //System.Diagnostics.Debug.WriteLine("📹 投影VideoView直接初始化完成，现在启用视频投屏");
                             EnableVideoProjection();
                         }
                         
                         // 如果有待播放的视频，现在开始播放
                         if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
                         {
-                            System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                            //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
                             PlayPendingProjectionVideo();
                         }
                     }
@@ -1401,8 +1401,8 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 投影MediaPlayer绑定失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 投影MediaPlayer绑定失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
             }
         }
         
@@ -1432,7 +1432,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 播放待投影视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放待投影视频失败: {ex.Message}");
             }
         }
 
@@ -1551,7 +1551,7 @@ namespace ImageColorChanger.UI
                     bool foundSimilar = originalManager.FindSimilarImages(currentImageId);
                     if (foundSimilar)
                     {
-                        System.Diagnostics.Debug.WriteLine("✅ 原图模式: 已找到相似图片");
+                        //System.Diagnostics.Debug.WriteLine("✅ 原图模式: 已找到相似图片");
                     }
                 }
             }
@@ -1579,14 +1579,14 @@ namespace ImageColorChanger.UI
                 originalMode = false;
                 imageProcessor.OriginalMode = false;
                 BtnOriginal.Background = Brushes.Transparent;
-                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭原图模式");
+                //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭原图模式");
             }
             
             // 重置缩放比例为1.0
             if (Math.Abs(imageProcessor.ZoomRatio - 1.0) > 0.001)
             {
                 imageProcessor.ZoomRatio = 1.0;
-                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已重置缩放比例为1.0");
+                //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已重置缩放比例为1.0");
             }
             
             // 关闭变色效果
@@ -1594,13 +1594,13 @@ namespace ImageColorChanger.UI
             {
                 isColorEffectEnabled = false;
                 BtnColorEffect.Background = Brushes.Transparent;
-                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭变色效果");
+                //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭变色效果");
             }
             
             // 清除当前图片ID
             currentImageId = 0;
             
-            System.Diagnostics.Debug.WriteLine("✅ 视图状态已重置为文本编辑器模式");
+            //System.Diagnostics.Debug.WriteLine("✅ 视图状态已重置为文本编辑器模式");
         }
 
         private void BtnColorEffect_Click(object sender, RoutedEventArgs e)
@@ -1790,7 +1790,7 @@ namespace ImageColorChanger.UI
                             // 检查当前是否是第一张
                             if (currentImageId != firstImageResult.firstImageId.Value)
                             {
-                                System.Diagnostics.Debug.WriteLine($"📹 [原图录制] 当前不在第一张 (当前ID:{currentImageId}, 第一张ID:{firstImageResult.firstImageId.Value})，跳转到第一张");
+                                //System.Diagnostics.Debug.WriteLine($"📹 [原图录制] 当前不在第一张 (当前ID:{currentImageId}, 第一张ID:{firstImageResult.firstImageId.Value})，跳转到第一张");
                                 
                                 // 直接跳转到第一张图
                                 currentImageId = firstImageResult.firstImageId.Value;
@@ -1800,11 +1800,11 @@ namespace ImageColorChanger.UI
                                 await Task.Delay(100);
                                 
                                 ShowStatus($"✅ 已跳转到第一张相似图片");
-                                System.Diagnostics.Debug.WriteLine("✅ [原图录制] 已跳转到第一张，准备开始录制");
+                                //System.Diagnostics.Debug.WriteLine("✅ [原图录制] 已跳转到第一张，准备开始录制");
                             }
                             else
                             {
-                                System.Diagnostics.Debug.WriteLine("✅ [原图录制] 当前已在第一张");
+                                //System.Diagnostics.Debug.WriteLine("✅ [原图录制] 当前已在第一张");
                             }
                         }
                     }
@@ -1818,7 +1818,7 @@ namespace ImageColorChanger.UI
                         // 如果当前不在第一帧，先直接跳转到第一帧
                         if (_keyframeManager.CurrentKeyframeIndex != 0)
                         {
-                            System.Diagnostics.Debug.WriteLine($"📹 [录制] 当前在第 {_keyframeManager.CurrentKeyframeIndex + 1} 帧，先跳转到第一帧");
+                            //System.Diagnostics.Debug.WriteLine($"📹 [录制] 当前在第 {_keyframeManager.CurrentKeyframeIndex + 1} 帧，先跳转到第一帧");
                             
                             // 直接跳转到第一帧（不使用滚动动画）
                             _keyframeManager.UpdateKeyframeIndex(0);
@@ -1834,7 +1834,7 @@ namespace ImageColorChanger.UI
                             await _keyframeManager.UpdateKeyframeIndicatorsAsync();
                             ShowStatus($"关键帧 1/{keyframes.Count}");
                             
-                            System.Diagnostics.Debug.WriteLine("✅ [录制] 已跳转到第一帧，准备开始录制");
+                            //System.Diagnostics.Debug.WriteLine("✅ [录制] 已跳转到第一帧，准备开始录制");
                         }
                     }
                 }
@@ -1898,7 +1898,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 显示脚本窗口失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 显示脚本窗口失败: {ex.Message}");
                 ShowStatus($"❌ 显示脚本失败: {ex.Message}");
             }
         }
@@ -1948,7 +1948,7 @@ namespace ImageColorChanger.UI
                 baseImageId = currentImageId;
             }
             
-            System.Diagnostics.Debug.WriteLine($"📝 [原图脚本] CurrentImageId={currentImageId}, BaseImageId={baseImageId.Value}");
+            //System.Diagnostics.Debug.WriteLine($"📝 [原图脚本] CurrentImageId={currentImageId}, BaseImageId={baseImageId.Value}");
             
             var timings = await originalRepo.GetOriginalTimingSequenceAsync(baseImageId.Value);
             
@@ -2022,7 +2022,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 搜索失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 搜索失败: {ex}");
                 MessageBox.Show($"搜索失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -2066,7 +2066,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"加载搜索范围失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"加载搜索范围失败: {ex}");
             }
         }
 
@@ -2104,7 +2104,7 @@ namespace ImageColorChanger.UI
                         if (hasFolderMark && !originalMode)
                         {
                             // 文件夹有原图标记,自动启用原图模式
-                            System.Diagnostics.Debug.WriteLine($"🎯 文件夹有原图标记,自动启用原图模式: {selectedItem.Name}(黄色)");
+                            //System.Diagnostics.Debug.WriteLine($"🎯 文件夹有原图标记,自动启用原图模式: {selectedItem.Name}(黄色)");
                             originalMode = true;
                             imageProcessor.OriginalMode = true;
                             BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 浅绿色
@@ -2118,7 +2118,7 @@ namespace ImageColorChanger.UI
                                     // 如果当前图片不属于这个原图文件夹,清空显示
                                     if (currentMediaFile.FolderId.Value != selectedItem.Id)
                                     {
-                                        System.Diagnostics.Debug.WriteLine($"🎯 当前图片不属于原图文件夹,清空显示");
+                                        //System.Diagnostics.Debug.WriteLine($"🎯 当前图片不属于原图文件夹,清空显示");
                                         ClearImageDisplay();
                                     }
                                 }
@@ -2129,7 +2129,7 @@ namespace ImageColorChanger.UI
                         else if (!hasFolderMark && originalMode)
                         {
                             // 文件夹没有原图标记,自动关闭原图模式
-                            System.Diagnostics.Debug.WriteLine($"🎯 文件夹无原图标记,自动关闭原图模式: {selectedItem.Name}");
+                            //System.Diagnostics.Debug.WriteLine($"🎯 文件夹无原图标记,自动关闭原图模式: {selectedItem.Name}");
                             originalMode = false;
                             imageProcessor.OriginalMode = false;
                             BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
@@ -2143,7 +2143,7 @@ namespace ImageColorChanger.UI
                                     // 如果当前图片不属于这个非原图文件夹,清空显示
                                     if (currentMediaFile.FolderId.Value != selectedItem.Id)
                                     {
-                                        System.Diagnostics.Debug.WriteLine($"🎯 当前图片不属于非原图文件夹,清空显示");
+                                        //System.Diagnostics.Debug.WriteLine($"🎯 当前图片不属于非原图文件夹,清空显示");
                                         ClearImageDisplay();
                                     }
                                 }
@@ -2158,7 +2158,7 @@ namespace ImageColorChanger.UI
                         if (hasColorEffectMark && !isColorEffectEnabled)
                         {
                             // 文件夹有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
-                            System.Diagnostics.Debug.WriteLine($"🎨 文件夹有变色标记，更新UI状态: {selectedItem.Name}");
+                            //System.Diagnostics.Debug.WriteLine($"🎨 文件夹有变色标记，更新UI状态: {selectedItem.Name}");
                             isColorEffectEnabled = true;
                             // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
                             // 只在 LoadImage() 时才同步状态到 ImageProcessor
@@ -2169,7 +2169,7 @@ namespace ImageColorChanger.UI
                         else if (!hasColorEffectMark && isColorEffectEnabled)
                         {
                             // 文件夹没有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
-                            System.Diagnostics.Debug.WriteLine($"🎨 文件夹无变色标记，更新UI状态: {selectedItem.Name}");
+                            //System.Diagnostics.Debug.WriteLine($"🎨 文件夹无变色标记，更新UI状态: {selectedItem.Name}");
                             isColorEffectEnabled = false;
                             // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
                             // 只在 LoadImage() 时才同步状态到 ImageProcessor
@@ -2199,7 +2199,7 @@ namespace ImageColorChanger.UI
                             if (hasFolderOriginalMark && !originalMode)
                             {
                                 // 父文件夹有原图标记,自动启用原图模式
-                                System.Diagnostics.Debug.WriteLine($"🎯 文件所在文件夹有原图标记,自动启用原图模式");
+                                //System.Diagnostics.Debug.WriteLine($"🎯 文件所在文件夹有原图标记,自动启用原图模式");
                                 originalMode = true;
                                 imageProcessor.OriginalMode = true;
                                 BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 浅绿色
@@ -2207,7 +2207,7 @@ namespace ImageColorChanger.UI
                             else if (!hasFolderOriginalMark && originalMode)
                             {
                                 // 父文件夹没有原图标记,自动关闭原图模式
-                                System.Diagnostics.Debug.WriteLine($"🎯 文件所在文件夹无原图标记,自动关闭原图模式");
+                                //System.Diagnostics.Debug.WriteLine($"🎯 文件所在文件夹无原图标记,自动关闭原图模式");
                                 originalMode = false;
                                 imageProcessor.OriginalMode = false;
                                 BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
@@ -2219,14 +2219,14 @@ namespace ImageColorChanger.UI
                             if (hasFolderColorEffectMark && !isColorEffectEnabled)
                             {
                                 // 父文件夹有变色标记,自动启用变色效果
-                                System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹有变色标记,自动启用变色效果");
+                                //System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹有变色标记,自动启用变色效果");
                                 isColorEffectEnabled = true;
                                 BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
                             }
                             else if (!hasFolderColorEffectMark && isColorEffectEnabled)
                             {
                                 // 父文件夹没有变色标记,自动关闭变色效果
-                                System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹无变色标记,自动关闭变色效果");
+                                //System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹无变色标记,自动关闭变色效果");
                                 isColorEffectEnabled = false;
                                 BtnColorEffect.Background = Brushes.Transparent;
                             }
@@ -2305,7 +2305,7 @@ namespace ImageColorChanger.UI
                                     // 🔧 关键修复：手动选择图片时，停止当前播放
                                     if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
                                     {
-                                        System.Diagnostics.Debug.WriteLine("🛑 用户手动选择图片，停止当前播放");
+                                        //System.Diagnostics.Debug.WriteLine("🛑 用户手动选择图片，停止当前播放");
                                         _ = _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
                                     }
                                     
@@ -2607,11 +2607,11 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 
                 ShowStatus($"✅ 已设置文件夹 [{item.Name}] 的播放模式: {modeName}");
-                System.Diagnostics.Debug.WriteLine($"✅ 文件夹 [{item.Name}] 播放模式: {modeName}");
+                //System.Diagnostics.Debug.WriteLine($"✅ 文件夹 [{item.Name}] 播放模式: {modeName}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 设置播放模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 设置播放模式失败: {ex.Message}");
                 MessageBox.Show($"设置播放模式失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -2630,11 +2630,11 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 
                 ShowStatus($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
-                System.Diagnostics.Debug.WriteLine($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
+                //System.Diagnostics.Debug.WriteLine($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 清除播放模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 清除播放模式失败: {ex.Message}");
             }
         }
         
@@ -2651,7 +2651,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 标记变色失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 标记变色失败: {ex.Message}");
             }
         }
         
@@ -2668,7 +2668,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
             }
         }
         
@@ -2731,7 +2731,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 设置高亮颜色失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 设置高亮颜色失败: {ex.Message}");
                 MessageBox.Show($"设置高亮颜色失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -2866,7 +2866,7 @@ namespace ImageColorChanger.UI
                 // 如果标记的是当前正在显示的图片,自动启用原图模式
                 if (currentImageId == item.Id && !originalMode)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🎯 自动启用原图模式: {item.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"🎯 自动启用原图模式: {item.Name}");
                     originalMode = true;
                     imageProcessor.OriginalMode = true;
                     
@@ -2908,7 +2908,7 @@ namespace ImageColorChanger.UI
                 // 如果取消的是当前正在显示的图片,关闭原图模式
                 if (currentImageId == item.Id && originalMode)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🎯 自动关闭原图模式: {item.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"🎯 自动关闭原图模式: {item.Name}");
                     originalMode = false;
                     imageProcessor.OriginalMode = false;
                     
@@ -2983,7 +2983,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"折叠所有文件夹失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"折叠所有文件夹失败: {ex.Message}");
             }
         }
 
@@ -3006,7 +3006,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"折叠其他文件夹失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"折叠其他文件夹失败: {ex.Message}");
             }
         }
 
@@ -3054,7 +3054,7 @@ namespace ImageColorChanger.UI
                 var loadStart = sw.ElapsedMilliseconds;
                 bool success = imageProcessor.LoadImage(path);
                 var loadTime = sw.ElapsedMilliseconds - loadStart;
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
                 
                 if (success)
                 {
@@ -3067,12 +3067,12 @@ namespace ImageColorChanger.UI
                         var dbCheckStart = sw.ElapsedMilliseconds;
                         bool shouldUseOriginal = originalManager.ShouldUseOriginalMode(currentImageId);
                         var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
-                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
+                        //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
                         
                         if (shouldUseOriginal && !originalMode)
                         {
                             // 图片有原图标记,但原图模式未启用 -> 自动启用
-                            System.Diagnostics.Debug.WriteLine($"🎯 自动启用原图模式: 图片ID={currentImageId}");
+                            //System.Diagnostics.Debug.WriteLine($"🎯 自动启用原图模式: 图片ID={currentImageId}");
                             originalMode = true;
                             imageProcessor.OriginalMode = true;
                             
@@ -3085,7 +3085,7 @@ namespace ImageColorChanger.UI
                         {
                             // 图片没有原图标记,但原图模式已启用 -> 保持原图模式(不自动关闭)
                             // 用户可能在浏览一组原图,中途打开了非原图,应该保持原图模式
-                            System.Diagnostics.Debug.WriteLine($"ℹ️ 保持原图模式: 图片ID={currentImageId}");
+                            //System.Diagnostics.Debug.WriteLine($"ℹ️ 保持原图模式: 图片ID={currentImageId}");
                         }
                         
                         // 🔧 关键修复：如果原图模式已启用，无论是否自动启用，都需要查找相似图片
@@ -3095,7 +3095,7 @@ namespace ImageColorChanger.UI
                             var findStart = sw.ElapsedMilliseconds;
                             originalManager.FindSimilarImages(currentImageId);
                             var findTime = sw.ElapsedMilliseconds - findStart;
-                            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
+                            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
                             
                             // ⚡ 立即触发智能预缓存（不等待用户操作）
                             // 这样第一次切换时预缓存已经完成或接近完成
@@ -3106,7 +3106,7 @@ namespace ImageColorChanger.UI
                         var treeStart = sw.ElapsedMilliseconds;
                         SelectTreeItemById(currentImageId);
                         var treeTime = sw.ElapsedMilliseconds - treeStart;
-                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
+                        //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
                     }
                     
                     // 颜色效果由 ImageProcessor 内部处理
@@ -3115,13 +3115,13 @@ namespace ImageColorChanger.UI
                     var projStart = sw.ElapsedMilliseconds;
                     UpdateProjection();
                     var projTime = sw.ElapsedMilliseconds - projStart;
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
                     
                     // 更新关键帧预览线和指示块
                     var kfStart = sw.ElapsedMilliseconds;
                     _keyframeManager?.UpdatePreviewLines();
                     var kfTime = sw.ElapsedMilliseconds - kfStart;
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
                     
                     // 🔧 更新 PlaybackViewModel 状态（检查时间数据，更新脚本按钮颜色）
                     if (_playbackViewModel != null && currentImageId > 0)
@@ -3131,7 +3131,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     sw.Stop();
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
                 else
@@ -3165,11 +3165,11 @@ namespace ImageColorChanger.UI
                 currentZoom = 1.0;
                 
                 ShowStatus("✅ 已清空图片显示");
-                System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
+                //System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"清空图片显示失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"清空图片显示失败: {ex.Message}");
             }
         }
 
@@ -3186,7 +3186,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"选中项目树节点失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"选中项目树节点失败: {ex.Message}");
             }
         }
 
@@ -3632,7 +3632,7 @@ namespace ImageColorChanger.UI
             var now = DateTime.Now;
             if ((now - lastMediaPrevClickTime).TotalMilliseconds < 300)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ 上一首按钮防抖动，忽略重复点击");
+                //System.Diagnostics.Debug.WriteLine("⚠️ 上一首按钮防抖动，忽略重复点击");
                 return;
             }
             lastMediaPrevClickTime = now;
@@ -3662,7 +3662,7 @@ namespace ImageColorChanger.UI
             var now = DateTime.Now;
             if ((now - lastMediaNextClickTime).TotalMilliseconds < 300)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ 下一首按钮防抖动，忽略重复点击");
+                //System.Diagnostics.Debug.WriteLine("⚠️ 下一首按钮防抖动，忽略重复点击");
                 return;
             }
             lastMediaNextClickTime = now;
@@ -3695,7 +3695,7 @@ namespace ImageColorChanger.UI
             var now = DateTime.Now;
             if ((now - lastPlayModeClickTime).TotalMilliseconds < 300)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ 播放模式按钮防抖动，忽略重复点击");
+                //System.Diagnostics.Debug.WriteLine("⚠️ 播放模式按钮防抖动，忽略重复点击");
                 return;
             }
             lastPlayModeClickTime = now;
@@ -3732,7 +3732,7 @@ namespace ImageColorChanger.UI
             string[] modeNames = { "顺序", "随机", "单曲", "列表" };
             BtnPlayMode.ToolTip = $"播放模式：{modeNames[(int)nextMode]}";
             
-            System.Diagnostics.Debug.WriteLine($"🔄 播放模式已切换: {modeNames[(int)nextMode]}");
+            //System.Diagnostics.Debug.WriteLine($"🔄 播放模式已切换: {modeNames[(int)nextMode]}");
         }
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -3759,7 +3759,7 @@ namespace ImageColorChanger.UI
             // Title = $"Canvas Cast V2.5.5 - {message}";
             
             // 可以在这里输出到调试控制台（可选）
-            System.Diagnostics.Debug.WriteLine($"状态: {message}");
+            //System.Diagnostics.Debug.WriteLine($"状态: {message}");
         }
 
         public Rgba32 GetCurrentTargetColor()
@@ -4009,7 +4009,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败: {ex.Message}");
             }
         }
 
@@ -4041,7 +4041,7 @@ namespace ImageColorChanger.UI
                     bool wasClosed = projectionManager.CloseProjection();
                     if (wasClosed)
                     {
-                        System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 已关闭投影");
+                        //System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 已关闭投影");
                         e.Handled = true;
                         return;
                     }
@@ -4058,7 +4058,7 @@ namespace ImageColorChanger.UI
                 if (isGlobalHotKey)
                 {
                     // 在投影模式下，让全局热键处理这些按键
-                    System.Diagnostics.Debug.WriteLine($"⌨️ 投影模式下，让全局热键处理: {e.Key}");
+                    //System.Diagnostics.Debug.WriteLine($"⌨️ 投影模式下，让全局热键处理: {e.Key}");
                     return; // 不处理，让全局热键处理
                 }
             }
@@ -4075,12 +4075,12 @@ namespace ImageColorChanger.UI
                         if (videoPlayerManager.IsPaused)
                         {
                             videoPlayerManager.Play();
-                            System.Diagnostics.Debug.WriteLine("⌨️ F2键: 继续播放");
+                            //System.Diagnostics.Debug.WriteLine("⌨️ F2键: 继续播放");
                         }
                         else
                         {
                             videoPlayerManager.Pause();
-                            System.Diagnostics.Debug.WriteLine("⌨️ F2键: 暂停播放");
+                            //System.Diagnostics.Debug.WriteLine("⌨️ F2键: 暂停播放");
                         }
                         handled = true;
                         break;
@@ -4088,14 +4088,14 @@ namespace ImageColorChanger.UI
                     case Key.Left:
                         // 左方向键：上一首
                         videoPlayerManager.PlayPrevious();
-                        System.Diagnostics.Debug.WriteLine("⌨️ 左方向键: 上一首");
+                        //System.Diagnostics.Debug.WriteLine("⌨️ 左方向键: 上一首");
                         handled = true;
                         break;
                         
                     case Key.Right:
                         // 右方向键：下一首
                         videoPlayerManager.PlayNext();
-                        System.Diagnostics.Debug.WriteLine("⌨️ 右方向键: 下一首");
+                        //System.Diagnostics.Debug.WriteLine("⌨️ 右方向键: 下一首");
                         handled = true;
                         break;
                 }
@@ -4140,14 +4140,14 @@ namespace ImageColorChanger.UI
                     case Key.PageUp:
                         // 上一个关键帧
                         BtnPrevKeyframe_Click(null, null);
-                        System.Diagnostics.Debug.WriteLine("⌨️ PageUp: 上一个关键帧");
+                        //System.Diagnostics.Debug.WriteLine("⌨️ PageUp: 上一个关键帧");
                         handled = true;
                         break;
                         
                     case Key.PageDown:
                         // 下一个关键帧
                         BtnNextKeyframe_Click(null, null);
-                        System.Diagnostics.Debug.WriteLine("⌨️ PageDown: 下一个关键帧");
+                        //System.Diagnostics.Debug.WriteLine("⌨️ PageDown: 下一个关键帧");
                         handled = true;
                         break;
                 }
@@ -4166,13 +4166,13 @@ namespace ImageColorChanger.UI
         {
             // ⏱️ 性能调试：测量原图切换总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            System.Diagnostics.Debug.WriteLine($"");
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始切换相似图片 (方向: {(isNext ? "下一张" : "上一张")}) ==========");
+            //System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始切换相似图片 (方向: {(isNext ? "下一张" : "上一张")}) ==========");
             
             var switchStart = sw.ElapsedMilliseconds;
             var result = originalManager.SwitchSimilarImage(isNext, currentImageId);
             var switchTime = sw.ElapsedMilliseconds - switchStart;
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] OriginalManager.SwitchSimilarImage: {switchTime}ms");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] OriginalManager.SwitchSimilarImage: {switchTime}ms");
             
             if (result.success && result.newImageId.HasValue)
             {
@@ -4185,7 +4185,7 @@ namespace ImageColorChanger.UI
                 LoadImage(result.newImagePath);
                 var loadTotalTime = sw.ElapsedMilliseconds - loadStart;
                 // LoadImage内部已有详细分解，这里只记录进入时间
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] LoadImage调用（含所有子步骤）: {loadTotalTime}ms");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] LoadImage调用（含所有子步骤）: {loadTotalTime}ms");
                 
                 // 🎯 触发智能预缓存（异步执行，不阻塞）
                 _ = TriggerSmartPreload();
@@ -4195,8 +4195,8 @@ namespace ImageColorChanger.UI
                 
                 sw.Stop();
                 string direction = isNext ? "下一张" : "上一张";
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                System.Diagnostics.Debug.WriteLine($"");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"");
                 ShowStatus($"✅ 已切换到{direction}相似图片: {Path.GetFileName(result.newImagePath)}");
                 return true;
             }
@@ -4235,7 +4235,7 @@ namespace ImageColorChanger.UI
                     if (markType == MarkType.Loop)
                     {
                         // 🔄 循环模式：预缓存相似图片
-                        System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图循环模式");
+                        //System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图循环模式");
                         
                         // 确保已查找相似图片
                         if (!originalManager.HasSimilarImages())
@@ -4250,7 +4250,7 @@ namespace ImageColorChanger.UI
                     else if (markType == MarkType.Sequence)
                     {
                         // ➡️ 顺序模式：预缓存后续10张图
-                        System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图顺序模式");
+                        //System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图顺序模式");
                         
                         if (currentFile.FolderId.HasValue)
                         {
@@ -4266,7 +4266,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [智能预缓存] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [智能预缓存] 失败: {ex.Message}");
             }
         }
         
@@ -4281,7 +4281,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ 获取相似图片列表失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ 获取相似图片列表失败: {ex.Message}");
                 return new List<(int id, string name, string path)>();
             }
         }
@@ -4297,7 +4297,7 @@ namespace ImageColorChanger.UI
                 // 检查是否需要重新查找相似图片
                 if (!originalManager.HasSimilarImages())
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空,重新查找...");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空,重新查找...");
                     originalManager.FindSimilarImages(currentImageId);
                 }
             }
@@ -4316,7 +4316,7 @@ namespace ImageColorChanger.UI
                 // 检查是否需要重新查找相似图片
                 if (!originalManager.HasSimilarImages())
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空,重新查找...");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空,重新查找...");
                     originalManager.FindSimilarImages(currentImageId);
                 }
             }
@@ -4474,7 +4474,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"显示文件名提示时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"显示文件名提示时出错: {ex.Message}");
             }
         }
         
@@ -4490,7 +4490,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错: {ex.Message}");
             }
         }
         
@@ -4513,7 +4513,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"更新提示框位置时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"更新提示框位置时出错: {ex.Message}");
             }
         }
 
@@ -4570,7 +4570,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"显示拖拽指示器失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"显示拖拽指示器失败: {ex}");
             }
         }
 
@@ -4588,7 +4588,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"隐藏拖拽指示器失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"隐藏拖拽指示器失败: {ex}");
             }
         }
 
@@ -4715,7 +4715,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"重新排序失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"重新排序失败: {ex}");
                 ShowStatus($"❌ 排序失败: {ex.Message}");
             }
             finally
@@ -4812,7 +4812,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();
             }
@@ -4860,12 +4860,12 @@ namespace ImageColorChanger.UI
                     {
                         if (videoPlayerManager != null && !videoPlayerManager.IsProjectionEnabled)
                         {
-                            System.Diagnostics.Debug.WriteLine("📹 视频开始播放，自动启用视频投影");
+                            //System.Diagnostics.Debug.WriteLine("📹 视频开始播放，自动启用视频投影");
                             EnableVideoProjection();
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("✅ 已在投影模式播放，跳过重复启用");
+                            //System.Diagnostics.Debug.WriteLine("✅ 已在投影模式播放，跳过重复启用");
                         }
                     }
                 }
@@ -4914,7 +4914,7 @@ namespace ImageColorChanger.UI
                                 // 选中当前文件
                                 fileItem.IsSelected = true;
                                 
-                                System.Diagnostics.Debug.WriteLine($"✅ 已自动选中文件: {fileItem.Name}");
+                                //System.Diagnostics.Debug.WriteLine($"✅ 已自动选中文件: {fileItem.Name}");
                                 return;
                             }
                         }
@@ -4923,7 +4923,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 自动选中文件失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 自动选中文件失败: {ex.Message}");
             }
         }
         
@@ -4950,7 +4950,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnVideoMediaEnded(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("🏁 视频播放结束");
+            //System.Diagnostics.Debug.WriteLine("🏁 视频播放结束");
         }
         
         /// <summary>
@@ -5018,7 +5018,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载媒体文件失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载媒体文件失败: {ex.Message}");
                 MessageBox.Show($"加载媒体文件失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5031,25 +5031,25 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 开始 =====");
-                System.Diagnostics.Debug.WriteLine($"📹 文件: {System.IO.Path.GetFileName(videoPath)}");
+                //System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 开始 =====");
+                //System.Diagnostics.Debug.WriteLine($"📹 文件: {System.IO.Path.GetFileName(videoPath)}");
                 
                 var projectionVideoView = projectionManager.GetProjectionVideoView();
-                System.Diagnostics.Debug.WriteLine($"🔍 投影VideoView: {(projectionVideoView != null ? "存在" : "null")}");
+                //System.Diagnostics.Debug.WriteLine($"🔍 投影VideoView: {(projectionVideoView != null ? "存在" : "null")}");
                 
                 if (projectionVideoView != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
+                    //System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
                     VideoContainer.Visibility = Visibility.Collapsed;
                     
-                    System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
+                    //System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     projectionManager.ShowVideoProjection();
                     
                     // 🔥 关键修复：检查投影窗口是否已经初始化完成
                     if (videoPlayerManager != null && videoPlayerManager.IsProjectionEnabled)
                     {
                         // 投影已经初始化完成，直接播放
-                        System.Diagnostics.Debug.WriteLine("✅ 投影已初始化，直接播放");
+                        //System.Diagnostics.Debug.WriteLine("✅ 投影已初始化，直接播放");
                         
                         // 切换到投影模式（如果还没切换）
                         videoPlayerManager.SwitchToProjectionMode();
@@ -5065,16 +5065,16 @@ namespace ImageColorChanger.UI
                     {
                         // 投影还未初始化，设置待播放路径，等待初始化完成后播放
                         pendingProjectionVideoPath = videoPath;
-                        System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
+                        //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
                         ShowStatus($"🎬 准备投影播放: {System.IO.Path.GetFileName(videoPath)}");
                     }
                     
-                    System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 完成 =====");
+                    //System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 完成 =====");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 投影播放视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 投影播放视频失败: {ex.Message}");
                 MessageBox.Show($"投影播放视频失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5087,7 +5087,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🎬 收到视频轨道检测结果: HasVideo={hasVideo}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 收到视频轨道检测结果: HasVideo={hasVideo}");
                 
                 // 🔥 关键修复：使用 VideoPlayerManager 的当前播放文件，而不是 imagePath
                 string currentPath = videoPlayerManager?.CurrentMediaPath;
@@ -5100,12 +5100,12 @@ namespace ImageColorChanger.UI
                 {
                     MediaFileNameText.Text = fileName;
                     MediaFileNameBorder.Visibility = Visibility.Visible;
-                    System.Diagnostics.Debug.WriteLine($"🎵 无视频轨道，显示文件名: {fileName}");
+                    //System.Diagnostics.Debug.WriteLine($"🎵 无视频轨道，显示文件名: {fileName}");
                 }
                 else
                 {
                     MediaFileNameBorder.Visibility = Visibility.Collapsed;
-                    System.Diagnostics.Debug.WriteLine($"📹 有视频轨道，隐藏文件名");
+                    //System.Diagnostics.Debug.WriteLine($"📹 有视频轨道，隐藏文件名");
                 }
                 
                 // 投影窗口：如果投影已开启，同步显示
@@ -5121,7 +5121,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 处理视频轨道检测失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 处理视频轨道检测失败: {ex.Message}");
             }
         }
         
@@ -5160,7 +5160,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载视频失败: {ex.Message}");
                 MessageBox.Show($"加载视频失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5198,7 +5198,7 @@ namespace ImageColorChanger.UI
                 
                 if (currentMediaFile == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("❌ 未找到当前视频文件信息");
+                    //System.Diagnostics.Debug.WriteLine("❌ 未找到当前视频文件信息");
                     return;
                 }
                 
@@ -5218,7 +5218,7 @@ namespace ImageColorChanger.UI
                     
                     playlist = videoFiles.Select(f => f.Path).ToList();
                     
-                    System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 文件夹 [{currentMediaFile.Folder?.Name}] 中有 {playlist.Count} 个视频");
+                    //System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 文件夹 [{currentMediaFile.Folder?.Name}] 中有 {playlist.Count} 个视频");
                 }
                 else
                 {
@@ -5231,7 +5231,7 @@ namespace ImageColorChanger.UI
                     
                     playlist = videoFiles.Select(f => f.Path).ToList();
                     
-                    System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 根目录中有 {playlist.Count} 个视频");
+                    //System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 根目录中有 {playlist.Count} 个视频");
                 }
                 
                 // 设置播放列表到VideoPlayerManager
@@ -5243,7 +5243,7 @@ namespace ImageColorChanger.UI
                     int currentIndex = playlist.IndexOf(currentVideoPath);
                     if (currentIndex >= 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"📹 当前视频索引: {currentIndex + 1}/{playlist.Count}");
+                        //System.Diagnostics.Debug.WriteLine($"📹 当前视频索引: {currentIndex + 1}/{playlist.Count}");
                     }
                     
                     // 根据文件夹标记自动设置播放模式
@@ -5263,19 +5263,19 @@ namespace ImageColorChanger.UI
                             videoPlayerManager.SetPlayMode(mode);
                             
                             string[] modeNames = { "顺序", "随机", "单曲", "列表" };
-                            System.Diagnostics.Debug.WriteLine($"🎵 根据文件夹标记自动设置播放模式: {modeNames[(int)mode]}");
+                            //System.Diagnostics.Debug.WriteLine($"🎵 根据文件夹标记自动设置播放模式: {modeNames[(int)mode]}");
                             ShowStatus($"🎵 播放模式: {modeNames[(int)mode]}");
                         }
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ 播放列表为空");
+                    //System.Diagnostics.Debug.WriteLine("⚠️ 播放列表为空");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 构建播放列表失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 构建播放列表失败: {ex.Message}");
             }
         }
         
@@ -5306,7 +5306,7 @@ namespace ImageColorChanger.UI
             {
                 if (videoPlayerManager == null || projectionManager == null) return;
                 
-                System.Diagnostics.Debug.WriteLine("📹 启用视频投屏");
+                //System.Diagnostics.Debug.WriteLine("📹 启用视频投屏");
                 
                 // 隐藏主屏幕的视频容器
                 VideoContainer.Visibility = Visibility.Collapsed;
@@ -5321,7 +5321,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 启用视频投屏失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 启用视频投屏失败: {ex.Message}");
                 MessageBox.Show($"启用视频投屏失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5336,7 +5336,7 @@ namespace ImageColorChanger.UI
             {
                 if (videoPlayerManager == null) return;
                 
-                System.Diagnostics.Debug.WriteLine("📹 禁用视频投屏");
+                //System.Diagnostics.Debug.WriteLine("📹 禁用视频投屏");
                 
                 // 禁用视频投影
                 videoPlayerManager.DisableProjection();
@@ -5351,7 +5351,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 禁用视频投屏失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 禁用视频投屏失败: {ex.Message}");
             }
         }
         

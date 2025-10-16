@@ -94,7 +94,6 @@ namespace ImageColorChanger.Services.Implementations
         {
             if (IsPlaying)
             {
-                Logger.Warning("已在播放中");
                 return;
             }
 
@@ -102,7 +101,6 @@ namespace ImageColorChanger.Services.Implementations
             _timingSequence = await _timingRepository.GetTimingSequenceAsync(imageId);
             if (_timingSequence == null || !_timingSequence.Any())
             {
-                Logger.Warning("图片{ImageId}没有时间数据", imageId);
                 return;
             }
 
@@ -117,9 +115,6 @@ namespace ImageColorChanger.Services.Implementations
 
             IsPlaying = true;
             _cancellationTokenSource = new CancellationTokenSource();
-
-            Logger.Info("开始播放: ImageId={ImageId}, 时间点数量={Count}, 播放次数={PlayCount}", 
-                imageId, _timingSequence.Count, PlayCount);
 
             // 启动播放循环
             _ = Task.Run(() => PlaybackLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
@@ -137,8 +132,7 @@ namespace ImageColorChanger.Services.Implementations
                     // 判断是否应该继续播放
                     if (!PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount))
                     {
-                        Logger.Info("播放次数已达到，结束播放");
-                        System.Diagnostics.Debug.WriteLine($"🛑 [播放] 播放完成: 已播放{CompletedPlayCount}轮，设定{PlayCount}轮");
+                        //System.Diagnostics.Debug.WriteLine($"🛑 [播放] 播放完成: 已播放{CompletedPlayCount}轮，设定{PlayCount}轮");
                         break;
                     }
 
@@ -150,9 +144,7 @@ namespace ImageColorChanger.Services.Implementations
                     {
                         // 完成一轮播放
                         CompletedPlayCount++;
-                        Logger.Debug("完成一轮播放: {CompletedCount}/{PlayCount}", 
-                            CompletedPlayCount, PlayCount);
-                        System.Diagnostics.Debug.WriteLine($"🔄 [播放] 完成第{CompletedPlayCount}轮播放");
+                        //System.Diagnostics.Debug.WriteLine($"🔄 [播放] 完成第{CompletedPlayCount}轮播放");
 
                         // 回到第一帧索引
                         _currentIndex = 0;
@@ -160,7 +152,7 @@ namespace ImageColorChanger.Services.Implementations
                         // 🔧 关键修复：如果这是最后一轮，需要跳转回第一帧（参考Python版本：keytime.py 第1160-1168行）
                         if (!PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount))
                         {
-                            System.Diagnostics.Debug.WriteLine($"⚡ [播放] 最后一轮结束，跳转回第一帧");
+                            //System.Diagnostics.Debug.WriteLine($"⚡ [播放] 最后一轮结束，跳转回第一帧");
                             
                             // 跳转回第一帧
                             var firstTiming = _timingSequence[0];
@@ -183,11 +175,9 @@ namespace ImageColorChanger.Services.Implementations
             }
             catch (OperationCanceledException)
             {
-                Logger.Debug("播放被取消");
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "播放循环异常");
             }
         }
 
@@ -199,12 +189,12 @@ namespace ImageColorChanger.Services.Implementations
         {
             if (_currentIndex >= _timingSequence.Count)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [播放] 索引越界: {_currentIndex} >= {_timingSequence.Count}");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [播放] 索引越界: {_currentIndex} >= {_timingSequence.Count}");
                 return;
             }
 
             var currentTiming = _timingSequence[_currentIndex];
-            System.Diagnostics.Debug.WriteLine($"📝 [播放] 当前帧数据: 索引={_currentIndex}, KeyframeId={currentTiming.KeyframeId}, Duration={currentTiming.Duration}秒, SequenceOrder={currentTiming.SequenceOrder}");
+            //System.Diagnostics.Debug.WriteLine($"📝 [播放] 当前帧数据: 索引={_currentIndex}, KeyframeId={currentTiming.KeyframeId}, Duration={currentTiming.Duration}秒, SequenceOrder={currentTiming.SequenceOrder}");
 
             // 设置当前关键帧ID和重置暂停累计时间（参考Python版本：keytime.py 第1174-1175行）
             _currentKeyframeId = currentTiming.KeyframeId;
@@ -217,18 +207,18 @@ namespace ImageColorChanger.Services.Implementations
             if (_currentIndex == 0 && CompletedPlayCount == 0)
             {
                 useDirectJump = true;
-                System.Diagnostics.Debug.WriteLine("🎬 [播放] 首次播放，直接跳转到第一帧");
+                //System.Diagnostics.Debug.WriteLine("🎬 [播放] 首次播放，直接跳转到第一帧");
             }
             
             // 2. 循环回第一帧：直接跳转（最关键的修复）
             if (_currentIndex == 0 && CompletedPlayCount > 0)
             {
                 useDirectJump = true;
-                System.Diagnostics.Debug.WriteLine($"🔄 [播放] 循环回第一帧（第{CompletedPlayCount + 1}轮），直接跳转");
+                //System.Diagnostics.Debug.WriteLine($"🔄 [播放] 循环回第一帧（第{CompletedPlayCount + 1}轮），直接跳转");
             }
 
             // 跳转到关键帧
-            System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] UseDirectJump={useDirectJump}, 索引={_currentIndex}, 完成轮数={CompletedPlayCount}");
+            //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] UseDirectJump={useDirectJump}, 索引={_currentIndex}, 完成轮数={CompletedPlayCount}");
             JumpToKeyframeRequested?.Invoke(this, new JumpToKeyframeEventArgs
             {
                 KeyframeId = currentTiming.KeyframeId,
@@ -238,7 +228,7 @@ namespace ImageColorChanger.Services.Implementations
             });
 
             // 触发进度更新（包含倒计时时长）
-            System.Diagnostics.Debug.WriteLine($"⏱️ [播放] 开始倒计时: {currentTiming.Duration:F1}秒 (第{_currentIndex + 1}/{_timingSequence.Count}帧)");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [播放] 开始倒计时: {currentTiming.Duration:F1}秒 (第{_currentIndex + 1}/{_timingSequence.Count}帧)");
             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
             {
                 CurrentIndex = _currentIndex,
@@ -259,7 +249,7 @@ namespace ImageColorChanger.Services.Implementations
                 // 检查是否需要跳过当前等待（手动跳转时触发）
                 if (_skipCurrentWait)
                 {
-                    System.Diagnostics.Debug.WriteLine("⏭️ [手动跳转] 跳过当前等待，立即进入下一帧");
+                    //System.Diagnostics.Debug.WriteLine("⏭️ [手动跳转] 跳过当前等待，立即进入下一帧");
                     _skipCurrentWait = false; // 重置标志
                     break; // 立即退出等待循环
                 }
@@ -273,7 +263,7 @@ namespace ImageColorChanger.Services.Implementations
                 // 恢复后立即退出等待循环，进入下一帧（参考Python版本：第1019-1020行）
                 if (_justResumed)
                 {
-                    System.Diagnostics.Debug.WriteLine("▶️ [恢复] 检测到刚从暂停恢复，立即进入下一帧");
+                    //System.Diagnostics.Debug.WriteLine("▶️ [恢复] 检测到刚从暂停恢复，立即进入下一帧");
                     _justResumed = false; // 重置标志
                     break;
                 }
@@ -297,8 +287,7 @@ namespace ImageColorChanger.Services.Implementations
             // 记录暂停开始时间（使用绝对时间戳）
             _pauseStartTime = DateTime.Now;
 
-            System.Diagnostics.Debug.WriteLine($"⏸️ [播放] 暂停播放，当前位置: {_currentIndex}/{_timingSequence.Count}");
-            Logger.Info("暂停播放");
+            //System.Diagnostics.Debug.WriteLine($"⏸️ [播放] 暂停播放，当前位置: {_currentIndex}/{_timingSequence.Count}");
             return Task.CompletedTask;
         }
 
@@ -347,21 +336,17 @@ namespace ImageColorChanger.Services.Implementations
                         if (newTimingSequence != null && newTimingSequence.Any())
                         {
                             _timingSequence = newTimingSequence.ToList();
-                            System.Diagnostics.Debug.WriteLine($"✅ [暂停] 已重新加载时间序列，共 {_timingSequence.Count} 个关键帧");
+                            //System.Diagnostics.Debug.WriteLine($"✅ [暂停] 已重新加载时间序列，共 {_timingSequence.Count} 个关键帧");
                         }
                         
-                        System.Diagnostics.Debug.WriteLine($"⏸️ [暂停] 时间累加：关键帧 {_currentKeyframeId} 时间从 {originalDuration:F2}秒 调整为 {finalDisplayTime:F2}秒");
-                        System.Diagnostics.Debug.WriteLine($"  - 已播放时间: {playedDuration:F2}秒");
-                        System.Diagnostics.Debug.WriteLine($"  - 本次暂停时长: {pauseDuration:F2}秒");
-                        System.Diagnostics.Debug.WriteLine($"  - 累计暂停时间: {_totalPauseDuration:F2}秒");
-                        System.Diagnostics.Debug.WriteLine($"  - 最终时间: {finalDisplayTime:F2}秒");
-                        
-                        Logger.Info("暂停时间累加: KeyframeId={KeyframeId}, 原始={Original}s, 最终={Final}s, 累计暂停={TotalPause}s",
-                            _currentKeyframeId, originalDuration, finalDisplayTime, _totalPauseDuration);
+                        //System.Diagnostics.Debug.WriteLine($"⏸️ [暂停] 时间累加：关键帧 {_currentKeyframeId} 时间从 {originalDuration:F2}秒 调整为 {finalDisplayTime:F2}秒");
+                        //System.Diagnostics.Debug.WriteLine($"  - 已播放时间: {playedDuration:F2}秒");
+                        //System.Diagnostics.Debug.WriteLine($"  - 本次暂停时长: {pauseDuration:F2}秒");
+                        //System.Diagnostics.Debug.WriteLine($"  - 累计暂停时间: {_totalPauseDuration:F2}秒");
+                        //System.Diagnostics.Debug.WriteLine($"  - 最终时间: {finalDisplayTime:F2}秒");
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error(ex, "更新暂停时间失败");
                     }
                 });
             }
@@ -373,8 +358,7 @@ namespace ImageColorChanger.Services.Implementations
             // 重置当前帧开始时间（参考Python版本：第1023行）
             _currentFrameStartTime = DateTime.Now;
 
-            System.Diagnostics.Debug.WriteLine($"▶️ [播放] 继续播放，立即跳转到下一帧");
-            Logger.Info("继续播放");
+            //System.Diagnostics.Debug.WriteLine($"▶️ [播放] 继续播放，立即跳转到下一帧");
             return Task.CompletedTask;
         }
 
@@ -391,7 +375,6 @@ namespace ImageColorChanger.Services.Implementations
             IsPlaying = false;
             _isPaused = false;
 
-            Logger.Info("停止播放");
             return Task.CompletedTask;
         }
         
@@ -406,7 +389,7 @@ namespace ImageColorChanger.Services.Implementations
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine("🔄 [手动跳转] 设置跳过当前等待标志");
+            //System.Diagnostics.Debug.WriteLine("🔄 [手动跳转] 设置跳过当前等待标志");
             _skipCurrentWait = true;
         }
 
@@ -420,7 +403,7 @@ namespace ImageColorChanger.Services.Implementations
         {
             if (!IsPlaying || !_manualCorrectionEnabled)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ [手动修正] 播放未运行或手动修正未启用");
+                //System.Diagnostics.Debug.WriteLine("⚠️ [手动修正] 播放未运行或手动修正未启用");
                 return Task.FromResult(false);
             }
 
@@ -445,14 +428,11 @@ namespace ImageColorChanger.Services.Implementations
                             // 更新内存中的时间序列
                             timing.Duration = actualDuration;
                             
-                            System.Diagnostics.Debug.WriteLine($"✅ [手动修正] 关键帧 {keyframeId} 时间修正为 {actualDuration:F2}秒");
-                            Logger.Info("播放时实时修正: KeyframeId={KeyframeId}, Duration={Duration}s", 
-                                keyframeId, actualDuration);
+                            //System.Diagnostics.Debug.WriteLine($"✅ [手动修正] 关键帧 {keyframeId} 时间修正为 {actualDuration:F2}秒");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error(ex, "手动修正失败: KeyframeId={KeyframeId}", keyframeId);
                     }
                 });
             }
@@ -461,7 +441,7 @@ namespace ImageColorChanger.Services.Implementations
             _currentFrameStartTime = currentTime;
             _lastManualOperationTime = currentTime;
 
-            System.Diagnostics.Debug.WriteLine($"🕐 [手动修正] 记录帧开始时间: {currentTime:HH:mm:ss.fff}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [手动修正] 记录帧开始时间: {currentTime:HH:mm:ss.fff}");
             return Task.FromResult(true);
         }
     }

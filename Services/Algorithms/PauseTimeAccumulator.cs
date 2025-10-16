@@ -1,5 +1,4 @@
 using System;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Services.Algorithms
 {
@@ -22,8 +21,6 @@ namespace ImageColorChanger.Services.Algorithms
             // 边界值检查
             if (duration < 0)
             {
-                Logger.Warning("暂停时长计算异常: pauseStartTime={PauseStart}, currentTime={Current}, duration={Duration}",
-                    pauseStartTime, currentTime, duration);
                 return 0;
             }
 
@@ -40,7 +37,6 @@ namespace ImageColorChanger.Services.Algorithms
         {
             if (pauseDuration < 0)
             {
-                Logger.Warning("暂停时长为负值: {Duration}，忽略累加", pauseDuration);
                 return totalPausedTime;
             }
 
@@ -59,8 +55,6 @@ namespace ImageColorChanger.Services.Algorithms
 
             if (effectiveTime < 0)
             {
-                Logger.Warning("有效时间为负: totalTime={Total}, pausedTime={Paused}, effective={Effective}",
-                    totalTime, pausedTime, effectiveTime);
                 return 0;
             }
 

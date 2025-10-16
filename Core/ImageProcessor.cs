@@ -165,7 +165,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}: {ex.Message}");
                 return false;
             }
         }
@@ -266,7 +266,7 @@ namespace ImageColorChanger.Core
                 // ⚡ 先检查LRU缓存
                 if (_imageMemoryCache.TryGetValue(path, out Image<Rgba32> cachedImage))
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚡ [LRU缓存命中] {System.IO.Path.GetFileName(path)}");
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [LRU缓存命中] {System.IO.Path.GetFileName(path)}");
                     
                     // 🔧 性能优化：直接共享引用，不克隆（节省100-150ms）
                     // currentImage从不被修改，所以可以安全共享
@@ -276,7 +276,7 @@ namespace ImageColorChanger.Core
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"💾 [从磁盘加载] {System.IO.Path.GetFileName(path)}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [从磁盘加载] {System.IO.Path.GetFileName(path)}");
                     
                     // 缓存未命中，从磁盘加载
                     originalImage = Image.Load<Rgba32>(path);
@@ -293,7 +293,7 @@ namespace ImageColorChanger.Core
                     };
                     
                     _imageMemoryCache.Set(path, originalImage, entryOptions);
-                    System.Diagnostics.Debug.WriteLine($"📦 [已缓存] {System.IO.Path.GetFileName(path)} (权重: {entryOptions.Size})");
+                    //System.Diagnostics.Debug.WriteLine($"📦 [已缓存] {System.IO.Path.GetFileName(path)} (权重: {entryOptions.Size})");
                 }
                 
                 // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
@@ -319,7 +319,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -549,11 +549,11 @@ namespace ImageColorChanger.Core
             {
                 // ⚡ 更新LRU访问时间
                 imageCacheAccessTime[cacheKey] = DateTime.Now;
-                System.Diagnostics.Debug.WriteLine($"🎨 [渲染缓存命中] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [渲染缓存命中] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
                 return cachedPhoto;
             }
             
-            System.Diagnostics.Debug.WriteLine($"🖼️ [重新渲染] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+            //System.Diagnostics.Debug.WriteLine($"🖼️ [重新渲染] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
             
             // 生成新图片
             var resizedImage = ResizeAndApplyEffects(newWidth, newHeight);
@@ -940,7 +940,7 @@ namespace ImageColorChanger.Core
             if (_imageMemoryCache is MemoryCache mc)
             {
                 mc.Compact(1.0); // 清除100%的缓存项
-                System.Diagnostics.Debug.WriteLine("🧹 [LRU缓存已清空]");
+                //System.Diagnostics.Debug.WriteLine("🧹 [LRU缓存已清空]");
             }
         }
         
@@ -988,11 +988,11 @@ namespace ImageColorChanger.Core
                     imageCacheAccessTime.Remove(key);
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"🧹 [渲染缓存清理] 删除 {toRemove} 项，剩余 {imageCache.Count} 项");
+                //System.Diagnostics.Debug.WriteLine($"🧹 [渲染缓存清理] 删除 {toRemove} 项，剩余 {imageCache.Count} 项");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败] {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败] {ex.Message}");
                 // 失败时简单清空
                 imageCache.Clear();
                 imageCacheAccessTime.Clear();

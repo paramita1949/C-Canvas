@@ -54,7 +54,6 @@ namespace ImageColorChanger.Services.Implementations
 
             if (IsRecording)
             {
-                Logger.Warning("已在录制中，忽略重复启动");
                 return;
             }
 
@@ -62,7 +61,6 @@ namespace ImageColorChanger.Services.Implementations
             var keyframes = await _keyframeRepository.GetKeyframesByImageIdAsync(imageId);
             if (keyframes == null || !keyframes.Any())
             {
-                Logger.Warning("图片{ImageId}没有关键帧，无法录制", imageId);
                 return;
             }
 
@@ -73,7 +71,6 @@ namespace ImageColorChanger.Services.Implementations
             IsRecording = true;
             _stopwatch.Restart();
 
-            Logger.Info("开始录制: ImageId={ImageId}, 关键帧数量={Count}", imageId, keyframes.Count);
         }
 
         /// <summary>
@@ -93,7 +90,7 @@ namespace ImageColorChanger.Services.Implementations
                 // 记录当前关键帧的停留时长（即时记录模式）
                 if (duration > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔍 [RecordTiming] 查询关键帧 {keyframeId}...");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [RecordTiming] 查询关键帧 {keyframeId}...");
                     var keyframe = await _keyframeRepository.GetByIdAsync(keyframeId);
                     if (keyframe != null)
                     {
@@ -109,8 +106,6 @@ namespace ImageColorChanger.Services.Implementations
                         };
 
                         _recordingData.Add(timingDto);
-                        Logger.Debug("记录时间: KeyframeId={0}, Duration={1}s", 
-                            keyframeId, duration);
                     }
                 }
 
@@ -120,8 +115,7 @@ namespace ImageColorChanger.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情: {ex}");
-                Logger.Error(ex, "录制时间失败: KeyframeId={KeyframeId}", keyframeId);
+                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情: {ex}");
                 throw;
             }
         }
@@ -139,12 +133,9 @@ namespace ImageColorChanger.Services.Implementations
             if (_recordingData.Any())
             {
                 await _timingRepository.BatchSaveTimingsAsync(_currentImageId, _recordingData);
-                Logger.Info("录制完成: ImageId={ImageId}, 共录制{Count}个时间点", 
-                    _currentImageId, _recordingData.Count);
             }
             else
             {
-                Logger.Warning("录制结束但无数据");
             }
 
             // 重置状态
@@ -163,7 +154,6 @@ namespace ImageColorChanger.Services.Implementations
                 return;
 
             await _timingRepository.ClearTimingsByImageIdAsync(imageId);
-            Logger.Info("清除时间数据: ImageId={ImageId}", imageId);
         }
     }
 }

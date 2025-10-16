@@ -153,7 +153,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
                 _screens.Add(Screen.PrimaryScreen);
             }
         }
@@ -233,18 +233,35 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 更新投影图片
         /// </summary>
-        public void UpdateProjectionImage(Image<Rgba32> image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch)
+        public void UpdateProjectionImage(Image<Rgba32> image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
         {
+            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] UpdateProjectionImage 被调用");
+            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 图像尺寸: {image?.Width}x{image?.Height}");
+            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 投影窗口: {(_projectionWindow != null ? "存在" : "null")}");
+            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 变色效果: {applyColorEffect}, 缩放: {zoomRatio}, 原图模式: {isOriginalMode}, 绕过缓存: {bypassCache}");
+            
             _currentImage = image;
             _isColorEffectEnabled = applyColorEffect;
             _zoomRatio = zoomRatio;
             _isOriginalMode = isOriginalMode;
             _originalDisplayMode = originalDisplayMode;
             _currentImagePath = _imageProcessor?.CurrentImagePath; // 记录当前图片路径用于缓存键
+            
+            // 🔧 如果绕过缓存（如文本编辑器），生成唯一的缓存键
+            if (bypassCache)
+            {
+                _currentImagePath = $"texteditor_{Guid.NewGuid()}";
+                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 绕过缓存模式，使用唯一键: {_currentImagePath}");
+            }
 
             if (_projectionWindow != null && image != null)
             {
+                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 调用 UpdateProjection()...");
                 UpdateProjection();
+            }
+            else
+            {
+                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 跳过更新: 窗口={_projectionWindow != null}, 图像={image != null}");
             }
         }
 
@@ -258,7 +275,7 @@ namespace ImageColorChanger.Managers
                 _projectionWindow.Dispatcher.Invoke(() =>
                 {
                     _projectionScrollViewer.ScrollToVerticalOffset(0);
-                    System.Diagnostics.Debug.WriteLine("✅ 投影滚动位置已重置为0");
+                    //System.Diagnostics.Debug.WriteLine("✅ 投影滚动位置已重置为0");
                 });
             }
         }
@@ -392,7 +409,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"同步投影滚动失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"同步投影滚动失败: {ex.Message}");
             }
         }
 
@@ -435,7 +452,7 @@ namespace ImageColorChanger.Managers
                 {
                     _projectionMediaFileNameText.Text = fileName;
                     _projectionMediaFileNameBorder.Visibility = Visibility.Visible;
-                    System.Diagnostics.Debug.WriteLine($"🎵 投影窗口显示音频文件名: {fileName}");
+                    //System.Diagnostics.Debug.WriteLine($"🎵 投影窗口显示音频文件名: {fileName}");
                 }
                 else
                 {
@@ -521,12 +538,12 @@ namespace ImageColorChanger.Managers
                 // 检查是否有图片
                 if (_currentImage == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("❌ 没有当前图片");
+                    //System.Diagnostics.Debug.WriteLine("❌ 没有当前图片");
                     WpfMessageBox.Show("请先选中一张图片！", "警告", WpfMessageBoxButton.OK, WpfMessageBoxImage.Warning);
                     return false;
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"✅ 当前图片尺寸: {_currentImage.Width}x{_currentImage.Height}");
+                //System.Diagnostics.Debug.WriteLine($"✅ 当前图片尺寸: {_currentImage.Width}x{_currentImage.Height}");
                 */
                 
                 if (_currentImage != null)
@@ -783,7 +800,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"关闭投影失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"关闭投影失败: {ex.Message}");
                 return false;
             }
         }
@@ -793,16 +810,18 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void UpdateProjection()
         {
+            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 开始更新投影 =====");
+            
             if (_projectionWindow == null)
             {
-                // System.Diagnostics.Debug.WriteLine("⚠️ UpdateProjection: 投影窗口为null");
+                //System.Diagnostics.Debug.WriteLine("⚠️ [UpdateProjection] 投影窗口为null");
                 return;
             }
             
             // 如果没有图片，可能是在播放视频，直接返回
             if (_currentImage == null)
             {
-                // System.Diagnostics.Debug.WriteLine("ℹ️ UpdateProjection: 无图片，可能正在播放视频");
+                //System.Diagnostics.Debug.WriteLine("ℹ️ [UpdateProjection] 无图片，可能正在播放视频");
                 return;
             }
 
@@ -814,15 +833,14 @@ namespace ImageColorChanger.Managers
                     int screenWidth = screen.Bounds.Width;
                     int screenHeight = screen.Bounds.Height;
 
-                    // System.Diagnostics.Debug.WriteLine($"🖼️ 更新投影图片:");
-                    // System.Diagnostics.Debug.WriteLine($"  原图尺寸: {_currentImage.Width}x{_currentImage.Height}");
-                    // System.Diagnostics.Debug.WriteLine($"  屏幕尺寸: {screenWidth}x{screenHeight}");
-                    // System.Diagnostics.Debug.WriteLine($"  原图模式: {_isOriginalMode}, 显示模式: {_originalDisplayMode}, 变色: {_isColorEffectEnabled}, 缩放: {_zoomRatio}");
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 原图尺寸: {_currentImage.Width}x{_currentImage.Height}");
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 屏幕尺寸: {screenWidth}x{screenHeight}");
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 原图模式: {_isOriginalMode}, 显示模式: {_originalDisplayMode}, 变色: {_isColorEffectEnabled}, 缩放: {_zoomRatio}");
 
                     // 计算缩放后的尺寸
                     var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
                     
-                    // System.Diagnostics.Debug.WriteLine($"  计算后尺寸: {newWidth}x{newHeight}");
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 计算后尺寸: {newWidth}x{newHeight}");
 
                     // ⚡ 生成缓存键
                     string cacheKey = GenerateProjectionCacheKey(newWidth, newHeight);
@@ -830,12 +848,12 @@ namespace ImageColorChanger.Managers
                     // ⚡ 检查缓存
                     if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedBitmap))
                     {
-                        System.Diagnostics.Debug.WriteLine($"🎬 [投影缓存命中] {newWidth}x{newHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"🎬 [UpdateProjection] 投影缓存命中: {newWidth}x{newHeight}");
                         _projectionImage = cachedBitmap;
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"🎞️ [投影重新渲染] {newWidth}x{newHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"🎞️ [UpdateProjection] 投影重新渲染: {newWidth}x{newHeight}");
                         
                         // 处理图片（缩放和可选的变色效果）
                         var processedImage = _currentImage.Clone(ctx =>
@@ -847,7 +865,7 @@ namespace ImageColorChanger.Managers
                         if (_isColorEffectEnabled)
                         {
                             processedImage = _imageProcessor.ApplyYellowTextEffect(processedImage);
-                            // System.Diagnostics.Debug.WriteLine("  ✨ 已应用变色效果");
+                            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 已应用变色效果");
                         }
 
                         // 转换为BitmapSource
@@ -863,9 +881,10 @@ namespace ImageColorChanger.Managers
                             SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
                         };
                         _projectionCache.Set(cacheKey, _projectionImage, entryOptions);
-                        System.Diagnostics.Debug.WriteLine($"📦 [已缓存投影] {newWidth}x{newHeight} (权重: {entryOptions.Size})");
+                        //System.Diagnostics.Debug.WriteLine($"📦 [UpdateProjection] 已缓存投影: {newWidth}x{newHeight} (权重: {entryOptions.Size})");
                     }
 
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 更新Image控件: {newWidth}x{newHeight}");
                     // 更新Image控件
                     _projectionImageControl.Source = _projectionImage;
                     _projectionImageControl.Width = newWidth;
@@ -937,16 +956,18 @@ namespace ImageColorChanger.Managers
                         // 设置容器高度来控制滚动区域(宽度拉伸填满屏幕)
                         _projectionContainer.Height = scrollHeight;
                         
-                        // System.Diagnostics.Debug.WriteLine($"  📏 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
                     }
                     
-                    // System.Diagnostics.Debug.WriteLine($"  ✅ 投影图片已更新");
+                    //System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjection] 投影图片已更新完成");
                 });
+                
+                //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 更新投影完成 =====");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 更新投影失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"堆栈: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 堆栈: {ex.StackTrace}");
             }
         }
 
@@ -1056,7 +1077,7 @@ namespace ImageColorChanger.Managers
             if (_projectionCache is MemoryCache mc)
             {
                 mc.Compact(1.0); // 清除100%的缓存项
-                System.Diagnostics.Debug.WriteLine("🧹 [投影缓存已清空]");
+                //System.Diagnostics.Debug.WriteLine("🧹 [投影缓存已清空]");
             }
         }
         
@@ -1113,7 +1134,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败: {ex.Message}");
             }
         }
 

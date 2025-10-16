@@ -73,7 +73,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败: {ex.Message}");
             }
             
             return mapping;
@@ -359,7 +359,7 @@ namespace ImageColorChanger.UI
                     await context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的时间数据，共 {newTimings.Count} 条记录");
+                    //System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的时间数据，共 {newTimings.Count} 条记录");
                     return true;
                 }
                 catch
@@ -370,7 +370,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败: {ex.Message}");
                 return false;
             }
         }
@@ -413,7 +413,7 @@ namespace ImageColorChanger.UI
                     await context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的原图模式时间数据，共 {newTimings.Count} 条记录");
+                    //System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的原图模式时间数据，共 {newTimings.Count} 条记录");
                     return true;
                 }
                 catch
@@ -424,7 +424,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
                 return false;
             }
         }

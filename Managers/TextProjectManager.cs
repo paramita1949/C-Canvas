@@ -47,7 +47,7 @@ namespace ImageColorChanger.Managers
             _dbContext.TextProjects.Add(project);
             await _dbContext.SaveChangesAsync();
 
-            System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: ID={project.Id}, Name={project.Name}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: ID={project.Id}, Name={project.Name}");
             return project;
         }
 
@@ -65,7 +65,7 @@ namespace ImageColorChanger.Managers
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
 
-            System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}");
             return project;
         }
 
@@ -93,7 +93,7 @@ namespace ImageColorChanger.Managers
             _dbContext.TextProjects.Update(project);
             await _dbContext.SaveChangesAsync();
 
-            System.Diagnostics.Debug.WriteLine($"✅ 保存文本项目成功: ID={project.Id}, Name={project.Name}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 保存文本项目成功: ID={project.Id}, Name={project.Name}");
         }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace ImageColorChanger.Managers
             _dbContext.TextProjects.Remove(project);
             await _dbContext.SaveChangesAsync();
 
-            System.Diagnostics.Debug.WriteLine($"✅ 删除文本项目成功: ID={projectId}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 删除文本项目成功: ID={projectId}");
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace ImageColorChanger.Managers
             project.ModifiedTime = DateTime.Now;
             await _dbContext.SaveChangesAsync();
 
-            System.Diagnostics.Debug.WriteLine($"✅ 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
         }
 
         #endregion
@@ -175,7 +175,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            System.Diagnostics.Debug.WriteLine($"✅ 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
             return element;
         }
 
@@ -201,7 +201,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            System.Diagnostics.Debug.WriteLine($"✅ 更新文本元素成功: ID={element.Id}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 更新文本元素成功: ID={element.Id}");
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            System.Diagnostics.Debug.WriteLine($"✅ 批量更新文本元素成功: Count={elements.Count()}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 批量更新文本元素成功: Count={elements.Count()}");
         }
 
         /// <summary>
@@ -261,7 +261,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            System.Diagnostics.Debug.WriteLine($"✅ 删除文本元素成功: ID={elementId}");
+            //System.Diagnostics.Debug.WriteLine($"✅ 删除文本元素成功: ID={elementId}");
         }
 
         /// <summary>
@@ -279,7 +279,7 @@ namespace ImageColorChanger.Managers
                 _dbContext.TextElements.RemoveRange(elements);
                 await _dbContext.SaveChangesAsync();
 
-                System.Diagnostics.Debug.WriteLine($"✅ 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
+                //System.Diagnostics.Debug.WriteLine($"✅ 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
             }
         }
 

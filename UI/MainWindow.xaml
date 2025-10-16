@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V3.0.4"
+        Title="Canvas Cast V3.0.5"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -993,12 +993,13 @@
 
                             <!-- 字体设置 -->
                             <TextBlock Text="字体:" VerticalAlignment="Center" Margin="4,0"/>
-                            <ComboBox x:Name="FontFamilySelector" Width="200" Height="32"
+                            <ComboBox x:Name="FontFamilySelector" Width="120" Height="32"
                                       SelectedIndex="0" 
                                       SelectionChanged="FontFamily_Changed"
                                       MaxDropDownHeight="400"
                                       IsEditable="True"
-                                      IsTextSearchEnabled="True">
+                                      IsTextSearchEnabled="True"
+                                      GotFocus="FontFamilySelector_GotFocus">
                                 <!-- 字体将在代码中动态加载 -->
                             </ComboBox>
 

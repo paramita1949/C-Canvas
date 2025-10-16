@@ -8,7 +8,6 @@ using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Repositories.Interfaces;
 using ImageColorChanger.Services.Algorithms;
 using ImageColorChanger.Services.Interfaces;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Services.Implementations
 {
@@ -91,17 +90,13 @@ namespace ImageColorChanger.Services.Implementations
         public async Task StartPlaybackAsync(int imageId, CancellationToken cancellationToken = default)
         {
             if (IsPlaying)
-            {
-                Logger.Warning("已在播放中");
-                return;
+            {                return;
             }
 
             // 加载时间序列
             _timingSequence = await _originalModeRepository.GetOriginalTimingSequenceAsync(imageId);
             if (_timingSequence == null || !_timingSequence.Any())
-            {
-                Logger.Warning("图片{ImageId}没有原图时间数据", imageId);
-                return;
+            {                return;
             }
 
             _currentBaseImageId = imageId;
@@ -111,18 +106,6 @@ namespace ImageColorChanger.Services.Implementations
 
             IsPlaying = true;
             _cancellationTokenSource = new CancellationTokenSource();
-
-            Logger.Info("开始原图播放: BaseImageId={ImageId}, 时间点数量={Count}, 播放次数={PlayCount}", 
-                imageId, _timingSequence.Count, PlayCount);
-            
-            // 🔍 调试：输出时间序列详细信息
-            Logger.Debug("📋 时间序列详情:");
-            for (int i = 0; i < _timingSequence.Count; i++)
-            {
-                var timing = _timingSequence[i];
-                Logger.Debug("  [{Index}] From={FromId} -> To={ToId} (Similar={SimilarId}), Duration={Duration}s", 
-                    i, timing.FromImageId, timing.ToImageId, timing.SimilarImageId, timing.Duration);
-            }
 
             // 启动播放循环
             _ = Task.Run(() => PlaybackLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
@@ -135,48 +118,29 @@ namespace ImageColorChanger.Services.Implementations
         private async Task PlaybackLoopAsync(CancellationToken cancellationToken)
         {
             try
-            {
-                Logger.Debug("🔁 进入播放循环");
-                int loopIteration = 0;
+            {                int loopIteration = 0;
                 
                 while (IsPlaying && !cancellationToken.IsCancellationRequested)
                 {
-                    loopIteration++;
-                    Logger.Debug("🔄 循环迭代 #{Iteration}: IsPlaying={IsPlaying}, Index={Index}, Completed={Completed}", 
-                        loopIteration, IsPlaying, _currentIndex, CompletedPlayCount);
-                        
+                    loopIteration++;                        
                     // 判断是否应该继续播放
                     if (!PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount))
-                    {
-                        Logger.Info("播放次数已达到，结束播放: PlayCount={PlayCount}, CompletedPlayCount={Completed}", 
-                            PlayCount, CompletedPlayCount);
-                        break;
-                    }
-
-                    Logger.Debug("✅ 继续播放判断通过，开始播放下一帧");
-                    
+                    {                        break;
+                    }                    
                     // 播放下一帧
                     await PlayNextFrameAsync(cancellationToken);
                     
                     // 添加短暂延迟，避免死循环占用CPU
                     await Task.Delay(10, cancellationToken);
-                }
-
-                Logger.Debug("🏁 退出播放循环: IsPlaying={IsPlaying}, Index={Index}, Completed={Completed}", 
-                    IsPlaying, _currentIndex, CompletedPlayCount);
-                    
+                }                    
                 // 播放结束
                 await StopPlaybackAsync();
                 PlaybackCompleted?.Invoke(this, EventArgs.Empty);
             }
             catch (OperationCanceledException)
-            {
-                Logger.Debug("原图播放被取消");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "原图播放循环异常");
-            }
+            {            }
+            catch (Exception)
+            {            }
         }
 
         /// <summary>
@@ -185,24 +149,15 @@ namespace ImageColorChanger.Services.Implementations
         /// 🎯 修正：每次只处理一帧，返回到主循环
         /// </summary>
         private async Task PlayNextFrameAsync(CancellationToken cancellationToken)
-        {
-            Logger.Debug("🎬 PlayNextFrameAsync: Index={Index}, Count={Count}, CompletedPlayCount={Completed}", 
-                _currentIndex, _timingSequence.Count, CompletedPlayCount);
-                
+        {                
             if (_currentIndex >= _timingSequence.Count)
-            {
-                Logger.Debug("⚠️ 索引超出范围，退出播放");
-                return;
+            {                return;
             }
 
             var currentTiming = _timingSequence[_currentIndex];
             var fromImageId = currentTiming.FromImageId;
             var toImageId = currentTiming.SimilarImageId;
             var duration = currentTiming.Duration;
-            
-            Logger.Debug("📊 当前帧数据: Index={Index}, From={FromId}, To={ToId}, Duration={Duration}s", 
-                _currentIndex, fromImageId, toImageId, duration);
-
             // 记录当前帧信息
             _currentSimilarImageId = toImageId;
             _totalPauseDuration = 0.0;
@@ -210,10 +165,7 @@ namespace ImageColorChanger.Services.Implementations
 
             // 🎯 第一帧特殊处理（参考Python: 行1750-1763）
             if (_currentIndex == 0 && CompletedPlayCount == 0)
-            {
-                Logger.Debug("🎯 第一帧处理: 切到From={FromId}, 等待{Duration}s, 再切到To={ToId}", 
-                    fromImageId, duration, toImageId);
-                    
+            {                    
                 // 首次播放：切到FromImageId，等待Duration，然后切到ToImageId
                 SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
                 {
@@ -227,51 +179,32 @@ namespace ImageColorChanger.Services.Implementations
                     TotalCount = _timingSequence.Count,
                     RemainingTime = duration,
                     CurrentItemId = toImageId
-                });
-                
-                Logger.Debug("⏱️ 开始等待 {Duration}s...", duration);
-                await WaitForDurationAsync(duration, cancellationToken);
-                Logger.Debug("✅ 等待完成，切换到 To={ToId}", toImageId);
-                
+                });                await WaitForDurationAsync(duration, cancellationToken);                
                 SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
                 {
                     ImageId = toImageId,
                     ImagePath = currentTiming.SimilarImagePath
                 });
                 
-                _currentIndex++;
-                Logger.Debug("📍 第一帧完成，Index递增至 {Index}", _currentIndex);
-                return;
+                _currentIndex++;                return;
             }
 
             // 🎯 最后一帧特殊处理（参考Python: 行1766-1817）
             if (_currentIndex == _timingSequence.Count - 1)
-            {
-                Logger.Debug("🏁 最后一帧处理: CompletedPlayCount={Completed}, PlayCount={PlayCount}", 
-                    CompletedPlayCount, PlayCount);
-                    
+            {                    
                 var firstImageId = _timingSequence[0].FromImageId;
                 
                 // 检查是否应该继续循环
-                bool shouldContinue = PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount + 1);
-                Logger.Debug("🔍 循环判断: shouldContinue={ShouldContinue}, CompletedPlayCount+1={Next}", 
-                    shouldContinue, CompletedPlayCount + 1);
-                
+                bool shouldContinue = PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount + 1);                
                 if (shouldContinue)
                 {
                     // 🎯 优化：如果最后一帧的ToImageId就是第一张图，跳过切换
                     if (toImageId == firstImageId)
-                    {
-                        Logger.Debug("🔄 循环优化：跳过重复切换到第一张图 (ID:{ImageId})", toImageId);
-                        CompletedPlayCount++;
-                        _currentIndex = 0;
-                        Logger.Debug("📍 重置索引: Index=0, CompletedPlayCount={Completed}", CompletedPlayCount);
-                        return; // 返回主循环，继续下一轮
+                    {                        CompletedPlayCount++;
+                        _currentIndex = 0;                        return; // 返回主循环，继续下一轮
                     }
                     else
-                    {
-                        Logger.Debug("🔄 正常循环：切换到图{ToImageId}", toImageId);
-                        // 正常切换到ToImageId，然后开始新一轮
+                    {                        // 正常切换到ToImageId，然后开始新一轮
                         SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
                         {
                             ImageId = toImageId,
@@ -279,34 +212,24 @@ namespace ImageColorChanger.Services.Implementations
                         });
                         
                         CompletedPlayCount++;
-                        _currentIndex = 0;
-                        Logger.Debug("📍 开始第{Count}轮播放, Index=0, CompletedPlayCount={Completed}", 
-                            CompletedPlayCount + 1, CompletedPlayCount);
-                        return; // 返回主循环，继续下一轮
+                        _currentIndex = 0;                        return; // 返回主循环，继续下一轮
                     }
                 }
                 else
-                {
-                    Logger.Debug("🛑 播放结束：不需要循环");
-                    // 不需要循环，显示最后一帧然后结束
+                {                    // 不需要循环，显示最后一帧然后结束
                     SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
                     {
                         ImageId = toImageId,
                         ImagePath = currentTiming.SimilarImagePath
                     });
                     CompletedPlayCount++;
-                    _currentIndex = _timingSequence.Count; // 标记结束
-                    Logger.Debug("📍 设置结束标志: Index={Index}", _currentIndex);
-                    return;
+                    _currentIndex = _timingSequence.Count; // 标记结束                    return;
                 }
             }
 
             // 🎯 普通帧处理（参考Python: 行1819-1828）
             // 当前已经在FromImageId上（上一帧切换过来的）
-            // 显示进度，等待Duration，然后切到ToImageId
-            
-            Logger.Debug("▶️ 普通帧处理: 显示进度并等待 {Duration}s", duration);
-            
+            // 显示进度，等待Duration，然后切到ToImageId            
             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
             {
                 CurrentIndex = _currentIndex,
@@ -315,11 +238,7 @@ namespace ImageColorChanger.Services.Implementations
                 CurrentItemId = toImageId
             });
             
-            // 等待Duration
-            Logger.Debug("⏱️ 开始等待 {Duration}s...", duration);
-            await WaitForDurationAsync(duration, cancellationToken);
-            Logger.Debug("✅ 等待完成，切换到 To={ToId}", toImageId);
-            
+            // 等待Duration            await WaitForDurationAsync(duration, cancellationToken);            
             // 切换到ToImageId
             SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
             {
@@ -327,9 +246,7 @@ namespace ImageColorChanger.Services.Implementations
                 ImagePath = currentTiming.SimilarImagePath
             });
             
-            _currentIndex++;
-            Logger.Debug("📍 普通帧完成，Index递增至 {Index}", _currentIndex);
-        }
+            _currentIndex++;        }
 
         /// <summary>
         /// 等待指定时长
@@ -345,9 +262,7 @@ namespace ImageColorChanger.Services.Implementations
 
                 if (_skipToNextFrame)
                 {
-                    _skipToNextFrame = false;
-                    Logger.Info("立即跳到下一帧，跳过剩余等待时间");
-                    break;
+                    _skipToNextFrame = false;                    break;
                 }
 
                 while (_isPaused && !cancellationToken.IsCancellationRequested)
@@ -370,10 +285,7 @@ namespace ImageColorChanger.Services.Implementations
             _isPaused = true;
             _pauseStartTime = _stopwatch.Elapsed.TotalSeconds;
             _pauseStartRealTime = DateTime.Now;  // 记录暂停开始的真实时间
-            _stopwatch.Stop();
-
-            Logger.Info("暂停原图播放");
-            return Task.CompletedTask;
+            _stopwatch.Stop();            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -399,10 +311,6 @@ namespace ImageColorChanger.Services.Implementations
 
                 // 最终时间 = 已播放时间 + 总暂停时间
                 var finalDisplayTime = playedDuration + _totalPauseDuration;
-
-                Logger.Debug("原图播放继续 - 暂停时长={PauseDuration}s, 已播放={PlayedDuration}s, 最终时间={FinalTime}s",
-                    pauseDuration, playedDuration, finalDisplayTime);
-
                 // 🎯 异步更新数据库中的时间记录（Fire-and-forget模式）
                 _ = Task.Run(async () =>
                 {
@@ -414,15 +322,9 @@ namespace ImageColorChanger.Services.Implementations
                             finalDisplayTime);
 
                         // 重新加载时间序列（更新内存中的数据）
-                        _timingSequence = await _originalModeRepository.GetOriginalTimingSequenceAsync(_currentBaseImageId);
-
-                        Logger.Info("暂停时间累加完成: BaseImageId={BaseId}, SimilarImageId={SimId}, 最终时间={FinalTime}s",
-                            _currentBaseImageId, _currentSimilarImageId, finalDisplayTime);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex, "更新暂停时间失败");
-                    }
+                        _timingSequence = await _originalModeRepository.GetOriginalTimingSequenceAsync(_currentBaseImageId);                    }
+                    catch (Exception)
+                    {                    }
                 });
             }
 
@@ -430,9 +332,7 @@ namespace ImageColorChanger.Services.Implementations
             
             // 🎯 修复BUG：暂停增加时间后，应该立即跳到下一张图，而不是继续倒计时
             // 设置标志让播放循环立即跳到下一帧（参考Python版本：keytime.py 行1617-1629）
-            _skipToNextFrame = true;
-            Logger.Info("继续原图播放：设置立即跳转标志");
-            
+            _skipToNextFrame = true;            
             // 重置当前帧开始时间
             _currentFrameStartTime = DateTime.Now;
             
@@ -450,10 +350,7 @@ namespace ImageColorChanger.Services.Implementations
             _cancellationTokenSource?.Cancel();
             _stopwatch.Stop();
             IsPlaying = false;
-            _isPaused = false;
-
-            Logger.Info("停止原图播放");
-            return Task.CompletedTask;
+            _isPaused = false;            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -466,9 +363,7 @@ namespace ImageColorChanger.Services.Implementations
         public Task<bool> RecordManualSwitchAsync(int fromImageId, int toImageId)
         {
             if (!IsPlaying || !_manualCorrectionEnabled)
-            {
-                Logger.Debug("跳过手动修正: IsPlaying={IsPlaying}, Enabled={Enabled}", IsPlaying, _manualCorrectionEnabled);
-                return Task.FromResult(false);
+            {                return Task.FromResult(false);
             }
 
             var currentTime = DateTime.Now;
@@ -483,11 +378,6 @@ namespace ImageColorChanger.Services.Implementations
                 var currentTiming = _timingSequence[_currentIndex];
                 var correctFromId = currentTiming.FromImageId;
                 var correctToId = currentTiming.ToImageId;
-
-                Logger.Info("🔧 原图播放手动修正: {FromId} -> {ToId}, 实际停留时间: {Duration}s", 
-                    correctFromId, correctToId, actualDuration);
-                Logger.Debug("   当前显示图片ID={CurrentId}, 序列索引={Index}", toImageId, _currentIndex);
-
                 // 异步更新数据库中的时间记录
                 _ = Task.Run(async () =>
                 {
@@ -500,20 +390,12 @@ namespace ImageColorChanger.Services.Implementations
                         if (updateResult)
                         {
                             // 同时更新内存中的时间序列
-                            UpdateTimingSequenceInMemory(correctFromId, correctToId, actualDuration);
-                            
-                            Logger.Info("✅ 原图播放时间修正成功: {FromId} -> {ToId} = {Duration}s",
-                                correctFromId, correctToId, actualDuration);
-                        }
+                            UpdateTimingSequenceInMemory(correctFromId, correctToId, actualDuration);                        }
                         else
-                        {
-                            Logger.Warning("❌ 原图播放时间修正失败：数据库更新失败");
-                        }
+                        {                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex, "原图播放时间修正异常");
-                    }
+                    catch (Exception)
+                    {                    }
                 });
             }
 
@@ -525,8 +407,6 @@ namespace ImageColorChanger.Services.Implementations
             // 设置标志让播放循环立即跳到下一帧，这样会触发ProgressUpdated事件，重新启动倒计时
             _skipToNextFrame = true;
             _totalPauseDuration = 0.0;  // 重置暂停时长（新的一帧）
-            Logger.Debug("🔄 手动跳转已记录，设置立即跳转标志");
-
             return Task.FromResult(true);
         }
 
@@ -549,11 +429,7 @@ namespace ImageColorChanger.Services.Implementations
                 if (timing.FromImageId == fromImageId && timing.ToImageId == toImageId)
                 {
                     // 更新时间（直接修改对象属性，而不是替换整个对象）
-                    timing.Duration = newDuration;
-                    
-                    Logger.Debug("✅ 已更新内存时间序列: 索引{Index}, {FromId}->{ToId}, 新时长{Duration}s", 
-                        i, fromImageId, toImageId, newDuration);
-                    break;
+                    timing.Duration = newDuration;                    break;
                 }
             }
         }

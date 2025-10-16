@@ -7,7 +7,6 @@ using ImageColorChanger.Database.Models.DTOs;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Repositories.Interfaces;
 using ImageColorChanger.Services.Interfaces;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Services.Implementations
 {
@@ -51,7 +50,6 @@ namespace ImageColorChanger.Services.Implementations
 
             if (IsRecording)
             {
-                Logger.Warning("已在录制中，忽略重复启动");
                 return;
             }
 
@@ -59,7 +57,6 @@ namespace ImageColorChanger.Services.Implementations
             var similarImages = await _originalModeRepository.GetSimilarImagesAsync(imageId);
             if (similarImages == null || similarImages.Count <= 1)
             {
-                Logger.Warning("图片{ImageId}没有相似图片，无法录制原图模式", imageId);
                 return;
             }
 
@@ -70,9 +67,6 @@ namespace ImageColorChanger.Services.Implementations
 
             IsRecording = true;
             _stopwatch.Restart();
-
-            Logger.Info("开始原图录制: BaseImageId={ImageId}, 相似图片数量={Count}", 
-                imageId, similarImages.Count);
         }
 
         /// <summary>
@@ -100,8 +94,6 @@ namespace ImageColorChanger.Services.Implementations
                 };
 
                 _recordingData.Add(timingDto);
-                Logger.Debug("记录原图时间: {FromId} -> {ToId}, Duration={Duration}s", 
-                    _lastSimilarImageId, targetImageId, duration);
 
                 _sequenceOrder++;
             }
@@ -143,12 +135,6 @@ namespace ImageColorChanger.Services.Implementations
             if (_recordingData.Any())
             {
                 await _originalModeRepository.BatchSaveOriginalTimingsAsync(_currentBaseImageId, _recordingData);
-                Logger.Info("原图录制完成: BaseImageId={ImageId}, 共录制{Count}个时间点", 
-                    _currentBaseImageId, _recordingData.Count);
-            }
-            else
-            {
-                Logger.Warning("录制结束但无数据");
             }
 
             // 重置状态
@@ -168,7 +154,6 @@ namespace ImageColorChanger.Services.Implementations
                 return;
 
             await _originalModeRepository.ClearOriginalTimingsByBaseIdAsync(imageId);
-            Logger.Info("清除原图时间数据: BaseImageId={ImageId}", imageId);
         }
     }
 }

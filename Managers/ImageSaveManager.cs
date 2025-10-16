@@ -109,7 +109,7 @@ namespace ImageColorChanger.Managers
                 // 释放临时图片
                 imageToSave.Dispose();
 
-                System.Diagnostics.Debug.WriteLine($"✅ 图片已保存: {savePath}");
+                //System.Diagnostics.Debug.WriteLine($"✅ 图片已保存: {savePath}");
                 
                 // 静默保存，不显示成功提示（与Python版本一致）
                 return true;
@@ -117,7 +117,7 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
                 MessageBox.Show($"保存图片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"保存图片失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"保存图片失败: {ex}");
                 return false;
             }
         }
@@ -162,7 +162,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"快速保存失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"快速保存失败: {ex}");
                 return false;
             }
         }

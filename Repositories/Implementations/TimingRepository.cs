@@ -7,7 +7,6 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.DTOs;
 using ImageColorChanger.Repositories.Interfaces;
-using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.Repositories.Implementations
 {
@@ -46,7 +45,6 @@ namespace ImageColorChanger.Repositories.Implementations
                 {
                     if (DateTime.Now - cached.CachedAt < _cacheTtl)
                     {
-                        Logger.Debug("时间序列缓存命中: ImageId={ImageId}", imageId);
                         return cached.Data;
                     }
                     else
@@ -81,12 +79,10 @@ namespace ImageColorChanger.Repositories.Implementations
                     CachedAt = DateTime.Now
                 };
 
-                Logger.Debug("从数据库加载时间序列: ImageId={ImageId}, Count={Count}", imageId, timings.Count);
                 return timings;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "获取时间序列失败: ImageId={ImageId}", imageId);
                 throw;
             }
         }
@@ -101,9 +97,8 @@ namespace ImageColorChanger.Repositories.Implementations
                 return await _context.KeyframeTimings
                     .AnyAsync(t => t.ImageId == imageId);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "检查时间数据失败: ImageId={ImageId}", imageId);
                 throw;
             }
         }
@@ -126,13 +121,10 @@ namespace ImageColorChanger.Repositories.Implementations
 
                     // 清除缓存
                     _cache.Remove(imageId);
-
-                    Logger.Info("清除时间数据: ImageId={ImageId}, Count={Count}", imageId, timings.Count);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "清除时间数据失败: ImageId={ImageId}", imageId);
                 throw;
             }
         }
@@ -166,13 +158,10 @@ namespace ImageColorChanger.Repositories.Implementations
 
                 // 4. 清除缓存
                 _cache.Remove(imageId);
-
-                Logger.Info("批量保存时间序列: ImageId={ImageId}, Count={Count}", imageId, timings.Count);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
-                Logger.Error(ex, "批量保存时间序列失败: ImageId={ImageId}", imageId);
                 throw;
             }
         }
@@ -194,14 +183,10 @@ namespace ImageColorChanger.Repositories.Implementations
 
                     // 清除相关缓存
                     _cache.Remove(timing.ImageId);
-
-                    Logger.Info("更新时长: KeyframeId={KeyframeId}, NewDuration={Duration}s", 
-                        keyframeId, newDuration);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "更新时长失败: KeyframeId={KeyframeId}", keyframeId);
                 throw;
             }
         }
@@ -224,15 +209,10 @@ namespace ImageColorChanger.Repositories.Implementations
 
                     // 清除缓存
                     _cache.Remove(imageId);
-
-                    Logger.Info("更新暂停时间: ImageId={ImageId}, SequenceOrder={Order}, PausedTime={Time}s", 
-                        imageId, sequenceOrder, pausedTime);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error(ex, "更新暂停时间失败: ImageId={ImageId}, SequenceOrder={Order}", 
-                    imageId, sequenceOrder);
                 throw;
             }
         }
@@ -243,7 +223,6 @@ namespace ImageColorChanger.Repositories.Implementations
         public void ClearCache()
         {
             _cache.Clear();
-            Logger.Debug("清除时间序列缓存");
         }
     }
 }

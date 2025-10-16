@@ -204,16 +204,16 @@ namespace ImageColorChanger.UI
         {
             // ⏱️ 性能调试：测量关键帧切换总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            System.Diagnostics.Debug.WriteLine($"");
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
+            //System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
             
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
-                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
                 NavigateToPreviousSlide();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
             
@@ -228,7 +228,7 @@ namespace ImageColorChanger.UI
             {
                 await SwitchToPreviousMediaFile();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -237,7 +237,7 @@ namespace ImageColorChanger.UI
             {
                 SwitchToPreviousSimilarImage();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -248,7 +248,7 @@ namespace ImageColorChanger.UI
                 return;
             }
             
-            System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
+            //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
 
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
@@ -258,7 +258,7 @@ namespace ImageColorChanger.UI
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
                     await _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id);
-                    System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
+                    //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
                 }
             }
             
@@ -275,7 +275,7 @@ namespace ImageColorChanger.UI
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         await kfService.RecordManualOperationAsync(currentKeyframe.Id);
-                        System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
                         
                         // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
                         kfService.SkipCurrentWaitAndPlayNext();
@@ -287,11 +287,11 @@ namespace ImageColorChanger.UI
             var navStart = sw.ElapsedMilliseconds;
             _keyframeManager.Navigator.StepToPrevKeyframe();
             var navTime = sw.ElapsedMilliseconds - navStart;
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToPrevKeyframe: {navTime}ms");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToPrevKeyframe: {navTime}ms");
             
             sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-            System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+            //System.Diagnostics.Debug.WriteLine($"");
         }
 
         /// <summary>
@@ -301,16 +301,16 @@ namespace ImageColorChanger.UI
         {
             // ⏱️ 性能调试：测量关键帧切换总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            System.Diagnostics.Debug.WriteLine($"");
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
+            //System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
             
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
-                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
                 NavigateToNextSlide();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
             
@@ -325,7 +325,7 @@ namespace ImageColorChanger.UI
             {
                 await SwitchToNextMediaFile();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -334,7 +334,7 @@ namespace ImageColorChanger.UI
             {
                 SwitchToNextSimilarImage();
                 sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -345,7 +345,7 @@ namespace ImageColorChanger.UI
                 return;
             }
             
-            System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
+            //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
 
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
@@ -355,7 +355,7 @@ namespace ImageColorChanger.UI
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
                     await _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id);
-                    System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
+                    //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
                 }
             }
             
@@ -372,7 +372,7 @@ namespace ImageColorChanger.UI
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         await kfService.RecordManualOperationAsync(currentKeyframe.Id);
-                        System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
                         
                         // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
                         kfService.SkipCurrentWaitAndPlayNext();
@@ -384,11 +384,11 @@ namespace ImageColorChanger.UI
             var navStart = sw.ElapsedMilliseconds;
             bool shouldRecordTime = await _keyframeManager.Navigator.StepToNextKeyframe();
             var navTime = sw.ElapsedMilliseconds - navStart;
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToNextKeyframe: {navTime}ms");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToNextKeyframe: {navTime}ms");
             
             sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-            System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+            //System.Diagnostics.Debug.WriteLine($"");
             
             // shouldRecordTime 用于控制循环停止录制后是否继续记录（通常是false）
         }
@@ -492,20 +492,36 @@ namespace ImageColorChanger.UI
                     for (int i = 0; i < keyframes.Count; i++)
                     {
                         var keyframe = keyframes[i];
+                        
+                        // 判断是否是当前关键帧
+                        bool isCurrentKeyframe = (i == _keyframeManager.CurrentKeyframeIndex);
 
-                        // 1. 在图片上绘制横线（红色虚线）
+                        // 1. 在图片上绘制横线
                         var previewLine = new System.Windows.Shapes.Line
                         {
                             X1 = 0,
                             X2 = imageCanvasWidth,
                             Y1 = keyframe.YPosition,
                             Y2 = keyframe.YPosition,
-                            Stroke = new System.Windows.Media.SolidColorBrush(
-                                System.Windows.Media.Color.FromArgb(200, 255, 0, 0)), // 半透明红色
-                            StrokeThickness = 2,
-                            StrokeDashArray = new System.Windows.Media.DoubleCollection { 10, 5 }, // 虚线
+                            StrokeThickness = 4,
                             Opacity = 0.8
                         };
+                        
+                        // 当前关键帧：绿色实线
+                        if (isCurrentKeyframe)
+                        {
+                            previewLine.Stroke = new System.Windows.Media.SolidColorBrush(
+                                System.Windows.Media.Color.FromRgb(0, 255, 0)); // 鲜绿色
+                            // 不设置 StrokeDashArray，默认就是实线
+                        }
+                        else
+                        {
+                            // 其他关键帧：红色虚线
+                            previewLine.Stroke = new System.Windows.Media.SolidColorBrush(
+                                System.Windows.Media.Color.FromArgb(200, 255, 0, 0)); // 半透明红色
+                            previewLine.StrokeDashArray = new System.Windows.Media.DoubleCollection { 10, 5 }; // 虚线
+                        }
+                        
                         KeyframePreviewLinesCanvas.Children.Add(previewLine);
 
                         // 2. 在滚动条旁边绘制位置提示方块

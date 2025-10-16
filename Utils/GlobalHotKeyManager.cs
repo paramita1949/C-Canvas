@@ -113,7 +113,7 @@ namespace ImageColorChanger.Utils
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败: {ex.Message}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败: {ex.Message}");
                     }
                 }
             }
@@ -139,7 +139,7 @@ namespace ImageColorChanger.Utils
             var helper = new WindowInteropHelper(_window);
             if (helper.Handle == IntPtr.Zero)
             {
-                System.Diagnostics.Debug.WriteLine("❌ 窗口句柄无效，无法注册全局热键");
+                //System.Diagnostics.Debug.WriteLine("❌ 窗口句柄无效，无法注册全局热键");
                 return -1;
             }
 
@@ -167,12 +167,12 @@ namespace ImageColorChanger.Utils
             if (success)
             {
                 _hotKeyHandlers[id] = handler;
-                System.Diagnostics.Debug.WriteLine($"✅ 已注册全局热键: {modifiers}+{key} (ID={id})");
+                //System.Diagnostics.Debug.WriteLine($"✅ 已注册全局热键: {modifiers}+{key} (ID={id})");
                 return id;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 注册全局热键失败: {modifiers}+{key}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 注册全局热键失败: {modifiers}+{key}");
                 return -1;
             }
         }
@@ -193,7 +193,7 @@ namespace ImageColorChanger.Utils
                 if (success)
                 {
                     _hotKeyHandlers.Remove(id);
-                    System.Diagnostics.Debug.WriteLine($"✅ 已注销全局热键 (ID={id})");
+                    //System.Diagnostics.Debug.WriteLine($"✅ 已注销全局热键 (ID={id})");
                 }
             }
         }

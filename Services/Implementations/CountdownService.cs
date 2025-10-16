@@ -56,7 +56,7 @@ namespace ImageColorChanger.Services.Implementations
         {
             if (duration <= 0)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [倒计时] 时长无效: {duration}秒，忽略启动");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [倒计时] 时长无效: {duration}秒，忽略启动");
                 return;
             }
 
@@ -69,7 +69,7 @@ namespace ImageColorChanger.Services.Implementations
             _stopwatch.Restart();
             _timer.Start();
             
-            System.Diagnostics.Debug.WriteLine($"⏱️ [倒计时] 启动倒计时: {duration:F1}秒");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [倒计时] 启动倒计时: {duration:F1}秒");
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace ImageColorChanger.Services.Implementations
             _pausedElapsedTime = _stopwatch.Elapsed.TotalSeconds;
             IsRunning = false;
             
-            System.Diagnostics.Debug.WriteLine($"⏸️ [倒计时] 暂停倒计时，剩余: {RemainingTime:F1}秒");
+            //System.Diagnostics.Debug.WriteLine($"⏸️ [倒计时] 暂停倒计时，剩余: {RemainingTime:F1}秒");
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace ImageColorChanger.Services.Implementations
             _stopwatch.Start();
             _timer.Start();
             
-            System.Diagnostics.Debug.WriteLine($"▶️ [倒计时] 继续倒计时，剩余: {RemainingTime:F1}秒");
+            //System.Diagnostics.Debug.WriteLine($"▶️ [倒计时] 继续倒计时，剩余: {RemainingTime:F1}秒");
         }
 
         /// <summary>
