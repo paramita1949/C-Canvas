@@ -151,9 +151,7 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔧 ===== LibVLC 初始化开始 =====");
                 LibVLCSharp.Shared.Core.Initialize();
-                System.Diagnostics.Debug.WriteLine("✅ LibVLCSharp.Core 初始化完成");
                 
                 // 只创建LibVLC实例，MediaPlayer将在VideoView加载后创建
                 _libVLC = new LibVLC(
@@ -168,9 +166,6 @@ namespace ImageColorChanger.Managers
                     "--autoscale",                 // 🔥 自动缩放
                     "--no-video-title"             // 不显示视频标题
                 );
-                
-                System.Diagnostics.Debug.WriteLine($"✅ LibVLC实例创建成功，版本: {_libVLC.Version}");
-                System.Diagnostics.Debug.WriteLine("🔧 ===== LibVLC 初始化完成 =====");
             }
             catch (Exception ex)
             {
@@ -581,7 +576,6 @@ namespace ImageColorChanger.Managers
             {
                 if (_mediaPlayer == null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ MediaPlayer未创建，音量设置延迟到创建后");
                     return;
                 }
                 

@@ -23,14 +23,26 @@ namespace ImageColorChanger.Managers
         // 相似图片切换功能的状态变量
         private List<(int id, string name, string path)> _similarImages = new List<(int, string, string)>();
         private int _currentSimilarIndex = 0;
-
-        // 预缓存状态跟踪
-        private HashSet<string> _cachedImageGroups = new HashSet<string>();
+        
+        // 🔧 性能优化：文件夹图片列表缓存
+        private int? _cachedFolderId = null;
+        private List<MediaFile> _cachedFolderImages = null;
+        private MediaFile _cachedCurrentFile = null;
 
         public OriginalManager(DatabaseManager dbManager, Window mainWindow)
         {
             _dbManager = dbManager;
             _mainWindow = mainWindow;
+        }
+        
+        /// <summary>
+        /// 清除缓存（在扫描文件夹后调用）
+        /// </summary>
+        public void ClearCache()
+        {
+            _cachedFolderId = null;
+            _cachedFolderImages = null;
+            _cachedCurrentFile = null;
         }
 
         #region 原图标记管理
@@ -118,8 +130,18 @@ namespace ImageColorChanger.Managers
                 if (CheckOriginalMark(ItemType.Image, imageId))
                     return true;
 
-                // 检查图片所在文件夹是否有标记
-                var mediaFile = _dbManager.GetMediaFileById(imageId);
+                // 🔧 性能优化：使用缓存的文件信息，避免重复数据库查询
+                MediaFile mediaFile;
+                if (_cachedCurrentFile != null && _cachedCurrentFile.Id == imageId)
+                {
+                    mediaFile = _cachedCurrentFile;
+                }
+                else
+                {
+                    mediaFile = _dbManager.GetMediaFileById(imageId);
+                    _cachedCurrentFile = mediaFile;
+                }
+                
                 if (mediaFile?.FolderId != null)
                 {
                     return CheckOriginalMark(ItemType.Folder, mediaFile.FolderId.Value);
@@ -147,6 +169,14 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
+        /// 获取相似图片列表（用于预缓存）
+        /// </summary>
+        public List<(int id, string name, string path)> GetSimilarImages()
+        {
+            return new List<(int id, string name, string path)>(_similarImages);
+        }
+
+        /// <summary>
         /// 获取第一张相似图片
         /// </summary>
         public (bool success, int? firstImageId, string firstImagePath) GetFirstSimilarImage()
@@ -168,7 +198,21 @@ namespace ImageColorChanger.Managers
             {
                 // System.Diagnostics.Debug.WriteLine($"🔍 FindSimilarImages: imageId={imageId}");
                 
-                var currentFile = _dbManager.GetMediaFileById(imageId);
+                // 🔧 性能优化：使用缓存避免重复数据库查询
+                MediaFile currentFile;
+                
+                // 检查是否是缓存的当前文件
+                if (_cachedCurrentFile != null && _cachedCurrentFile.Id == imageId)
+                {
+                    currentFile = _cachedCurrentFile;
+                }
+                else
+                {
+                    // 不是缓存的文件，需要查询数据库
+                    currentFile = _dbManager.GetMediaFileById(imageId);
+                    _cachedCurrentFile = currentFile;
+                }
+                
                 if (currentFile == null || currentFile.FolderId == null)
                 {
                     // System.Diagnostics.Debug.WriteLine($"❌ 无法找到图片或文件夹: imageId={imageId}");
@@ -183,9 +227,23 @@ namespace ImageColorChanger.Managers
                 string baseName = ExtractBaseName(currentFile.Name);
                 // System.Diagnostics.Debug.WriteLine($"📝 基本名称: {baseName}");
 
-                // 查找同一文件夹中的所有图片
-                var allImages = _dbManager.GetMediaFilesByFolder(currentFile.FolderId.Value, FileType.Image);
-                // System.Diagnostics.Debug.WriteLine($"📂 文件夹中共有 {allImages.Count} 张图片");
+                // 🔧 性能优化：检查文件夹图片列表缓存
+                List<MediaFile> allImages;
+                
+                if (_cachedFolderId == currentFile.FolderId && _cachedFolderImages != null)
+                {
+                    // 使用缓存的文件夹图片列表
+                    allImages = _cachedFolderImages;
+                }
+                else
+                {
+                    // 缓存未命中，查询数据库并缓存结果
+                    allImages = _dbManager.GetMediaFilesByFolder(currentFile.FolderId.Value, FileType.Image);
+                    _cachedFolderId = currentFile.FolderId;
+                    _cachedFolderImages = allImages;
+                }
+                
+                // System.Diagnostics.Debug.WriteLine($"📂 文件夹中共有 {allImages.Count} 张图片 (缓存命中: {_cachedFolderId == currentFile.FolderId})");
 
                 // 筛选出名称相似的图片
                 _similarImages = allImages

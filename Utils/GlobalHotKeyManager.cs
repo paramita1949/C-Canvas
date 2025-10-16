@@ -211,7 +211,6 @@ namespace ImageColorChanger.Utils
                     UnregisterHotKey(helper.Handle, id);
                 }
                 _hotKeyHandlers.Clear();
-                System.Diagnostics.Debug.WriteLine("✅ 已注销所有全局热键");
             }
         }
 

@@ -947,10 +947,6 @@ namespace ImageColorChanger.Database
                         _context.Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN highlight_color TEXT NULL");
                         System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 highlight_color 列");
                     }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("ℹ️ highlight_color 列已存在，跳过迁移");
-                    }
                 }
             }
             catch (Exception ex)

@@ -690,10 +690,6 @@ namespace ImageColorChanger.ViewModels
                     
                     Utils.Logger.Info("加载播放次数设置: {0}", PlayCount == -1 ? "无限循环" : PlayCount.ToString());
                 }
-                else
-                {
-                    Utils.Logger.Info("使用默认播放次数设置: 5次");
-                }
             }
             catch (Exception ex)
             {

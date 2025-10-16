@@ -54,8 +54,6 @@ namespace ImageColorChanger.UI
             
             // 加载系统字体
             LoadSystemFonts();
-            
-            System.Diagnostics.Debug.WriteLine("✅ 文本编辑器初始化完成");
         }
 
         /// <summary>
@@ -152,8 +150,6 @@ namespace ImageColorChanger.UI
                                                 realFontFamily = glyphTypeface.FamilyNames[enUS];
                                             else
                                                 realFontFamily = glyphTypeface.FamilyNames.Values.First();
-                                            
-                                            System.Diagnostics.Debug.WriteLine($"🔍 从字体文件读取到真实族名称: {realFontFamily}");
                                         }
                                     }
                                     catch (Exception glyphEx)
@@ -175,12 +171,6 @@ namespace ImageColorChanger.UI
                                     font.Family = realFontFamily;
                                     
                                     // 🔍 输出字体的实际 FamilyNames，帮助调试
-                                    var actualFamilies = string.Join(", ", fontFamily.FamilyNames.Values);
-                                    System.Diagnostics.Debug.WriteLine($"✅ 字体加载成功: {font.Name}");
-                                    System.Diagnostics.Debug.WriteLine($"   BaseUri: {baseUri}");
-                                    System.Diagnostics.Debug.WriteLine($"   相对路径: {relativeFontPath}#{realFontFamily}");
-                                    System.Diagnostics.Debug.WriteLine($"   完整Source: {fontFamily.Source}");
-                                    System.Diagnostics.Debug.WriteLine($"   实际FamilyNames: {actualFamilies}");
                                 }
                                 catch (Exception ex)
                                 {
@@ -224,8 +214,6 @@ namespace ImageColorChanger.UI
                         break;
                     }
                 }
-
-                System.Diagnostics.Debug.WriteLine($"✅ 加载自定义字体库完成: {totalFonts} 种字体，{config.FontCategories.Count} 个分类");
             }
             catch (Exception ex)
             {
@@ -366,8 +354,8 @@ namespace ImageColorChanger.UI
                 if (projectionManager.IsProjectionActive && _currentSlide != null)
                 {
                     System.Diagnostics.Debug.WriteLine("🔄 新建项目完成，准备更新投影...");
-                    // 延迟确保UI完全渲染
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // 延迟确保UI完全渲染（异步执行，不等待）
+                    _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
                         System.Diagnostics.Debug.WriteLine("✅ 新建项目后已自动更新投影");
@@ -442,8 +430,8 @@ namespace ImageColorChanger.UI
                 if (projectionManager.IsProjectionActive && _currentSlide != null)
                 {
                     System.Diagnostics.Debug.WriteLine("🔄 项目加载完成，准备更新投影...");
-                    // 延迟确保UI完全渲染
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // 延迟确保UI完全渲染（异步执行，不等待）
+                    _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
                         System.Diagnostics.Debug.WriteLine("✅ 项目加载后已自动更新投影");

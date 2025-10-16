@@ -23,8 +23,6 @@ namespace ImageColorChanger
 
             // 初始化日志系统
             Logger.Initialize();
-            Logger.Info("========== Canvas Cast 应用程序启动 ==========");
-            Logger.Info("版本: {Version}", GetVersionFromTitle());
 
             try
             {
@@ -33,13 +31,9 @@ namespace ImageColorChanger
                 ConfigureServices(services);
                 ServiceProvider = services.BuildServiceProvider();
 
-                Logger.Info("依赖注入配置完成");
-
                 // 全局异常处理
                 AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
                 DispatcherUnhandledException += OnDispatcherUnhandledException;
-
-                Logger.Info("Canvas Cast 初始化完成");
             }
             catch (Exception ex)
             {
@@ -67,7 +61,6 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnExit(ExitEventArgs e)
         {
-            Logger.Info("========== Canvas Cast 应用程序退出 ==========");
             Logger.Shutdown();
 
             base.OnExit(e);
@@ -125,7 +118,7 @@ namespace ImageColorChanger
             {
                 // 从MainWindow.xaml的Title属性中提取版本号
                 // Title格式: "Canvas Cast V2.5.8"
-                string title = "Canvas Cast V3.0.3"; // 从MainWindow.xaml中获取的实际Title
+                string title = "Canvas Cast V3.0.4"; // 从MainWindow.xaml中获取的实际Title
                 
                 // 使用正则表达式提取版本号
                 var match = Regex.Match(title, @"V(\d+\.\d+\.\d+)");
@@ -135,12 +128,12 @@ namespace ImageColorChanger
                 }
                 
                 // 如果正则匹配失败，返回默认版本号
-                return "3.0.3";
+                return "3.0.4";
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, "提取版本号失败");
-                return "3.0.3"; // 返回默认版本号
+                return "3.0.4"; // 返回默认版本号
             }
         }
     }

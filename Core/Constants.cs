@@ -89,14 +89,17 @@ namespace ImageColorChanger.Core
         /// <summary>普通图片缓存大小</summary>
         public const int MemoryCacheSize = 150;
         
+        /// <summary>渲染缓存大小（BitmapSource缓存）- 支持多张图片×多种尺寸</summary>
+        public const int RenderCacheSize = 500;
+        
         /// <summary>预览图缓存大小</summary>
         public const int PreviewCacheSize = 50;
         
         /// <summary>内存警告阈值（百分比）</summary>
         public const int MemoryWarningThresholdPercent = 80;
         
-        /// <summary>缓存清理阈值</summary>
-        public const int CacheCleanupThreshold = 100;
+        /// <summary>缓存清理阈值 - 渲染缓存达到此值时触发清理</summary>
+        public const int RenderCacheCleanupThreshold = 400;
         
         
         // ==================== 性能相关 ====================

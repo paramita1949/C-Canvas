@@ -45,10 +45,7 @@ namespace ImageColorChanger.UI
 
         // 图像处理相关
         private ImageProcessor imageProcessor;
-        private Image<Rgba32> originalImage;
-        private Image<Rgba32> currentImage;
         private string imagePath;
-        private BackgroundType backgroundType = BackgroundType.White;
         private GPUProcessor gpuProcessor;
 
         // 图片缩放相关
@@ -88,6 +85,7 @@ namespace ImageColorChanger.UI
         private SortManager sortManager;
         private ProjectionManager projectionManager;
         private OriginalManager originalManager;
+        private PreloadCacheManager preloadCacheManager; // 智能预缓存管理器
         
         // 视频播放相关
         private VideoPlayerManager videoPlayerManager;
@@ -164,7 +162,6 @@ namespace ImageColorChanger.UI
                         CountdownText.Text = $"倒: {e.RemainingTime:F1}";
                     });
                 };
-                System.Diagnostics.Debug.WriteLine("✅ [初始化] 倒计时事件已订阅");
                 
                 // 订阅ViewModel属性变化，自动更新按钮状态
                 _playbackViewModel.PropertyChanged += (s, e) =>
@@ -217,7 +214,6 @@ namespace ImageColorChanger.UI
                     string playCountText = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
                     BtnPlayCount.Content = $"🔄 {playCountText}次";
                     
-                    System.Diagnostics.Debug.WriteLine($"✅ [初始化] UI状态已同步: PlayCount={_playbackViewModel.PlayCount}");
                 });
                 
                 // 订阅播放服务事件（关键帧跳转、原图切换）
@@ -274,7 +270,6 @@ namespace ImageColorChanger.UI
                 // 在StartOriginalModePlaybackAsync()中订阅，在StopOriginalModePlaybackAsync()中取消订阅
                 // 避免重复订阅导致图片被加载两次
                 
-                System.Diagnostics.Debug.WriteLine("✅ PlaybackControlViewModel 初始化成功");
             }
             catch (Exception ex)
             {
@@ -285,13 +280,8 @@ namespace ImageColorChanger.UI
         private void InitializeGpuProcessor()
         {
             gpuProcessor = new GPUProcessor();
-            if (gpuProcessor.Initialize())
+            if (!gpuProcessor.Initialize())
             {
-                ShowStatus("✅ 就绪 (GPU加速已启用 - ComputeSharp)");
-            }
-            else
-            {
-                ShowStatus("❌ GPU初始化失败");
                 MessageBox.Show(
                     "GPU初始化失败！\n\n" +
                     "可能原因：\n" +
@@ -341,6 +331,9 @@ namespace ImageColorChanger.UI
             
             // 初始化原图管理器
             originalManager = new OriginalManager(dbManager, this);
+            
+            // 初始化智能预缓存管理器（使用ImageProcessor的缓存实例和渲染器）
+            preloadCacheManager = new PreloadCacheManager(imageProcessor.GetMemoryCache(), dbManager, imageProcessor);
             
             // 初始化视频播放器
             InitializeVideoPlayer();
@@ -420,8 +413,6 @@ namespace ImageColorChanger.UI
             
             // 加载搜索范围选项
             LoadSearchScopes();
-            
-            System.Diagnostics.Debug.WriteLine("✅ 数据库初始化成功");
             }
             catch (Exception ex)
             {
@@ -440,7 +431,6 @@ namespace ImageColorChanger.UI
                 // 创建全局热键管理器，但不立即注册热键
                 _globalHotKeyManager = new Utils.GlobalHotKeyManager(this);
                 
-                System.Diagnostics.Debug.WriteLine("✅ 全局热键管理器初始化成功（热键将在投影模式下启用）");
             }
             catch (Exception ex)
             {
@@ -658,7 +648,6 @@ namespace ImageColorChanger.UI
             try
             {
                 _globalHotKeyManager.UnregisterAllHotKeys();
-                System.Diagnostics.Debug.WriteLine("✅ 全局热键已禁用（前台模式）");
             }
             catch (Exception ex)
             {
@@ -695,7 +684,6 @@ namespace ImageColorChanger.UI
                 
                 VideoContainer.Children.Add(mainVideoView);
                 
-                System.Diagnostics.Debug.WriteLine("📺 VideoView创建完成: HorizontalAlignment=Stretch, VerticalAlignment=Stretch");
                 
                 // 等待VideoView完成布局并有了实际尺寸后，再创建MediaPlayer（避免小窗口）
                 bool mediaPlayerInitialized = false;
@@ -750,7 +738,6 @@ namespace ImageColorChanger.UI
                 BtnPlayMode.Content = "🔀";
                 BtnPlayMode.ToolTip = "播放模式：随机";
                 
-                System.Diagnostics.Debug.WriteLine("✅ 视频播放器初始化成功 (默认随机播放模式)");
             }
             catch (Exception ex)
             {
@@ -919,12 +906,9 @@ namespace ImageColorChanger.UI
                     }
                     
                     _textProjectManager = new TextProjectManager(dbManager.GetDbContext());
-                    System.Diagnostics.Debug.WriteLine("✅ TextProjectManager 延迟初始化完成");
                 }
 
                 var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
-                
-                System.Diagnostics.Debug.WriteLine($"📊 数据库中的文本项目数量: {textProjects.Count}");
                 
                 foreach (var project in textProjects)
                 {
@@ -941,8 +925,6 @@ namespace ImageColorChanger.UI
                         Path = null  // 文本项目没有物理路径
                     });
                 }
-                
-                System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目完成: {textProjects.Count} 个");
             }
             catch (Exception ex)
             {
@@ -975,11 +957,9 @@ namespace ImageColorChanger.UI
                 // 从 ConfigManager 加载原图显示模式
                 originalDisplayMode = configManager.OriginalDisplayMode;
                 imageProcessor.OriginalDisplayModeValue = originalDisplayMode;
-                System.Diagnostics.Debug.WriteLine($"✅ 已加载原图显示模式: {originalDisplayMode}");
                 
                 // 加载缩放比例
                 currentZoom = configManager.ZoomRatio;
-                System.Diagnostics.Debug.WriteLine($"✅ 已加载缩放比例: {currentZoom}");
                 
                 // 加载目标颜色
                 currentTargetColor = new Rgba32(
@@ -988,13 +968,11 @@ namespace ImageColorChanger.UI
                     configManager.TargetColorB
                 );
                 currentTargetColorName = configManager.TargetColorName ?? "淡黄";
-                System.Diagnostics.Debug.WriteLine($"✅ 已加载目标颜色: {currentTargetColorName} RGB({currentTargetColor.R}, {currentTargetColor.G}, {currentTargetColor.B})");
                 
                 // 加载导航栏宽度
                 if (NavigationPanelColumn != null)
                 {
                     NavigationPanelColumn.Width = new GridLength(configManager.NavigationPanelWidth);
-                    System.Diagnostics.Debug.WriteLine($"✅ 已加载导航栏宽度: {configManager.NavigationPanelWidth}");
                 }
             }
             catch (Exception ex)
@@ -1153,6 +1131,18 @@ namespace ImageColorChanger.UI
                 {
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
+                    
+                    // 🔧 清除缓存，确保使用最新的数据库数据
+                    originalManager?.ClearCache();
+                    
+                    // ⚡ 清除图片LRU缓存
+                    imageProcessor?.ClearImageCache();
+                    
+                    // ⚡ 清除投影缓存
+                    projectionManager?.ClearProjectionCache();
+                    
+                    System.Diagnostics.Debug.WriteLine("🔄 文件夹导入完成，已清除所有缓存");
+                    
                     ShowStatus($"✅ 已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
                 }
             }
@@ -1251,7 +1241,6 @@ namespace ImageColorChanger.UI
                 {
                     BtnProjection.Content = "🖥 投影";
                     BtnProjection.Background = Brushes.Transparent; // 使用透明背景，让样式生效
-                    ShowStatus("🔴 投影已关闭");
                     
                     // 禁用全局热键（前台模式）
                     DisableGlobalHotKeys();
@@ -2251,7 +2240,7 @@ namespace ImageColorChanger.UI
                                 case FileType.Image:
                                     // 切换回图片模式
                                     SwitchToImageMode();
-                                    // 加载图片
+                                    // 加载图片（预缓存已在LoadImage中触发）
                                     LoadImage(selectedItem.Path);
                                     // ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     break;
@@ -2322,6 +2311,8 @@ namespace ImageColorChanger.UI
                                     
                                     LoadImage(selectedItem.Path);
                                     // ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    
+                                    // ⚡ 预缓存已在LoadImage中触发，无需重复
                                     break;
                             }
                         }
@@ -3048,6 +3039,9 @@ namespace ImageColorChanger.UI
 
         private void LoadImage(string path)
         {
+            // ⏱️ 性能调试：测量图片加载总耗时
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            
             try
             {
                 imagePath = path;
@@ -3057,22 +3051,23 @@ namespace ImageColorChanger.UI
                 imageProcessor.IsInverted = isColorEffectEnabled;
                 
                 // 使用ImageProcessor加载图片
+                var loadStart = sw.ElapsedMilliseconds;
                 bool success = imageProcessor.LoadImage(path);
+                var loadTime = sw.ElapsedMilliseconds - loadStart;
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
                 
                 if (success)
                 {
-                    // 更新原图引用（向后兼容）
-                    originalImage?.Dispose();
-                    currentImage?.Dispose();
-                    originalImage = imageProcessor.OriginalImage?.Clone();
-                    currentImage = imageProcessor.CurrentImage?.Clone();
-                    
-                    DetectBackground();
+                    // 🔧 性能优化：移除不必要的克隆，直接使用imageProcessor的引用
+                    // ImageProcessor内部管理图片资源和背景检测
                     
                     // ⭐ 关键逻辑: 检查当前图片是否有原图标记,自动启用/关闭原图模式
                     if (currentImageId > 0)
                     {
+                        var dbCheckStart = sw.ElapsedMilliseconds;
                         bool shouldUseOriginal = originalManager.ShouldUseOriginalMode(currentImageId);
+                        var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
+                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
                         
                         if (shouldUseOriginal && !originalMode)
                         {
@@ -3097,26 +3092,36 @@ namespace ImageColorChanger.UI
                         // 这样切换到新歌曲时，相似图片列表会更新为新歌曲的图片
                         if (originalMode)
                         {
+                            var findStart = sw.ElapsedMilliseconds;
                             originalManager.FindSimilarImages(currentImageId);
-                            // System.Diagnostics.Debug.WriteLine($"🔍 已更新相似图片列表: 图片ID={currentImageId}");
+                            var findTime = sw.ElapsedMilliseconds - findStart;
+                            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
+                            
+                            // ⚡ 立即触发智能预缓存（不等待用户操作）
+                            // 这样第一次切换时预缓存已经完成或接近完成
+                            _ = TriggerSmartPreload();
                         }
                         
                         // 🌲 同步项目树选中状态
+                        var treeStart = sw.ElapsedMilliseconds;
                         SelectTreeItemById(currentImageId);
+                        var treeTime = sw.ElapsedMilliseconds - treeStart;
+                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
                     }
                     
-                    // 🎨 注释掉：不再需要单独调用 ApplyColorEffect，ImageProcessor 已经处理
-                    // 如果颜色效果已启用，应用效果
-                    //if (isColorEffectEnabled)
-                    //{
-                    //    ApplyColorEffect();
-                    //}
+                    // 颜色效果由 ImageProcessor 内部处理
                     
                     // 更新投影
+                    var projStart = sw.ElapsedMilliseconds;
                     UpdateProjection();
+                    var projTime = sw.ElapsedMilliseconds - projStart;
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
                     
                     // 更新关键帧预览线和指示块
+                    var kfStart = sw.ElapsedMilliseconds;
                     _keyframeManager?.UpdatePreviewLines();
+                    var kfTime = sw.ElapsedMilliseconds - kfStart;
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
                     
                     // 🔧 更新 PlaybackViewModel 状态（检查时间数据，更新脚本按钮颜色）
                     if (_playbackViewModel != null && currentImageId > 0)
@@ -3125,6 +3130,8 @@ namespace ImageColorChanger.UI
                             originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe);
                     }
                     
+                    sw.Stop();
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
                 else
@@ -3151,13 +3158,7 @@ namespace ImageColorChanger.UI
                 imagePath = null;
                 currentImageId = 0;
                 
-                // 清空图片对象
-                originalImage?.Dispose();
-                currentImage?.Dispose();
-                originalImage = null;
-                currentImage = null;
-                
-                // 清空ImageProcessor
+                // 清空ImageProcessor（内部管理图片资源）
                 imageProcessor.ClearCurrentImage();
                 
                 // 重置缩放
@@ -3259,38 +3260,7 @@ namespace ImageColorChanger.UI
             return false;
         }
 
-        private void DetectBackground()
-        {
-            if (originalImage == null) return;
-
-            int width = originalImage.Width;
-            int height = originalImage.Height;
-
-            // 检测四个角的颜色
-            var corners = new[]
-            {
-                originalImage[0, 0],
-                originalImage[width - 1, 0],
-                originalImage[0, height - 1],
-                originalImage[width - 1, height - 1]
-            };
-
-            double avgBrightness = 0;
-            foreach (var corner in corners)
-            {
-                avgBrightness += (corner.R + corner.G + corner.B) / 3.0;
-            }
-            avgBrightness /= corners.Length;
-
-            if (avgBrightness > 127)
-            {
-                backgroundType = BackgroundType.White;
-            }
-            else
-            {
-                backgroundType = BackgroundType.Black;
-            }
-        }
+        
 
         private void ToggleColorEffect()
         {
@@ -3323,31 +3293,6 @@ namespace ImageColorChanger.UI
             UpdateProjection();
         }
 
-        private void ApplyColorEffect()
-        {
-            if (originalImage == null) return;
-
-            try
-            {
-                ShowStatus("⏳ GPU处理中...");
-                
-                currentImage?.Dispose();
-                currentImage = gpuProcessor.ProcessImage(
-                    originalImage, 
-                    currentTargetColor, 
-                    backgroundType == BackgroundType.White
-                );
-                
-                DisplayImage(currentImage);
-                ShowStatus($"✨ 已应用颜色效果: {currentTargetColorName} (GPU加速)");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"处理失败: {ex.Message}", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                ShowStatus("❌ 处理失败");
-            }
-        }
 
         private void OpenColorPicker()
         {
@@ -3825,8 +3770,6 @@ namespace ImageColorChanger.UI
         protected override void OnClosed(EventArgs e)
         {
             imageProcessor?.Dispose();
-            originalImage?.Dispose();
-            currentImage?.Dispose();
             gpuProcessor?.Dispose();
             base.OnClosed(e);
         }
@@ -4049,7 +3992,6 @@ namespace ImageColorChanger.UI
                 {
                     videoPlayerManager.Stop();
                     videoPlayerManager.Dispose();
-                    System.Diagnostics.Debug.WriteLine("✅ 视频播放器已清理");
                 }
                 
                 // 关闭投影窗口
@@ -4057,21 +3999,13 @@ namespace ImageColorChanger.UI
                 {
                     projectionManager.CloseProjection();
                     projectionManager.Dispose();
-                    System.Diagnostics.Debug.WriteLine("✅ 投影管理器已清理");
                 }
-                
-                // 释放图片资源
-                originalImage?.Dispose();
-                currentImage?.Dispose();
                 
                 // 释放全局热键
                 if (_globalHotKeyManager != null)
                 {
                     _globalHotKeyManager.Dispose();
-                    System.Diagnostics.Debug.WriteLine("✅ 全局热键已清理");
                 }
-                
-                System.Diagnostics.Debug.WriteLine("✅ 资源清理完成");
             }
             catch (Exception ex)
             {
@@ -4230,11 +4164,15 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool SwitchSimilarImage(bool isNext)
         {
-            // System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 被调用: isNext={isNext}, currentImageId={currentImageId}");
+            // ⏱️ 性能调试：测量原图切换总耗时
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Debug.WriteLine($"");
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始切换相似图片 (方向: {(isNext ? "下一张" : "上一张")}) ==========");
             
+            var switchStart = sw.ElapsedMilliseconds;
             var result = originalManager.SwitchSimilarImage(isNext, currentImageId);
-            
-            // System.Diagnostics.Debug.WriteLine($"🔄 SwitchSimilarImage 结果: success={result.success}, newImageId={result.newImageId}, isLoopCompleted={result.isLoopCompleted}");
+            var switchTime = sw.ElapsedMilliseconds - switchStart;
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] OriginalManager.SwitchSimilarImage: {switchTime}ms");
             
             if (result.success && result.newImageId.HasValue)
             {
@@ -4242,17 +4180,110 @@ namespace ImageColorChanger.UI
                 int toImageId = result.newImageId.Value;
                 
                 currentImageId = toImageId;
+                
+                var loadStart = sw.ElapsedMilliseconds;
                 LoadImage(result.newImagePath);
+                var loadTotalTime = sw.ElapsedMilliseconds - loadStart;
+                // LoadImage内部已有详细分解，这里只记录进入时间
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] LoadImage调用（含所有子步骤）: {loadTotalTime}ms");
+                
+                // 🎯 触发智能预缓存（异步执行，不阻塞）
+                _ = TriggerSmartPreload();
                 
                 // 🎯 如果正在录制原图模式，记录切换时间（异步执行，不阻塞）
                 _ = OnSimilarImageSwitched(fromImageId, toImageId, result.isLoopCompleted);
                 
+                sw.Stop();
                 string direction = isNext ? "下一张" : "上一张";
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                System.Diagnostics.Debug.WriteLine($"");
                 ShowStatus($"✅ 已切换到{direction}相似图片: {Path.GetFileName(result.newImagePath)}");
                 return true;
             }
             
+            sw.Stop();
             return false;
+        }
+
+        /// <summary>
+        /// 智能预缓存：根据当前模式自动触发精准预缓存
+        /// </summary>
+        private async System.Threading.Tasks.Task TriggerSmartPreload()
+        {
+            try
+            {
+                if (preloadCacheManager == null || currentImageId <= 0)
+                    return;
+                
+                // 获取当前文件信息
+                var currentFile = dbManager.GetMediaFileById(currentImageId);
+                if (currentFile == null)
+                    return;
+                
+                // 判断是否处于原图模式
+                if (originalMode)
+                {
+                    // 原图模式：判断是循环模式还是顺序模式
+                    var markType = originalManager.GetOriginalMarkType(ItemType.Image, currentImageId);
+                    
+                    // 如果图片本身没有标记，检查文件夹标记
+                    if (markType == null && currentFile.FolderId.HasValue)
+                    {
+                        markType = originalManager.GetOriginalMarkType(ItemType.Folder, currentFile.FolderId.Value);
+                    }
+                    
+                    if (markType == MarkType.Loop)
+                    {
+                        // 🔄 循环模式：预缓存相似图片
+                        System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图循环模式");
+                        
+                        // 确保已查找相似图片
+                        if (!originalManager.HasSimilarImages())
+                        {
+                            originalManager.FindSimilarImages(currentImageId);
+                        }
+                        
+                        // 获取相似图片列表
+                        var similarImages = GetSimilarImagesFromOriginalManager();
+                        await preloadCacheManager.PreloadForLoopModeAsync(currentImageId, similarImages);
+                    }
+                    else if (markType == MarkType.Sequence)
+                    {
+                        // ➡️ 顺序模式：预缓存后续10张图
+                        System.Diagnostics.Debug.WriteLine("📦 [智能预缓存] 触发：原图顺序模式");
+                        
+                        if (currentFile.FolderId.HasValue)
+                        {
+                            await preloadCacheManager.PreloadForSequenceModeAsync(currentImageId, currentFile.FolderId.Value);
+                        }
+                    }
+                }
+                else
+                {
+                    // 关键帧模式：当前图片已加载，无需额外预缓存
+                    await preloadCacheManager.PreloadForKeyframeModeAsync(currentImageId);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [智能预缓存] 失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 从OriginalManager获取相似图片列表
+        /// </summary>
+        private List<(int id, string name, string path)> GetSimilarImagesFromOriginalManager()
+        {
+            try
+            {
+                return originalManager.GetSimilarImages();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ 获取相似图片列表失败: {ex.Message}");
+                return new List<(int id, string name, string path)>();
+            }
         }
 
         /// <summary>

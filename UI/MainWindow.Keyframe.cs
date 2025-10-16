@@ -202,11 +202,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
         {
+            // ⏱️ 性能调试：测量关键帧切换总耗时
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Debug.WriteLine($"");
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
+            
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
                 System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
                 NavigateToPreviousSlide();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
             
@@ -220,6 +227,8 @@ namespace ImageColorChanger.UI
             if (IsMediaPlaybackMode())
             {
                 await SwitchToPreviousMediaFile();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -227,6 +236,8 @@ namespace ImageColorChanger.UI
             if (IsOriginalMarkMode())
             {
                 SwitchToPreviousSimilarImage();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -236,6 +247,8 @@ namespace ImageColorChanger.UI
                 ShowStatus("关键帧系统未初始化");
                 return;
             }
+            
+            System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
 
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
@@ -271,7 +284,14 @@ namespace ImageColorChanger.UI
             }
             
             // 然后执行跳转
+            var navStart = sw.ElapsedMilliseconds;
             _keyframeManager.Navigator.StepToPrevKeyframe();
+            var navTime = sw.ElapsedMilliseconds - navStart;
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToPrevKeyframe: {navTime}ms");
+            
+            sw.Stop();
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+            System.Diagnostics.Debug.WriteLine($"");
         }
 
         /// <summary>
@@ -279,11 +299,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
         {
+            // ⏱️ 性能调试：测量关键帧切换总耗时
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Debug.WriteLine($"");
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
+            
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
                 System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
                 NavigateToNextSlide();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
             
@@ -297,6 +324,8 @@ namespace ImageColorChanger.UI
             if (IsMediaPlaybackMode())
             {
                 await SwitchToNextMediaFile();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -304,6 +333,8 @@ namespace ImageColorChanger.UI
             if (IsOriginalMarkMode())
             {
                 SwitchToNextSimilarImage();
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 return;
             }
 
@@ -313,6 +344,8 @@ namespace ImageColorChanger.UI
                 ShowStatus("关键帧系统未初始化");
                 return;
             }
+            
+            System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
 
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
@@ -348,7 +381,14 @@ namespace ImageColorChanger.UI
             }
             
             // 然后执行跳转
+            var navStart = sw.ElapsedMilliseconds;
             bool shouldRecordTime = await _keyframeManager.Navigator.StepToNextKeyframe();
+            var navTime = sw.ElapsedMilliseconds - navStart;
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToNextKeyframe: {navTime}ms");
+            
+            sw.Stop();
+            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+            System.Diagnostics.Debug.WriteLine($"");
             
             // shouldRecordTime 用于控制循环停止录制后是否继续记录（通常是false）
         }

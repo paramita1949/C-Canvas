@@ -21,6 +21,7 @@ using WpfResizeMode = System.Windows.ResizeMode;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using Screen = System.Windows.Forms.Screen;
 using LibVLCSharp.WPF;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ImageColorChanger.Managers
 {
@@ -82,6 +83,10 @@ namespace ImageColorChanger.Managers
         private double _zoomRatio = 1.0;
         private bool _isOriginalMode;
         private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Stretch;
+        private string _currentImagePath; // 用于缓存键生成
+        
+        // ⚡ 投影图片缓存
+        private readonly IMemoryCache _projectionCache;
 
         public ProjectionManager(
             Window mainWindow,
@@ -98,6 +103,14 @@ namespace ImageColorChanger.Managers
 
             _screens = new List<Screen>();
             _currentScreenIndex = 0;
+            
+            // ⚡ 初始化投影图片缓存
+            _projectionCache = new MemoryCache(new MemoryCacheOptions
+            {
+                SizeLimit = 50, // 最多缓存50张投影图片（基于权重计算）
+                CompactionPercentage = 0.25, // 达到上限时清理25%最少使用的项
+                ExpirationScanFrequency = TimeSpan.FromMinutes(5) // 每5分钟扫描过期项
+            });
             _syncEnabled = false;
             // _globalHotkeysEnabled = false; // TODO: 实现全局热键时再启用
             _lastSyncTime = DateTime.Now;
@@ -177,7 +190,6 @@ namespace ImageColorChanger.Managers
                 if (_screenComboBox.Items.Count > 0)
                 {
                     _screenComboBox.SelectedIndex = defaultIndex;
-                    System.Diagnostics.Debug.WriteLine($"✅ 默认选择屏幕索引: {defaultIndex} ({_screenComboBox.Items[defaultIndex]})");
                 }
             });
         }
@@ -228,6 +240,7 @@ namespace ImageColorChanger.Managers
             _zoomRatio = zoomRatio;
             _isOriginalMode = isOriginalMode;
             _originalDisplayMode = originalDisplayMode;
+            _currentImagePath = _imageProcessor?.CurrentImagePath; // 记录当前图片路径用于缓存键
 
             if (_projectionWindow != null && image != null)
             {
@@ -811,22 +824,47 @@ namespace ImageColorChanger.Managers
                     
                     // System.Diagnostics.Debug.WriteLine($"  计算后尺寸: {newWidth}x{newHeight}");
 
-                    // 处理图片（缩放和可选的变色效果）
-                    var processedImage = _currentImage.Clone(ctx =>
+                    // ⚡ 生成缓存键
+                    string cacheKey = GenerateProjectionCacheKey(newWidth, newHeight);
+                    
+                    // ⚡ 检查缓存
+                    if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedBitmap))
                     {
-                        ctx.Resize(newWidth, newHeight, KnownResamplers.Lanczos3);
-                    });
-
-                    // 应用变色效果
-                    if (_isColorEffectEnabled)
-                    {
-                        processedImage = _imageProcessor.ApplyYellowTextEffect(processedImage);
-                        // System.Diagnostics.Debug.WriteLine("  ✨ 已应用变色效果");
+                        System.Diagnostics.Debug.WriteLine($"🎬 [投影缓存命中] {newWidth}x{newHeight}");
+                        _projectionImage = cachedBitmap;
                     }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🎞️ [投影重新渲染] {newWidth}x{newHeight}");
+                        
+                        // 处理图片（缩放和可选的变色效果）
+                        var processedImage = _currentImage.Clone(ctx =>
+                        {
+                            ctx.Resize(newWidth, newHeight, KnownResamplers.Lanczos3);
+                        });
 
-                    // 转换为BitmapSource
-                    _projectionImage = ConvertToBitmapSource(processedImage);
-                    processedImage.Dispose();
+                        // 应用变色效果
+                        if (_isColorEffectEnabled)
+                        {
+                            processedImage = _imageProcessor.ApplyYellowTextEffect(processedImage);
+                            // System.Diagnostics.Debug.WriteLine("  ✨ 已应用变色效果");
+                        }
+
+                        // 转换为BitmapSource
+                        _projectionImage = ConvertToBitmapSource(processedImage);
+                        processedImage.Dispose();
+                        
+                        // ⚡ 加入缓存
+                        var entryOptions = new MemoryCacheEntryOptions
+                        {
+                            // 按图片大小计算权重（1MB = 1权重单位）
+                            Size = Math.Max(1, (newWidth * newHeight * 4) / (1024 * 1024)),
+                            Priority = CacheItemPriority.Normal,
+                            SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
+                        };
+                        _projectionCache.Set(cacheKey, _projectionImage, entryOptions);
+                        System.Diagnostics.Debug.WriteLine($"📦 [已缓存投影] {newWidth}x{newHeight} (权重: {entryOptions.Size})");
+                    }
 
                     // 更新Image控件
                     _projectionImageControl.Source = _projectionImage;
@@ -1002,6 +1040,40 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
+        /// 生成投影缓存键
+        /// </summary>
+        private string GenerateProjectionCacheKey(int width, int height)
+        {
+            // 包含所有影响投影结果的参数
+            return $"{_currentImagePath}_{width}x{height}_{(_isColorEffectEnabled ? "inverted" : "normal")}_{_isOriginalMode}_{_originalDisplayMode}_{_zoomRatio:F2}";
+        }
+        
+        /// <summary>
+        /// 清除投影缓存
+        /// </summary>
+        public void ClearProjectionCache()
+        {
+            if (_projectionCache is MemoryCache mc)
+            {
+                mc.Compact(1.0); // 清除100%的缓存项
+                System.Diagnostics.Debug.WriteLine("🧹 [投影缓存已清空]");
+            }
+        }
+        
+        /// <summary>
+        /// 获取投影缓存统计信息
+        /// </summary>
+        public string GetProjectionCacheStats()
+        {
+            if (_projectionCache is MemoryCache mc)
+            {
+                var stats = mc.GetCurrentStatistics();
+                return $"投影缓存项数: {stats?.CurrentEntryCount ?? 0}, 当前大小: {stats?.CurrentEstimatedSize ?? 0}";
+            }
+            return "投影缓存统计不可用";
+        }
+        
+        /// <summary>
         /// 将ImageSharp图片转换为WPF BitmapSource
         /// </summary>
         private BitmapSource ConvertToBitmapSource(Image<Rgba32> image)
@@ -1082,6 +1154,12 @@ namespace ImageColorChanger.Managers
         public void Dispose()
         {
             CloseProjection();
+            
+            // 释放投影缓存
+            if (_projectionCache is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         #endregion

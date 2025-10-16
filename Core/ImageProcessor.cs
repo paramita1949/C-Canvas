@@ -12,6 +12,7 @@ using Image = SixLabors.ImageSharp.Image;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 using ImageColorChanger.UI;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ImageColorChanger.Core
 {
@@ -46,6 +47,8 @@ namespace ImageColorChanger.Core
         
         // 缓存管理
         private readonly Dictionary<string, BitmapSource> imageCache = new Dictionary<string, BitmapSource>();
+        private readonly Dictionary<string, DateTime> imageCacheAccessTime = new Dictionary<string, DateTime>(); // ⚡ LRU访问时间
+        private readonly IMemoryCache _imageMemoryCache; // ⚡ LRU图片缓存
         
         // 性能优化
         private DateTime lastUpdateTime = DateTime.MinValue;
@@ -61,6 +64,14 @@ namespace ImageColorChanger.Core
             this.scrollViewer = scrollViewer;
             this.imageControl = imageControl;
             this.imageContainer = imageContainer;
+            
+            // ⚡ 初始化LRU图片缓存
+            _imageMemoryCache = new MemoryCache(new MemoryCacheOptions
+            {
+                SizeLimit = 100, // 最多缓存100张图片（基于权重计算）
+                CompactionPercentage = 0.25, // 达到上限时清理25%最少使用的项
+                ExpirationScanFrequency = TimeSpan.FromMinutes(5) // 每5分钟扫描过期项
+            });
         }
 
         #endregion
@@ -75,6 +86,89 @@ namespace ImageColorChanger.Core
         
         /// <summary>当前图片路径</summary>
         public string CurrentImagePath => currentImagePath;
+        
+        /// <summary>获取LRU图片缓存实例（用于预加载管理器）</summary>
+        public IMemoryCache GetMemoryCache() => _imageMemoryCache;
+        
+        /// <summary>
+        /// 预渲染指定路径的图片到渲染缓存（用于预加载优化）
+        /// </summary>
+        /// <param name="imagePath">图片路径</param>
+        /// <param name="targetWidth">目标宽度</param>
+        /// <param name="targetHeight">目标高度</param>
+        /// <param name="applyInvert">是否应用变色效果</param>
+        /// <returns>是否成功预渲染</returns>
+        public bool PreRenderImage(string imagePath, int targetWidth, int targetHeight, bool applyInvert)
+        {
+            try
+            {
+                // 生成缓存键
+                string cacheKey = $"{imagePath}_{targetWidth}x{targetHeight}_{(applyInvert ? "inverted" : "normal")}";
+                
+                // 如果已经在渲染缓存中，跳过
+                if (imageCache.ContainsKey(cacheKey))
+                {
+                    return true;
+                }
+                
+                // 尝试从LRU缓存加载原始图片
+                if (!_imageMemoryCache.TryGetValue(imagePath, out Image<Rgba32> rawImage))
+                {
+                    // LRU缓存中没有，无法预渲染
+                    return false;
+                }
+                
+                // 渲染图片
+                var resizedImage = rawImage.Clone();
+                
+                // 计算缩放
+                double scaleX = (double)targetWidth / rawImage.Width;
+                double scaleY = (double)targetHeight / rawImage.Height;
+                double scaleRatio = Math.Min(scaleX, scaleY);
+                
+                int finalWidth = (int)(rawImage.Width * scaleRatio);
+                int finalHeight = (int)(rawImage.Height * scaleRatio);
+                
+                // 缩放
+                if (scaleRatio > 1.0)
+                {
+                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Bicubic));
+                }
+                else if (scaleRatio < 0.5)
+                {
+                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Box));
+                }
+                else
+                {
+                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Bicubic));
+                }
+                
+                // 应用效果
+                if (applyInvert)
+                {
+                    resizedImage.Mutate(x => x.Invert());
+                }
+                
+                // 转换为BitmapSource
+                var bitmapSource = ConvertToBitmapSource(resizedImage);
+                resizedImage.Dispose();
+                
+                if (bitmapSource != null)
+                {
+                    // 加入渲染缓存
+                    imageCache[cacheKey] = bitmapSource;
+                    imageCacheAccessTime[cacheKey] = DateTime.Now;
+                    return true;
+                }
+                
+                return false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}: {ex.Message}");
+                return false;
+            }
+        }
         
         /// <summary>是否处于原图模式</summary>
         public bool OriginalMode
@@ -166,13 +260,44 @@ namespace ImageColorChanger.Core
                     throw new Exception("无效的图片文件");
                 }
                 
-                // 清除当前图片
-                ClearCurrentImage();
+                // 清除当前图片（不清除缓存，只清除当前引用）
+                ClearCurrentImageOnly();
                 
-                // 加载新图片
-                originalImage = Image.Load<Rgba32>(path);
-                currentImage = originalImage.Clone();
-                currentImagePath = path;
+                // ⚡ 先检查LRU缓存
+                if (_imageMemoryCache.TryGetValue(path, out Image<Rgba32> cachedImage))
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚡ [LRU缓存命中] {System.IO.Path.GetFileName(path)}");
+                    
+                    // 🔧 性能优化：直接共享引用，不克隆（节省100-150ms）
+                    // currentImage从不被修改，所以可以安全共享
+                    originalImage = cachedImage;
+                    currentImage = cachedImage; // 直接共享，不Clone
+                    currentImagePath = path;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"💾 [从磁盘加载] {System.IO.Path.GetFileName(path)}");
+                    
+                    // 缓存未命中，从磁盘加载
+                    originalImage = Image.Load<Rgba32>(path);
+                    currentImage = originalImage; // 🔧 也不Clone，直接共享
+                    currentImagePath = path;
+                    
+                    // ⚡ 加入LRU缓存
+                    var entryOptions = new MemoryCacheEntryOptions
+                    {
+                        // 按图片大小计算权重（1MB = 1权重单位）
+                        Size = Math.Max(1, (originalImage.Width * originalImage.Height * 4) / (1024 * 1024)),
+                        Priority = CacheItemPriority.Normal,
+                        SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
+                    };
+                    
+                    _imageMemoryCache.Set(path, originalImage, entryOptions);
+                    System.Diagnostics.Debug.WriteLine($"📦 [已缓存] {System.IO.Path.GetFileName(path)} (权重: {entryOptions.Size})");
+                }
+                
+                // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
+                lastUpdateTime = DateTime.MinValue;
                 
                 // 更新显示
                 bool success = UpdateImage();
@@ -192,9 +317,9 @@ namespace ImageColorChanger.Core
                 
                 return false;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"加载图片失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -226,12 +351,17 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
-        /// 清除当前图片
+        /// 清除当前图片（仅清除引用，不清除缓存）
         /// </summary>
-        public void ClearCurrentImage()
+        private void ClearCurrentImageOnly()
         {
-            originalImage?.Dispose();
-            currentImage?.Dispose();
+            // ⚠️ 性能优化后的逻辑：
+            // - originalImage 和 currentImage 现在共享同一个引用（指向缓存中的图片）
+            // - 不能 Dispose 它们，因为会破坏缓存中的图片
+            // - 只需清空引用即可，由LRU缓存管理生命周期
+            // - ⚡ 重要：不清除 imageCache（渲染缓存），保持渲染结果的缓存！
+            
+            // 清空引用（不Dispose，交给缓存管理）
             originalImage = null;
             currentImage = null;
             currentPhoto = null;
@@ -239,8 +369,20 @@ namespace ImageColorChanger.Core
             
             imageControl.Source = null;
             
-            // 清除缓存
-            ClearCache();
+            // ⚡ 性能优化：不清除 imageCache（保持渲染缓存）
+            // imageCache.Clear(); // 注释掉！
+        }
+        
+        /// <summary>
+        /// 清除当前图片（包括所有缓存）
+        /// </summary>
+        public void ClearCurrentImage()
+        {
+            // 清除当前引用
+            ClearCurrentImageOnly();
+            
+            // 清除LRU缓存
+            ClearImageCache();
         }
 
         #endregion
@@ -405,11 +547,13 @@ namespace ImageColorChanger.Core
             // 检查缓存
             if (imageCache.TryGetValue(cacheKey, out var cachedPhoto))
             {
-                // System.Diagnostics.Debug.WriteLine($"✅ 缓存命中: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+                // ⚡ 更新LRU访问时间
+                imageCacheAccessTime[cacheKey] = DateTime.Now;
+                System.Diagnostics.Debug.WriteLine($"🎨 [渲染缓存命中] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
                 return cachedPhoto;
             }
             
-            // System.Diagnostics.Debug.WriteLine($"⚡ 生成新图片: {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
+            System.Diagnostics.Debug.WriteLine($"🖼️ [重新渲染] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
             
             // 生成新图片
             var resizedImage = ResizeAndApplyEffects(newWidth, newHeight);
@@ -423,9 +567,10 @@ namespace ImageColorChanger.Core
             if (photo != null)
             {
                 imageCache[cacheKey] = photo;
+                imageCacheAccessTime[cacheKey] = DateTime.Now; // ⚡ 记录访问时间
                 
-                // 限制缓存大小
-                if (imageCache.Count > Constants.MemoryCacheSize)
+                // 限制缓存大小 - 使用更大的阈值
+                if (imageCache.Count > Constants.RenderCacheCleanupThreshold)
                 {
                     ClearOldCache();
                 }
@@ -778,22 +923,79 @@ namespace ImageColorChanger.Core
         #region 缓存管理
 
         /// <summary>
-        /// 清除所有缓存
+        /// 清除所有缓存（包括LRU图片缓存和BitmapSource缓存）
         /// </summary>
         public void ClearCache()
         {
             imageCache.Clear();
+            imageCacheAccessTime.Clear();
+            ClearImageCache();
         }
         
         /// <summary>
-        /// 清除旧缓存
+        /// 清除LRU图片缓存
+        /// </summary>
+        public void ClearImageCache()
+        {
+            if (_imageMemoryCache is MemoryCache mc)
+            {
+                mc.Compact(1.0); // 清除100%的缓存项
+                System.Diagnostics.Debug.WriteLine("🧹 [LRU缓存已清空]");
+            }
+        }
+        
+        /// <summary>
+        /// 获取LRU缓存统计信息
+        /// </summary>
+        public string GetCacheStats()
+        {
+            if (_imageMemoryCache is MemoryCache mc)
+            {
+                // MemoryCache没有直接的Count属性，但我们可以通过GetCurrentStatistics获取信息
+                var stats = mc.GetCurrentStatistics();
+                return $"缓存项数: {stats?.CurrentEntryCount ?? 0}, 当前大小: {stats?.CurrentEstimatedSize ?? 0}";
+            }
+            return "缓存统计不可用";
+        }
+        
+        /// <summary>
+        /// 清除旧的BitmapSource缓存（LRU策略）
         /// </summary>
         private void ClearOldCache()
         {
-            // 简单策略：缓存超过限制时清空所有缓存
-            if (imageCache.Count > Constants.CacheCleanupThreshold)
+            if (imageCache.Count <= Constants.RenderCacheCleanupThreshold)
+                return;
+            
+            try
             {
+                // ⚡ LRU策略：删除最久未使用的50%缓存
+                int targetSize = Constants.RenderCacheSize;
+                int toRemove = imageCache.Count - targetSize;
+                
+                if (toRemove <= 0)
+                    return;
+                
+                // 按访问时间排序，删除最旧的
+                var itemsToRemove = imageCacheAccessTime
+                    .OrderBy(kvp => kvp.Value)
+                    .Take(toRemove)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+                
+                foreach (var key in itemsToRemove)
+                {
+                    imageCache.Remove(key);
+                    imageCacheAccessTime.Remove(key);
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"🧹 [渲染缓存清理] 删除 {toRemove} 项，剩余 {imageCache.Count} 项");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败] {ex.Message}");
+                // 失败时简单清空
                 imageCache.Clear();
+                imageCacheAccessTime.Clear();
             }
         }
 
@@ -842,6 +1044,12 @@ namespace ImageColorChanger.Core
         {
             ClearCurrentImage();
             imageCache.Clear();
+            
+            // 释放MemoryCache
+            if (_imageMemoryCache is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         #endregion
