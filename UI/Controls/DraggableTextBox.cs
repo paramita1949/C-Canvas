@@ -119,7 +119,8 @@ namespace ImageColorChanger.UI.Controls
                 BorderBrush = WpfBrushes.Transparent,
                 Background = WpfBrushes.Transparent,
                 Padding = new System.Windows.Thickness(8),
-                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
+                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
                 // 移除默认的焦点视觉样式
                 FocusVisualStyle = null,
                 IsEnabled = true,  // 确保TextBox可用

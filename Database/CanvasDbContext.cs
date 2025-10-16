@@ -109,6 +109,11 @@ namespace ImageColorChanger.Database
         public DbSet<TextElement> TextElements { get; set; }
 
         /// <summary>
+        /// 幻灯片表
+        /// </summary>
+        public DbSet<Slide> Slides { get; set; }
+
+        /// <summary>
         /// 配置数据库连接
         /// </summary>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -296,13 +301,47 @@ namespace ImageColorChanger.Database
                 // 项目ID索引
                 entity.HasIndex(e => e.ProjectId).HasDatabaseName("idx_text_elements_project");
                 
+                // 幻灯片ID索引
+                entity.HasIndex(e => e.SlideId).HasDatabaseName("idx_text_elements_slide");
+                
                 // 项目ID+Z-Index复合索引（用于按层级排序）
                 entity.HasIndex(e => new { e.ProjectId, e.ZIndex }).HasDatabaseName("idx_text_elements_zindex");
 
-                // 外键关系：文本元素 -> 文本项目
+                // 外键关系：文本元素 -> 文本项目（可选，兼容旧数据）
                 entity.HasOne(e => e.Project)
                     .WithMany(p => p.Elements)
                     .HasForeignKey(e => e.ProjectId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // 外键关系：文本元素 -> 幻灯片
+                entity.HasOne(e => e.Slide)
+                    .WithMany(s => s.Elements)
+                    .HasForeignKey(e => e.SlideId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ========== 幻灯片表配置 ==========
+            modelBuilder.Entity<Slide>(entity =>
+            {
+                // 项目ID索引
+                entity.HasIndex(e => e.ProjectId).HasDatabaseName("idx_slides_project");
+                
+                // 项目ID+排序顺序复合索引
+                entity.HasIndex(e => new { e.ProjectId, e.SortOrder }).HasDatabaseName("idx_slides_order");
+
+                // 配置日期时间转换
+                entity.Property(e => e.CreatedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                entity.Property(e => e.ModifiedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                // 外键关系：幻灯片 -> 文本项目
+                entity.HasOne(s => s.Project)
+                    .WithMany(p => p.Slides)
+                    .HasForeignKey(s => s.ProjectId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

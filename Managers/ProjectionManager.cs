@@ -236,6 +236,21 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
+        /// 重置投影滚动位置到顶部
+        /// </summary>
+        public void ResetProjectionScroll()
+        {
+            if (_projectionWindow != null && _projectionScrollViewer != null)
+            {
+                _projectionWindow.Dispatcher.Invoke(() =>
+                {
+                    _projectionScrollViewer.ScrollToVerticalOffset(0);
+                    System.Diagnostics.Debug.WriteLine("✅ 投影滚动位置已重置为0");
+                });
+            }
+        }
+
+        /// <summary>
         /// 同步投影滚动位置 - 使用绝对像素位置同步,通过原始图片作为中介
         /// </summary>
         public void SyncProjectionScroll()
@@ -359,7 +374,7 @@ namespace ImageColorChanger.Managers
                     // 应用到投影屏幕
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
-                    System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
+                    // System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
                 });
             }
             catch (Exception ex)
@@ -836,13 +851,13 @@ namespace ImageColorChanger.Managers
                     {
                         // 原图模式: 水平和垂直都居中 (Python: x=居中, y=居中)
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
-                        System.Diagnostics.Debug.WriteLine($"  📍 原图模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},{y:F0})");
+                        // System.Diagnostics.Debug.WriteLine($"  📍 原图模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},{y:F0})");
                     }
                     else
                     {
                         // 正常模式: 水平居中,垂直顶部 (Python: x=居中, y=0)
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, 0, 0, 0);
-                        System.Diagnostics.Debug.WriteLine($"  📍 正常模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},0)");
+                        // System.Diagnostics.Debug.WriteLine($"  📍 正常模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},0)");
                     }
 
                     // 设置投影ScrollViewer的滚动区域 - 与主屏幕使用相同的逻辑!
@@ -884,10 +899,10 @@ namespace ImageColorChanger.Managers
                         // 设置容器高度来控制滚动区域(宽度拉伸填满屏幕)
                         _projectionContainer.Height = scrollHeight;
                         
-                        System.Diagnostics.Debug.WriteLine($"  📏 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
+                        // System.Diagnostics.Debug.WriteLine($"  📏 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
                     }
                     
-                    System.Diagnostics.Debug.WriteLine($"  ✅ 投影图片已更新");
+                    // System.Diagnostics.Debug.WriteLine($"  ✅ 投影图片已更新");
                 });
             }
             catch (Exception ex)
@@ -911,7 +926,7 @@ namespace ImageColorChanger.Managers
             if (canvasWidth <= 0) canvasWidth = screenWidth;
             if (canvasHeight <= 0) canvasHeight = screenHeight;
             
-            System.Diagnostics.Debug.WriteLine($"  📐 画布尺寸: 投影ScrollViewer={canvasWidth:F0}x{canvasHeight:F0} DIU (屏幕物理={screenWidth}x{screenHeight})");
+            // System.Diagnostics.Debug.WriteLine($"  📐 画布尺寸: 投影ScrollViewer={canvasWidth:F0}x{canvasHeight:F0} DIU (屏幕物理={screenWidth}x{screenHeight})");
             
             if (_isOriginalMode)
             {
@@ -925,13 +940,13 @@ namespace ImageColorChanger.Managers
                 {
                     // 拉伸模式：使用高度比例,宽度会被拉伸填满屏幕
                     scaleRatio = heightRatio;
-                    System.Diagnostics.Debug.WriteLine($"  原图-拉伸模式: 宽比={widthRatio:F2}, 高比={heightRatio:F2}, 选择高比={scaleRatio:F2}");
+                    // System.Diagnostics.Debug.WriteLine($"  原图-拉伸模式: 宽比={widthRatio:F2}, 高比={heightRatio:F2}, 选择高比={scaleRatio:F2}");
                 }
                 else
                 {
                     // 适中模式：选择较小的比例确保完整显示(等比缩放)
                     scaleRatio = Math.Min(widthRatio, heightRatio);
-                    System.Diagnostics.Debug.WriteLine($"  原图-适中模式: 宽比={widthRatio:F2}, 高比={heightRatio:F2}, 选择较小比={scaleRatio:F2}");
+                    // System.Diagnostics.Debug.WriteLine($"  原图-适中模式: 宽比={widthRatio:F2}, 高比={heightRatio:F2}, 选择较小比={scaleRatio:F2}");
                 }
 
                 // 智能缩放策略(放大限制)
@@ -949,7 +964,7 @@ namespace ImageColorChanger.Managers
                     else maxScale = 2.0;
 
                     scaleRatio = Math.Min(scaleRatio, maxScale);
-                    System.Diagnostics.Debug.WriteLine($"  放大限制: 面积比={areaRatio:F2}, 最大放大={maxScale:F2}, 最终比={scaleRatio:F2}");
+                    // System.Diagnostics.Debug.WriteLine($"  放大限制: 面积比={areaRatio:F2}, 最大放大={maxScale:F2}, 最终比={scaleRatio:F2}");
                 }
 
                 // 关键修复: 拉伸模式下宽度填满ScrollViewer可用宽度(与主屏幕一致)
@@ -959,14 +974,14 @@ namespace ImageColorChanger.Managers
                     // 拉伸模式：宽度填满ScrollViewer可用宽度，高度按比例
                     newWidth = (int)canvasWidth;
                     newHeight = (int)(_currentImage.Height * scaleRatio);
-                    System.Diagnostics.Debug.WriteLine($"  拉伸计算: 宽度=画布宽度={newWidth}, 高度={_currentImage.Height}*{scaleRatio:F2}={newHeight}");
+                    // System.Diagnostics.Debug.WriteLine($"  拉伸计算: 宽度=画布宽度={newWidth}, 高度={_currentImage.Height}*{scaleRatio:F2}={newHeight}");
                 }
                 else
                 {
                     // 适中模式：等比缩放
                     newWidth = (int)(_currentImage.Width * scaleRatio);
                     newHeight = (int)(_currentImage.Height * scaleRatio);
-                    System.Diagnostics.Debug.WriteLine($"  适中计算: 等比缩放={newWidth}x{newHeight}");
+                    // System.Diagnostics.Debug.WriteLine($"  适中计算: 等比缩放={newWidth}x{newHeight}");
                 }
                 
                 return (newWidth, newHeight);
@@ -980,7 +995,7 @@ namespace ImageColorChanger.Managers
                 int newWidth = (int)canvasWidth;  // 宽度填满
                 int newHeight = (int)(_currentImage.Height * finalRatio);
                 
-                System.Diagnostics.Debug.WriteLine($"  正常模式缩放: 宽度填满={newWidth}, 高度={_currentImage.Height}*{finalRatio:F2}={newHeight}");
+                // System.Diagnostics.Debug.WriteLine($"  正常模式缩放: 宽度填满={newWidth}, 高度={_currentImage.Height}*{finalRatio:F2}={newHeight}");
                 
                 return (newWidth, newHeight);
             }

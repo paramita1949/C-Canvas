@@ -57,9 +57,14 @@ namespace ImageColorChanger.Database.Models
         public DateTime? ModifiedTime { get; set; }
 
         /// <summary>
-        /// 导航属性：项目中的文本元素
+        /// 导航属性：项目中的文本元素（兼容旧数据，直接关联项目的元素）
         /// </summary>
         public virtual ICollection<TextElement> Elements { get; set; } = new List<TextElement>();
+
+        /// <summary>
+        /// 导航属性：项目中的幻灯片
+        /// </summary>
+        public virtual ICollection<Slide> Slides { get; set; } = new List<Slide>();
     }
 }
 

@@ -464,7 +464,7 @@ namespace ImageColorChanger.UI
             {
                 // 注册热键（使用原来的按键功能）
                 
-                // 左方向键: 上一个媒体/关键帧
+                // 左方向键: 上一个媒体/关键帧/幻灯片
                 _globalHotKeyManager.RegisterHotKey(
                     Key.Left,
                     ModifierKeys.None,
@@ -473,6 +473,14 @@ namespace ImageColorChanger.UI
                         System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Left");
                         Dispatcher.InvokeAsync(async () =>
                         {
+                            // 🆕 如果在文本编辑器模式，切换到上一张幻灯片
+                            if (TextEditorPanel.Visibility == Visibility.Visible)
+                            {
+                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                                NavigateToPreviousSlide();
+                                return;
+                            }
+                            
                             if (IsMediaPlaybackMode())
                             {
                                 await SwitchToPreviousMediaFile();
@@ -485,7 +493,7 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
-                // 右方向键: 下一个媒体/关键帧
+                // 右方向键: 下一个媒体/关键帧/幻灯片
                 _globalHotKeyManager.RegisterHotKey(
                     Key.Right,
                     ModifierKeys.None,
@@ -494,6 +502,14 @@ namespace ImageColorChanger.UI
                         System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Right");
                         Dispatcher.InvokeAsync(async () =>
                         {
+                            // 🆕 如果在文本编辑器模式，切换到下一张幻灯片
+                            if (TextEditorPanel.Visibility == Visibility.Visible)
+                            {
+                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                                NavigateToNextSlide();
+                                return;
+                            }
+                            
                             if (IsMediaPlaybackMode())
                             {
                                 await SwitchToNextMediaFile();
@@ -506,7 +522,7 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
-                // PageUp: 上一个相似图片（原图模式）/ 上一个关键帧（关键帧模式）
+                // PageUp: 上一个相似图片（原图模式）/ 上一个关键帧（关键帧模式）/ 上一张幻灯片（文本编辑器模式）
                 _globalHotKeyManager.RegisterHotKey(
                     Key.PageUp,
                     ModifierKeys.None,
@@ -515,6 +531,14 @@ namespace ImageColorChanger.UI
                         System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageUp");
                         Dispatcher.InvokeAsync(() =>
                         {
+                            // 🆕 如果在文本编辑器模式，切换到上一张幻灯片
+                            if (TextEditorPanel.Visibility == Visibility.Visible)
+                            {
+                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                                NavigateToPreviousSlide();
+                                return;
+                            }
+
                             if (originalMode)
                             {
                                 // 原图模式：切换到上一张相似图片
@@ -528,7 +552,7 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
-                // PageDown: 下一个相似图片（原图模式）/ 下一个关键帧（关键帧模式）
+                // PageDown: 下一个相似图片（原图模式）/ 下一个关键帧（关键帧模式）/ 下一张幻灯片（文本编辑器模式）
                 _globalHotKeyManager.RegisterHotKey(
                     Key.PageDown,
                     ModifierKeys.None,
@@ -537,6 +561,14 @@ namespace ImageColorChanger.UI
                         System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: PageDown");
                         Dispatcher.InvokeAsync(() =>
                         {
+                            // 🆕 如果在文本编辑器模式，切换到下一张幻灯片
+                            if (TextEditorPanel.Visibility == Visibility.Visible)
+                            {
+                                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                                NavigateToNextSlide();
+                                return;
+                            }
+
                             if (originalMode)
                             {
                                 // 原图模式：切换到下一张相似图片
@@ -1547,6 +1579,41 @@ namespace ImageColorChanger.UI
             UpdateProjection();
         }
 
+        /// <summary>
+        /// 重置视图状态以进入文本编辑器
+        /// </summary>
+        private void ResetViewStateForTextEditor()
+        {
+            // 关闭原图模式
+            if (originalMode)
+            {
+                originalMode = false;
+                imageProcessor.OriginalMode = false;
+                BtnOriginal.Background = Brushes.Transparent;
+                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭原图模式");
+            }
+            
+            // 重置缩放比例为1.0
+            if (Math.Abs(imageProcessor.ZoomRatio - 1.0) > 0.001)
+            {
+                imageProcessor.ZoomRatio = 1.0;
+                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已重置缩放比例为1.0");
+            }
+            
+            // 关闭变色效果
+            if (isColorEffectEnabled)
+            {
+                isColorEffectEnabled = false;
+                BtnColorEffect.Background = Brushes.Transparent;
+                System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭变色效果");
+            }
+            
+            // 清除当前图片ID
+            currentImageId = 0;
+            
+            System.Diagnostics.Debug.WriteLine("✅ 视图状态已重置为文本编辑器模式");
+        }
+
         private void BtnColorEffect_Click(object sender, RoutedEventArgs e)
         {
             ToggleColorEffect();
@@ -2033,6 +2100,9 @@ namespace ImageColorChanger.UI
                     // 处理文件夹节点：单击展开/折叠
                     if (selectedItem.Type == TreeItemType.Folder)
                     {
+                        // 🆕 自动退出文本编辑器（如果正在编辑项目）
+                        AutoExitTextEditorIfNeeded();
+                        
                         // 🆕 新增: 折叠其他所有文件夹节点
                         CollapseOtherFolders(selectedItem);
                         
@@ -2124,6 +2194,9 @@ namespace ImageColorChanger.UI
                     // 处理文件节点：单击加载
                     else if (selectedItem.Type == TreeItemType.File && !string.IsNullOrEmpty(selectedItem.Path))
                     {
+                        // 🆕 自动退出文本编辑器（如果正在编辑项目）
+                        AutoExitTextEditorIfNeeded();
+                        
                         // 保存当前图片ID
                         currentImageId = selectedItem.Id;
                         
@@ -2938,7 +3011,7 @@ namespace ImageColorChanger.UI
                         CollapseFolder(item);
                     }
                 }
-                System.Diagnostics.Debug.WriteLine($"📁 已折叠除 {exceptFolder.Name} 外的所有文件夹");
+                // System.Diagnostics.Debug.WriteLine($"📁 已折叠除 {exceptFolder.Name} 外的所有文件夹");
             }
             catch (Exception ex)
             {
@@ -3025,7 +3098,7 @@ namespace ImageColorChanger.UI
                         if (originalMode)
                         {
                             originalManager.FindSimilarImages(currentImageId);
-                            System.Diagnostics.Debug.WriteLine($"🔍 已更新相似图片列表: 图片ID={currentImageId}");
+                            // System.Diagnostics.Debug.WriteLine($"🔍 已更新相似图片列表: 图片ID={currentImageId}");
                         }
                         
                         // 🌲 同步项目树选中状态
@@ -4015,6 +4088,17 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.PageUp || e.Key == Key.PageDown)
+                {
+                    // 让 TextEditorPanel 的 PreviewKeyDown 事件处理
+                    // 这里不做处理，直接返回
+                    return;
+                }
+            }
+
             // ESC键: 关闭投影(优先级最高,不论是否原图模式)
             if (e.Key == Key.Escape)
             {

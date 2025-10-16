@@ -125,7 +125,7 @@ namespace ImageColorChanger
             {
                 // 从MainWindow.xaml的Title属性中提取版本号
                 // Title格式: "Canvas Cast V2.5.8"
-                string title = "Canvas Cast V2.5.8"; // 从MainWindow.xaml中获取的实际Title
+                string title = "Canvas Cast V3.0.3"; // 从MainWindow.xaml中获取的实际Title
                 
                 // 使用正则表达式提取版本号
                 var match = Regex.Match(title, @"V(\d+\.\d+\.\d+)");
@@ -135,12 +135,12 @@ namespace ImageColorChanger
                 }
                 
                 // 如果正则匹配失败，返回默认版本号
-                return "2.5.8";
+                return "3.0.3";
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, "提取版本号失败");
-                return "2.5.8"; // 返回默认版本号
+                return "3.0.3"; // 返回默认版本号
             }
         }
     }

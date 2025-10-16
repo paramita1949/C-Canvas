@@ -380,7 +380,7 @@ namespace ImageColorChanger.Repositories.Implementations
                     return asTo.BaseImageId;
                 }
 
-                Logger.Debug("未找到图片{ImageId}对应的BaseImageId", similarImageId);
+                // Logger.Debug("未找到图片{ImageId}对应的BaseImageId", similarImageId);
                 return null;
             }
             catch (Exception ex)

@@ -144,18 +144,38 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
-            // 检查项目是否存在
-            var projectExists = await _dbContext.TextProjects.AnyAsync(p => p.Id == element.ProjectId);
-            if (!projectExists)
-                throw new InvalidOperationException($"项目不存在: ID={element.ProjectId}");
+            // 检查关联是否存在（ProjectId 或 SlideId 至少有一个）
+            if (element.ProjectId.HasValue)
+            {
+                var projectExists = await _dbContext.TextProjects.AnyAsync(p => p.Id == element.ProjectId);
+                if (!projectExists)
+                    throw new InvalidOperationException($"项目不存在: ID={element.ProjectId}");
+            }
+            else if (element.SlideId.HasValue)
+            {
+                var slideExists = await _dbContext.Slides.AnyAsync(s => s.Id == element.SlideId);
+                if (!slideExists)
+                    throw new InvalidOperationException($"幻灯片不存在: ID={element.SlideId}");
+            }
+            else
+            {
+                throw new InvalidOperationException("文本元素必须关联到项目或幻灯片");
+            }
 
             _dbContext.TextElements.Add(element);
             await _dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
-            await UpdateProjectModifiedTimeAsync(element.ProjectId);
+            if (element.ProjectId.HasValue)
+                await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
+            if (element.SlideId.HasValue)
+            {
+                var slide = await _dbContext.Slides.FindAsync(element.SlideId.Value);
+                if (slide != null && slide.ProjectId > 0)
+                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
+            }
 
-            System.Diagnostics.Debug.WriteLine($"✅ 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}");
+            System.Diagnostics.Debug.WriteLine($"✅ 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
             return element;
         }
 
@@ -172,7 +192,14 @@ namespace ImageColorChanger.Managers
             await _dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
-            await UpdateProjectModifiedTimeAsync(element.ProjectId);
+            if (element.ProjectId.HasValue)
+                await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
+            if (element.SlideId.HasValue)
+            {
+                var slide = await _dbContext.Slides.FindAsync(element.SlideId.Value);
+                if (slide != null && slide.ProjectId > 0)
+                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
+            }
 
             System.Diagnostics.Debug.WriteLine($"✅ 更新文本元素成功: ID={element.Id}");
         }
@@ -190,10 +217,19 @@ namespace ImageColorChanger.Managers
             await _dbContext.SaveChangesAsync();
 
             // 更新所有涉及项目的修改时间
-            var projectIds = elements.Select(e => e.ProjectId).Distinct();
+            var projectIds = elements.Where(e => e.ProjectId.HasValue).Select(e => e.ProjectId.Value).Distinct();
             foreach (var projectId in projectIds)
             {
                 await UpdateProjectModifiedTimeAsync(projectId);
+            }
+            
+            // 更新涉及幻灯片的项目修改时间
+            var slideIds = elements.Where(e => e.SlideId.HasValue).Select(e => e.SlideId.Value).Distinct();
+            foreach (var slideId in slideIds)
+            {
+                var slide = await _dbContext.Slides.FindAsync(slideId);
+                if (slide != null && slide.ProjectId > 0)
+                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
             System.Diagnostics.Debug.WriteLine($"✅ 批量更新文本元素成功: Count={elements.Count()}");
@@ -209,13 +245,21 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new InvalidOperationException($"元素不存在: ID={elementId}");
 
-            int projectId = element.ProjectId;
+            int? projectId = element.ProjectId;
+            int? slideId = element.SlideId;
 
             _dbContext.TextElements.Remove(element);
             await _dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
-            await UpdateProjectModifiedTimeAsync(projectId);
+            if (projectId.HasValue)
+                await UpdateProjectModifiedTimeAsync(projectId.Value);
+            if (slideId.HasValue)
+            {
+                var slide = await _dbContext.Slides.FindAsync(slideId.Value);
+                if (slide != null && slide.ProjectId > 0)
+                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
+            }
 
             System.Diagnostics.Debug.WriteLine($"✅ 删除文本元素成功: ID={elementId}");
         }

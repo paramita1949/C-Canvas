@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V3.0.1"
+        Title="Canvas Cast V3.0.3"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -398,6 +398,62 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- 滚动条滑块（Thumb）紫色样式 -->
+        <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border Background="#CC9C27B0" CornerRadius="6"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 固定颜色的 ScrollBar 样式（防止被动态主题影响）-->
+        <Style x:Key="FixedScrollBarStyle" TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Style.Triggers>
+                <!-- 垂直滚动条 -->
+                <Trigger Property="Orientation" Value="Vertical">
+                    <Setter Property="Width" Value="24"/>
+                    <Setter Property="MinWidth" Value="24"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid>
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="12"/>
+                                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                        <Track.Thumb>
+                                            <Thumb Style="{StaticResource ScrollBarThumb}" Width="18" Margin="3"/>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <!-- 水平滚动条 -->
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="24"/>
+                    <Setter Property="MinHeight" Value="24"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid>
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="12"/>
+                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                        <Track.Thumb>
+                                            <Thumb Style="{StaticResource ScrollBarThumb}" Height="18" Margin="3"/>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -814,13 +870,16 @@
             <Grid Grid.Column="2" Background="#000000">
                 <!-- 图片显示区域（支持滚动和缩放） -->
                 <ScrollViewer x:Name="ImageScrollViewer"
-                     HorizontalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
                      VerticalScrollBarVisibility="Auto"
                      Background="#000000"
                      BorderThickness="0"
                      PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
                      SizeChanged="ImageScrollViewer_SizeChanged"
                      MouseRightButtonUp="ImageScrollViewer_RightClick">
+                    <ScrollViewer.Resources>
+                        <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FixedScrollBarStyle}"/>
+                    </ScrollViewer.Resources>
                     <ScrollViewer.ContextMenu>
                         <ContextMenu x:Name="CanvasContextMenu">
                             <MenuItem Header="滚动速度">
@@ -899,11 +958,13 @@
                     </Grid>
                 </Grid>
 
-                <!-- 🆕 文本编辑器面板（默认隐藏） -->
-                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="White">
+                <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
+                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0" 
+                      Focusable="True" PreviewKeyDown="TextEditorPanel_KeyDown"
+                      Panel.ZIndex="100">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
-                        <RowDefinition Height="*"/>     <!-- 编辑区 -->
+                        <RowDefinition Height="*"/>     <!-- 主内容区 -->
                     </Grid.RowDefinitions>
 
                     <!-- 工具栏 -->
@@ -1000,22 +1061,182 @@
                             <Button x:Name="BtnUpdateProjection" Content="🔄 更新投影"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     ToolTip="立即更新投影内容" Click="BtnUpdateProjection_Click"/>
-                            
-                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
-                            
-                            <!-- 退出编辑按钮 -->
-                            <Button x:Name="BtnCloseTextEditor" Content="❌ 退出编辑"
-                                    Style="{StaticResource MenuButtonStyle}"
-                                    Foreground="#D32F2F"
-                                    ToolTip="退出文本编辑器，返回图片/视频浏览" Click="BtnCloseTextEditor_Click"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- 编辑画布 - 无滚动条，像素级对齐 -->
-                    <Viewbox Grid.Row="1" Stretch="Uniform">
-                        <Grid Width="1920" Height="1080">
+                    <!-- 主内容区：左侧幻灯片列表 + 右侧编辑区 -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>  <!-- 左侧幻灯片列表 -->
+                            <ColumnDefinition Width="Auto"/> <!-- 分隔线 -->
+                            <ColumnDefinition Width="*"/>    <!-- 右侧编辑区 -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左侧：幻灯片列表面板 -->
+                        <Border x:Name="SlidePanelBorder" Grid.Column="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>  <!-- 标题栏 -->
+                                    <RowDefinition Height="*"/>     <!-- 幻灯片列表 -->
+                                </Grid.RowDefinitions>
+
+                                <!-- 标题栏 - 退出编辑按钮 -->
+                                <Border Grid.Row="0" Background="#FAFAFA" Padding="8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                                    <Button x:Name="BtnCloseTextEditorInPanel" 
+                                            Content="❌ 退出" 
+                                            Height="36"
+                                            Width="80"
+                                            FontSize="14" 
+                                            FontWeight="SemiBold"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="#D32F2F"
+                                            HorizontalAlignment="Left"
+                                            HorizontalContentAlignment="Left"
+                                            Cursor="Hand"
+                                            Click="BtnCloseTextEditor_Click"
+                                            ToolTip="退出文本编辑器，返回图片/视频浏览">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" 
+                                                                    Padding="4,0">
+                                                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                                VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Foreground" Value="#F44336"/>
+                                                                    <Setter Property="FontSize" Value="15"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Border>
+
+                                <!-- 幻灯片列表 -->
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox x:Name="SlideListBox" 
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="0"
+                                             SelectionMode="Single"
+                                             SelectionChanged="SlideListBox_SelectionChanged"
+                                             MouseRightButtonUp="SlideListBox_RightClick">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Margin" Value="0,0,0,8"/>
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="BorderBrush" Value="#2196F3"/>
+                                                        <Setter Property="BorderThickness" Value="3"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <!-- 缩略图预览区域 -->
+                                                <Border Background="White" 
+                                                        BorderBrush="#CCCCCC" 
+                                                        BorderThickness="1"
+                                                        Width="180"
+                                                        Height="120"
+                                                        HorizontalAlignment="Center">
+                                                    <Grid>
+                                                        <!-- 背景色 -->
+                                                        <Rectangle Fill="{Binding BackgroundColor, TargetNullValue=#FFFFFF}"/>
+                                                        
+                                                        <!-- 缩略图图片（如果有） -->
+                                                        <Image Source="{Binding ThumbnailImage}" 
+                                                               Stretch="Uniform"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center"/>
+                                                        
+                                                        <!-- 占位符（如果没有缩略图） -->
+                                                        <StackPanel HorizontalAlignment="Center" 
+                                                                   VerticalAlignment="Center">
+                                                            <StackPanel.Style>
+                                                                <Style TargetType="StackPanel">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding ThumbnailImage}" Value="{x:Null}">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </StackPanel.Style>
+                                                            <TextBlock Text="📝" 
+                                                                       FontSize="32" 
+                                                                       HorizontalAlignment="Center" 
+                                                                       Foreground="#666666"
+                                                                       Margin="0,0,0,4"/>
+                                                            <TextBlock Text="{Binding DisplayInfo}" 
+                                                                       FontSize="11" 
+                                                                       HorizontalAlignment="Center" 
+                                                                       Foreground="#999999"/>
+                                                        </StackPanel>
+                                                        
+                                                        <!-- 序号标签（左下角，贴在内容区域内） -->
+                                                        <Border Background="#FF6600" 
+                                                                CornerRadius="0,4,0,0"
+                                                                Padding="6,2"
+                                                                Margin="1,0,0,1"
+                                                                HorizontalAlignment="Left" 
+                                                                VerticalAlignment="Bottom">
+                                                            <TextBlock Text="{Binding SortOrder}" 
+                                                                       FontSize="12" 
+                                                                       FontWeight="Bold"
+                                                                       Foreground="White"/>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <!-- 分隔线（可拖动调整大小） -->
+                        <GridSplitter Grid.Column="1" 
+                                      Width="5" 
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Stretch" 
+                                      Background="Transparent"
+                                      ShowsPreview="False"/>
+
+                        <!-- 右侧：编辑画布区域 -->
+                        <Grid Grid.Column="2" Background="#F5F5F5">
+                            <Border Background="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
+                                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
+                                    <Grid x:Name="EditorCanvasContainer" Width="1080" Height="700" Background="White">
                             <Canvas x:Name="EditorCanvas" 
-                                    Width="1920" Height="1080"
+                                    Width="1080" Height="700"
                                     Background="White"
                                     MouseLeftButtonDown="EditorCanvas_MouseDown"
                                     AllowDrop="True"
@@ -1023,7 +1244,7 @@
                                 
                                 <!-- 背景图（最底层）-->
                                 <Image x:Name="BackgroundImage" 
-                                       Width="1920" Height="1080"
+                                       Width="1080" Height="700"
                                        Stretch="Fill"
                                        Canvas.Left="0" Canvas.Top="0"
                                        Panel.ZIndex="-1"/>
@@ -1033,12 +1254,12 @@
                             
                             <!-- 辅助线（叠加在Canvas上方）-->
                             <Canvas x:Name="AlignmentGuidesCanvas" 
-                                    Width="1920" Height="1080"
+                                    Width="1080" Height="700"
                                     IsHitTestVisible="False"
                                     Panel.ZIndex="1000">
                                 <!-- 垂直中心线 -->
                                 <Line x:Name="VerticalCenterLine" 
-                                      X1="960" Y1="0" X2="960" Y2="1080"
+                                      X1="540" Y1="0" X2="540" Y2="700"
                                       Stroke="#FF2196F3" StrokeThickness="2" 
                                       StrokeDashArray="8,4"
                                       Visibility="Collapsed">
@@ -1049,7 +1270,7 @@
                                 
                                 <!-- 水平中心线 -->
                                 <Line x:Name="HorizontalCenterLine" 
-                                      X1="0" Y1="540" X2="1920" Y2="540"
+                                      X1="0" Y1="350" X2="1080" Y2="350"
                                       Stroke="#FF2196F3" StrokeThickness="2" 
                                       StrokeDashArray="8,4"
                                       Visibility="Collapsed">
@@ -1060,27 +1281,30 @@
                                 
                                 <!-- 垂直对齐线（与其他文本框对齐）-->
                                 <Line x:Name="VerticalAlignLine" 
-                                      X1="0" Y1="0" X2="0" Y2="1080"
+                                      X1="0" Y1="0" X2="0" Y2="700"
                                       Stroke="#FFFF9800" StrokeThickness="1.5" 
                                       StrokeDashArray="4,2"
                                       Visibility="Collapsed"/>
                                 
                                 <!-- 水平对齐线（与其他文本框对齐）-->
                                 <Line x:Name="HorizontalAlignLine" 
-                                      X1="0" Y1="0" X2="1920" Y2="0"
+                                      X1="0" Y1="0" X2="1080" Y2="0"
                                       Stroke="#FFFF9800" StrokeThickness="1.5" 
                                       StrokeDashArray="4,2"
                                       Visibility="Collapsed"/>
                             </Canvas>
                         </Grid>
                     </Viewbox>
+                            </Border>
+                        </Grid>
+                    </Grid>
                 </Grid>
 
                 <!-- 白色分割线 -->
                 <Border HorizontalAlignment="Right"
                         VerticalAlignment="Stretch"
-                        Width="1"
-                        Margin="0,0,28,0"
+                        Width="3"
+                        Margin="0,0,44,0"
                         Background="#FFFFFF"
                         Panel.ZIndex="199"/>
 
@@ -1088,8 +1312,8 @@
                 <Border x:Name="ScrollbarIndicatorsBorder"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Stretch"
-                        Width="10"
-                        Margin="0,0,18,0"
+                        Width="18.5"
+                        Margin="0,0,24,0"
                         Background="#CC303030"
                         Panel.ZIndex="200">
                     <Canvas x:Name="ScrollbarIndicatorsCanvas"

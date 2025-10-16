@@ -240,11 +240,11 @@ namespace ImageColorChanger.Managers
                 }
 
                 System.Diagnostics.Debug.WriteLine("🟢 立即绑定到VideoView...");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView: {(videoView != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - MediaPlayer: {(_mediaPlayer != null ? $"存在 (HashCode:{_mediaPlayer.GetHashCode()})" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.IsLoaded: {videoView.IsLoaded}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualWidth: {videoView.ActualWidth}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualHeight: {videoView.ActualHeight}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView: {(videoView != null ? "存在" : "null")}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - MediaPlayer: {(_mediaPlayer != null ? $"存在 (HashCode:{_mediaPlayer.GetHashCode()})" : "null")}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.IsLoaded: {videoView.IsLoaded}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualWidth: {videoView.ActualWidth}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定前检查 - VideoView.ActualHeight: {videoView.ActualHeight}");
                 
                 // 立即绑定到VideoView，避免小窗口闪现
                 videoView.MediaPlayer = _mediaPlayer;
@@ -255,8 +255,8 @@ namespace ImageColorChanger.Managers
                                     videoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
                 
                 System.Diagnostics.Debug.WriteLine($"✅ MediaPlayer绑定{(bindingSuccess ? "成功" : "失败")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - VideoView.MediaPlayer: {(videoView.MediaPlayer != null ? $"已绑定 (HashCode:{videoView.MediaPlayer.GetHashCode()})" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - 是否同一实例: {bindingSuccess}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - VideoView.MediaPlayer: {(videoView.MediaPlayer != null ? $"已绑定 (HashCode:{videoView.MediaPlayer.GetHashCode()})" : "null")}");
+                // System.Diagnostics.Debug.WriteLine($"🔍 绑定后验证 - 是否同一实例: {bindingSuccess}");
                 System.Diagnostics.Debug.WriteLine("🔵 ===== InitializeMediaPlayer 结束（成功） =====");
             }
             catch (Exception ex)

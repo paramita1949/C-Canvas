@@ -19,11 +19,16 @@ namespace ImageColorChanger.Database.Models
         public int Id { get; set; }
 
         /// <summary>
-        /// 所属项目ID（外键）
+        /// 所属项目ID（外键，兼容旧数据）
         /// </summary>
-        [Required]
         [Column("project_id")]
-        public int ProjectId { get; set; }
+        public int? ProjectId { get; set; }
+
+        /// <summary>
+        /// 所属幻灯片ID（外键）
+        /// </summary>
+        [Column("slide_id")]
+        public int? SlideId { get; set; }
 
         /// <summary>
         /// X坐标（左上角）
@@ -110,10 +115,16 @@ namespace ImageColorChanger.Database.Models
         public string SymmetricType { get; set; }
 
         /// <summary>
-        /// 导航属性：所属项目
+        /// 导航属性：所属项目（兼容旧数据）
         /// </summary>
         [ForeignKey("ProjectId")]
         public virtual TextProject Project { get; set; }
+
+        /// <summary>
+        /// 导航属性：所属幻灯片
+        /// </summary>
+        [ForeignKey("SlideId")]
+        public virtual Slide Slide { get; set; }
 
         /// <summary>
         /// 辅助属性：是否加粗（布尔类型）

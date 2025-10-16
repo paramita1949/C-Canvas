@@ -198,10 +198,18 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 上一个关键帧/上一张图/上一个媒体按钮点击事件（三模式支持）
+        /// 上一个关键帧/上一张图/上一个媒体按钮点击事件（四模式支持）
         /// </summary>
         private async void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
         {
+            // 🎯 模式0：文本编辑器模式（切换幻灯片）
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                NavigateToPreviousSlide();
+                return;
+            }
+            
             if (currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
@@ -267,10 +275,18 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 下一个关键帧/下一张图/下一个媒体按钮点击事件（三模式支持）
+        /// 下一个关键帧/下一张图/下一个媒体按钮点击事件（四模式支持）
         /// </summary>
         private async void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
         {
+            // 🎯 模式0：文本编辑器模式（切换幻灯片）
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                NavigateToNextSlide();
+                return;
+            }
+            
             if (currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
@@ -461,18 +477,18 @@ namespace ImageColorChanger.UI
                             // 创建容器来放置方块和数字
                             var indicatorContainer = new Grid();
                             
-                            // 方块（放大到 16x16）
+                            // 方块（放大到 20x20）
                             var indicator = new System.Windows.Shapes.Rectangle
                             {
-                                Width = 16,
-                                Height = 16,  // 正方形，放大一倍
+                                Width = 20,
+                                Height = 20,  // 正方形
                                 Fill = new System.Windows.Media.SolidColorBrush(
                                     System.Windows.Media.Color.FromRgb(255, 0, 0)), // 红色
                                 Stroke = new System.Windows.Media.SolidColorBrush(
                                     System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色边框
-                                StrokeThickness = 1.5,
-                                RadiusX = 2,
-                                RadiusY = 2,
+                                StrokeThickness = 2,
+                                RadiusX = 3,
+                                RadiusY = 3,
                                 Opacity = 0.95,
                                 Cursor = System.Windows.Input.Cursors.Hand,
                                 Tag = keyframe.Id  // 保存关键帧ID
@@ -486,7 +502,7 @@ namespace ImageColorChanger.UI
                                 var loopText = new TextBlock
                                 {
                                     Text = keyframe.LoopCount.Value.ToString(),
-                                    FontSize = 11,  // 放大字体
+                                    FontSize = 13,  // 放大字体
                                     FontWeight = FontWeights.Bold,
                                     Foreground = new System.Windows.Media.SolidColorBrush(
                                         System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色文字
@@ -497,8 +513,8 @@ namespace ImageColorChanger.UI
                                 indicatorContainer.Children.Add(loopText);
                             }
 
-                            Canvas.SetTop(indicatorContainer, indicatorY - 8); // 居中（调整偏移）
-                            Canvas.SetLeft(indicatorContainer, -3);  // 稍微向左，确保在滚动条区域内
+                            Canvas.SetTop(indicatorContainer, indicatorY - 10); // 居中（调整偏移）
+                            Canvas.SetLeft(indicatorContainer, -2);  // 稍微向左，确保在滚动条区域内
                             ScrollbarIndicatorsCanvas.Children.Add(indicatorContainer);
                         }
                     }
@@ -536,18 +552,18 @@ namespace ImageColorChanger.UI
                 // 创建容器
                 var currentContainer = new Grid();
 
-                // 创建绿色高亮指示块（比红色稍大一点，18x18）
+                // 创建绿色高亮指示块（比红色稍大一点，22x22）
                 var currentIndicator = new System.Windows.Shapes.Rectangle
                 {
-                    Width = 18,
-                    Height = 18,  // 正方形，比红色稍大
+                    Width = 22,
+                    Height = 22,  // 正方形，比红色稍大
                     Fill = new System.Windows.Media.SolidColorBrush(
                         System.Windows.Media.Color.FromRgb(0, 255, 0)), // 鲜绿色
                     Stroke = new System.Windows.Media.SolidColorBrush(
                         System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色边框
-                    StrokeThickness = 2,
-                    RadiusX = 2,
-                    RadiusY = 2,
+                    StrokeThickness = 2.5,
+                    RadiusX = 3,
+                    RadiusY = 3,
                     Opacity = 1.0,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Tag = currentKeyframe.Id
@@ -561,7 +577,7 @@ namespace ImageColorChanger.UI
                     var loopText = new TextBlock
                     {
                         Text = currentKeyframe.LoopCount.Value.ToString(),
-                        FontSize = 12,  // 放大字体
+                        FontSize = 14,  // 放大字体
                         FontWeight = FontWeights.Bold,
                         Foreground = new System.Windows.Media.SolidColorBrush(
                             System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色文字
@@ -572,8 +588,8 @@ namespace ImageColorChanger.UI
                     currentContainer.Children.Add(loopText);
                 }
 
-                Canvas.SetTop(currentContainer, indicatorY - 9); // 居中（调整偏移）
-                Canvas.SetLeft(currentContainer, -4);  // 稍微向左
+                Canvas.SetTop(currentContainer, indicatorY - 11); // 居中（调整偏移）
+                Canvas.SetLeft(currentContainer, -3);  // 稍微向左
                 ScrollbarIndicatorsCanvas.Children.Add(currentContainer);
             }
             catch (Exception)
