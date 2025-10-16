@@ -949,9 +949,9 @@ namespace ImageColorChanger.Database
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败");
             }
         }
         

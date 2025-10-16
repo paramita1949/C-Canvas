@@ -191,9 +191,9 @@ namespace ImageColorChanger.UI.Controls
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [TextBox] 移除内部边距失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [TextBox] 移除内部边距失败");
                 }
             };
 

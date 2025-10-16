@@ -308,9 +308,9 @@ namespace ImageColorChanger.ViewModels
 
                 UpdateButtonStates();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败");
             }
         }
 
@@ -356,9 +356,9 @@ namespace ImageColorChanger.ViewModels
 
                 UpdateButtonStates();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败");
             }
         }
 
@@ -393,9 +393,9 @@ namespace ImageColorChanger.ViewModels
 
                 UpdateButtonStates();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败");
             }
         }
 
@@ -422,9 +422,9 @@ namespace ImageColorChanger.ViewModels
                 HasTimingData = false;
                 UpdateButtonStates();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败");
             }
         }
 
@@ -497,9 +497,9 @@ namespace ImageColorChanger.ViewModels
                 await recordingService.RecordTimingAsync(keyframeId);
                 // System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 已记录关键帧时间: KeyframeId={keyframeId}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}");
             }
         }
 
@@ -638,9 +638,9 @@ namespace ImageColorChanger.ViewModels
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败");
                 HasTimingData = false;
             }
             
@@ -675,9 +675,9 @@ namespace ImageColorChanger.ViewModels
                     
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败");
             }
             finally
             {
@@ -715,9 +715,9 @@ namespace ImageColorChanger.ViewModels
                 
                 context.SaveChanges();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败");
             }
         }
 
@@ -754,9 +754,9 @@ namespace ImageColorChanger.ViewModels
                 
                 UpdateButtonStates();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败");
                 HasTimingData = false;
             }
         }

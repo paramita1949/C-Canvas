@@ -160,9 +160,9 @@ namespace ImageColorChanger.Managers
                 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"快速保存失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"快速保存失败");
                 return false;
             }
         }

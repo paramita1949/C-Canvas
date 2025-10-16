@@ -111,9 +111,9 @@ namespace ImageColorChanger.Utils
                         });
                         handled = true;
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败: {ex.Message}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ 全局热键处理失败");
                     }
                 }
             }

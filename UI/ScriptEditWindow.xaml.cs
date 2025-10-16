@@ -71,9 +71,9 @@ namespace ImageColorChanger.UI
                     mapping[keyframes[i].Id] = i + 1;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败");
             }
             
             return mapping;
@@ -368,9 +368,9 @@ namespace ImageColorChanger.UI
                     throw;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败");
                 return false;
             }
         }
@@ -422,9 +422,9 @@ namespace ImageColorChanger.UI
                     throw;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败");
                 return false;
             }
         }

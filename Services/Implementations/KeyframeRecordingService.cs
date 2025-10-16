@@ -113,9 +113,9 @@ namespace ImageColorChanger.Services.Implementations
                 _stopwatch.Restart();
                 _currentKeyframeIndex++;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情");
                 throw;
             }
         }

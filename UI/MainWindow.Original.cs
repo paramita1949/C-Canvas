@@ -146,9 +146,9 @@ namespace ImageColorChanger.UI
 
                 //System.Diagnostics.Debug.WriteLine($"📝 [原图录制] 记录切换: → ImageId={targetImageId}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图录制] 记录失败");
             }
         }
 
@@ -243,9 +243,9 @@ namespace ImageColorChanger.UI
                 ShowStatus("⏹ 原图模式播放已停止");
                 //System.Diagnostics.Debug.WriteLine("📺 [原图播放] 已停止");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 停止失败");
             }
         }
 

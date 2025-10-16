@@ -121,9 +121,9 @@ namespace ImageColorChanger.Core
             {
                 //System.Diagnostics.Debug.WriteLine("🛑 [预缓存] 循环模式: 已取消");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 循环模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 循环模式失败");
             }
         }
         
@@ -189,9 +189,9 @@ namespace ImageColorChanger.Core
             {
                 //System.Diagnostics.Debug.WriteLine("🛑 [预缓存] 顺序模式: 已取消");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 顺序模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 顺序模式失败");
             }
         }
         
@@ -310,9 +310,9 @@ namespace ImageColorChanger.Core
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
-                            //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 加载失败: {System.IO.Path.GetFileName(path)} - {ex.Message}");
+                            //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 加载失败: {System.IO.Path.GetFileName(path)}");
                         }
                     }, cancellationToken);
                 }

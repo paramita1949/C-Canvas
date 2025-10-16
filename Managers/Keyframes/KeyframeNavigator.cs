@@ -334,9 +334,9 @@ namespace ImageColorChanger.Managers.Keyframes
                 // 更新UI
                 await _keyframeManager.UpdateKeyframeIndicatorsAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常");
             }
         }
 
@@ -368,9 +368,9 @@ namespace ImageColorChanger.Managers.Keyframes
                     //System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 播放命令不可执行");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败");
             }
         }
     }

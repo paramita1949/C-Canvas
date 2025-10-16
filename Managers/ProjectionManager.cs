@@ -151,9 +151,9 @@ namespace ImageColorChanger.Managers
 
                 UpdateScreenComboBox();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败");
                 _screens.Add(Screen.PrimaryScreen);
             }
         }
@@ -407,9 +407,9 @@ namespace ImageColorChanger.Managers
                     // System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步投影滚动失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"同步投影滚动失败");
             }
         }
 
@@ -798,9 +798,9 @@ namespace ImageColorChanger.Managers
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"关闭投影失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"关闭投影失败");
                 return false;
             }
         }
@@ -1132,9 +1132,9 @@ namespace ImageColorChanger.Managers
                 
                 e.Handled = true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 处理投影热键失败");
             }
         }
 

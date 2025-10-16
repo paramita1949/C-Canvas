@@ -271,9 +271,9 @@ namespace ImageColorChanger.UI
                 // 避免重复订阅导致图片被加载两次
                 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ PlaybackControlViewModel 初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ PlaybackControlViewModel 初始化失败");
             }
         }
 
@@ -417,7 +417,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 MessageBox.Show($"数据库初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                //System.Diagnostics.Debug.WriteLine($"数据库初始化失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"数据库初始化失败");
             }
         }
         
@@ -434,7 +434,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败");
                 MessageBox.Show($"全局热键管理器初始化失败: {ex.Message}", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -631,9 +631,9 @@ namespace ImageColorChanger.UI
                 
                 //System.Diagnostics.Debug.WriteLine("✅ 全局热键已启用（投影模式）- 使用原来的按键");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 启用全局热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 启用全局热键失败");
             }
         }
 
@@ -649,9 +649,9 @@ namespace ImageColorChanger.UI
             {
                 _globalHotKeyManager.UnregisterAllHotKeys();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 禁用全局热键失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 禁用全局热键失败");
             }
         }
 
@@ -715,10 +715,9 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine("🟡 ===== 主窗口 VideoView 初始化完成 =====");
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer绑定失败: {ex.Message}");
-                        //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ MediaPlayer绑定失败");
                     }
                 };
                 
@@ -731,8 +730,8 @@ namespace ImageColorChanger.UI
                 videoPlayerManager.ProgressUpdated += OnVideoProgressUpdated;
                 
                 // 设置默认音量
-                videoPlayerManager.SetVolume(50);
-                VolumeSlider.Value = 50;
+                videoPlayerManager.SetVolume(90);
+                VolumeSlider.Value = 90;
                 
                 // 初始化播放模式按钮显示（默认为随机播放）
                 BtnPlayMode.Content = "🔀";
@@ -741,7 +740,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 视频播放器初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 视频播放器初始化失败");
                 MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n部分功能可能无法使用。", 
                     "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -883,9 +882,9 @@ namespace ImageColorChanger.UI
 
                 // System.Diagnostics.Debug.WriteLine($"📂 加载项目: {folders.Count} 个文件夹, {rootFiles.Count} 个独立文件");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"加载项目失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"加载项目失败");
             }
         }
 
@@ -926,9 +925,9 @@ namespace ImageColorChanger.UI
                     });
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败");
                 //System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
             }
         }
@@ -975,9 +974,9 @@ namespace ImageColorChanger.UI
                     NavigationPanelColumn.Width = new GridLength(configManager.NavigationPanelWidth);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败");
             }
         }
 
@@ -999,9 +998,9 @@ namespace ImageColorChanger.UI
                 
                 // System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {currentTargetColorName})");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败");
             }
         }
 
@@ -1399,9 +1398,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 投影MediaPlayer绑定失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 投影MediaPlayer绑定失败");
                 //System.Diagnostics.Debug.WriteLine($"❌ 堆栈: {ex.StackTrace}");
             }
         }
@@ -1430,9 +1429,9 @@ namespace ImageColorChanger.UI
                 
                 ShowStatus($"🎬 正在投影播放: {System.IO.Path.GetFileName(videoPath)}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 播放待投影视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 播放待投影视频失败");
             }
         }
 
@@ -1488,9 +1487,9 @@ namespace ImageColorChanger.UI
                 
                 ShowStatus($"🔄 同步完成: 新增 {added}, 删除 {removed}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                ShowStatus($"❌ 同步失败: {ex.Message}");
+                ShowStatus($"❌ 同步失败");
             }
             finally
             {
@@ -1896,10 +1895,10 @@ namespace ImageColorChanger.UI
                     await OpenKeyframeModeScriptEditor();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 显示脚本窗口失败: {ex.Message}");
-                ShowStatus($"❌ 显示脚本失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 显示脚本窗口失败");
+                ShowStatus($"❌ 显示脚本失败");
             }
         }
         
@@ -2022,7 +2021,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 搜索失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 搜索失败");
                 MessageBox.Show($"搜索失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -2064,9 +2063,9 @@ namespace ImageColorChanger.UI
                     SearchScope.SelectedIndex = 0;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"加载搜索范围失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"加载搜索范围失败");
             }
         }
 
@@ -2611,7 +2610,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 设置播放模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 设置播放模式失败");
                 MessageBox.Show($"设置播放模式失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -2632,9 +2631,9 @@ namespace ImageColorChanger.UI
                 ShowStatus($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
                 //System.Diagnostics.Debug.WriteLine($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 清除播放模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 清除播放模式失败");
             }
         }
         
@@ -2649,9 +2648,9 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 标记变色失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 标记变色失败");
             }
         }
         
@@ -2666,9 +2665,9 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败");
             }
         }
         
@@ -2731,7 +2730,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 设置高亮颜色失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 设置高亮颜色失败");
                 MessageBox.Show($"设置高亮颜色失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -2981,9 +2980,9 @@ namespace ImageColorChanger.UI
                 }
                 // System.Diagnostics.Debug.WriteLine("📁 已折叠所有文件夹节点");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"折叠所有文件夹失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"折叠所有文件夹失败");
             }
         }
 
@@ -3004,9 +3003,9 @@ namespace ImageColorChanger.UI
                 }
                 // System.Diagnostics.Debug.WriteLine($"📁 已折叠除 {exceptFolder.Name} 外的所有文件夹");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"折叠其他文件夹失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"折叠其他文件夹失败");
             }
         }
 
@@ -3167,9 +3166,9 @@ namespace ImageColorChanger.UI
                 ShowStatus("✅ 已清空图片显示");
                 //System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"清空图片显示失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"清空图片显示失败");
             }
         }
 
@@ -3184,9 +3183,9 @@ namespace ImageColorChanger.UI
                 var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
                 SelectTreeItemRecursive(treeItems, itemId);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"选中项目树节点失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"选中项目树节点失败");
             }
         }
 
@@ -3444,7 +3443,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 保存颜色预设失败: {ex.Message}");
+                ShowStatus($"❌ 保存颜色预设失败");
                 MessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -4007,9 +4006,9 @@ namespace ImageColorChanger.UI
                     _globalHotKeyManager.Dispose();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败");
             }
         }
 
@@ -4264,9 +4263,9 @@ namespace ImageColorChanger.UI
                     await preloadCacheManager.PreloadForKeyframeModeAsync(currentImageId);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [智能预缓存] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [智能预缓存] 失败");
             }
         }
         
@@ -4279,9 +4278,9 @@ namespace ImageColorChanger.UI
             {
                 return originalManager.GetSimilarImages();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"⚠️ 获取相似图片列表失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ 获取相似图片列表失败");
                 return new List<(int id, string name, string path)>();
             }
         }
@@ -4472,9 +4471,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"显示文件名提示时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"显示文件名提示时出错");
             }
         }
         
@@ -4488,9 +4487,9 @@ namespace ImageColorChanger.UI
                 // 隐藏提示框
                 FileNameTooltipPopup.IsOpen = false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错");
             }
         }
         
@@ -4511,9 +4510,9 @@ namespace ImageColorChanger.UI
                     FileNameTooltipPopup.VerticalOffset = mousePos.Y + 15;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"更新提示框位置时出错: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"更新提示框位置时出错");
             }
         }
 
@@ -4568,9 +4567,9 @@ namespace ImageColorChanger.UI
                 // 显示指示线
                 DragIndicatorLine.Visibility = Visibility.Visible;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"显示拖拽指示器失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"显示拖拽指示器失败");
             }
         }
 
@@ -4586,9 +4585,9 @@ namespace ImageColorChanger.UI
                     DragIndicatorLine.Visibility = Visibility.Collapsed;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"隐藏拖拽指示器失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"隐藏拖拽指示器失败");
             }
         }
 
@@ -4713,10 +4712,10 @@ namespace ImageColorChanger.UI
                 
                 ShowStatus($"✅ 已重新排序: {sourceItem.Name}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"重新排序失败: {ex}");
-                ShowStatus($"❌ 排序失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"重新排序失败");
+                ShowStatus($"❌ 排序失败");
             }
             finally
             {
@@ -4810,9 +4809,9 @@ namespace ImageColorChanger.UI
                     LoadProjects();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败");
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();
             }
@@ -4921,9 +4920,9 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 自动选中文件失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 自动选中文件失败");
             }
         }
         
@@ -5018,7 +5017,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载媒体文件失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载媒体文件失败");
                 MessageBox.Show($"加载媒体文件失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5074,7 +5073,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 投影播放视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 投影播放视频失败");
                 MessageBox.Show($"投影播放视频失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5119,9 +5118,9 @@ namespace ImageColorChanger.UI
                 string type = hasVideo ? "视频" : "音频";
                 ShowStatus($"{icon} {type}: {fileName}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 处理视频轨道检测失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 处理视频轨道检测失败");
             }
         }
         
@@ -5160,7 +5159,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载视频失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 加载视频失败");
                 MessageBox.Show($"加载视频失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5273,9 +5272,9 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine("⚠️ 播放列表为空");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 构建播放列表失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 构建播放列表失败");
             }
         }
         
@@ -5321,7 +5320,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 启用视频投屏失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 启用视频投屏失败");
                 MessageBox.Show($"启用视频投屏失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5349,9 +5348,9 @@ namespace ImageColorChanger.UI
                 
                 ShowStatus("🔴 视频投屏已禁用");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 禁用视频投屏失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ 禁用视频投屏失败");
             }
         }
         

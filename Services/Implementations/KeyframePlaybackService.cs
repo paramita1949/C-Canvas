@@ -176,7 +176,7 @@ namespace ImageColorChanger.Services.Implementations
             catch (OperationCanceledException)
             {
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
         }
@@ -345,7 +345,7 @@ namespace ImageColorChanger.Services.Implementations
                         //System.Diagnostics.Debug.WriteLine($"  - 累计暂停时间: {_totalPauseDuration:F2}秒");
                         //System.Diagnostics.Debug.WriteLine($"  - 最终时间: {finalDisplayTime:F2}秒");
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                     }
                 });
@@ -431,7 +431,7 @@ namespace ImageColorChanger.Services.Implementations
                             //System.Diagnostics.Debug.WriteLine($"✅ [手动修正] 关键帧 {keyframeId} 时间修正为 {actualDuration:F2}秒");
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                     }
                 });

@@ -179,13 +179,13 @@ namespace ImageColorChanger.Managers
                 
                 mediaFiles = filesWithKeys;
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                //System.Diagnostics.Debug.WriteLine($"⚠️ 无权访问某些子目录: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ 无权访问某些子目录");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"扫描文件失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"扫描文件失败");
             }
 
             return mediaFiles;
@@ -243,9 +243,9 @@ namespace ImageColorChanger.Managers
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败");
                 return (0, 0, 0);
             }
         }
@@ -292,9 +292,9 @@ namespace ImageColorChanger.Managers
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败");
             }
         }
 
@@ -321,9 +321,9 @@ namespace ImageColorChanger.Managers
 
                 //System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败");
             }
 
             return (totalAdded, totalRemoved, totalUpdated);

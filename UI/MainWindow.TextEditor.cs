@@ -152,9 +152,9 @@ namespace ImageColorChanger.UI
                                                 realFontFamily = glyphTypeface.FamilyNames.Values.First();
                                         }
                                     }
-                                    catch (Exception glyphEx)
+                                    catch (Exception)
                                     {
-                                        //System.Diagnostics.Debug.WriteLine($"⚠️ 无法读取字体族名称，使用配置值: {glyphEx.Message}");
+                                        //System.Diagnostics.Debug.WriteLine($"⚠️ 无法读取字体族名称，使用配置值");
                                     }
                                     
                                     // 🎯 使用基于应用程序目录的BaseUri + 相对路径
@@ -172,11 +172,11 @@ namespace ImageColorChanger.UI
                                     
                                     // 🔍 输出字体的实际 FamilyNames，帮助调试
                                 }
-                                catch (Exception ex)
+                                catch (Exception)
                                 {
                                     //System.Diagnostics.Debug.WriteLine($"❌ 字体加载失败: {font.Name}");
                                     //System.Diagnostics.Debug.WriteLine($"   文件: {fontFilePath}");
-                                    //System.Diagnostics.Debug.WriteLine($"   错误: {ex.Message}");
+                                    //System.Diagnostics.Debug.WriteLine($"   错误");
                                     continue;
                                 }
                             }
@@ -198,9 +198,9 @@ namespace ImageColorChanger.UI
                             FontFamilySelector.Items.Add(item);
                             totalFonts++;
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
-                            //System.Diagnostics.Debug.WriteLine($"⚠️ 加载字体失败 [{font.Name}]: {ex.Message}");
+                            //System.Diagnostics.Debug.WriteLine($"⚠️ 加载字体失败 [{font.Name}]");
                         }
                     }
                 }
@@ -215,7 +215,7 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载自定义字体库失败: {ex.Message}");
                 LoadSystemDefaultFonts();
@@ -269,7 +269,7 @@ namespace ImageColorChanger.UI
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载系统默认字体完成: {FontFamilySelector.Items.Count} 种");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载系统默认字体失败: {ex.Message}");
             }
@@ -304,7 +304,7 @@ namespace ImageColorChanger.UI
                 int newNumber = projectNumbers.Any() ? projectNumbers.Max() + 1 : 1;
                 return $"项目{newNumber}";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 生成默认项目名称失败: {ex.Message}");
                 // 失败时使用时间戳
@@ -560,7 +560,7 @@ namespace ImageColorChanger.UI
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 项目已添加到导航树: {project.Name}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 添加项目到导航树失败: {ex.Message}");
             }
@@ -2386,7 +2386,7 @@ namespace ImageColorChanger.UI
 
                 return thumbnail;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 生成缩略图失败: {ex.Message}");
                 return null;
@@ -2426,7 +2426,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ 缩略图已保存: {thumbnailPath}");
                 return thumbnailPath;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 保存缩略图失败: {ex.Message}");
                 return null;
