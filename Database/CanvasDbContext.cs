@@ -99,6 +99,16 @@ namespace ImageColorChanger.Database
         public DbSet<ImageDisplayLocation> ImageDisplayLocations { get; set; }
 
         /// <summary>
+        /// 文本项目表
+        /// </summary>
+        public DbSet<TextProject> TextProjects { get; set; }
+
+        /// <summary>
+        /// 文本元素表
+        /// </summary>
+        public DbSet<TextElement> TextElements { get; set; }
+
+        /// <summary>
         /// 配置数据库连接
         /// </summary>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -258,6 +268,41 @@ namespace ImageColorChanger.Database
                 entity.HasOne(l => l.Folder)
                     .WithMany()
                     .HasForeignKey(l => l.FolderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ========== 文本项目表配置 ==========
+            modelBuilder.Entity<TextProject>(entity =>
+            {
+                // 项目名称索引
+                entity.HasIndex(e => e.Name).HasDatabaseName("idx_text_projects_name");
+                
+                // 创建时间索引
+                entity.HasIndex(e => e.CreatedTime).HasDatabaseName("idx_text_projects_created");
+
+                // 配置日期时间转换
+                entity.Property(e => e.CreatedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                entity.Property(e => e.ModifiedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+            });
+
+            // ========== 文本元素表配置 ==========
+            modelBuilder.Entity<TextElement>(entity =>
+            {
+                // 项目ID索引
+                entity.HasIndex(e => e.ProjectId).HasDatabaseName("idx_text_elements_project");
+                
+                // 项目ID+Z-Index复合索引（用于按层级排序）
+                entity.HasIndex(e => new { e.ProjectId, e.ZIndex }).HasDatabaseName("idx_text_elements_zindex");
+
+                // 外键关系：文本元素 -> 文本项目
+                entity.HasOne(e => e.Project)
+                    .WithMany(p => p.Elements)
+                    .HasForeignKey(e => e.ProjectId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

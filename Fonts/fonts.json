@@ -1,0 +1,103 @@
+{
+  "fontCategories": [
+    {
+      "name": "💻 系统字体",
+      "fonts": [
+        {
+          "name": "微软雅黑",
+          "file": "system",
+          "family": "Microsoft YaHei",
+          "weight": "Regular",
+          "preview": "微软雅黑 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "宋体",
+          "file": "system",
+          "family": "SimSun",
+          "weight": "Regular",
+          "preview": "宋体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "黑体",
+          "file": "system",
+          "family": "SimHei",
+          "weight": "Regular",
+          "preview": "黑体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "楷体",
+          "file": "system",
+          "family": "KaiTi",
+          "weight": "Regular",
+          "preview": "楷体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "仿宋",
+          "file": "system",
+          "family": "FangSong",
+          "weight": "Regular",
+          "preview": "仿宋 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Arial",
+          "file": "system",
+          "family": "Arial",
+          "weight": "Regular",
+          "preview": "Arial Font ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Times New Roman",
+          "file": "system",
+          "family": "Times New Roman",
+          "weight": "Regular",
+          "preview": "Times New Roman ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Calibri",
+          "file": "system",
+          "family": "Calibri",
+          "weight": "Regular",
+          "preview": "Calibri Font ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Consolas",
+          "file": "system",
+          "family": "Consolas",
+          "weight": "Regular",
+          "preview": "Consolas 0123456789",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "🎨 商业字体",
+      "fonts": [
+        {
+          "name": "阿里巴巴普惠体",
+          "file": "Chinese/AlibabaPuHuiTi-3-55-Regular.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Regular",
+          "preview": "阿里巴巴普惠体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "站酷小薇LOGO体",
+          "file": "Chinese/站酷小薇LOGO体.otf",
+          "family": "ZhanKuXiaoWeiLOGO-Regular",
+          "weight": "Regular",
+          "preview": "站酷小薇LOGO体 ABCabc 123",
+          "isFavorite": true
+        }
+      ]
+    }
+  ],
+  "defaultFont": "Alibaba PuHuiTi 3.0"
+}

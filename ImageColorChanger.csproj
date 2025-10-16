@@ -12,7 +12,7 @@
     <Company>Canvas Cast</Company>
     <Title>Canvas Cast</Title>
     <Description>Canvas Cast - 专业的图片浏览与管理工具</Description>
-    <Version>2.0</Version>
+    <Version>3.0</Version>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 Canvas Cast</Copyright>
   </PropertyGroup>
@@ -42,6 +42,14 @@
     <Resource Include="baodian.ico" />
     <Resource Include="weixin.png" />
     <Resource Include="pay.png" />
+  </ItemGroup>
+  
+  <!-- 复制 Fonts 文件夹到输出目录 -->
+  <ItemGroup>
+    <None Include="Fonts\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Fonts\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
   </ItemGroup>
   
   <PropertyGroup>

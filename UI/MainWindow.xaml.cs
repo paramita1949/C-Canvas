@@ -142,6 +142,9 @@ namespace ImageColorChanger.UI
             
             // 初始化新的PlaybackControlViewModel
             InitializePlaybackViewModel();
+            
+            // 🆕 初始化文本编辑器
+            InitializeTextEditor();
         }
         
         /// <summary>
@@ -856,11 +859,63 @@ namespace ImageColorChanger.UI
                     });
                 }
 
+                // 加载文本项目
+                LoadTextProjectsToTree();
+
                 // System.Diagnostics.Debug.WriteLine($"📂 加载项目: {folders.Count} 个文件夹, {rootFiles.Count} 个独立文件");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"加载项目失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 加载文本项目到项目树
+        /// </summary>
+        private void LoadTextProjectsToTree()
+        {
+            try
+            {
+                // 延迟初始化 _textProjectManager（如果还未初始化）
+                if (_textProjectManager == null)
+                {
+                    if (dbManager == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ dbManager 未初始化，跳过加载文本项目");
+                        return;
+                    }
+                    
+                    _textProjectManager = new TextProjectManager(dbManager.GetDbContext());
+                    System.Diagnostics.Debug.WriteLine("✅ TextProjectManager 延迟初始化完成");
+                }
+
+                var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
+                
+                System.Diagnostics.Debug.WriteLine($"📊 数据库中的文本项目数量: {textProjects.Count}");
+                
+                foreach (var project in textProjects)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - 添加文本项目到树: ID={project.Id}, Name={project.Name}");
+                    
+                    projectTreeItems.Add(new ProjectTreeItem
+                    {
+                        Id = project.Id,
+                        Name = project.Name,
+                        Icon = "FileDocument",
+                        IconKind = "FileDocument",
+                        IconColor = "#2196F3",  // 蓝色
+                        Type = TreeItemType.TextProject,
+                        Path = null  // 文本项目没有物理路径
+                    });
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目完成: {textProjects.Count} 个");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
             }
         }
 
@@ -1364,7 +1419,32 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                projectionManager.ToggleProjection();
+                // 🆕 如果是文本编辑器模式，先更新投影内容
+                if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
+                {
+                    // 如果是打开投影操作，先渲染内容
+                    if (!projectionManager.IsProjectionActive)
+                    {
+                        // 先打开投影窗口
+                        projectionManager.ToggleProjection();
+                        
+                        // 然后更新内容
+                        if (projectionManager.IsProjectionActive)
+                        {
+                            UpdateProjectionFromCanvas();
+                        }
+                    }
+                    else
+                    {
+                        // 如果已经打开，直接关闭
+                        projectionManager.ToggleProjection();
+                    }
+                }
+                else
+                {
+                    // 普通模式，直接切换投影
+                    projectionManager.ToggleProjection();
+                }
             }
             catch (Exception ex)
             {
@@ -1882,7 +1962,7 @@ namespace ImageColorChanger.UI
                     projectTreeItems.Add(item);
                 }
 
-                ProjectTree.ItemsSource = projectTreeItems;
+                // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
             }
             catch (Exception ex)
             {
@@ -1942,6 +2022,14 @@ namespace ImageColorChanger.UI
                 var treeViewItem = FindParent<TreeViewItem>(element);
                 if (treeViewItem != null && treeViewItem.DataContext is ProjectTreeItem selectedItem)
                 {
+                    // 🆕 处理文本项目节点：单击加载项目
+                    if (selectedItem.Type == TreeItemType.Project || selectedItem.Type == TreeItemType.TextProject)
+                    {
+                        int projectId = selectedItem.Id;
+                        _ = LoadTextProjectAsync(projectId);
+                        return;
+                    }
+
                     // 处理文件夹节点：单击展开/折叠
                     if (selectedItem.Type == TreeItemType.Folder)
                     {
@@ -2151,6 +2239,14 @@ namespace ImageColorChanger.UI
                                 case FileType.Image:
                                     // 图片双击也加载（保持原有行为）
                                     SwitchToImageMode();
+                                    
+                                    // 🔧 关键修复：手动选择图片时，停止当前播放
+                                    if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine("🛑 用户手动选择图片，停止当前播放");
+                                        _ = _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
+                                    }
+                                    
                                     LoadImage(selectedItem.Path);
                                     // ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     break;
@@ -2171,6 +2267,27 @@ namespace ImageColorChanger.UI
             if (e.OriginalSource is FrameworkElement element)
             {
                 var treeViewItem = FindParent<TreeViewItem>(element);
+                
+                // 🆕 如果点击在空白区域（没有TreeViewItem），显示新建项目菜单
+                if (treeViewItem == null)
+                {
+                    var contextMenu = new ContextMenu();
+                    contextMenu.FontSize = 14;
+                    
+                    var newProjectItem = new MenuItem { Header = "📝 新建项目" };
+                    newProjectItem.Click += async (s, args) =>
+                    {
+                        string projectName = await GenerateDefaultProjectNameAsync();
+                        await CreateTextProjectAsync(projectName);
+                    };
+                    contextMenu.Items.Add(newProjectItem);
+                    
+                    contextMenu.IsOpen = true;
+                    contextMenu.PlacementTarget = sender as UIElement;
+                    e.Handled = true;
+                    return;
+                }
+                
                 if (treeViewItem != null && treeViewItem.DataContext is ProjectTreeItem item)
                 {
                     // 创建右键菜单
@@ -2354,6 +2471,19 @@ namespace ImageColorChanger.UI
                         deleteItem.Click += (s, args) => DeleteFile(item);
                         contextMenu.Items.Add(deleteItem);
                     }
+                    else if (item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
+                    {
+                        // 文本项目右键菜单
+                        var renameItem = new MenuItem { Header = "✏️ 重命名" };
+                        renameItem.Click += (s, args) => RenameTextProjectAsync(item);
+                        contextMenu.Items.Add(renameItem);
+                        
+                        contextMenu.Items.Add(new Separator());
+                        
+                        var deleteItem = new MenuItem { Header = "🗑️ 删除项目" };
+                        deleteItem.Click += async (s, args) => await DeleteTextProjectAsync(item);
+                        contextMenu.Items.Add(deleteItem);
+                    }
 
                     contextMenu.IsOpen = true;
                 }
@@ -2530,7 +2660,7 @@ namespace ImageColorChanger.UI
                             {
                                 projectTreeItems.Add(result);
                             }
-                            ProjectTree.ItemsSource = projectTreeItems;
+                            // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
                         }
                     }
                 }
@@ -2881,9 +3011,6 @@ namespace ImageColorChanger.UI
                             // 更新按钮样式
                             BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 浅绿色
                             
-                            // 查找相似图片
-                            originalManager.FindSimilarImages(currentImageId);
-                            
                             ShowStatus("✅ 已自动启用原图模式");
                         }
                         else if (!shouldUseOriginal && originalMode)
@@ -2891,6 +3018,14 @@ namespace ImageColorChanger.UI
                             // 图片没有原图标记,但原图模式已启用 -> 保持原图模式(不自动关闭)
                             // 用户可能在浏览一组原图,中途打开了非原图,应该保持原图模式
                             System.Diagnostics.Debug.WriteLine($"ℹ️ 保持原图模式: 图片ID={currentImageId}");
+                        }
+                        
+                        // 🔧 关键修复：如果原图模式已启用，无论是否自动启用，都需要查找相似图片
+                        // 这样切换到新歌曲时，相似图片列表会更新为新歌曲的图片
+                        if (originalMode)
+                        {
+                            originalManager.FindSimilarImages(currentImageId);
+                            System.Diagnostics.Debug.WriteLine($"🔍 已更新相似图片列表: 图片ID={currentImageId}");
                         }
                         
                         // 🌲 同步项目树选中状态
@@ -5113,7 +5248,21 @@ namespace ImageColorChanger.UI
     public class ProjectTreeItem : INotifyPropertyChanged
     {
         public int Id { get; set; }
-        public string Name { get; set; }
+        
+        private string _name;
+        public string Name 
+        { 
+            get => _name; 
+            set 
+            { 
+                if (_name != value) 
+                { 
+                    _name = value; 
+                    OnPropertyChanged(nameof(Name)); 
+                } 
+            } 
+        }
+        
         public string Icon { get; set; }
         private string _iconKind;
         public string IconKind 
@@ -5180,6 +5329,23 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private bool _isEditing;
+        public bool IsEditing
+        {
+            get => _isEditing;
+            set
+            {
+                if (_isEditing != value)
+                {
+                    _isEditing = value;
+                    OnPropertyChanged(nameof(IsEditing));
+                }
+            }
+        }
+
+        // 编辑前的原始名称
+        public string OriginalName { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -5195,7 +5361,8 @@ namespace ImageColorChanger.UI
         File,
         Image,
         Video,
-        Audio
+        Audio,
+        TextProject  // 文本项目
     }
 
     #endregion

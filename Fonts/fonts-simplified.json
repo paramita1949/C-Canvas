@@ -1,0 +1,236 @@
+{
+  "fontCategories": [
+    {
+      "name": "⭐ 推荐字体",
+      "fonts": [
+        {
+          "name": "阿里巴巴普惠体",
+          "file": "Chinese/AlibabaPuHuiTi-3-55-Regular.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Regular",
+          "preview": "阿里巴巴普惠体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "阿里巴巴普惠体 粗体",
+          "file": "Chinese/AlibabaPuHuiTi-3-85-Bold.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Bold",
+          "preview": "阿里巴巴普惠体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "钉钉进步体",
+          "file": "Chinese/DingTalkJinBuTi-Regular.ttf",
+          "family": "DingTalk JinBuTi",
+          "weight": "Regular",
+          "preview": "钉钉进步体 ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "淘宝买菜体",
+          "file": "Chinese/TaoBaoMaiCaiTi-Regular.ttf",
+          "family": "TaoBao MaiCaiTi",
+          "weight": "Regular",
+          "preview": "淘宝买菜体 ABCabc 123",
+          "isFavorite": true
+        }
+      ]
+    },
+    {
+      "name": "特色艺术字体",
+      "fonts": [
+        {
+          "name": "阿里妈妈刀隶体",
+          "file": "Chinese/AlimamaDaoLiTi.ttf",
+          "family": "Alimama DaoLiTi",
+          "weight": "Regular",
+          "preview": "阿里妈妈刀隶体（书法隶书）",
+          "isFavorite": false
+        },
+        {
+          "name": "阿里妈妈东方大楷",
+          "file": "Chinese/AlimamaDongFangDaKai-Regular.ttf",
+          "family": "Alimama DongFangDaKai",
+          "weight": "Regular",
+          "preview": "阿里妈妈东方大楷（楷书）",
+          "isFavorite": false
+        },
+        {
+          "name": "阿里妈妈方圆体",
+          "file": "Chinese/AlimamaFangYuanTiVF-Thin.ttf",
+          "family": "Alimama FangYuanTi VF",
+          "weight": "Thin",
+          "preview": "阿里妈妈方圆体（圆润）",
+          "isFavorite": false
+        },
+        {
+          "name": "阿里妈妈灵动体",
+          "file": "Chinese/AlimamaAgileVF-Thin.ttf",
+          "family": "Alimama Agile VF",
+          "weight": "Thin",
+          "preview": "阿里妈妈灵动体（活泼）",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "数字专用字体",
+      "fonts": [
+        {
+          "name": "阿里妈妈数黑体",
+          "file": "Chinese/AlimamaShuHeiTi-Bold.ttf",
+          "family": "Alimama ShuHeiTi",
+          "weight": "Bold",
+          "preview": "0123456789（数字专用）",
+          "isFavorite": false
+        },
+        {
+          "name": "Impact",
+          "file": "system",
+          "family": "Impact",
+          "weight": "Regular",
+          "preview": "Impact 0123456789",
+          "isFavorite": false
+        },
+        {
+          "name": "Consolas",
+          "file": "system",
+          "family": "Consolas",
+          "weight": "Regular",
+          "preview": "Consolas 0123456789",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "普惠体字重系列（需要不同粗细时使用）",
+      "fonts": [
+        {
+          "name": "普惠体 Thin（最细）",
+          "file": "Chinese/AlibabaPuHuiTi-3-35-Thin.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Thin",
+          "preview": "最细 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 Light（细）",
+          "file": "Chinese/AlibabaPuHuiTi-3-45-Light.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Light",
+          "preview": "细 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 Medium（中等）",
+          "file": "Chinese/AlibabaPuHuiTi-3-65-Medium.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Medium",
+          "preview": "中等 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 SemiBold（半粗）",
+          "file": "Chinese/AlibabaPuHuiTi-3-75-SemiBold.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "SemiBold",
+          "preview": "半粗 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 ExtraBold（特粗）",
+          "file": "Chinese/AlibabaPuHuiTi-3-95-ExtraBold.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "ExtraBold",
+          "preview": "特粗 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 Heavy（重磅）",
+          "file": "Chinese/AlibabaPuHuiTi-3-105-Heavy.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Heavy",
+          "preview": "重磅 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "普惠体 Black（最粗）",
+          "file": "Chinese/AlibabaPuHuiTi-3-115-Black.ttf",
+          "family": "Alibaba PuHuiTi 3.0",
+          "weight": "Black",
+          "preview": "最粗 ABCabc 123",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "系统中文字体",
+      "fonts": [
+        {
+          "name": "微软雅黑",
+          "file": "system",
+          "family": "Microsoft YaHei",
+          "weight": "Regular",
+          "preview": "微软雅黑 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "宋体",
+          "file": "system",
+          "family": "SimSun",
+          "weight": "Regular",
+          "preview": "宋体 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "黑体",
+          "file": "system",
+          "family": "SimHei",
+          "weight": "Regular",
+          "preview": "黑体 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "楷体",
+          "file": "system",
+          "family": "KaiTi",
+          "weight": "Regular",
+          "preview": "楷体 ABCabc 123",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "英文字体",
+      "fonts": [
+        {
+          "name": "Arial",
+          "file": "system",
+          "family": "Arial",
+          "weight": "Regular",
+          "preview": "Arial ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Times New Roman",
+          "file": "system",
+          "family": "Times New Roman",
+          "weight": "Regular",
+          "preview": "Times New Roman ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "Calibri",
+          "file": "system",
+          "family": "Calibri",
+          "weight": "Regular",
+          "preview": "Calibri ABCabc 123",
+          "isFavorite": false
+        }
+      ]
+    }
+  ],
+  "defaultFont": "阿里巴巴普惠体"
+}
+

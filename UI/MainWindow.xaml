@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V2.6"
+        Title="Canvas Cast V3.0.1"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -222,6 +222,54 @@
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
                                         <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#2E7D32"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 危险/删除按钮样式 -->
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="#F44336"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D32F2F"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" 
+                                                  BlurRadius="6" 
+                                                  Opacity="0.3" 
+                                                  Color="#F44336"/>
+                            </Border.Effect>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E53935"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#F44336"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C62828"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#C62828"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -629,22 +677,59 @@
                                             </materialDesign:PackIcon.Style>
                                         </materialDesign:PackIcon>
 
-                                        <!-- 文件/文件夹名称 -->
-                                        <TextBlock Text="{Binding Name}" 
-                                                   VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <!-- 默认使用文件字号 -->
-                                                    <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
-                                                    <Style.Triggers>
-                                                        <!-- 如果是文件夹，使用文件夹字号 -->
-                                                        <DataTrigger Binding="{Binding Type}" Value="Folder">
-                                                            <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <!-- 文件/文件夹名称 - 支持内联编辑 -->
+                                        <Grid>
+                                            <!-- 显示模式：TextBlock -->
+                                            <TextBlock Text="{Binding Name}" 
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <!-- 默认使用文件字号 -->
+                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <!-- 如果是文件夹，使用文件夹字号 -->
+                                                            <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
+                                                            <!-- 编辑模式时隐藏 -->
+                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            
+                                            <!-- 编辑模式：TextBox (无边框透明背景) -->
+                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
+                                                     VerticalAlignment="Center"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Padding="0"
+                                                     KeyDown="TreeItemEditBox_KeyDown"
+                                                     LostFocus="TreeItemEditBox_LostFocus"
+                                                     Loaded="TreeItemEditBox_Loaded"
+                                                     IsVisibleChanged="TreeItemEditBox_IsVisibleChanged">
+                                                <TextBox.Style>
+                                                    <Style TargetType="TextBox">
+                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Setter Property="CaretBrush" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <!-- 如果是文件夹，使用文件夹字号 -->
+                                                            <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
+                                                            <!-- 编辑模式时显示 -->
+                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBox.Style>
+                                            </TextBox>
+                                        </Grid>
                                     </StackPanel>
 
                                     <!-- 第二行：文件夹标签（搜索时显示，在名称下方）-->
@@ -812,6 +897,183 @@
                                        Padding="20,0"/>
                         </StackPanel>
                     </Grid>
+                </Grid>
+
+                <!-- 🆕 文本编辑器面板（默认隐藏） -->
+                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="White">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
+                        <RowDefinition Height="*"/>     <!-- 编辑区 -->
+                    </Grid.RowDefinitions>
+
+                    <!-- 工具栏 -->
+                    <Border Grid.Row="0" Background="#FAFAFA" BorderBrush="#E0E0E0" 
+                            BorderThickness="0,0,0,2" Padding="8">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.08" Color="#000000"/>
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal">
+                            <!-- 文本和背景操作 -->
+                            <Button x:Name="BtnAddText" Content="➕ 文本" 
+                                    Style="{StaticResource SuccessButtonStyle}"
+                                    ToolTip="添加文本框" Click="BtnAddText_Click"/>
+                            
+                            <Button x:Name="BtnDeleteText" Content="🗑 删除" 
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    ToolTip="删除选中的文本框" Click="BtnDeleteText_Click"/>
+                            
+                            <!-- 背景按钮（带下拉菜单） -->
+                            <Button x:Name="BtnBackground" Content="🎨 背景" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    ToolTip="设置背景（图片或颜色）"
+                                    Click="BtnBackground_Click"/>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+
+                            <!-- 字体设置 -->
+                            <TextBlock Text="字体:" VerticalAlignment="Center" Margin="4,0"/>
+                            <ComboBox x:Name="FontFamilySelector" Width="200" Height="32"
+                                      SelectedIndex="0" 
+                                      SelectionChanged="FontFamily_Changed"
+                                      MaxDropDownHeight="400"
+                                      IsEditable="True"
+                                      IsTextSearchEnabled="True">
+                                <!-- 字体将在代码中动态加载 -->
+                            </ComboBox>
+
+                            <TextBlock Text="字号:" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                            
+                            <!-- 字号减小按钮 -->
+                            <Button x:Name="BtnDecreaseFontSize" Content="◀" 
+                                    Width="24" Height="32"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Click="BtnDecreaseFontSize_Click"
+                                    ToolTip="减小字号"/>
+                            
+                            <!-- 字号输入框 -->
+                            <TextBox x:Name="FontSizeInput" 
+                                     Text="48" 
+                                     Width="50" Height="32"
+                                     FontSize="14" FontWeight="Bold"
+                                     TextAlignment="Center"
+                                     VerticalContentAlignment="Center"
+                                     PreviewTextInput="FontSizeInput_PreviewTextInput"
+                                     TextChanged="FontSizeInput_TextChanged"
+                                     MouseWheel="FontSizeInput_MouseWheel"
+                                     ToolTip="输入字号 (20-200) 或滚轮调整"/>
+                            
+                            <!-- 字号增大按钮 -->
+                            <Button x:Name="BtnIncreaseFontSize" Content="▶" 
+                                    Width="24" Height="32"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Click="BtnIncreaseFontSize_Click"
+                                    ToolTip="增大字号"/>
+
+                            <!-- 加粗按钮 -->
+                            <Button x:Name="BtnBold" Content="B" 
+                                    Width="40" Height="40"
+                                    FontFamily="Segoe UI"
+                                    FontWeight="Bold" FontSize="20" 
+                                    Margin="8,0,0,0"
+                                    Padding="0"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    ToolTip="加粗 (B)" Click="BtnBold_Click"/>
+
+                            <!-- 文字颜色按钮 -->
+                            <Button x:Name="BtnTextColor" Content="A"
+                                    Width="40" Height="40"
+                                    FontFamily="Segoe UI"
+                                    FontWeight="Bold" FontSize="20"
+                                    Margin="4,0,0,0"
+                                    Padding="0"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    ToolTip="文字颜色 (A)" Click="BtnTextColor_Click"/>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+
+                            <!-- 保存和投影 -->
+                            <Button x:Name="BtnSaveTextProject" Content="💾 保存"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Foreground="#333333"
+                                    ToolTip="保存项目" Click="BtnSaveTextProject_Click"/>
+                            
+                            <Button x:Name="BtnUpdateProjection" Content="🔄 更新投影"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    ToolTip="立即更新投影内容" Click="BtnUpdateProjection_Click"/>
+                            
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                            
+                            <!-- 退出编辑按钮 -->
+                            <Button x:Name="BtnCloseTextEditor" Content="❌ 退出编辑"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Foreground="#D32F2F"
+                                    ToolTip="退出文本编辑器，返回图片/视频浏览" Click="BtnCloseTextEditor_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 编辑画布 - 无滚动条，像素级对齐 -->
+                    <Viewbox Grid.Row="1" Stretch="Uniform">
+                        <Grid Width="1920" Height="1080">
+                            <Canvas x:Name="EditorCanvas" 
+                                    Width="1920" Height="1080"
+                                    Background="White"
+                                    MouseLeftButtonDown="EditorCanvas_MouseDown"
+                                    AllowDrop="True"
+                                    ClipToBounds="True">
+                                
+                                <!-- 背景图（最底层）-->
+                                <Image x:Name="BackgroundImage" 
+                                       Width="1920" Height="1080"
+                                       Stretch="Fill"
+                                       Canvas.Left="0" Canvas.Top="0"
+                                       Panel.ZIndex="-1"/>
+
+                                <!-- 文本框将动态添加到这里 -->
+                            </Canvas>
+                            
+                            <!-- 辅助线（叠加在Canvas上方）-->
+                            <Canvas x:Name="AlignmentGuidesCanvas" 
+                                    Width="1920" Height="1080"
+                                    IsHitTestVisible="False"
+                                    Panel.ZIndex="1000">
+                                <!-- 垂直中心线 -->
+                                <Line x:Name="VerticalCenterLine" 
+                                      X1="960" Y1="0" X2="960" Y2="1080"
+                                      Stroke="#FF2196F3" StrokeThickness="2" 
+                                      StrokeDashArray="8,4"
+                                      Visibility="Collapsed">
+                                    <Line.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.5" Color="#2196F3"/>
+                                    </Line.Effect>
+                                </Line>
+                                
+                                <!-- 水平中心线 -->
+                                <Line x:Name="HorizontalCenterLine" 
+                                      X1="0" Y1="540" X2="1920" Y2="540"
+                                      Stroke="#FF2196F3" StrokeThickness="2" 
+                                      StrokeDashArray="8,4"
+                                      Visibility="Collapsed">
+                                    <Line.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.5" Color="#2196F3"/>
+                                    </Line.Effect>
+                                </Line>
+                                
+                                <!-- 垂直对齐线（与其他文本框对齐）-->
+                                <Line x:Name="VerticalAlignLine" 
+                                      X1="0" Y1="0" X2="0" Y2="1080"
+                                      Stroke="#FFFF9800" StrokeThickness="1.5" 
+                                      StrokeDashArray="4,2"
+                                      Visibility="Collapsed"/>
+                                
+                                <!-- 水平对齐线（与其他文本框对齐）-->
+                                <Line x:Name="HorizontalAlignLine" 
+                                      X1="0" Y1="0" X2="1920" Y2="0"
+                                      Stroke="#FFFF9800" StrokeThickness="1.5" 
+                                      StrokeDashArray="4,2"
+                                      Visibility="Collapsed"/>
+                            </Canvas>
+                        </Grid>
+                    </Viewbox>
                 </Grid>
 
                 <!-- 白色分割线 -->
