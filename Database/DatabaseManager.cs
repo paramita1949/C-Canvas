@@ -251,6 +251,26 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
+        /// 批量更新文件夹的排序顺序
+        /// </summary>
+        public void UpdateFoldersOrder(List<Folder> folders)
+        {
+            if (folders == null || folders.Count == 0)
+                return;
+
+            try
+            {
+                // EF Core会自动跟踪这些对象的变化
+                _context.SaveChanges();
+            }
+            catch (Exception)
+            {
+                // System.Diagnostics.Debug.WriteLine($"更新文件夹排序失败: {ex}");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 根据文件扩展名判断文件类型
         /// </summary>
         private FileType GetFileType(string extension)

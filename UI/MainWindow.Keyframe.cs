@@ -888,8 +888,8 @@ namespace ImageColorChanger.UI
                     if (_keyframeManager != null)
                     {
                         _keyframeManager.ScrollDuration = speed;
-                        _keyframeManager.ScrollEasingType = _scrollEasingType;
-                        _keyframeManager.IsLinearScrolling = _isLinearScrolling;
+                        // 注意：不在这里设置 ScrollEasingType 和 IsLinearScrolling
+                        // 这些应该在 LoadScrollEasingSettings() 中单独加载
                     }
                 }
             }
@@ -944,12 +944,12 @@ namespace ImageColorChanger.UI
                     {
                         _scrollDuration = speed;
                         
-                        // 更新KeyframeManager的滚动时长
+                        // 更新KeyframeManager的滚动时长（仅更新速度，不改变缓动函数设置）
                         if (_keyframeManager != null)
                         {
                             _keyframeManager.ScrollDuration = speed;
-                            _keyframeManager.ScrollEasingType = _scrollEasingType;
-                            _keyframeManager.IsLinearScrolling = _isLinearScrolling;
+                            // 注意：不在这里修改 ScrollEasingType 和 IsLinearScrolling
+                            // 这两个属性应该只在用户明确修改缓动函数时才改变
                         }
                         
                         // 更新菜单选中状态

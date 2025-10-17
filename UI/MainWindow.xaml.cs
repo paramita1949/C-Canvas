@@ -641,14 +641,25 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Escape");
+                        System.Diagnostics.Debug.WriteLine("\n⌨️ ========== 全局热键触发: ESC ==========");
+                        System.Diagnostics.Debug.WriteLine($"   触发时间: {DateTime.Now:HH:mm:ss:fff}");
                         Dispatcher.InvokeAsync(() =>
                         {
-                            // 如果正在播放视频，先停止播放
+                            System.Diagnostics.Debug.WriteLine("   开始处理 ESC 键...");
+                            System.Diagnostics.Debug.WriteLine($"   videoPlayerManager != null: {videoPlayerManager != null}");
+                            System.Diagnostics.Debug.WriteLine($"   videoPlayerManager.IsPlaying: {videoPlayerManager?.IsPlaying}");
+                            System.Diagnostics.Debug.WriteLine($"   projectionManager != null: {projectionManager != null}");
+                            System.Diagnostics.Debug.WriteLine($"   projectionManager.IsProjectionActive: {projectionManager?.IsProjectionActive}");
+                            
+                            // 如果正在播放视频，先停止播放并重置界面
                             if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
                             {
-                                //System.Diagnostics.Debug.WriteLine("📹 ESC键: 停止视频播放");
-                                videoPlayerManager.Stop();
+                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 检测到视频正在播放，调用 SwitchToImageMode()");
+                                SwitchToImageMode();
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 视频未播放，跳过 SwitchToImageMode()");
                             }
                             
                             // 关闭投影
@@ -657,9 +668,15 @@ namespace ImageColorChanger.UI
                                 bool wasClosed = projectionManager.CloseProjection();
                                 if (wasClosed)
                                 {
-                                    //System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
+                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 无投影需要关闭");
                                 }
                             }
+                            
+                            System.Diagnostics.Debug.WriteLine("========== 全局热键 ESC 处理完成 ==========\n");
                         });
                     });
                 
@@ -2555,6 +2572,17 @@ namespace ImageColorChanger.UI
                         
                         contextMenu.Items.Add(new Separator());
                         
+                        // 文件夹顺序调整菜单
+                        var moveUpItem = new MenuItem { Header = "⬆️ 上移" };
+                        moveUpItem.Click += (s, args) => MoveFolderUp(item);
+                        contextMenu.Items.Add(moveUpItem);
+                        
+                        var moveDownItem = new MenuItem { Header = "⬇️ 下移" };
+                        moveDownItem.Click += (s, args) => MoveFolderDown(item);
+                        contextMenu.Items.Add(moveDownItem);
+                        
+                        contextMenu.Items.Add(new Separator());
+                        
                         var deleteItem = new MenuItem { Header = "删除文件夹" };
                         deleteItem.Click += (s, args) => DeleteFolder(item);
                         contextMenu.Items.Add(deleteItem);
@@ -3230,22 +3258,32 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("\n🗑️ ========== ClearImageDisplay 被调用 ==========");
+                System.Diagnostics.Debug.WriteLine($"   清空前 imagePath: {imagePath ?? "null"}");
+                System.Diagnostics.Debug.WriteLine($"   清空前 currentImageId: {currentImageId}");
+                
                 // 清空图片路径
                 imagePath = null;
                 currentImageId = 0;
+                System.Diagnostics.Debug.WriteLine("   步骤1: imagePath 和 currentImageId 已清空");
                 
                 // 清空ImageProcessor（内部管理图片资源）
+                System.Diagnostics.Debug.WriteLine("   步骤2: 调用 imageProcessor.ClearCurrentImage()");
                 imageProcessor.ClearCurrentImage();
+                System.Diagnostics.Debug.WriteLine("   步骤2: imageProcessor.ClearCurrentImage() 完成");
                 
                 // 重置缩放
                 currentZoom = 1.0;
+                System.Diagnostics.Debug.WriteLine("   步骤3: currentZoom 重置为 1.0");
                 
                 ShowStatus("✅ 已清空图片显示");
-                //System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
+                System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
+                System.Diagnostics.Debug.WriteLine("========== ClearImageDisplay 完成 ==========\n");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"清空图片显示失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 清空图片显示失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
             }
         }
 
@@ -4149,15 +4187,54 @@ namespace ImageColorChanger.UI
             // ESC键: 关闭投影(优先级最高,不论是否原图模式)
             if (e.Key == Key.Escape)
             {
-                if (projectionManager != null)
+                System.Diagnostics.Debug.WriteLine("\n⌨️ ========== 主窗口热键: ESC ==========");
+                System.Diagnostics.Debug.WriteLine($"   触发时间: {DateTime.Now:HH:mm:ss:fff}");
+                System.Diagnostics.Debug.WriteLine($"   videoPlayerManager != null: {videoPlayerManager != null}");
+                System.Diagnostics.Debug.WriteLine($"   videoPlayerManager.IsPlaying: {videoPlayerManager?.IsPlaying}");
+                System.Diagnostics.Debug.WriteLine($"   projectionManager != null: {projectionManager != null}");
+                System.Diagnostics.Debug.WriteLine($"   projectionManager.IsProjectionActive: {projectionManager?.IsProjectionActive}");
+                
+                bool handled = false;
+                
+                // 优先关闭投影（只有在投影激活时才处理）
+                if (projectionManager != null && projectionManager.IsProjectionActive)
                 {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 投影已激活，尝试关闭投影");
                     bool wasClosed = projectionManager.CloseProjection();
                     if (wasClosed)
                     {
-                        //System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 已关闭投影");
-                        e.Handled = true;
-                        return;
+                        System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 已关闭投影");
+                        handled = true;
                     }
+                }
+                else if (projectionManager != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 投影未激活，跳过关闭投影");
+                }
+                
+                // 如果没有投影需要关闭，且正在播放视频，则停止播放并重置界面
+                if (!handled && videoPlayerManager != null && videoPlayerManager.IsPlaying)
+                {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 检测到视频播放，调用 SwitchToImageMode()");
+                    SwitchToImageMode();
+                    handled = true;
+                }
+                else if (!handled)
+                {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 无需处理视频停止");
+                }
+                
+                if (handled)
+                {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 事件已处理");
+                    e.Handled = true;
+                    System.Diagnostics.Debug.WriteLine("========== 主窗口热键 ESC 处理完成 ==========\n");
+                    return;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 事件未处理");
+                    System.Diagnostics.Debug.WriteLine("========== 主窗口热键 ESC 处理完成 ==========\n");
                 }
             }
             
@@ -4470,8 +4547,8 @@ namespace ImageColorChanger.UI
                 if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    // 只允许拖拽文件，不允许拖拽文件夹
-                    if (draggedItem.Type == TreeItemType.File)
+                    // 允许拖拽文件和文件夹（不允许拖拽Project）
+                    if (draggedItem.Type == TreeItemType.File || draggedItem.Type == TreeItemType.Folder)
                     {
                         System.Windows.DragDrop.DoDragDrop(ProjectTree, draggedItem, System.Windows.DragDropEffects.Move);
                     }
@@ -4496,8 +4573,25 @@ namespace ImageColorChanger.UI
                     
                     dragOverItem = targetItem;
                     
+                    // 获取拖拽源项
+                    var sourceItem = e.Data.GetData(typeof(ProjectTreeItem)) as ProjectTreeItem;
+                    
                     // 检查是否是有效的拖放目标
-                    if (targetItem != null && targetItem.Type == TreeItemType.File)
+                    // 文件只能拖到文件上，文件夹只能拖到文件夹上
+                    bool isValidDrop = false;
+                    if (sourceItem != null && targetItem != null)
+                    {
+                        if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
+                        {
+                            isValidDrop = true;
+                        }
+                        else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                        {
+                            isValidDrop = true;
+                        }
+                    }
+                    
+                    if (isValidDrop)
                     {
                         e.Effects = System.Windows.DragDropEffects.Move;
                         
@@ -4552,10 +4646,15 @@ namespace ImageColorChanger.UI
                     
                     if (sourceItem != null && targetItem != null && sourceItem != targetItem)
                     {
-                        // 只允许在同一文件夹内拖拽排序
+                        // 文件排序：只允许在同一文件夹内拖拽排序
                         if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
                         {
                             ReorderFiles(sourceItem, targetItem);
+                        }
+                        // 文件夹排序：只允许根级别文件夹之间排序
+                        else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                        {
+                            ReorderFolders(sourceItem, targetItem);
                         }
                     }
                 }
@@ -4839,6 +4938,174 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 重新排序文件夹（拖拽）
+        /// </summary>
+        private void ReorderFolders(ProjectTreeItem sourceItem, ProjectTreeItem targetItem)
+        {
+            // 防止重复执行
+            if (isDragInProgress) return;
+            isDragInProgress = true;
+            
+            try
+            {
+                // 获取所有文件夹
+                var folders = dbManager.GetAllFolders();
+                
+                // 找到源文件夹和目标文件夹的索引
+                int sourceIndex = folders.FindIndex(f => f.Id == sourceItem.Id);
+                int targetIndex = folders.FindIndex(f => f.Id == targetItem.Id);
+
+                if (sourceIndex == -1 || targetIndex == -1)
+                {
+                    ShowStatus("❌ 无法找到文件夹");
+                    return;
+                }
+
+                // 移除源文件夹
+                var sourceFolder = folders[sourceIndex];
+                folders.RemoveAt(sourceIndex);
+
+                // 插入到目标位置
+                if (sourceIndex < targetIndex)
+                {
+                    folders.Insert(targetIndex, sourceFolder);
+                }
+                else
+                {
+                    folders.Insert(targetIndex, sourceFolder);
+                }
+
+                // 更新所有文件夹的OrderIndex
+                for (int i = 0; i < folders.Count; i++)
+                {
+                    folders[i].OrderIndex = i + 1;
+                }
+
+                // 保存更改到数据库
+                dbManager.UpdateFoldersOrder(folders);
+
+                // 更新TreeView中的文件夹顺序
+                UpdateFolderTreeItemOrder(folders);
+                
+                ShowStatus($"✅ 已重新排序文件夹: {sourceItem.Name}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"重新排序文件夹失败: {ex}");
+                ShowStatus($"❌ 文件夹排序失败: {ex.Message}");
+            }
+            finally
+            {
+                // 确保标志被重置
+                isDragInProgress = false;
+            }
+        }
+
+        /// <summary>
+        /// 文件夹上移
+        /// </summary>
+        private void MoveFolderUp(ProjectTreeItem folderItem)
+        {
+            try
+            {
+                // 获取所有文件夹
+                var folders = dbManager.GetAllFolders();
+                
+                // 找到当前文件夹的索引
+                int currentIndex = folders.FindIndex(f => f.Id == folderItem.Id);
+                
+                if (currentIndex == -1)
+                {
+                    ShowStatus("❌ 无法找到文件夹");
+                    return;
+                }
+                
+                // 如果已经是第一个，无法上移
+                if (currentIndex == 0)
+                {
+                    ShowStatus("⚠️ 已经是第一个文件夹");
+                    return;
+                }
+                
+                // 与上一个文件夹交换位置
+                var currentFolder = folders[currentIndex];
+                folders.RemoveAt(currentIndex);
+                folders.Insert(currentIndex - 1, currentFolder);
+                
+                // 更新所有文件夹的OrderIndex
+                for (int i = 0; i < folders.Count; i++)
+                {
+                    folders[i].OrderIndex = i + 1;
+                }
+                
+                // 保存到数据库
+                dbManager.UpdateFoldersOrder(folders);
+                
+                // 更新UI
+                UpdateFolderTreeItemOrder(folders);
+                
+                ShowStatus($"✅ 已上移: {folderItem.Name}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"文件夹上移失败: {ex}");
+                ShowStatus($"❌ 上移失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 文件夹下移
+        /// </summary>
+        private void MoveFolderDown(ProjectTreeItem folderItem)
+        {
+            try
+            {
+                // 获取所有文件夹
+                var folders = dbManager.GetAllFolders();
+                
+                // 找到当前文件夹的索引
+                int currentIndex = folders.FindIndex(f => f.Id == folderItem.Id);
+                
+                if (currentIndex == -1)
+                {
+                    ShowStatus("❌ 无法找到文件夹");
+                    return;
+                }
+                
+                // 如果已经是最后一个，无法下移
+                if (currentIndex == folders.Count - 1)
+                {
+                    ShowStatus("⚠️ 已经是最后一个文件夹");
+                    return;
+                }
+                
+                // 与下一个文件夹交换位置
+                var currentFolder = folders[currentIndex];
+                folders.RemoveAt(currentIndex);
+                folders.Insert(currentIndex + 1, currentFolder);
+                
+                // 更新所有文件夹的OrderIndex
+                for (int i = 0; i < folders.Count; i++)
+                {
+                    folders[i].OrderIndex = i + 1;
+                }
+                
+                // 保存到数据库
+                dbManager.UpdateFoldersOrder(folders);
+                
+                // 更新UI
+                UpdateFolderTreeItemOrder(folders);
+                
+                ShowStatus($"✅ 已下移: {folderItem.Name}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"文件夹下移失败: {ex}");
+                ShowStatus($"❌ 下移失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 轻量级更新TreeView中的文件顺序（避免重新加载整个TreeView）
         /// </summary>
         private void UpdateTreeItemOrder(int? folderId, List<MediaFile> sortedFiles)
@@ -4926,6 +5193,47 @@ namespace ImageColorChanger.UI
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
+                // 如果轻量级更新失败，回退到完整刷新
+                LoadProjects();
+            }
+        }
+
+        /// <summary>
+        /// 轻量级更新TreeView中的文件夹顺序（避免重新加载整个TreeView）
+        /// </summary>
+        private void UpdateFolderTreeItemOrder(List<Folder> sortedFolders)
+        {
+            try
+            {
+                // 创建一个字典来快速查找新的顺序索引
+                var orderDict = sortedFolders.Select((f, index) => new { f.Id, Order = index })
+                    .ToDictionary(x => x.Id, x => x.Order);
+                
+                // 对 projectTreeItems 中的文件夹进行排序（排除Project节点）
+                var folders = projectTreeItems.Where(item => item.Type == TreeItemType.Folder).ToList();
+                var nonFolders = projectTreeItems.Where(item => item.Type != TreeItemType.Folder).ToList();
+                
+                // 根据新的OrderIndex排序文件夹
+                folders = folders.OrderBy(f => orderDict.ContainsKey(f.Id) ? orderDict[f.Id] : int.MaxValue).ToList();
+                
+                // 清空并重新添加（保持正确顺序）
+                projectTreeItems.Clear();
+                
+                // 先添加非文件夹项（如Project节点）
+                foreach (var item in nonFolders)
+                {
+                    projectTreeItems.Add(item);
+                }
+                
+                // 再添加排序后的文件夹
+                foreach (var folder in folders)
+                {
+                    projectTreeItems.Add(folder);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新文件夹TreeView顺序失败: {ex}");
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();
             }
@@ -5397,17 +5705,41 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SwitchToImageMode()
         {
+            System.Diagnostics.Debug.WriteLine("\n🔄 ========== SwitchToImageMode 被调用 ==========");
+            System.Diagnostics.Debug.WriteLine($"   当前时间: {DateTime.Now:HH:mm:ss:fff}");
+            System.Diagnostics.Debug.WriteLine($"   videoPlayerManager != null: {videoPlayerManager != null}");
+            System.Diagnostics.Debug.WriteLine($"   videoPlayerManager.IsPlaying: {videoPlayerManager?.IsPlaying}");
+            System.Diagnostics.Debug.WriteLine($"   当前 imagePath: {imagePath ?? "null"}");
+            System.Diagnostics.Debug.WriteLine($"   当前 currentImageId: {currentImageId}");
+            
             // 停止视频播放
             if (videoPlayerManager != null && videoPlayerManager.IsPlaying)
             {
+                System.Diagnostics.Debug.WriteLine("   步骤1: 停止视频播放");
                 videoPlayerManager.Stop();
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("   步骤1: 视频未播放，跳过停止");
             }
             
             // 隐藏视频播放区域
+            System.Diagnostics.Debug.WriteLine($"   步骤2: 隐藏视频容器 (当前: {VideoContainer.Visibility})");
             VideoContainer.Visibility = Visibility.Collapsed;
+            System.Diagnostics.Debug.WriteLine($"   步骤2: 视频容器已设置为 {VideoContainer.Visibility}");
             
             // 隐藏媒体控制栏
+            System.Diagnostics.Debug.WriteLine($"   步骤3: 隐藏媒体控制栏 (当前: {MediaPlayerPanel.Visibility})");
             MediaPlayerPanel.Visibility = Visibility.Collapsed;
+            System.Diagnostics.Debug.WriteLine($"   步骤3: 媒体控制栏已设置为 {MediaPlayerPanel.Visibility}");
+            
+            // 清空图片显示（避免回到之前的图片）
+            System.Diagnostics.Debug.WriteLine("   步骤4: 调用 ClearImageDisplay()");
+            ClearImageDisplay();
+            System.Diagnostics.Debug.WriteLine($"   步骤4: ClearImageDisplay() 完成");
+            System.Diagnostics.Debug.WriteLine($"   清空后 imagePath: {imagePath ?? "null"}");
+            System.Diagnostics.Debug.WriteLine($"   清空后 currentImageId: {currentImageId}");
+            System.Diagnostics.Debug.WriteLine("========== SwitchToImageMode 完成 ==========\n");
         }
         
         /// <summary>

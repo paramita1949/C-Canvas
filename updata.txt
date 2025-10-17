@@ -1,6 +1,157 @@
 2025.10.17
 --------------------------
 
+V4.0.9
+🐛 修复ESC键停止视频播放后界面未重置的问题
+1、问题描述
+   - **现象**：从图片文件切换到媒体播放，按ESC键停止播放后，界面未重置
+   - **复现步骤**：
+     1. 当前显示图片文件
+     2. 切换到视频或音频文件（进入媒体播放模式）
+     3. 按ESC键停止播放
+     4. 视频播放区域和媒体控制栏仍然显示，没有隐藏
+   - **影响范围**：仅影响ESC键停止播放的情况，手动切换到图片文件正常
+
+2、问题原因（通过调试日志定位）
+   - **调试发现的关键问题**：`Window_PreviewKeyDown()` 中的ESC键处理逻辑错误 (第4187-4239行)
+     * 条件判断：`if (projectionManager != null)` 就调用 `CloseProjection()`
+     * `CloseProjection()` 无论投影是否开启，都返回 `true`（除非异常）
+     * 导致 `handled = true`，跳过了后续的视频停止处理
+     * **实际情况**：`videoPlayerManager.IsPlaying: True`，但被 `handled` 标记阻止了
+   - **代码位置1**：`UI/MainWindow.xaml.cs` 第638-664行（全局热键ESC处理）
+     * 只调用了 `videoPlayerManager.Stop()` 停止播放
+     * 没有调用 `SwitchToImageMode()` 来重置界面
+     * 导致 `VideoContainer` 和 `MediaPlayerPanel` 仍然可见
+   - **代码位置2**：`SwitchToImageMode()` 方法 (第5653-5669行)
+     * 只隐藏了视频容器和媒体控制栏
+     * 没有清空图片显示
+     * 导致停止播放后，界面显示之前加载的图片1
+   - **布局结构**：
+     * `ImageScrollViewer`（图片显示）和 `VideoContainer`（视频显示）是并列的
+     * 隐藏 `VideoContainer` 后，会露出底层的 `ImageDisplay`
+     * 如果 `ImageDisplay` 中有之前的图片，就会显示出来
+
+3、修复方案
+   - **修改点1（关键修复）**：`Window_PreviewKeyDown()` 中的ESC键处理 (第4199-4213行)
+     * **问题**：原逻辑 `if (projectionManager != null)` 就调用 `CloseProjection()`
+     * **修复**：改为 `if (projectionManager != null && projectionManager.IsProjectionActive)`
+     * **效果**：只有在投影真正激活时才尝试关闭投影
+     * **原因**：`CloseProjection()` 总是返回 `true`，导致 `handled=true` 阻止后续处理
+     * 适用场景：非投影模式下按ESC键停止视频播放
+   - **修改点2**：`EnableGlobalHotKeys()` 中的ESC键处理 (第647-652行)
+     * 将 `videoPlayerManager.Stop();` 替换为 `SwitchToImageMode();`
+     * 适用场景：投影模式下按ESC键停止视频播放
+   - **修改点3**：`SwitchToImageMode()` 方法 (第5656-5693行)
+     * 在隐藏视频容器和媒体控制栏后，增加 `ClearImageDisplay()` 调用
+     * `ClearImageDisplay()` 会清空 `ImageDisplay` 的内容，避免显示之前的图片
+   - **完整的重置流程**：
+     1. 调用 `videoPlayerManager.Stop()` 停止播放
+     2. 隐藏 `VideoContainer` (视频播放区域)
+     3. 隐藏 `MediaPlayerPanel` (媒体控制栏)
+     4. 调用 `ClearImageDisplay()` 清空图片显示
+     * 确保界面完全重置，不显示任何内容（黑屏状态）
+   - **调试信息**：
+     * 在 `SwitchToImageMode()`、`ClearImageDisplay()` 和ESC键处理中添加详细日志
+     * 帮助快速定位问题（如本次通过日志发现 `handled` 被误设置）
+
+4、测试验证
+   - ✅ 图片1 → 视频 → ESC（非投影模式）：显示黑屏，不显示图片1
+   - ✅ 图片1 → 音频 → ESC（非投影模式）：显示黑屏，不显示图片1
+   - ✅ 图片1 → 视频 → 开启投影 → ESC：先关闭投影，视频继续播放
+   - ✅ 图片1 → 视频 → 开启投影 → ESC（再次）：停止播放并清空显示
+   - ✅ 图片1 → 视频 → ESC → 切换图片2：正常显示图片2
+   - ✅ 手动切换图片文件：调用 `SwitchToImageMode()` 后立即加载新图片
+   
+5、相关文件
+   - `UI/MainWindow.xaml.cs`
+
+V4.0.8
+🐛 修复滚动函数被意外覆盖的问题
+1、问题描述
+   - **现象**：修改滚动速度（运动时间）时，滚动函数会被重置为贝塞尔曲线
+   - **复现步骤**：
+     1. 设置滚动函数为"线性滚动"或其他缓动函数
+     2. 修改滚动速度（如从8秒改为10秒）
+     3. 滚动函数自动变回"贝塞尔曲线"
+   - **影响范围**：仅影响首次修改，后续修改正常
+
+2、问题原因
+   - **代码位置**：`UI/MainWindow.Keyframe.cs`
+   - **根本原因**：
+     * `SetScrollSpeed_Click()` 方法在修改滚动速度时
+     * 同时设置了 `ScrollEasingType` 和 `IsLinearScrolling`
+     * 使用的是字段 `_scrollEasingType` 的默认值（"Bezier"）
+     * 而不是数据库中用户实际保存的设置
+   - **类似问题**：`LoadScrollSpeedSettings()` 也存在相同逻辑
+
+3、修复方案
+   - **修改点1**：`SetScrollSpeed_Click()` (第950-953行)
+     * 移除 `_keyframeManager.ScrollEasingType = _scrollEasingType;`
+     * 移除 `_keyframeManager.IsLinearScrolling = _isLinearScrolling;`
+     * 仅更新 `ScrollDuration`，不触碰缓动函数设置
+   - **修改点2**：`LoadScrollSpeedSettings()` (第890-893行)
+     * 移除对 `ScrollEasingType` 和 `IsLinearScrolling` 的设置
+     * 这些属性在 `LoadScrollEasingSettings()` 中单独加载
+   
+4、设计原则
+   - **职责分离**：
+     * 滚动速度设置：只负责速度（Duration）
+     * 滚动函数设置：只负责缓动类型（EasingType/IsLinearScrolling）
+     * 两者互不干扰
+   - **数据源唯一**：
+     * 缓动函数设置应始终从数据库加载
+     * 不使用硬编码的默认值覆盖用户设置
+
+5、测试验证
+   - ✅ 修改滚动速度不会影响滚动函数设置
+   - ✅ 修改滚动函数不会影响滚动速度设置
+   - ✅ 两者独立保存和加载
+   - ✅ 程序重启后设置保持正确
+
+V4.0.7
+📁 文件夹顺序调整功能
+1、支持文件夹顺序调整（两种方式）
+   
+   **方式一：拖拽排序** 🖱️
+   - **操作方法**：按住文件夹并拖动到目标位置
+   - **视觉反馈**：显示蓝色插入位置指示线
+   - **完成排序**：松开鼠标即可
+   - **技术特点**：
+     * 扩展现有拖拽系统，支持 TreeItemType.Folder
+     * 文件只能拖到文件上，文件夹只能拖到文件夹上
+     * 轻量级UI更新，避免重新加载整个TreeView
+   
+   **方式二：右键菜单** 📋
+   - **操作方法**：右键点击文件夹 → 选择"⬆️ 上移"或"⬇️ 下移"
+   - **智能边界**：
+     * 第一个文件夹：自动禁用上移
+     * 最后一个文件夹：自动禁用下移
+   - **即时反馈**：状态栏显示操作结果
+   - **新增方法**：
+     * `MoveFolderUp()`：文件夹上移一位
+     * `MoveFolderDown()`：文件夹下移一位
+   
+   **共通技术实现**：
+   - **数据库层**：
+     * 新增 `UpdateFoldersOrder()` 方法批量更新文件夹排序
+     * 利用 EF Core 自动变更跟踪机制
+     * 自动更新所有文件夹的 OrderIndex 字段
+   - **UI更新优化**：
+     * 新增 `UpdateFolderTreeItemOrder()` 方法
+     * 内存中重新排序，无需重新加载数据
+     * 保持文件夹的展开/折叠状态
+   - **核心方法**：
+     * `ReorderFolders()`：处理拖拽排序逻辑
+     * 交换位置并重新计算所有OrderIndex
+     * 确保数据一致性
+   
+   **用户体验**：
+   - ✅ 两种方式任选，灵活便捷
+   - ✅ 直观的视觉反馈
+   - ✅ 立即生效，无延迟
+   - ✅ 自动保存到数据库
+   - ✅ 边界保护，防止误操作
+
 V4.0.6
 📝 文本编辑器交互优化
 1、优化文本框删除方式
