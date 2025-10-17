@@ -56,10 +56,10 @@ namespace ImageColorChanger.UI
         private const int MILLISECONDS_PER_SECOND = 1000;
 
         // 默认颜色常量（RGB）
-        private const byte DEFAULT_TARGET_COLOR_R = 174;  // 淡黄色 R
-        private const byte DEFAULT_TARGET_COLOR_G = 159;  // 淡黄色 G
-        private const byte DEFAULT_TARGET_COLOR_B = 112;  // 淡黄色 B
-        private const string DEFAULT_TARGET_COLOR_NAME = "淡黄";
+        private const byte DEFAULT_TARGET_COLOR_R = 255;  // 秋麒麟色 R
+        private const byte DEFAULT_TARGET_COLOR_G = 165;  // 秋麒麟色 G
+        private const byte DEFAULT_TARGET_COLOR_B = 79;   // 秋麒麟色 B
+        private const string DEFAULT_TARGET_COLOR_NAME = "秋麒麟";
 
         // UI按钮激活颜色（RGB）
         private const byte BUTTON_ACTIVE_COLOR_R = 144;   // 浅绿色 R (LightGreen)
