@@ -1,11 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 using ImageColorChanger.Core;
 using MessageBox = System.Windows.MessageBox;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
@@ -77,7 +73,7 @@ namespace ImageColorChanger.Managers
                 var savePath = saveDialog.FileName;
 
                 // 根据效果状态准备要保存的图片
-                Image<Rgba32> imageToSave;
+                SKBitmap imageToSave;
                 
                 if (_imageProcessor.IsInverted)
                 {
@@ -86,38 +82,48 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
-                    imageToSave = _imageProcessor.CurrentImage.Clone();
+                    imageToSave = _imageProcessor.CurrentImage.Copy();
+                }
+
+                if (imageToSave == null)
+                {
+                    MessageBox.Show("准备保存图片失败！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return false;
                 }
 
                 // 根据扩展名保存
                 var extension = Path.GetExtension(savePath).ToLower();
                 
-                if (extension == ".jpg" || extension == ".jpeg")
+                bool saveSuccess = false;
+                using (var stream = File.OpenWrite(savePath))
                 {
-                    imageToSave.Save(savePath, new JpegEncoder { Quality = 95 });
-                }
-                else if (extension == ".png")
-                {
-                    imageToSave.Save(savePath, new PngEncoder());
-                }
-                else
-                {
-                    // 默认保存为PNG
-                    imageToSave.Save(savePath, new PngEncoder());
+                    if (extension == ".jpg" || extension == ".jpeg")
+                    {
+                        saveSuccess = imageToSave.Encode(stream, SKEncodedImageFormat.Jpeg, 95);
+                    }
+                    else if (extension == ".png")
+                    {
+                        saveSuccess = imageToSave.Encode(stream, SKEncodedImageFormat.Png, 100);
+                    }
+                    else
+                    {
+                        // 默认保存为PNG
+                        saveSuccess = imageToSave.Encode(stream, SKEncodedImageFormat.Png, 100);
+                    }
                 }
 
                 // 释放临时图片
-                imageToSave.Dispose();
-
-                //System.Diagnostics.Debug.WriteLine($"✅ 图片已保存: {savePath}");
+                if (_imageProcessor.IsInverted)
+                {
+                    imageToSave.Dispose();
+                }
                 
                 // 静默保存，不显示成功提示（与Python版本一致）
-                return true;
+                return saveSuccess;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"保存图片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                //System.Diagnostics.Debug.WriteLine($"保存图片失败: {ex}");
                 return false;
             }
         }
@@ -136,7 +142,7 @@ namespace ImageColorChanger.Managers
             {
                 var extension = Path.GetExtension(targetPath).ToLower();
                 
-                Image<Rgba32> imageToSave;
+                SKBitmap imageToSave;
                 
                 if (_imageProcessor.IsInverted)
                 {
@@ -144,28 +150,36 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
-                    imageToSave = _imageProcessor.CurrentImage.Clone();
+                    imageToSave = _imageProcessor.CurrentImage.Copy();
                 }
 
-                if (extension == ".jpg" || extension == ".jpeg")
+                if (imageToSave == null)
+                    return false;
+
+                bool saveSuccess = false;
+                using (var stream = File.OpenWrite(targetPath))
                 {
-                    imageToSave.Save(targetPath, new JpegEncoder { Quality = 95 });
-                }
-                else
-                {
-                    imageToSave.Save(targetPath, new PngEncoder());
+                    if (extension == ".jpg" || extension == ".jpeg")
+                    {
+                        saveSuccess = imageToSave.Encode(stream, SKEncodedImageFormat.Jpeg, 95);
+                    }
+                    else
+                    {
+                        saveSuccess = imageToSave.Encode(stream, SKEncodedImageFormat.Png, 100);
+                    }
                 }
 
-                imageToSave.Dispose();
+                if (_imageProcessor.IsInverted)
+                {
+                    imageToSave.Dispose();
+                }
                 
-                return true;
+                return saveSuccess;
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"快速保存失败: {ex}");
                 return false;
             }
         }
     }
 }
-

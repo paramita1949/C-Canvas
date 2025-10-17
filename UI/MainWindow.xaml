@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V3.0.6"
+        Title="Canvas Cast V4.0.6"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -979,10 +979,6 @@
                                     Style="{StaticResource SuccessButtonStyle}"
                                     ToolTip="添加文本框" Click="BtnAddText_Click"/>
                             
-                            <Button x:Name="BtnDeleteText" Content="🗑 删除" 
-                                    Style="{StaticResource DangerButtonStyle}"
-                                    ToolTip="删除选中的文本框" Click="BtnDeleteText_Click"/>
-                            
                             <!-- 背景按钮（带下拉菜单） -->
                             <Button x:Name="BtnBackground" Content="🎨 背景" 
                                     Style="{StaticResource MenuButtonStyle}"
@@ -1301,21 +1297,13 @@
                     </Grid>
                 </Grid>
 
-                <!-- 白色分割线 -->
-                <Border HorizontalAlignment="Right"
-                        VerticalAlignment="Stretch"
-                        Width="3"
-                        Margin="0,0,44,0"
-                        Background="#FFFFFF"
-                        Panel.ZIndex="199"/>
-
                 <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
                 <Border x:Name="ScrollbarIndicatorsBorder"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Stretch"
                         Width="18.5"
                         Margin="0,0,24,0"
-                        Background="#CC303030"
+                        Background="Transparent"
                         Panel.ZIndex="200">
                     <Canvas x:Name="ScrollbarIndicatorsCanvas"
                             Background="Transparent"

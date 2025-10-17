@@ -40,17 +40,17 @@ namespace ImageColorChanger.Managers.Keyframes
         /// <summary>
         /// 滚动动画时间（秒）
         /// </summary>
-        public double ScrollDuration { get; set; } = 8.0;
+        public double ScrollDuration { get; set; } = 9.0;
         
         /// <summary>
         /// 滚动缓动类型（字符串，匹配Python版本）
         /// </summary>
-        public string ScrollEasingType { get; set; } = "Bezier";
+        public string ScrollEasingType { get; set; } = "Linear";
         
         /// <summary>
         /// 是否使用线性滚动（无缓动）
         /// </summary>
-        public bool IsLinearScrolling { get; set; } = false;
+        public bool IsLinearScrolling { get; set; } = true;
 
         #endregion
 
@@ -173,6 +173,44 @@ namespace ImageColorChanger.Managers.Keyframes
         /// </summary>
         /// <param name="imageId">图片ID</param>
         /// <returns>关键帧列表</returns>
+        /// <summary>
+        /// 同步获取关键帧（仅从缓存），用于性能敏感的操作
+        /// </summary>
+        public List<Keyframe> GetKeyframesFromCache(int imageId)
+        {
+            if (_cache.TryGetValue(imageId, out var cachedKeyframes))
+            {
+                return cachedKeyframes;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 同步获取关键帧（带数据库加载和缓存）
+        /// </summary>
+        public List<Keyframe> GetKeyframes(int imageId)
+        {
+            // 检查缓存
+            if (_cache.TryGetValue(imageId, out var cachedKeyframes) &&
+                _cacheTimestamp.TryGetValue(imageId, out var timestamp))
+            {
+                if (DateTime.Now - timestamp < _cacheTtl)
+                {
+                    // 缓存命中
+                    return cachedKeyframes;
+                }
+            }
+
+            // 从数据库加载（同步）
+            var keyframes = _repository.GetKeyframesByImageId(imageId);
+
+            // 更新缓存
+            _cache[imageId] = keyframes;
+            _cacheTimestamp[imageId] = DateTime.Now;
+
+            return keyframes;
+        }
+
         public async Task<List<Keyframe>> GetKeyframesAsync(int imageId)
         {
             // 检查缓存

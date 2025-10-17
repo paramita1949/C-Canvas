@@ -7,8 +7,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using Microsoft.Extensions.Caching.Memory;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace ImageColorChanger.Core
 {
@@ -269,7 +268,10 @@ namespace ImageColorChanger.Core
                     {
                         try
                         {
-                            var image = SixLabors.ImageSharp.Image.Load<Rgba32>(path);
+                            var image = SKBitmap.Decode(path);
+                            
+                            if (image == null)
+                                return;
                             
                             // 加入LRU缓存
                             var entryOptions = new MemoryCacheEntryOptions

@@ -19,6 +19,24 @@ namespace ImageColorChanger.Repositories.Implementations
         }
 
         /// <summary>
+        /// 获取指定图片的所有关键帧（按顺序）- 同步版本
+        /// </summary>
+        public List<Keyframe> GetKeyframesByImageId(int imageId)
+        {
+            try
+            {
+                return _dbSet
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToList();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 获取指定图片的所有关键帧（按顺序）
         /// </summary>
         public async Task<List<Keyframe>> GetKeyframesByImageIdAsync(int imageId)
@@ -113,4 +131,3 @@ namespace ImageColorChanger.Repositories.Implementations
         }
     }
 }
-

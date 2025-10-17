@@ -65,6 +65,24 @@ namespace ImageColorChanger.Managers.Keyframes
         }
 
         /// <summary>
+        /// 获取指定图片的所有关键帧（同步版本，用于性能敏感场景）
+        /// </summary>
+        public List<Keyframe> GetKeyframesByImageId(int imageId)
+        {
+            try
+            {
+                return _context.Keyframes
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToList();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        
+        /// <summary>
         /// 获取指定图片的所有关键帧
         /// </summary>
         public async Task<List<Keyframe>> GetKeyframesAsync(int imageId)

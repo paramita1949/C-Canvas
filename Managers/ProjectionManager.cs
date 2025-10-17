@@ -9,10 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.UI;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using Image = SixLabors.ImageSharp.Image;
+using SkiaSharp;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfMessageBoxButton = System.Windows.MessageBoxButton;
 using WpfMessageBoxImage = System.Windows.MessageBoxImage;
@@ -78,7 +75,7 @@ namespace ImageColorChanger.Managers
         private TimeSpan _syncThrottleInterval = TimeSpan.FromMilliseconds(16); // 约60FPS
 
         // 当前状态
-        private Image<Rgba32> _currentImage;
+        private SKBitmap _currentImage;
         private bool _isColorEffectEnabled;
         private double _zoomRatio = 1.0;
         private bool _isOriginalMode;
@@ -87,6 +84,15 @@ namespace ImageColorChanger.Managers
         
         // ⚡ 投影图片缓存
         private readonly IMemoryCache _projectionCache;
+        
+        // ⚡ 预渲染状态
+        private bool _isPreRendering = false;
+        private readonly object _preRenderLock = new object();
+
+        /// <summary>
+        /// 是否正在投影
+        /// </summary>
+        public bool IsProjecting => _projectionWindow != null;
 
         public ProjectionManager(
             Window mainWindow,
@@ -233,16 +239,18 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 更新投影图片
         /// </summary>
-        public void UpdateProjectionImage(Image<Rgba32> image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
+        public void UpdateProjectionImage(SKBitmap image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
         {
             //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] UpdateProjectionImage 被调用");
             //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 图像尺寸: {image?.Width}x{image?.Height}");
             //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 投影窗口: {(_projectionWindow != null ? "存在" : "null")}");
-            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 变色效果: {applyColorEffect}, 缩放: {zoomRatio}, 原图模式: {isOriginalMode}, 绕过缓存: {bypassCache}");
+            //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 变色效果: {applyColorEffect}, 缩放: {zoomRatio:F2}, 原图模式: {isOriginalMode}, 显示模式: {originalDisplayMode}, 绕过缓存: {bypassCache}");
+            
+            // 🔍 检查缩放参数是否变化
+            bool zoomChanged = Math.Abs(_zoomRatio - zoomRatio) > 0.001;
             
             _currentImage = image;
             _isColorEffectEnabled = applyColorEffect;
-            _zoomRatio = zoomRatio;
             _isOriginalMode = isOriginalMode;
             _originalDisplayMode = originalDisplayMode;
             _currentImagePath = _imageProcessor?.CurrentImagePath; // 记录当前图片路径用于缓存键
@@ -251,18 +259,164 @@ namespace ImageColorChanger.Managers
             if (bypassCache)
             {
                 _currentImagePath = $"texteditor_{Guid.NewGuid()}";
-                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 绕过缓存模式，使用唯一键: {_currentImagePath}");
             }
 
             if (_projectionWindow != null && image != null)
             {
-                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 调用 UpdateProjection()...");
-                UpdateProjection();
+                // ⚡ 完全同步方案：立即高质量渲染，无延迟，无快速预览
+                // 宁可轻微卡顿，也要保证主屏幕和投影屏幕显示完全一致
+                _zoomRatio = zoomRatio;
+                _ = PreRenderProjectionAsync();
             }
-            else
+        }
+        
+        /// <summary>
+        /// 同步渲染投影（主线程）
+        /// </summary>
+        public System.Threading.Tasks.Task PreRenderProjectionAsync()
+        {
+            if (_projectionWindow == null || _currentImage == null)
+                return System.Threading.Tasks.Task.CompletedTask;
+
+            // ⚡ 防止重复预渲染
+            lock (_preRenderLock)
             {
-                //System.Diagnostics.Debug.WriteLine($"📺 [ProjectionManager] 跳过更新: 窗口={_projectionWindow != null}, 图像={image != null}");
+                if (_isPreRendering)
+                {
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] 已在预渲染中，跳过");
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+                _isPreRendering = true;
             }
+
+            try
+            {
+                // 🎯 使用Invoke立即同步执行，避免队列积压导致显示旧图
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    
+                    var screen = _screens[_currentScreenIndex];
+                    int screenWidth = screen.Bounds.Width;
+                    int screenHeight = screen.Bounds.Height;
+
+                    // 计算缩放后的尺寸
+                    var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
+                    
+                    string cacheKey = GenerateProjectionCacheKey(newWidth, newHeight);
+                    
+                    // 检查缓存
+                    if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedImage))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 缓存命中 (耗时: {sw.ElapsedMilliseconds}ms)");
+                        
+                        // 直接使用缓存图片
+                        _projectionImage = cachedImage;
+                        if (_projectionImageControl != null)
+                        {
+                            _projectionImageControl.Source = _projectionImage;
+                            _projectionImageControl.Width = newWidth;
+                            _projectionImageControl.Height = newHeight;
+                        }
+                        return;
+                    }
+                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ❌ 缓存未命中，开始渲染...");
+                    
+                    // 🎮 使用GPU加速渲染（如果GPU不可用，自动降级到CPU）
+                    var processedImage = Core.GPUContext.Instance.ScaleImageGpu(
+                        _currentImage, 
+                        newWidth, 
+                        newHeight, 
+                        SKFilterQuality.High
+                    );
+
+                    if (processedImage == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 渲染失败");
+                        return;
+                    }
+
+                    if (_isColorEffectEnabled)
+                    {
+                        _imageProcessor.ApplyYellowTextEffect(processedImage);
+                    }
+
+                    // 转换为BitmapSource（已经在UI线程）
+                    BitmapSource projectionImage = ConvertToBitmapSource(processedImage);
+                    processedImage.Dispose();
+                    
+                    // 加入缓存
+                    var entryOptions = new MemoryCacheEntryOptions
+                    {
+                        Size = Math.Max(1, (newWidth * newHeight * 4) / (1024 * 1024)),
+                        Priority = CacheItemPriority.Normal,
+                        SlidingExpiration = TimeSpan.FromMinutes(10)
+                    };
+                    _projectionCache.Set(cacheKey, projectionImage, entryOptions);
+                    
+                    sw.Stop();
+                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 渲染完成：总耗时 {sw.ElapsedMilliseconds}ms");
+                    
+                    // 🎯 直接使用预渲染的图片，不调用UpdateProjection（避免重复渲染）
+                    _projectionImage = projectionImage;
+                    
+                    // 直接更新UI
+                    if (_projectionImageControl != null && _projectionImage != null)
+                    {
+                        _projectionImageControl.Source = _projectionImage;
+                        _projectionImageControl.Width = newWidth;
+                        _projectionImageControl.Height = newHeight;
+                        
+                        // 设置对齐和边距（与UpdateProjection保持一致）
+                        if (_projectionScrollViewer != null && _projectionContainer != null)
+                        {
+                            double containerWidth = _projectionScrollViewer.ActualWidth;
+                            double containerHeight = _projectionScrollViewer.ActualHeight;
+                            if (containerWidth <= 0) containerWidth = screenWidth;
+                            if (containerHeight <= 0) containerHeight = screenHeight;
+                            
+                            double x = Math.Max(0, (containerWidth - newWidth) / 2.0);
+                            double y = _isOriginalMode ? Math.Max(0, (containerHeight - newHeight) / 2.0) : 0;
+                            
+                            _projectionImageControl.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                            _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                            _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
+                            
+                            // 设置滚动区域
+                            double scrollHeight;
+                            if (_isOriginalMode)
+                            {
+                                scrollHeight = newHeight <= screenHeight ? screenHeight : newHeight + screenHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight <= screenHeight 
+                                    ? System.Windows.Controls.ScrollBarVisibility.Hidden 
+                                    : System.Windows.Controls.ScrollBarVisibility.Hidden;
+                            }
+                            else
+                            {
+                                scrollHeight = newHeight >= screenHeight ? newHeight + screenHeight : screenHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight >= screenHeight 
+                                    ? System.Windows.Controls.ScrollBarVisibility.Hidden 
+                                    : System.Windows.Controls.ScrollBarVisibility.Hidden;
+                            }
+                            _projectionContainer.Height = scrollHeight;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 预渲染失败: {ex.Message}");
+            }
+            finally
+            {
+                // ⚡ 重置预渲染标志
+                lock (_preRenderLock)
+                {
+                    _isPreRendering = false;
+                }
+            }
+            
+            return System.Threading.Tasks.Task.CompletedTask;
         }
 
         /// <summary>
@@ -746,6 +900,22 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Activate();
                     // System.Diagnostics.Debug.WriteLine("✅ 投影窗口已激活并获取焦点");
 
+                    // 🔧 从主窗口同步当前状态到投影（解决打开投影时图片为空的问题）
+                    if (_imageProcessor?.CurrentImage != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"📺 [OpenProjection] 同步主窗口状态到投影:");
+                        System.Diagnostics.Debug.WriteLine($"   图片: {_imageProcessor.CurrentImage.Width}x{_imageProcessor.CurrentImage.Height}");
+                        System.Diagnostics.Debug.WriteLine($"   路径: {_imageProcessor.CurrentImagePath}");
+                        
+                        // 直接设置内部状态（不触发预渲染）
+                        _currentImage = _imageProcessor.CurrentImage;
+                        _currentImagePath = _imageProcessor.CurrentImagePath;
+                        _isColorEffectEnabled = _imageProcessor.IsInverted;
+                        _zoomRatio = _imageProcessor.ZoomRatio;
+                        _isOriginalMode = _imageProcessor.OriginalMode;
+                        _originalDisplayMode = _imageProcessor.OriginalDisplayModeValue;
+                    }
+                    
                     // 更新投影内容
                     UpdateProjection();
 
@@ -810,23 +980,27 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void UpdateProjection()
         {
-            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 开始更新投影 =====");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 开始更新投影 =====");
             
             if (_projectionWindow == null)
             {
-                //System.Diagnostics.Debug.WriteLine("⚠️ [UpdateProjection] 投影窗口为null");
+                System.Diagnostics.Debug.WriteLine("⚠️ [UpdateProjection] 投影窗口为null");
                 return;
             }
             
             // 如果没有图片，可能是在播放视频，直接返回
             if (_currentImage == null)
             {
-                //System.Diagnostics.Debug.WriteLine("ℹ️ [UpdateProjection] 无图片，可能正在播放视频");
+                System.Diagnostics.Debug.WriteLine($"ℹ️ [UpdateProjection] 无图片，可能正在播放视频");
+                System.Diagnostics.Debug.WriteLine($"   _currentImagePath = {_currentImagePath}");
+                System.Diagnostics.Debug.WriteLine($"   _imageProcessor.CurrentImage = {_imageProcessor?.CurrentImage?.Width}x{_imageProcessor?.CurrentImage?.Height}");
                 return;
             }
 
             try
             {
+                var invokeStart = sw.ElapsedMilliseconds;
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
                     var screen = _screens[_currentScreenIndex];
@@ -838,41 +1012,65 @@ namespace ImageColorChanger.Managers
                     //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 原图模式: {_isOriginalMode}, 显示模式: {_originalDisplayMode}, 变色: {_isColorEffectEnabled}, 缩放: {_zoomRatio}");
 
                     // 计算缩放后的尺寸
+                    var calcStart = sw.ElapsedMilliseconds;
                     var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
-                    
-                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 计算后尺寸: {newWidth}x{newHeight}");
+                    var calcTime = sw.ElapsedMilliseconds - calcStart;
+                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 计算尺寸: {calcTime}ms -> {newWidth}x{newHeight}");
 
                     // ⚡ 生成缓存键
+                    var keyStart = sw.ElapsedMilliseconds;
                     string cacheKey = GenerateProjectionCacheKey(newWidth, newHeight);
+                    var keyTime = sw.ElapsedMilliseconds - keyStart;
+                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 缓存键: {cacheKey}");
                     
                     // ⚡ 检查缓存
+                    var cacheCheckStart = sw.ElapsedMilliseconds;
                     if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedBitmap))
                     {
-                        //System.Diagnostics.Debug.WriteLine($"🎬 [UpdateProjection] 投影缓存命中: {newWidth}x{newHeight}");
+                        var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                        System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ⚡ 缓存命中: {cacheTime}ms");
                         _projectionImage = cachedBitmap;
                     }
                     else
                     {
-                        //System.Diagnostics.Debug.WriteLine($"🎞️ [UpdateProjection] 投影重新渲染: {newWidth}x{newHeight}");
+                        var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                        System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 💾 缓存未命中: {cacheTime}ms，开始渲染...");
                         
-                        // 处理图片（缩放和可选的变色效果）
-                        var processedImage = _currentImage.Clone(ctx =>
-                        {
-                            ctx.Resize(newWidth, newHeight, KnownResamplers.Lanczos3);
-                        });
+                        // 🎮 使用GPU加速渲染（缩放和可选的变色效果）
+                        var renderStart = sw.ElapsedMilliseconds;
+                        var processedImage = Core.GPUContext.Instance.ScaleImageGpu(
+                            _currentImage, 
+                            newWidth, 
+                            newHeight, 
+                            SKFilterQuality.High
+                        );
+                        var renderTime = sw.ElapsedMilliseconds - renderStart;
+                        System.Diagnostics.Debug.WriteLine($"    ├─ GPU缩放: {renderTime}ms");
 
-                        // 应用变色效果
+                        if (processedImage == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 渲染失败");
+                            return;
+                        }
+
+                        // 应用变色效果（CPU处理）
                         if (_isColorEffectEnabled)
                         {
-                            processedImage = _imageProcessor.ApplyYellowTextEffect(processedImage);
-                            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 已应用变色效果");
+                            var effectStart = sw.ElapsedMilliseconds;
+                            _imageProcessor.ApplyYellowTextEffect(processedImage);
+                            var effectTime = sw.ElapsedMilliseconds - effectStart;
+                            System.Diagnostics.Debug.WriteLine($"    ├─ 变色效果: {effectTime}ms");
                         }
 
                         // 转换为BitmapSource
+                        var convertStart = sw.ElapsedMilliseconds;
                         _projectionImage = ConvertToBitmapSource(processedImage);
                         processedImage.Dispose();
+                        var convertTime = sw.ElapsedMilliseconds - convertStart;
+                        System.Diagnostics.Debug.WriteLine($"    ├─ 转换BitmapSource: {convertTime}ms");
                         
                         // ⚡ 加入缓存
+                        var cacheAddStart = sw.ElapsedMilliseconds;
                         var entryOptions = new MemoryCacheEntryOptions
                         {
                             // 按图片大小计算权重（1MB = 1权重单位）
@@ -881,7 +1079,8 @@ namespace ImageColorChanger.Managers
                             SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
                         };
                         _projectionCache.Set(cacheKey, _projectionImage, entryOptions);
-                        //System.Diagnostics.Debug.WriteLine($"📦 [UpdateProjection] 已缓存投影: {newWidth}x{newHeight} (权重: {entryOptions.Size})");
+                        var cacheAddTime = sw.ElapsedMilliseconds - cacheAddStart;
+                        System.Diagnostics.Debug.WriteLine($"    └─ 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
                     }
 
                     //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 更新Image控件: {newWidth}x{newHeight}");
@@ -889,7 +1088,7 @@ namespace ImageColorChanger.Managers
                     _projectionImageControl.Source = _projectionImage;
                     _projectionImageControl.Width = newWidth;
                     _projectionImageControl.Height = newHeight;
-                    
+
                     // 获取投影ScrollViewer的实际DIU尺寸用于居中计算
                     double containerWidth = _projectionScrollViewer?.ActualWidth ?? screenWidth;
                     double containerHeight = _projectionScrollViewer?.ActualHeight ?? screenHeight;
@@ -959,14 +1158,17 @@ namespace ImageColorChanger.Managers
                         //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
                     }
                     
-                    //System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjection] 投影图片已更新完成");
+                    var uiUpdateTime = sw.ElapsedMilliseconds - invokeStart;
+                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] UI更新: {uiUpdateTime}ms");
                 });
                 
-                //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 更新投影完成 =====");
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 总耗时: {sw.ElapsedMilliseconds}ms =====\n");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message}");
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message} (耗时: {sw.ElapsedMilliseconds}ms)");
                 System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 堆栈: {ex.StackTrace}");
             }
         }
@@ -1047,14 +1249,13 @@ namespace ImageColorChanger.Managers
             }
             else
             {
-                // 正常模式：宽度填满ScrollViewer,高度按比例(与主屏幕一致)
+                // 正常模式：等比缩放宽度和高度（与主屏幕一致）
                 double baseRatio = canvasWidth / _currentImage.Width;
                 double finalRatio = baseRatio * _zoomRatio;
                 
-                int newWidth = (int)canvasWidth;  // 宽度填满
+                // 等比缩放宽度和高度
+                int newWidth = (int)(_currentImage.Width * finalRatio);
                 int newHeight = (int)(_currentImage.Height * finalRatio);
-                
-                // System.Diagnostics.Debug.WriteLine($"  正常模式缩放: 宽度填满={newWidth}, 高度={_currentImage.Height}*{finalRatio:F2}={newHeight}");
                 
                 return (newWidth, newHeight);
             }
@@ -1095,22 +1296,52 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
-        /// 将ImageSharp图片转换为WPF BitmapSource
+        /// 将SkiaSharp图片转换为WPF BitmapSource
         /// </summary>
-        private BitmapSource ConvertToBitmapSource(Image<Rgba32> image)
+        private WriteableBitmap ConvertToBitmapSource(SKBitmap skBitmap)
         {
-            using var ms = new System.IO.MemoryStream();
-            image.SaveAsPng(ms);
-            ms.Position = 0;
-
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.StreamSource = ms;
-            bitmap.EndInit();
-            bitmap.Freeze();
-
-            return bitmap;
+            try
+            {
+                if (skBitmap == null)
+                    return null;
+                
+                var info = skBitmap.Info;
+                var wb = new WriteableBitmap(info.Width, info.Height, 96, 96, 
+                                             System.Windows.Media.PixelFormats.Bgra32, null);
+                
+                wb.Lock();
+                try
+                {
+                    unsafe
+                    {
+                        // ⚡ 直接复制像素数据，超快！
+                        var src = skBitmap.GetPixels();
+                        var dst = wb.BackBuffer;
+                        var size = skBitmap.ByteCount;
+                        
+                        Buffer.MemoryCopy(
+                            src.ToPointer(),
+                            dst.ToPointer(),
+                            size,
+                            size
+                        );
+                    }
+                    
+                    wb.AddDirtyRect(new System.Windows.Int32Rect(0, 0, info.Width, info.Height));
+                }
+                finally
+                {
+                    wb.Unlock();
+                }
+                
+                wb.Freeze();
+                
+                return wb;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         /// <summary>

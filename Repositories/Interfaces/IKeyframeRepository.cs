@@ -10,9 +10,14 @@ namespace ImageColorChanger.Repositories.Interfaces
     public interface IKeyframeRepository : IRepository<Keyframe>
     {
         /// <summary>
-        /// 获取指定图片的所有关键帧（按顺序）
+        /// 获取指定图片的所有关键帧（按顺序）- 异步
         /// </summary>
         Task<List<Keyframe>> GetKeyframesByImageIdAsync(int imageId);
+        
+        /// <summary>
+        /// 获取指定图片的所有关键帧（按顺序）- 同步
+        /// </summary>
+        List<Keyframe> GetKeyframesByImageId(int imageId);
 
         /// <summary>
         /// 获取指定图片的关键帧数量

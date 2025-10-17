@@ -17,9 +17,7 @@ using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace ImageColorChanger.UI
 {
@@ -464,8 +462,8 @@ namespace ImageColorChanger.UI
                 projectionManager.ResetProjectionScroll();
                 
                 // 创建一个1x1的透明图片来清空投影
-                var clearImage = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1, 1);
-                clearImage[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(0, 0, 0, 255);
+                var clearImage = new SKBitmap(1, 1);
+                clearImage.SetPixel(0, 0, new SKColor(0, 0, 0, 255));
                 projectionManager.UpdateProjectionImage(clearImage, false, 1.0, false);
                 clearImage.Dispose();
                 //System.Diagnostics.Debug.WriteLine("✅ 投影状态已重置");
@@ -613,9 +611,9 @@ namespace ImageColorChanger.UI
                 var textBox = new DraggableTextBox(newElement);
                 AddTextBoxToCanvas(textBox);
                 
-                // 选中新文本框
+                // 🔧 新建文本框：自动进入编辑模式，全选占位符文本
                 textBox.Focus();
-                textBox.FocusTextBox();
+                textBox.EnterEditModeForNew();
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 添加文本框成功: ID={newElement.Id}");
             }
@@ -628,11 +626,11 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 删除选中的文本框按钮
+        /// 删除指定的文本框（通用方法，支持按钮、右键菜单、快捷键调用）
         /// </summary>
-        private async void BtnDeleteText_Click(object sender, RoutedEventArgs e)
+        private async Task DeleteTextBoxAsync(DraggableTextBox textBox)
         {
-            if (_selectedTextBox == null)
+            if (textBox == null)
             {
                 WpfMessageBox.Show("请先选择要删除的文本框！", "提示", 
                     MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -641,21 +639,24 @@ namespace ImageColorChanger.UI
 
             try
             {
-                var result = WpfMessageBox.Show("确定要删除选中的文本框吗？", "确认删除", 
+                var result = WpfMessageBox.Show("确定要删除该文本框吗？", "确认删除", 
                     MessageBoxButton.YesNo, MessageBoxImage.Question);
                 
                 if (result != MessageBoxResult.Yes)
                     return;
 
                 // 从数据库删除
-                await _textProjectManager.DeleteElementAsync(_selectedTextBox.Data.Id);
+                await _textProjectManager.DeleteElementAsync(textBox.Data.Id);
 
                 // 从画布移除
-                EditorCanvas.Children.Remove(_selectedTextBox);
-                _textBoxes.Remove(_selectedTextBox);
+                EditorCanvas.Children.Remove(textBox);
+                _textBoxes.Remove(textBox);
 
-                // 清除选中状态
-                _selectedTextBox = null;
+                // 如果删除的是当前选中项，清除选中状态
+                if (_selectedTextBox == textBox)
+                {
+                    _selectedTextBox = null;
+                }
 
                 // 标记已修改
                 MarkContentAsModified();
@@ -973,8 +974,8 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                // 滚轮向上增大，向下减小，每次步进5
-                int delta = e.Delta > 0 ? 5 : -5;
+                // 滚轮向上增大，向下减小，每次步进2
+                int delta = e.Delta > 0 ? 2 : -2;
                 int newSize = Math.Max(20, Math.Min(200, currentSize + delta));
                 
                 FontSizeInput.Text = newSize.ToString();
@@ -990,7 +991,7 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                int newSize = Math.Max(20, currentSize - 5);
+                int newSize = Math.Max(20, currentSize - 2);
                 FontSizeInput.Text = newSize.ToString();
             }
         }
@@ -1002,7 +1003,7 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                int newSize = Math.Min(200, currentSize + 5);
+                int newSize = Math.Min(200, currentSize + 2);
                 FontSizeInput.Text = newSize.ToString();
             }
         }
@@ -1323,6 +1324,12 @@ namespace ImageColorChanger.UI
             {
                 MarkContentAsModified();
             };
+            
+            // 🆕 监听删除请求（右键菜单或DEL键）
+            textBox.RequestDelete += async (s, e) =>
+            {
+                await DeleteTextBoxAsync(textBox);
+            };
         }
 
         /// <summary>
@@ -1470,6 +1477,12 @@ namespace ImageColorChanger.UI
                 AlignmentGuidesCanvas.Visibility = Visibility.Collapsed;
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 已隐藏辅助线");
                 
+                // 🎨 渲染前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
+                foreach (var textBox in _textBoxes)
+                {
+                    textBox.HideDecorations();
+                }
+                
                 // 1. 渲染EditorCanvasContainer（只包含Canvas和背景图，不包含辅助线）
                 if (EditorCanvasContainer == null)
                 {
@@ -1477,14 +1490,17 @@ namespace ImageColorChanger.UI
                     return;
                 }
                 
+                // 强制更新布局，确保隐藏效果生效
+                EditorCanvasContainer.UpdateLayout();
+                
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 开始渲染Canvas到位图...");
                 var renderBitmap = RenderCanvasToBitmap(EditorCanvasContainer);
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 渲染位图: {renderBitmap.PixelWidth}x{renderBitmap.PixelHeight}");
 
-                // 2. 转换为ImageSharp格式
-                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 转换为ImageSharp格式...");
-                var image = ConvertBitmapToImageSharp(renderBitmap);
-                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ImageSharp图像: {image.Width}x{image.Height}");
+                // 2. 转换为SkiaSharp格式
+                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 转换为SkiaSharp格式...");
+                var image = ConvertBitmapToSkia(renderBitmap);
+                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] SkiaSharp图像: {image.Width}x{image.Height}");
 
                 // 3. 缩放到投影屏幕尺寸（1920x1080），拉伸填满
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缩放到1920x1080...");
@@ -1506,6 +1522,12 @@ namespace ImageColorChanger.UI
             }
             finally
             {
+                // 🎨 渲染后：恢复所有文本框的装饰元素
+                foreach (var textBox in _textBoxes)
+                {
+                    textBox.RestoreDecorations();
+                }
+                
                 // 🔧 确保恢复辅助线的可见性（无论成功还是失败）
                 AlignmentGuidesCanvas.Visibility = guidesVisibility;
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 已恢复辅助线状态");
@@ -1545,33 +1567,28 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 将WPF位图转换为ImageSharp格式
+        /// 将WPF位图转换为SkiaSharp格式
         /// </summary>
-        private Image<Rgba32> ConvertBitmapToImageSharp(BitmapSource bitmap)
+        private SKBitmap ConvertBitmapToSkia(BitmapSource bitmap)
         {
             int width = bitmap.PixelWidth;
             int height = bitmap.PixelHeight;
 
-            // 创建ImageSharp图片
-            var image = new Image<Rgba32>(width, height);
+            // 创建SkiaSharp图片
+            var image = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
 
             // 从WPF位图读取像素
             int stride = width * 4; // BGRA32 = 4 bytes per pixel
             byte[] pixels = new byte[height * stride];
             bitmap.CopyPixels(pixels, stride, 0);
 
-            // 转换BGRA到RGBA并写入ImageSharp
-            for (int y = 0; y < height; y++)
+            // 直接复制像素数据（WPF和SkiaSharp都使用BGRA格式）
+            unsafe
             {
-                for (int x = 0; x < width; x++)
+                fixed (byte* src = pixels)
                 {
-                    int offset = y * stride + x * 4;
-                    byte b = pixels[offset];
-                    byte g = pixels[offset + 1];
-                    byte r = pixels[offset + 2];
-                    byte a = pixels[offset + 3];
-
-                    image[x, y] = new Rgba32(r, g, b, a);
+                    var dst = image.GetPixels();
+                    Buffer.MemoryCopy(src, dst.ToPointer(), pixels.Length, pixels.Length);
                 }
             }
 
@@ -1581,16 +1598,18 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 将图像缩放到投影屏幕尺寸，拉伸填满整个屏幕
         /// </summary>
-        private Image<Rgba32> ScaleImageForProjection(Image<Rgba32> sourceImage, int targetWidth, int targetHeight)
+        private SKBitmap ScaleImageForProjection(SKBitmap sourceImage, int targetWidth, int targetHeight)
         {
             //System.Diagnostics.Debug.WriteLine($"   缩放计算: 原始={sourceImage.Width}x{sourceImage.Height}, 目标={targetWidth}x{targetHeight}");
 
             // 直接拉伸到目标尺寸，填满整个屏幕
-            sourceImage.Mutate(x => x.Resize(targetWidth, targetHeight));
+            var info = new SKImageInfo(targetWidth, targetHeight, sourceImage.ColorType, sourceImage.AlphaType);
+            var scaled = new SKBitmap(info);
+            sourceImage.ScalePixels(scaled, SKFilterQuality.High);
             
             //System.Diagnostics.Debug.WriteLine($"   拉伸模式: 宽度填满，高度填满");
 
-            return sourceImage;
+            return scaled;
         }
 
         /// <summary>
@@ -2372,6 +2391,15 @@ namespace ImageColorChanger.UI
                 if (canvasParent == null)
                     return null;
 
+                // 🎨 保存缩略图前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
+                foreach (var textBox in _textBoxes)
+                {
+                    textBox.HideDecorations();
+                }
+
+                // 强制更新布局，确保隐藏效果生效
+                canvasParent.UpdateLayout();
+
                 // 创建渲染目标
                 var renderBitmap = new RenderTargetBitmap(
                     1080, 700,  // 横向矩形尺寸
@@ -2384,11 +2412,24 @@ namespace ImageColorChanger.UI
                 // 缩放到缩略图大小
                 var thumbnail = new TransformedBitmap(renderBitmap, new ScaleTransform(0.1, 0.1));
 
+                // 🎨 保存缩略图后：恢复所有文本框的装饰元素
+                foreach (var textBox in _textBoxes)
+                {
+                    textBox.RestoreDecorations();
+                }
+
                 return thumbnail;
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 生成缩略图失败: {ex.Message}");
+                
+                // 🎨 异常时也要恢复装饰元素
+                foreach (var textBox in _textBoxes)
+                {
+                    textBox.RestoreDecorations();
+                }
+                
                 return null;
             }
         }

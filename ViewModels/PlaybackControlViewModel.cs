@@ -486,20 +486,29 @@ namespace ImageColorChanger.ViewModels
         /// <param name="keyframeId">关键帧ID</param>
         public async Task RecordKeyframeTimeAsync(int keyframeId)
         {
+            System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] RecordKeyframeTimeAsync 被调用: KeyframeId={keyframeId}, IsRecording={IsRecording}");
+            
             if (!IsRecording)
             {
+                System.Diagnostics.Debug.WriteLine($"⚠️ [ViewModel] 不在录制状态，跳过记录");
                 return;
             }
 
             try
             {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var recordingService = GetRecordingService();
+                System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 开始调用RecordingService.RecordTimingAsync...");
+                
                 await recordingService.RecordTimingAsync(keyframeId);
-                // System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 已记录关键帧时间: KeyframeId={keyframeId}");
+                
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"✅ [ViewModel] 关键帧时间记录完成: KeyframeId={keyframeId}, 耗时: {sw.ElapsedMilliseconds}ms");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [ViewModel] 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
             }
         }
 

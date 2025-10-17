@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Diagnostics;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace ImageColorChanger.Core
 {
@@ -521,24 +521,24 @@ namespace ImageColorChanger.Core
         public bool AutoSaveEnabled { get; set; } = false;
 
         /// <summary>
-        /// 目标颜色 - 红色分量（默认：174，淡黄色）
+        /// 目标颜色 - 红色分量（默认：218，秋麒麟）
         /// </summary>
-        public byte TargetColorR { get; set; } = 174;
+        public byte TargetColorR { get; set; } = 218;
 
         /// <summary>
-        /// 目标颜色 - 绿色分量（默认：159，淡黄色）
+        /// 目标颜色 - 绿色分量（默认：165，秋麒麟）
         /// </summary>
-        public byte TargetColorG { get; set; } = 159;
+        public byte TargetColorG { get; set; } = 165;
 
         /// <summary>
-        /// 目标颜色 - 蓝色分量（默认：112，淡黄色）
+        /// 目标颜色 - 蓝色分量（默认：32，秋麒麟）
         /// </summary>
-        public byte TargetColorB { get; set; } = 112;
+        public byte TargetColorB { get; set; } = 32;
 
         /// <summary>
-        /// 目标颜色名称（默认：淡黄）
+        /// 目标颜色名称（默认：秋麒麟）
         /// </summary>
-        public string TargetColorName { get; set; } = "淡黄";
+        public string TargetColorName { get; set; } = "秋麒麟";
 
         /// <summary>
         /// 自定义颜色预设列表
@@ -577,9 +577,9 @@ namespace ImageColorChanger.Core
         public byte B { get; set; }
 
         /// <summary>
-        /// 转换为 Rgba32
+        /// 转换为 SKColor
         /// </summary>
-        public Rgba32 ToRgba32() => new Rgba32(R, G, B);
+        public SKColor ToSKColor() => new SKColor(R, G, B);
 
         /// <summary>
         /// 是否为内置预设（只读）

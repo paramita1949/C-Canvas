@@ -136,13 +136,13 @@ namespace ImageColorChanger.UI
                     // 如果正在录制，获取最新的关键帧ID并记录时间（使用新架构）
                     if (_playbackViewModel?.IsRecording == true)
                     {
-                        var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                        var keyframes = _keyframeManager.GetKeyframes(currentImageId); // 同步获取（会更新缓存）
                         if (keyframes != null && keyframes.Count > 0)
                         {
                             var lastKeyframe = keyframes.OrderByDescending(k => k.Id).FirstOrDefault();
                             if (lastKeyframe != null)
                             {
-                                await _playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id);
+                                _ = _playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id); // 异步不等待
                             }
                         }
                     }
@@ -253,11 +253,11 @@ namespace ImageColorChanger.UI
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                    await _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id);
+                    _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                     //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
                 }
             }
@@ -265,7 +265,7 @@ namespace ImageColorChanger.UI
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
             if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -274,7 +274,7 @@ namespace ImageColorChanger.UI
                         .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
-                        await kfService.RecordManualOperationAsync(currentKeyframe.Id);
+                        _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
                         //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
                         
                         // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
@@ -350,11 +350,11 @@ namespace ImageColorChanger.UI
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                    await _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id);
+                    _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                     //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
                 }
             }
@@ -362,7 +362,7 @@ namespace ImageColorChanger.UI
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
             if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -371,7 +371,7 @@ namespace ImageColorChanger.UI
                         .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
-                        await kfService.RecordManualOperationAsync(currentKeyframe.Id);
+                        _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
                         //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
                         
                         // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
@@ -382,7 +382,7 @@ namespace ImageColorChanger.UI
             
             // 然后执行跳转
             var navStart = sw.ElapsedMilliseconds;
-            bool shouldRecordTime = await _keyframeManager.Navigator.StepToNextKeyframe();
+            bool shouldRecordTime = _keyframeManager.Navigator.StepToNextKeyframe().Result; // 同步等待结果
             var navTime = sw.ElapsedMilliseconds - navStart;
             //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToNextKeyframe: {navTime}ms");
             
@@ -539,13 +539,10 @@ namespace ImageColorChanger.UI
                                 Width = 20,
                                 Height = 20,  // 正方形
                                 Fill = new System.Windows.Media.SolidColorBrush(
-                                    System.Windows.Media.Color.FromRgb(255, 0, 0)), // 红色
-                                Stroke = new System.Windows.Media.SolidColorBrush(
-                                    System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色边框
-                                StrokeThickness = 2,
+                                    System.Windows.Media.Color.FromRgb(255, 32, 32)), // 鲜艳红色
                                 RadiusX = 3,
                                 RadiusY = 3,
-                                Opacity = 0.95,
+                                Opacity = 0.45,
                                 Cursor = System.Windows.Input.Cursors.Hand,
                                 Tag = keyframe.Id  // 保存关键帧ID
                             };
@@ -615,12 +612,9 @@ namespace ImageColorChanger.UI
                     Height = 22,  // 正方形，比红色稍大
                     Fill = new System.Windows.Media.SolidColorBrush(
                         System.Windows.Media.Color.FromRgb(0, 255, 0)), // 鲜绿色
-                    Stroke = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(255, 255, 255)), // 白色边框
-                    StrokeThickness = 2.5,
                     RadiusX = 3,
                     RadiusY = 3,
-                    Opacity = 1.0,
+                    Opacity = 0.5,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Tag = currentKeyframe.Id
                 };
@@ -690,7 +684,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 点击关键帧指示块跳转
         /// </summary>
-        private async void ScrollbarIndicatorsCanvas_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void ScrollbarIndicatorsCanvas_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             try
             {
@@ -705,8 +699,8 @@ namespace ImageColorChanger.UI
                 double clickY = clickPoint.Y;
                 double canvasHeight = ScrollbarIndicatorsCanvas.ActualHeight;
 
-                // 获取所有关键帧
-                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                // 获取所有关键帧（从缓存，性能优化）
+                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes == null || !keyframes.Any())
                 {
                     return;
@@ -845,8 +839,8 @@ namespace ImageColorChanger.UI
                     int currentImageId = GetCurrentImageId();
                     if (_keyframeManager != null && currentImageId > 0)
                     {
-                        // 强制刷新缓存
-                        await _keyframeManager.GetKeyframesAsync(currentImageId);
+                        // 强制刷新缓存（异步不等待）
+                        _ = _keyframeManager.GetKeyframesAsync(currentImageId);
                     }
                     
                     // 刷新UI显示

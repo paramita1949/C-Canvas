@@ -7,10 +7,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 using Color = System.Windows.Media.Color;
-using Image = SixLabors.ImageSharp.Image;
 using MessageBox = System.Windows.MessageBox;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
@@ -46,7 +44,6 @@ namespace ImageColorChanger.UI
         // 图像处理相关
         private ImageProcessor imageProcessor;
         private string imagePath;
-        private GPUProcessor gpuProcessor;
 
         // 图片缩放相关
         private double currentZoom = 1.0;
@@ -60,8 +57,9 @@ namespace ImageColorChanger.UI
 
         // 变色功能相关
         private bool isColorEffectEnabled = false;
-        private Rgba32 currentTargetColor = new Rgba32(174, 159, 112); // 默认颜色
+        private SKColor currentTargetColor = new SKColor(174, 159, 112); // 默认颜色
         private string currentTargetColorName = "淡黄"; // 默认颜色名称
+        private int? currentFolderId = null; // 当前文件夹ID，用于判断是否切换了文件夹
 
         // 项目数据
         private ObservableCollection<ProjectTreeItem> projectTreeItems = new ObservableCollection<ProjectTreeItem>();
@@ -225,26 +223,34 @@ namespace ImageColorChanger.UI
                 {
                     kfService.JumpToKeyframeRequested += async (s, e) =>
                     {
-                        await Dispatcher.InvokeAsync(async () => {
+                        var jumpTime = System.Diagnostics.Stopwatch.StartNew();
+                        System.Diagnostics.Debug.WriteLine($"\n🎯 ========== 关键帧跳转开始 ==========");
+                        System.Diagnostics.Debug.WriteLine($"🎯 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
+                        
+                        await Dispatcher.InvokeAsync(() => {
                             if (_keyframeManager != null)
                             {
                                 // 🔧 根据UseDirectJump标志选择跳转方式（参考Python版本：keytime.py 第1199-1213行）
+                                var scrollStart = jumpTime.ElapsedMilliseconds;
                                 if (e.UseDirectJump)
                                 {
                                     // 直接跳转，不使用滚动动画（用于循环回第一帧或首次播放）
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
-                                    //System.Diagnostics.Debug.WriteLine($"⚡ [播放] 直接跳转到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
+                                    var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
+                                    System.Diagnostics.Debug.WriteLine($"⚡ [跳转] 直接跳转: {scrollTime}ms");
                                 }
                                 else
                                 {
                                     // 使用平滑滚动动画
                                     _keyframeManager.SmoothScrollTo(e.Position);
-                                    //System.Diagnostics.Debug.WriteLine($"🎬 [播放] 平滑滚动到关键帧: ID={e.KeyframeId}, Position={e.Position:F4}");
+                                    var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
+                                    System.Diagnostics.Debug.WriteLine($"🎬 [跳转] 平滑滚动启动: {scrollTime}ms");
                                 }
                                 
                                 // 🔧 更新关键帧索引和指示器（参考Python版本：keytime.py 第1184-1221行）
-                                // 1. 查找当前关键帧的索引
-                                var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                                // 1. 查找当前关键帧的索引（从缓存，性能优化）
+                                var indexStart = jumpTime.ElapsedMilliseconds;
+                                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                                 if (keyframes != null)
                                 {
                                     for (int i = 0; i < keyframes.Count; i++)
@@ -253,14 +259,21 @@ namespace ImageColorChanger.UI
                                         {
                                             // 2. 更新关键帧索引
                                             _keyframeManager.UpdateKeyframeIndex(i);
-                                            //System.Diagnostics.Debug.WriteLine($"🎯 [播放] 更新关键帧索引: #{i + 1}");
+                                            var indexTime = jumpTime.ElapsedMilliseconds - indexStart;
+                                            System.Diagnostics.Debug.WriteLine($"🎯 [跳转] 更新索引: {indexTime}ms -> #{i + 1}");
                                             break;
                                         }
                                     }
                                 }
                                 
                                 // 3. 更新指示器和预览线
+                                var uiStart = jumpTime.ElapsedMilliseconds;
                                 _keyframeManager?.UpdatePreviewLines();
+                                var uiTime = jumpTime.ElapsedMilliseconds - uiStart;
+                                System.Diagnostics.Debug.WriteLine($"🎯 [跳转] 更新UI: {uiTime}ms");
+                                
+                                jumpTime.Stop();
+                                System.Diagnostics.Debug.WriteLine($"🎯 ========== 关键帧跳转完成: {jumpTime.ElapsedMilliseconds}ms ==========\n");
                             }
                         });
                     };
@@ -279,22 +292,26 @@ namespace ImageColorChanger.UI
 
         private void InitializeGpuProcessor()
         {
-            gpuProcessor = new GPUProcessor();
-            if (!gpuProcessor.Initialize())
+            // 🎮 初始化GPU上下文（自动检测GPU可用性）
+            var gpuContext = Core.GPUContext.Instance;
+            
+            System.Diagnostics.Debug.WriteLine("========================================");
+            System.Diagnostics.Debug.WriteLine($"🎮 GPU加速状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ 已降级到CPU")}");
+            System.Diagnostics.Debug.WriteLine($"📊 GPU信息: {gpuContext.GpuInfo}");
+            System.Diagnostics.Debug.WriteLine("========================================");
+            
+            // 在UI显示GPU状态
+            Dispatcher.InvokeAsync(() =>
             {
-                MessageBox.Show(
-                    "GPU初始化失败！\n\n" +
-                    "可能原因：\n" +
-                    "1. 显卡不支持DirectX 12或以上\n" +
-                    "2. 显卡驱动过旧\n" +
-                    "3. 系统不支持GPU计算\n\n" +
-                    "程序将无法运行。",
-                    "GPU错误",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
-                System.Windows.Application.Current.Shutdown();
-            }
+                if (gpuContext.IsGpuAvailable)
+                {
+                    ShowStatus($"🎮 GPU加速已启用 - {gpuContext.GpuInfo}");
+                }
+                else
+                {
+                    ShowStatus($"⚠️ GPU不可用，已降级到CPU渲染");
+                }
+            });
         }
 
         private void InitializeUI()
@@ -378,15 +395,32 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void UpdateProjection()
         {
+            System.Diagnostics.Debug.WriteLine($"🎬 [MainWindow.UpdateProjection] 被调用");
+            System.Diagnostics.Debug.WriteLine($"   imageProcessor.CurrentImage = {imageProcessor?.CurrentImage?.Width}x{imageProcessor?.CurrentImage?.Height}");
+            System.Diagnostics.Debug.WriteLine($"   projectionManager = {projectionManager != null}");
+            System.Diagnostics.Debug.WriteLine($"   projectionManager.IsProjectionActive = {projectionManager?.IsProjectionActive}");
+            
             if (imageProcessor.CurrentImage != null)
             {
-                projectionManager?.UpdateProjectionImage(
-                    imageProcessor.CurrentImage,
-                    isColorEffectEnabled,
-                    currentZoom,
-                    originalMode,
-                    originalDisplayMode  // 传递原图显示模式
-                );
+                if (projectionManager != null && projectionManager.IsProjectionActive)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [MainWindow.UpdateProjection] 调用 UpdateProjectionImage");
+                    projectionManager?.UpdateProjectionImage(
+                        imageProcessor.CurrentImage,
+                        isColorEffectEnabled,
+                        currentZoom,
+                        originalMode,
+                        originalDisplayMode  // 传递原图显示模式
+                    );
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjection] 投影未开启，跳过");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjection] imageProcessor.CurrentImage 为 null");
             }
         }
 
@@ -962,7 +996,7 @@ namespace ImageColorChanger.UI
                 currentZoom = configManager.ZoomRatio;
                 
                 // 加载目标颜色
-                currentTargetColor = new Rgba32(
+                currentTargetColor = new SKColor(
                     configManager.TargetColorR,
                     configManager.TargetColorG,
                     configManager.TargetColorB
@@ -995,7 +1029,7 @@ namespace ImageColorChanger.UI
                 configManager.ZoomRatio = currentZoom;
                 
                 // 使用 ConfigManager 的统一方法保存目标颜色
-                configManager.SetCurrentColor(currentTargetColor.R, currentTargetColor.G, currentTargetColor.B, currentTargetColorName);
+                configManager.SetCurrentColor(currentTargetColor.Red, currentTargetColor.Green, currentTargetColor.Blue, currentTargetColorName);
                 
                 // System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {currentTargetColorName})");
             }
@@ -1812,7 +1846,7 @@ namespace ImageColorChanger.UI
                 // 关键帧模式：跳转到第一帧
                 else if (!originalMode && _keyframeManager != null)
                 {
-                    var keyframes = await _keyframeManager.GetKeyframesAsync(currentImageId);
+                    var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                     if (keyframes != null && keyframes.Count > 0)
                     {
                         // 如果当前不在第一帧，先直接跳转到第一帧
@@ -1831,7 +1865,7 @@ namespace ImageColorChanger.UI
                                 UpdateProjection();
                             }
                             
-                            await _keyframeManager.UpdateKeyframeIndicatorsAsync();
+                            _ = _keyframeManager.UpdateKeyframeIndicatorsAsync(); // 异步执行不等待
                             ShowStatus($"关键帧 1/{keyframes.Count}");
                             
                             //System.Diagnostics.Debug.WriteLine("✅ [录制] 已跳转到第一帧，准备开始录制");
@@ -2152,31 +2186,41 @@ namespace ImageColorChanger.UI
                             ShowStatus($"✅ 已关闭原图模式: {selectedItem.Name}");
                         }
                         
-                        // 检查文件夹的变色标记（不影响图片尺寸，只影响变色效果）
-                        bool hasColorEffectMark = dbManager.HasFolderAutoColorEffect(selectedItem.Id);
+                        // 🎨 变色功能逻辑：只在切换到不同文件夹时才自动调整变色状态
+                        bool isSameFolder = (currentFolderId == selectedItem.Id);
                         
-                        if (hasColorEffectMark && !isColorEffectEnabled)
+                        if (!isSameFolder)
                         {
-                            // 文件夹有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
-                            //System.Diagnostics.Debug.WriteLine($"🎨 文件夹有变色标记，更新UI状态: {selectedItem.Name}");
-                            isColorEffectEnabled = true;
-                            // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
-                            // 只在 LoadImage() 时才同步状态到 ImageProcessor
-                            BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                            // 切换到不同文件夹：检查标记并自动调整变色状态
+                            bool hasColorEffectMark = dbManager.HasFolderAutoColorEffect(selectedItem.Id);
                             
-                            ShowStatus($"✅ 已切换到变色文件夹: {selectedItem.Name}");
-                        }
-                        else if (!hasColorEffectMark && isColorEffectEnabled)
-                        {
-                            // 文件夹没有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
-                            //System.Diagnostics.Debug.WriteLine($"🎨 文件夹无变色标记，更新UI状态: {selectedItem.Name}");
-                            isColorEffectEnabled = false;
-                            // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
-                            // 只在 LoadImage() 时才同步状态到 ImageProcessor
-                            BtnColorEffect.Background = Brushes.Transparent;
+                            if (hasColorEffectMark && !isColorEffectEnabled)
+                            {
+                                // 文件夹有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
+                                //System.Diagnostics.Debug.WriteLine($"🎨 文件夹有变色标记，更新UI状态: {selectedItem.Name}");
+                                isColorEffectEnabled = true;
+                                // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
+                                // 只在 LoadImage() 时才同步状态到 ImageProcessor
+                                BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                                
+                                ShowStatus($"✅ 已切换到变色文件夹: {selectedItem.Name}");
+                            }
+                            else if (!hasColorEffectMark && isColorEffectEnabled)
+                            {
+                                // 文件夹没有变色标记，只更新 MainWindow 状态（不触发 ImageProcessor）
+                                //System.Diagnostics.Debug.WriteLine($"🎨 文件夹无变色标记，更新UI状态: {selectedItem.Name}");
+                                isColorEffectEnabled = false;
+                                // ⚠️ 关键：不设置 imageProcessor.IsInverted，因为它的 setter 会自动调用 UpdateImage()
+                                // 只在 LoadImage() 时才同步状态到 ImageProcessor
+                                BtnColorEffect.Background = Brushes.Transparent;
+                                
+                                ShowStatus($"✅ 已切换到无变色文件夹: {selectedItem.Name}");
+                            }
                             
-                            ShowStatus($"✅ 已切换到无变色文件夹: {selectedItem.Name}");
+                            // 🎯 更新当前文件夹ID
+                            currentFolderId = selectedItem.Id;
                         }
+                        // else: 重复点击同一文件夹，保持变色状态不变
                         
                         e.Handled = true; // 阻止默认行为
                     }
@@ -2213,23 +2257,36 @@ namespace ImageColorChanger.UI
                                 BtnOriginal.Background = Brushes.Transparent; // 使用透明背景，让样式生效
                             }
                             
-                            // 🎨 检查变色标记
-                            bool hasFolderColorEffectMark = dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+                            // 🎨 变色功能逻辑优化：
+                            // 1. 如果切换到不同文件夹，根据标记自动开启/关闭
+                            // 2. 如果是同文件夹内切换图片，保持当前变色状态不变
+                            int newFolderId = mediaFile.FolderId.Value;
+                            bool isSameFolder = (currentFolderId == newFolderId);
                             
-                            if (hasFolderColorEffectMark && !isColorEffectEnabled)
+                            if (!isSameFolder)
                             {
-                                // 父文件夹有变色标记,自动启用变色效果
-                                //System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹有变色标记,自动启用变色效果");
-                                isColorEffectEnabled = true;
-                                BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                                // 切换到不同文件夹：根据标记自动调整变色状态
+                                bool hasFolderColorEffectMark = dbManager.HasFolderAutoColorEffect(newFolderId);
+                                
+                                if (hasFolderColorEffectMark && !isColorEffectEnabled)
+                                {
+                                    // 文件夹有变色标记，自动启用变色效果
+                                    //System.Diagnostics.Debug.WriteLine($"🎨 切换到变色文件夹，自动启用变色效果");
+                                    isColorEffectEnabled = true;
+                                    BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                                }
+                                else if (!hasFolderColorEffectMark && isColorEffectEnabled)
+                                {
+                                    // 文件夹没有变色标记，自动关闭变色效果
+                                    //System.Diagnostics.Debug.WriteLine($"🎨 切换到非变色文件夹，自动关闭变色效果");
+                                    isColorEffectEnabled = false;
+                                    BtnColorEffect.Background = Brushes.Transparent;
+                                }
+                                
+                                // 更新当前文件夹ID
+                                currentFolderId = newFolderId;
                             }
-                            else if (!hasFolderColorEffectMark && isColorEffectEnabled)
-                            {
-                                // 父文件夹没有变色标记,自动关闭变色效果
-                                //System.Diagnostics.Debug.WriteLine($"🎨 文件所在文件夹无变色标记,自动关闭变色效果");
-                                isColorEffectEnabled = false;
-                                BtnColorEffect.Background = Brushes.Transparent;
-                            }
+                            // else: 同文件夹内切换图片，保持当前变色状态不变
                         }
                         
                         if (System.IO.File.Exists(selectedItem.Path))
@@ -2266,6 +2323,10 @@ namespace ImageColorChanger.UI
 
         private void ProjectTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            // ⏱️ 性能调试：测量切换图片响应时间
+            var clickTime = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Debug.WriteLine($"\n🖱️ ========== 用户双击切换图片 ==========");
+            
             // 获取双击的项目
             if (e.OriginalSource is FrameworkElement element)
             {
@@ -2300,17 +2361,25 @@ namespace ImageColorChanger.UI
                                     
                                 case FileType.Image:
                                     // 图片双击也加载（保持原有行为）
+                                    System.Diagnostics.Debug.WriteLine($"📷 切换到图片: {selectedItem.Name}");
+                                    var switchStart = clickTime.ElapsedMilliseconds;
+                                    
                                     SwitchToImageMode();
                                     
                                     // 🔧 关键修复：手动选择图片时，停止当前播放
                                     if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
                                     {
-                                        //System.Diagnostics.Debug.WriteLine("🛑 用户手动选择图片，停止当前播放");
+                                        System.Diagnostics.Debug.WriteLine("🛑 停止当前播放");
                                         _ = _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
                                     }
                                     
+                                    var loadStart = clickTime.ElapsedMilliseconds;
                                     LoadImage(selectedItem.Path);
-                                    // ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    var loadTime = clickTime.ElapsedMilliseconds - loadStart;
+                                    
+                                    clickTime.Stop();
+                                    System.Diagnostics.Debug.WriteLine($"⏱️ [切换图片] 准备耗时: {switchStart}ms, 加载耗时: {loadTime}ms, 总耗时: {clickTime.ElapsedMilliseconds}ms");
+                                    System.Diagnostics.Debug.WriteLine($"========================================\n");
                                     
                                     // ⚡ 预缓存已在LoadImage中触发，无需重复
                                     break;
@@ -3046,6 +3115,13 @@ namespace ImageColorChanger.UI
             {
                 imagePath = path;
                 
+                // 🔄 重置缩放状态（切换图片时恢复默认缩放）
+                currentZoom = 1.0;
+                if (imageProcessor != null)
+                {
+                    imageProcessor.ZoomRatio = 1.0;
+                }
+                
                 // 🎨 关键修复：在加载图片之前，同步变色效果状态到 ImageProcessor
                 // 这样 ImageProcessor 在生成缓存时就知道是否需要应用变色效果
                 imageProcessor.IsInverted = isColorEffectEnabled;
@@ -3054,7 +3130,7 @@ namespace ImageColorChanger.UI
                 var loadStart = sw.ElapsedMilliseconds;
                 bool success = imageProcessor.LoadImage(path);
                 var loadTime = sw.ElapsedMilliseconds - loadStart;
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
+                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
                 
                 if (success)
                 {
@@ -3067,7 +3143,7 @@ namespace ImageColorChanger.UI
                         var dbCheckStart = sw.ElapsedMilliseconds;
                         bool shouldUseOriginal = originalManager.ShouldUseOriginalMode(currentImageId);
                         var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
-                        //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
+                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
                         
                         if (shouldUseOriginal && !originalMode)
                         {
@@ -3095,7 +3171,7 @@ namespace ImageColorChanger.UI
                             var findStart = sw.ElapsedMilliseconds;
                             originalManager.FindSimilarImages(currentImageId);
                             var findTime = sw.ElapsedMilliseconds - findStart;
-                            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
+                            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
                             
                             // ⚡ 立即触发智能预缓存（不等待用户操作）
                             // 这样第一次切换时预缓存已经完成或接近完成
@@ -3106,7 +3182,7 @@ namespace ImageColorChanger.UI
                         var treeStart = sw.ElapsedMilliseconds;
                         SelectTreeItemById(currentImageId);
                         var treeTime = sw.ElapsedMilliseconds - treeStart;
-                        //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
+                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
                     }
                     
                     // 颜色效果由 ImageProcessor 内部处理
@@ -3115,13 +3191,13 @@ namespace ImageColorChanger.UI
                     var projStart = sw.ElapsedMilliseconds;
                     UpdateProjection();
                     var projTime = sw.ElapsedMilliseconds - projStart;
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
                     
                     // 更新关键帧预览线和指示块
                     var kfStart = sw.ElapsedMilliseconds;
                     _keyframeManager?.UpdatePreviewLines();
                     var kfTime = sw.ElapsedMilliseconds - kfStart;
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
                     
                     // 🔧 更新 PlaybackViewModel 状态（检查时间数据，更新脚本按钮颜色）
                     if (_playbackViewModel != null && currentImageId > 0)
@@ -3131,7 +3207,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
                 else
@@ -3300,9 +3376,9 @@ namespace ImageColorChanger.UI
             {
                 // 设置当前颜色
                 colorDialog.Color = System.Drawing.Color.FromArgb(
-                    currentTargetColor.R, 
-                    currentTargetColor.G, 
-                    currentTargetColor.B);
+                    currentTargetColor.Red, 
+                    currentTargetColor.Green, 
+                    currentTargetColor.Blue);
                 
                 colorDialog.AllowFullOpen = true;
                 colorDialog.FullOpen = true;
@@ -3310,7 +3386,7 @@ namespace ImageColorChanger.UI
                 if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     var selectedColor = colorDialog.Color;
-                    currentTargetColor = new Rgba32(selectedColor.R, selectedColor.G, selectedColor.B);
+                    currentTargetColor = new SKColor(selectedColor.R, selectedColor.G, selectedColor.B);
                     
                     // 使用 ConfigManager 查找预设名称
                     var presetName = configManager.FindPresetName(selectedColor.R, selectedColor.G, selectedColor.B);
@@ -3356,7 +3432,7 @@ namespace ImageColorChanger.UI
                 
                 var label = new System.Windows.Controls.TextBlock 
                 { 
-                    Text = $"请输入预设名称\n当前颜色: RGB({currentTargetColor.R}, {currentTargetColor.G}, {currentTargetColor.B})",
+                    Text = $"请输入预设名称\n当前颜色: RGB({currentTargetColor.Red}, {currentTargetColor.Green}, {currentTargetColor.Blue})",
                     Margin = new Thickness(0, 0, 0, 10)
                 };
                 
@@ -3424,9 +3500,9 @@ namespace ImageColorChanger.UI
                     // 添加到配置管理器
                     bool success = configManager.AddCustomColorPreset(
                         presetName,
-                        currentTargetColor.R,
-                        currentTargetColor.G,
-                        currentTargetColor.B
+                        currentTargetColor.Red,
+                        currentTargetColor.Green,
+                        currentTargetColor.Blue
                     );
 
                     if (success)
@@ -3449,28 +3525,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void DisplayImage(Image<Rgba32> image)
-        {
-            if (image == null) return;
-
-            using (var memoryStream = new MemoryStream())
-            {
-                image.SaveAsPng(memoryStream);
-                memoryStream.Position = 0;
-
-                var bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = memoryStream;
-                bitmapImage.EndInit();
-                bitmapImage.Freeze();
-
-                ImageDisplay.Source = bitmapImage;
-                
-                // 自动适应显示区域
-                FitImageToView();
-            }
-        }
+        // DisplayImage方法已移除，不再需要（迁移到SkiaSharp）
 
         #endregion
 
@@ -3486,7 +3541,39 @@ namespace ImageColorChanger.UI
                 e.Handled = true;
 
                 double delta = e.Delta / 120.0 * 0.05;
-                SetZoom(currentZoom + delta);
+                double newZoom = currentZoom + delta;
+                newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
+                
+                System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 滚轮缩放: {currentZoom:F2} -> {newZoom:F2}");
+                
+                // 🔧 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
+                // 避免双重缩放导致的拉伸变形问题
+                if (imageProcessor != null && !originalMode)
+                {
+                    currentZoom = newZoom; // 更新当前缩放值
+                    
+                    System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 同步到ImageProcessor.ZoomRatio: {newZoom:F2}");
+                    imageProcessor.ZoomRatio = newZoom; // ImageProcessor会重新渲染图片
+                    
+                    // 更新投影屏幕
+                    if (projectionManager?.IsProjecting == true)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 触发投影更新，缩放比例: {newZoom:F2}");
+                        projectionManager.UpdateProjectionImage(
+                            imageProcessor.CurrentImage,
+                            isColorEffectEnabled,
+                            newZoom,
+                            originalMode,
+                            originalDisplayMode
+                        );
+                    }
+                }
+                else
+                {
+                    // 原图模式：只使用UI层ScaleTransform（因为ImageProcessor在原图模式下不支持缩放）
+                    System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 原图模式：使用UI层ScaleTransform");
+                    SetZoom(newZoom);
+                }
             }
         }
 
@@ -3494,14 +3581,34 @@ namespace ImageColorChanger.UI
         {
             if (ImageDisplay.Source == null) return;
             
-            // 重置UI缩放变换
-            SetZoom(1.0);
+            System.Diagnostics.Debug.WriteLine($"🔍 [重置缩放] 当前缩放: {currentZoom:F2} -> 1.0");
             
-            // 使用ImageProcessor的ResetZoom方法（重置zoomRatio到1.0）
-            imageProcessor?.ResetZoom();
+            currentZoom = 1.0;
             
-            // 触发图片更新（恢复到初始显示状态）
-            imageProcessor?.UpdateImage();
+            if (!originalMode)
+            {
+                // 正常模式：使用ImageProcessor的渲染缩放
+                imageProcessor?.ResetZoom();
+                imageProcessor?.UpdateImage();
+                
+                // 更新投影屏幕
+                if (projectionManager?.IsProjecting == true)
+                {
+                    System.Diagnostics.Debug.WriteLine($"🔍 [重置缩放] 触发投影更新，缩放比例: 1.0");
+                    projectionManager.UpdateProjectionImage(
+                        imageProcessor.CurrentImage,
+                        isColorEffectEnabled,
+                        1.0,
+                        originalMode,
+                        originalDisplayMode
+                    );
+                }
+            }
+            else
+            {
+                // 原图模式：重置UI层ScaleTransform
+                SetZoom(1.0);
+            }
             
             // 滚动到顶部
             ImageScrollViewer.ScrollToHorizontalOffset(0);
@@ -3529,7 +3636,14 @@ namespace ImageColorChanger.UI
 
         private void SetZoom(double zoom)
         {
+            double oldZoom = currentZoom;
             currentZoom = Math.Max(MinZoom, Math.Min(MaxZoom, zoom));
+            
+            if (Math.Abs(oldZoom - currentZoom) > 0.001)
+            {
+                System.Diagnostics.Debug.WriteLine($"🔍 [SetZoom] UI缩放变换: {oldZoom:F2} -> {currentZoom:F2}");
+            }
+            
             ImageScaleTransform.ScaleX = currentZoom;
             ImageScaleTransform.ScaleY = currentZoom;
         }
@@ -3762,7 +3876,7 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"状态: {message}");
         }
 
-        public Rgba32 GetCurrentTargetColor()
+        public SKColor GetCurrentTargetColor()
         {
             return currentTargetColor;
         }
@@ -3770,7 +3884,6 @@ namespace ImageColorChanger.UI
         protected override void OnClosed(EventArgs e)
         {
             imageProcessor?.Dispose();
-            gpuProcessor?.Dispose();
             base.OnClosed(e);
         }
 
@@ -3874,9 +3987,9 @@ namespace ImageColorChanger.UI
                 { 
                     Header = preset.Name,
                     IsCheckable = true,
-                    IsChecked = currentTargetColor.R == preset.R && 
-                               currentTargetColor.G == preset.G && 
-                               currentTargetColor.B == preset.B
+                    IsChecked = currentTargetColor.Red == preset.R && 
+                               currentTargetColor.Green == preset.G && 
+                               currentTargetColor.Blue == preset.B
                 };
                 
                 // 捕获当前预设到局部变量
@@ -3884,7 +3997,7 @@ namespace ImageColorChanger.UI
                 
                 menuItem.Click += (s, args) =>
                 {
-                    currentTargetColor = currentPreset.ToRgba32();
+                    currentTargetColor = currentPreset.ToSKColor();
                     currentTargetColorName = currentPreset.Name; // 保存颜色名称
                     if (isColorEffectEnabled)
                     {

@@ -35,6 +35,9 @@ namespace ImageColorChanger.UI.Controls
         private System.Windows.Shapes.Rectangle _selectionRect;  // 虚线选中框
         private bool _isPlaceholderText = false;  // 标记是否是占位符文字
         private const string DEFAULT_PLACEHOLDER = "双击编辑文字";  // 默认占位符
+        private DateTime _lastClickTime = DateTime.MinValue;  // 记录上次点击时间，用于双击检测
+        private const int DOUBLE_CLICK_INTERVAL = 500;  // 双击间隔（毫秒）
+        private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
 
         #endregion
 
@@ -49,6 +52,15 @@ namespace ImageColorChanger.UI.Controls
         /// 是否被选中
         /// </summary>
         public bool IsSelected { get; private set; }
+        
+        /// <summary>
+        /// 标记为新创建的文本框（用于自动进入编辑模式）
+        /// </summary>
+        public bool IsNewlyCreated
+        {
+            get => _isNewlyCreated;
+            set => _isNewlyCreated = value;
+        }
 
         #endregion
 
@@ -78,6 +90,11 @@ namespace ImageColorChanger.UI.Controls
         /// 拖动结束事件
         /// </summary>
         public event EventHandler DragEnded;
+
+        /// <summary>
+        /// 请求删除事件（由右键菜单或DEL键触发）
+        /// </summary>
+        public event EventHandler RequestDelete;
 
         #endregion
 
@@ -150,7 +167,9 @@ namespace ImageColorChanger.UI.Controls
                 FocusVisualStyle = null,
                 IsEnabled = true,  // 确保TextBox可用
                 Focusable = true,   // 确保TextBox可获得焦点
-                Style = CreateNoPaddingTextBoxStyle()  // 🔧 使用自定义样式完全移除内边距
+                Style = CreateNoPaddingTextBoxStyle(),  // 🔧 使用自定义样式完全移除内边距
+                // 🎨 设置光标颜色为亮蓝色（任何背景都清晰可见）
+                CaretBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0, 150, 255))  // 亮蓝色 #0096FF
             };
             
             // 禁用所有文本装饰和下划线
@@ -204,6 +223,9 @@ namespace ImageColorChanger.UI.Controls
                 ContentChanged?.Invoke(this, _textBox.Text);
             };
 
+            // 🔧 禁用TextBox的默认鼠标事件，改为由外层控件统一处理
+            _textBox.IsHitTestVisible = false;  // 让鼠标事件穿透到外层
+            
             // 文本框获得焦点时阻止拖拽
             _textBox.GotFocus += (s, e) =>
             {
@@ -223,6 +245,8 @@ namespace ImageColorChanger.UI.Controls
             _textBox.LostFocus += (s, e) =>
             {
                 _textBox.Cursor = WpfCursors.Arrow;
+                // 🔧 退出编辑模式时，恢复IsHitTestVisible=false
+                _textBox.IsHitTestVisible = false;
                 //System.Diagnostics.Debug.WriteLine($"📝 TextBox 失去焦点");
                 
                 // 如果失去焦点时内容为空，恢复占位符
@@ -283,6 +307,7 @@ namespace ImageColorChanger.UI.Controls
             MouseLeftButtonDown += OnMouseDown;
             MouseMove += OnMouseMove;
             MouseLeftButtonUp += OnMouseUp;
+            MouseRightButtonDown += OnMouseRightButtonDown;
             GotFocus += OnGotFocus;
             LostFocus += OnLostFocus;
             KeyDown += OnKeyDown;
@@ -341,47 +366,34 @@ namespace ImageColorChanger.UI.Controls
             {
                 //System.Diagnostics.Debug.WriteLine($"🖱️ OnMouseDown: OriginalSource={e.OriginalSource?.GetType().Name}");
                 
-                // 如果点击在文本框内部或Grid内部（文本区域），允许文本编辑
-                if (e.OriginalSource is WpfTextBox || e.OriginalSource is WpfGrid)
+                // 🔧 新逻辑：检测双击
+                var now = DateTime.Now;
+                var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
+                bool isDoubleClick = timeSinceLastClick < DOUBLE_CLICK_INTERVAL;
+                _lastClickTime = now;
+                
+                // 如果是双击且已选中，进入编辑模式
+                if (isDoubleClick && IsSelected)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"🖱️ 点击文本区域，尝试获取焦点");
-                    //System.Diagnostics.Debug.WriteLine($"   TextBox状态: IsEnabled={_textBox.IsEnabled}, Focusable={_textBox.Focusable}, IsVisible={_textBox.IsVisible}, Visibility={_textBox.Visibility}");
-                    
-                    // 先选中控件（显示选中框）
-                    Focus();
-                    SetSelected(true);
-                    
-                    // 使用 Dispatcher 延迟聚焦，确保UI已更新
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        _textBox.IsEnabled = true;
-                        _textBox.Focusable = true;
-                        bool focused = _textBox.Focus();
-                        //System.Diagnostics.Debug.WriteLine($"🖱️ TextBox.Focus() 结果: {focused}, IsFocused={_textBox.IsFocused}");
-                        if (focused)
-                        {
-                            //System.Diagnostics.Debug.WriteLine($"✅ TextBox 成功获得焦点");
-                        }
-                        else
-                        {
-                            //System.Diagnostics.Debug.WriteLine($"❌ TextBox 无法获得焦点");
-                            //System.Diagnostics.Debug.WriteLine($"   父容器: Parent={Parent?.GetType().Name}");
-                            //System.Diagnostics.Debug.WriteLine($"   IsLoaded={_textBox.IsLoaded}");
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Input);
-                    
-                    // 不处理此事件，让它继续路由到TextBox
+                    //System.Diagnostics.Debug.WriteLine($"🖱️ 双击检测到，进入编辑模式");
+                    // 🔧 双击时：
+                    // - 如果是占位符或新建的框，全选（方便快速替换）
+                    // - 否则只定位光标（方便继续编辑）
+                    bool shouldSelectAll = _isPlaceholderText || _isNewlyCreated;
+                    EnterEditMode(selectAll: shouldSelectAll);
+                    _isNewlyCreated = false;  // 清除新建标记
+                    e.Handled = true;
                     return;
                 }
-
-                // 如果点击在边框或其他区域，先移除文本框焦点，然后启动拖拽
+                
+                // 如果已经在编辑模式（TextBox有焦点），不做处理
                 if (_textBox.IsFocused)
                 {
-                    // 移除文本框焦点，让 DraggableTextBox 重新获得焦点
-                    System.Windows.Input.Keyboard.ClearFocus();
+                    //System.Diagnostics.Debug.WriteLine($"🖱️ TextBox已有焦点，继续编辑");
+                    return;
                 }
                 
-                // 选中控件并获得焦点
+                // 单击：选中控件
                 Focus();
                 SetSelected(true);
                 
@@ -431,6 +443,39 @@ namespace ImageColorChanger.UI.Controls
                 // 触发拖动结束事件
                 DragEnded?.Invoke(this, EventArgs.Empty);
             }
+        }
+
+        /// <summary>
+        /// 右键点击事件 - 显示右键菜单
+        /// </summary>
+        private void OnMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // 先选中当前文本框
+            Focus();
+            SetSelected(true);
+
+            // 创建右键菜单
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+            contextMenu.FontSize = 14;
+
+            // 删除选项
+            var deleteItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "🗑 删除文本框",
+                Height = 36
+            };
+            deleteItem.Click += (s, args) =>
+            {
+                // 触发删除请求事件
+                RequestDelete?.Invoke(this, EventArgs.Empty);
+            };
+            contextMenu.Items.Add(deleteItem);
+
+            // 显示菜单
+            contextMenu.PlacementTarget = this;
+            contextMenu.IsOpen = true;
+            
+            e.Handled = true;
         }
 
         #endregion
@@ -505,11 +550,38 @@ namespace ImageColorChanger.UI.Controls
 
         private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // Del键删除（需要父窗口处理）
-            if (e.Key == WpfKey.Delete && !_textBox.IsFocused)
+            // 只在未处于编辑模式时处理快捷键
+            if (!_textBox.IsFocused)
             {
-                e.Handled = true;
-                // 触发删除事件由父窗口处理
+                // Del键删除
+                if (e.Key == WpfKey.Delete)
+                {
+                    // 触发删除请求事件
+                    RequestDelete?.Invoke(this, EventArgs.Empty);
+                    e.Handled = true;
+                }
+                // Enter键或F2键快速进入编辑模式
+                else if (e.Key == WpfKey.Enter || e.Key == WpfKey.F2)
+                {
+                    // 🎯 快捷键进入编辑：
+                    // - 占位符或新建的框：全选
+                    // - 已有内容：定位光标到末尾
+                    bool shouldSelectAll = _isPlaceholderText || _isNewlyCreated;
+                    EnterEditMode(selectAll: shouldSelectAll);
+                    _isNewlyCreated = false;
+                    e.Handled = true;
+                }
+            }
+            else
+            {
+                // 🔧 编辑模式中按Esc退出编辑
+                if (e.Key == WpfKey.Escape)
+                {
+                    // 移除TextBox焦点，返回选中状态
+                    System.Windows.Input.Keyboard.ClearFocus();
+                    Focus();  // 焦点回到DraggableTextBox
+                    e.Handled = true;
+                }
             }
         }
 
@@ -574,10 +646,88 @@ namespace ImageColorChanger.UI.Controls
         /// <summary>
         /// 聚焦到文本框（进入编辑模式）
         /// </summary>
-        public void FocusTextBox()
+        /// <param name="selectAll">是否全选文本</param>
+        public void FocusTextBox(bool selectAll = false)
         {
-            _textBox.Focus();
-            _textBox.SelectAll();
+            EnterEditMode(selectAll: selectAll);
+        }
+        
+        /// <summary>
+        /// 进入编辑模式
+        /// </summary>
+        /// <param name="selectAll">是否全选文本（默认false，只定位光标）</param>
+        private void EnterEditMode(bool selectAll = false)
+        {
+            // 启用TextBox的鼠标交互
+            _textBox.IsHitTestVisible = true;
+            _textBox.IsEnabled = true;
+            _textBox.Focusable = true;
+            
+            // 聚焦并处理光标
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                bool focused = _textBox.Focus();
+                if (focused)
+                {
+                    if (selectAll)
+                    {
+                        // 全选文本（用于快速替换内容）
+                        _textBox.SelectAll();
+                        //System.Diagnostics.Debug.WriteLine($"✅ 进入编辑模式：全选文本");
+                    }
+                    else
+                    {
+                        // 只定位光标到文本末尾（保持光标闪动）
+                        _textBox.SelectionStart = _textBox.Text.Length;
+                        _textBox.SelectionLength = 0;
+                        //System.Diagnostics.Debug.WriteLine($"✅ 进入编辑模式：光标定位到末尾");
+                    }
+                }
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+        
+        /// <summary>
+        /// 快速进入编辑模式（新建文本框专用，自动全选占位符）
+        /// </summary>
+        public void EnterEditModeForNew()
+        {
+            _isNewlyCreated = true;
+            EnterEditMode(selectAll: true);  // 新建时全选，方便直接输入替换占位符
+        }
+
+        /// <summary>
+        /// 隐藏UI装饰元素（用于保存缩略图时获得纯净的视觉效果）
+        /// </summary>
+        public void HideDecorations()
+        {
+            if (_border != null)
+            {
+                _border.BorderBrush = WpfBrushes.Transparent;
+            }
+            if (_selectionRect != null)
+            {
+                _selectionRect.Visibility = System.Windows.Visibility.Collapsed;
+            }
+            if (_resizeThumb != null)
+            {
+                _resizeThumb.Visibility = System.Windows.Visibility.Collapsed;
+            }
+            // 隐藏光标（如果正在编辑）
+            if (_textBox != null && _textBox.IsFocused)
+            {
+                System.Windows.Input.Keyboard.ClearFocus();
+            }
+        }
+
+        /// <summary>
+        /// 恢复UI装饰元素（保存缩略图后恢复正常状态）
+        /// </summary>
+        public void RestoreDecorations()
+        {
+            if (IsSelected)
+            {
+                SetSelected(true);  // 重新应用选中状态
+            }
         }
 
         #endregion

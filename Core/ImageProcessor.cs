@@ -5,10 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using Image = SixLabors.ImageSharp.Image;
+using SkiaSharp;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 using ImageColorChanger.UI;
@@ -19,6 +16,7 @@ namespace ImageColorChanger.Core
 
     /// <summary>
     /// 图片处理器 - 负责图片加载、显示、缩放和效果处理
+    /// 使用SkiaSharp实现高性能图片处理
     /// </summary>
     public class ImageProcessor : IDisposable
     {
@@ -30,8 +28,8 @@ namespace ImageColorChanger.Core
         private readonly Grid imageContainer; // 图片容器（用于控制滚动区域）
         
         // 图片状态
-        private Image<Rgba32> originalImage;
-        private Image<Rgba32> currentImage;
+        private SKBitmap originalImage;
+        private SKBitmap currentImage;
         private BitmapSource currentPhoto;
         private string currentImagePath;
         
@@ -79,10 +77,10 @@ namespace ImageColorChanger.Core
         #region 公共属性
 
         /// <summary>当前图片</summary>
-        public Image<Rgba32> CurrentImage => currentImage;
+        public SKBitmap CurrentImage => currentImage;
         
         /// <summary>原始图片</summary>
-        public Image<Rgba32> OriginalImage => originalImage;
+        public SKBitmap OriginalImage => originalImage;
         
         /// <summary>当前图片路径</summary>
         public string CurrentImagePath => currentImagePath;
@@ -112,14 +110,11 @@ namespace ImageColorChanger.Core
                 }
                 
                 // 尝试从LRU缓存加载原始图片
-                if (!_imageMemoryCache.TryGetValue(imagePath, out Image<Rgba32> rawImage))
+                if (!_imageMemoryCache.TryGetValue(imagePath, out SKBitmap rawImage))
                 {
                     // LRU缓存中没有，无法预渲染
                     return false;
                 }
-                
-                // 渲染图片
-                var resizedImage = rawImage.Clone();
                 
                 // 计算缩放
                 double scaleX = (double)targetWidth / rawImage.Width;
@@ -129,43 +124,34 @@ namespace ImageColorChanger.Core
                 int finalWidth = (int)(rawImage.Width * scaleRatio);
                 int finalHeight = (int)(rawImage.Height * scaleRatio);
                 
-                // 缩放
-                if (scaleRatio > 1.0)
-                {
-                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Bicubic));
-                }
-                else if (scaleRatio < 0.5)
-                {
-                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Box));
-                }
-                else
-                {
-                    resizedImage.Mutate(x => x.Resize(finalWidth, finalHeight, KnownResamplers.Bicubic));
-                }
+                // 缩放并应用效果
+                var resizedImage = ResizeImage(rawImage, finalWidth, finalHeight);
                 
-                // 应用效果
-                if (applyInvert)
+                if (resizedImage != null)
                 {
-                    resizedImage.Mutate(x => x.Invert());
-                }
-                
-                // 转换为BitmapSource
-                var bitmapSource = ConvertToBitmapSource(resizedImage);
-                resizedImage.Dispose();
-                
-                if (bitmapSource != null)
-                {
-                    // 加入渲染缓存
-                    imageCache[cacheKey] = bitmapSource;
-                    imageCacheAccessTime[cacheKey] = DateTime.Now;
-                    return true;
+                    // 应用效果
+                    if (applyInvert)
+                    {
+                        ApplyYellowTextEffect(resizedImage);
+                    }
+                    
+                    // 转换为BitmapSource
+                    var bitmapSource = ConvertToBitmapSource(resizedImage);
+                    resizedImage.Dispose();
+                    
+                    if (bitmapSource != null)
+                    {
+                        // 加入渲染缓存
+                        imageCache[cacheKey] = bitmapSource;
+                        imageCacheAccessTime[cacheKey] = DateTime.Now;
+                        return true;
+                    }
                 }
                 
                 return false;
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预渲染失败] {System.IO.Path.GetFileName(imagePath)}: {ex.Message}");
                 return false;
             }
         }
@@ -213,10 +199,16 @@ namespace ImageColorChanger.Core
                 double newZoom = Math.Max(Constants.MinZoomRatio, Math.Min(Constants.MaxZoomRatio, value));
                 if (Math.Abs(zoomRatio - newZoom) > 0.001)
                 {
+                    System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
                     zoomRatio = newZoom;
                     if (currentImage != null && !originalMode)
                     {
+                        System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 触发UpdateImage()更新主屏显示");
                         UpdateImage();
+                    }
+                    else if (originalMode)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 原图模式下不更新（正常模式才支持缩放）");
                     }
                 }
             }
@@ -252,38 +244,52 @@ namespace ImageColorChanger.Core
         /// </summary>
         public bool LoadImage(string path)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 // 验证文件
+                var validateStart = sw.ElapsedMilliseconds;
                 if (!ValidateImageFile(path))
                 {
                     throw new Exception("无效的图片文件");
                 }
+                var validateTime = sw.ElapsedMilliseconds - validateStart;
+                System.Diagnostics.Debug.WriteLine($"  ├─ 验证文件: {validateTime}ms");
                 
                 // 清除当前图片（不清除缓存，只清除当前引用）
+                var clearStart = sw.ElapsedMilliseconds;
                 ClearCurrentImageOnly();
+                var clearTime = sw.ElapsedMilliseconds - clearStart;
+                System.Diagnostics.Debug.WriteLine($"  ├─ 清除当前图片: {clearTime}ms");
                 
                 // ⚡ 先检查LRU缓存
-                if (_imageMemoryCache.TryGetValue(path, out Image<Rgba32> cachedImage))
+                var cacheCheckStart = sw.ElapsedMilliseconds;
+                if (_imageMemoryCache.TryGetValue(path, out SKBitmap cachedImage))
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚡ [LRU缓存命中] {System.IO.Path.GetFileName(path)}");
+                    var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                    System.Diagnostics.Debug.WriteLine($"  ├─ ⚡ LRU缓存命中: {cacheTime}ms - {System.IO.Path.GetFileName(path)}");
                     
-                    // 🔧 性能优化：直接共享引用，不克隆（节省100-150ms）
-                    // currentImage从不被修改，所以可以安全共享
+                    // 🔧 性能优化：直接共享引用，不克隆（节省时间）
                     originalImage = cachedImage;
                     currentImage = cachedImage; // 直接共享，不Clone
                     currentImagePath = path;
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine($"💾 [从磁盘加载] {System.IO.Path.GetFileName(path)}");
+                    var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                    System.Diagnostics.Debug.WriteLine($"  ├─ 缓存未命中: {cacheTime}ms");
                     
                     // 缓存未命中，从磁盘加载
-                    originalImage = Image.Load<Rgba32>(path);
+                    var diskLoadStart = sw.ElapsedMilliseconds;
+                    originalImage = LoadImageOptimized(path);
+                    var diskLoadTime = sw.ElapsedMilliseconds - diskLoadStart;
+                    System.Diagnostics.Debug.WriteLine($"  ├─ 💾 从磁盘加载: {diskLoadTime}ms - {System.IO.Path.GetFileName(path)}");
+                    
                     currentImage = originalImage; // 🔧 也不Clone，直接共享
                     currentImagePath = path;
                     
                     // ⚡ 加入LRU缓存
+                    var cacheAddStart = sw.ElapsedMilliseconds;
                     var entryOptions = new MemoryCacheEntryOptions
                     {
                         // 按图片大小计算权重（1MB = 1权重单位）
@@ -293,33 +299,42 @@ namespace ImageColorChanger.Core
                     };
                     
                     _imageMemoryCache.Set(path, originalImage, entryOptions);
-                    //System.Diagnostics.Debug.WriteLine($"📦 [已缓存] {System.IO.Path.GetFileName(path)} (权重: {entryOptions.Size})");
+                    var cacheAddTime = sw.ElapsedMilliseconds - cacheAddStart;
+                    System.Diagnostics.Debug.WriteLine($"  ├─ 📦 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
                 }
                 
                 // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
                 lastUpdateTime = DateTime.MinValue;
                 
                 // 更新显示
+                var updateStart = sw.ElapsedMilliseconds;
                 bool success = UpdateImage();
+                var updateTime = sw.ElapsedMilliseconds - updateStart;
+                System.Diagnostics.Debug.WriteLine($"  ├─ 更新显示: {updateTime}ms");
                 
                 if (success)
                 {
                     // 重置滚动条到顶部
+                    var scrollStart = sw.ElapsedMilliseconds;
                     scrollViewer.ScrollToTop();
                     scrollViewer.ScrollToLeftEnd();
+                    var scrollTime = sw.ElapsedMilliseconds - scrollStart;
+                    System.Diagnostics.Debug.WriteLine($"  ├─ 重置滚动条: {scrollTime}ms");
                     
-                    // 🔧 重置关键帧索引（参考Python版本：image_processor.py 第341行）
-                    // 每次加载新图片时，关键帧索引应该重置为-1
+                    // 🔧 重置关键帧索引（参考Python版本）
                     mainWindow.ResetKeyframeIndex();
                     
+                    sw.Stop();
+                    System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 完成: {sw.ElapsedMilliseconds}ms");
                     return true;
                 }
                 
+                sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 失败: {sw.ElapsedMilliseconds}ms");
                 return false;
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -351,6 +366,67 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
+        /// 优化的图片加载方法
+        /// 对于大图片，自动缩放到合适的显示尺寸，提升加载速度
+        /// </summary>
+        private SKBitmap LoadImageOptimized(string path)
+        {
+            try
+            {
+                // 获取显示区域尺寸
+                double canvasWidth = scrollViewer.ActualWidth;
+                double canvasHeight = scrollViewer.ActualHeight;
+                
+                // 如果容器尺寸未初始化，使用屏幕尺寸
+                if (canvasWidth <= 0 || canvasHeight <= 0)
+                {
+                    canvasWidth = SystemParameters.PrimaryScreenWidth;
+                    canvasHeight = SystemParameters.PrimaryScreenHeight;
+                }
+                
+                // 计算目标尺寸（显示尺寸的1.5倍，保证质量）
+                int targetWidth = (int)(canvasWidth * 1.5);
+                int targetHeight = (int)(canvasHeight * 1.5);
+                
+                // ⚡ 直接加载图片
+                var image = SKBitmap.Decode(path);
+                
+                if (image == null)
+                {
+                    throw new Exception("无法解码图片");
+                }
+                
+                // 检查是否需要缩放（只对超大图片进行缩放）
+                if (image.Width > targetWidth * 2 || image.Height > targetHeight * 2)
+                {
+                    // 计算缩放比例（保持宽高比）
+                    double scaleX = (double)targetWidth / image.Width;
+                    double scaleY = (double)targetHeight / image.Height;
+                    double scale = Math.Max(scaleX, scaleY); // 使用较大的比例，确保覆盖显示区域
+                    
+                    int newWidth = (int)(image.Width * scale);
+                    int newHeight = (int)(image.Height * scale);
+                    
+                    // 创建缩放后的图片
+                    var resized = ResizeImage(image, newWidth, newHeight);
+                    
+                    // 释放原始大图
+                    image.Dispose();
+                    
+                    return resized;
+                }
+                
+                // 图片尺寸合适，直接返回
+                return image;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 优化加载失败: {ex.Message}");
+                throw;
+            }
+        }
+        
+        /// <summary>
         /// 清除当前图片（仅清除引用，不清除缓存）
         /// </summary>
         private void ClearCurrentImageOnly()
@@ -370,7 +446,6 @@ namespace ImageColorChanger.Core
             imageControl.Source = null;
             
             // ⚡ 性能优化：不清除 imageCache（保持渲染缓存）
-            // imageCache.Clear(); // 注释掉！
         }
         
         /// <summary>
@@ -434,7 +509,6 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"更新图片失败: {ex.Message}");
                 return false;
             }
         }
@@ -477,7 +551,7 @@ namespace ImageColorChanger.Core
                 scaleRatio = Math.Min(widthRatio, heightRatio);
             }
             
-                // 智能缩放策略
+            // 智能缩放策略
             if (scaleRatio >= 1.0)
             {
                 // 图片小于屏幕：智能放大
@@ -522,14 +596,14 @@ namespace ImageColorChanger.Core
         /// </summary>
         private (int width, int height) CalculateNormalModeSize(double canvasWidth, double canvasHeight)
         {
-            // 基础缩放比例：始终填满宽度
+            // 基础缩放比例：宽度填满画布
             double baseRatio = canvasWidth / currentImage.Width;
             
             // 应用用户缩放
             double finalRatio = baseRatio * zoomRatio;
             
-            // 确保宽度填满画布
-            int newWidth = (int)canvasWidth;
+            // 等比缩放宽度和高度
+            int newWidth = (int)(currentImage.Width * finalRatio);
             int newHeight = (int)(currentImage.Height * finalRatio);
             
             return (newWidth, newHeight);
@@ -549,11 +623,8 @@ namespace ImageColorChanger.Core
             {
                 // ⚡ 更新LRU访问时间
                 imageCacheAccessTime[cacheKey] = DateTime.Now;
-                //System.Diagnostics.Debug.WriteLine($"🎨 [渲染缓存命中] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
                 return cachedPhoto;
             }
-            
-            //System.Diagnostics.Debug.WriteLine($"🖼️ [重新渲染] {newWidth}x{newHeight} ({(isInverted ? "效果" : "正常")})");
             
             // 生成新图片
             var resizedImage = ResizeAndApplyEffects(newWidth, newHeight);
@@ -569,7 +640,7 @@ namespace ImageColorChanger.Core
                 imageCache[cacheKey] = photo;
                 imageCacheAccessTime[cacheKey] = DateTime.Now; // ⚡ 记录访问时间
                 
-                // 限制缓存大小 - 使用更大的阈值
+                // 限制缓存大小
                 if (imageCache.Count > Constants.RenderCacheCleanupThreshold)
                 {
                     ClearOldCache();
@@ -583,36 +654,16 @@ namespace ImageColorChanger.Core
         
         /// <summary>
         /// 调整图片尺寸并应用效果
-        /// 关键：先缩放，后应用效果！效果不改变图片尺寸！
         /// </summary>
-        private Image<Rgba32> ResizeAndApplyEffects(int newWidth, int newHeight)
+        private SKBitmap ResizeAndApplyEffects(int newWidth, int newHeight)
         {
             try
             {
-                // 计算缩放比例
-                double scaleX = (double)newWidth / currentImage.Width;
-                double scaleY = (double)newHeight / currentImage.Height;
-                double scaleRatio = Math.Min(scaleX, scaleY);
+                // 第一步：缩放到目标尺寸
+                var resizedImage = ResizeImage(currentImage, newWidth, newHeight);
                 
-                // 第一步：克隆并执行缩放到目标尺寸
-                var resizedImage = currentImage.Clone();
-                
-                // 使用智能算法选择执行缩放
-                if (scaleRatio > 1.0)
-                {
-                    // 放大：使用Bicubic，质量好
-                    resizedImage.Mutate(x => x.Resize(newWidth, newHeight, KnownResamplers.Bicubic));
-                }
-                else if (scaleRatio < 0.5)
-                {
-                    // 大幅缩小：使用Box，性能最佳
-                    resizedImage.Mutate(x => x.Resize(newWidth, newHeight, KnownResamplers.Box));
-                }
-                else
-                {
-                    // 小幅缩小：使用Bicubic，平衡质量和性能
-                    resizedImage.Mutate(x => x.Resize(newWidth, newHeight, KnownResamplers.Bicubic));
-                }
+                if (resizedImage == null)
+                    return null;
                 
                 // 第二步：在缩放后的图片上应用效果（如果启用）
                 if (isInverted)
@@ -625,7 +676,26 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"调整图片尺寸失败: {ex.Message}");
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// 缩放图片（GPU优先，CPU降级）
+        /// </summary>
+        private SKBitmap ResizeImage(SKBitmap source, int targetWidth, int targetHeight)
+        {
+            if (source == null || targetWidth <= 0 || targetHeight <= 0)
+                return null;
+            
+            try
+            {
+                // 🎮 使用GPU加速缩放（如果GPU不可用，自动降级到CPU）
+                return GPUContext.Instance.ScaleImageGpu(source, targetWidth, targetHeight, SKFilterQuality.High);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [ImageProcessor] 缩放失败: {ex.Message}");
                 return null;
             }
         }
@@ -633,24 +703,23 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 应用黄色文本效果（公共方法，用于外部保存）
         /// </summary>
-        public Image<Rgba32> ApplyYellowTextEffectForSave()
+        public SKBitmap ApplyYellowTextEffectForSave()
         {
             if (currentImage == null)
                 return null;
             
             // 克隆当前图片并应用效果
-            var result = currentImage.Clone();
+            var result = currentImage.Copy();
             ApplyYellowTextEffect(result);
             return result;
         }
 
         /// <summary>
         /// 应用黄字效果（智能检测背景类型）
-        /// 重要：此方法不改变图片尺寸！
         /// </summary>
-        public Image<Rgba32> ApplyYellowTextEffect(Image<Rgba32> image)
+        public void ApplyYellowTextEffect(SKBitmap image)
         {
-            if (image == null) return null;
+            if (image == null) return;
             
             try
             {
@@ -663,64 +732,62 @@ namespace ImageColorChanger.Core
                 var yellowColor = GetYellowColorSettings();
                 
                 // 3. 直接处理图片的每个像素
-                image.ProcessPixelRows(accessor =>
+                unsafe
                 {
-                    for (int y = 0; y < accessor.Height; y++)
+                    var pixels = (uint*)image.GetPixels().ToPointer();
+                    int pixelCount = image.Width * image.Height;
+                    
+                    for (int i = 0; i < pixelCount; i++)
                     {
-                        var row = accessor.GetRowSpan(y);
+                        uint pixel = pixels[i];
                         
-                        for (int x = 0; x < row.Length; x++)
+                        // 提取RGBA（SkiaSharp使用BGRA顺序）
+                        byte b = (byte)(pixel & 0xFF);
+                        byte g = (byte)((pixel >> 8) & 0xFF);
+                        byte r = (byte)((pixel >> 16) & 0xFF);
+                        byte a = (byte)((pixel >> 24) & 0xFF);
+                        
+                        // 计算亮度（使用标准公式）
+                        float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
+                        
+                        // 根据背景类型判断是否是文字
+                        bool isText;
+                        if (bgType == BackgroundType.Black)
                         {
-                            var pixel = row[x];
-                            
-                            // 计算亮度（使用标准公式）
-                            float luminance = 0.299f * pixel.R + 0.587f * pixel.G + 0.114f * pixel.B;
-                            
-                            // 根据背景类型判断是否是文字
-                            bool isText;
-                            if (bgType == BackgroundType.Black)
-                            {
-                                // 深色背景：亮色像素是文字
-                                isText = luminance > Constants.LightTextBrightnessDarkBg;
-                            }
-                            else
-                            {
-                                // 浅色背景：暗色像素是文字
-                                isText = luminance < Constants.DarkTextBrightnessLightBg;
-                            }
-                            
-                            // 设置颜色
-                            if (isText)
-                            {
-                                // 文字：设置为黄色
-                                row[x] = new Rgba32(yellowColor.R, yellowColor.G, yellowColor.B, 255);
-                            }
-                            else
-                            {
-                                // 背景：设置为黑色
-                                row[x] = new Rgba32(0, 0, 0, 255);
-                            }
+                            // 深色背景：亮色像素是文字
+                            isText = luminance > Constants.LightTextBrightnessDarkBg;
+                        }
+                        else
+                        {
+                            // 浅色背景：暗色像素是文字
+                            isText = luminance < Constants.DarkTextBrightnessLightBg;
+                        }
+                        
+                        // 设置颜色（BGRA顺序）
+                        if (isText)
+                        {
+                            // 文字：设置为黄色
+                            pixels[i] = (uint)(0xFF000000 | ((uint)yellowColor.Red << 16) | ((uint)yellowColor.Green << 8) | (uint)yellowColor.Blue);
+                        }
+                        else
+                        {
+                            // 背景：设置为黑色
+                            pixels[i] = 0xFF000000; // 黑色 + 完全不透明
                         }
                     }
-                });
+                }
                 
                 var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-                // System.Diagnostics.Debug.WriteLine($"✨ 变色处理完成: {elapsed:F1}ms ({image.Width}x{image.Height})");
-                
-                return image;
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 应用黄字效果失败: {ex.Message}");
-                return image;
             }
         }
         
         /// <summary>
         /// 检测背景类型（深色或浅色）
-        /// 通过采样图片边缘区域的亮度来判断
         /// </summary>
-        private BackgroundType DetectBackgroundType(Image<Rgba32> image)
+        private BackgroundType DetectBackgroundType(SKBitmap image)
         {
             try
             {
@@ -735,8 +802,8 @@ namespace ImageColorChanger.Core
                     {
                         for (int x = startX; x < startX + width && x < image.Width; x++)
                         {
-                            var pixel = image[x, y];
-                            float luminance = 0.299f * pixel.R + 0.587f * pixel.G + 0.114f * pixel.B;
+                            var pixel = image.GetPixel(x, y);
+                            float luminance = 0.299f * pixel.Red + 0.587f * pixel.Green + 0.114f * pixel.Blue;
                             samples.Add(luminance);
                         }
                     }
@@ -760,13 +827,10 @@ namespace ImageColorChanger.Core
                 // 判断背景类型
                 var bgType = avgLuminance < Constants.DarkBackgroundThreshold ? BackgroundType.Black : BackgroundType.White;
                 
-                // System.Diagnostics.Debug.WriteLine($"🔍 背景检测: 平均亮度={avgLuminance:F1}, 类型={bgType}");
-                
                 return bgType;
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"检测背景类型失败: {ex.Message}");
                 return BackgroundType.White; // 默认返回浅色背景
             }
         }
@@ -774,7 +838,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 获取黄字颜色设置
         /// </summary>
-        private Rgba32 GetYellowColorSettings()
+        private SKColor GetYellowColorSettings()
         {
             // 从主应用获取当前目标颜色
             if (mainWindow != null)
@@ -784,34 +848,54 @@ namespace ImageColorChanger.Core
             }
             
             // 默认黄字颜色（淡黄）
-            return new Rgba32(174, 159, 112);
+            return new SKColor(174, 159, 112);
         }
         
         /// <summary>
-        /// 转换ImageSharp图片为WPF BitmapSource
+        /// 转换SKBitmap为WPF BitmapSource（高性能直接转换）
         /// </summary>
-        private BitmapSource ConvertToBitmapSource(Image<Rgba32> image)
+        private WriteableBitmap ConvertToBitmapSource(SKBitmap skBitmap)
         {
             try
             {
-                using (var memoryStream = new MemoryStream())
+                if (skBitmap == null)
+                    return null;
+                
+                var info = skBitmap.Info;
+                var wb = new WriteableBitmap(info.Width, info.Height, 96, 96, 
+                                             PixelFormats.Bgra32, null);
+                
+                wb.Lock();
+                try
                 {
-                    image.SaveAsPng(memoryStream);
-                    memoryStream.Position = 0;
+                    unsafe
+                    {
+                        // ⚡ 直接复制像素数据，超快！无需编码/解码
+                        var src = skBitmap.GetPixels();
+                        var dst = wb.BackBuffer;
+                        var size = skBitmap.ByteCount;
+                        
+                        Buffer.MemoryCopy(
+                            src.ToPointer(),
+                            dst.ToPointer(),
+                            size,
+                            size
+                        );
+                    }
                     
-                    var bitmapImage = new BitmapImage();
-                    bitmapImage.BeginInit();
-                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmapImage.StreamSource = memoryStream;
-                    bitmapImage.EndInit();
-                    bitmapImage.Freeze(); // 重要：冻结以提高性能
-                    
-                    return bitmapImage;
+                    wb.AddDirtyRect(new Int32Rect(0, 0, info.Width, info.Height));
                 }
+                finally
+                {
+                    wb.Unlock();
+                }
+                
+                wb.Freeze(); // 冻结以提高性能
+                
+                return wb;
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"转换BitmapSource失败: {ex.Message}");
                 return null;
             }
         }
@@ -853,7 +937,6 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"更新画布显示失败: {ex.Message}");
                 return false;
             }
         }
@@ -864,7 +947,6 @@ namespace ImageColorChanger.Core
 
         /// <summary>
         /// 设置滚动区域
-        /// Python逻辑：scroll_height = new_height + canvas_height（图片高度 + 一个屏幕高度的额外空间）
         /// </summary>
         private void SetScrollRegion(double imageHeight, double canvasHeight)
         {
@@ -891,7 +973,6 @@ namespace ImageColorChanger.Core
                 else
                 {
                     // 正常模式
-                    // 注意: 即使图片高度等于屏幕高度,也需要额外空间以支持滚动到底部
                     if (imageHeight >= canvasHeight)
                     {
                         // 图片高度超过或等于屏幕：图片高度 + 一个屏幕高度的额外空间
@@ -907,14 +988,10 @@ namespace ImageColorChanger.Core
                 }
                 
                 // 设置容器高度来控制滚动区域
-                // 这样滚动到底部时，图片下方会有额外的空间（与Python一致）
                 imageContainer.Height = scrollHeight;
-                
-                // System.Diagnostics.Debug.WriteLine($"📏 滚动区域: 图片高度={imageHeight:F0}, 画布高度={canvasHeight:F0}, 滚动高度={scrollHeight:F0}");
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"设置滚动区域失败: {ex.Message}");
             }
         }
 
@@ -940,7 +1017,6 @@ namespace ImageColorChanger.Core
             if (_imageMemoryCache is MemoryCache mc)
             {
                 mc.Compact(1.0); // 清除100%的缓存项
-                //System.Diagnostics.Debug.WriteLine("🧹 [LRU缓存已清空]");
             }
         }
         
@@ -951,7 +1027,6 @@ namespace ImageColorChanger.Core
         {
             if (_imageMemoryCache is MemoryCache mc)
             {
-                // MemoryCache没有直接的Count属性，但我们可以通过GetCurrentStatistics获取信息
                 var stats = mc.GetCurrentStatistics();
                 return $"缓存项数: {stats?.CurrentEntryCount ?? 0}, 当前大小: {stats?.CurrentEstimatedSize ?? 0}";
             }
@@ -987,12 +1062,9 @@ namespace ImageColorChanger.Core
                     imageCache.Remove(key);
                     imageCacheAccessTime.Remove(key);
                 }
-                
-                //System.Diagnostics.Debug.WriteLine($"🧹 [渲染缓存清理] 删除 {toRemove} 项，剩余 {imageCache.Count} 项");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [渲染缓存清理失败] {ex.Message}");
                 // 失败时简单清空
                 imageCache.Clear();
                 imageCacheAccessTime.Clear();
