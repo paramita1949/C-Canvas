@@ -30,10 +30,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool ShouldUseOriginalMode()
         {
-            if (currentImageId == 0 || originalManager == null)
+            if (_currentImageId == 0 || _originalManager == null)
                 return false;
 
-            return originalManager.ShouldUseOriginalMode(currentImageId);
+            return _originalManager.ShouldUseOriginalMode(_currentImageId);
         }
 
         /// <summary>
@@ -41,16 +41,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool HasSimilarImagesForOriginalMode()
         {
-            if (currentImageId == 0 || originalManager == null)
+            if (_currentImageId == 0 || _originalManager == null)
                 return false;
 
             // 查找相似图片
-            bool found = originalManager.FindSimilarImages(currentImageId);
+            bool found = _originalManager.FindSimilarImages(_currentImageId);
             if (!found)
                 return false;
 
             // 必须至少有2张图片才能进行录制/播放
-            return originalManager.HasSimilarImages();
+            return _originalManager.HasSimilarImages();
         }
 
         #endregion
@@ -63,7 +63,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task StartOriginalModeRecordingAsync()
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -83,10 +83,10 @@ namespace ImageColorChanger.UI
 
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🎬 [原图录制] 开始录制: ImageId={currentImageId}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [原图录制] 开始录制: ImageId={_currentImageId}");
 
                 // 使用ViewModel的命令
-                _playbackViewModel.CurrentImageId = currentImageId;
+                _playbackViewModel.CurrentImageId = _currentImageId;
                 _playbackViewModel.CurrentMode = PlaybackMode.Original;
                 
                 await _playbackViewModel.StartRecordingCommand.ExecuteAsync(null);
@@ -162,7 +162,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task StartOriginalModePlaybackAsync()
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -181,7 +181,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 开始播放: ImageId={currentImageId}");
+                //System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 开始播放: ImageId={_currentImageId}");
 
                 // 同步播放次数设置
                 var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
@@ -198,7 +198,7 @@ namespace ImageColorChanger.UI
                     originalPlayback.SwitchImageRequested += OnOriginalPlaybackSwitchImageRequested;                }
 
                 // 使用ViewModel的命令
-                _playbackViewModel.CurrentImageId = currentImageId;
+                _playbackViewModel.CurrentImageId = _currentImageId;
                 _playbackViewModel.CurrentMode = PlaybackMode.Original;
 
                 await _playbackViewModel.StartPlaybackCommand.ExecuteAsync(null);
@@ -261,7 +261,7 @@ namespace ImageColorChanger.UI
                 try
                 {
                     // 🎯 更新当前图片ID（必须先更新，否则项目树选择逻辑会错乱）
-                    currentImageId = e.ImageId;
+                    _currentImageId = e.ImageId;
 
                     // 如果提供了路径，直接加载
                     if (!string.IsNullOrEmpty(e.ImagePath))
@@ -271,7 +271,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 根据ImageId查找路径并加载
-                        var dbContext = dbManager?.GetDbContext();
+                        var dbContext = _dbManager?.GetDbContext();
                         if (dbContext != null)
                         {
                             var mediaFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == e.ImageId);
@@ -295,12 +295,12 @@ namespace ImageColorChanger.UI
                     }
 
                     // 强制更新投影窗口
-                    if (projectionManager?.IsProjectionActive == true && imageProcessor?.CurrentImage != null)
+                    if (_projectionManager?.IsProjectionActive == true && _imageProcessor?.CurrentImage != null)
                     {
-                        projectionManager.UpdateProjectionImage(
-                            imageProcessor.CurrentImage,
-                            isColorEffectEnabled,
-                            currentZoom,
+                        _projectionManager.UpdateProjectionImage(
+                            _imageProcessor.CurrentImage,
+                            _isColorEffectEnabled,
+                            _currentZoom,
                             false,
                             ImageColorChanger.Core.OriginalDisplayMode.Stretch
                         );
@@ -316,7 +316,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private ProjectTreeItem FindTreeItemById(int imageId)
         {
-            foreach (var root in projectTreeItems)
+            foreach (var root in _projectTreeItems)
             {
                 var result = FindTreeItemByIdRecursive(root, imageId);
                 if (result != null)
@@ -353,7 +353,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal async Task HandleRecordButtonClickAsync()
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -384,7 +384,7 @@ namespace ImageColorChanger.UI
             else
             {
                 // 关键帧模式录制（已有实现）
-                _playbackViewModel.CurrentImageId = currentImageId;
+                _playbackViewModel.CurrentImageId = _currentImageId;
                 _playbackViewModel.CurrentMode = PlaybackMode.Keyframe;
                 await _playbackViewModel.StartRecordingCommand.ExecuteAsync(null);
             }
@@ -396,7 +396,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal async Task HandlePlayButtonClickAsync()
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -427,7 +427,7 @@ namespace ImageColorChanger.UI
             else
             {
                 // 关键帧模式播放（已有实现）
-                _playbackViewModel.CurrentImageId = currentImageId;
+                _playbackViewModel.CurrentImageId = _currentImageId;
                 _playbackViewModel.CurrentMode = PlaybackMode.Keyframe;
                 await _playbackViewModel.StartPlaybackCommand.ExecuteAsync(null);
             }
@@ -516,7 +516,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task ClearOriginalModeTimingDataAsync()
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -535,10 +535,10 @@ namespace ImageColorChanger.UI
                     var recordingService = App.GetRequiredService<Services.PlaybackServiceFactory>()
                         .GetRecordingService(PlaybackMode.Original);
 
-                    await recordingService.ClearTimingDataAsync(currentImageId, PlaybackMode.Original);
+                    await recordingService.ClearTimingDataAsync(_currentImageId, PlaybackMode.Original);
 
                     ShowStatus("✅ 已清除原图模式时间数据");
-                    //System.Diagnostics.Debug.WriteLine($"🗑️ [原图] 已清除时间数据: ImageId={currentImageId}");
+                    //System.Diagnostics.Debug.WriteLine($"🗑️ [原图] 已清除时间数据: ImageId={_currentImageId}");
 
                     // 更新HasTimingData状态
                     await _playbackViewModel.UpdateTimingDataStatus();

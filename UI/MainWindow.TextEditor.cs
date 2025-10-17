@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void InitializeTextEditor()
         {
-            _dbContext = dbManager.GetDbContext(); // 🆕 保存数据库上下文引用
+            _dbContext = _dbManager.GetDbContext(); // 🆕 保存数据库上下文引用
             _textProjectManager = new TextProjectManager(_dbContext);
             
             // 加载系统字体
@@ -349,7 +349,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: {projectName}");
                 
                 // 🆕 强制更新投影（如果投影已开启）
-                if (projectionManager.IsProjectionActive && _currentSlide != null)
+                if (_projectionManager.IsProjectionActive && _currentSlide != null)
                 {
                     //System.Diagnostics.Debug.WriteLine("🔄 新建项目完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
@@ -425,7 +425,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: {_currentTextProject.Name}");
                 
                 // 🆕 强制更新投影（如果投影已开启）
-                if (projectionManager.IsProjectionActive && _currentSlide != null)
+                if (_projectionManager.IsProjectionActive && _currentSlide != null)
                 {
                     //System.Diagnostics.Debug.WriteLine("🔄 项目加载完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
@@ -454,17 +454,17 @@ namespace ImageColorChanger.UI
             TextEditorPanel.Visibility = Visibility.Visible;
             
             // 🆕 重置投影状态：清空之前的图片投影状态
-            if (projectionManager.IsProjectionActive)
+            if (_projectionManager.IsProjectionActive)
             {
                 //System.Diagnostics.Debug.WriteLine("🔄 切换到文本编辑器模式，重置投影状态");
                 
                 // 重置投影滚动位置
-                projectionManager.ResetProjectionScroll();
+                _projectionManager.ResetProjectionScroll();
                 
                 // 创建一个1x1的透明图片来清空投影
                 var clearImage = new SKBitmap(1, 1);
                 clearImage.SetPixel(0, 0, new SKColor(0, 0, 0, 255));
-                projectionManager.UpdateProjectionImage(clearImage, false, 1.0, false);
+                _projectionManager.UpdateProjectionImage(clearImage, false, 1.0, false);
                 clearImage.Dispose();
                 //System.Diagnostics.Debug.WriteLine("✅ 投影状态已重置");
             }
@@ -551,7 +551,7 @@ namespace ImageColorChanger.UI
                 };
 
                 // 添加到根节点
-                projectTreeItems.Add(projectNode);
+                _projectTreeItems.Add(projectNode);
 
                 // 选中新创建的项目
                 projectNode.IsSelected = true;
@@ -1186,7 +1186,7 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
                 //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
                 
                 // 批量更新所有元素
                 await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
@@ -1211,7 +1211,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已刷新幻灯片列表");
                 
                 // 🔧 如果投影开启，自动更新投影
-                if (projectionManager.IsProjectionActive)
+                if (_projectionManager.IsProjectionActive)
                 {
                     //System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
                     // 延迟确保UI完全渲染
@@ -1448,9 +1448,9 @@ namespace ImageColorChanger.UI
         private void UpdateProjectionFromCanvas()
         {
             //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 开始更新投影 =====");
-            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
             
-            if (!projectionManager.IsProjectionActive)
+            if (!_projectionManager.IsProjectionActive)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ [更新投影] 投影未开启，无法更新投影内容");
                 WpfMessageBox.Show("请先开启投影！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1509,7 +1509,7 @@ namespace ImageColorChanger.UI
 
                 // 4. 更新投影（文本编辑器模式：绕过缓存，确保每次都重新渲染）
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 调用ProjectionManager.UpdateProjectionImage...");
-                projectionManager.UpdateProjectionImage(scaledImage, false, 1.0, false, ImageColorChanger.Core.OriginalDisplayMode.Stretch, bypassCache: true);
+                _projectionManager.UpdateProjectionImage(scaledImage, false, 1.0, false, ImageColorChanger.Core.OriginalDisplayMode.Stretch, bypassCache: true);
 
                 //System.Diagnostics.Debug.WriteLine($"✅ [更新投影] 投影更新成功");
             }
@@ -2194,7 +2194,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
                 
                 // 🆕 加载完成后，如果投影已开启，自动更新投影
-                if (projectionManager.IsProjectionActive)
+                if (_projectionManager.IsProjectionActive)
                 {
                     // 延迟一点点，确保UI渲染完成
                     Dispatcher.BeginInvoke(new Action(() =>
