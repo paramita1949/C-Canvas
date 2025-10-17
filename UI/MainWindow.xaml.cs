@@ -41,15 +41,53 @@ namespace ImageColorChanger.UI
 
         #region 字段
 
+        #region 常量定义
+
+        // 时间相关常量（毫秒）
+        private const int BUTTON_DEBOUNCE_MILLISECONDS = 300;  // 按钮防抖时间
+        private const int UI_UPDATE_DELAY_MILLISECONDS = 100;   // UI更新延迟
+
+        // 缩放相关常量
+        private const double MinZoom = Constants.MinZoomRatio;
+        private const double MaxZoom = Constants.MaxZoomRatio;
+        private const double ZoomStep = 0.05;
+
+        // 时间转换常量
+        private const int MILLISECONDS_PER_SECOND = 1000;
+
+        // 默认颜色常量（RGB）
+        private const byte DEFAULT_TARGET_COLOR_R = 174;  // 淡黄色 R
+        private const byte DEFAULT_TARGET_COLOR_G = 159;  // 淡黄色 G
+        private const byte DEFAULT_TARGET_COLOR_B = 112;  // 淡黄色 B
+        private const string DEFAULT_TARGET_COLOR_NAME = "淡黄";
+
+        // UI按钮激活颜色（RGB）
+        private const byte BUTTON_ACTIVE_COLOR_R = 144;   // 浅绿色 R (LightGreen)
+        private const byte BUTTON_ACTIVE_COLOR_G = 238;   // 浅绿色 G
+        private const byte BUTTON_ACTIVE_COLOR_B = 144;   // 浅绿色 B
+
+        // UI按钮强调颜色（RGB）
+        private const byte BUTTON_EMPHASIS_COLOR_R = 255;  // 金色 R
+        private const byte BUTTON_EMPHASIS_COLOR_G = 215;  // 金色 G
+        private const byte BUTTON_EMPHASIS_COLOR_B = 0;    // 金色 B
+
+        // 播放模式图标颜色（十六进制）
+        private const string ICON_COLOR_SEQUENTIAL = "#2196F3";  // 顺序播放 - 蓝色
+        private const string ICON_COLOR_RANDOM = "#FF9800";      // 随机播放 - 橙色
+        private const string ICON_COLOR_LOOP = "#4CAF50";        // 列表循环 - 绿色
+        private const string ICON_COLOR_PALETTE = "#FF6B6B";     // 变色标记 - 红色
+        private const string ICON_COLOR_FILE = "#95E1D3";        // 文件图标 - 青色
+        private const string ICON_COLOR_TEXT = "#2196F3";        // 文本项目 - 蓝色
+        private const string ICON_COLOR_DEFAULT = "#666666";     // 默认图标 - 灰色
+
+        #endregion
+
         // 图像处理相关
         private ImageProcessor _imageProcessor;
         private string _imagePath;
 
         // 图片缩放相关
         private double _currentZoom = 1.0;
-        private const double MinZoom = Constants.MinZoomRatio;
-        private const double MaxZoom = Constants.MaxZoomRatio;
-        private const double ZoomStep = 0.05;
 
         // 图片拖动相关
         private bool _isDragging = false;
@@ -57,8 +95,8 @@ namespace ImageColorChanger.UI
 
         // 变色功能相关
         private bool _isColorEffectEnabled = false;
-        private SKColor _currentTargetColor = new SKColor(174, 159, 112); // 默认颜色
-        private string _currentTargetColorName = "淡黄"; // 默认颜色名称
+        private SKColor _currentTargetColor = new SKColor(DEFAULT_TARGET_COLOR_R, DEFAULT_TARGET_COLOR_G, DEFAULT_TARGET_COLOR_B);
+        private string _currentTargetColorName = DEFAULT_TARGET_COLOR_NAME;
         private int? _currentFolderId = null; // 当前文件夹ID，用于判断是否切换了文件夹
 
         // 项目数据
@@ -175,7 +213,7 @@ namespace ImageColorChanger.UI
                                 BtnPauseResume.IsEnabled = _playbackViewModel.IsPlaying;
                                 // 播放时显示绿色，停止时恢复默认灰色
                                 BtnPlay.Background = _playbackViewModel.IsPlaying 
-                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(144, 238, 144)) // LightGreen
+                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
                                     : System.Windows.SystemColors.ControlBrush;
                                 
                                 // 🎯 停止播放时重置倒计时显示
@@ -194,7 +232,7 @@ namespace ImageColorChanger.UI
                             case "HasTimingData":
                                 // 有数据时显示绿色，无数据时恢复默认
                                 BtnScript.Background = _playbackViewModel.HasTimingData 
-                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(144, 238, 144)) // LightGreen
+                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
                                     : System.Windows.SystemColors.ControlBrush;
                                 break;
                         }
@@ -1860,7 +1898,7 @@ namespace ImageColorChanger.UI
                                 LoadImage(firstImageResult.firstImagePath);
                                 
                                 // 短暂延迟确保UI更新
-                                await Task.Delay(100);
+                                await Task.Delay(UI_UPDATE_DELAY_MILLISECONDS);
                                 
                                 ShowStatus($"✅ 已跳转到第一张相似图片");
                                 //System.Diagnostics.Debug.WriteLine("✅ [原图录制] 已跳转到第一张，准备开始录制");
@@ -2853,10 +2891,10 @@ namespace ImageColorChanger.UI
         {
             return playMode switch
             {
-                "sequential" => ("SortAscending", "#2196F3"),          // 顺序播放 - 蓝色 (上下箭头排序)
-                "random" => ("Shuffle", "#FF9800"),                    // 随机播放 - 橙色
-                "loop_all" => ("Repeat", "#4CAF50"),                   // 列表循环 - 绿色
-                _ => ("Shuffle", "#FF9800")                            // 默认随机播放 - 橙色
+                "sequential" => ("SortAscending", ICON_COLOR_SEQUENTIAL),  // 顺序播放 - 蓝色
+                "random" => ("Shuffle", ICON_COLOR_RANDOM),                // 随机播放 - 橙色
+                "loop_all" => ("Repeat", ICON_COLOR_LOOP),                 // 列表循环 - 绿色
+                _ => ("Shuffle", ICON_COLOR_RANDOM)                        // 默认随机播放 - 橙色
             };
         }
 
@@ -3806,9 +3844,9 @@ namespace ImageColorChanger.UI
         {
             if (_videoPlayerManager == null) return;
             
-            // 防抖动：300ms内只响应一次点击
+            // 防抖动：防止重复点击
             var now = DateTime.Now;
-            if ((now - _lastMediaPrevClickTime).TotalMilliseconds < 300)
+            if ((now - _lastMediaPrevClickTime).TotalMilliseconds < BUTTON_DEBOUNCE_MILLISECONDS)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 上一首按钮防抖动，忽略重复点击");
                 return;
@@ -3836,9 +3874,9 @@ namespace ImageColorChanger.UI
         {
             if (_videoPlayerManager == null) return;
             
-            // 防抖动：300ms内只响应一次点击
+            // 防抖动：防止重复点击
             var now = DateTime.Now;
-            if ((now - _lastMediaNextClickTime).TotalMilliseconds < 300)
+            if ((now - _lastMediaNextClickTime).TotalMilliseconds < BUTTON_DEBOUNCE_MILLISECONDS)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 下一首按钮防抖动，忽略重复点击");
                 return;
@@ -3869,9 +3907,9 @@ namespace ImageColorChanger.UI
         {
             if (_videoPlayerManager == null) return;
             
-            // 防抖动：300ms内只响应一次点击
+            // 防抖动：防止重复点击
             var now = DateTime.Now;
-            if ((now - _lastPlayModeClickTime).TotalMilliseconds < 300)
+            if ((now - _lastPlayModeClickTime).TotalMilliseconds < BUTTON_DEBOUNCE_MILLISECONDS)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 播放模式按钮防抖动，忽略重复点击");
                 return;
@@ -5444,8 +5482,8 @@ namespace ImageColorChanger.UI
                     MediaProgressSlider.Value = progress.position * 100;
                     
                     // 更新时间显示
-                    var currentSeconds = progress.currentTime / 1000;
-                    var totalSeconds = progress.totalTime / 1000;
+                    var currentSeconds = progress.currentTime / MILLISECONDS_PER_SECOND;
+                    var totalSeconds = progress.totalTime / MILLISECONDS_PER_SECOND;
                     
                     var currentStr = $"{currentSeconds / 60:00}:{currentSeconds % 60:00}";
                     var totalStr = $"{totalSeconds / 60:00}:{totalSeconds % 60:00}";
