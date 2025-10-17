@@ -551,7 +551,7 @@ namespace ImageColorChanger.UI
                 };
 
                 // 添加到根节点
-                projectTreeItems.Add(projectNode);
+                _projectTreeItems.Add(projectNode);
 
                 // 选中新创建的项目
                 projectNode.IsSelected = true;

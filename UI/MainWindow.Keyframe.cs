@@ -104,7 +104,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnAddKeyframe_Click(object sender, RoutedEventArgs e)
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -126,7 +126,7 @@ namespace ImageColorChanger.UI
 
                 // 添加关键帧
                 bool success = await _keyframeManager.AddKeyframeAsync(
-                    currentImageId, position, yPosition);
+                    _currentImageId, position, yPosition);
 
                 if (success)
                 {
@@ -136,7 +136,7 @@ namespace ImageColorChanger.UI
                     // 如果正在录制，获取最新的关键帧ID并记录时间（使用新架构）
                     if (_playbackViewModel?.IsRecording == true)
                     {
-                        var keyframes = _keyframeManager.GetKeyframes(currentImageId); // 同步获取（会更新缓存）
+                        var keyframes = _keyframeManager.GetKeyframes(_currentImageId); // 同步获取（会更新缓存）
                         if (keyframes != null && keyframes.Count > 0)
                         {
                             var lastKeyframe = keyframes.OrderByDescending(k => k.Id).FirstOrDefault();
@@ -164,7 +164,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnClearKeyframes_Click(object sender, RoutedEventArgs e)
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -186,7 +186,7 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
-                    await _keyframeManager.ClearKeyframesAsync(currentImageId);
+                    await _keyframeManager.ClearKeyframesAsync(_currentImageId);
                     ShowStatus("✅ 已清除所有关键帧");
                     UpdatePreviewLines();
                 }
@@ -217,7 +217,7 @@ namespace ImageColorChanger.UI
                 return;
             }
             
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -253,7 +253,7 @@ namespace ImageColorChanger.UI
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -265,7 +265,7 @@ namespace ImageColorChanger.UI
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
             if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -314,7 +314,7 @@ namespace ImageColorChanger.UI
                 return;
             }
             
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -350,7 +350,7 @@ namespace ImageColorChanger.UI
             // 如果正在录制，先记录当前帧的时间（跳转前）
             if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -362,7 +362,7 @@ namespace ImageColorChanger.UI
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
             if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
@@ -402,7 +402,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnClearTiming_Click(object sender, RoutedEventArgs e)
         {
-            if (currentImageId == 0)
+            if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
                 return;
@@ -422,7 +422,7 @@ namespace ImageColorChanger.UI
 
             if (result == MessageBoxResult.Yes)
             {
-                _playbackViewModel.CurrentImageId = currentImageId;
+                _playbackViewModel.CurrentImageId = _currentImageId;
                 await _playbackViewModel.ClearTimingDataCommand.ExecuteAsync(null);
                 ShowStatus("✅ 已清除时间数据");
             }
@@ -439,7 +439,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         public int GetCurrentImageId()
         {
-            return currentImageId;
+            return _currentImageId;
         }
 
         /// <summary>
@@ -470,11 +470,11 @@ namespace ImageColorChanger.UI
                     ScrollbarIndicatorsCanvas.Children.Clear();
                     
                     // 获取当前图片ID
-                    int currentImageId = GetCurrentImageId();
-                    if (currentImageId <= 0) return;
+                    int _currentImageId = GetCurrentImageId();
+                    if (_currentImageId <= 0) return;
 
                     // 获取当前图片的所有关键帧
-                    var keyframes = _keyframeManager.GetKeyframesAsync(currentImageId).Result;
+                    var keyframes = _keyframeManager.GetKeyframesAsync(_currentImageId).Result;
                     if (keyframes == null || !keyframes.Any()) return;
 
                     // 获取尺寸信息
@@ -589,10 +589,10 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                int currentImageId = GetCurrentImageId();
-                if (currentImageId <= 0 || _keyframeManager.CurrentKeyframeIndex < 0) return;
+                int _currentImageId = GetCurrentImageId();
+                if (_currentImageId <= 0 || _keyframeManager.CurrentKeyframeIndex < 0) return;
 
-                var keyframes = _keyframeManager.GetKeyframesAsync(currentImageId).Result;
+                var keyframes = _keyframeManager.GetKeyframesAsync(_currentImageId).Result;
                 if (keyframes == null || _keyframeManager.CurrentKeyframeIndex >= keyframes.Count) return;
 
                 // 获取当前关键帧
@@ -688,8 +688,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                int currentImageId = GetCurrentImageId();
-                if (currentImageId <= 0 || _keyframeManager == null)
+                int _currentImageId = GetCurrentImageId();
+                if (_currentImageId <= 0 || _keyframeManager == null)
                 {
                     return;
                 }
@@ -700,7 +700,7 @@ namespace ImageColorChanger.UI
                 double canvasHeight = ScrollbarIndicatorsCanvas.ActualHeight;
 
                 // 获取所有关键帧（从缓存，性能优化）
-                var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes == null || !keyframes.Any())
                 {
                     return;
@@ -836,11 +836,11 @@ namespace ImageColorChanger.UI
                 if (success)
                 {
                     // 清除缓存
-                    int currentImageId = GetCurrentImageId();
-                    if (_keyframeManager != null && currentImageId > 0)
+                    int _currentImageId = GetCurrentImageId();
+                    if (_keyframeManager != null && _currentImageId > 0)
                     {
                         // 强制刷新缓存（异步不等待）
-                        _ = _keyframeManager.GetKeyframesAsync(currentImageId);
+                        _ = _keyframeManager.GetKeyframesAsync(_currentImageId);
                     }
                     
                     // 刷新UI显示
@@ -1199,7 +1199,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 检查当前图片是否被标记为原图模式
-                if (currentImageId == 0 || _dbManager == null)
+                if (_currentImageId == 0 || _dbManager == null)
                     return false;
 
                 var dbContext = _dbManager.GetDbContext();
@@ -1207,13 +1207,13 @@ namespace ImageColorChanger.UI
                     return false;
 
                 // 查询当前图片或其所属文件夹是否有原图标记
-                var currentFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == currentImageId);
+                var currentFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == _currentImageId);
                 if (currentFile == null)
                     return false;
 
                 // 检查图片本身是否有原图标记
                 var imageMark = dbContext.OriginalMarks.FirstOrDefault(
-                    m => m.ItemTypeString == "image" && m.ItemId == currentImageId);
+                    m => m.ItemTypeString == "image" && m.ItemId == _currentImageId);
                 
                 if (imageMark != null)
                     return true;
