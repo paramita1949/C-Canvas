@@ -61,7 +61,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取数据库上下文
-                var dbContext = dbManager?.GetDbContext();
+                var dbContext = _dbManager?.GetDbContext();
                 if (dbContext == null)
                 {
                     // Console.WriteLine("❌ 数据库上下文未就绪");
@@ -445,7 +445,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 投影是否启用
         /// </summary>
-        public bool IsProjectionEnabled => projectionManager?.IsProjectionActive ?? false;
+        public bool IsProjectionEnabled => _projectionManager?.IsProjectionActive ?? false;
 
         /// <summary>
         /// 更新关键帧指示器
@@ -878,7 +878,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = dbManager?.GetDbContext();
+                var dbContext = _dbManager?.GetDbContext();
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_speed");
@@ -906,7 +906,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = dbManager?.GetDbContext();
+                var dbContext = _dbManager?.GetDbContext();
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_speed");
@@ -1110,7 +1110,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = dbManager?.GetDbContext();
+                var dbContext = _dbManager?.GetDbContext();
                 if (dbContext == null) return;
                 
                 // 保存缓动类型或"Linear"
@@ -1145,7 +1145,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = dbManager?.GetDbContext();
+                var dbContext = _dbManager?.GetDbContext();
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_easing");
@@ -1188,7 +1188,7 @@ namespace ImageColorChanger.UI
         private bool IsMediaPlaybackMode()
         {
             // 检查是否有媒体播放器且正在播放
-            return videoPlayerManager?.IsPlaying == true;
+            return _videoPlayerManager?.IsPlaying == true;
         }
 
         /// <summary>
@@ -1199,10 +1199,10 @@ namespace ImageColorChanger.UI
             try
             {
                 // 检查当前图片是否被标记为原图模式
-                if (currentImageId == 0 || dbManager == null)
+                if (currentImageId == 0 || _dbManager == null)
                     return false;
 
-                var dbContext = dbManager.GetDbContext();
+                var dbContext = _dbManager.GetDbContext();
                 if (dbContext == null)
                     return false;
 
@@ -1244,14 +1244,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (videoPlayerManager == null)
+                if (_videoPlayerManager == null)
                 {
                     ShowStatus("媒体播放器未初始化");
                     return Task.CompletedTask;
                 }
 
                 // 调用媒体播放器的上一曲功能
-                videoPlayerManager.PlayPrevious();
+                _videoPlayerManager.PlayPrevious();
                 ShowStatus("⏮️ 切换到上一个媒体文件");
             }
             catch (Exception ex)
@@ -1269,14 +1269,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (videoPlayerManager == null)
+                if (_videoPlayerManager == null)
                 {
                     ShowStatus("媒体播放器未初始化");
                     return Task.CompletedTask;
                 }
 
                 // 调用媒体播放器的下一曲功能
-                videoPlayerManager.PlayNext();
+                _videoPlayerManager.PlayNext();
                 ShowStatus("⏭️ 切换到下一个媒体文件");
             }
             catch (Exception ex)

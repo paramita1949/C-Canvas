@@ -30,10 +30,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool ShouldUseOriginalMode()
         {
-            if (currentImageId == 0 || originalManager == null)
+            if (currentImageId == 0 || _originalManager == null)
                 return false;
 
-            return originalManager.ShouldUseOriginalMode(currentImageId);
+            return _originalManager.ShouldUseOriginalMode(currentImageId);
         }
 
         /// <summary>
@@ -41,16 +41,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private bool HasSimilarImagesForOriginalMode()
         {
-            if (currentImageId == 0 || originalManager == null)
+            if (currentImageId == 0 || _originalManager == null)
                 return false;
 
             // 查找相似图片
-            bool found = originalManager.FindSimilarImages(currentImageId);
+            bool found = _originalManager.FindSimilarImages(currentImageId);
             if (!found)
                 return false;
 
             // 必须至少有2张图片才能进行录制/播放
-            return originalManager.HasSimilarImages();
+            return _originalManager.HasSimilarImages();
         }
 
         #endregion
@@ -271,7 +271,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 根据ImageId查找路径并加载
-                        var dbContext = dbManager?.GetDbContext();
+                        var dbContext = _dbManager?.GetDbContext();
                         if (dbContext != null)
                         {
                             var mediaFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == e.ImageId);
@@ -295,9 +295,9 @@ namespace ImageColorChanger.UI
                     }
 
                     // 强制更新投影窗口
-                    if (projectionManager?.IsProjectionActive == true && imageProcessor?.CurrentImage != null)
+                    if (_projectionManager?.IsProjectionActive == true && imageProcessor?.CurrentImage != null)
                     {
-                        projectionManager.UpdateProjectionImage(
+                        _projectionManager.UpdateProjectionImage(
                             imageProcessor.CurrentImage,
                             isColorEffectEnabled,
                             currentZoom,

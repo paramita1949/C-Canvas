@@ -940,16 +940,19 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 关闭投影窗口
         /// </summary>
+        /// <returns>如果成功关闭了投影窗口返回true，如果没有投影窗口或关闭失败返回false</returns>
         public bool CloseProjection()
         {
             try
             {
+                bool hadProjection = false;
                 _syncEnabled = false;
 
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
                     if (_projectionWindow != null)
                     {
+                        hadProjection = true;  // 标记有投影窗口需要关闭
                         _projectionWindow.KeyDown -= ProjectionWindow_KeyDown;
                         _projectionWindow.Close();
                         _projectionWindow = null;
@@ -963,10 +966,13 @@ namespace ImageColorChanger.Managers
 
                 // TODO: 清理全局热键
 
-                // 触发投影状态改变事件
-                ProjectionStateChanged?.Invoke(this, false);
+                // 只有在真正关闭了投影窗口时才触发事件
+                if (hadProjection)
+                {
+                    ProjectionStateChanged?.Invoke(this, false);
+                }
 
-                return true;
+                return hadProjection;  // 返回是否真正关闭了投影
             }
             catch (Exception)
             {
