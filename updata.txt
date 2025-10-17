@@ -1,6 +1,66 @@
 2025.10.17
 --------------------------
 
+V4.1.0 (开发中)
+♻️ 重构：统一字段命名规范（阶段一-Week1完成）
+
+1、完成内容
+   ✅ **Day 1-2**：Manager类字段重命名（11个）
+      - _dbManager
+      - _configManager
+      - _importManager
+      - _imageSaveManager
+      - _searchManager
+      - _sortManager
+      - _projectionManager
+      - _originalManager
+      - _preloadCacheManager
+      - _videoPlayerManager
+      - _globalHotKeyManager
+   
+   ✅ **Day 3-4**：核心功能字段重命名（15个）
+      - _imageProcessor
+      - _imagePath
+      - _currentZoom
+      - _isDragging
+      - _dragStartPoint
+      - _isColorEffectEnabled
+      - _currentTargetColor
+      - _currentTargetColorName
+      - _currentFolderId
+      - _projectTreeItems
+      - _currentImageId
+      - _originalMode
+      - _originalDisplayMode
+      - _mainVideoView
+      - _isUpdatingProgress
+   
+   ✅ **Day 5**：其他字段重命名（8个）
+      - _draggedItem
+      - _dragOverItem
+      - _isDragInProgress
+      - _pendingProjectionVideoPath
+      - _projectionTimeoutTimer
+      - _lastPlayModeClickTime
+      - _lastMediaPrevClickTime
+      - _lastMediaNextClickTime
+
+2、技术细节
+   - **总计**：34个私有字段统一添加下划线前缀
+   - **影响文件**：
+     * UI/MainWindow.xaml.cs (主文件)
+     * UI/MainWindow.Keyframe.cs (partial)
+     * UI/MainWindow.Original.cs (partial)
+     * UI/MainWindow.TextEditor.cs (partial)
+   - **命名规范**：所有私有字段统一使用 `_camelCase` 格式
+   - **编译测试**：Debug ✓ Release ✓
+
+3、下一步计划
+   - Week 2: 提取魔法数字为常量，统一异步方法命名
+   - 后续：开始MainWindow拆分工作
+
+--------------------------
+
 V4.0.9
 🐛 修复ESC键停止视频播放后界面未重置的问题
 1、问题描述
