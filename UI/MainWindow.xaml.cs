@@ -70,9 +70,9 @@ namespace ImageColorChanger.UI
         private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Stretch;
 
         // TreeView拖拽相关
-        private ProjectTreeItem draggedItem = null;
-        private ProjectTreeItem dragOverItem = null;
-        private bool isDragInProgress = false;
+        private ProjectTreeItem _draggedItem = null;
+        private ProjectTreeItem _dragOverItem = null;
+        private bool _isDragInProgress = false;
 
         // 数据库和管理器
         private DatabaseManager _dbManager;
@@ -89,16 +89,16 @@ namespace ImageColorChanger.UI
         private VideoPlayerManager _videoPlayerManager;
         private VideoView _mainVideoView;
         private bool _isUpdatingProgress = false; // 防止进度条更新时触发事件
-        private string pendingProjectionVideoPath = null;
-        private System.Windows.Threading.DispatcherTimer projectionTimeoutTimer = null; // 待投影播放的视频路径
+        private string _pendingProjectionVideoPath = null;
+        private System.Windows.Threading.DispatcherTimer _projectionTimeoutTimer = null; // 待投影播放的视频路径
         
         // 按钮防抖动
-        private DateTime lastPlayModeClickTime = DateTime.MinValue;
-        private DateTime lastMediaPrevClickTime = DateTime.MinValue;
+        private DateTime _lastPlayModeClickTime = DateTime.MinValue;
+        private DateTime _lastMediaPrevClickTime = DateTime.MinValue;
         
         // 全局热键管理器
         private Utils.GlobalHotKeyManager _globalHotKeyManager;
-        private DateTime lastMediaNextClickTime = DateTime.MinValue;
+        private DateTime _lastMediaNextClickTime = DateTime.MinValue;
         
         // MVVM - 新架构的PlaybackControlViewModel
         internal ViewModels.PlaybackControlViewModel _playbackViewModel;
@@ -1293,7 +1293,7 @@ namespace ImageColorChanger.UI
                             _projectionManager.SetProjectionMediaFileName(fileName, false);
                             
                             // 设置待播放视频路径，等待MediaPlayer创建完成后播放
-                            pendingProjectionVideoPath = _imagePath;
+                            _pendingProjectionVideoPath = _imagePath;
                             //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {fileName}");
                             
                             ShowStatus($"🎬 准备投影播放: {fileName}");
@@ -1309,10 +1309,10 @@ namespace ImageColorChanger.UI
                     DisableGlobalHotKeys();
                     
                     // 清理投影超时定时器
-                    if (projectionTimeoutTimer != null)
+                    if (_projectionTimeoutTimer != null)
                     {
-                        projectionTimeoutTimer.Stop();
-                        projectionTimeoutTimer = null;
+                        _projectionTimeoutTimer.Stop();
+                        _projectionTimeoutTimer = null;
                         //System.Diagnostics.Debug.WriteLine("🧹 已清理投影超时定时器");
                     }
                     
@@ -1394,9 +1394,9 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine("✅ 投影窗口MediaPlayer已创建并绑定（有尺寸）");
                             
                             // 如果有待播放的视频，现在开始播放
-                            if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
+                            if (!string.IsNullOrEmpty(_pendingProjectionVideoPath))
                             {
-                                //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                                //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(_pendingProjectionVideoPath)}");
                                 PlayPendingProjectionVideo();
                             }
                         }
@@ -1405,12 +1405,12 @@ namespace ImageColorChanger.UI
                     projectionVideoView.SizeChanged += sizeChangedHandler;
                     
                     // 添加超时机制，如果3秒后SizeChanged事件没有触发，强制启用视频投屏
-                    projectionTimeoutTimer = new System.Windows.Threading.DispatcherTimer();
-                    projectionTimeoutTimer.Interval = TimeSpan.FromSeconds(3);
-                    projectionTimeoutTimer.Tick += (s, e) =>
+                    _projectionTimeoutTimer = new System.Windows.Threading.DispatcherTimer();
+                    _projectionTimeoutTimer.Interval = TimeSpan.FromSeconds(3);
+                    _projectionTimeoutTimer.Tick += (s, e) =>
                     {
-                        projectionTimeoutTimer.Stop();
-                        projectionTimeoutTimer = null;
+                        _projectionTimeoutTimer.Stop();
+                        _projectionTimeoutTimer = null;
                         if (!initialized)
                         {
                             //System.Diagnostics.Debug.WriteLine("⏰ 投影VideoView尺寸检测超时，强制启用视频投屏");
@@ -1433,7 +1433,7 @@ namespace ImageColorChanger.UI
                             projectionVideoView.SizeChanged -= sizeChangedHandler;
                         }
                     };
-                    projectionTimeoutTimer.Start();
+                    _projectionTimeoutTimer.Start();
                 }
                 else if (projectionVideoView != null)
                 {
@@ -1454,9 +1454,9 @@ namespace ImageColorChanger.UI
                         }
                         
                         // 如果有待播放的视频，现在开始播放
-                        if (!string.IsNullOrEmpty(pendingProjectionVideoPath))
+                        if (!string.IsNullOrEmpty(_pendingProjectionVideoPath))
                         {
-                            //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(pendingProjectionVideoPath)}");
+                            //System.Diagnostics.Debug.WriteLine($"🟠 检测到待播放视频，开始播放: {System.IO.Path.GetFileName(_pendingProjectionVideoPath)}");
                             PlayPendingProjectionVideo();
                         }
                     }
@@ -1476,11 +1476,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (string.IsNullOrEmpty(pendingProjectionVideoPath))
+                if (string.IsNullOrEmpty(_pendingProjectionVideoPath))
                     return;
                 
-                string videoPath = pendingProjectionVideoPath;
-                pendingProjectionVideoPath = null; // 清除待播放路径
+                string videoPath = _pendingProjectionVideoPath;
+                _pendingProjectionVideoPath = null; // 清除待播放路径
                 
                 // 切换到投影模式
                 _videoPlayerManager.SwitchToProjectionMode();
@@ -3808,12 +3808,12 @@ namespace ImageColorChanger.UI
             
             // 防抖动：300ms内只响应一次点击
             var now = DateTime.Now;
-            if ((now - lastMediaPrevClickTime).TotalMilliseconds < 300)
+            if ((now - _lastMediaPrevClickTime).TotalMilliseconds < 300)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 上一首按钮防抖动，忽略重复点击");
                 return;
             }
-            lastMediaPrevClickTime = now;
+            _lastMediaPrevClickTime = now;
             
             _videoPlayerManager.PlayPrevious();
         }
@@ -3838,12 +3838,12 @@ namespace ImageColorChanger.UI
             
             // 防抖动：300ms内只响应一次点击
             var now = DateTime.Now;
-            if ((now - lastMediaNextClickTime).TotalMilliseconds < 300)
+            if ((now - _lastMediaNextClickTime).TotalMilliseconds < 300)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 下一首按钮防抖动，忽略重复点击");
                 return;
             }
-            lastMediaNextClickTime = now;
+            _lastMediaNextClickTime = now;
             
             _videoPlayerManager.PlayNext();
         }
@@ -3871,12 +3871,12 @@ namespace ImageColorChanger.UI
             
             // 防抖动：300ms内只响应一次点击
             var now = DateTime.Now;
-            if ((now - lastPlayModeClickTime).TotalMilliseconds < 300)
+            if ((now - _lastPlayModeClickTime).TotalMilliseconds < 300)
             {
                 //System.Diagnostics.Debug.WriteLine("⚠️ 播放模式按钮防抖动，忽略重复点击");
                 return;
             }
-            lastPlayModeClickTime = now;
+            _lastPlayModeClickTime = now;
             
             // 循环切换播放模式
             var currentMode = _videoPlayerManager.CurrentPlayMode;
@@ -4584,7 +4584,7 @@ namespace ImageColorChanger.UI
             var treeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
             if (treeViewItem != null)
             {
-                draggedItem = treeViewItem.DataContext as ProjectTreeItem;
+                _draggedItem = treeViewItem.DataContext as ProjectTreeItem;
             }
         }
 
@@ -4593,7 +4593,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ProjectTree_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Pressed && draggedItem != null)
+            if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null)
             {
                 System.Windows.Point currentPosition = e.GetPosition(null);
                 System.Windows.Vector diff = _dragStartPoint - currentPosition;
@@ -4603,12 +4603,12 @@ namespace ImageColorChanger.UI
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
                     // 允许拖拽文件和文件夹（不允许拖拽Project）
-                    if (draggedItem.Type == TreeItemType.File || draggedItem.Type == TreeItemType.Folder)
+                    if (_draggedItem.Type == TreeItemType.File || _draggedItem.Type == TreeItemType.Folder)
                     {
-                        System.Windows.DragDrop.DoDragDrop(ProjectTree, draggedItem, System.Windows.DragDropEffects.Move);
+                        System.Windows.DragDrop.DoDragDrop(ProjectTree, _draggedItem, System.Windows.DragDropEffects.Move);
                     }
                     
-                    draggedItem = null;
+                    _draggedItem = null;
                 }
             }
         }
@@ -4626,7 +4626,7 @@ namespace ImageColorChanger.UI
                 {
                     var targetItem = targetTreeViewItem.DataContext as ProjectTreeItem;
                     
-                    dragOverItem = targetItem;
+                    _dragOverItem = targetItem;
                     
                     // 获取拖拽源项
                     var sourceItem = e.Data.GetData(typeof(ProjectTreeItem)) as ProjectTreeItem;
@@ -4864,7 +4864,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ClearDragHighlight()
         {
-            dragOverItem = null;
+            _dragOverItem = null;
             HideDragIndicator();
         }
 
@@ -4915,8 +4915,8 @@ namespace ImageColorChanger.UI
         private void ReorderFiles(ProjectTreeItem sourceItem, ProjectTreeItem targetItem)
         {
             // 防止重复执行
-            if (isDragInProgress) return;
-            isDragInProgress = true;
+            if (_isDragInProgress) return;
+            _isDragInProgress = true;
             
             try
             {
@@ -4988,7 +4988,7 @@ namespace ImageColorChanger.UI
             finally
             {
                 // 确保标志被重置
-                isDragInProgress = false;
+                _isDragInProgress = false;
             }
         }
 
@@ -4998,8 +4998,8 @@ namespace ImageColorChanger.UI
         private void ReorderFolders(ProjectTreeItem sourceItem, ProjectTreeItem targetItem)
         {
             // 防止重复执行
-            if (isDragInProgress) return;
-            isDragInProgress = true;
+            if (_isDragInProgress) return;
+            _isDragInProgress = true;
             
             try
             {
@@ -5052,7 +5052,7 @@ namespace ImageColorChanger.UI
             finally
             {
                 // 确保标志被重置
-                isDragInProgress = false;
+                _isDragInProgress = false;
             }
         }
 
@@ -5540,7 +5540,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 投影还未初始化，设置待播放路径，等待初始化完成后播放
-                        pendingProjectionVideoPath = videoPath;
+                        _pendingProjectionVideoPath = videoPath;
                         //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {System.IO.Path.GetFileName(videoPath)}");
                         ShowStatus($"🎬 准备投影播放: {System.IO.Path.GetFileName(videoPath)}");
                     }
