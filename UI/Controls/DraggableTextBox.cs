@@ -474,7 +474,24 @@ namespace ImageColorChanger.UI.Controls
 
             // 创建右键菜单
             var contextMenu = new System.Windows.Controls.ContextMenu();
-            contextMenu.FontSize = 14;
+            
+            // 🔑 尝试从应用程序资源获取样式，如果失败则手动设置
+            try
+            {
+                var style = System.Windows.Application.Current.MainWindow?.FindResource("NoBorderContextMenuStyle") as System.Windows.Style;
+                if (style != null)
+                {
+                    contextMenu.Style = style;
+                }
+            }
+            catch
+            {
+                // 如果获取样式失败，手动设置属性
+                contextMenu.FontSize = 14;
+                contextMenu.BorderThickness = new System.Windows.Thickness(0);
+                contextMenu.Background = new WpfSolidColorBrush(WpfColor.FromRgb(45, 45, 48));
+                contextMenu.Foreground = WpfBrushes.White;
+            }
 
             // 复制选项
             var copyItem = new System.Windows.Controls.MenuItem

@@ -37,10 +37,12 @@ namespace ImageColorChanger.UI
             if (contextMenu == null)
             {
                 contextMenu = new ContextMenu();
+                
+                // 🔑 应用自定义样式
+                contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+                
                 ImageScrollViewer.ContextMenu = contextMenu;
             }
-            
-            contextMenu.FontSize = 14;
             
             // 清除除了"滚动速度"和"滚动函数"之外的所有菜单项
             var scrollSpeedMenu = contextMenu.Items.Cast<object>()

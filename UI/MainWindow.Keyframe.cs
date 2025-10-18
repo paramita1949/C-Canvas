@@ -783,6 +783,9 @@ namespace ImageColorChanger.UI
         {
             var menu = new ContextMenu();
             
+            // 🔑 应用自定义样式
+            menu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+            
             // 菜单标题
             var titleItem = new MenuItem
             {

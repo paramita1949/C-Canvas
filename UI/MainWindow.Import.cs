@@ -13,7 +13,9 @@ namespace ImageColorChanger.UI
         {
             // 创建导入菜单
             var contextMenu = new ContextMenu();
-            contextMenu.FontSize = 14;
+            
+            // 🔑 应用自定义样式
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 导入单个文件
             var importFileItem = new MenuItem { Header = "导入单个文件" };

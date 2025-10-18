@@ -722,7 +722,9 @@ namespace ImageColorChanger.UI
                 return;
 
             var contextMenu = new ContextMenu();
-            contextMenu.FontSize = 14;
+            
+            // 🔑 应用自定义样式
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 选项1：导入图片
             var loadImageItem = new MenuItem 
@@ -2149,6 +2151,9 @@ namespace ImageColorChanger.UI
         {
             // 创建右键菜单
             var contextMenu = new ContextMenu();
+            
+            // 🔑 应用自定义样式
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 新建幻灯片
             var addItem = new MenuItem 
