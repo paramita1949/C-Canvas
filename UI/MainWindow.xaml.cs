@@ -437,9 +437,6 @@ namespace ImageColorChanger.UI
             {
                 this.Focus();
                 this.Activate();
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("✅ [焦点] 主窗口已激活并获得焦点");
-#endif
             };
         }
         
@@ -1881,9 +1878,6 @@ namespace ImageColorChanger.UI
         private void Window_Activated(object sender, EventArgs e)
         {
             this.Focus();
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("✅ [焦点] 窗口已激活，焦点已恢复");
-#endif
         }
         
         /// <summary>
