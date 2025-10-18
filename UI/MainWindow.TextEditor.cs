@@ -1289,22 +1289,40 @@ namespace ImageColorChanger.UI
         #region 画布事件
 
         /// <summary>
-        /// 画布点击（取消选中）
+        /// 画布点击（取消选中和退出编辑状态）
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource == EditorCanvas || e.OriginalSource == BackgroundImage)
             {
-                // 取消所有文本框的选中状态
+                // 🔧 优化：先检查是否有正在编辑的文本框，如果有则退出编辑状态
+                bool hasEditingTextBox = false;
                 foreach (var textBox in _textBoxes)
                 {
-                    textBox.SetSelected(false);
+                    if (textBox.IsSelected && textBox.IsInEditMode)
+                    {
+                        // 使用新的ExitEditMode方法退出编辑状态
+                        textBox.ExitEditMode();
+                        hasEditingTextBox = true;
+                        //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：退出文本编辑状态");
+                    }
                 }
-                _selectedTextBox = null;
                 
-                // 清除焦点
-                Keyboard.ClearFocus();
-                EditorCanvas.Focus();
+                // 如果没有正在编辑的文本框，则取消所有选中状态
+                if (!hasEditingTextBox)
+                {
+                    // 取消所有文本框的选中状态
+                    foreach (var textBox in _textBoxes)
+                    {
+                        textBox.SetSelected(false);
+                    }
+                    _selectedTextBox = null;
+                    
+                    // 清除焦点
+                    Keyboard.ClearFocus();
+                    EditorCanvas.Focus();
+                    //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
+                }
             }
         }
 

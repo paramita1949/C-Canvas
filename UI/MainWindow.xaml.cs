@@ -413,8 +413,9 @@ namespace ImageColorChanger.UI
             // 添加滚动同步
             ImageScrollViewer.ScrollChanged += ImageScrollViewer_ScrollChanged;
             
-            // 加载项目
-            LoadProjects();
+            // 加载项目（文件夹在前，Project节点在后）
+            LoadProjects(); // 先加载文件夹和文件
+            LoadTextProjectsToTree(); // 再加载Project节点到最后
             
             // 初始化全局热键
             InitializeGlobalHotKeys();
@@ -593,10 +594,20 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                //System.Diagnostics.Debug.WriteLine($"🔄 [LoadProjects] 开始加载项目树...");
+                
+                // 🔧 全新思路：保存现有的Project节点，但不保存位置，因为Project节点永远在最后
+                var existingProjects = _projectTreeItems
+                    .Where(item => item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
+                    .ToList();
+                
+                //System.Diagnostics.Debug.WriteLine($"📋 [LoadProjects] 保存了 {existingProjects.Count} 个现有Project节点");
+                
                 _projectTreeItems.Clear();
 
                 // 获取所有文件夹
                 var folders = _dbManager.GetAllFolders();
+                //System.Diagnostics.Debug.WriteLine($"📂 [LoadProjects] 步骤1: 获取到 {folders.Count} 个文件夹");
 
                 // 获取根目录的文件
                 var rootFiles = _dbManager.GetRootMediaFiles();
@@ -605,6 +616,7 @@ namespace ImageColorChanger.UI
                 var manualSortFolderIds = _dbManager.GetManualSortFolderIds();
 
                 // 添加文件夹到项目树
+                //System.Diagnostics.Debug.WriteLine($"📂 [LoadProjects] 步骤2: 开始添加文件夹到项目树");
                 foreach (var folder in folders)
                 {
                     // 检查是否为手动排序文件夹
@@ -612,6 +624,7 @@ namespace ImageColorChanger.UI
                     
                     // 获取文件夹中的文件
                     var files = _dbManager.GetMediaFilesByFolder(folder.Id);
+                    //System.Diagnostics.Debug.WriteLine($"📂 [LoadProjects] 处理文件夹: {folder.Name} (ID={folder.Id}, OrderIndex={folder.OrderIndex}, 文件数={files.Count})");
                     
                     // 检查文件夹是否包含媒体文件（视频/音频）
                     bool hasMediaFiles = files.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
@@ -693,7 +706,8 @@ namespace ImageColorChanger.UI
                     _projectTreeItems.Add(folderItem);
                 }
 
-                // 添加根目录的独立文件
+                // 添加根目录的独立文件（单文件导入的文件）
+                //System.Diagnostics.Debug.WriteLine($"📄 [LoadProjects] 步骤3: 添加根目录文件，共 {rootFiles.Count} 个");
                 foreach (var file in rootFiles)
                 {
                     // 获取 Material Design 图标
@@ -715,12 +729,39 @@ namespace ImageColorChanger.UI
                         Path = file.Path,
                         FileType = file.FileType
                     });
+                    //System.Diagnostics.Debug.WriteLine($"📄 [LoadProjects] 添加根目录文件: {file.Name} (ID={file.Id})");
                 }
 
-                // 加载文本项目
-                LoadTextProjectsToTree();
-
-                // System.Diagnostics.Debug.WriteLine($"📂 加载项目: {folders.Count} 个文件夹, {rootFiles.Count} 个独立文件");
+                // 🔧 全新思路：将Project节点添加到最后，永远在所有文件夹后面
+                foreach (var project in existingProjects)
+                {
+                    _projectTreeItems.Add(project);
+                    //System.Diagnostics.Debug.WriteLine($"📋 [LoadProjects] 将Project节点添加到最后: {project.Name} (ID={project.Id})");
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"✅ [LoadProjects] 项目树加载完成!");
+                //System.Diagnostics.Debug.WriteLine($"📊 [LoadProjects] 总计: {_projectTreeItems.Count} 个项目 (文件夹+单文件在前，Project节点在后)");
+                
+                // 输出前10个项目的详细信息（确保能看到单文件和Project节点）
+                //int displayCount = Math.Min(10, _projectTreeItems.Count);
+                //System.Diagnostics.Debug.WriteLine($"📊 [LoadProjects] 前 {displayCount} 个项目:");
+                //for (int i = 0; i < displayCount; i++)
+                //{
+                //    var item = _projectTreeItems[i];
+                //    System.Diagnostics.Debug.WriteLine($"  [{i}] {item.Type}: {item.Name} (ID={item.Id})");
+                //}
+                
+                // 如果总数超过10个，也显示最后几个（通常是Project节点）
+                //if (_projectTreeItems.Count > 10)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📊 [LoadProjects] ... 省略中间部分 ...");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [LoadProjects] 最后 {Math.Min(3, _projectTreeItems.Count - displayCount)} 个项目:");
+                //    for (int i = Math.Max(displayCount, _projectTreeItems.Count - 3); i < _projectTreeItems.Count; i++)
+                //    {
+                //        var item = _projectTreeItems[i];
+                //        System.Diagnostics.Debug.WriteLine($"  [{i}] {item.Type}: {item.Name} (ID={item.Id})");
+                //    }
+                //}
             }
             catch (Exception)
             {
@@ -735,12 +776,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 开始加载文本项目...");
+                
                 // 延迟初始化 _textProjectManager（如果还未初始化）
                 if (_textProjectManager == null)
                 {
                     if (_dbManager == null)
                     {
-                        //System.Diagnostics.Debug.WriteLine("⚠️ _dbManager 未初始化，跳过加载文本项目");
+                        //System.Diagnostics.Debug.WriteLine("⚠️ [LoadTextProjectsToTree] _dbManager 未初始化，跳过加载文本项目");
                         return;
                     }
                     
@@ -748,10 +791,11 @@ namespace ImageColorChanger.UI
                 }
 
                 var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
+                //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 获取到 {textProjects.Count} 个文本项目");
                 
                 foreach (var project in textProjects)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"  - 添加文本项目到树: ID={project.Id}, Name={project.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 添加文本项目: {project.Name} (ID={project.Id})");
                     
                     _projectTreeItems.Add(new ProjectTreeItem
                     {
@@ -764,6 +808,8 @@ namespace ImageColorChanger.UI
                         Path = null  // 文本项目没有物理路径
                     });
                 }
+                
+                //System.Diagnostics.Debug.WriteLine($"✅ [LoadTextProjectsToTree] 文本项目加载完成，当前项目数: {_projectTreeItems.Count}");
             }
             catch (Exception)
             {

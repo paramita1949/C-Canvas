@@ -50,8 +50,11 @@ namespace ImageColorChanger.UI
                 if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    // 允许拖拽文件和文件夹（不允许拖拽Project）
-                    if (_draggedItem.Type == TreeItemType.File || _draggedItem.Type == TreeItemType.Folder)
+                    // 🔧 优化：允许拖拽文件、文件夹和Project节点
+                    if (_draggedItem.Type == TreeItemType.File || 
+                        _draggedItem.Type == TreeItemType.Folder || 
+                        _draggedItem.Type == TreeItemType.Project || 
+                        _draggedItem.Type == TreeItemType.TextProject)
                     {
                         System.Windows.DragDrop.DoDragDrop(ProjectTree, _draggedItem, System.Windows.DragDropEffects.Move);
                     }
@@ -79,18 +82,27 @@ namespace ImageColorChanger.UI
                     // 获取拖拽源项
                     var sourceItem = e.Data.GetData(typeof(ProjectTreeItem)) as ProjectTreeItem;
                     
-                    // 检查是否是有效的拖放目标
-                    // 文件只能拖到文件上，文件夹只能拖到文件夹上
+                    // 🔧 全新逻辑：分为两类
+                    // 第一类：文件夹 + 单文件（File类型）
+                    // 第二类：Project + TextProject
                     bool isValidDrop = false;
                     if (sourceItem != null && targetItem != null)
                     {
-                        if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
+                        bool isSourceFirstCategory = sourceItem.Type == TreeItemType.Folder || sourceItem.Type == TreeItemType.File;
+                        bool isTargetFirstCategory = targetItem.Type == TreeItemType.Folder || targetItem.Type == TreeItemType.File;
+                        bool isSourceSecondCategory = sourceItem.Type == TreeItemType.Project || sourceItem.Type == TreeItemType.TextProject;
+                        bool isTargetSecondCategory = targetItem.Type == TreeItemType.Project || targetItem.Type == TreeItemType.TextProject;
+                        
+                        // 同类别之间可以拖拽
+                        if ((isSourceFirstCategory && isTargetFirstCategory) || 
+                            (isSourceSecondCategory && isTargetSecondCategory))
                         {
                             isValidDrop = true;
                         }
-                        else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                        else
                         {
-                            isValidDrop = true;
+                            // 跨类别不允许拖拽
+                            isValidDrop = false;
                         }
                     }
                     
@@ -149,15 +161,36 @@ namespace ImageColorChanger.UI
                     
                     if (sourceItem != null && targetItem != null && sourceItem != targetItem)
                     {
-                        // 文件排序：只允许在同一文件夹内拖拽排序
-                        if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
+                        // 🔧 全新逻辑：分为两类
+                        // 第一类：文件夹 + 单文件
+                        bool isSourceFirstCategory = sourceItem.Type == TreeItemType.Folder || sourceItem.Type == TreeItemType.File;
+                        bool isTargetFirstCategory = targetItem.Type == TreeItemType.Folder || targetItem.Type == TreeItemType.File;
+                        
+                        // 第二类：Project + TextProject
+                        bool isSourceSecondCategory = sourceItem.Type == TreeItemType.Project || sourceItem.Type == TreeItemType.TextProject;
+                        bool isTargetSecondCategory = targetItem.Type == TreeItemType.Project || targetItem.Type == TreeItemType.TextProject;
+                        
+                        // 第一类内部拖拽：文件或文件夹
+                        if (isSourceFirstCategory && isTargetFirstCategory)
                         {
-                            ReorderFiles(sourceItem, targetItem);
+                            if (sourceItem.Type == TreeItemType.File && targetItem.Type == TreeItemType.File)
+                            {
+                                ReorderFiles(sourceItem, targetItem);
+                            }
+                            else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                            {
+                                ReorderFolders(sourceItem, targetItem);
+                            }
+                            // 🆕 文件夹和单文件之间的拖拽（暂时不处理，因为需要更复杂的逻辑）
                         }
-                        // 文件夹排序：只允许根级别文件夹之间排序
-                        else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                        // 🆕 第二类内部拖拽：Project节点之间
+                        else if (isSourceSecondCategory && isTargetSecondCategory)
                         {
-                            ReorderFolders(sourceItem, targetItem);
+                            ReorderProjects(sourceItem, targetItem);
+                        }
+                        else
+                        {
+                            //System.Diagnostics.Debug.WriteLine($"❌ 无效的拖拽组合: {sourceItem.Type} -> {targetItem.Type}");
                         }
                     }
                 }
@@ -451,15 +484,21 @@ namespace ImageColorChanger.UI
             
             try
             {
+                //System.Diagnostics.Debug.WriteLine($"🔄 [ReorderFolders] 开始文件夹拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
+                
                 // 获取所有文件夹
                 var folders = _dbManager.GetAllFolders();
+                //System.Diagnostics.Debug.WriteLine($"📂 [ReorderFolders] 获取到 {folders.Count} 个文件夹");
                 
                 // 找到源文件夹和目标文件夹的索引
                 int sourceIndex = folders.FindIndex(f => f.Id == sourceItem.Id);
                 int targetIndex = folders.FindIndex(f => f.Id == targetItem.Id);
+                
+                //System.Diagnostics.Debug.WriteLine($"📂 [ReorderFolders] 源文件夹索引: {sourceIndex}, 目标文件夹索引: {targetIndex}");
 
                 if (sourceIndex == -1 || targetIndex == -1)
                 {
+                    //System.Diagnostics.Debug.WriteLine($"❌ [ReorderFolders] 无法找到文件夹");
                     ShowStatus("❌ 无法找到文件夹");
                     return;
                 }
@@ -714,31 +753,18 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 创建一个字典来快速查找新的顺序索引
-                var orderDict = sortedFolders.Select((f, index) => new { f.Id, Order = index })
-                    .ToDictionary(x => x.Id, x => x.Order);
+                //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateFolderTreeItemOrder] 开始更新文件夹顺序...");
+                //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderTreeItemOrder] 排序后的文件夹数量: {sortedFolders.Count}");
                 
-                // 对 _projectTreeItems 中的文件夹进行排序（排除Project节点）
-                var folders = _projectTreeItems.Where(item => item.Type == TreeItemType.Folder).ToList();
-                var nonFolders = _projectTreeItems.Where(item => item.Type != TreeItemType.Folder).ToList();
+                // 输出排序后的文件夹顺序
+                //for (int i = 0; i < sortedFolders.Count; i++)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"  [{i}] {sortedFolders[i].Name} (ID={sortedFolders[i].Id}, OrderIndex={sortedFolders[i].OrderIndex})");
+                //}
                 
-                // 根据新的OrderIndex排序文件夹
-                folders = folders.OrderBy(f => orderDict.ContainsKey(f.Id) ? orderDict[f.Id] : int.MaxValue).ToList();
-                
-                // 清空并重新添加（保持正确顺序）
-                _projectTreeItems.Clear();
-                
-                // 先添加非文件夹项（如Project节点）
-                foreach (var item in nonFolders)
-                {
-                    _projectTreeItems.Add(item);
-                }
-                
-                // 再添加排序后的文件夹
-                foreach (var folder in folders)
-                {
-                    _projectTreeItems.Add(folder);
-                }
+                // 🔧 修复：使用轻量级更新，只更新文件夹顺序，不重新加载整个项目树
+                //System.Diagnostics.Debug.WriteLine("🔄 [UpdateFolderTreeItemOrder] 使用轻量级更新文件夹顺序");
+                UpdateFolderOrderOnly(sortedFolders);
             }
             catch (Exception ex)
             {
@@ -747,8 +773,115 @@ namespace ImageColorChanger.UI
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
+                // 如果更新失败，回退到完整刷新
+                LoadProjects();
+            }
+        }
+
+        /// <summary>
+        /// 轻量级更新文件夹顺序（只更新文件夹，不影响Project节点）
+        /// </summary>
+        private void UpdateFolderOrderOnly(List<Folder> sortedFolders)
+        {
+            try
+            {
+                //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateFolderOrderOnly] 开始轻量级更新文件夹顺序...");
+                
+                // 创建一个字典来快速查找新的顺序索引
+                var orderDict = sortedFolders.Select((f, index) => new { f.Id, Order = index })
+                    .ToDictionary(x => x.Id, x => x.Order);
+                
+                // 找到所有文件夹项及其在集合中的位置
+                var folderItems = new List<(ProjectTreeItem item, int originalIndex)>();
+                for (int i = 0; i < _projectTreeItems.Count; i++)
+                {
+                    if (_projectTreeItems[i].Type == TreeItemType.Folder)
+                    {
+                        folderItems.Add((_projectTreeItems[i], i));
+                    }
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderOrderOnly] 找到 {folderItems.Count} 个文件夹项");
+                
+                // 根据新的OrderIndex排序文件夹
+                var sortedFolderItems = folderItems.OrderBy(f => 
+                    orderDict.ContainsKey(f.item.Id) ? orderDict[f.item.Id] : int.MaxValue).ToList();
+                
+                // 🔧 关键修复：使用Move操作，只移动文件夹，保持Project节点位置不变
+                for (int i = 0; i < sortedFolderItems.Count; i++)
+                {
+                    var folderItem = sortedFolderItems[i];
+                    var targetIndex = folderItems[i].originalIndex;
+                    
+                    // 如果位置已经正确，跳过
+                    if (_projectTreeItems.IndexOf(folderItem.item) == targetIndex)
+                        continue;
+                    
+                    // 移动文件夹到正确位置
+                    _projectTreeItems.Move(_projectTreeItems.IndexOf(folderItem.item), targetIndex);
+                    //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderOrderOnly] 移动文件夹: {folderItem.item.Name} 到位置 {targetIndex}");
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"✅ [UpdateFolderOrderOnly] 文件夹顺序更新完成，Project节点位置保持不变");
+            }
+            catch (Exception ex)
+            {
+                //System.Diagnostics.Debug.WriteLine($"❌ [UpdateFolderOrderOnly] 轻量级更新失败: {ex.Message}");
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();
+            }
+        }
+
+        /// <summary>
+        /// 重新排序Project节点
+        /// </summary>
+        private void ReorderProjects(ProjectTreeItem sourceItem, ProjectTreeItem targetItem)
+        {
+            try
+            {
+                //System.Diagnostics.Debug.WriteLine($"🔄 [ReorderProjects] 开始Project拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
+                
+                // 获取项目树中所有的Project节点
+                var projects = _projectTreeItems
+                    .Where(item => item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
+                    .ToList();
+                
+                //System.Diagnostics.Debug.WriteLine($"📋 [ReorderProjects] 找到 {projects.Count} 个Project节点");
+                
+                if (projects.Count < 2)
+                {
+                    //System.Diagnostics.Debug.WriteLine("⚠️ [ReorderProjects] Project节点数量少于2，无需排序");
+                    return;
+                }
+                
+                // 找到源和目标在列表中的索引
+                int sourceIndex = projects.IndexOf(sourceItem);
+                int targetIndex = projects.IndexOf(targetItem);
+                
+                if (sourceIndex == -1 || targetIndex == -1)
+                {
+                    //System.Diagnostics.Debug.WriteLine("❌ [ReorderProjects] 找不到源或目标Project节点");
+                    return;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"📋 [ReorderProjects] 源Project索引: {sourceIndex}, 目标Project索引: {targetIndex}");
+                
+                // 在项目树中移动Project节点
+                int sourceTreeIndex = _projectTreeItems.IndexOf(sourceItem);
+                int targetTreeIndex = _projectTreeItems.IndexOf(targetItem);
+                
+                if (sourceTreeIndex != -1 && targetTreeIndex != -1)
+                {
+                    _projectTreeItems.Move(sourceTreeIndex, targetTreeIndex);
+                    //System.Diagnostics.Debug.WriteLine($"✅ [ReorderProjects] Project节点移动完成: {sourceItem.Name} 从位置{sourceTreeIndex}移动到位置{targetTreeIndex}");
+                }
+                
+                // TODO: 如果需要持久化Project节点的顺序，可以在这里保存到数据库
+                // 目前Project节点的顺序在重启后会恢复到数据库中的顺序
+            }
+            catch (Exception ex)
+            {
+                //System.Diagnostics.Debug.WriteLine($"❌ [ReorderProjects] Project排序失败: {ex.Message}");
             }
         }
 

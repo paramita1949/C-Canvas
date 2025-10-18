@@ -54,6 +54,11 @@ namespace ImageColorChanger.UI.Controls
         public bool IsSelected { get; private set; }
         
         /// <summary>
+        /// 是否处于编辑模式（TextBox有焦点）
+        /// </summary>
+        public bool IsInEditMode => _textBox.IsFocused;
+        
+        /// <summary>
         /// 标记为新创建的文本框（用于自动进入编辑模式）
         /// </summary>
         public bool IsNewlyCreated
@@ -375,16 +380,20 @@ namespace ImageColorChanger.UI.Controls
             {
                 //System.Diagnostics.Debug.WriteLine($"🖱️ OnMouseDown: OriginalSource={e.OriginalSource?.GetType().Name}");
                 
-                // 🔧 新逻辑：检测双击
+                // 🔧 优化双击检测逻辑
                 var now = DateTime.Now;
                 var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
                 bool isDoubleClick = timeSinceLastClick < DOUBLE_CLICK_INTERVAL;
                 _lastClickTime = now;
                 
-                // 如果是双击且已选中，进入编辑模式
-                if (isDoubleClick && IsSelected)
+                // 如果是双击，进入编辑模式（不需要先选中）
+                if (isDoubleClick)
                 {
                     //System.Diagnostics.Debug.WriteLine($"🖱️ 双击检测到，进入编辑模式");
+                    // 先选中控件
+                    Focus();
+                    SetSelected(true);
+                    
                     // 🔧 双击时：
                     // - 如果是占位符或新建的框，全选（方便快速替换）
                     // - 否则只定位光标（方便继续编辑）
@@ -582,17 +591,8 @@ namespace ImageColorChanger.UI.Controls
                     RequestDelete?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
-                // Enter键或F2键快速进入编辑模式
-                else if (e.Key == WpfKey.Enter || e.Key == WpfKey.F2)
-                {
-                    // 🎯 快捷键进入编辑：
-                    // - 占位符或新建的框：全选
-                    // - 已有内容：定位光标到末尾
-                    bool shouldSelectAll = _isPlaceholderText || _isNewlyCreated;
-                    EnterEditMode(selectAll: shouldSelectAll);
-                    _isNewlyCreated = false;
-                    e.Handled = true;
-                }
+                // 🔧 移除Enter/F2快捷键进入编辑模式的功能
+                // 现在只能通过双击进入编辑模式
             }
             else
             {
@@ -706,6 +706,30 @@ namespace ImageColorChanger.UI.Controls
                     }
                 }
             }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+        
+        /// <summary>
+        /// 退出编辑模式（返回选中状态）
+        /// </summary>
+        public void ExitEditMode()
+        {
+            // 移除TextBox焦点，返回选中状态
+            System.Windows.Input.Keyboard.ClearFocus();
+            Focus(); // 焦点回到DraggableTextBox
+            //System.Diagnostics.Debug.WriteLine("📝 退出编辑模式");
+        }
+        
+        /// <summary>
+        /// 获取当前编辑状态描述（用于调试）
+        /// </summary>
+        public string GetEditStateDescription()
+        {
+            if (IsInEditMode)
+                return "编辑中";
+            else if (IsSelected)
+                return "已选中";
+            else
+                return "未选中";
         }
         
         /// <summary>
