@@ -348,16 +348,10 @@ namespace ImageColorChanger.UI
             var gpuContext = Core.GPUContext.Instance;
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine("========================================");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎮 GPU加速状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ 已降级到CPU")}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📊 GPU信息: {gpuContext.GpuInfo}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("========================================");
+            //System.Diagnostics.Debug.WriteLine("========================================");
+            //System.Diagnostics.Debug.WriteLine($"🎮 GPU加速状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ 已降级到CPU")}");
+            //System.Diagnostics.Debug.WriteLine($"📊 GPU信息: {gpuContext.GpuInfo}");
+            //System.Diagnostics.Debug.WriteLine("========================================");
             #endif
             
             // 在UI显示GPU状态

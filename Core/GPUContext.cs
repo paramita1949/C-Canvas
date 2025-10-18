@@ -69,12 +69,10 @@ namespace ImageColorChanger.Core
 
             try
             {
-#if DEBUG
-                Debug.WriteLine("🎮 [GPUContext] 开始初始化GPU加速...");
-                Debug.WriteLine("   环境: WPF应用");
-                Debug.WriteLine("   说明: WPF默认无OpenGL上下文，GPU加速受限");
-                Debug.WriteLine("   策略: 使用CPU高性能优化方案");
-#endif
+                //Debug.WriteLine("🎮 [GPUContext] 开始初始化GPU加速...");
+                //Debug.WriteLine("   环境: WPF应用");
+                //Debug.WriteLine("   说明: WPF默认无OpenGL上下文，GPU加速受限");
+                //Debug.WriteLine("   策略: 使用CPU高性能优化方案");
 
                 // ⚠️ WPF环境说明：
                 // WPF应用默认没有OpenGL渲染上下文，SkiaSharp的GPU加速需要：
@@ -93,15 +91,11 @@ namespace ImageColorChanger.Core
                 {
                     // 尝试创建OpenGL接口（通常在WPF中会失败）
                     glInterface = GRGlInterface.Create();
-#if DEBUG
-                    Debug.WriteLine($"   尝试OpenGL接口: {(glInterface != null ? "成功" : "失败")}");
-#endif
+                    //Debug.WriteLine($"   尝试OpenGL接口: {(glInterface != null ? "成功" : "失败")}");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-#if DEBUG
-                    Debug.WriteLine($"   OpenGL接口创建异常: {ex.GetType().Name}");
-#endif
+                    //Debug.WriteLine($"   OpenGL接口创建异常: {ex.GetType().Name}");
                 }
 
                 if (glInterface != null && glInterface.Validate())
@@ -114,36 +108,28 @@ namespace ImageColorChanger.Core
                         {
                             _isGpuAvailable = true;
                             _gpuInfo = GetGpuInfoString();
-#if DEBUG
-                            Debug.WriteLine($"✅ [GPUContext] SkiaSharp GPU加速已启用");
-                            Debug.WriteLine($"   GPU信息: {_gpuInfo}");
-                            Debug.WriteLine($"   后端: OpenGL");
-#endif
+                            //Debug.WriteLine($"✅ [GPUContext] SkiaSharp GPU加速已启用");
+                            //Debug.WriteLine($"   GPU信息: {_gpuInfo}");
+                            //Debug.WriteLine($"   后端: OpenGL");
                             return;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-#if DEBUG
-                        Debug.WriteLine($"   GRContext创建异常: {ex.Message}");
-#endif
+                        //Debug.WriteLine($"   GRContext创建异常: {ex.Message}");
                     }
                 }
 
                 // 降级到CPU高性能模式
-#if DEBUG
-                Debug.WriteLine("ℹ️ [GPUContext] 使用CPU高性能模式");
-                Debug.WriteLine("   优势: CPU ScalePixels已高度优化（SIMD并行）");
-                Debug.WriteLine("   优势: WPF自动使用GPU合成渲染结果");
-                Debug.WriteLine("   优势: 避免CPU↔GPU数据传输开销");
-#endif
+                //Debug.WriteLine("ℹ️ [GPUContext] 使用CPU高性能模式");
+                //Debug.WriteLine("   优势: CPU ScalePixels已高度优化（SIMD并行）");
+                //Debug.WriteLine("   优势: WPF自动使用GPU合成渲染结果");
+                //Debug.WriteLine("   优势: 避免CPU↔GPU数据传输开销");
                 FallbackToCpu();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                Debug.WriteLine($"❌ [GPUContext] GPU初始化异常: {ex.Message}");
-#endif
+                //Debug.WriteLine($"❌ [GPUContext] GPU初始化异常: {ex.Message}");
                 FallbackToCpu();
             }
             finally
@@ -159,9 +145,7 @@ namespace ImageColorChanger.Core
         {
             _isGpuAvailable = false;
             _gpuInfo = "CPU高性能模式（SIMD优化 + WPF GPU合成）";
-#if DEBUG
-            Debug.WriteLine("✅ [GPUContext] CPU高性能模式已就绪");
-#endif
+            //Debug.WriteLine("✅ [GPUContext] CPU高性能模式已就绪");
         }
 
         /// <summary>
