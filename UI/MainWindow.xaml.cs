@@ -1691,6 +1691,8 @@ namespace ImageColorChanger.UI
                         var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
+                        System.Diagnostics.Debug.WriteLine($"🔍 [LoadImage] 原图标记检查结果: shouldUseOriginal={shouldUseOriginal}");
+                        System.Diagnostics.Debug.WriteLine($"   当前 _originalMode={_originalMode}");
                         #endif
                         
                         if (shouldUseOriginal && !_originalMode)
