@@ -230,18 +230,10 @@ namespace ImageColorChanger.UI
                                 BtnPlayCount.Content = $"🔄 {text}次";
                                 break;
                             case "HasTimingData":
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"🎨 [PropertyChanged] HasTimingData 变更");
-                                System.Diagnostics.Debug.WriteLine($"   新值: {_playbackViewModel.HasTimingData}");
-                                System.Diagnostics.Debug.WriteLine($"   将设置按钮背景色为: {(_playbackViewModel.HasTimingData ? "绿色" : "默认")}");
-#endif
                                 // 有数据时显示绿色，无数据时恢复默认
                                 BtnScript.Background = _playbackViewModel.HasTimingData 
                                     ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
                                     : System.Windows.SystemColors.ControlBrush;
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"   按钮背景色已设置: {BtnScript.Background}");
-#endif
                                 break;
                         }
                     });
@@ -1691,8 +1683,8 @@ namespace ImageColorChanger.UI
                         var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
-                        System.Diagnostics.Debug.WriteLine($"🔍 [LoadImage] 原图标记检查结果: shouldUseOriginal={shouldUseOriginal}");
-                        System.Diagnostics.Debug.WriteLine($"   当前 _originalMode={_originalMode}");
+                        //System.Diagnostics.Debug.WriteLine($"🔍 [LoadImage] 原图标记检查结果: shouldUseOriginal={shouldUseOriginal}");
+                        //System.Diagnostics.Debug.WriteLine($"   当前 _originalMode={_originalMode}");
                         #endif
                         
                         if (shouldUseOriginal && !_originalMode)
@@ -1742,20 +1734,8 @@ namespace ImageColorChanger.UI
                         if (_playbackViewModel != null)
                         {
                             var mode = _originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe;
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔧 [LoadImage] 调用 SetCurrentImageAsync");
-                            System.Diagnostics.Debug.WriteLine($"   当前图片ID: {_currentImageId}");
-                            System.Diagnostics.Debug.WriteLine($"   播放模式: {mode}");
-                            System.Diagnostics.Debug.WriteLine($"   原图模式: {_originalMode}");
-#endif
                             _ = _playbackViewModel.SetCurrentImageAsync(_currentImageId, mode);
                         }
-#if DEBUG
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("⚠️ [LoadImage] _playbackViewModel 为 null，无法更新状态");
-                        }
-#endif
                     }
                     
                     // 颜色效果由 ImageProcessor 内部处理

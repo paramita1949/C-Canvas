@@ -630,11 +630,6 @@ namespace ImageColorChanger.ViewModels
         /// </summary>
         public async Task SetCurrentImageAsync(int imageId, PlaybackMode mode)
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📝 [SetCurrentImageAsync] 开始");
-            System.Diagnostics.Debug.WriteLine($"   ImageId: {imageId}");
-            System.Diagnostics.Debug.WriteLine($"   Mode: {mode}");
-#endif
             CurrentImageId = imageId;
             CurrentMode = mode;
 
@@ -646,18 +641,12 @@ namespace ImageColorChanger.ViewModels
                     // 关键帧模式：使用TimingRepository
                     var timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
                     HasTimingData = await timingRepository.HasTimingDataAsync(imageId);
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   关键帧模式检查结果: HasTimingData={HasTimingData}");
-#endif
                 }
                 else if (mode == PlaybackMode.Original)
                 {
                     // 原图模式：先查找BaseImageId，再检查是否有数据
                     var originalRepo = App.GetRequiredService<Repositories.Interfaces.IOriginalModeRepository>();
                     var baseImageId = await originalRepo.FindBaseImageIdBySimilarImageAsync(imageId);
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   原图模式: BaseImageId={baseImageId}");
-#endif
                     
                     if (baseImageId.HasValue)
                     {
@@ -668,22 +657,14 @@ namespace ImageColorChanger.ViewModels
                         // 如果找不到BaseImageId，尝试直接用imageId查询
                         HasTimingData = await originalRepo.HasOriginalTimingDataAsync(imageId);
                     }
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   原图模式检查结果: HasTimingData={HasTimingData}");
-#endif
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SetCurrentImageAsync] 检查时间数据失败: {ex.Message}");
-#endif
+                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败: {ex.Message}");
                 HasTimingData = false;
             }
             
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📝 [SetCurrentImageAsync] 完成, 最终 HasTimingData={HasTimingData}");
-#endif
             UpdateButtonStates();
         }
 
