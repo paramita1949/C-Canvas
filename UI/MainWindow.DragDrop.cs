@@ -744,6 +744,8 @@ namespace ImageColorChanger.UI
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"更新文件夹TreeView顺序失败: {ex}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();

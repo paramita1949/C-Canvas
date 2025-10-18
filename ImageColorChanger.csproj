@@ -46,6 +46,14 @@
     <!-- weixin.png 和 pay.png 现在从 PAK 加载，不再嵌入为资源 -->
   </ItemGroup>
   
+  <!-- 确保PAK文件被包含在发布输出中 -->
+  <ItemGroup>
+    <Content Include="$(OutDir)Resources.pak" Condition="Exists('$(OutDir)Resources.pak')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  
   <!-- Fonts 和图片资源现在通过 PAK 打包，不再复制到输出目录 -->
   
   <PropertyGroup>
@@ -59,8 +67,8 @@
     <None Remove="V257\**" />
   </ItemGroup>
 
-  <!-- Pack resources after build -->
-  <Target Name="PackResources" AfterTargets="Build">
+  <!-- Pack resources after build and publish -->
+  <Target Name="PackResources" AfterTargets="Build;Publish">
     <Message Text="[PAK] Building pack tool..." Importance="high" />
     <Exec Command="dotnet build BuildTools\PackResources.csproj -c Release -o BuildTools\bin -v quiet" />
     
@@ -68,6 +76,9 @@
     <MakeDir Directories="$(OutDir)" Condition="!Exists('$(OutDir)')" />
     <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
     <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
+    
+    <!-- 确保PAK文件被复制到发布目录 -->
+    <Copy SourceFiles="$(OutDir)Resources.pak" DestinationFiles="$(PublishDir)Resources.pak" Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Resources.pak')" />
   </Target>
 
 </Project>

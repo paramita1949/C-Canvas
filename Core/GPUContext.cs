@@ -225,6 +225,8 @@ namespace ImageColorChanger.Core
             {
 #if DEBUG
                 Debug.WriteLine($"❌ [GPUContext] GPU缩放失败: {ex.Message}，降级到CPU");
+#else
+                _ = ex; // 避免未使用变量警告
 #endif
                 return ScaleImageCpu(source, targetWidth, targetHeight, quality);
             }
@@ -264,6 +266,8 @@ namespace ImageColorChanger.Core
             {
 #if DEBUG
                 Debug.WriteLine($"❌ [GPUContext] CPU缩放失败: {ex.Message}");
+#else
+                _ = ex; // 避免未使用变量警告
 #endif
                 return null;
             }
@@ -313,6 +317,8 @@ namespace ImageColorChanger.Core
             {
 #if DEBUG
                 Debug.WriteLine($"⚠️ [GPUContext] Flush失败: {ex.Message}");
+#else
+                _ = ex; // 避免未使用变量警告
 #endif
             }
         }

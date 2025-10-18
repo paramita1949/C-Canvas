@@ -1728,10 +1728,10 @@ namespace ImageColorChanger.UI
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 清空图片显示失败: {ex.Message}");
-                #endif
-#if DEBUG
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
-#endif
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
             }
         }
 

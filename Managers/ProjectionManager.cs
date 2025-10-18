@@ -415,6 +415,8 @@ namespace ImageColorChanger.Managers
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 预渲染失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
             }
             finally
@@ -1237,9 +1239,9 @@ namespace ImageColorChanger.Managers
                 sw.Stop();
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message} (耗时: {sw.ElapsedMilliseconds}ms)");
-                #endif
-                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 堆栈: {ex.StackTrace}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
             }
         }

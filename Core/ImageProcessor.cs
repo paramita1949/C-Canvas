@@ -402,6 +402,8 @@ namespace ImageColorChanger.Core
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 优化加载失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
                 throw;
             }
@@ -678,6 +680,8 @@ namespace ImageColorChanger.Core
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [ImageProcessor] 缩放失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
                 return null;
             }

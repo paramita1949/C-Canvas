@@ -219,6 +219,8 @@ namespace ImageColorChanger.UI.Controls
                 {
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"⚠️ [TextBox] 移除内部边距失败: {ex.Message}");
+                    #else
+                    _ = ex; // 避免未使用变量警告
                     #endif
                 }
             };

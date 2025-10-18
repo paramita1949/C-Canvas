@@ -532,9 +532,9 @@ namespace ImageColorChanger.ViewModels
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [ViewModel] 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
-                #endif
-                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
             }
         }
