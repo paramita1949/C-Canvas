@@ -54,15 +54,8 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    //System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("🛑 [上一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
-                }
-
-                // 如果正在播放，强制使用直接跳转（参考Python版本：keyframe_navigation.py 第148-167行）
-                if (_mainWindow._playbackViewModel?.IsPlaying == true)
-                {
-                    forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
                 }
 
                 // 检测回跳
@@ -70,7 +63,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine($"⬅️ [上一帧] 检测到回跳（从#{_keyframeManager.CurrentKeyframeIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
                 }
 
                 // 处理循环
@@ -93,7 +86,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    //System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转 #{targetIndex + 1} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
                     var scrollViewer = _mainWindow.ImageScrollViewer;
                     var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                     scrollViewer.ScrollToVerticalOffset(targetOffset);
@@ -106,7 +99,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
-                    //System.Diagnostics.Debug.WriteLine($"🎬 [上一帧] 平滑滚动 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [上一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 
@@ -155,15 +148,8 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    //System.Diagnostics.Debug.WriteLine("检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine("🛑 [下一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
-                }
-
-                // 如果正在播放，强制使用直接跳转（参考Python版本：keyframe_navigation.py 第148-167行）
-                if (_mainWindow._playbackViewModel?.IsPlaying == true)
-                {
-                    forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine("🎬 检测到正在播放，强制使用直接跳转");
                 }
 
                 // 计算目标索引
@@ -227,7 +213,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine("检测到回跳，强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine($"⬅️ [下一帧] 检测到回跳（从#{currentIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
                 }
 
                 // 更新当前帧索引
@@ -244,6 +230,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (首次:{isFirstExecution}, 循环:{isLoopingBack}, 回跳:{isBackwardJump})");
                     var scrollViewer = _mainWindow.ImageScrollViewer;
                     var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                     scrollViewer.ScrollToVerticalOffset(targetOffset);
@@ -256,6 +243,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [下一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 

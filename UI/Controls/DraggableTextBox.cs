@@ -96,6 +96,11 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         public event EventHandler RequestDelete;
 
+        /// <summary>
+        /// 请求复制事件（由右键菜单触发）
+        /// </summary>
+        public event EventHandler RequestCopy;
+
         #endregion
 
         #region 构造函数
@@ -460,10 +465,23 @@ namespace ImageColorChanger.UI.Controls
             var contextMenu = new System.Windows.Controls.ContextMenu();
             contextMenu.FontSize = 14;
 
+            // 复制选项
+            var copyItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "复制",
+                Height = 36
+            };
+            copyItem.Click += (s, args) =>
+            {
+                // 触发复制请求事件
+                RequestCopy?.Invoke(this, EventArgs.Empty);
+            };
+            contextMenu.Items.Add(copyItem);
+
             // 删除选项
             var deleteItem = new System.Windows.Controls.MenuItem
             {
-                Header = "🗑 删除文本框",
+                Header = "删除",
                 Height = 36
             };
             deleteItem.Click += (s, args) =>

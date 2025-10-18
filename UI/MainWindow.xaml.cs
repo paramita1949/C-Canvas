@@ -262,12 +262,8 @@ namespace ImageColorChanger.UI
                     kfService.JumpToKeyframeRequested += async (s, e) =>
                     {
                         var jumpTime = System.Diagnostics.Stopwatch.StartNew();
-                        #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"\n🎯 ========== 关键帧跳转开始 ==========");
-                        #endif
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🎯 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
-                        #endif
+                        System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
                         
                         await Dispatcher.InvokeAsync(() => {
                             if (_keyframeManager != null)
@@ -279,18 +275,15 @@ namespace ImageColorChanger.UI
                                     // 直接跳转，不使用滚动动画（用于循环回第一帧或首次播放）
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
                                     var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"⚡ [跳转] 直接跳转: {scrollTime}ms");
-                                    #endif
+                                    System.Diagnostics.Debug.WriteLine($"⚡ [播放跳转] 直接跳转完成: {scrollTime}ms");
                                 }
                                 else
                                 {
-                                    // 使用平滑滚动动画
+                                    // 使用平滑滚动动画（播放时开启滚动函数）
+                                    System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 开启滚动动画，持续时间: {_keyframeManager.ScrollDuration}秒, 缓动: {(_keyframeManager.IsLinearScrolling ? "Linear" : _keyframeManager.ScrollEasingType)}");
                                     _keyframeManager.SmoothScrollTo(e.Position);
                                     var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"🎬 [跳转] 平滑滚动启动: {scrollTime}ms");
-                                    #endif
+                                    System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 平滑滚动已启动: {scrollTime}ms");
                                 }
                                 
                                 // 🔧 更新关键帧索引和指示器（参考Python版本：keytime.py 第1184-1221行）
@@ -306,9 +299,7 @@ namespace ImageColorChanger.UI
                                             // 2. 更新关键帧索引
                                             _keyframeManager.UpdateKeyframeIndex(i);
                                             var indexTime = jumpTime.ElapsedMilliseconds - indexStart;
-                                            #if DEBUG
-                                            System.Diagnostics.Debug.WriteLine($"🎯 [跳转] 更新索引: {indexTime}ms -> #{i + 1}");
-                                            #endif
+                                            System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新索引: {indexTime}ms -> 关键帧#{i + 1}/{keyframes.Count}");
                                             break;
                                         }
                                     }
@@ -318,14 +309,10 @@ namespace ImageColorChanger.UI
                                 var uiStart = jumpTime.ElapsedMilliseconds;
                                 _keyframeManager?.UpdatePreviewLines();
                                 var uiTime = jumpTime.ElapsedMilliseconds - uiStart;
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"🎯 [跳转] 更新UI: {uiTime}ms");
-                                #endif
+                                System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新UI: {uiTime}ms");
                                 
                                 jumpTime.Stop();
-                                #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"🎯 ========== 关键帧跳转完成: {jumpTime.ElapsedMilliseconds}ms ==========\n");
-                                #endif
                             }
                         });
                     };
@@ -1896,9 +1883,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
+//#endif
             // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {

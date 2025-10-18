@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V4.0.9"
+        Title="Canvas Cast V4.1.1"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -1013,7 +1013,7 @@
                             
                             <!-- 字号输入框 -->
                             <TextBox x:Name="FontSizeInput" 
-                                     Text="48" 
+                                     Text="10" 
                                      Width="50" Height="32"
                                      FontSize="14" FontWeight="Bold"
                                      TextAlignment="Center"
@@ -1021,7 +1021,7 @@
                                      PreviewTextInput="FontSizeInput_PreviewTextInput"
                                      TextChanged="FontSizeInput_TextChanged"
                                      MouseWheel="FontSizeInput_MouseWheel"
-                                     ToolTip="输入字号 (20-200) 或滚轮调整"/>
+                                     ToolTip="输入字号 (10-200) 或滚轮调整"/>
                             
                             <!-- 字号增大按钮 -->
                             <Button x:Name="BtnIncreaseFontSize" Content="▶" 
@@ -1127,8 +1127,14 @@
                                              BorderThickness="0"
                                              Padding="0"
                                              SelectionMode="Single"
+                                             AllowDrop="True"
                                              SelectionChanged="SlideListBox_SelectionChanged"
-                                             MouseRightButtonUp="SlideListBox_RightClick">
+                                             MouseRightButtonUp="SlideListBox_RightClick"
+                                             PreviewMouseLeftButtonDown="SlideListBox_PreviewMouseLeftButtonDown"
+                                             PreviewMouseMove="SlideListBox_PreviewMouseMove"
+                                             Drop="SlideListBox_Drop"
+                                             DragOver="SlideListBox_DragOver"
+                                             KeyDown="SlideListBox_KeyDown">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
                                                 <Setter Property="Margin" Value="0,0,0,8"/>

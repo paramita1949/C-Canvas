@@ -178,15 +178,27 @@ namespace ImageColorChanger.Repositories.Implementations
 
                 if (timing != null)
                 {
+                    var oldDuration = timing.Duration;
+                    System.Diagnostics.Debug.WriteLine($"💾 [数据库写入前] KeyframeId={keyframeId}, ImageId={timing.ImageId}, Order={timing.SequenceOrder}");
+                    System.Diagnostics.Debug.WriteLine($"   旧值: {oldDuration:F2}秒 → 新值: {newDuration:F2}秒");
+                    
                     timing.Duration = newDuration;
                     await _context.SaveChangesAsync();
+                    
+                    System.Diagnostics.Debug.WriteLine($"💾 [数据库写入完成] KeyframeId={keyframeId} 已更新为 {newDuration:F2}秒");
 
                     // 清除相关缓存
                     _cache.Remove(timing.ImageId);
+                    System.Diagnostics.Debug.WriteLine($"💾 [缓存已清除] ImageId={timing.ImageId}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [数据库写入失败] 找不到 KeyframeId={keyframeId} 的Timing记录");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ [数据库写入异常] KeyframeId={keyframeId}: {ex.Message}");
                 throw;
             }
         }

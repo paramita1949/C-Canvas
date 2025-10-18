@@ -599,19 +599,32 @@ namespace ImageColorChanger.UI
 
             try
             {
+                // 🎯 固定位置创建新文本框,新文本在上层(ZIndex最大)
+                const double newX = 100;
+                const double newY = 100;
+                const double newWidth = 300;
+                const double newHeight = 100;
+                
+                // 计算最大ZIndex,新文本始终在最上层
+                int maxZIndex = 0;
+                if (_textBoxes.Count > 0)
+                {
+                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+                
                 // 创建新元素 (关联到当前幻灯片)
                 var newElement = new TextElement
                 {
                     SlideId = _currentSlide.Id,  // 🆕 关联到幻灯片
-                    X = 100 + (_textBoxes.Count * 20), // 阶梯式偏移
-                    Y = 100 + (_textBoxes.Count * 20),
-                    Width = 300,
-                    Height = 100,
+                    X = newX,
+                    Y = newY,
+                    Width = newWidth,
+                    Height = newHeight,
                     Content = "双击编辑文字",
-                    FontSize = 20,  // 默认字号20（实际渲染时会放大2倍）
+                    FontSize = 10,  // 默认字号10（实际渲染时会放大2倍显示为20）
                     FontFamily = "Microsoft YaHei UI",
                     FontColor = "#000000",
-                    ZIndex = _textBoxes.Count
+                    ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
 
                 // 保存到数据库
@@ -636,25 +649,75 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 删除指定的文本框（通用方法，支持按钮、右键菜单、快捷键调用）
+        /// 复制文本框（立即创建新的副本）
+        /// </summary>
+        private async Task CopyTextBoxAsync(DraggableTextBox sourceTextBox)
+        {
+            if (sourceTextBox == null || _currentSlide == null)
+                return;
+
+            try
+            {
+                var sourceElement = sourceTextBox.Data;
+                
+                // 计算最大ZIndex,新文本框在最上层
+                int maxZIndex = 0;
+                if (_textBoxes.Count > 0)
+                {
+                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+
+                // 创建新元素（稍微偏移位置,避免完全重叠）
+                var newElement = new TextElement
+                {
+                    SlideId = _currentSlide.Id,
+                    X = sourceElement.X + 20,  // 向右偏移20像素
+                    Y = sourceElement.Y + 20,  // 向下偏移20像素
+                    Width = sourceElement.Width,
+                    Height = sourceElement.Height,
+                    Content = sourceElement.Content,
+                    FontSize = sourceElement.FontSize,
+                    FontFamily = sourceElement.FontFamily,
+                    FontColor = sourceElement.FontColor,
+                    IsBold = sourceElement.IsBold,
+                    TextAlign = sourceElement.TextAlign,
+                    ZIndex = maxZIndex + 1
+                };
+
+                // 保存到数据库
+                await _textProjectManager.AddElementAsync(newElement);
+
+                // 添加到画布
+                var textBox = new DraggableTextBox(newElement);
+                AddTextBoxToCanvas(textBox);
+
+                // 选中新复制的文本框
+                textBox.SetSelected(true);
+                _selectedTextBox = textBox;
+
+                // 标记已修改
+                MarkContentAsModified();
+
+                //System.Diagnostics.Debug.WriteLine($"✅ 复制文本框成功");
+            }
+            catch (Exception ex)
+            {
+                //System.Diagnostics.Debug.WriteLine($"❌ 复制文本框失败: {ex.Message}");
+                WpfMessageBox.Show($"复制文本框失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 删除指定的文本框（通用方法，支持按钮、右键菜单、快捷键调用，直接删除不弹窗确认）
         /// </summary>
         private async Task DeleteTextBoxAsync(DraggableTextBox textBox)
         {
             if (textBox == null)
-            {
-                WpfMessageBox.Show("请先选择要删除的文本框！", "提示", 
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
-            }
 
             try
             {
-                var result = WpfMessageBox.Show("确定要删除该文本框吗？", "确认删除", 
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
-                
-                if (result != MessageBoxResult.Yes)
-                    return;
-
                 // 从数据库删除
                 await _textProjectManager.DeleteElementAsync(textBox.Data.Id);
 
@@ -959,8 +1022,8 @@ namespace ImageColorChanger.UI
 
             if (int.TryParse(FontSizeInput.Text, out int fontSize))
             {
-                // 限制范围
-                fontSize = Math.Max(20, Math.Min(200, fontSize));
+                // 限制范围 (改为从10开始)
+                fontSize = Math.Max(10, Math.Min(200, fontSize));
                 
                 // 应用到选中的文本框
                 _selectedTextBox.ApplyStyle(fontSize: fontSize);
@@ -986,7 +1049,7 @@ namespace ImageColorChanger.UI
             {
                 // 滚轮向上增大，向下减小，每次步进2
                 int delta = e.Delta > 0 ? 2 : -2;
-                int newSize = Math.Max(20, Math.Min(200, currentSize + delta));
+                int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
                 
                 FontSizeInput.Text = newSize.ToString();
             }
@@ -1001,7 +1064,7 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                int newSize = Math.Max(20, currentSize - 2);
+                int newSize = Math.Max(10, currentSize - 2);
                 FontSizeInput.Text = newSize.ToString();
             }
         }
@@ -1285,6 +1348,7 @@ namespace ImageColorChanger.UI
 
         #region 辅助方法
 
+
         /// <summary>
         /// 将文本框添加到画布
         /// </summary>
@@ -1343,6 +1407,12 @@ namespace ImageColorChanger.UI
             textBox.RequestDelete += async (s, e) =>
             {
                 await DeleteTextBoxAsync(textBox);
+            };
+
+            // 🆕 监听复制请求（右键菜单 - 立即复制创建新文本框）
+            textBox.RequestCopy += async (s, e) =>
+            {
+                await CopyTextBoxAsync(textBox);
             };
         }
 
@@ -2070,6 +2140,22 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 幻灯片列表键盘事件（处理DEL删除）
+        /// </summary>
+        private void SlideListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            // DEL键删除幻灯片
+            if (e.Key == System.Windows.Input.Key.Delete)
+            {
+                if (SlideListBox.SelectedItem != null)
+                {
+                    BtnDeleteSlide_Click(sender, new RoutedEventArgs());
+                    e.Handled = true;
+                }
+            }
+        }
+
+        /// <summary>
         /// 幻灯片列表右键点击事件
         /// </summary>
         private void SlideListBox_RightClick(object sender, MouseButtonEventArgs e)
@@ -2080,16 +2166,26 @@ namespace ImageColorChanger.UI
             // 新建幻灯片
             var addItem = new MenuItem 
             { 
-                Header = "➕ 新建幻灯片",
+                Header = "新建",
                 FontSize = 14
             };
             addItem.Click += BtnAddSlide_Click;
             contextMenu.Items.Add(addItem);
 
+            // 复制幻灯片
+            var copyItem = new MenuItem 
+            { 
+                Header = "复制",
+                FontSize = 14,
+                IsEnabled = SlideListBox.SelectedItem != null
+            };
+            copyItem.Click += BtnCopySlide_Click;
+            contextMenu.Items.Add(copyItem);
+
             // 删除幻灯片
             var deleteItem = new MenuItem 
             { 
-                Header = "🗑 删除幻灯片",
+                Header = "删除",
                 FontSize = 14,
                 IsEnabled = SlideListBox.SelectedItem != null
             };
@@ -2099,6 +2195,151 @@ namespace ImageColorChanger.UI
             contextMenu.PlacementTarget = sender as UIElement;
             contextMenu.IsOpen = true;
         }
+
+        #region 幻灯片拖动排序
+
+        private Slide _draggingSlide = null;
+        private System.Windows.Point _slideDragStartPoint;
+
+        /// <summary>
+        /// 幻灯片列表鼠标按下事件（开始拖动）
+        /// </summary>
+        private void SlideListBox_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            _slideDragStartPoint = e.GetPosition(null);
+            
+            // 获取点击的幻灯片
+            var item = FindVisualAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
+            if (item != null)
+            {
+                _draggingSlide = item.DataContext as Slide;
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片列表鼠标移动事件（执行拖动）
+        /// </summary>
+        private void SlideListBox_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && _draggingSlide != null)
+            {
+                System.Windows.Point currentPosition = e.GetPosition(null);
+                Vector diff = _slideDragStartPoint - currentPosition;
+
+                // 检查是否移动了足够的距离来开始拖动
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    // 开始拖放操作
+                    System.Windows.DataObject dragData = new System.Windows.DataObject("Slide", _draggingSlide);
+                    DragDrop.DoDragDrop(SlideListBox, dragData, System.Windows.DragDropEffects.Move);
+                    _draggingSlide = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片列表拖放over事件
+        /// </summary>
+        private void SlideListBox_DragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("Slide"))
+            {
+                e.Effects = System.Windows.DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = System.Windows.DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 幻灯片列表放下事件（完成排序）
+        /// </summary>
+        private void SlideListBox_Drop(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("Slide"))
+            {
+                Slide sourceSlide = e.Data.GetData("Slide") as Slide;
+                
+                // 获取放下位置的幻灯片
+                var targetItem = FindVisualAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
+                if (targetItem != null)
+                {
+                    Slide targetSlide = targetItem.DataContext as Slide;
+                    if (targetSlide != null && sourceSlide != targetSlide)
+                    {
+                        // 执行排序
+                        ReorderSlides(sourceSlide, targetSlide);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 重新排序幻灯片
+        /// </summary>
+        private async void ReorderSlides(Slide sourceSlide, Slide targetSlide)
+        {
+            try
+            {
+                var slides = await _dbContext.Slides
+                    .Where(s => s.ProjectId == _currentTextProject.Id)
+                    .OrderBy(s => s.SortOrder)
+                    .ToListAsync();
+
+                int sourceIndex = slides.IndexOf(sourceSlide);
+                int targetIndex = slides.IndexOf(targetSlide);
+
+                if (sourceIndex == -1 || targetIndex == -1)
+                    return;
+
+                // 移除源幻灯片
+                slides.RemoveAt(sourceIndex);
+                
+                // 插入到目标位置
+                slides.Insert(targetIndex, sourceSlide);
+
+                // 更新所有幻灯片的SortOrder
+                for (int i = 0; i < slides.Count; i++)
+                {
+                    slides[i].SortOrder = i;
+                }
+
+                await _dbContext.SaveChangesAsync();
+
+                // 刷新列表
+                LoadSlideList();
+
+                // 保持选中当前幻灯片
+                SlideListBox.SelectedItem = sourceSlide;
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"排序失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 查找可视树祖先元素（用于幻灯片拖动）
+        /// </summary>
+        private T FindVisualAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            do
+            {
+                if (current is T)
+                {
+                    return (T)current;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            while (current != null);
+            return null;
+        }
+
+        #endregion
 
         /// <summary>
         /// 文本编辑器面板键盘事件（处理PageUp/PageDown切换幻灯片）
@@ -2240,7 +2481,12 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🔧 获取当前最大排序号（修复LINQ翻译问题）
+                // 🔧 获取当前幻灯片总数（用于生成标题序号）
+                var slideCount = await _dbContext.Slides
+                    .Where(s => s.ProjectId == _currentTextProject.Id)
+                    .CountAsync();
+                
+                // 🔧 获取当前最大排序号（用于SortOrder）
                 var maxOrderValue = await _dbContext.Slides
                     .Where(s => s.ProjectId == _currentTextProject.Id)
                     .Select(s => (int?)s.SortOrder)
@@ -2248,11 +2494,11 @@ namespace ImageColorChanger.UI
                 
                 int maxOrder = maxOrderValue ?? 0;
 
-                // 创建新幻灯片
+                // 创建新幻灯片（标题序号 = 总数 + 1）
                 var newSlide = new Slide
                 {
                     ProjectId = _currentTextProject.Id,
-                    Title = $"幻灯片 {maxOrder + 1}",
+                    Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = maxOrder + 1,
                     BackgroundColor = "#FFFFFF"
                 };
@@ -2277,24 +2523,120 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 删除幻灯片按钮点击事件
+        /// 复制幻灯片按钮点击事件
         /// </summary>
-        private async void BtnDeleteSlide_Click(object sender, RoutedEventArgs e)
+        private async void BtnCopySlide_Click(object sender, RoutedEventArgs e)
         {
-            if (SlideListBox.SelectedItem is not Slide selectedSlide)
+            if (SlideListBox.SelectedItem is not Slide sourceSlide)
             {
-                WpfMessageBox.Show("请先选择要删除的幻灯片", "提示", 
+                WpfMessageBox.Show("请先选择要复制的幻灯片", "提示", 
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var result = WpfMessageBox.Show(
-                $"确定要删除幻灯片 \"{selectedSlide.Title}\" 吗？\n此操作将同时删除幻灯片中的所有文本元素。", 
-                "确认删除", 
-                MessageBoxButton.YesNo, 
-                MessageBoxImage.Warning);
+            try
+            {
+                // 加载源幻灯片的所有元素
+                var sourceElements = await _dbContext.TextElements
+                    .Where(e => e.SlideId == sourceSlide.Id)
+                    .ToListAsync();
 
-            if (result != MessageBoxResult.Yes)
+                // 计算新的排序位置（在源幻灯片后面）
+                int newSortOrder = sourceSlide.SortOrder + 1;
+                
+                // 将后面的幻灯片排序顺序都+1
+                var slidesToUpdate = await _dbContext.Slides
+                    .Where(s => s.ProjectId == _currentTextProject.Id && s.SortOrder >= newSortOrder)
+                    .ToListAsync();
+                
+                foreach (var slide in slidesToUpdate)
+                {
+                    slide.SortOrder++;
+                }
+
+                // 创建新幻灯片（复制所有属性）
+                var newSlide = new Slide
+                {
+                    ProjectId = _currentTextProject.Id,
+                    Title = $"{sourceSlide.Title} (副本)",
+                    SortOrder = newSortOrder,
+                    BackgroundColor = sourceSlide.BackgroundColor,
+                    BackgroundImagePath = sourceSlide.BackgroundImagePath
+                };
+
+                _dbContext.Slides.Add(newSlide);
+                await _dbContext.SaveChangesAsync();
+
+                // 复制所有文本元素
+                foreach (var sourceElement in sourceElements)
+                {
+                    var newElement = new TextElement
+                    {
+                        SlideId = newSlide.Id,
+                        X = sourceElement.X,
+                        Y = sourceElement.Y,
+                        Width = sourceElement.Width,
+                        Height = sourceElement.Height,
+                        Content = sourceElement.Content,
+                        FontSize = sourceElement.FontSize,
+                        FontFamily = sourceElement.FontFamily,
+                        FontColor = sourceElement.FontColor,
+                        IsBold = sourceElement.IsBold,
+                        TextAlign = sourceElement.TextAlign,
+                        ZIndex = sourceElement.ZIndex
+                    };
+                    _dbContext.TextElements.Add(newElement);
+                }
+
+                await _dbContext.SaveChangesAsync();
+
+                // 先加载新幻灯片内容并生成缩略图,再刷新列表(避免闪烁)
+                await Dispatcher.InvokeAsync(async () =>
+                {
+                    // 临时选中新幻灯片(不触发SelectionChanged)
+                    var previousIndex = SlideListBox.SelectedIndex;
+                    SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
+                    
+                    // 手动加载新幻灯片内容
+                    LoadSlide(newSlide);
+                    
+                    // 等待UI完全渲染
+                    await Task.Delay(150);
+                    
+                    // 生成新幻灯片的缩略图
+                    var thumbnailPath = SaveSlideThumbnail(newSlide.Id);
+                    if (!string.IsNullOrEmpty(thumbnailPath))
+                    {
+                        newSlide.ThumbnailPath = thumbnailPath;
+                    }
+                    
+                    // 恢复事件监听
+                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                    
+                    // 刷新幻灯片列表(此时缩略图已生成)
+                    LoadSlideList();
+                    
+                    // 选中新幻灯片
+                    SlideListBox.SelectedItem = newSlide;
+                    
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+                //System.Diagnostics.Debug.WriteLine($"✅ 复制幻灯片成功: 原ID={sourceSlide.Id}, 新ID={newSlide.Id}");
+            }
+            catch (Exception ex)
+            {
+                //System.Diagnostics.Debug.WriteLine($"❌ 复制幻灯片失败: {ex.Message}");
+                WpfMessageBox.Show($"复制幻灯片失败: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 删除幻灯片按钮点击事件（直接删除,不弹窗确认）
+        /// </summary>
+        private async void BtnDeleteSlide_Click(object sender, RoutedEventArgs e)
+        {
+            if (SlideListBox.SelectedItem is not Slide selectedSlide)
                 return;
 
             try
@@ -2418,10 +2760,18 @@ namespace ImageColorChanger.UI
                 // 强制更新布局，确保隐藏效果生效
                 canvasParent.UpdateLayout();
 
+                // 获取实际尺寸
+                int width = (int)canvasParent.ActualWidth;
+                int height = (int)canvasParent.ActualHeight;
+                
+                // 如果尺寸无效，使用默认值
+                if (width <= 0) width = 1080;
+                if (height <= 0) height = 700;
+
                 // 创建渲染目标
                 var renderBitmap = new RenderTargetBitmap(
-                    1080, 700,  // 横向矩形尺寸
-                    96, 96,     // DPI
+                    width, height,
+                    96, 96,
                     PixelFormats.Pbgra32);
 
                 // 渲染画布

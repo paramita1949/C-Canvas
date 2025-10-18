@@ -20,11 +20,11 @@ namespace ImageColorChanger.UI
         private KeyframeManager _keyframeManager;
         private KeyframeRepository _keyframeRepository; // 仅供 KeyframeManager 使用
         
-        // 滚动速度设置（默认8秒，与Python版本一致）
-        private double _scrollDuration = 8.0;
+        // 滚动速度设置（默认9秒）
+        private double _scrollDuration = 9.0;
         
-        // 滚动缓动类型（默认贝塞尔曲线，与Python一致）
-        private string _scrollEasingType = "Bezier";
+        // 滚动缓动类型（默认线性）
+        private string _scrollEasingType = "Linear";
         
         // 是否使用线性滚动（无缓动）
         private bool _isLinearScrolling = false;
@@ -269,16 +269,20 @@ namespace ImageColorChanger.UI
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                    var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                    
                     // 调用播放服务的手动修正方法
                     var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
                         .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndex + 1}");
                         
                         // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
+                        // 注意：上一帧总是回跳，会被Navigator强制直接跳转，所以这里跳过等待是安全的
                         kfService.SkipCurrentWaitAndPlayNext();
+                        //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 点击上一帧，跳过当前等待");
                     }
                 }
             }
@@ -287,7 +291,7 @@ namespace ImageColorChanger.UI
             var navStart = sw.ElapsedMilliseconds;
             _keyframeManager.Navigator.StepToPrevKeyframe();
             var navTime = sw.ElapsedMilliseconds - navStart;
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToPrevKeyframe: {navTime}ms");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToPrevKeyframe: {navTime}ms");
             
             sw.Stop();
             //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
@@ -366,16 +370,20 @@ namespace ImageColorChanger.UI
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                    var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                    
                     // 调用播放服务的手动修正方法
                     var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
                         .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"🕐 [播放修正] 记录手动跳转: 帧#{_keyframeManager.CurrentKeyframeIndex + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击下一帧，记录修正时间: 关键帧#{currentIndex + 1}");
                         
-                        // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
+                        // 🔧 跳过当前等待，立即结束当前帧（参考Python版本：keyframe_navigation.py 第157-167行）
+                        // 播放循环会基于实际关键帧数量判断循环，不会进入错误数据
                         kfService.SkipCurrentWaitAndPlayNext();
+                        //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 跳过当前等待，让播放循环立即进入下一帧判断");
                     }
                 }
             }
@@ -384,7 +392,7 @@ namespace ImageColorChanger.UI
             var navStart = sw.ElapsedMilliseconds;
             bool shouldRecordTime = _keyframeManager.Navigator.StepToNextKeyframe().Result; // 同步等待结果
             var navTime = sw.ElapsedMilliseconds - navStart;
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] Navigator.StepToNextKeyframe: {navTime}ms");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
             
             sw.Stop();
             //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");

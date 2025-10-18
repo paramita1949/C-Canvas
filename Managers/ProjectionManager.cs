@@ -308,9 +308,9 @@ namespace ImageColorChanger.Managers
                     // 检查缓存
                     if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedImage))
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 缓存命中 (耗时: {sw.ElapsedMilliseconds}ms)");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 缓存命中 (耗时: {sw.ElapsedMilliseconds}ms)");
+                        //#endif
                         
                         // 直接使用缓存图片
                         _projectionImage = cachedImage;
@@ -322,9 +322,9 @@ namespace ImageColorChanger.Managers
                         }
                         return;
                     }
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ❌ 缓存未命中，开始渲染...");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ❌ 缓存未命中，开始渲染...");
+                    //#endif
                     
                     // 🎮 使用GPU加速渲染（如果GPU不可用，自动降级到CPU）
                     var processedImage = Core.GPUContext.Instance.ScaleImageGpu(
@@ -361,9 +361,9 @@ namespace ImageColorChanger.Managers
                     _projectionCache.Set(cacheKey, projectionImage, entryOptions);
                     
                     sw.Stop();
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 渲染完成：总耗时 {sw.ElapsedMilliseconds}ms");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [PreRender] ✅ 渲染完成：总耗时 {sw.ElapsedMilliseconds}ms");
+                    //#endif
                     
                     // 🎯 直接使用预渲染的图片，不调用UpdateProjection（避免重复渲染）
                     _projectionImage = projectionImage;
@@ -913,15 +913,15 @@ namespace ImageColorChanger.Managers
                     // 🔧 从主窗口同步当前状态到投影（解决打开投影时图片为空的问题）
                     if (_imageProcessor?.CurrentImage != null)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📺 [OpenProjection] 同步主窗口状态到投影:");
-                        #endif
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   图片: {_imageProcessor.CurrentImage.Width}x{_imageProcessor.CurrentImage.Height}");
-                        #endif
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   路径: {_imageProcessor.CurrentImagePath}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📺 [OpenProjection] 同步主窗口状态到投影:");
+                        //#endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   图片: {_imageProcessor.CurrentImage.Width}x{_imageProcessor.CurrentImage.Height}");
+                        //#endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   路径: {_imageProcessor.CurrentImagePath}");
+                        //#endif
                         
                         // 直接设置内部状态（不触发预渲染）
                         _currentImage = _imageProcessor.CurrentImage;
@@ -1003,9 +1003,9 @@ namespace ImageColorChanger.Managers
         private void UpdateProjection()
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 开始更新投影 =====");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 开始更新投影 =====");
+            //#endif
             
             if (_projectionWindow == null)
             {
@@ -1047,34 +1047,34 @@ namespace ImageColorChanger.Managers
                     var calcStart = sw.ElapsedMilliseconds;
                     var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
                     var calcTime = sw.ElapsedMilliseconds - calcStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 计算尺寸: {calcTime}ms -> {newWidth}x{newHeight}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 计算尺寸: {calcTime}ms -> {newWidth}x{newHeight}");
+                    //#endif
 
                     // ⚡ 生成缓存键
                     var keyStart = sw.ElapsedMilliseconds;
                     string cacheKey = GenerateProjectionCacheKey(newWidth, newHeight);
                     var keyTime = sw.ElapsedMilliseconds - keyStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 缓存键: {cacheKey}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 缓存键: {cacheKey}");
+                    //#endif
                     
                     // ⚡ 检查缓存
                     var cacheCheckStart = sw.ElapsedMilliseconds;
                     if (_projectionCache.TryGetValue(cacheKey, out BitmapSource cachedBitmap))
                     {
                         var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ⚡ 缓存命中: {cacheTime}ms");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ⚡ 缓存命中: {cacheTime}ms");
+                        //#endif
                         _projectionImage = cachedBitmap;
                     }
                     else
                     {
                         var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 💾 缓存未命中: {cacheTime}ms，开始渲染...");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 💾 缓存未命中: {cacheTime}ms，开始渲染...");
+                        //#endif
                         
                         // 🎮 使用GPU加速渲染（缩放和可选的变色效果）
                         var renderStart = sw.ElapsedMilliseconds;
@@ -1085,9 +1085,9 @@ namespace ImageColorChanger.Managers
                             SKFilterQuality.High
                         );
                         var renderTime = sw.ElapsedMilliseconds - renderStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"    ├─ GPU缩放: {renderTime}ms");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"    ├─ GPU缩放: {renderTime}ms");
+                        //#endif
 
                         if (processedImage == null)
                         {
@@ -1113,9 +1113,9 @@ namespace ImageColorChanger.Managers
                         _projectionImage = ConvertToBitmapSource(processedImage);
                         processedImage.Dispose();
                         var convertTime = sw.ElapsedMilliseconds - convertStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"    ├─ 转换BitmapSource: {convertTime}ms");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"    ├─ 转换BitmapSource: {convertTime}ms");
+                        //#endif
                         
                         // ⚡ 加入缓存
                         var cacheAddStart = sw.ElapsedMilliseconds;
@@ -1128,9 +1128,9 @@ namespace ImageColorChanger.Managers
                         };
                         _projectionCache.Set(cacheKey, _projectionImage, entryOptions);
                         var cacheAddTime = sw.ElapsedMilliseconds - cacheAddStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"    └─ 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"    └─ 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
+                        //#endif
                     }
 
                     //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 更新Image控件: {newWidth}x{newHeight}");
@@ -1209,15 +1209,15 @@ namespace ImageColorChanger.Managers
                     }
                     
                     var uiUpdateTime = sw.ElapsedMilliseconds - invokeStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] UI更新: {uiUpdateTime}ms");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] UI更新: {uiUpdateTime}ms");
+                    //#endif
                 });
                 
                 sw.Stop();
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 总耗时: {sw.ElapsedMilliseconds}ms =====\n");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 总耗时: {sw.ElapsedMilliseconds}ms =====\n");
+                //#endif
             }
             catch (Exception ex)
             {

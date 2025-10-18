@@ -90,7 +90,6 @@ namespace ImageColorChanger.Services.Implementations
                 // 记录当前关键帧的停留时长（即时记录模式）
                 if (duration > 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [RecordTiming] 查询关键帧 {keyframeId}...");
                     var keyframe = await _keyframeRepository.GetByIdAsync(keyframeId);
                     if (keyframe != null)
                     {

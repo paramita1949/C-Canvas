@@ -24,6 +24,7 @@ namespace ImageColorChanger.Services.Implementations
 
         private int _currentImageId;
         private System.Collections.Generic.List<TimingSequenceDto> _timingSequence;
+        private int _actualKeyframeCount; // 实际关键帧数量（用于循环判断，避免错误数据干扰）
         private int _currentIndex;
         private bool _isPaused;
         
@@ -101,6 +102,7 @@ namespace ImageColorChanger.Services.Implementations
             _timingSequence = await _timingRepository.GetTimingSequenceAsync(imageId);
             if (_timingSequence == null || !_timingSequence.Any())
             {
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [开始播放] 没有时间序列数据，无法播放");
                 return;
             }
 
@@ -110,12 +112,29 @@ namespace ImageColorChanger.Services.Implementations
             _isPaused = false;
             
             // 🔧 初始化时间修正相关变量（参考Python版本：keytime.py 第701-703行）
-            _currentFrameStartTime = DateTime.Now;
+            // 注意：_currentFrameStartTime 会在 PlayNextFrameAsync 中为每一帧单独设置
+            _currentFrameStartTime = null;
             _lastManualOperationTime = null;
 
             IsPlaying = true;
             _cancellationTokenSource = new CancellationTokenSource();
 
+            // 🔧 计算实际关键帧数量（去重KeyframeId）
+            _actualKeyframeCount = _timingSequence.Select(t => t.KeyframeId).Distinct().Count();
+            
+            //System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 图片ID: {imageId}, Timing记录: {_timingSequence.Count}条, 实际关键帧: {_actualKeyframeCount}个, 播放次数: {PlayCount}");
+            //System.Diagnostics.Debug.WriteLine($"📊 [加载时间序列] 初始值:");
+            //for (int i = 0; i < _timingSequence.Count; i++)
+            //{
+            //    var t = _timingSequence[i];
+            //    System.Diagnostics.Debug.WriteLine($"   #{i + 1}: KeyframeId={t.KeyframeId}, Duration={t.Duration:F2}秒, Order={t.SequenceOrder}");
+            //}
+            //
+            //if (_timingSequence.Count != _actualKeyframeCount)
+            //{
+            //    System.Diagnostics.Debug.WriteLine($"⚠️ [数据警告] Timing记录({_timingSequence.Count})与实际关键帧({_actualKeyframeCount})数量不一致！");
+            //}
+            
             // 启动播放循环
             _ = Task.Run(() => PlaybackLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
         }
@@ -139,12 +158,12 @@ namespace ImageColorChanger.Services.Implementations
                     // 播放下一帧
                     await PlayNextFrameAsync(cancellationToken);
 
-                    // 检查是否到达最后一帧
-                    if (_currentIndex >= _timingSequence.Count)
+                    // 🔧 检查是否到达最后一帧（使用实际关键帧数量，避免错误数据干扰）
+                    if (_currentIndex >= _actualKeyframeCount)
                     {
                         // 完成一轮播放
                         CompletedPlayCount++;
-                        //System.Diagnostics.Debug.WriteLine($"🔄 [播放] 完成第{CompletedPlayCount}轮播放");
+                        //System.Diagnostics.Debug.WriteLine($"🔄 [播放] 完成第{CompletedPlayCount}轮播放（播放了{_actualKeyframeCount}个关键帧）");
 
                         // 回到第一帧索引
                         _currentIndex = 0;
@@ -199,6 +218,10 @@ namespace ImageColorChanger.Services.Implementations
             // 设置当前关键帧ID和重置暂停累计时间（参考Python版本：keytime.py 第1174-1175行）
             _currentKeyframeId = currentTiming.KeyframeId;
             _totalPauseDuration = 0.0;
+            
+            // 🔧 关键修复：记录当前帧的开始时间（用于手动跳转时计算实际停留时间）
+            _currentFrameStartTime = DateTime.Now;
+            //System.Diagnostics.Debug.WriteLine($"⏰ [播放] 记录第{_currentIndex + 1}帧开始时间: {_currentFrameStartTime.Value:HH:mm:ss.fff}");
 
             // 🔧 判断是否应该直接跳转（参考Python版本：keytime.py 第1089-1112行）
             bool useDirectJump = false;
@@ -218,7 +241,7 @@ namespace ImageColorChanger.Services.Implementations
             }
 
             // 跳转到关键帧
-            //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] UseDirectJump={useDirectJump}, 索引={_currentIndex}, 完成轮数={CompletedPlayCount}");
+            //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] UseDirectJump={useDirectJump}, 索引={_currentIndex}, KeyframeId={currentTiming.KeyframeId}, 完成轮数={CompletedPlayCount}");
             JumpToKeyframeRequested?.Invoke(this, new JumpToKeyframeEventArgs
             {
                 KeyframeId = currentTiming.KeyframeId,
@@ -287,7 +310,7 @@ namespace ImageColorChanger.Services.Implementations
             // 记录暂停开始时间（使用绝对时间戳）
             _pauseStartTime = DateTime.Now;
 
-            //System.Diagnostics.Debug.WriteLine($"⏸️ [播放] 暂停播放，当前位置: {_currentIndex}/{_timingSequence.Count}");
+            //System.Diagnostics.Debug.WriteLine($"⏸️ [暂停播放] 当前位置: {_currentIndex}/{_timingSequence.Count}, 当前关键帧ID: {_currentKeyframeId}");
             return Task.CompletedTask;
         }
 
@@ -358,7 +381,7 @@ namespace ImageColorChanger.Services.Implementations
             // 重置当前帧开始时间（参考Python版本：第1023行）
             _currentFrameStartTime = DateTime.Now;
 
-            //System.Diagnostics.Debug.WriteLine($"▶️ [播放] 继续播放，立即跳转到下一帧");
+            //System.Diagnostics.Debug.WriteLine($"▶️ [恢复播放] 继续播放，立即跳转到下一帧");
             return Task.CompletedTask;
         }
 
@@ -413,6 +436,11 @@ namespace ImageColorChanger.Services.Implementations
             if (_currentFrameStartTime.HasValue)
             {
                 var actualDuration = (currentTime - _currentFrameStartTime.Value).TotalSeconds;
+                
+                //System.Diagnostics.Debug.WriteLine($"🕐 [手动修正] 关键帧 {keyframeId}");
+                //System.Diagnostics.Debug.WriteLine($"   开始时间: {_currentFrameStartTime.Value:HH:mm:ss.fff}");
+                //System.Diagnostics.Debug.WriteLine($"   结束时间: {currentTime:HH:mm:ss.fff}");
+                //System.Diagnostics.Debug.WriteLine($"   实际停留: {actualDuration:F2}秒");
 
                 // 异步更新数据库中的时间记录，避免阻塞UI（参考Python版本：keytime.py 第769-780行）
                 _ = Task.Run(async () =>
@@ -423,25 +451,37 @@ namespace ImageColorChanger.Services.Implementations
                         var timing = _timingSequence.FirstOrDefault(t => t.KeyframeId == keyframeId);
                         if (timing != null)
                         {
+                            var oldDuration = timing.Duration;
+                            //System.Diagnostics.Debug.WriteLine($"📊 [数据库更新前] 关键帧 {keyframeId}: 旧值={oldDuration:F2}秒 → 新值={actualDuration:F2}秒");
+                            
                             await _timingRepository.UpdateDurationAsync(keyframeId, actualDuration);
                             
                             // 更新内存中的时间序列
                             timing.Duration = actualDuration;
                             
-                            //System.Diagnostics.Debug.WriteLine($"✅ [手动修正] 关键帧 {keyframeId} 时间修正为 {actualDuration:F2}秒");
+                            //System.Diagnostics.Debug.WriteLine($"✅ [数据库更新完成] 关键帧 {keyframeId} 时间修正为 {actualDuration:F2}秒");
+                        }
+                        else
+                        {
+                            //System.Diagnostics.Debug.WriteLine($"⚠️ [手动修正] 找不到关键帧 {keyframeId} 的Timing记录");
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        //System.Diagnostics.Debug.WriteLine($"❌ [手动修正异常] 关键帧 {keyframeId}: {ex.Message}");
                     }
                 });
+            }
+            else
+            {
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [手动修正] 关键帧 {keyframeId}: 没有开始时间记录");
             }
 
             // 记录当前操作时间，作为下一帧的开始时间
             _currentFrameStartTime = currentTime;
             _lastManualOperationTime = currentTime;
 
-            //System.Diagnostics.Debug.WriteLine($"🕐 [手动修正] 记录帧开始时间: {currentTime:HH:mm:ss.fff}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [手动修正] 记录新的帧开始时间: {currentTime:HH:mm:ss.fff}");
             return Task.FromResult(true);
         }
     }

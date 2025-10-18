@@ -96,8 +96,8 @@ namespace ImageColorChanger.UI
                 var frameNumber = keyframeMapping.ContainsKey(timing.KeyframeId) 
                     ? keyframeMapping[timing.KeyframeId].ToString() 
                     : "?";
-                // Python格式: f"{frame_number}  {duration:6.1f}s"
-                lines.Add($"{frameNumber}  {timing.Duration,6:F1}s");
+                // 简化格式: 去掉s后缀
+                lines.Add($"{frameNumber}  {timing.Duration,6:F1}");
             }
 
             return string.Join(Environment.NewLine, lines);
@@ -152,7 +152,7 @@ namespace ImageColorChanger.UI
                     if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#"))
                         continue;
 
-                    // 解析格式: "1  10.0s" 或 "1 10.0"
+                    // 解析格式: "1  10.0"（简化格式，不带s后缀）
                     var parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length < 2)
                     {
@@ -166,7 +166,7 @@ namespace ImageColorChanger.UI
                         // 验证帧号（但不使用）
                         _ = int.Parse(parts[0]);
                         
-                        // 解析时间
+                        // 解析时间（兼容带s和不带s的格式）
                         var timeStr = parts[1].TrimEnd('s', 'S');
                         var duration = double.Parse(timeStr);
 
