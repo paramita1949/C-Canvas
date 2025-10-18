@@ -37,7 +37,7 @@ jobs:
       run: dotnet build ImageColorChanger.csproj --configuration Release --no-restore
     
     - name: 发布项目
-      run: dotnet publish ImageColorChanger.csproj -c Release -o publish --self-contained false -p:PublishSingleFile=false
+      run: dotnet publish ImageColorChanger.csproj -c Release -o publish --self-contained false
     
     - name: 获取版本号
       id: get_version

@@ -527,6 +527,11 @@ namespace ImageColorChanger.UI
                 // 添加到根节点
                 _projectTreeItems.Add(projectNode);
 
+                // 🔧 修复：切换到项目模式并刷新显示
+                _currentViewMode = NavigationViewMode.Projects;
+                UpdateViewModeButtons();
+                FilterProjectTree();
+
                 // 选中新创建的项目
                 projectNode.IsSelected = true;
 

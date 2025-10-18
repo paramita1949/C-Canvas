@@ -101,7 +101,16 @@ namespace ImageColorChanger.UI
 
         // 项目数据
         private ObservableCollection<ProjectTreeItem> _projectTreeItems = new ObservableCollection<ProjectTreeItem>();
+        private ObservableCollection<ProjectTreeItem> _filteredProjectTreeItems = new ObservableCollection<ProjectTreeItem>(); // 🆕 过滤后的项目树
         private int _currentImageId = 0; // 当前加载的图片ID
+        
+        // 🆕 视图模式枚举
+        private enum NavigationViewMode
+        {
+            Files,      // 文件模式：显示文件夹和单文件
+            Projects    // 项目模式：显示TextProject节点
+        }
+        private NavigationViewMode _currentViewMode = NavigationViewMode.Files; // 🆕 当前视图模式，默认显示文件
 
         // 原图模式相关
         private bool _originalMode = false;
@@ -396,8 +405,8 @@ namespace ImageColorChanger.UI
             // 初始化视频播放器
             InitializeVideoPlayer();
             
-            // 初始化项目树
-            ProjectTree.ItemsSource = _projectTreeItems;
+            // 初始化项目树（绑定到过滤集合）
+            ProjectTree.ItemsSource = _filteredProjectTreeItems;
             
             // 添加拖拽事件处理
             ProjectTree.PreviewMouseLeftButtonDown += ProjectTree_PreviewMouseLeftButtonDown;
@@ -762,10 +771,99 @@ namespace ImageColorChanger.UI
                 //        System.Diagnostics.Debug.WriteLine($"  [{i}] {item.Type}: {item.Name} (ID={item.Id})");
                 //    }
                 //}
+                
+                // 🆕 加载完成后，根据当前视图模式过滤显示
+                FilterProjectTree();
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"加载项目失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 🆕 根据当前视图模式过滤项目树
+        /// </summary>
+        private void FilterProjectTree()
+        {
+            _filteredProjectTreeItems.Clear();
+            
+            if (_currentViewMode == NavigationViewMode.Files)
+            {
+                // 文件模式：只显示文件夹和单文件
+                foreach (var item in _projectTreeItems)
+                {
+                    if (item.Type == TreeItemType.Folder || item.Type == TreeItemType.File)
+                    {
+                        _filteredProjectTreeItems.Add(item);
+                    }
+                }
+            }
+            else // NavigationViewMode.Projects
+            {
+                // 项目模式：只显示TextProject节点
+                foreach (var item in _projectTreeItems)
+                {
+                    if (item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
+                    {
+                        _filteredProjectTreeItems.Add(item);
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 🆕 文件按钮点击事件
+        /// </summary>
+        private void BtnShowFiles_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentViewMode == NavigationViewMode.Files) return;
+            
+            _currentViewMode = NavigationViewMode.Files;
+            UpdateViewModeButtons();
+            FilterProjectTree();
+        }
+        
+        /// <summary>
+        /// 🆕 项目按钮点击事件
+        /// </summary>
+        private void BtnShowProjects_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentViewMode == NavigationViewMode.Projects) return;
+            
+            _currentViewMode = NavigationViewMode.Projects;
+            UpdateViewModeButtons();
+            FilterProjectTree();
+        }
+        
+        /// <summary>
+        /// 🆕 更新切换按钮的视觉状态
+        /// </summary>
+        private void UpdateViewModeButtons()
+        {
+            if (_currentViewMode == NavigationViewMode.Files)
+            {
+                // 文件按钮激活
+                BtnShowFiles.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+                BtnShowFiles.Foreground = new SolidColorBrush(Colors.White);
+                BtnShowFiles.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2"));
+                
+                // 项目按钮未激活
+                BtnShowProjects.Background = new SolidColorBrush(Colors.White);
+                BtnShowProjects.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
+                BtnShowProjects.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
+            }
+            else
+            {
+                // 文件按钮未激活
+                BtnShowFiles.Background = new SolidColorBrush(Colors.White);
+                BtnShowFiles.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
+                BtnShowFiles.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
+                
+                // 项目按钮激活
+                BtnShowProjects.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+                BtnShowProjects.Foreground = new SolidColorBrush(Colors.White);
+                BtnShowProjects.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2"));
             }
         }
 

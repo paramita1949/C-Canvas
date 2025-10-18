@@ -823,10 +823,17 @@ namespace ImageColorChanger.UI
                 }
                 
                 //System.Diagnostics.Debug.WriteLine($"✅ [UpdateFolderOrderOnly] 文件夹顺序更新完成，Project节点位置保持不变");
+                
+                // 🔧 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
+                FilterProjectTree();
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [UpdateFolderOrderOnly] 轻量级更新失败: {ex.Message}");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [UpdateFolderOrderOnly] 轻量级更新失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
                 // 如果轻量级更新失败，回退到完整刷新
                 LoadProjects();
             }
@@ -874,6 +881,9 @@ namespace ImageColorChanger.UI
                 {
                     _projectTreeItems.Move(sourceTreeIndex, targetTreeIndex);
                     //System.Diagnostics.Debug.WriteLine($"✅ [ReorderProjects] Project节点移动完成: {sourceItem.Name} 从位置{sourceTreeIndex}移动到位置{targetTreeIndex}");
+                    
+                    // 🔧 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
+                    FilterProjectTree();
                 }
                 
                 // TODO: 如果需要持久化Project节点的顺序，可以在这里保存到数据库
@@ -881,7 +891,11 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [ReorderProjects] Project排序失败: {ex.Message}");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [ReorderProjects] Project排序失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
             }
         }
 
