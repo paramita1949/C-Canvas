@@ -1,7 +1,7 @@
 <Window x:Class="ImageColorChanger.UI.ScriptEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="脚本信息编辑" Height="300" Width="300"
+        Title="脚本编辑" Height="300" Width="300"
         WindowStartupLocation="CenterOwner"
         Background="#f0f0f0">
     <Grid Margin="10">
@@ -29,7 +29,7 @@
         <!-- 保存按钮 -->
         <Button Grid.Row="2" 
                 x:Name="BtnSave"
-                Content="保存修改" 
+                Content="保存" 
                 Width="100" 
                 Height="30"
                 FontSize="12"
