@@ -423,8 +423,7 @@ namespace ImageColorChanger.UI
             ImageScrollViewer.ScrollChanged += ImageScrollViewer_ScrollChanged;
             
             // 加载项目（文件夹在前，Project节点在后）
-            LoadProjects(); // 先加载文件夹和文件
-            LoadTextProjectsToTree(); // 再加载Project节点到最后
+            LoadProjects(); // 加载文件夹、文件和项目节点
             
             // 初始化全局热键
             InitializeGlobalHotKeys();
@@ -605,13 +604,7 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($"🔄 [LoadProjects] 开始加载项目树...");
                 
-                // 🔧 全新思路：保存现有的Project节点，但不保存位置，因为Project节点永远在最后
-                var existingProjects = _projectTreeItems
-                    .Where(item => item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
-                    .ToList();
-                
-                //System.Diagnostics.Debug.WriteLine($"📋 [LoadProjects] 保存了 {existingProjects.Count} 个现有Project节点");
-                
+                // 🔧 修复：不保存Project节点，直接清空，让LoadTextProjectsToTree从数据库重新加载
                 _projectTreeItems.Clear();
 
                 // 获取所有文件夹
@@ -741,12 +734,8 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"📄 [LoadProjects] 添加根目录文件: {file.Name} (ID={file.Id})");
                 }
 
-                // 🔧 全新思路：将Project节点添加到最后，永远在所有文件夹后面
-                foreach (var project in existingProjects)
-                {
-                    _projectTreeItems.Add(project);
-                    //System.Diagnostics.Debug.WriteLine($"📋 [LoadProjects] 将Project节点添加到最后: {project.Name} (ID={project.Id})");
-                }
+                // 🔧 修复：加载文本项目（从数据库重新加载，确保删除的项目不会显示）
+                LoadTextProjectsToTree();
                 
                 //System.Diagnostics.Debug.WriteLine($"✅ [LoadProjects] 项目树加载完成!");
                 //System.Diagnostics.Debug.WriteLine($"📊 [LoadProjects] 总计: {_projectTreeItems.Count} 个项目 (文件夹+单文件在前，Project节点在后)");
