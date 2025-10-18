@@ -1727,6 +1727,13 @@ namespace ImageColorChanger.UI
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
                         #endif
+                        
+                        // 🔧 修复：更新播放控制状态（检查录制数据，更新脚本按钮颜色）
+                        if (_playbackViewModel != null)
+                        {
+                            var mode = _originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe;
+                            _ = _playbackViewModel.SetCurrentImageAsync(_currentImageId, mode);
+                        }
                     }
                     
                     // 颜色效果由 ImageProcessor 内部处理
