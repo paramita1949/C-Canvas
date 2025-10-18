@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -421,6 +422,15 @@ namespace ImageColorChanger.UI
 
                 // 🆕 加载完成后，保存按钮恢复为白色
                 BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
+
+                // 🔧 修复：重置脚本按钮状态（文本项目没有录制数据）
+                if (_playbackViewModel != null)
+                {
+                    // 文本项目不使用关键帧录制数据，强制设置为无数据状态（imageId=0表示无图片）
+                    // SetCurrentImageAsync会检查时间数据，imageId=0时会设置HasTimingData=false
+                    // 这样脚本按钮会恢复默认颜色
+                    await _playbackViewModel.SetCurrentImageAsync(0, PlaybackMode.Keyframe);
+                }
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: {_currentTextProject.Name}");
                 
