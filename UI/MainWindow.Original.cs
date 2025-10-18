@@ -255,37 +255,21 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnOriginalPlaybackSwitchImageRequested(object sender, SwitchImageEventArgs e)
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"\n🔔 [UI事件] OnOriginalPlaybackSwitchImageRequested 被触发");
-            System.Diagnostics.Debug.WriteLine($"   ImageId: {e.ImageId}");
-            System.Diagnostics.Debug.WriteLine($"   ImagePath: {e.ImagePath ?? "null"}");
-            #endif
-            
             // 必须在UI线程上执行
             Dispatcher.InvokeAsync(() =>
             {
                 try
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   ✅ 已进入UI线程");
-                    #endif
-
                     // 🎯 更新当前图片ID（必须先更新，否则项目树选择逻辑会错乱）
                     _currentImageId = e.ImageId;
 
                     // 如果提供了路径，直接加载
                     if (!string.IsNullOrEmpty(e.ImagePath))
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   📂 使用提供的路径加载: {e.ImagePath}");
-                        #endif
                         LoadImage(e.ImagePath);
                     }
                     else
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   🔍 根据ImageId查找路径...");
-                        #endif
                         // 根据ImageId查找路径并加载
                         var dbContext = _dbManager?.GetDbContext();
                         if (dbContext != null)
@@ -293,23 +277,8 @@ namespace ImageColorChanger.UI
                             var mediaFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == e.ImageId);
                             if (mediaFile != null)
                             {
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"   📂 找到文件，加载: {mediaFile.Path}");
-                                #endif
                                 LoadImage(mediaFile.Path);
                             }
-                            else
-                            {
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"   ❌ 未找到ImageId={e.ImageId}的文件");
-                                #endif
-                            }
-                        }
-                        else
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   ❌ dbContext为null");
-                            #endif
                         }
                     }
 

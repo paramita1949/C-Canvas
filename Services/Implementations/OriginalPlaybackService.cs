@@ -89,41 +89,16 @@ namespace ImageColorChanger.Services.Implementations
         /// </summary>
         public async Task StartPlaybackAsync(int imageId, CancellationToken cancellationToken = default)
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"\n🎬 [原图播放] ========== StartPlaybackAsync 被调用 ==========");
-            System.Diagnostics.Debug.WriteLine($"   ImageId: {imageId}");
-            System.Diagnostics.Debug.WriteLine($"   当前 IsPlaying: {IsPlaying}");
-            #endif
-
             if (IsPlaying)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [原图播放] 已在播放中，忽略启动请求");
-                #endif
                 return;
             }
 
             // 加载时间序列
             _timingSequence = await _originalModeRepository.GetOriginalTimingSequenceAsync(imageId);
-            
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📊 [原图播放] 时间序列加载完成");
-            System.Diagnostics.Debug.WriteLine($"   序列数量: {_timingSequence?.Count ?? 0}");
-            if (_timingSequence != null && _timingSequence.Any())
-            {
-                for (int i = 0; i < _timingSequence.Count; i++)
-                {
-                    var seq = _timingSequence[i];
-                    System.Diagnostics.Debug.WriteLine($"   [{i}] FromId={seq.FromImageId}, ToId={seq.SimilarImageId}, Duration={seq.Duration:F2}s");
-                }
-            }
-            #endif
 
             if (_timingSequence == null || !_timingSequence.Any())
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 时间序列为空，无法播放");
-                #endif
                 return;
             }
 
@@ -134,15 +109,6 @@ namespace ImageColorChanger.Services.Implementations
 
             IsPlaying = true;
             _cancellationTokenSource = new CancellationTokenSource();
-
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [原图播放] 播放状态初始化完成");
-            System.Diagnostics.Debug.WriteLine($"   _currentBaseImageId: {_currentBaseImageId}");
-            System.Diagnostics.Debug.WriteLine($"   _currentIndex: {_currentIndex}");
-            System.Diagnostics.Debug.WriteLine($"   PlayCount: {PlayCount}");
-            System.Diagnostics.Debug.WriteLine($"   CompletedPlayCount: {CompletedPlayCount}");
-            System.Diagnostics.Debug.WriteLine($"🚀 [原图播放] 启动播放循环任务...");
-            #endif
 
             // 启动播放循环
             _ = Task.Run(() => PlaybackLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
@@ -156,61 +122,22 @@ namespace ImageColorChanger.Services.Implementations
         {
             try
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"\n🔄 [原图播放] ========== PlaybackLoopAsync 开始 ==========");
-                #endif
-
-                int loopIteration = 0;
-                
                 while (IsPlaying && !cancellationToken.IsCancellationRequested)
                 {
-                    loopIteration++;
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"\n⏩ [原图播放] 循环迭代 #{loopIteration}");
-                    System.Diagnostics.Debug.WriteLine($"   _currentIndex: {_currentIndex}/{_timingSequence.Count}");
-                    System.Diagnostics.Debug.WriteLine($"   CompletedPlayCount: {CompletedPlayCount}");
-                    System.Diagnostics.Debug.WriteLine($"   PlayCount: {PlayCount}");
-                    System.Diagnostics.Debug.WriteLine($"   IsPlaying: {IsPlaying}");
-                    System.Diagnostics.Debug.WriteLine($"   IsPaused: {_isPaused}");
-                    #endif
-                        
                     // 判断是否应该继续播放
                     bool shouldContinue = PlayCountJudge.ShouldContinue(PlayCount, CompletedPlayCount);
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   ShouldContinue: {shouldContinue}");
-                    #endif
 
                     if (!shouldContinue)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🛑 [原图播放] 播放次数已达上限，退出循环");
-                        #endif
                         break;
                     }                    
                     
                     // 播放下一帧
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 调用 PlayNextFrameAsync...");
-                    #endif
                     await PlayNextFrameAsync(cancellationToken);
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [原图播放] PlayNextFrameAsync 返回");
-                    System.Diagnostics.Debug.WriteLine($"   返回后 _currentIndex: {_currentIndex}");
-                    #endif
                     
                     // 添加短暂延迟，避免死循环占用CPU
                     await Task.Delay(10, cancellationToken);
                 }
-                
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"\n🏁 [原图播放] 播放循环结束");
-                System.Diagnostics.Debug.WriteLine($"   总迭代次数: {loopIteration}");
-                System.Diagnostics.Debug.WriteLine($"   最终 _currentIndex: {_currentIndex}");
-                System.Diagnostics.Debug.WriteLine($"   最终 CompletedPlayCount: {CompletedPlayCount}");
-                #endif
                     
                 // 播放结束
                 await StopPlaybackAsync();
@@ -218,16 +145,9 @@ namespace ImageColorChanger.Services.Implementations
             }
             catch (OperationCanceledException)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [原图播放] 播放被取消");
-                #endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [原图播放] 播放循环异常: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"   StackTrace: {ex.StackTrace}");
-                #endif
             }
         }
 
