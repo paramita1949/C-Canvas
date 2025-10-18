@@ -181,41 +181,16 @@ namespace ImageColorChanger.Managers.Keyframes
                     
                     // 检查录制状态（优先使用新的ViewModel系统）
                     bool wasRecording = _mainWindow._playbackViewModel?.IsRecording ?? false;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [循环检测] 是否正在录制: {wasRecording}");
-                    #endif
                     
                     // 如果正在录制，自动停止录制（参考Python版本 playback_controller.py 第50-64行）
                     if (wasRecording)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("📹 [录制] 检测到循环，准备自动停止录制");
-                        #endif
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   当前索引: {currentIndex}, 关键帧总数: {keyframes.Count}");
-                        #endif
                         
                         // 1. 先记录最后一帧的时间（重要！参考Python版本第50-56行）
                         if (currentIndex >= 0 && currentIndex < keyframes.Count)
                         {
                             var lastKeyframe = keyframes[currentIndex];
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📝 [录制] 开始记录最后一帧: #{currentIndex + 1}, KeyframeId={lastKeyframe.Id}");
-                            #endif
-                            var sw = System.Diagnostics.Stopwatch.StartNew();
-                            
                             await _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id);
-                            
-                            sw.Stop();
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📝 [录制] 最后一帧记录完成，耗时: {sw.ElapsedMilliseconds}ms");
-                            #endif
-                        }
-                        else
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [录制] 无效的索引，跳过记录最后一帧: currentIndex={currentIndex}, count={keyframes.Count}");
-                            #endif
                         }
                         
                         // 2. 然后停止录制
@@ -223,76 +198,31 @@ namespace ImageColorChanger.Managers.Keyframes
                         var command = viewModel?.ToggleRecordingCommand;
                         bool canExecute = command?.CanExecute(null) ?? false;
                         
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔍 [命令检查] ViewModel存在: {viewModel != null}, Command存在: {command != null}, CanExecute: {canExecute}");
-                        #endif
-                        
                         // 使用ViewModel的录制命令停止录制
                         if (canExecute)
                         {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("⏸️ [录制] 开始执行停止录制命令...");
-                            #endif
-                            var stopSw = System.Diagnostics.Stopwatch.StartNew();
-                            
                             await command.ExecuteAsync(null).ConfigureAwait(false);
                             
-                            stopSw.Stop();
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"✅ [录制] 停止录制命令执行完成，耗时: {stopSw.ElapsedMilliseconds}ms");
-                            #endif
-                            
                             // 等待一小段时间确保录制状态完全清除
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("⏳ [录制] 等待状态清除 (50ms)...");
-                            #endif
                             await System.Threading.Tasks.Task.Delay(50).ConfigureAwait(false);
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("✅ [录制] 状态清除完成");
-                            #endif
                             
                             // 录制结束后，延迟自动启动播放（参考Python版本第64行）
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("🎬 [录制] 准备延迟启动自动播放...");
-                            #endif
                             _ = _mainWindow.Dispatcher.InvokeAsync(async () =>
                             {
                                 await System.Threading.Tasks.Task.Delay(100);
                                 await AutoStartPlayAfterRecording(currentImageId);
                             }, System.Windows.Threading.DispatcherPriority.Background);
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("✅ [录制] 自动播放任务已提交");
-                            #endif
-                        }
-                        else
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine("⚠️ [录制] 命令无法执行，可能状态不正确");
-                            #endif
                         }
                         
                         // 无论停止录制是否成功，都标记为不再记录时间
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📍 [录制] 设置shouldReturn=true，准备继续跳转逻辑");
-                        #endif
                         shouldReturn = true;
                     }
                 }
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📍 [导航] 循环处理完成，准备继续跳转到目标帧 #{targetIndex + 1}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   shouldReturn={shouldReturn}");
-                #endif
 
                 // 注意：不要在这里提前返回，继续执行跳转逻辑
                 // shouldReturn 只用于控制最后是否记录时间
 
                 // 检测回跳
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📍 [导航] 检测回跳...");
-                #endif
                 bool isBackwardJump = _keyframeManager.IsBackwardJump(targetIndex);
                 if (isBackwardJump)
                 {
@@ -311,51 +241,21 @@ namespace ImageColorChanger.Managers.Keyframes
                 bool isLoopingBack = (targetIndex == 0 && currentIndex == keyframes.Count - 1);
                 bool useDirectJump = forceDirectJump || isFirstExecution || isLoopingBack || isBackwardJump || _keyframeManager.ScrollDuration == 0;
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎯 [下一帧] 目标索引: {targetIndex + 1}/{keyframes.Count}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   跳转模式: {(useDirectJump ? "直接跳转" : "平滑滚动")}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   条件: 首次={isFirstExecution}, 强制={forceDirectJump}, 循环回={isLoopingBack}, 回跳={isBackwardJump}, 持续0={_keyframeManager.ScrollDuration == 0}");
-                #endif
-
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 开始直接跳转到 #{targetIndex + 1}...");
-                    #endif
-                    var jumpSw = System.Diagnostics.Stopwatch.StartNew();
-                    
                     var scrollViewer = _mainWindow.ImageScrollViewer;
                     var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   目标位置: {targetPosition:F3} (offset: {targetOffset:F1})");
-                    #endif
-                    
                     scrollViewer.ScrollToVerticalOffset(targetOffset);
                     
                     if (_mainWindow.IsProjectionEnabled)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   更新投影...");
-                        #endif
                         _mainWindow.UpdateProjection();
                     }
-                    
-                    jumpSw.Stop();
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [下一帧] 直接跳转完成，耗时: {jumpSw.ElapsedMilliseconds}ms");
-                    #endif
                 }
                 else
                 {
                     // 平滑滚动
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🎬 [下一帧] 开始平滑滚动到 #{targetIndex + 1} (持续:{_keyframeManager.ScrollDuration}秒)");
-                    #endif
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 

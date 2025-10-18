@@ -1783,45 +1783,17 @@ namespace ImageColorChanger.UI
         {
             try
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("\n🗑️ ========== ClearImageDisplay 被调用 ==========");
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   清空前 _imagePath: {_imagePath ?? "null"}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   清空前 _currentImageId: {_currentImageId}");
-                #endif
-#endif
-                
                 // 清空图片路径
                 _imagePath = null;
                 _currentImageId = 0;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤1: _imagePath 和 _currentImageId 已清空");
-#endif
                 
                 // 清空ImageProcessor（内部管理图片资源）
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤2: 调用 _imageProcessor.ClearCurrentImage()");
-#endif
                 _imageProcessor.ClearCurrentImage();
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤2: _imageProcessor.ClearCurrentImage() 完成");
-#endif
                 
                 // 重置缩放
                 _currentZoom = 1.0;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤3: _currentZoom 重置为 1.0");
-#endif
                 
                 ShowStatus("✅ 已清空图片显示");
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("🎯 已清空图片显示");
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("========== ClearImageDisplay 完成 ==========\n");
-                #endif
-#endif
             }
             catch (Exception ex)
             {
@@ -2818,77 +2790,20 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SwitchToImageMode()
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("\n🔄 ========== SwitchToImageMode 被调用 ==========");
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   当前时间: {DateTime.Now:HH:mm:ss:fff}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager != null: {_videoPlayerManager != null}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager.IsPlaying: {_videoPlayerManager?.IsPlaying}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   当前 _imagePath: {_imagePath ?? "null"}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   当前 _currentImageId: {_currentImageId}");
-            #endif
-#endif
-            
             // 停止视频播放
             if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤1: 停止视频播放");
-#endif
                 _videoPlayerManager.Stop();
             }
-#if DEBUG
-            else
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("   步骤1: 视频未播放，跳过停止");
-                #endif
-            }
-#endif
             
             // 隐藏视频播放区域
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   步骤2: 隐藏视频容器 (当前: {VideoContainer.Visibility})");
-#endif
             VideoContainer.Visibility = Visibility.Collapsed;
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   步骤2: 视频容器已设置为 {VideoContainer.Visibility}");
-#endif
             
             // 隐藏媒体控制栏
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   步骤3: 隐藏媒体控制栏 (当前: {MediaPlayerPanel.Visibility})");
-#endif
             MediaPlayerPanel.Visibility = Visibility.Collapsed;
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   步骤3: 媒体控制栏已设置为 {MediaPlayerPanel.Visibility}");
-#endif
             
             // 清空图片显示（避免回到之前的图片）
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("   步骤4: 调用 ClearImageDisplay()");
-#endif
             ClearImageDisplay();
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   步骤4: ClearImageDisplay() 完成");
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   清空后 _imagePath: {_imagePath ?? "null"}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   清空后 _currentImageId: {_currentImageId}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("========== SwitchToImageMode 完成 ==========\n");
-            #endif
-#endif
         }
         
         /// <summary>
