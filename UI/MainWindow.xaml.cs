@@ -459,26 +459,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void UpdateProjection()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎬 [MainWindow.UpdateProjection] 被调用");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   _imageProcessor.CurrentImage = {_imageProcessor?.CurrentImage?.Width}x{_imageProcessor?.CurrentImage?.Height}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   _projectionManager = {_projectionManager != null}");
-            #endif
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"   _projectionManager.IsProjectionActive = {_projectionManager?.IsProjectionActive}");
-            #endif
-            
             if (_imageProcessor.CurrentImage != null)
             {
                 if (_projectionManager != null && _projectionManager.IsProjectionActive)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [MainWindow.UpdateProjection] 调用 UpdateProjectionImage");
-                    #endif
                     _projectionManager?.UpdateProjectionImage(
                         _imageProcessor.CurrentImage,
                         _isColorEffectEnabled,
@@ -487,18 +471,6 @@ namespace ImageColorChanger.UI
                         _originalDisplayMode  // 传递原图显示模式
                     );
                 }
-                else
-                {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjection] 投影未开启，跳过");
-                    #endif
-                }
-            }
-            else
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjection] _imageProcessor.CurrentImage 为 null");
-                #endif
             }
         }
 
@@ -1657,12 +1629,7 @@ namespace ImageColorChanger.UI
                 _imageProcessor.IsInverted = _isColorEffectEnabled;
                 
                 // 使用ImageProcessor加载图片
-                var loadStart = sw.ElapsedMilliseconds;
                 bool success = _imageProcessor.LoadImage(path);
-                var loadTime = sw.ElapsedMilliseconds - loadStart;
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ImageProcessor.LoadImage: {loadTime}ms");
-                #endif
                 
                 if (success)
                 {
@@ -1672,14 +1639,7 @@ namespace ImageColorChanger.UI
                     // ⭐ 关键逻辑: 检查当前图片是否有原图标记,自动启用/关闭原图模式
                     if (_currentImageId > 0)
                     {
-                        var dbCheckStart = sw.ElapsedMilliseconds;
                         bool shouldUseOriginal = _originalManager.ShouldUseOriginalMode(_currentImageId);
-                        var dbCheckTime = sw.ElapsedMilliseconds - dbCheckStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 数据库检查原图标记: {dbCheckTime}ms");
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [LoadImage] 原图标记检查结果: shouldUseOriginal={shouldUseOriginal}");
-                        //System.Diagnostics.Debug.WriteLine($"   当前 _originalMode={_originalMode}");
-                        #endif
                         
                         if (shouldUseOriginal && !_originalMode)
                         {
@@ -1704,12 +1664,7 @@ namespace ImageColorChanger.UI
                         // 这样切换到新歌曲时，相似图片列表会更新为新歌曲的图片
                         if (_originalMode)
                         {
-                            var findStart = sw.ElapsedMilliseconds;
                             _originalManager.FindSimilarImages(_currentImageId);
-                            var findTime = sw.ElapsedMilliseconds - findStart;
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 查找相似图片: {findTime}ms");
-                            #endif
                             
                             // ⚡ 立即触发智能预缓存（不等待用户操作）
                             // 这样第一次切换时预缓存已经完成或接近完成
@@ -1717,12 +1672,7 @@ namespace ImageColorChanger.UI
                         }
                         
                         // 🌲 同步项目树选中状态
-                        var treeStart = sw.ElapsedMilliseconds;
                         SelectTreeItemById(_currentImageId);
-                        var treeTime = sw.ElapsedMilliseconds - treeStart;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 同步项目树: {treeTime}ms");
-                        #endif
                         
                         // 🔧 修复：更新播放控制状态（检查录制数据，更新脚本按钮颜色）
                         if (_playbackViewModel != null)
@@ -1735,20 +1685,10 @@ namespace ImageColorChanger.UI
                     // 颜色效果由 ImageProcessor 内部处理
                     
                     // 更新投影
-                    var projStart = sw.ElapsedMilliseconds;
                     UpdateProjection();
-                    var projTime = sw.ElapsedMilliseconds - projStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新投影: {projTime}ms");
-                    #endif
                     
                     // 更新关键帧预览线和指示块
-                    var kfStart = sw.ElapsedMilliseconds;
                     _keyframeManager?.UpdatePreviewLines();
-                    var kfTime = sw.ElapsedMilliseconds - kfStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] 更新关键帧预览: {kfTime}ms");
-                    #endif
                     
                     // 🔧 更新 PlaybackViewModel 状态（检查时间数据，更新脚本按钮颜色）
                     if (_playbackViewModel != null && _currentImageId > 0)
@@ -1758,9 +1698,6 @@ namespace ImageColorChanger.UI
                     }
                     
                     sw.Stop();
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== LoadImage 总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                    #endif
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
                 else

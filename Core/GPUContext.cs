@@ -252,10 +252,10 @@ namespace ImageColorChanger.Core
                 
 #if DEBUG
                 // 只在耗时较长时输出日志（减少日志噪音）
-                if (sw.ElapsedMilliseconds > 10)
-                {
-                    Debug.WriteLine($"⚡ [CPU] 缩放: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
-                }
+                //if (sw.ElapsedMilliseconds > 10)
+                //{
+                //    Debug.WriteLine($"⚡ [CPU] 缩放: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
+                //}
 #endif
 
                 return result;

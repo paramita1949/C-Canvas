@@ -254,33 +254,17 @@ namespace ImageColorChanger.Core
             try
             {
                 // 验证文件
-                var validateStart = sw.ElapsedMilliseconds;
                 if (!ValidateImageFile(path))
                 {
                     throw new Exception("无效的图片文件");
                 }
-                var validateTime = sw.ElapsedMilliseconds - validateStart;
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ├─ 验证文件: {validateTime}ms");
-                #endif
                 
                 // 清除当前图片（不清除缓存，只清除当前引用）
-                var clearStart = sw.ElapsedMilliseconds;
                 ClearCurrentImageOnly();
-                var clearTime = sw.ElapsedMilliseconds - clearStart;
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ├─ 清除当前图片: {clearTime}ms");
-                #endif
                 
                 // ⚡ 先检查LRU缓存
-                var cacheCheckStart = sw.ElapsedMilliseconds;
                 if (_imageMemoryCache.TryGetValue(path, out SKBitmap cachedImage))
                 {
-                    var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ├─ ⚡ LRU缓存命中: {cacheTime}ms - {System.IO.Path.GetFileName(path)}");
-                    #endif
-                    
                     // 🔧 性能优化：直接共享引用，不克隆（节省时间）
                     originalImage = cachedImage;
                     currentImage = cachedImage; // 直接共享，不Clone
@@ -288,24 +272,13 @@ namespace ImageColorChanger.Core
                 }
                 else
                 {
-                    var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ├─ 缓存未命中: {cacheTime}ms");
-                    #endif
-                    
                     // 缓存未命中，从磁盘加载
-                    var diskLoadStart = sw.ElapsedMilliseconds;
                     originalImage = LoadImageOptimized(path);
-                    var diskLoadTime = sw.ElapsedMilliseconds - diskLoadStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ├─ 💾 从磁盘加载: {diskLoadTime}ms - {System.IO.Path.GetFileName(path)}");
-                    #endif
                     
                     currentImage = originalImage; // 🔧 也不Clone，直接共享
                     currentImagePath = path;
                     
                     // ⚡ 加入LRU缓存
-                    var cacheAddStart = sw.ElapsedMilliseconds;
                     var entryOptions = new MemoryCacheEntryOptions
                     {
                         // 按图片大小计算权重（1MB = 1权重单位）
@@ -315,48 +288,28 @@ namespace ImageColorChanger.Core
                     };
                     
                     _imageMemoryCache.Set(path, originalImage, entryOptions);
-                    var cacheAddTime = sw.ElapsedMilliseconds - cacheAddStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ├─ 📦 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
-                    #endif
                 }
                 
                 // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
                 lastUpdateTime = DateTime.MinValue;
                 
                 // 更新显示
-                var updateStart = sw.ElapsedMilliseconds;
                 bool success = UpdateImage();
-                var updateTime = sw.ElapsedMilliseconds - updateStart;
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ├─ 更新显示: {updateTime}ms");
-                #endif
                 
                 if (success)
                 {
                     // 重置滚动条到顶部
-                    var scrollStart = sw.ElapsedMilliseconds;
                     scrollViewer.ScrollToTop();
                     scrollViewer.ScrollToLeftEnd();
-                    var scrollTime = sw.ElapsedMilliseconds - scrollStart;
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ├─ 重置滚动条: {scrollTime}ms");
-                    #endif
                     
                     // 🔧 重置关键帧索引（参考Python版本）
                     mainWindow.ResetKeyframeIndex();
                     
                     sw.Stop();
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 完成: {sw.ElapsedMilliseconds}ms");
-                    #endif
                     return true;
                 }
                 
                 sw.Stop();
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 失败: {sw.ElapsedMilliseconds}ms");
-                #endif
                 return false;
             }
             catch (Exception)
