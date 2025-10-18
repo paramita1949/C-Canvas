@@ -23,6 +23,9 @@ namespace ImageColorChanger
 
             try
             {
+                // 初始化资源加载器（检测PAK或使用文件系统）
+                ResourceLoader.Initialize();
+                
                 // 配置依赖注入
                 var services = new ServiceCollection();
                 ConfigureServices(services);

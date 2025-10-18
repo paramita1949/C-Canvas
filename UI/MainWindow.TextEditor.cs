@@ -62,10 +62,10 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var fontsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Fonts");
-                var configPath = Path.Combine(fontsPath, "fonts.json");
-
-                if (!File.Exists(configPath))
+                // 🔧 使用ResourceLoader加载字体配置（支持PAK）
+                var json = Core.ResourceLoader.LoadTextFile("Fonts/fonts.json");
+                
+                if (string.IsNullOrEmpty(json))
                 {
                     //System.Diagnostics.Debug.WriteLine($"⚠️ 未找到 fonts.json，加载系统默认字体");
                     LoadSystemDefaultFonts();
@@ -73,7 +73,6 @@ namespace ImageColorChanger.UI
                 }
 
                 // 读取配置文件
-                var json = File.ReadAllText(configPath);
                 var config = JsonSerializer.Deserialize<FontConfig>(json, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
@@ -120,62 +119,27 @@ namespace ImageColorChanger.UI
                             else
                             {
                                 // 自定义字体文件
-                                var fontFilePath = Path.Combine(fontsPath, font.File);
-                                if (!File.Exists(fontFilePath))
+                                var fontRelativePath = $"Fonts/{font.File}";
+                                if (!Core.ResourceLoader.ResourceExists(fontRelativePath))
                                 {
-                                    //System.Diagnostics.Debug.WriteLine($"⚠️ 字体文件不存在: {fontFilePath}");
+                                    //System.Diagnostics.Debug.WriteLine($"⚠️ 字体文件不存在: {fontRelativePath}");
                                     continue;
                                 }
 
-                                // 从文件加载字体 - 使用基于应用程序目录的URI
+                                // 🔧 使用ResourceLoader加载字体（支持PAK）
                                 try
                                 {
-                                    // 🔍 先使用GlyphTypeface读取字体文件的真实族名称
-                                    string realFontFamily = font.Family;
+                                    fontFamily = Core.ResourceLoader.LoadFont(fontRelativePath, font.Family);
                                     
-                                    try
+                                    if (fontFamily == null)
                                     {
-                                        var absoluteFontUri = new Uri(fontFilePath, UriKind.Absolute);
-                                        var glyphTypeface = new System.Windows.Media.GlyphTypeface(absoluteFontUri);
-                                        if (glyphTypeface.FamilyNames.Count > 0)
-                                        {
-                                            // 优先使用中文名称，否则使用英文名称
-                                            var zhCN = System.Globalization.CultureInfo.GetCultureInfo("zh-CN");
-                                            var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
-                                            
-                                            if (glyphTypeface.FamilyNames.ContainsKey(zhCN))
-                                                realFontFamily = glyphTypeface.FamilyNames[zhCN];
-                                            else if (glyphTypeface.FamilyNames.ContainsKey(enUS))
-                                                realFontFamily = glyphTypeface.FamilyNames[enUS];
-                                            else
-                                                realFontFamily = glyphTypeface.FamilyNames.Values.First();
+                                        //System.Diagnostics.Debug.WriteLine($"❌ 字体加载失败: {font.Name}");
+                                        continue;
                                     }
-                                }
-                                catch (Exception)
-                                {
-                                    //System.Diagnostics.Debug.WriteLine($"⚠️ 无法读取字体族名称，使用配置值: {glyphEx.Message}");
-                                    }
-                                    
-                                    // 🎯 使用基于应用程序目录的BaseUri + 相对路径
-                                    // 这样无论程序在哪个目录都能正确加载字体
-                                    var appDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                                    var baseUri = new Uri(appDirectory);
-                                    var relativeFontPath = $"./Fonts/{font.File.Replace("\\", "/")}";
-                                    
-                                    // WPF FontFamily 构造函数：FontFamily(baseUri, familyName)
-                                    // familyName 格式：相对路径#字体族名称
-                                    fontFamily = new System.Windows.Media.FontFamily(baseUri, $"{relativeFontPath}#{realFontFamily}");
-                                    
-                                    // 更新配置中的Family（用于后续保存）
-                                    font.Family = realFontFamily;
-                                    
-                                    // 🔍 输出字体的实际 FamilyNames，帮助调试
                                 }
                                 catch (Exception)
                                 {
                                     //System.Diagnostics.Debug.WriteLine($"❌ 字体加载失败: {font.Name}");
-                                    //System.Diagnostics.Debug.WriteLine($"   文件: {fontFilePath}");
-                                    //System.Diagnostics.Debug.WriteLine($"   错误: {ex.Message}");
                                     continue;
                                 }
                             }
@@ -333,7 +297,7 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = "幻灯片 1",
                     SortOrder = 1,
-                    BackgroundColor = "#FFFFFF"
+                    BackgroundColor = "#000000"  // 默认黑色背景
                 };
                 _dbContext.Slides.Add(firstSlide);
                 await _dbContext.SaveChangesAsync();
@@ -397,7 +361,7 @@ namespace ImageColorChanger.UI
                         ProjectId = _currentTextProject.Id,
                         Title = "幻灯片 1",
                         SortOrder = 1,
-                        BackgroundColor = "#FFFFFF"
+                        BackgroundColor = "#000000"  // 默认黑色背景
                     };
                     _dbContext.Slides.Add(firstSlide);
                     await _dbContext.SaveChangesAsync();
@@ -623,7 +587,7 @@ namespace ImageColorChanger.UI
                     Content = "双击编辑文字",
                     FontSize = 10,  // 默认字号10（实际渲染时会放大2倍显示为20）
                     FontFamily = "Microsoft YaHei UI",
-                    FontColor = "#000000",
+                    FontColor = "#FFFFFF",  // 默认白色字体
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
 
@@ -2500,7 +2464,7 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = maxOrder + 1,
-                    BackgroundColor = "#FFFFFF"
+                    BackgroundColor = "#000000"  // 默认黑色背景
                 };
 
                 _dbContext.Slides.Add(newSlide);

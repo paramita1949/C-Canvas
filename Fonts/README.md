@@ -1,121 +1,93 @@
-# 自定义字体库说明
+# 字体配置说明
 
-## 📁 文件夹结构
+本目录包含Canvas Cast项目的字体配置和字体文件。
+
+## 文件结构
 
 ```
 Fonts/
-├── Chinese/          ← 放置中文字体文件 (.ttf)
-├── English/          ← 放置英文字体文件 (.ttf)
-├── Number/           ← 放置数字字体文件 (.ttf)
-├── fonts.json        ← 字体配置文件
-└── README.md         ← 本说明文件
+├── Chinese/                    # 中文字体文件夹
+│   ├── 阿里巴巴普惠体.ttf
+│   ├── 站酷高端黑.ttf
+│   ├── 站酷小薇LOGO体.otf
+│   ├── 站酷庆科黄油体.ttf
+│   ├── 站酷文艺体.ttf
+│   ├── 思源宋体-Regular.ttf
+│   ├── 江西拙楷.ttf
+│   ├── 问藏书房.ttf
+│   ├── 卓健橄榄简体.ttf
+│   ├── 快看世界体.ttf
+│   ├── 胡晓波真帅体.otf
+│   └── 宝宝字帖拼音音标.ttf
+├── fonts-simplified.json       # 字体配置文件（简化版）
+├── fonts.json                  # 字体配置文件（完整版）
+└── README.md                   # 本文件
 ```
 
-## 🎯 如何添加自定义字体
+## 字体分类
 
-### 步骤 1：准备字体文件
-- 下载 TTF 或 OTF 格式的字体文件
-- 推荐使用 TTF 格式（更好的兼容性）
+### ⭐ 推荐字体
+- **阿里巴巴普惠体**：现代无衬线字体，清晰易读，适合正文和标题
+- **站酷高端黑**：醒目的黑体，适合标题和强调
+- **思源宋体**：优雅的宋体，适合正式文档和长文本
 
-### 步骤 2：放置字体文件
-- 中文字体 → 放入 `Chinese/` 文件夹
-- 英文字体 → 放入 `English/` 文件夹
-- 数字字体 → 放入 `Number/` 文件夹
+### 特色艺术字体
+- **站酷小薇LOGO体**：圆润可爱的字体，适合活泼主题
+- **站酷庆科黄油体**：黄油般流畅的字体，活泼有趣
+- **站酷文艺体**：文艺清新风格
+- **快看世界体**：现代感强的字体
+- **胡晓波真帅体**：个性化手写字体
 
-### 步骤 3：编辑 fonts.json
-在对应分类的 `fonts` 数组中添加配置：
+### 书法字体
+- **江西拙楷**：手写楷书风格
+- **问藏书房**：古典书法风格
+- **卓健橄榄简体**：流畅的书法字体
 
-```json
-{
-  "name": "思源黑体",
-  "file": "Chinese/SourceHanSansCN.ttf",
-  "family": "Source Han Sans CN",
-  "weight": "Regular",
-  "preview": "思源黑体 ABCabc 123",
-  "isFavorite": false
-}
-```
+### 特殊用途字体
+- **宝宝字帖拼音音标**：儿童教学用字体，带拼音音标
 
-**字段说明**：
-- `name`: 在下拉框中显示的名称
-- `file`: 字体文件路径（相对于 Fonts 文件夹）
-  - 使用 `"system"` 表示系统字体
-  - 使用相对路径表示自定义字体，如 `"Chinese/MyFont.ttf"`
-- `family`: 字体族名称（FontFamily）
-- `weight`: 字重（Regular, Bold, Light 等）
+### 系统字体
+- 微软雅黑、宋体、黑体、楷体
+- Arial、Times New Roman、Calibri、Impact、Consolas
+
+## 配置文件说明
+
+### fonts-simplified.json
+简化版配置文件，包含所有可用字体的基本信息：
+- `name`: 显示名称
+- `file`: 字体文件路径（相对于Fonts目录，或"system"表示系统字体）
+- `family`: 字体族名称（用于CSS/WPF）
+- `weight`: 字重（Regular、Bold等）
 - `preview`: 预览文本
-- `isFavorite`: 是否为收藏字体（true/false）
+- `isFavorite`: 是否为推荐字体
 
-### 步骤 4：重启程序
-保存 `fonts.json` 后重启程序，新字体将自动加载。
+### fonts.json
+完整版配置文件（如果需要更详细的配置）
 
-## 📥 推荐字体资源
+## 使用方法
 
-### 免费商用中文字体
-1. **思源黑体** - https://github.com/adobe-fonts/source-han-sans
-2. **思源宋体** - https://github.com/adobe-fonts/source-han-serif
-3. **阿里巴巴普惠体** - https://www.alibabafonts.com/
-4. **站酷高端黑** - https://www.zcool.com.cn/special/zcoolfonts/
-5. **霞鹜文楷** - https://github.com/lxgw/LxgwWenKai
+1. **添加新字体**：
+   - 将字体文件（.ttf/.otf）放入`Chinese/`文件夹
+   - 在`fonts-simplified.json`中添加字体配置
+   - 重启应用程序
 
-### 免费商用英文字体
-1. **Roboto** - https://fonts.google.com/specimen/Roboto
-2. **Open Sans** - https://fonts.google.com/specimen/Open+Sans
-3. **Montserrat** - https://fonts.google.com/specimen/Montserrat
-4. **Lato** - https://fonts.google.com/specimen/Lato
-5. **Inter** - https://rsms.me/inter/
+2. **修改默认字体**：
+   - 编辑`fonts-simplified.json`中的`defaultFont`字段
 
-### 数字字体
-1. **DIN Pro** - 搜索 "DIN Pro free"
-2. **Bebas Neue** - https://fonts.google.com/specimen/Bebas+Neue
-3. **Oswald** - https://fonts.google.com/specimen/Oswald
+3. **设置推荐字体**：
+   - 将字体的`isFavorite`设置为`true`
 
-## ⚠️ 注意事项
+## 字体版权说明
 
-1. **字体版权**：请确保使用的字体允许商业使用
-2. **文件大小**：单个字体文件通常 2-10MB，注意总大小
-3. **字体命名**：`family` 字段必须与字体文件中的 FontFamily 名称一致
-4. **文件路径**：使用正斜杠 `/` 或反斜杠 `\` 都可以
+本项目字体来源：
+- 阿里巴巴系列字体：开源免费，可商用
+- 站酷系列字体：开源免费，可商用
+- 思源宋体：Adobe开源字体，可商用
+- 其他字体：请查看各字体的授权协议
 
-## 🔧 故障排查
+## 注意事项
 
-### 字体不显示？
-1. 检查字体文件是否存在
-2. 检查 `family` 名称是否正确
-3. 检查 `fonts.json` 格式是否正确（使用 JSON 验证工具）
-4. 查看程序日志中的错误信息
-
-### 如何查看字体的 FontFamily 名称？
-- Windows: 右键字体文件 → 属性 → 详细信息 → 标题
-- 或使用字体查看工具
-
-## 📝 示例配置
-
-### 添加思源黑体
-```json
-{
-  "name": "思源黑体",
-  "file": "Chinese/SourceHanSansCN-Regular.ttf",
-  "family": "Source Han Sans CN",
-  "weight": "Regular",
-  "preview": "思源黑体 ABCabc 123",
-  "isFavorite": true
-}
-```
-
-### 添加 Roboto
-```json
-{
-  "name": "Roboto",
-  "file": "English/Roboto-Regular.ttf",
-  "family": "Roboto",
-  "weight": "Regular",
-  "preview": "Roboto ABCabc 123",
-  "isFavorite": true
-}
-```
-
----
-
-*最后更新：2025-10-15*
-
+1. 字体文件名应与配置文件中的`file`字段一致
+2. `family`字段应与字体文件内部的字体族名称一致
+3. 系统字体使用`"file": "system"`标记
+4. 支持TTF和OTF格式的字体文件

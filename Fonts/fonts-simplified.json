@@ -5,34 +5,26 @@
       "fonts": [
         {
           "name": "阿里巴巴普惠体",
-          "file": "Chinese/AlibabaPuHuiTi-3-55-Regular.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
+          "file": "Chinese/阿里巴巴普惠体.ttf",
+          "family": "Alibaba PuHuiTi",
           "weight": "Regular",
           "preview": "阿里巴巴普惠体 ABCabc 123",
           "isFavorite": true
         },
         {
-          "name": "阿里巴巴普惠体 粗体",
-          "file": "Chinese/AlibabaPuHuiTi-3-85-Bold.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Bold",
-          "preview": "阿里巴巴普惠体 ABCabc 123",
+          "name": "站酷高端黑",
+          "file": "Chinese/站酷高端黑.ttf",
+          "family": "站酷高端黑",
+          "weight": "Regular",
+          "preview": "站酷高端黑 ABCabc 123",
           "isFavorite": true
         },
         {
-          "name": "钉钉进步体",
-          "file": "Chinese/DingTalkJinBuTi-Regular.ttf",
-          "family": "DingTalk JinBuTi",
+          "name": "思源宋体",
+          "file": "Chinese/思源宋体-Regular.ttf",
+          "family": "思源宋体",
           "weight": "Regular",
-          "preview": "钉钉进步体 ABCabc 123",
-          "isFavorite": true
-        },
-        {
-          "name": "淘宝买菜体",
-          "file": "Chinese/TaoBaoMaiCaiTi-Regular.ttf",
-          "family": "TaoBao MaiCaiTi",
-          "weight": "Regular",
-          "preview": "淘宝买菜体 ABCabc 123",
+          "preview": "思源宋体 ABCabc 123",
           "isFavorite": true
         }
       ]
@@ -41,125 +33,85 @@
       "name": "特色艺术字体",
       "fonts": [
         {
-          "name": "阿里妈妈刀隶体",
-          "file": "Chinese/AlimamaDaoLiTi.ttf",
-          "family": "Alimama DaoLiTi",
+          "name": "站酷小薇LOGO体",
+          "file": "Chinese/站酷小薇LOGO体.otf",
+          "family": "站酷小薇LOGO体",
           "weight": "Regular",
-          "preview": "阿里妈妈刀隶体（书法隶书）",
+          "preview": "站酷小薇LOGO体（圆润可爱）",
           "isFavorite": false
         },
         {
-          "name": "阿里妈妈东方大楷",
-          "file": "Chinese/AlimamaDongFangDaKai-Regular.ttf",
-          "family": "Alimama DongFangDaKai",
+          "name": "站酷庆科黄油体",
+          "file": "Chinese/站酷庆科黄油体.ttf",
+          "family": "站酷庆科黄油体",
           "weight": "Regular",
-          "preview": "阿里妈妈东方大楷（楷书）",
+          "preview": "站酷庆科黄油体（活泼）",
           "isFavorite": false
         },
         {
-          "name": "阿里妈妈方圆体",
-          "file": "Chinese/AlimamaFangYuanTiVF-Thin.ttf",
-          "family": "Alimama FangYuanTi VF",
-          "weight": "Thin",
-          "preview": "阿里妈妈方圆体（圆润）",
+          "name": "站酷文艺体",
+          "file": "Chinese/站酷文艺体.ttf",
+          "family": "站酷文艺体",
+          "weight": "Regular",
+          "preview": "站酷文艺体（文艺范）",
           "isFavorite": false
         },
         {
-          "name": "阿里妈妈灵动体",
-          "file": "Chinese/AlimamaAgileVF-Thin.ttf",
-          "family": "Alimama Agile VF",
-          "weight": "Thin",
-          "preview": "阿里妈妈灵动体（活泼）",
+          "name": "快看世界体",
+          "file": "Chinese/快看世界体.ttf",
+          "family": "快看世界体",
+          "weight": "Regular",
+          "preview": "快看世界体（现代感）",
+          "isFavorite": false
+        },
+        {
+          "name": "胡晓波真帅体",
+          "file": "Chinese/胡晓波真帅体.otf",
+          "family": "胡晓波真帅体",
+          "weight": "Regular",
+          "preview": "胡晓波真帅体（个性）",
           "isFavorite": false
         }
       ]
     },
     {
-      "name": "数字专用字体",
+      "name": "书法字体",
       "fonts": [
         {
-          "name": "阿里妈妈数黑体",
-          "file": "Chinese/AlimamaShuHeiTi-Bold.ttf",
-          "family": "Alimama ShuHeiTi",
-          "weight": "Bold",
-          "preview": "0123456789（数字专用）",
+          "name": "江西拙楷",
+          "file": "Chinese/江西拙楷.ttf",
+          "family": "江西拙楷",
+          "weight": "Regular",
+          "preview": "江西拙楷（手写楷书）",
           "isFavorite": false
         },
         {
-          "name": "Impact",
-          "file": "system",
-          "family": "Impact",
+          "name": "问藏书房",
+          "file": "Chinese/问藏书房.ttf",
+          "family": "问藏书房",
           "weight": "Regular",
-          "preview": "Impact 0123456789",
+          "preview": "问藏书房（古典书法）",
           "isFavorite": false
         },
         {
-          "name": "Consolas",
-          "file": "system",
-          "family": "Consolas",
+          "name": "卓健橄榄简体",
+          "file": "Chinese/卓健橄榄简体.ttf",
+          "family": "卓健橄榄简体",
           "weight": "Regular",
-          "preview": "Consolas 0123456789",
+          "preview": "卓健橄榄简体（流畅）",
           "isFavorite": false
         }
       ]
     },
     {
-      "name": "普惠体字重系列（需要不同粗细时使用）",
+      "name": "特殊用途字体",
       "fonts": [
         {
-          "name": "普惠体 Thin（最细）",
-          "file": "Chinese/AlibabaPuHuiTi-3-35-Thin.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Thin",
-          "preview": "最细 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 Light（细）",
-          "file": "Chinese/AlibabaPuHuiTi-3-45-Light.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Light",
-          "preview": "细 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 Medium（中等）",
-          "file": "Chinese/AlibabaPuHuiTi-3-65-Medium.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Medium",
-          "preview": "中等 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 SemiBold（半粗）",
-          "file": "Chinese/AlibabaPuHuiTi-3-75-SemiBold.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "SemiBold",
-          "preview": "半粗 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 ExtraBold（特粗）",
-          "file": "Chinese/AlibabaPuHuiTi-3-95-ExtraBold.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "ExtraBold",
-          "preview": "特粗 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 Heavy（重磅）",
-          "file": "Chinese/AlibabaPuHuiTi-3-105-Heavy.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Heavy",
-          "preview": "重磅 ABCabc 123",
-          "isFavorite": false
-        },
-        {
-          "name": "普惠体 Black（最粗）",
-          "file": "Chinese/AlibabaPuHuiTi-3-115-Black.ttf",
-          "family": "Alibaba PuHuiTi 3.0",
-          "weight": "Black",
-          "preview": "最粗 ABCabc 123",
+          "name": "宝宝字帖拼音音标",
+          "file": "Chinese/宝宝字帖拼音音标.ttf",
+          "family": "宝宝字帖拼音音标",
+          "weight": "Regular",
+          "preview": "宝宝字帖拼音音标（儿童教学）",
           "isFavorite": false
         }
       ]
@@ -227,10 +179,25 @@
           "weight": "Regular",
           "preview": "Calibri ABCabc 123",
           "isFavorite": false
+        },
+        {
+          "name": "Impact",
+          "file": "system",
+          "family": "Impact",
+          "weight": "Regular",
+          "preview": "Impact 0123456789",
+          "isFavorite": false
+        },
+        {
+          "name": "Consolas",
+          "file": "system",
+          "family": "Consolas",
+          "weight": "Regular",
+          "preview": "Consolas 0123456789",
+          "isFavorite": false
         }
       ]
     }
   ],
   "defaultFont": "阿里巴巴普惠体"
 }
-

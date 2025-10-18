@@ -120,7 +120,7 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="0" BlurRadius="15" Opacity="0.15" Color="#000000"/>
                     </Border.Effect>
-                    <Image Source="/weixin.png" 
+                    <Image x:Name="WeixinImage"
                            Stretch="None"
                            UseLayoutRounding="True"
                            SnapsToDevicePixels="True"/>
@@ -150,7 +150,7 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="0" BlurRadius="15" Opacity="0.15" Color="#000000"/>
                     </Border.Effect>
-                    <Image Source="/pay.png" 
+                    <Image x:Name="PayImage"
                            Stretch="None"
                            UseLayoutRounding="True"
                            SnapsToDevicePixels="True"/>

@@ -466,9 +466,9 @@ namespace ImageColorChanger.Services.Implementations
                             //System.Diagnostics.Debug.WriteLine($"⚠️ [手动修正] 找不到关键帧 {keyframeId} 的Timing记录");
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"❌ [手动修正异常] 关键帧 {keyframeId}: {ex.Message}");
+                        //System.Diagnostics.Debug.WriteLine($"❌ [手动修正异常] 关键帧 {keyframeId}");
                     }
                 });
             }

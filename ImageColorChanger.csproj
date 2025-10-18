@@ -43,17 +43,10 @@
   
   <ItemGroup>
     <Resource Include="baodian.ico" />
-    <Resource Include="weixin.png" />
-    <Resource Include="pay.png" />
+    <!-- weixin.png 和 pay.png 现在从 PAK 加载，不再嵌入为资源 -->
   </ItemGroup>
   
-  <!-- 复制 Fonts 文件夹到输出目录 -->
-  <ItemGroup>
-    <None Include="Fonts\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Fonts\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    </None>
-  </ItemGroup>
+  <!-- Fonts 和图片资源现在通过 PAK 打包，不再复制到输出目录 -->
   
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -61,8 +54,20 @@
 
   <ItemGroup>
     <Compile Remove="V257\**" />
+    <Compile Remove="BuildTools\**" />
     <EmbeddedResource Remove="V257\**" />
     <None Remove="V257\**" />
   </ItemGroup>
+
+  <!-- Pack resources after build -->
+  <Target Name="PackResources" AfterTargets="Build">
+    <Message Text="[PAK] Building pack tool..." Importance="high" />
+    <Exec Command="dotnet build BuildTools\PackResources.csproj -c Release -o BuildTools\bin -v quiet" />
+    
+    <Message Text="[PAK] Packing resources..." Importance="high" />
+    <MakeDir Directories="$(OutDir)" Condition="!Exists('$(OutDir)')" />
+    <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
+    <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
+  </Target>
 
 </Project>
