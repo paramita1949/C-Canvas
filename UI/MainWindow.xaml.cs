@@ -1982,25 +1982,6 @@ namespace ImageColorChanger.UI
             // ESC键: 关闭投影(优先级最高,不论是否原图模式)
             if (e.Key == Key.Escape)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("\n⌨️ ========== 主窗口热键: ESC ==========");
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   触发时间: {DateTime.Now:HH:mm:ss:fff}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager != null: {_videoPlayerManager != null}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager.IsPlaying: {_videoPlayerManager?.IsPlaying}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _projectionManager != null: {_projectionManager != null}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _projectionManager.IsProjectionActive: {_projectionManager?.IsProjectionActive}");
-                #endif
-#endif
-                
                 bool handled = false;
                 
                 // 优先关闭投影（CloseProjection现在只在有投影时返回true）
@@ -2009,61 +1990,22 @@ namespace ImageColorChanger.UI
                     bool wasClosed = _projectionManager.CloseProjection();
                     if (wasClosed)
                     {
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 已关闭投影");
-#endif
                         handled = true;
                     }
-#if DEBUG
-                    else
-                    {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 无投影需要关闭");
-                        #endif
-                    }
-#endif
                 }
                 
                 // 如果没有投影需要关闭，且正在播放视频，则停止播放并重置界面
                 if (!handled && _videoPlayerManager != null && _videoPlayerManager.IsPlaying)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 检测到视频播放，调用 SwitchToImageMode()");
-#endif
                     SwitchToImageMode();
                     handled = true;
                 }
-#if DEBUG
-                else if (!handled)
-                {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 无需处理视频停止");
-                    #endif
-                }
-#endif
                 
                 if (handled)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 事件已处理");
-#endif
                     e.Handled = true;
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("========== 主窗口热键 ESC 处理完成 ==========\n");
-#endif
                     return;
                 }
-#if DEBUG
-                else
-                {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("⌨️ 主窗口热键: ESC - 事件未处理");
-                    #endif
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("========== 主窗口热键 ESC 处理完成 ==========\n");
-                    #endif
-                }
-#endif
             }
             
             // 在投影模式下，让全局热键处理这些按键，前台不处理

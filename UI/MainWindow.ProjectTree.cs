@@ -339,9 +339,7 @@ namespace ImageColorChanger.UI
         {
             // ⏱️ 性能调试：测量切换图片响应时间
             var clickTime = System.Diagnostics.Stopwatch.StartNew();
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"\n🖱️ ========== 用户双击切换图片 ==========");
-            #endif
+            //System.Diagnostics.Debug.WriteLine($"\n🖱️ ========== 用户双击切换图片 ==========");
             
             // 获取双击的项目
             if (e.OriginalSource is FrameworkElement element)
