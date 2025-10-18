@@ -307,10 +307,11 @@ namespace ImageColorChanger.UI
                                 case FileType.Image:
                                     // 切换回图片模式（注意：这会清空_currentImageId）
                                     SwitchToImageMode();
+                                    // 🔧 关键修复：在LoadImage之前设置_currentImageId
+                                    // LoadImage内部需要_currentImageId来检查录制数据和更新按钮状态
+                                    _currentImageId = fileId;
                                     // 加载图片（预缓存已在LoadImage中触发）
                                     LoadImage(selectedItem.Path);
-                                    // 🔧 关键修复：在加载图片后再设置_currentImageId
-                                    _currentImageId = fileId;
                                     // ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     break;
                                 
