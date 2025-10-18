@@ -55,11 +55,14 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 更新项目树
+                // 🔧 修复：搜索结果需要同时更新 _projectTreeItems 和 _filteredProjectTreeItems
                 _projectTreeItems.Clear();
+                _filteredProjectTreeItems.Clear();
+                
                 foreach (var item in searchResults)
                 {
                     _projectTreeItems.Add(item);
+                    _filteredProjectTreeItems.Add(item); // 🔑 关键：搜索结果直接显示，不需要过滤
                 }
 
                 // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
