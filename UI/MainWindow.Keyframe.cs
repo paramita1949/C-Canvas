@@ -202,6 +202,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
         {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔘 [DEBUG] BtnPrevKeyframe_Click 被点击, _currentImageId={_currentImageId}");
+#endif
             // ⏱️ 性能调试：测量关键帧切换总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
             //System.Diagnostics.Debug.WriteLine($"");
@@ -299,6 +302,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
         {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔘 [DEBUG] BtnNextKeyframe_Click 被点击, _currentImageId={_currentImageId}");
+#endif
             // ⏱️ 性能调试：测量关键帧切换总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
             //System.Diagnostics.Debug.WriteLine($"");

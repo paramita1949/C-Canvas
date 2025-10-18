@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ImageColorChanger.Database.Models;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfCanvas = System.Windows.Controls.Canvas;
@@ -212,7 +212,9 @@ namespace ImageColorChanger.UI.Controls
                 }
                 catch (Exception ex)
                 {
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"⚠️ [TextBox] 移除内部边距失败: {ex.Message}");
+                    #endif
                 }
             };
 

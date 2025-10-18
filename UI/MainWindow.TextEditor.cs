@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1228,8 +1228,12 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 保存项目失败: {ex.Message}");
+                #endif
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 堆栈: {ex.StackTrace}");
+                #endif
                 WpfMessageBox.Show($"保存项目失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -1515,8 +1519,12 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 更新投影失败: {ex.Message}");
+                #endif
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 堆栈: {ex.StackTrace}");
+                #endif
                 WpfMessageBox.Show($"更新投影失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }

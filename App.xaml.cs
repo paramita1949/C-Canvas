@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +34,9 @@ namespace ImageColorChanger
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 应用程序启动失败: {ex.Message}");
+                #endif
                 System.Windows.MessageBox.Show($"应用程序启动失败：{ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
@@ -68,7 +70,9 @@ namespace ImageColorChanger
         {
             if (e.ExceptionObject is Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
+                #endif
                 System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}", 
                     "严重错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -79,7 +83,9 @@ namespace ImageColorChanger
         /// </summary>
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            #if DEBUG
             System.Diagnostics.Debug.WriteLine($"❌ [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
+            #endif
             System.Windows.MessageBox.Show($"发生错误：{e.Exception.Message}", 
                 "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             

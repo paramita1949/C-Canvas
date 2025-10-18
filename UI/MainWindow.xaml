@@ -13,7 +13,8 @@
         ResizeMode="CanResize"
         Icon="/baodian.ico"
         PreviewKeyDown="Window_PreviewKeyDown"
-        Closing="Window_Closing">
+        Closing="Window_Closing"
+        Activated="Window_Activated">
 
     <Window.Resources>
         <!-- 现代化按钮样式 -->
@@ -623,6 +624,7 @@
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  PreviewKeyDown="Window_PreviewKeyDown"
                                   PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
                                   MouseDoubleClick="ProjectTree_MouseDoubleClick"
                                   PreviewMouseRightButtonDown="ProjectTree_RightClick"
@@ -876,7 +878,8 @@
                      BorderThickness="0"
                      PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
                      SizeChanged="ImageScrollViewer_SizeChanged"
-                     MouseRightButtonUp="ImageScrollViewer_RightClick">
+                     MouseRightButtonUp="ImageScrollViewer_RightClick"
+                     PreviewMouseDown="ImageArea_PreviewMouseDown">
                     <ScrollViewer.Resources>
                         <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FixedScrollBarStyle}"/>
                     </ScrollViewer.Resources>

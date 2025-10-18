@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -199,16 +199,22 @@ namespace ImageColorChanger.Core
                 double newZoom = Math.Max(Constants.MinZoomRatio, Math.Min(Constants.MaxZoomRatio, value));
                 if (Math.Abs(zoomRatio - newZoom) > 0.001)
                 {
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
+                    #endif
                     zoomRatio = newZoom;
                     if (currentImage != null && !originalMode)
                     {
+                        #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 触发UpdateImage()更新主屏显示");
+                        #endif
                         UpdateImage();
                     }
                     else if (originalMode)
                     {
+                        #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 原图模式下不更新（正常模式才支持缩放）");
+                        #endif
                     }
                 }
             }
@@ -254,20 +260,26 @@ namespace ImageColorChanger.Core
                     throw new Exception("无效的图片文件");
                 }
                 var validateTime = sw.ElapsedMilliseconds - validateStart;
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"  ├─ 验证文件: {validateTime}ms");
+                #endif
                 
                 // 清除当前图片（不清除缓存，只清除当前引用）
                 var clearStart = sw.ElapsedMilliseconds;
                 ClearCurrentImageOnly();
                 var clearTime = sw.ElapsedMilliseconds - clearStart;
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"  ├─ 清除当前图片: {clearTime}ms");
+                #endif
                 
                 // ⚡ 先检查LRU缓存
                 var cacheCheckStart = sw.ElapsedMilliseconds;
                 if (_imageMemoryCache.TryGetValue(path, out SKBitmap cachedImage))
                 {
                     var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  ├─ ⚡ LRU缓存命中: {cacheTime}ms - {System.IO.Path.GetFileName(path)}");
+                    #endif
                     
                     // 🔧 性能优化：直接共享引用，不克隆（节省时间）
                     originalImage = cachedImage;
@@ -277,13 +289,17 @@ namespace ImageColorChanger.Core
                 else
                 {
                     var cacheTime = sw.ElapsedMilliseconds - cacheCheckStart;
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  ├─ 缓存未命中: {cacheTime}ms");
+                    #endif
                     
                     // 缓存未命中，从磁盘加载
                     var diskLoadStart = sw.ElapsedMilliseconds;
                     originalImage = LoadImageOptimized(path);
                     var diskLoadTime = sw.ElapsedMilliseconds - diskLoadStart;
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  ├─ 💾 从磁盘加载: {diskLoadTime}ms - {System.IO.Path.GetFileName(path)}");
+                    #endif
                     
                     currentImage = originalImage; // 🔧 也不Clone，直接共享
                     currentImagePath = path;
@@ -300,7 +316,9 @@ namespace ImageColorChanger.Core
                     
                     _imageMemoryCache.Set(path, originalImage, entryOptions);
                     var cacheAddTime = sw.ElapsedMilliseconds - cacheAddStart;
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  ├─ 📦 加入缓存: {cacheAddTime}ms (权重: {entryOptions.Size})");
+                    #endif
                 }
                 
                 // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
@@ -310,7 +328,9 @@ namespace ImageColorChanger.Core
                 var updateStart = sw.ElapsedMilliseconds;
                 bool success = UpdateImage();
                 var updateTime = sw.ElapsedMilliseconds - updateStart;
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"  ├─ 更新显示: {updateTime}ms");
+                #endif
                 
                 if (success)
                 {
@@ -319,18 +339,24 @@ namespace ImageColorChanger.Core
                     scrollViewer.ScrollToTop();
                     scrollViewer.ScrollToLeftEnd();
                     var scrollTime = sw.ElapsedMilliseconds - scrollStart;
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  ├─ 重置滚动条: {scrollTime}ms");
+                    #endif
                     
                     // 🔧 重置关键帧索引（参考Python版本）
                     mainWindow.ResetKeyframeIndex();
                     
                     sw.Stop();
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 完成: {sw.ElapsedMilliseconds}ms");
+                    #endif
                     return true;
                 }
                 
                 sw.Stop();
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"  └─ ImageProcessor.LoadImage 失败: {sw.ElapsedMilliseconds}ms");
+                #endif
                 return false;
             }
             catch (Exception)
@@ -421,7 +447,9 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 优化加载失败: {ex.Message}");
+                #endif
                 throw;
             }
         }
@@ -695,7 +723,9 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [ImageProcessor] 缩放失败: {ex.Message}");
+                #endif
                 return null;
             }
         }
