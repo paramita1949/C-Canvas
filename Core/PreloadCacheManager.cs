@@ -34,6 +34,10 @@ namespace ImageColorChanger.Core
         private int _prerenderWidth = 1637;  // 默认主窗口尺寸
         private int _prerenderHeight = 955;
         
+        // 投影显示器尺寸（动态获取）
+        private int _projectionWidth = 1920;  // 默认投影尺寸
+        private int _projectionHeight = 1080;
+        
         public PreloadCacheManager(IMemoryCache imageMemoryCache, DatabaseManager dbManager, ImageProcessor imageProcessor)
         {
             _imageMemoryCache = imageMemoryCache ?? throw new ArgumentNullException(nameof(imageMemoryCache));
@@ -49,6 +53,16 @@ namespace ImageColorChanger.Core
             _prerenderWidth = width;
             _prerenderHeight = height;
             //System.Diagnostics.Debug.WriteLine($"📐 [预渲染] 设置目标尺寸: {width}x{height}");
+        }
+        
+        /// <summary>
+        /// 设置投影显示器尺寸
+        /// </summary>
+        public void SetProjectionSize(int width, int height)
+        {
+            _projectionWidth = width;
+            _projectionHeight = height;
+            //System.Diagnostics.Debug.WriteLine($"📐 [预渲染] 设置投影尺寸: {width}x{height}");
         }
         
         #region 原图模式预缓存
@@ -296,11 +310,11 @@ namespace ImageColorChanger.Core
                                     _imageProcessor.IsInverted
                                 );
                                 
-                                // 预渲染投影窗口尺寸（1920x1080）
+                                // 预渲染投影窗口尺寸（动态获取）
                                 bool projRenderSuccess = _imageProcessor.PreRenderImage(
                                     path, 
-                                    1920, 
-                                    1080, 
+                                    _projectionWidth, 
+                                    _projectionHeight, 
                                     _imageProcessor.IsInverted
                                 );
                                 

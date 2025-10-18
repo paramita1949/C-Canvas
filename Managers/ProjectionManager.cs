@@ -595,6 +595,19 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
+        /// 获取当前投影显示器的分辨率
+        /// </summary>
+        public (int width, int height) GetCurrentProjectionSize()
+        {
+            if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
+            {
+                var screen = _screens[_currentScreenIndex];
+                return (screen.Bounds.Width, screen.Bounds.Height);
+            }
+            return (1920, 1080); // 默认值
+        }
+        
+        /// <summary>
         /// 获取投影窗口的VideoView（用于视频播放）
         /// </summary>
         public VideoView GetProjectionVideoView()

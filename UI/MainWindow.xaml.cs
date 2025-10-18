@@ -812,6 +812,14 @@ namespace ImageColorChanger.UI
                     BtnProjection.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 淡绿色
                     ShowStatus("✅ 投影已开启");
                     
+                    // 更新预缓存管理器的投影尺寸
+                    if (_preloadCacheManager != null && _projectionManager != null)
+                    {
+                        var (projWidth, projHeight) = _projectionManager.GetCurrentProjectionSize();
+                        _preloadCacheManager.SetProjectionSize(projWidth, projHeight);
+                        //System.Diagnostics.Debug.WriteLine($"📐 [投影开启] 更新预缓存投影尺寸: {projWidth}x{projHeight}");
+                    }
+                    
                     // 启用全局热键（投影模式下）
                     EnableGlobalHotKeys();
                     
