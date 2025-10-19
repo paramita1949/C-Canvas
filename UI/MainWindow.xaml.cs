@@ -270,34 +270,46 @@ namespace ImageColorChanger.UI
                 {
                     kfService.JumpToKeyframeRequested += async (s, e) =>
                     {
+                        #if DEBUG
                         var jumpTime = System.Diagnostics.Stopwatch.StartNew();
                         System.Diagnostics.Debug.WriteLine($"\n🎯 ========== 关键帧跳转开始 ==========");
                         System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
+                        #endif
                         
                         await Dispatcher.InvokeAsync(() => {
                             if (_keyframeManager != null)
                             {
                                 // 🔧 根据UseDirectJump标志选择跳转方式（参考Python版本：keytime.py 第1199-1213行）
+                                #if DEBUG
                                 var scrollStart = jumpTime.ElapsedMilliseconds;
+                                #endif
                                 if (e.UseDirectJump)
                                 {
                                     // 直接跳转，不使用滚动动画（用于循环回第一帧或首次播放）
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
+                                    #if DEBUG
                                     var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
                                     System.Diagnostics.Debug.WriteLine($"⚡ [播放跳转] 直接跳转完成: {scrollTime}ms");
+                                    #endif
                                 }
                                 else
                                 {
                                     // 使用平滑滚动动画（播放时开启滚动函数）
+                                    #if DEBUG
                                     System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 开启滚动动画，持续时间: {_keyframeManager.ScrollDuration}秒, 缓动: {(_keyframeManager.IsLinearScrolling ? "Linear" : _keyframeManager.ScrollEasingType)}");
+                                    #endif
                                     _keyframeManager.SmoothScrollTo(e.Position);
+                                    #if DEBUG
                                     var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
                                     System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 平滑滚动已启动: {scrollTime}ms");
+                                    #endif
                                 }
                                 
                                 // 🔧 更新关键帧索引和指示器（参考Python版本：keytime.py 第1184-1221行）
                                 // 1. 查找当前关键帧的索引（从缓存，性能优化）
+                                #if DEBUG
                                 var indexStart = jumpTime.ElapsedMilliseconds;
+                                #endif
                                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                                 if (keyframes != null)
                                 {
@@ -307,21 +319,27 @@ namespace ImageColorChanger.UI
                                         {
                                             // 2. 更新关键帧索引
                                             _keyframeManager.UpdateKeyframeIndex(i);
+                                            #if DEBUG
                                             var indexTime = jumpTime.ElapsedMilliseconds - indexStart;
                                             System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新索引: {indexTime}ms -> 关键帧#{i + 1}/{keyframes.Count}");
+                                            #endif
                                             break;
                                         }
                                     }
                                 }
                                 
                                 // 3. 更新指示器和预览线
+                                #if DEBUG
                                 var uiStart = jumpTime.ElapsedMilliseconds;
+                                #endif
                                 _keyframeManager?.UpdatePreviewLines();
+                                #if DEBUG
                                 var uiTime = jumpTime.ElapsedMilliseconds - uiStart;
                                 System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新UI: {uiTime}ms");
                                 
                                 jumpTime.Stop();
                                 System.Diagnostics.Debug.WriteLine($"🎯 ========== 关键帧跳转完成: {jumpTime.ElapsedMilliseconds}ms ==========\n");
+                                #endif
                             }
                         });
                     };
@@ -963,8 +981,8 @@ namespace ImageColorChanger.UI
                         _projectionManager.ShowVideoProjection();
                         //System.Diagnostics.Debug.WriteLine("📹 检测到正在播放视频，立即切换到视频投影模式");
                     }
-                    // 如果选中了视频文件但未播放，直接在投影屏幕播放
-                    else if (!string.IsNullOrEmpty(_imagePath) && IsVideoFile(_imagePath))
+                    // 🔧 修复：如果选中了媒体文件（视频或音频）但未播放，直接在投影屏幕播放
+                    else if (!string.IsNullOrEmpty(_imagePath) && IsMediaFile(_imagePath))
                     {
                         // 先准备投影环境
                         var projectionVideoView = _projectionManager.GetProjectionVideoView();
@@ -980,9 +998,9 @@ namespace ImageColorChanger.UI
                             string fileName = System.IO.Path.GetFileName(_imagePath);
                             _projectionManager.SetProjectionMediaFileName(fileName, false);
                             
-                            // 设置待播放视频路径，等待MediaPlayer创建完成后播放
+                            // 设置待播放媒体路径，等待MediaPlayer创建完成后播放
                             _pendingProjectionVideoPath = _imagePath;
-                            //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放视频: {fileName}");
+                            //System.Diagnostics.Debug.WriteLine($"🟠 设置待投影播放媒体: {fileName}");
                             
                             ShowStatus($"🎬 准备投影播放: {fileName}");
                         }
@@ -2503,6 +2521,25 @@ namespace ImageColorChanger.UI
             };
             
             return videoExtensions.Contains(ext);
+        }
+        
+        /// <summary>
+        /// 检查文件是否为媒体文件（视频或音频）
+        /// </summary>
+        private bool IsMediaFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return false;
+            
+            var ext = System.IO.Path.GetExtension(filePath).ToLower();
+            var videoExtensions = new[] { 
+                ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg",
+                ".rm", ".rmvb", ".3gp", ".f4v", ".ts", ".mts", ".m2ts", ".vob", ".ogv"
+            };
+            var audioExtensions = new[] { 
+                ".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"
+            };
+            
+            return videoExtensions.Contains(ext) || audioExtensions.Contains(ext);
         }
         
         /// <summary>

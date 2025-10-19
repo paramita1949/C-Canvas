@@ -327,7 +327,9 @@ namespace ImageColorChanger.ViewModels
                 if (IsPlaying)
                 {
                     // 停止播放
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"🛑 [停止播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}");
+                    #endif
                     await playbackService.StopPlaybackAsync();
                     _countdownService.Stop();
                     IsPlaying = false;
@@ -341,7 +343,9 @@ namespace ImageColorChanger.ViewModels
                     // 开始播放
                     if (_stateMachine.TryTransition(PlaybackStatus.Playing))
                     {
+                        #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
+                        #endif
                         
                         // 🎯 订阅播放服务事件（每次播放时重新订阅，确保使用正确的服务）
                         playbackService.ProgressUpdated -= OnPlaybackProgressUpdated;
@@ -378,7 +382,9 @@ namespace ImageColorChanger.ViewModels
                 if (IsPaused)
                 {
                     // 继续播放
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"▶️ [继续播放] 从暂停状态恢复播放");
+                    #endif
                     await playbackService.ResumePlaybackAsync();
                     _countdownService.Resume();
                     IsPaused = false;
@@ -388,7 +394,9 @@ namespace ImageColorChanger.ViewModels
                 else
                 {
                     // 暂停播放
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"⏸️ [暂停播放] 暂停当前播放");
+                    #endif
                     await playbackService.PausePlaybackAsync();
                     _countdownService.Pause();
                     IsPaused = true;
@@ -440,17 +448,23 @@ namespace ImageColorChanger.ViewModels
         {
             try
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"\n📋 ========== 读取脚本信息 ==========");
                 System.Diagnostics.Debug.WriteLine($"📋 图片ID: {CurrentImageId}");
+                #endif
                 
                 var timings = await _timingRepository.GetTimingSequenceAsync(CurrentImageId);
                 if (timings == null || timings.Count == 0)
                 {
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"⚠️ 没有脚本数据");
+                    #endif
                     return "暂无脚本数据";
                 }
 
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"📋 读取到 {timings.Count} 条Timing记录");
+                #endif
                 
                 var lines = new System.Collections.Generic.List<string>
                 {
@@ -466,7 +480,9 @@ namespace ImageColorChanger.ViewModels
                 int index = 1;
                 foreach (var timing in timings.OrderBy(t => t.SequenceOrder))
                 {
+                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"📋 Timing #{index}: KeyframeId={timing.KeyframeId}, Duration={timing.Duration:F2}秒, Order={timing.SequenceOrder}");
+                    #endif
                     lines.Add($"{index,4} | {timing.KeyframeId,7} | {timing.Duration,7:F2} | {timing.CreatedAt:yyyy-MM-dd HH:mm:ss}");
                     index++;
                 }
@@ -474,14 +490,18 @@ namespace ImageColorChanger.ViewModels
                 lines.Add("");
                 lines.Add("═".PadRight(40, '═'));
                 
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"📋 总时长: {timings.Sum(t => t.Duration):F2}秒");
                 System.Diagnostics.Debug.WriteLine($"📋 ========== 脚本信息读取完成 ==========\n");
+                #endif
 
                 return string.Join(Environment.NewLine, lines);
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 获取脚本信息失败: {ex.Message}");
+                #endif
                 return $"获取脚本信息失败: {ex.Message}";
             }
         }
