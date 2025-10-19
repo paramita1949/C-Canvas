@@ -1033,15 +1033,6 @@ namespace ImageColorChanger.Managers
             // 如果没有图片，可能是在播放视频，直接返回
             if (_currentImage == null)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"ℹ️ [UpdateProjection] 无图片，可能正在播放视频");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _currentImagePath = {_currentImagePath}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   _imageProcessor.CurrentImage = {_imageProcessor?.CurrentImage?.Width}x{_imageProcessor?.CurrentImage?.Height}");
-                #endif
                 return;
             }
 

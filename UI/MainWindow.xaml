@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V4.2.1"
+        Title="Canvas Cast V4.2.2"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -672,7 +672,7 @@
                                 </Button.Style>
                             </Button>
                             <Button x:Name="BtnShowProjects" 
-                                    Content="📋 项目" 
+                                    Content="📋 幻灯片" 
                                     Width="100" 
                                     Height="32"
                                     FontSize="13"
