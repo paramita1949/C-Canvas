@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V4.2.2"
+        Title="Canvas Cast V4.2.3"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -971,7 +971,7 @@
                         <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FixedScrollBarStyle}"/>
                     </ScrollViewer.Resources>
                     <ScrollViewer.ContextMenu>
-                        <ContextMenu x:Name="CanvasContextMenu">
+                        <ContextMenu x:Name="CanvasContextMenu" Style="{StaticResource NoBorderContextMenuStyle}">
                             <MenuItem Header="滚动速度">
                                 <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
                                 <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
@@ -986,11 +986,14 @@
                                 <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
                             </MenuItem>
                             <MenuItem Header="滚动函数">
-                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
+                                <MenuItem Header="⭐ 超级平滑" Click="SetScrollEasing_Click" Tag="UltraSmooth" IsCheckable="True" ToolTip="极致丝滑，二阶导数连续"/>
+                                <MenuItem Header="🎯 物理模拟" Click="SetScrollEasing_Click" Tag="Physics" IsCheckable="True" ToolTip="模拟真实滚动惯性"/>
+                                <MenuItem Header="🧠 智能自适应" Click="SetScrollEasing_Click" Tag="Adaptive" IsCheckable="True" ToolTip="根据距离自动优化"/>
+                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
                                 <MenuItem Header="优化三次" Click="SetScrollEasing_Click" Tag="OptimizedCubic" IsCheckable="True"/>
                                 <MenuItem Header="快速启动" Click="SetScrollEasing_Click" Tag="EaseOutExpo" IsCheckable="True"/>
-                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
                                 <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
+                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
                             </MenuItem>
                         </ContextMenu>
                     </ScrollViewer.ContextMenu>

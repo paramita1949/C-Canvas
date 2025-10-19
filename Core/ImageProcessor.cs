@@ -85,6 +85,9 @@ namespace ImageColorChanger.Core
         /// <summary>当前图片路径</summary>
         public string CurrentImagePath => currentImagePath;
         
+        /// <summary>当前显示的BitmapSource（用于验证Freeze状态）</summary>
+        public BitmapSource CurrentPhoto => currentPhoto;
+        
         /// <summary>获取LRU图片缓存实例（用于预加载管理器）</summary>
         public IMemoryCache GetMemoryCache() => _imageMemoryCache;
         
@@ -878,6 +881,14 @@ namespace ImageColorChanger.Core
                 }
                 
                 wb.Freeze(); // 冻结以提高性能
+                
+                #if DEBUG
+                // 验证Freeze是否生效
+                if (wb.IsFrozen)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [WriteableBitmap] 已Freeze，GPU显存缓存生效");
+                }
+                #endif
                 
                 return wb;
             }

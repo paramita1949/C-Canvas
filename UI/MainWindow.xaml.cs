@@ -361,11 +361,31 @@ namespace ImageColorChanger.UI
             // 🎮 初始化GPU上下文（自动检测GPU可用性）
             var gpuContext = Core.GPUContext.Instance;
             
+            // 🚀 强制启用WPF硬件加速
+            Core.GPUContext.ForceEnableHardwareAcceleration();
+            
+            // 🔍 验证WPF GPU加速状态
+            bool isWpfGpuEnabled = Core.GPUContext.VerifyWPFHardwareAcceleration();
+            
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine("========================================");
-            //System.Diagnostics.Debug.WriteLine($"🎮 GPU加速状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ 已降级到CPU")}");
-            //System.Diagnostics.Debug.WriteLine($"📊 GPU信息: {gpuContext.GpuInfo}");
-            //System.Diagnostics.Debug.WriteLine("========================================");
+            System.Diagnostics.Debug.WriteLine("========================================");
+            System.Diagnostics.Debug.WriteLine($"🎮 SkiaSharp GPU状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ CPU模式")}");
+            System.Diagnostics.Debug.WriteLine($"📊 SkiaSharp GPU信息: {gpuContext.GpuInfo}");
+            System.Diagnostics.Debug.WriteLine($"🖥️ WPF GPU加速状态: {(isWpfGpuEnabled ? "✅ Tier 2完全启用" : "⚠️ 未完全启用")}");
+            System.Diagnostics.Debug.WriteLine("========================================");
+            #endif
+            
+            // ⚠️ 如果WPF GPU未启用，显示警告（仅在Release模式）
+            #if !DEBUG
+            if (!isWpfGpuEnabled)
+            {
+                System.Windows.MessageBox.Show(
+                    "警告：检测到GPU硬件加速未完全启用，可能影响滚动性能。\n\n建议：\n1. 更新显卡驱动\n2. 检查系统设置中的图形性能选项", 
+                    "性能警告", 
+                    System.Windows.MessageBoxButton.OK, 
+                    System.Windows.MessageBoxImage.Warning
+                );
+            }
             #endif
             
             // 在UI显示GPU状态
@@ -384,6 +404,14 @@ namespace ImageColorChanger.UI
 
         private void InitializeUI()
         {
+            // 🚀 为ScrollViewer启用GPU位图缓存（提升滚动性能）
+            Core.GPUContext.EnableBitmapCache(ImageScrollViewer, enableHighQuality: true);
+            Core.GPUContext.EnableBitmapCache(ImageDisplay, enableHighQuality: true);
+            
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine("✅ [滚动优化] 已为ScrollViewer和Image启用GPU位图缓存");
+            #endif
+            
             // 初始化数据库
             InitializeDatabase();
             
@@ -2026,6 +2054,7 @@ namespace ImageColorChanger.UI
             this.Focus();
         }
         
+        
         /// <summary>
         /// 图片区域点击事件 - 恢复主窗口焦点
         /// </summary>
@@ -2045,6 +2074,8 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
 //#endif
+            
+            
             // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {

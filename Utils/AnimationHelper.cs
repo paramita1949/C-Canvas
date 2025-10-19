@@ -87,9 +87,23 @@ namespace ImageColorChanger.Utils
             // 如果不是线性滚动，则使用缓动函数
             if (!isLinear)
             {
-                animation.EasingFunction = GetEasingFunction(easingType);
+                // 计算滚动距离（用于自适应缓动）
+                double scrollDistance = Math.Abs(toOffset - fromOffset);
+                animation.EasingFunction = GetEasingFunction(easingType, scrollDistance);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 缓动函数: {easingType}, 距离: {scrollDistance:F1}px, 时长: {duration.TotalSeconds:F1}秒");
+                #endif
             }
-            // 线性滚动不设置EasingFunction，默认就是线性
+            else
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 线性滚动, 距离: {Math.Abs(toOffset - fromOffset):F1}px, 时长: {duration.TotalSeconds:F1}秒");
+                #endif
+            }
+            
+            // 🎯 性能优化：明确指定60 FPS帧率
+            Timeline.SetDesiredFrameRate(animation, 60);
 
             // 创建故事板
             var storyboard = new Storyboard();
@@ -102,8 +116,25 @@ namespace ImageColorChanger.Utils
             // 动画完成事件
             if (onCompleted != null)
             {
-                storyboard.Completed += (s, e) => onCompleted();
+                storyboard.Completed += (s, e) => 
+                {
+                    // 停止性能监控
+                    PerformanceMonitor.Instance.StopScrollMonitoring();
+                    onCompleted();
+                };
             }
+            else
+            {
+                storyboard.Completed += (s, e) => 
+                {
+                    // 停止性能监控
+                    PerformanceMonitor.Instance.StopScrollMonitoring();
+                };
+            }
+
+            // 开始性能监控（所有滚动都监控，包括线性）
+            string monitoringType = isLinear ? "Linear" : easingType;
+            PerformanceMonitor.Instance.StartScrollMonitoring(monitoringType);
 
             // 开始动画
             storyboard.Begin();
@@ -112,11 +143,12 @@ namespace ImageColorChanger.Utils
         }
 
         /// <summary>
-        /// 根据类型获取缓动函数（基于Python版本）
+        /// 根据类型获取缓动函数（基于Python版本 + 优化扩展）
         /// </summary>
         /// <param name="easingType">缓动类型</param>
+        /// <param name="scrollDistance">滚动距离（用于自适应缓动）</param>
         /// <returns>缓动函数实例</returns>
-        private static IEasingFunction GetEasingFunction(string easingType)
+        private static IEasingFunction GetEasingFunction(string easingType, double scrollDistance = 1000)
         {
             return easingType switch
             {
@@ -130,6 +162,10 @@ namespace ImageColorChanger.Utils
                     P2Y = 1.0 
                 },
                 "CssEaseInOut" => new CssEaseInOut(),
+                // 🆕 新增优化的缓动函数
+                "UltraSmooth" => new UltraSmoothEase(),
+                "Physics" => new PhysicsEase { InitialVelocity = 2.0, Friction = -2.0 },
+                "Adaptive" => new AdaptiveEase { ScrollDistance = scrollDistance },
                 _ => new BezierEase() // 默认贝塞尔曲线
             };
         }

@@ -322,6 +322,140 @@ namespace ImageColorChanger.Core
 #endif
             }
         }
+
+        /// <summary>
+        /// 验证WPF硬件加速状态
+        /// </summary>
+        /// <returns>是否完全启用GPU加速</returns>
+        public static bool VerifyWPFHardwareAcceleration()
+        {
+            try
+            {
+                int renderingTier = (System.Windows.Media.RenderCapability.Tier >> 16);
+                
+                Debug.WriteLine($"🎮 [GPU验证] WPF渲染层级: Tier {renderingTier}");
+                Debug.WriteLine($"   Tier 0 = 软件渲染（无GPU）");
+                Debug.WriteLine($"   Tier 1 = 部分GPU加速");
+                Debug.WriteLine($"   Tier 2 = 完全GPU加速 ✅");
+                
+                if (renderingTier < 2)
+                {
+                    Debug.WriteLine($"⚠️ [GPU警告] 当前未完全启用GPU加速！建议检查显卡驱动。");
+                    return false;
+                }
+                
+                Debug.WriteLine($"✅ [GPU验证] WPF硬件加速已完全启用");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"❌ [GPU验证] 检测失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 强制启用硬件加速（在应用启动时调用）
+        /// </summary>
+        public static void ForceEnableHardwareAcceleration()
+        {
+            try
+            {
+                // 设置进程渲染模式为默认（自动选择最佳模式）
+                System.Windows.Media.RenderOptions.ProcessRenderMode = 
+                    System.Windows.Interop.RenderMode.Default;
+                
+                Debug.WriteLine($"✅ [GPU] 已设置硬件加速为默认模式（自动优化）");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"⚠️ [GPU] 设置硬件加速失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 为UI元素启用GPU缓存（减少重复渲染）
+        /// </summary>
+        /// <param name="element">要优化的UI元素</param>
+        /// <param name="enableHighQuality">是否启用高质量模式</param>
+        public static void EnableBitmapCache(System.Windows.UIElement element, bool enableHighQuality = true)
+        {
+            try
+            {
+                // 为元素启用位图缓存（GPU会缓存渲染结果）
+                element.CacheMode = new System.Windows.Media.BitmapCache
+                {
+                    EnableClearType = false, // 关闭ClearType以提升性能
+                    RenderAtScale = 1.0,
+                    SnapsToDevicePixels = true
+                };
+                
+                if (enableHighQuality)
+                {
+                    // 高质量渲染设置
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(
+                        element, 
+                        System.Windows.Media.BitmapScalingMode.HighQuality
+                    );
+                }
+                else
+                {
+                    // 性能优先设置
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(
+                        element, 
+                        System.Windows.Media.BitmapScalingMode.LowQuality
+                    );
+                }
+                
+                // 启用边缘抗锯齿
+                System.Windows.Media.RenderOptions.SetEdgeMode(
+                    element, 
+                    System.Windows.Media.EdgeMode.Aliased
+                );
+                
+                Debug.WriteLine($"✅ [GPU] 已为元素启用位图缓存（高质量={enableHighQuality}）");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"⚠️ [GPU] 启用位图缓存失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 获取GPU性能诊断信息
+        /// </summary>
+        /// <returns>GPU性能报告</returns>
+        public static string GetPerformanceDiagnostics()
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("=== GPU性能诊断 ===");
+                
+                // WPF渲染层级
+                int tier = (System.Windows.Media.RenderCapability.Tier >> 16);
+                sb.AppendLine($"WPF渲染层级: Tier {tier}");
+                
+                // 显卡信息
+                sb.AppendLine($"是否支持PixelShader3.0: {System.Windows.Media.RenderCapability.IsPixelShaderVersionSupported(3, 0)}");
+                sb.AppendLine($"是否支持PixelShader2.0: {System.Windows.Media.RenderCapability.IsPixelShaderVersionSupported(2, 0)}");
+                
+                // 最大纹理尺寸
+                sb.AppendLine($"最大纹理宽度: {System.Windows.Media.RenderCapability.MaxHardwareTextureSize.Width}");
+                sb.AppendLine($"最大纹理高度: {System.Windows.Media.RenderCapability.MaxHardwareTextureSize.Height}");
+                
+                // SkiaSharp GPU状态
+                var instance = GPUContext.Instance;
+                sb.AppendLine($"SkiaSharp GPU可用: {instance.IsGpuAvailable}");
+                sb.AppendLine($"SkiaSharp GPU信息: {instance.GpuInfo}");
+                
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"GPU诊断失败: {ex.Message}";
+            }
+        }
     }
 }
 
