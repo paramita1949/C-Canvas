@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
@@ -18,6 +19,8 @@ using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
+using WpfColor = System.Windows.Media.Color;
+using WpfRectangle = System.Windows.Shapes.Rectangle;
 using SkiaSharp;
 
 namespace ImageColorChanger.UI
@@ -38,6 +41,13 @@ namespace ImageColorChanger.UI
 
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
+        
+        // 分割区域相关
+        private int _selectedRegionIndex = 0; // 当前选中的区域索引（0-3）
+        private List<WpfRectangle> _splitRegionBorders = new List<WpfRectangle>(); // 区域边框
+        private Dictionary<int, System.Windows.Controls.Image> _regionImages = new Dictionary<int, System.Windows.Controls.Image>(); // 区域图片控件
+        private Dictionary<int, string> _regionImagePaths = new Dictionary<int, string>(); // 区域图片路径
+        private bool _splitStretchMode = false; // false = 适中显示(Uniform), true = 拉伸显示(Fill)
 
         #endregion
 
@@ -756,6 +766,739 @@ namespace ImageColorChanger.UI
 
             contextMenu.PlacementTarget = sender as UIElement;
             contextMenu.IsOpen = true;
+        }
+
+        /// <summary>
+        /// 原图拉伸模式切换按钮点击
+        /// </summary>
+        private async void BtnSplitStretchMode_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentTextProject == null || _currentSlide == null)
+                return;
+                
+            // 切换模式
+            _splitStretchMode = !_splitStretchMode;
+            
+            // 更新按钮显示
+            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+            
+            // 应用到所有区域图片
+            foreach (var kvp in _regionImages)
+            {
+                kvp.Value.Stretch = _splitStretchMode ? 
+                    System.Windows.Media.Stretch.Fill :  // 拉伸填满
+                    System.Windows.Media.Stretch.Uniform; // 适中显示
+            }
+            
+            // 保存到数据库
+            await SaveSplitStretchModeAsync();
+            
+            System.Diagnostics.Debug.WriteLine($"📐 [拉伸模式] 已切换到: {(_splitStretchMode ? "拉伸填满" : "适中显示")}，已保存到数据库");
+        }
+        
+        /// <summary>
+        /// 保存拉伸模式到数据库
+        /// </summary>
+        private async Task SaveSplitStretchModeAsync()
+        {
+            if (_currentSlide == null)
+                return;
+                
+            try
+            {
+                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                if (slideToUpdate != null)
+                {
+                    slideToUpdate.SplitStretchMode = _splitStretchMode;
+                    slideToUpdate.ModifiedTime = DateTime.Now;
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // 更新本地缓存
+                    _currentSlide.SplitStretchMode = _splitStretchMode;
+                    
+                    System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitStretchMode] 失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 分割按钮点击（显示分割模式选择菜单）
+        /// </summary>
+        private void BtnSplitView_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentTextProject == null || _currentSlide == null)
+                return;
+
+            var contextMenu = new ContextMenu();
+            
+            // 🔑 应用自定义样式
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+
+            // 获取当前分割模式
+            var currentMode = (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode;
+
+            // 单画面
+            var singleItem = new MenuItem 
+            { 
+                Header = "● 单画面",
+                Height = 36,
+                IsCheckable = true,
+                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Single
+            };
+            singleItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Single);
+            contextMenu.Items.Add(singleItem);
+
+            // 左右分割
+            var horizontalItem = new MenuItem 
+            { 
+                Header = "◫ 左右分割",
+                Height = 36,
+                IsCheckable = true,
+                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Horizontal
+            };
+            horizontalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Horizontal);
+            contextMenu.Items.Add(horizontalItem);
+
+            // 上下分割
+            var verticalItem = new MenuItem 
+            { 
+                Header = "⬒ 上下分割",
+                Height = 36,
+                IsCheckable = true,
+                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Vertical
+            };
+            verticalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Vertical);
+            contextMenu.Items.Add(verticalItem);
+
+            // 四宫格
+            var quadItem = new MenuItem 
+            { 
+                Header = "⊞ 四宫格",
+                Height = 36,
+                IsCheckable = true,
+                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Quad
+            };
+            quadItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Quad);
+            contextMenu.Items.Add(quadItem);
+
+            contextMenu.PlacementTarget = sender as UIElement;
+            contextMenu.IsOpen = true;
+        }
+
+        /// <summary>
+        /// 设置分割模式
+        /// </summary>
+        private async void SetSplitMode(Database.Models.Enums.ViewSplitMode mode)
+        {
+            if (_currentSlide == null)
+                return;
+
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🖼 [SetSplitMode] 切换到: {mode}");
+
+                // 更新数据库
+                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                if (slideToUpdate != null)
+                {
+                    slideToUpdate.SplitMode = (int)mode;
+                    slideToUpdate.ModifiedTime = DateTime.Now;
+                    
+                    // 如果切换到非单画面模式，清空分割区域数据
+                    if (mode != Database.Models.Enums.ViewSplitMode.Single)
+                    {
+                        slideToUpdate.SplitRegionsData = null;
+                    }
+                    
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // 更新本地缓存
+                    _currentSlide.SplitMode = (int)mode;
+                    _currentSlide.SplitRegionsData = slideToUpdate.SplitRegionsData;
+                    
+                    System.Diagnostics.Debug.WriteLine($"✅ 分割模式已保存: {mode}");
+                }
+
+                // TODO: 更新预览画布显示分割布局
+                UpdateSplitLayout(mode);
+                
+                MarkContentAsModified();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 更新分割布局显示
+        /// </summary>
+        private void UpdateSplitLayout(Database.Models.Enums.ViewSplitMode mode)
+        {
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🎨 [UpdateSplitLayout] 更新布局: {mode}");
+            #endif
+            
+            // 清除旧的分割线和边框
+            ClearSplitLines();
+            ClearRegionBorders();
+            
+            if (mode == Database.Models.Enums.ViewSplitMode.Single)
+            {
+                // 单画面模式，不显示分割线
+                return;
+            }
+            
+            double canvasWidth = EditorCanvas.ActualWidth > 0 ? EditorCanvas.ActualWidth : 1080;
+            double canvasHeight = EditorCanvas.ActualHeight > 0 ? EditorCanvas.ActualHeight : 700;
+            
+            switch (mode)
+            {
+                case Database.Models.Enums.ViewSplitMode.Horizontal:
+                    // 左右分割：绘制一条竖线
+                    DrawVerticalLine(canvasWidth / 2, 0, canvasHeight);
+                    // 创建两个区域边框
+                    CreateRegionBorder(0, 0, 0, canvasWidth / 2, canvasHeight);
+                    CreateRegionBorder(1, canvasWidth / 2, 0, canvasWidth / 2, canvasHeight);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.Vertical:
+                    // 上下分割：绘制一条横线
+                    DrawHorizontalLine(canvasHeight / 2, 0, canvasWidth);
+                    // 创建两个区域边框
+                    CreateRegionBorder(0, 0, 0, canvasWidth, canvasHeight / 2);
+                    CreateRegionBorder(1, 0, canvasHeight / 2, canvasWidth, canvasHeight / 2);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.Quad:
+                    // 四宫格：绘制十字线
+                    DrawVerticalLine(canvasWidth / 2, 0, canvasHeight);
+                    DrawHorizontalLine(canvasHeight / 2, 0, canvasWidth);
+                    // 创建四个区域边框
+                    CreateRegionBorder(0, 0, 0, canvasWidth / 2, canvasHeight / 2);
+                    CreateRegionBorder(1, canvasWidth / 2, 0, canvasWidth / 2, canvasHeight / 2);
+                    CreateRegionBorder(2, 0, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
+                    CreateRegionBorder(3, canvasWidth / 2, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
+                    break;
+            }
+            
+            // 默认选中第一个区域
+            SelectRegion(0);
+        }
+        
+        /// <summary>
+        /// 清除分割线
+        /// </summary>
+        private void ClearSplitLines()
+        {
+            // 移除所有带有 "SplitLine" 标记的元素
+            var linesToRemove = EditorCanvas.Children.OfType<Line>()
+                .Where(l => l.Tag != null && l.Tag.ToString() == "SplitLine")
+                .ToList();
+                
+            foreach (var line in linesToRemove)
+            {
+                EditorCanvas.Children.Remove(line);
+            }
+        }
+        
+        /// <summary>
+        /// 绘制竖线
+        /// </summary>
+        private void DrawVerticalLine(double x, double y1, double y2)
+        {
+            var line = new Line
+            {
+                X1 = x,
+                Y1 = y1,
+                X2 = x,
+                Y2 = y2,
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 165, 0)), // 橙色
+                StrokeThickness = 3,
+                StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
+                Tag = "SplitLine",
+                IsHitTestVisible = false // 不响应鼠标事件
+            };
+            
+            Canvas.SetZIndex(line, 1000); // 置于顶层
+            EditorCanvas.Children.Add(line);
+        }
+        
+        /// <summary>
+        /// 绘制横线
+        /// </summary>
+        private void DrawHorizontalLine(double y, double x1, double x2)
+        {
+            var line = new Line
+            {
+                X1 = x1,
+                Y1 = y,
+                X2 = x2,
+                Y2 = y,
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 165, 0)), // 橙色
+                StrokeThickness = 3,
+                StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
+                Tag = "SplitLine",
+                IsHitTestVisible = false // 不响应鼠标事件
+            };
+            
+            Canvas.SetZIndex(line, 1000); // 置于顶层
+            EditorCanvas.Children.Add(line);
+        }
+        
+        /// <summary>
+        /// 创建区域边框
+        /// </summary>
+        private void CreateRegionBorder(int regionIndex, double x, double y, double width, double height)
+        {
+            var border = new WpfRectangle
+            {
+                Width = width,
+                Height = height,
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(128, 128, 128)), // 灰色
+                StrokeThickness = 2,
+                Fill = System.Windows.Media.Brushes.Transparent,
+                Tag = $"RegionBorder_{regionIndex}",
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            
+            Canvas.SetLeft(border, x);
+            Canvas.SetTop(border, y);
+            Canvas.SetZIndex(border, 999); // 低于分割线
+            
+            // 添加点击事件
+            border.MouseLeftButtonDown += (s, e) =>
+            {
+                SelectRegion(regionIndex);
+                e.Handled = true;
+            };
+            
+            _splitRegionBorders.Add(border);
+            EditorCanvas.Children.Add(border);
+        }
+        
+        /// <summary>
+        /// 清除区域边框
+        /// </summary>
+        private void ClearRegionBorders()
+        {
+            // 清除边框
+            foreach (var border in _splitRegionBorders)
+            {
+                EditorCanvas.Children.Remove(border);
+            }
+            _splitRegionBorders.Clear();
+            
+            // 清除区域图片
+            foreach (var image in _regionImages.Values)
+            {
+                EditorCanvas.Children.Remove(image);
+            }
+            _regionImages.Clear();
+            _regionImagePaths.Clear();
+        }
+        
+        /// <summary>
+        /// 选择区域
+        /// </summary>
+        private void SelectRegion(int regionIndex)
+        {
+            if (regionIndex < 0 || regionIndex >= _splitRegionBorders.Count)
+                return;
+                
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🎯 [SelectRegion] 选中区域: {regionIndex}");
+            #endif
+            
+            _selectedRegionIndex = regionIndex;
+            
+            // 更新所有边框的样式
+            for (int i = 0; i < _splitRegionBorders.Count; i++)
+            {
+                var border = _splitRegionBorders[i];
+                if (i == regionIndex)
+                {
+                    // 选中状态：绿色粗边框
+                    border.Stroke = new SolidColorBrush(WpfColor.FromRgb(0, 255, 0));
+                    border.StrokeThickness = 4;
+                }
+                else
+                {
+                    // 未选中状态：灰色细边框
+                    border.Stroke = new SolidColorBrush(WpfColor.FromRgb(128, 128, 128));
+                    border.StrokeThickness = 2;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 加载图片到选中的分割区域
+        /// </summary>
+        public async Task LoadImageToSplitRegion(string imagePath)
+        {
+            if (_currentSlide == null || _splitRegionBorders.Count == 0)
+                return;
+                
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🖼 [LoadImageToSplitRegion] 加载图片到区域 {_selectedRegionIndex}: {imagePath}");
+            #endif
+            
+            try
+            {
+                // 获取区域边框信息
+                var border = _splitRegionBorders[_selectedRegionIndex];
+                double x = Canvas.GetLeft(border);
+                double y = Canvas.GetTop(border);
+                double width = border.Width;
+                double height = border.Height;
+                
+                // 如果该区域已经有图片，先移除
+                if (_regionImages.ContainsKey(_selectedRegionIndex))
+                {
+                    EditorCanvas.Children.Remove(_regionImages[_selectedRegionIndex]);
+                    _regionImages.Remove(_selectedRegionIndex);
+                }
+                
+                // 🚀 使用优化的图片加载（GPU加速 + 缓存）
+                var bitmapSource = await Task.Run(() =>
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(imagePath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad; // 立即加载到内存
+                    bitmap.EndInit();
+                    bitmap.Freeze(); // 🔥 冻结到GPU显存，跨线程共享
+                    return bitmap;
+                });
+                
+                // 创建 Image 控件，应用当前拉伸模式
+                var imageControl = new System.Windows.Controls.Image
+                {
+                    Source = bitmapSource,
+                    Width = width,
+                    Height = height,
+                    Stretch = _splitStretchMode ? 
+                        System.Windows.Media.Stretch.Fill :  // 拉伸填满
+                        System.Windows.Media.Stretch.Uniform, // 适中显示（默认）
+                    Tag = $"RegionImage_{_selectedRegionIndex}",
+                    CacheMode = new BitmapCache // 🔥 启用GPU缓存，减少重复渲染
+                    {
+                        RenderAtScale = 1.0
+                    }
+                };
+                
+                Canvas.SetLeft(imageControl, x);
+                Canvas.SetTop(imageControl, y);
+                Canvas.SetZIndex(imageControl, 998); // 低于边框
+                
+                // 添加到画布
+                EditorCanvas.Children.Add(imageControl);
+                
+                // 保存引用
+                _regionImages[_selectedRegionIndex] = imageControl;
+                _regionImagePaths[_selectedRegionIndex] = imagePath;
+                
+                // 更新边框样式（有图片的区域显示黄色）
+                border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
+                #endif
+                
+                // 保存分割配置到数据库
+                await SaveSplitConfigAsync();
+                
+                MarkContentAsModified();
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 失败: {ex.Message}");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 检查是否处于分割模式
+        /// </summary>
+        public bool IsInSplitMode()
+        {
+            return _currentSlide != null && 
+                   _currentSlide.SplitMode > 0 && 
+                   _splitRegionBorders.Count > 0;
+        }
+        
+        /// <summary>
+        /// 保存分割配置到数据库
+        /// </summary>
+        private async Task SaveSplitConfigAsync()
+        {
+            if (_currentSlide == null)
+                return;
+                
+            try
+            {
+                // 将区域图片路径序列化为 JSON
+                var regionDataList = _regionImagePaths
+                    .Select(kvp => new Database.Models.DTOs.SplitRegionData
+                    {
+                        RegionIndex = kvp.Key,
+                        ImagePath = kvp.Value
+                    })
+                    .ToList();
+                
+                string json = JsonSerializer.Serialize(regionDataList);
+                
+                // 更新数据库
+                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                if (slideToUpdate != null)
+                {
+                    slideToUpdate.SplitRegionsData = json;
+                    slideToUpdate.ModifiedTime = DateTime.Now;
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // 更新本地缓存
+                    _currentSlide.SplitRegionsData = json;
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitConfig] 已保存 {regionDataList.Count} 个区域配置");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitConfig] 失败: {ex.Message}");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 投影前调整分割线和边框样式（细线）
+        /// </summary>
+        private void HideSplitLinesForProjection()
+        {
+            try
+            {
+                // 将所有分割线改为细线（1px实线）
+                foreach (var child in EditorCanvas.Children.OfType<Line>())
+                {
+                    if (child.Tag != null && child.Tag.ToString() == "SplitLine")
+                    {
+                        // 保存原始样式到Tag
+                        child.Tag = new { 
+                            Type = "SplitLine", 
+                            OriginalThickness = child.StrokeThickness,
+                            OriginalDashArray = child.StrokeDashArray
+                        };
+                        
+                        // 改为细实线
+                        child.StrokeThickness = 1;
+                        child.StrokeDashArray = null; // 实线
+                    }
+                }
+                
+                // 隐藏所有区域边框
+                foreach (var border in _splitRegionBorders)
+                {
+                    border.Visibility = Visibility.Collapsed;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已调整分割线为细线，隐藏边框");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [HideSplitLinesForProjection] 失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 投影后恢复分割线和边框显示
+        /// </summary>
+        private void RestoreSplitLinesAfterProjection()
+        {
+            try
+            {
+                // 恢复所有分割线的原始样式
+                foreach (var child in EditorCanvas.Children.OfType<Line>())
+                {
+                    if (child.Tag != null)
+                    {
+                        var tagType = child.Tag.GetType();
+                        if (tagType.GetProperty("Type") != null)
+                        {
+                            dynamic tag = child.Tag;
+                            if (tag.Type == "SplitLine")
+                            {
+                                // 恢复原始粗细和虚线样式
+                                child.StrokeThickness = tag.OriginalThickness;
+                                child.StrokeDashArray = tag.OriginalDashArray;
+                                
+                                // 恢复简单的Tag
+                                child.Tag = "SplitLine";
+                            }
+                        }
+                    }
+                }
+                
+                // 恢复所有区域边框
+                foreach (var border in _splitRegionBorders)
+                {
+                    border.Visibility = Visibility.Visible;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已恢复分割线和边框");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitLinesAfterProjection] 失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 恢复分割配置
+        /// </summary>
+        private void RestoreSplitConfig(Slide slide)
+        {
+            try
+            {
+                // 🆕 恢复拉伸模式
+                _splitStretchMode = slide.SplitStretchMode;
+                BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 已恢复拉伸模式: {(_splitStretchMode ? "拉伸" : "适中")}");
+                #endif
+                
+                // 检查是否有分割模式
+                if (slide.SplitMode == 0)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 单画面模式，清空分割区域");
+                    #endif
+                    // 🔥 清空所有分割元素
+                    ClearSplitLines();
+                    ClearRegionBorders();
+                    return;
+                }
+                
+                // 先更新分割布局
+                var splitMode = (Database.Models.Enums.ViewSplitMode)slide.SplitMode;
+                UpdateSplitLayout(splitMode);
+                
+                // 检查是否有区域数据
+                if (string.IsNullOrEmpty(slide.SplitRegionsData))
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 分割模式={splitMode}，但无区域数据");
+                    #endif
+                    return;
+                }
+                
+                // 反序列化区域数据
+                var regionDataList = JsonSerializer.Deserialize<List<Database.Models.DTOs.SplitRegionData>>(slide.SplitRegionsData);
+                if (regionDataList == null || regionDataList.Count == 0)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 反序列化失败或数据为空");
+                    #endif
+                    return;
+                }
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 开始恢复 {regionDataList.Count} 个区域");
+                #endif
+                
+                // 清空现有数据
+                _regionImagePaths.Clear();
+                foreach (var image in _regionImages.Values)
+                {
+                    EditorCanvas.Children.Remove(image);
+                }
+                _regionImages.Clear();
+                
+                // 恢复每个区域的图片
+                foreach (var regionData in regionDataList)
+                {
+                    if (string.IsNullOrEmpty(regionData.ImagePath) || !System.IO.File.Exists(regionData.ImagePath))
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 图片不存在: {regionData.ImagePath}");
+                        #endif
+                        continue;
+                    }
+                    
+                    if (regionData.RegionIndex >= _splitRegionBorders.Count)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域索引超出范围: {regionData.RegionIndex}");
+                        #endif
+                        continue;
+                    }
+                    
+                    // 获取区域边框信息
+                    var border = _splitRegionBorders[regionData.RegionIndex];
+                    double x = Canvas.GetLeft(border);
+                    double y = Canvas.GetTop(border);
+                    double width = border.Width;
+                    double height = border.Height;
+                    
+                    // 🚀 使用优化的图片加载（GPU加速 + 缓存）
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(regionData.ImagePath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    bitmap.Freeze(); // 🔥 冻结到GPU显存
+                    
+                    // 创建 Image 控件，应用当前拉伸模式
+                    var imageControl = new System.Windows.Controls.Image
+                    {
+                        Source = bitmap,
+                        Width = width,
+                        Height = height,
+                        Stretch = _splitStretchMode ? 
+                            System.Windows.Media.Stretch.Fill : 
+                            System.Windows.Media.Stretch.Uniform,
+                        Tag = $"RegionImage_{regionData.RegionIndex}",
+                        CacheMode = new BitmapCache // 🔥 启用GPU缓存
+                        {
+                            RenderAtScale = 1.0
+                        }
+                    };
+                    
+                    Canvas.SetLeft(imageControl, x);
+                    Canvas.SetTop(imageControl, y);
+                    Canvas.SetZIndex(imageControl, 998);
+                    
+                    // 添加到画布
+                    EditorCanvas.Children.Add(imageControl);
+                    
+                    // 保存引用
+                    _regionImages[regionData.RegionIndex] = imageControl;
+                    _regionImagePaths[regionData.RegionIndex] = regionData.ImagePath;
+                    
+                    // 更新边框样式（有图片的区域显示金色）
+                    border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0));
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
+                    #endif
+                }
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 分割配置恢复完成");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 失败: {ex.Message}\n{ex.StackTrace}");
+                #endif
+            }
         }
 
         /// <summary>
@@ -1550,6 +2293,9 @@ namespace ImageColorChanger.UI
                 AlignmentGuidesCanvas.Visibility = Visibility.Collapsed;
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 已隐藏辅助线");
                 
+                // 🔧 渲染前：隐藏分割线和边框，避免被渲染到投影中
+                HideSplitLinesForProjection();
+                
                 // 🎨 渲染前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
                 foreach (var textBox in _textBoxes)
                 {
@@ -1608,6 +2354,10 @@ namespace ImageColorChanger.UI
                 // 🔧 确保恢复辅助线的可见性（无论成功还是失败）
                 AlignmentGuidesCanvas.Visibility = guidesVisibility;
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 已恢复辅助线状态");
+                
+                // 🔧 恢复分割线和边框显示
+                RestoreSplitLinesAfterProjection();
+                
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 更新投影结束 =====");
             }
         }
@@ -2443,6 +3193,9 @@ namespace ImageColorChanger.UI
                 }
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
+                
+                // 🆕 恢复分割配置
+                RestoreSplitConfig(slide);
                 
                 // 🆕 加载完成后，如果投影已开启，自动更新投影
                 if (_projectionManager.IsProjectionActive)

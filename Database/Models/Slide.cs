@@ -52,6 +52,24 @@ namespace ImageColorChanger.Database.Models
         public string BackgroundColor { get; set; }
 
         /// <summary>
+        /// 画面分割模式（0=单画面, 1=左右, 2=上下, 3=四宫格）
+        /// </summary>
+        [Column("split_mode")]
+        public int SplitMode { get; set; } = 0;
+
+        /// <summary>
+        /// 分割区域数据（JSON格式，存储各区域的图片路径）
+        /// </summary>
+        [Column("split_regions_data")]
+        public string SplitRegionsData { get; set; }
+
+        /// <summary>
+        /// 分割图片拉伸模式（false=适中显示Uniform, true=拉伸显示Fill）
+        /// </summary>
+        [Column("split_stretch_mode")]
+        public bool SplitStretchMode { get; set; } = false;
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         [Column("created_time")]

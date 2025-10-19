@@ -117,7 +117,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void ProjectTree_MouseClick(object sender, MouseButtonEventArgs e)
+        private async void ProjectTree_MouseClick(object sender, MouseButtonEventArgs e)
         {
             // 获取点击的项目
             if (e.OriginalSource is FrameworkElement element)
@@ -136,8 +136,12 @@ namespace ImageColorChanger.UI
                     // 处理文件夹节点：单击展开/折叠
                     if (selectedItem.Type == TreeItemType.Folder)
                     {
-                        // 🆕 自动退出文本编辑器（如果正在编辑项目）
-                        AutoExitTextEditorIfNeeded();
+                        // 🆕 只在非文本编辑模式下才自动切换回图片模式
+                        // 如果正在编辑幻灯片，不应该自动退出
+                        if (TextEditorPanel.Visibility != Visibility.Visible)
+                        {
+                            AutoExitTextEditorIfNeeded();
+                        }
                         
                         // 🆕 新增: 折叠其他所有文件夹节点
                         CollapseOtherFolders(selectedItem);
@@ -240,8 +244,13 @@ namespace ImageColorChanger.UI
                     // 处理文件节点：单击加载
                     else if (selectedItem.Type == TreeItemType.File && !string.IsNullOrEmpty(selectedItem.Path))
                     {
-                        // 🆕 自动退出文本编辑器（如果正在编辑项目）
-                        AutoExitTextEditorIfNeeded();
+                        // 🆕 只在非文本编辑模式下才自动切换回图片模式
+                        // 如果正在编辑幻灯片且处于分割模式，不应该自动退出
+                        bool isEditingSlide = TextEditorPanel.Visibility == Visibility.Visible;
+                        if (!isEditingSlide)
+                        {
+                            AutoExitTextEditorIfNeeded();
+                        }
                         
                         // 🔧 先获取文件ID（注意：不要立即设置_currentImageId，因为SwitchToImageMode会清空它）
                         int fileId = selectedItem.Id;
@@ -308,14 +317,24 @@ namespace ImageColorChanger.UI
                             switch (selectedItem.FileType)
                             {
                                 case FileType.Image:
-                                    // 切换回图片模式（注意：这会清空_currentImageId）
-                                    SwitchToImageMode();
-                                    // 🔧 关键修复：在LoadImage之前设置_currentImageId
-                                    // LoadImage内部需要_currentImageId来检查录制数据和更新按钮状态
-                                    _currentImageId = fileId;
-                                    // 加载图片（预缓存已在LoadImage中触发）
-                                    LoadImage(selectedItem.Path);
-                                    // ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    // 🆕 检查是否在文本编辑模式且处于分割模式
+                                    if (TextEditorPanel.Visibility == Visibility.Visible && IsInSplitMode())
+                                    {
+                                        // 加载图片到选中的分割区域
+                                        await LoadImageToSplitRegion(selectedItem.Path);
+                                        ShowStatus($"📷 已加载到区域: {selectedItem.Name}");
+                                    }
+                                    else
+                                    {
+                                        // 切换回图片模式（注意：这会清空_currentImageId）
+                                        SwitchToImageMode();
+                                        // 🔧 关键修复：在LoadImage之前设置_currentImageId
+                                        // LoadImage内部需要_currentImageId来检查录制数据和更新按钮状态
+                                        _currentImageId = fileId;
+                                        // 加载图片（预缓存已在LoadImage中触发）
+                                        LoadImage(selectedItem.Path);
+                                        // ShowStatus($"📷 已加载: {selectedItem.Name}");
+                                    }
                                     break;
                                 
                                 case FileType.Video:
