@@ -45,12 +45,12 @@ namespace ImageColorChanger.Managers.Keyframes
         /// <summary>
         /// 滚动缓动类型（字符串，匹配Python版本）
         /// </summary>
-        public string ScrollEasingType { get; set; } = "Linear";
+        public string ScrollEasingType { get; set; } = "Bezier";
         
         /// <summary>
         /// 是否使用线性滚动（无缓动）
         /// </summary>
-        public bool IsLinearScrolling { get; set; } = true;
+        public bool IsLinearScrolling { get; set; } = false;
 
         #endregion
 

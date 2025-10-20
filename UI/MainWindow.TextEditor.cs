@@ -794,10 +794,10 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitStretchMode] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitStretchMode] 失败");
                 #endif
             }
         }
@@ -909,10 +909,10 @@ namespace ImageColorChanger.UI
                 
                 MarkContentAsModified();
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败");
                 #endif
             }
         }
@@ -1287,10 +1287,10 @@ namespace ImageColorChanger.UI
                 // 🆕 自动选中下一个未加载图片的区域
                 AutoSelectNextEmptyRegion();
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 失败");
                 #endif
             }
         }
@@ -1515,10 +1515,10 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitConfig] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitConfig] 失败");
                 #endif
             }
         }
@@ -1556,10 +1556,10 @@ namespace ImageColorChanger.UI
                 
                 //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已调整分割线为细线，隐藏边框");
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [HideSplitLinesForProjection] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [HideSplitLinesForProjection] 失败");
                 #endif
             }
         }
@@ -1601,10 +1601,10 @@ namespace ImageColorChanger.UI
                 
                 //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已恢复分割线和边框");
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitLinesAfterProjection] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitLinesAfterProjection] 失败");
                 #endif
             }
         }
@@ -1773,10 +1773,10 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 分割配置恢复完成");
                 //#endif
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 失败: {ex.Message}\n{ex.StackTrace}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 失败");
                 #endif
             }
         }

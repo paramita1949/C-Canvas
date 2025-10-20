@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Animation;
-using static ImageColorChanger.Utils.EasingFunctions;
 
 namespace ImageColorChanger.Utils
 {
@@ -152,8 +151,6 @@ namespace ImageColorChanger.Utils
         {
             return easingType switch
             {
-                "OptimizedCubic" => new OptimizedCubicEase(),
-                "EaseOutExpo" => new ExponentialEaseOut(),
                 "Bezier" => new BezierEase 
                 { 
                     P1X = 0.25, 
@@ -162,10 +159,7 @@ namespace ImageColorChanger.Utils
                     P2Y = 1.0 
                 },
                 "CssEaseInOut" => new CssEaseInOut(),
-                // 🆕 新增优化的缓动函数
                 "UltraSmooth" => new UltraSmoothEase(),
-                "Physics" => new PhysicsEase { InitialVelocity = 2.0, Friction = -2.0 },
-                "Adaptive" => new AdaptiveEase { ScrollDistance = scrollDistance },
                 _ => new BezierEase() // 默认贝塞尔曲线
             };
         }
@@ -208,6 +202,124 @@ namespace ImageColorChanger.Utils
             };
 
             element.BeginAnimation(UIElement.OpacityProperty, animation);
+        }
+    }
+
+    // =====================================================================
+    // 滚动缓动函数集合
+    // =====================================================================
+
+    /// <summary>
+    /// 贝塞尔曲线缓动 - 精确的三次贝塞尔实现
+    /// 控制点: (0,0), (0.25,0.1), (0.25,1.0), (1,1)
+    /// </summary>
+    public class BezierEase : EasingFunctionBase
+    {
+        public double P1X { get; set; } = 0.25;
+        public double P1Y { get; set; } = 0.1;
+        public double P2X { get; set; } = 0.25;
+        public double P2Y { get; set; } = 1.0;
+
+        protected override double EaseInCore(double normalizedTime)
+        {
+            double t = normalizedTime;
+            
+            // 边界处理
+            if (t <= 0.0)
+                return 0.0;
+            if (t >= 1.0)
+                return 1.0;
+
+            // 精确的三次贝塞尔曲线实现
+            // 控制点: (0,0), (p1x,p1y), (p2x,p2y), (1,1)
+            double u = 1 - t;
+            return 3 * u * u * t * P1Y +
+                   3 * u * t * t * P2Y +
+                   t * t * t;
+        }
+
+        protected override Freezable CreateInstanceCore()
+        {
+            return new BezierEase
+            {
+                P1X = this.P1X,
+                P1Y = this.P1Y,
+                P2X = this.P2X,
+                P2Y = this.P2Y
+            };
+        }
+    }
+
+    /// <summary>
+    /// CSS ease-in-out 等价函数
+    /// cubic-bezier(0.42, 0, 0.58, 1)
+    /// </summary>
+    public class CssEaseInOut : EasingFunctionBase
+    {
+        protected override double EaseInCore(double normalizedTime)
+        {
+            double t = normalizedTime;
+            
+            // 边界处理
+            if (t <= 0.0)
+                return 0.0;
+            if (t >= 1.0)
+                return 1.0;
+
+            // CSS ease-in-out: cubic-bezier(0.42, 0, 0.58, 1)
+            double u = 1 - t;
+            double p1y = 0.0;
+            double p2y = 1.0;
+            return 3 * u * u * t * p1y +
+                   3 * u * t * t * p2y +
+                   t * t * t;
+        }
+
+        protected override Freezable CreateInstanceCore()
+        {
+            return new CssEaseInOut();
+        }
+    }
+
+    /// <summary>
+    /// 超级平滑缓动（5次多项式，C2连续）
+    /// 特点：启动和结束都极其平滑，二阶导数连续
+    /// 适合：追求极致丝滑的滚动体验
+    /// </summary>
+    public class UltraSmoothEase : EasingFunctionBase
+    {
+        #if DEBUG
+        private bool _isFirstCall = true;
+        #endif
+        
+        protected override double EaseInCore(double normalizedTime)
+        {
+            #if DEBUG
+            if (_isFirstCall)
+            {
+                System.Diagnostics.Debug.WriteLine($"✨ [UltraSmoothEase] 超级平滑缓动已启用（5次多项式）");
+                _isFirstCall = false;
+            }
+            #endif
+            
+            double t = normalizedTime;
+            
+            // 边界处理
+            if (t <= 0.0)
+                return 0.0;
+            if (t >= 1.0)
+                return 1.0;
+
+            // 5次多项式：6t^5 - 15t^4 + 10t^3
+            // 这个函数的特点：
+            // - 在t=0和t=1处，一阶导数和二阶导数都为0
+            // - 保证了启动和结束时的极致平滑
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+
+        protected override Freezable CreateInstanceCore()
+        {
+            return new UltraSmoothEase();
         }
     }
 }
