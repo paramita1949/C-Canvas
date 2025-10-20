@@ -72,7 +72,7 @@ namespace ImageColorChanger.Managers
 
         // 性能优化
         private DateTime _lastSyncTime;
-        private TimeSpan _syncThrottleInterval = TimeSpan.FromMilliseconds(16); // 约60FPS
+        private TimeSpan _syncThrottleInterval = TimeSpan.FromMilliseconds(8); // 约120FPS（与Python版本一致）
 
         // 当前状态
         private SKBitmap _currentImage;
@@ -88,6 +88,12 @@ namespace ImageColorChanger.Managers
         // ⚡ 预渲染状态
         private bool _isPreRendering = false;
         private readonly object _preRenderLock = new object();
+        
+        // ⚡ 共享渲染缓存
+        private BitmapSource _lastSharedBitmap = null;
+        
+        // 📊 共享渲染验证计数
+        private int _scrollVerifyCount = 0;
 
         /// <summary>
         /// 是否正在投影
@@ -237,7 +243,7 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
-        /// 更新投影图片
+        /// 更新投影图片 - 使用共享渲染模式
         /// </summary>
         public void UpdateProjectionImage(SKBitmap image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
         {
@@ -263,15 +269,111 @@ namespace ImageColorChanger.Managers
 
             if (_projectionWindow != null && image != null)
             {
-                // ⚡ 完全同步方案：立即高质量渲染，无延迟，无快速预览
-                // 宁可轻微卡顿，也要保证主屏幕和投影屏幕显示完全一致
                 _zoomRatio = zoomRatio;
-                _ = PreRenderProjectionAsync();
+                
+                // 🚀 共享渲染模式：尝试直接使用主屏的BitmapSource
+                var mainScreenBitmap = _imageProcessor?.CurrentPhoto;
+                if (mainScreenBitmap != null && !bypassCache)
+                {
+                    // ✅ 直接复用主屏渲染结果，零GPU开销
+                    _ = UseSharedRenderingAsync(mainScreenBitmap);
+                }
+                else
+                {
+                    // ⚠️ 降级：独立渲染（文本编辑器等特殊场景）
+                    _ = PreRenderProjectionAsync();
+                }
             }
         }
         
         /// <summary>
-        /// 同步渲染投影（主线程）
+        /// 使用共享渲染模式 - 直接复用主屏BitmapSource
+        /// </summary>
+        private System.Threading.Tasks.Task UseSharedRenderingAsync(BitmapSource mainScreenBitmap)
+        {
+            if (_projectionWindow == null || mainScreenBitmap == null)
+                return System.Threading.Tasks.Task.CompletedTask;
+
+            try
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    #if DEBUG
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    #endif
+                    
+                    var screen = _screens[_currentScreenIndex];
+                    int screenWidth = screen.Bounds.Width;
+                    int screenHeight = screen.Bounds.Height;
+
+                    // 计算投影屏显示尺寸
+                    var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
+                    
+                    // 🚀 核心优化：直接使用主屏的BitmapSource
+                    _projectionImage = mainScreenBitmap;
+                    
+                    // 更新UI
+                    if (_projectionImageControl != null)
+                    {
+                        _projectionImageControl.Source = _projectionImage;
+                        _projectionImageControl.Width = newWidth;
+                        _projectionImageControl.Height = newHeight;
+                        
+                        // 设置对齐和边距
+                        if (_projectionScrollViewer != null && _projectionContainer != null)
+                        {
+                            double containerWidth = _projectionScrollViewer.ActualWidth;
+                            double containerHeight = _projectionScrollViewer.ActualHeight;
+                            if (containerWidth <= 0) containerWidth = screenWidth;
+                            if (containerHeight <= 0) containerHeight = screenHeight;
+                            
+                            double x = Math.Max(0, (containerWidth - newWidth) / 2.0);
+                            double y = _isOriginalMode ? Math.Max(0, (containerHeight - newHeight) / 2.0) : 0;
+                            
+                            _projectionImageControl.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                            _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                            _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
+                            
+                            // 设置滚动区域
+                            double scrollHeight;
+                            if (_isOriginalMode)
+                            {
+                                scrollHeight = newHeight <= screenHeight ? screenHeight : newHeight + screenHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight <= screenHeight 
+                                    ? System.Windows.Controls.ScrollBarVisibility.Hidden 
+                                    : System.Windows.Controls.ScrollBarVisibility.Hidden;
+                            }
+                            else
+                            {
+                                scrollHeight = newHeight >= screenHeight ? newHeight + screenHeight : screenHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight >= screenHeight 
+                                    ? System.Windows.Controls.ScrollBarVisibility.Hidden 
+                                    : System.Windows.Controls.ScrollBarVisibility.Hidden;
+                            }
+                            _projectionContainer.Height = scrollHeight;
+                        }
+                    }
+                    
+                    #if DEBUG
+                    sw.Stop();
+                    System.Diagnostics.Debug.WriteLine($"🚀 [共享渲染] 耗时: {sw.ElapsedMilliseconds}ms (零GPU开销)");
+                    #endif
+                });
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [共享渲染] 失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
+        
+        /// <summary>
+        /// 同步渲染投影（主线程）- 独立渲染模式（降级方案）
         /// </summary>
         public System.Threading.Tasks.Task PreRenderProjectionAsync()
         {
@@ -327,12 +429,21 @@ namespace ImageColorChanger.Managers
                     //#endif
                     
                     // 🎮 使用GPU加速渲染（如果GPU不可用，自动降级到CPU）
+                    #if DEBUG
+                    var gpuStart = System.Diagnostics.Stopwatch.StartNew();
+                    #endif
+                    
                     var processedImage = Core.GPUContext.Instance.ScaleImageGpu(
                         _currentImage, 
                         newWidth, 
                         newHeight, 
-                        SKFilterQuality.High
+                        SKFilterQuality.High  // 保持最高质量
                     );
+                    
+                    #if DEBUG
+                    gpuStart.Stop();
+                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender GPU] 耗时: {gpuStart.ElapsedMilliseconds}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
+                    #endif
 
                     if (processedImage == null)
                     {
@@ -446,6 +557,25 @@ namespace ImageColorChanger.Managers
             }
         }
 
+        /// <summary>
+        /// 同步共享渲染 - 每一帧调用，使用主屏的BitmapSource更新投影窗口
+        /// </summary>
+        public void SyncSharedRendering()
+        {
+            if (!_syncEnabled || _projectionWindow == null)
+                return;
+
+            // 🚀 直接使用主屏的BitmapSource（零GPU开销）
+            var mainScreenBitmap = _imageProcessor?.CurrentPhoto;
+            
+            // ⚡ 优化：只有当 BitmapSource 发生变化时才更新（避免无意义的UI刷新）
+            if (mainScreenBitmap != null && mainScreenBitmap != _lastSharedBitmap)
+            {
+                _lastSharedBitmap = mainScreenBitmap;
+                _ = UseSharedRenderingAsync(mainScreenBitmap);
+            }
+        }
+        
         /// <summary>
         /// 同步投影滚动位置 - 使用绝对像素位置同步,通过原始图片作为中介
         /// </summary>
@@ -570,6 +700,21 @@ namespace ImageColorChanger.Managers
                     // 应用到投影屏幕
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
+                    // 📺 FPS监控：记录投影同步
+                    (_mainWindow as UI.MainWindow)?._fpsMonitor?.RecordProjectionSync();
+                    
+                    #if DEBUG
+                    // ⚡ 验证共享渲染状态（每60次滚动输出一次）
+                    _scrollVerifyCount++;
+                    if (_scrollVerifyCount % 60 == 0)
+                    {
+                        var mainBitmap = _imageProcessor?.CurrentPhoto;
+                        var projBitmap = _projectionImageControl?.Source;
+                        bool isShared = (mainBitmap != null && projBitmap != null && ReferenceEquals(mainBitmap, projBitmap));
+                        System.Diagnostics.Debug.WriteLine($"🔍 [共享验证] 投影使用共享渲染: {(isShared ? "✅ 是" : "❌ 否")} | 主屏Bitmap: {(mainBitmap != null ? "有" : "无")} | 投影Bitmap: {(projBitmap != null ? "有" : "无")} | 引用相同: {isShared}");
+                    }
+                    #endif
+
                     // System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
                 });
             }
@@ -615,6 +760,14 @@ namespace ImageColorChanger.Managers
         public VideoView GetProjectionVideoView()
         {
             return _projectionVideoView;
+        }
+        
+        /// <summary>
+        /// 获取投影窗口（用于FPS监控）
+        /// </summary>
+        public Window GetProjectionWindow()
+        {
+            return _projectionWindow;
         }
         
         /// <summary>
@@ -1088,9 +1241,13 @@ namespace ImageColorChanger.Managers
                             _currentImage, 
                             newWidth, 
                             newHeight, 
-                            SKFilterQuality.High
+                            SKFilterQuality.High  // 保持最高质量
                         );
                         var renderTime = sw.ElapsedMilliseconds - renderStart;
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚡ [UpdateProjection GPU] 耗时: {renderTime}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
+                        #endif
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"    ├─ GPU缩放: {renderTime}ms");
                         //#endif

@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 
 namespace ImageColorChanger.Utils
@@ -89,20 +90,11 @@ namespace ImageColorChanger.Utils
                 // 计算滚动距离（用于自适应缓动）
                 double scrollDistance = Math.Abs(toOffset - fromOffset);
                 animation.EasingFunction = GetEasingFunction(easingType, scrollDistance);
-                
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 缓动函数: {easingType}, 距离: {scrollDistance:F1}px, 时长: {duration.TotalSeconds:F1}秒");
-                #endif
-            }
-            else
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 线性滚动, 距离: {Math.Abs(toOffset - fromOffset):F1}px, 时长: {duration.TotalSeconds:F1}秒");
-                #endif
             }
             
-            // 🎯 性能优化：明确指定60 FPS帧率
-            Timeline.SetDesiredFrameRate(animation, 60);
+            // 🚀 极致性能优化：明确指定120 FPS帧率（与Python版本一致）
+            // WPF默认60fps，提升到120fps可以获得更丝滑的滚动体验
+            Timeline.SetDesiredFrameRate(animation, 120);
 
             // 创建故事板
             var storyboard = new Storyboard();
@@ -112,28 +104,27 @@ namespace ImageColorChanger.Utils
             Storyboard.SetTarget(animation, scrollViewer);
             Storyboard.SetTargetProperty(animation, new PropertyPath(AnimatedVerticalOffsetProperty));
 
-            // 动画完成事件
-            if (onCompleted != null)
+            // 🎬 FPS监控 + 投影共享渲染
+            EventHandler renderHandler = null;
+            renderHandler = (s, e) =>
             {
-                storyboard.Completed += (s, e) => 
-                {
-                    // 停止性能监控
-                    PerformanceMonitor.Instance.StopScrollMonitoring();
-                    onCompleted();
-                };
-            }
-            else
-            {
-                storyboard.Completed += (s, e) => 
-                {
-                    // 停止性能监控
-                    PerformanceMonitor.Instance.StopScrollMonitoring();
-                };
-            }
+                var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
+                
+                // 每一帧渲染时记录FPS
+                mainWindow?._fpsMonitor?.RecordMainFrame();
+                
+                // 🚀 每一帧触发投影共享渲染更新（如果投影窗口开启）
+                mainWindow?._projectionManager?.SyncSharedRendering();
+            };
+            CompositionTarget.Rendering += renderHandler;
 
-            // 开始性能监控（所有滚动都监控，包括线性）
-            string monitoringType = isLinear ? "Linear" : easingType;
-            PerformanceMonitor.Instance.StartScrollMonitoring(monitoringType);
+            // 动画完成事件
+            storyboard.Completed += (s, e) =>
+            {
+                // 停止FPS监控
+                CompositionTarget.Rendering -= renderHandler;
+                onCompleted?.Invoke();
+            };
 
             // 开始动画
             storyboard.Begin();

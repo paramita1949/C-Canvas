@@ -327,8 +327,10 @@ namespace ImageColorChanger.Managers.Keyframes
                         return;
                     }
 
+                    // 开始FPS监控
+                    _mainWindow.StartFpsMonitoring();
+                    
                     // 执行平滑滚动动画
-                    // System.Diagnostics.Debug.WriteLine($"🎬 [滚动动画] 开始: {currentPosition:F0}→{targetOffset:F0} (持续:{ScrollDuration}秒, 缓动:{(IsLinearScrolling ? "Linear" : ScrollEasingType)})");
                     _currentScrollAnimation = Utils.AnimationHelper.AnimateScroll(
                         scrollViewer,
                         currentPosition,
@@ -338,13 +340,15 @@ namespace ImageColorChanger.Managers.Keyframes
                         {
                             // 动画完成后清除引用
                             _currentScrollAnimation = null;
-                            // System.Diagnostics.Debug.WriteLine($"✅ [滚动动画] 完成");
                             
                             // 更新投影
                             if (_mainWindow.IsProjectionEnabled)
                             {
                                 _mainWindow.UpdateProjection();
                             }
+                            
+                            // 停止FPS监控
+                            _mainWindow.StopFpsMonitoring();
                         },
                         ScrollEasingType,  // 使用配置的缓动类型
                         IsLinearScrolling   // 是否线性滚动

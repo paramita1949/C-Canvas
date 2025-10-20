@@ -456,6 +456,36 @@ namespace ImageColorChanger.UI
         public bool IsProjectionEnabled => _projectionManager?.IsProjectionActive ?? false;
 
         /// <summary>
+        /// 开始FPS监控
+        /// </summary>
+        public void StartFpsMonitoring()
+        {
+            try
+            {
+                _fpsMonitor?.StartMonitoring();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 启动FPS监控失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 停止FPS监控
+        /// </summary>
+        public void StopFpsMonitoring()
+        {
+            try
+            {
+                _fpsMonitor?.StopMonitoring();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 停止FPS监控失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 更新关键帧指示器
         /// </summary>
         public void UpdateKeyframeIndicators()

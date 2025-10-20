@@ -128,7 +128,7 @@ namespace ImageColorChanger.UI
         private ImageSaveManager _imageSaveManager;
         private SearchManager _searchManager;
         private SortManager _sortManager;
-        private ProjectionManager _projectionManager;
+        public ProjectionManager _projectionManager;  // ⚡ public for AnimationHelper access
         private OriginalManager _originalManager;
         private PreloadCacheManager _preloadCacheManager; // 智能预缓存管理器
         
@@ -146,6 +146,9 @@ namespace ImageColorChanger.UI
         // 全局热键管理器
         private Utils.GlobalHotKeyManager _globalHotKeyManager;
         private DateTime _lastMediaNextClickTime = DateTime.MinValue;
+        
+        // 实时FPS监控器
+        public Utils.RealTimeFpsMonitor _fpsMonitor;
         
         // MVVM - 新架构的PlaybackControlViewModel
         internal ViewModels.PlaybackControlViewModel _playbackViewModel;
@@ -188,6 +191,25 @@ namespace ImageColorChanger.UI
             
             // 🆕 初始化文本编辑器
             InitializeTextEditor();
+            
+            // 初始化FPS监控器
+            InitializeFpsMonitor();
+        }
+        
+        /// <summary>
+        /// 初始化FPS监控器
+        /// </summary>
+        private void InitializeFpsMonitor()
+        {
+            try
+            {
+                _fpsMonitor = new Utils.RealTimeFpsMonitor(this);
+                // 默认不开启监控，只在滚动时开启
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ FPS监控器初始化失败: {ex.Message}");
+            }
         }
         
         /// <summary>

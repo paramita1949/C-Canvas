@@ -52,6 +52,13 @@ namespace ImageColorChanger.UI
                 {
                     _globalHotKeyManager.Dispose();
                 }
+                
+                // 停止并释放FPS监控器
+                if (_fpsMonitor != null)
+                {
+                    _fpsMonitor.StopMonitoring();
+                    _fpsMonitor.Dispose();
+                }
             }
             catch (Exception)
             {
