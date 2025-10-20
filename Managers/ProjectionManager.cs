@@ -93,7 +93,9 @@ namespace ImageColorChanger.Managers
         private BitmapSource _lastSharedBitmap = null;
         
         // 📊 共享渲染验证计数
+        #if DEBUG
         private int _scrollVerifyCount = 0;
+        #endif
 
         /// <summary>
         /// 是否正在投影
@@ -711,7 +713,7 @@ namespace ImageColorChanger.Managers
                         var mainBitmap = _imageProcessor?.CurrentPhoto;
                         var projBitmap = _projectionImageControl?.Source;
                         bool isShared = (mainBitmap != null && projBitmap != null && ReferenceEquals(mainBitmap, projBitmap));
-                        System.Diagnostics.Debug.WriteLine($"🔍 [共享验证] 投影使用共享渲染: {(isShared ? "✅ 是" : "❌ 否")} | 主屏Bitmap: {(mainBitmap != null ? "有" : "无")} | 投影Bitmap: {(projBitmap != null ? "有" : "无")} | 引用相同: {isShared}");
+                        System.Diagnostics.Debug.WriteLine($"🔍 [共享验证 #{_scrollVerifyCount}] 投影使用共享渲染: {(isShared ? "✅ 是" : "❌ 否")} | 主屏Bitmap: {(mainBitmap != null ? "有" : "无")} | 投影Bitmap: {(projBitmap != null ? "有" : "无")} | 引用相同: {isShared}");
                     }
                     #endif
 

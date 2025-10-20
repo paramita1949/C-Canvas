@@ -446,6 +446,9 @@ namespace ImageColorChanger.UI
             // 加载用户设置（必须在 _imageProcessor 创建之后）
             LoadSettings();
             
+            // 初始化自适应字体系统（必须在LoadSettings之后）
+            InitializeAdaptiveFontSystem();
+            
             // 初始化保存管理器
             _imageSaveManager = new ImageSaveManager(_imageProcessor);
             

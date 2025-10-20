@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.0.4"
+        Title="Canvas Cast V5.0.6"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -38,17 +38,18 @@
             </Setter>
         </Style>
         
-        <!-- 现代化按钮样式 -->
+        <!-- 紧凑按钮样式 - 倒角方形 -->
         <Style x:Key="MenuButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="MinWidth" Value="70"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderBrush" Value="#D0D0D0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -58,14 +59,8 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="8"
                                 SnapsToDevicePixels="True">
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" 
-                                                  BlurRadius="4" 
-                                                  Opacity="0.1" 
-                                                  Color="#000000"/>
-                            </Border.Effect>
                             <ContentPresenter x:Name="contentPresenter"
                                             Margin="{TemplateBinding Padding}"
                                             HorizontalAlignment="Center"
@@ -74,34 +69,21 @@
                                             SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <!-- 鼠标悬停效果 -->
+                            <!-- 鼠标悬停效果 - 整个按钮变色 -->
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#1976D2"/>
                                 <Setter Property="Foreground" Value="#1976D2"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.2" Color="#2196F3"/>
-                                    </Setter.Value>
-                                </Setter>
                             </Trigger>
-                            <!-- 按下效果 -->
+                            <!-- 按下效果 - 整个按钮变深色 -->
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#1976D2"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0D47A1"/>
                                 <Setter Property="Foreground" Value="#0D47A1"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Opacity="0.15" Color="#1976D2"/>
-                                    </Setter.Value>
-                                </Setter>
                             </Trigger>
-                            <!-- 禁用效果 -->
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#E0E0E0"/>
-                                <Setter Property="Foreground" Value="#BDBDBD"/>
-                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
+                            <!-- 焦点效果 -->
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#64B5F6"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -157,11 +139,12 @@
             </Setter>
         </Style>
 
-        <!-- 警告/录制按钮样式 -->
+        <!-- 警告/录制按钮样式 - 紧凑设计，淡化背景 -->
         <Style x:Key="RecordButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
-            <Setter Property="Background" Value="#FF5252"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E53935"/>
+            <Setter Property="Background" Value="#FFE5E5"/>
+            <Setter Property="Foreground" Value="#D32F2F"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -170,34 +153,26 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="8"
                                 SnapsToDevicePixels="True">
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="1" 
-                                                  BlurRadius="6" 
-                                                  Opacity="0.3" 
-                                                  Color="#FF5252"/>
-                            </Border.Effect>
                             <ContentPresenter Margin="{TemplateBinding Padding}"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- 鼠标悬停效果 - 背景变深 -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#EF5350"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#FF5252"/>
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="Background" Value="#FFCCCC"/>
+                                <Setter Property="Foreground" Value="#C62828"/>
                             </Trigger>
+                            <!-- 按下效果 -->
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C62828"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#C62828"/>
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="Background" Value="#FFB3B3"/>
+                                <Setter Property="Foreground" Value="#B71C1C"/>
+                            </Trigger>
+                            <!-- 焦点效果 -->
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFCCCC"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -205,11 +180,12 @@
             </Setter>
         </Style>
 
-        <!-- 成功/确认按钮样式 -->
+        <!-- 成功/确认按钮样式 - 紧凑设计，淡化背景 -->
         <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
-            <Setter Property="Background" Value="#4CAF50"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#388E3C"/>
+            <Setter Property="Background" Value="#E8F5E9"/>
+            <Setter Property="Foreground" Value="#388E3C"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -218,34 +194,26 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="8"
                                 SnapsToDevicePixels="True">
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="1" 
-                                                  BlurRadius="6" 
-                                                  Opacity="0.3" 
-                                                  Color="#4CAF50"/>
-                            </Border.Effect>
                             <ContentPresenter Margin="{TemplateBinding Padding}"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- 鼠标悬停效果 - 背景变深 -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#43A047"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#4CAF50"/>
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="Background" Value="#C8E6C9"/>
+                                <Setter Property="Foreground" Value="#2E7D32"/>
                             </Trigger>
+                            <!-- 按下效果 -->
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2E7D32"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#2E7D32"/>
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="Background" Value="#A5D6A7"/>
+                                <Setter Property="Foreground" Value="#1B5E20"/>
+                            </Trigger>
+                            <!-- 焦点效果 -->
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C8E6C9"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -301,68 +269,13 @@
             </Setter>
         </Style>
 
-        <!-- 联系按钮样式 - 淡橙色 -->
+        <!-- 联系按钮样式 - 橘色 -->
         <Style x:Key="BreathingContactButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
             <Setter Property="Background" Value="#FFE0B2"/>
             <Setter Property="Foreground" Value="#E65100"/>
             <Setter Property="BorderBrush" Value="#FFB74D"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" 
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
-                                SnapsToDevicePixels="True">
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" 
-                                                  BlurRadius="4" 
-                                                  Opacity="0.15" 
-                                                  Color="#FF9800"/>
-                            </Border.Effect>
-                            <ContentPresenter x:Name="contentPresenter"
-                                            Margin="{TemplateBinding Padding}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            RecognizesAccessKey="False"
-                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <!-- 鼠标悬停效果 -->
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#FFCC80"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#FF9800"/>
-                                <Setter Property="Foreground" Value="#E65100"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.25" Color="#FF9800"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <!-- 按下效果 -->
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#FFB74D"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#F57C00"/>
-                                <Setter Property="Foreground" Value="#BF360C"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Opacity="0.2" Color="#F57C00"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <!-- 禁用效果 -->
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#E0E0E0"/>
-                                <Setter Property="Foreground" Value="#BDBDBD"/>
-                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="Normal"/>
         </Style>
 
         <!-- TreeView样式 -->
@@ -481,7 +394,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition x:Name="MenuBarRow" Height="Auto"/>
             <!-- 单排按钮菜单栏 -->
             <RowDefinition Height="*"/>
             <!-- 主内容区 -->
@@ -490,7 +403,7 @@
         </Grid.RowDefinitions>
 
         <!-- ========== 单排按钮菜单栏 ========== -->
-        <Border Grid.Row="0" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,2" Padding="12,8">
+        <Border Grid.Row="0" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,2" Padding="8,0">
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.08" Color="#000000"/>
             </Border.Effect>
@@ -502,27 +415,27 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧：所有按钮在一排 -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
-                    <Button x:Name="BtnImport" Content="📁 导入" Style="{StaticResource MenuButtonStyle}" 
+                    <Button x:Name="BtnImport" Content="导入" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
 
-                    <Button x:Name="BtnProjection" Content="🖥 投影" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnProjection" Content="投影" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="开启/关闭投影" Click="BtnProjection_Click"/>
 
-                    <Button x:Name="BtnSync" Content="🔄 同步" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnSync" Content="同步" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="同步所有文件夹" Click="BtnSync_Click"/>
 
-                    <Button x:Name="BtnReset" Content="↩ 返回" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnReset" Content="返回" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="重置视图" Click="BtnReset_Click"/>
 
-                    <Button x:Name="BtnOriginal" Content="🖼 原图" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnOriginal" Content="原图" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换原图模式" Click="BtnOriginal_Click"/>
 
-                    <Button x:Name="BtnZoomReset" Content="🔍 缩放" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnZoomReset" Content="缩放" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="重置缩放比例" Click="BtnZoomReset_Click"/>
 
-                    <Button x:Name="BtnColorEffect" Content="🎨 变色" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnColorEffect" Content="变色" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换颜色效果" 
                             Click="BtnColorEffect_Click"/>
 
@@ -533,32 +446,32 @@
                     <Button x:Name="BtnAddKeyframe" Content="➕ 加帧" Style="{StaticResource SuccessButtonStyle}"
                             ToolTip="在当前位置添加关键帧" Click="BtnAddKeyframe_Click"/>
 
-                    <Button x:Name="BtnClearKeyframes" Content="🗑 清帧" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnClearKeyframes" Content="清帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="清除所有关键帧" Click="BtnClearKeyframes_Click"/>
 
-                    <Button x:Name="BtnPrevKeyframe" Content="◀ 上帧" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnPrevKeyframe" Content="上帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="跳转到上一个关键帧" Click="BtnPrevKeyframe_Click"/>
 
-                    <Button x:Name="BtnNextKeyframe" Content="下帧 ▶" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnNextKeyframe" Content="下帧" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="跳转到下一个关键帧" Click="BtnNextKeyframe_Click"/>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
-                    <Button x:Name="BtnPlay" Content="▶ 播放" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnPlay" Content="播放" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
 
                     <!-- 播放控制按钮 -->
-                    <Button x:Name="BtnPlayCount" Content="🔄 5次" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnPlayCount" Content="5次" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="单击循环切换，双击输入数字，滚轮微调 (1-10或∞)" 
                             Click="BtnPlayCount_Click"
                             MouseWheel="BtnPlayCount_MouseWheel"
                             MouseDoubleClick="BtnPlayCount_MouseDoubleClick"/>
 
-                    <Button x:Name="BtnRecord" Content="⏺ 录制" Style="{StaticResource RecordButtonStyle}"
+                    <Button x:Name="BtnRecord" Content="录制" Style="{StaticResource RecordButtonStyle}"
                             ToolTip="开始/停止时间录制" 
                             Click="BtnRecord_Click"/>
-                    <Button x:Name="BtnScript" Content="📄 脚本" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="显示脚本信息" Click="BtnScript_Click" RenderTransformOrigin="-0.81,0.548"/>
+                    <Button x:Name="BtnScript" Content="脚本" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="显示脚本信息" Click="BtnScript_Click"/>
 
                     <Button x:Name="BtnClearTiming" Content="清时" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="清除时间录制数据" Click="BtnClearTiming_Click"/>
@@ -568,9 +481,11 @@
                     <Button x:Name="BtnPauseResume" Content="暂停" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="暂停/继续播放" Click="BtnPauseResume_Click"/>
 
-                    <!-- 倒计时显示 -->
-                    <Border Background="#FFFFCC" BorderBrush="#CCAA00" BorderThickness="1" 
-                            CornerRadius="3" Padding="8,5" Margin="3,0" Width="90">
+                    <!-- 倒计时显示 - 无边框，黄色底 -->
+                    <Border x:Name="CountdownBorder" Background="#FFFFCC" 
+                            BorderThickness="0"
+                            CornerRadius="4" Padding="8,2" Margin="3,0" Width="90"
+                            VerticalAlignment="Center">
                         <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="16" 
                                    FontWeight="Bold" Foreground="#CC6600" 
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -578,17 +493,10 @@
 
                     <!-- 暂停/继续按钮 -->
                     
-                    <Button x:Name="BtnContact" Content="💬 联系" Style="{StaticResource BreathingContactButtonStyle}"
+                    <Button x:Name="BtnContact" Content="联系" Style="{StaticResource BreathingContactButtonStyle}"
                             ToolTip="Wechat" Click="BtnContact_Click" Margin="15,0,4,0"/>
                 </StackPanel>
 
-                <!-- 右侧：屏幕选择 -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <ComboBox x:Name="ScreenSelector" Width="120" Height="30" 
-                              VerticalAlignment="Center" SelectedIndex="0" FontSize="12"
-                              Style="{StaticResource WhiteComboBoxPopup}"
-                              ItemContainerStyle="{StaticResource WhiteComboBoxItem}"/>
-                </StackPanel>
             </Grid>
         </Border>
 
@@ -611,6 +519,8 @@
                         <!-- 搜索区域 -->
                         <RowDefinition Height="*"/>
                         <!-- 项目树 -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- 屏幕选择 -->
                     </Grid.RowDefinitions>
 
                     <!-- 搜索区域 -->
@@ -641,7 +551,7 @@
                         <!-- 🆕 文件/项目 切换按钮 -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,8">
                             <Button x:Name="BtnShowFiles" 
-                                    Content="📁 文件" 
+                                    Content="文件" 
                                     Width="100" 
                                     Height="32"
                                     FontSize="13"
@@ -672,7 +582,7 @@
                                 </Button.Style>
                             </Button>
                             <Button x:Name="BtnShowProjects" 
-                                    Content="📋 幻灯片" 
+                                    Content="幻灯片" 
                                     Width="100" 
                                     Height="32"
                                     FontSize="13"
@@ -946,6 +856,17 @@
                                        TextWrapping="Wrap"/>
                         </Border>
                     </Popup>
+                    
+                    <!-- 屏幕选择器（底部） -->
+                    <Border Grid.Row="2" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="投影屏幕" FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="ScreenSelector" Height="32" 
+                                      SelectedIndex="0" FontSize="12"
+                                      Style="{StaticResource WhiteComboBoxPopup}"
+                                      ItemContainerStyle="{StaticResource WhiteComboBoxItem}"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 

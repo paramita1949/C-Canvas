@@ -338,6 +338,22 @@ namespace ImageColorChanger.Core
                 }
             }
         }
+        
+        /// <summary>
+        /// 菜单栏字号（18-40，按照Python版本设计）
+        /// </summary>
+        public double MenuFontSize
+        {
+            get => _config.MenuFontSize;
+            set
+            {
+                if (Math.Abs(_config.MenuFontSize - value) > 0.001)
+                {
+                    _config.MenuFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
 
         #endregion
 
@@ -564,6 +580,11 @@ namespace ImageColorChanger.Core
         /// 文件夹标签字号（搜索结果显示，默认：18）
         /// </summary>
         public double FolderTagFontSize { get; set; } = 18.0;
+        
+        /// <summary>
+        /// 菜单栏字号（默认：22，范围18-40，按照Python版本设计）
+        /// </summary>
+        public double MenuFontSize { get; set; } = 22.0;
     }
 
     /// <summary>
