@@ -724,48 +724,19 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 背景按钮点击（显示菜单）
+        /// 背景图片按钮点击（直接导入图片）
         /// </summary>
-        private void BtnBackground_Click(object sender, RoutedEventArgs e)
+        private void BtnBackgroundImage_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentTextProject == null)
-                return;
+            BtnLoadBackgroundImage_Click(sender, e);
+        }
 
-            var contextMenu = new ContextMenu();
-            
-            // 🔑 应用自定义样式
-            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
-
-            // 选项1：导入图片
-            var loadImageItem = new MenuItem 
-            { 
-                Header = "🖼 导入图片",
-                Height = 36
-            };
-            loadImageItem.Click += BtnLoadBackgroundImage_Click;
-            contextMenu.Items.Add(loadImageItem);
-
-            // 选项2：选择颜色
-            var selectColorItem = new MenuItem 
-            { 
-                Header = "🎨 选择颜色",
-                Height = 36
-            };
-            selectColorItem.Click += BtnSelectBackgroundColor_Click;
-            contextMenu.Items.Add(selectColorItem);
-
-            // 选项3：清除背景
-            contextMenu.Items.Add(new Separator());
-            var clearItem = new MenuItem 
-            { 
-                Header = "🗑 清除背景",
-                Height = 36
-            };
-            clearItem.Click += BtnClearBackground_Click;
-            contextMenu.Items.Add(clearItem);
-
-            contextMenu.PlacementTarget = sender as UIElement;
-            contextMenu.IsOpen = true;
+        /// <summary>
+        /// 背景颜色按钮点击（直接选择颜色）
+        /// </summary>
+        private void BtnBackgroundColor_Click(object sender, RoutedEventArgs e)
+        {
+            BtnSelectBackgroundColor_Click(sender, e);
         }
 
         /// <summary>
@@ -793,7 +764,9 @@ namespace ImageColorChanger.UI
             // 保存到数据库
             await SaveSplitStretchModeAsync();
             
-            System.Diagnostics.Debug.WriteLine($"📐 [拉伸模式] 已切换到: {(_splitStretchMode ? "拉伸填满" : "适中显示")}，已保存到数据库");
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📐 [拉伸模式] 已切换到: {(_splitStretchMode ? "拉伸填满" : "适中显示")}，已保存到数据库");
+            //#endif
         }
         
         /// <summary>
@@ -816,12 +789,16 @@ namespace ImageColorChanger.UI
                     // 更新本地缓存
                     _currentSlide.SplitStretchMode = _splitStretchMode;
                     
-                    System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
+                    //#endif
                 }
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitStretchMode] 失败: {ex.Message}");
+                #endif
             }
         }
         
@@ -899,7 +876,9 @@ namespace ImageColorChanger.UI
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🖼 [SetSplitMode] 切换到: {mode}");
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🖼 [SetSplitMode] 切换到: {mode}");
+                //#endif
 
                 // 更新数据库
                 var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
@@ -920,7 +899,9 @@ namespace ImageColorChanger.UI
                     _currentSlide.SplitMode = (int)mode;
                     _currentSlide.SplitRegionsData = slideToUpdate.SplitRegionsData;
                     
-                    System.Diagnostics.Debug.WriteLine($"✅ 分割模式已保存: {mode}");
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ 分割模式已保存: {mode}");
+                    //#endif
                 }
 
                 // TODO: 更新预览画布显示分割布局
@@ -930,7 +911,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+                #endif
             }
         }
 
@@ -939,9 +922,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateSplitLayout(Database.Models.Enums.ViewSplitMode mode)
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 [UpdateSplitLayout] 更新布局: {mode}");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateSplitLayout] 更新布局: {mode}");
+            //#endif
             
             // 清除旧的分割线和边框
             ClearSplitLines();
@@ -1077,8 +1060,43 @@ namespace ImageColorChanger.UI
                 e.Handled = true;
             };
             
+            // 添加右键菜单事件
+            border.MouseRightButtonDown += (s, e) =>
+            {
+                SelectRegion(regionIndex);
+                ShowRegionContextMenu(s as UIElement);
+                e.Handled = true;
+            };
+            
             _splitRegionBorders.Add(border);
             EditorCanvas.Children.Add(border);
+            
+            // 🆕 在右上角添加序列号标签
+            var label = new System.Windows.Controls.Border
+            {
+                Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
+                CornerRadius = new System.Windows.CornerRadius(0, 0, 0, 8), // 左下圆角
+                Padding = new System.Windows.Thickness(8, 4, 8, 4),
+                Tag = $"RegionLabel_{regionIndex}",
+                IsHitTestVisible = false // 不响应鼠标事件
+            };
+            
+            var labelText = new System.Windows.Controls.TextBlock
+            {
+                Text = (regionIndex + 1).ToString(),
+                FontSize = 18,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.White
+            };
+            
+            label.Child = labelText;
+            
+            // 定位到右上角
+            Canvas.SetLeft(label, x + width - 30); // 右上角
+            Canvas.SetTop(label, y);
+            Canvas.SetZIndex(label, 1001); // 置于最顶层
+            
+            EditorCanvas.Children.Add(label);
         }
         
         /// <summary>
@@ -1092,6 +1110,15 @@ namespace ImageColorChanger.UI
                 EditorCanvas.Children.Remove(border);
             }
             _splitRegionBorders.Clear();
+            
+            // 🆕 清除序列号标签
+            var labelsToRemove = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
+                .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
+                .ToList();
+            foreach (var label in labelsToRemove)
+            {
+                EditorCanvas.Children.Remove(label);
+            }
             
             // 清除区域图片
             foreach (var image in _regionImages.Values)
@@ -1110,11 +1137,18 @@ namespace ImageColorChanger.UI
             if (regionIndex < 0 || regionIndex >= _splitRegionBorders.Count)
                 return;
                 
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎯 [SelectRegion] 选中区域: {regionIndex}");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎯 [SelectRegion] 选中区域: {regionIndex}");
+            //#endif
             
             _selectedRegionIndex = regionIndex;
+            
+            // 🔑 设置画布焦点，使其能接收键盘事件
+            EditorCanvas.Focus();
+            
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔑 [SelectRegion] 已设置画布焦点，IsFocused: {EditorCanvas.IsFocused}");
+            //#endif
             
             // 更新所有边框的样式
             for (int i = 0; i < _splitRegionBorders.Count; i++)
@@ -1122,9 +1156,9 @@ namespace ImageColorChanger.UI
                 var border = _splitRegionBorders[i];
                 if (i == regionIndex)
                 {
-                    // 选中状态：绿色粗边框
+                    // 选中状态：绿色边框
                     border.Stroke = new SolidColorBrush(WpfColor.FromRgb(0, 255, 0));
-                    border.StrokeThickness = 4;
+                    border.StrokeThickness = 2;
                 }
                 else
                 {
@@ -1143,12 +1177,43 @@ namespace ImageColorChanger.UI
             if (_currentSlide == null || _splitRegionBorders.Count == 0)
                 return;
                 
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🖼 [LoadImageToSplitRegion] 加载图片到区域 {_selectedRegionIndex}: {imagePath}");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🖼 [LoadImageToSplitRegion] 加载图片到区域 {_selectedRegionIndex}: {imagePath}");
+            //#endif
             
             try
             {
+                // 🆕 检查图片是否来自原图标记的文件夹，如果是则自动使用拉伸模式
+                bool shouldUseStretch = await Task.Run(() =>
+                {
+                    try
+                    {
+                        var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == imagePath);
+                        if (mediaFile?.FolderId != null)
+                        {
+                            // 检查文件夹是否有原图标记
+                            bool isOriginalFolder = _originalManager.CheckOriginalMark(
+                                Database.Models.Enums.ItemType.Folder, 
+                                mediaFile.FolderId.Value
+                            );
+                            
+                            #if DEBUG
+                            //if (isOriginalFolder)
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
+                            //}
+                            #endif
+                            
+                            return isOriginalFolder;
+                        }
+                        return false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                });
+                
                 // 获取区域边框信息
                 var border = _splitRegionBorders[_selectedRegionIndex];
                 double x = Canvas.GetLeft(border);
@@ -1175,15 +1240,20 @@ namespace ImageColorChanger.UI
                     return bitmap;
                 });
                 
-                // 创建 Image 控件，应用当前拉伸模式
+                // 决定使用的拉伸模式：原图标记文件夹优先使用拉伸，否则使用当前设置
+                var stretchMode = shouldUseStretch ? 
+                    System.Windows.Media.Stretch.Fill :  // 原图文件夹：拉伸填满
+                    (_splitStretchMode ? 
+                        System.Windows.Media.Stretch.Fill :  // 用户设置：拉伸填满
+                        System.Windows.Media.Stretch.Uniform); // 用户设置：适中显示（默认）
+                
+                // 创建 Image 控件，应用拉伸模式
                 var imageControl = new System.Windows.Controls.Image
                 {
                     Source = bitmapSource,
                     Width = width,
                     Height = height,
-                    Stretch = _splitStretchMode ? 
-                        System.Windows.Media.Stretch.Fill :  // 拉伸填满
-                        System.Windows.Media.Stretch.Uniform, // 适中显示（默认）
+                    Stretch = stretchMode,
                     Tag = $"RegionImage_{_selectedRegionIndex}",
                     CacheMode = new BitmapCache // 🔥 启用GPU缓存，减少重复渲染
                     {
@@ -1205,14 +1275,17 @@ namespace ImageColorChanger.UI
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
+                //#endif
                 
                 // 保存分割配置到数据库
                 await SaveSplitConfigAsync();
                 
                 MarkContentAsModified();
+                
+                // 🆕 自动选中下一个未加载图片的区域
+                AutoSelectNextEmptyRegion();
             }
             catch (Exception ex)
             {
@@ -1223,6 +1296,41 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
+        /// 自动选中下一个未加载图片的区域
+        /// </summary>
+        private void AutoSelectNextEmptyRegion()
+        {
+            if (_splitRegionBorders.Count == 0)
+                return;
+                
+            // 从当前选中区域的下一个开始查找
+            int startIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
+            
+            // 循环查找第一个没有图片的区域
+            for (int i = 0; i < _splitRegionBorders.Count; i++)
+            {
+                int checkIndex = (startIndex + i) % _splitRegionBorders.Count;
+                
+                // 如果该区域没有图片，选中它
+                if (!_regionImages.ContainsKey(checkIndex))
+                {
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextEmptyRegion] 自动选中区域 {checkIndex}（未加载图片）");
+                    #endif
+                    
+                    SelectRegion(checkIndex);
+                    return;
+                }
+            }
+            
+            // 如果所有区域都有图片了，回到第一个区域
+            #if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"✅ [AutoSelectNextEmptyRegion] 所有区域都已加载图片，回到区域 0");
+            #endif
+            SelectRegion(0);
+        }
+        
+        /// <summary>
         /// 检查是否处于分割模式
         /// </summary>
         public bool IsInSplitMode()
@@ -1230,6 +1338,144 @@ namespace ImageColorChanger.UI
             return _currentSlide != null && 
                    _currentSlide.SplitMode > 0 && 
                    _splitRegionBorders.Count > 0;
+        }
+        
+        /// <summary>
+        /// 清空选中区域的图片
+        /// </summary>
+        public async Task ClearSelectedRegionImage()
+        {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🗑️ [ClearSelectedRegionImage] 开始清空区域图片");
+            //System.Diagnostics.Debug.WriteLine($"   _selectedRegionIndex: {_selectedRegionIndex}");
+            //System.Diagnostics.Debug.WriteLine($"   包含图片: {_regionImages.ContainsKey(_selectedRegionIndex)}");
+            //#endif
+            
+            if (_selectedRegionIndex < 0 || !_regionImages.ContainsKey(_selectedRegionIndex))
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [ClearSelectedRegionImage] 条件不满足，退出");
+                //#endif
+                return;
+            }
+                
+            try
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🗑️ [ClearSelectedRegionImage] 开始移除图片控件");
+                //#endif
+                
+                // 移除图片控件
+                var imageControl = _regionImages[_selectedRegionIndex];
+                EditorCanvas.Children.Remove(imageControl);
+                _regionImages.Remove(_selectedRegionIndex);
+                _regionImagePaths.Remove(_selectedRegionIndex);
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [ClearSelectedRegionImage] 图片控件已移除");
+                //#endif
+                
+                // 保持边框选中状态（绿色），不改变分割状态
+                // 边框和分割线保持不变，只是清空了图片内容
+                
+                // 保存到数据库
+                await SaveSplitConfigAsync();
+                MarkContentAsModified();
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [ClearSelectedRegionImage] 已保存到数据库");
+                //#endif
+                
+                ShowStatus($"✅ 已清空区域 {_selectedRegionIndex + 1} 的图片");
+            }
+            catch (Exception ex)
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [ClearSelectedRegionImage] 失败: {ex.Message}");
+                //#endif
+                
+                WpfMessageBox.Show($"清空区域图片失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// 清空所有区域的图片
+        /// </summary>
+        public async Task ClearAllRegionImages()
+        {
+            if (_regionImages.Count == 0)
+            {
+                WpfMessageBox.Show("当前没有加载任何图片", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+                
+            var result = WpfMessageBox.Show("确定要清空所有区域的图片吗？", "确认",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+                
+            if (result != MessageBoxResult.Yes)
+                return;
+                
+            try
+            {
+                // 移除所有图片控件
+                foreach (var kvp in _regionImages.ToList())
+                {
+                    EditorCanvas.Children.Remove(kvp.Value);
+                }
+                _regionImages.Clear();
+                _regionImagePaths.Clear();
+                
+                // 恢复所有边框样式为灰色
+                foreach (var border in _splitRegionBorders)
+                {
+                    border.Stroke = new SolidColorBrush(WpfColor.FromRgb(128, 128, 128));
+                }
+                
+                // 保存到数据库
+                await SaveSplitConfigAsync();
+                MarkContentAsModified();
+                
+                ShowStatus($"✅ 已清空所有区域的图片");
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"清空所有图片失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// 显示区域右键菜单
+        /// </summary>
+        private void ShowRegionContextMenu(UIElement target)
+        {
+            var contextMenu = new ContextMenu();
+            
+            // 应用自定义样式
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+            
+            // 选项1：清空当前区域
+            var clearCurrentItem = new MenuItem
+            {
+                Header = "🗑 清空当前区域",
+                Height = 36
+            };
+            clearCurrentItem.Click += async (s, e) => await ClearSelectedRegionImage();
+            contextMenu.Items.Add(clearCurrentItem);
+            
+            // 选项2：清空所有区域
+            var clearAllItem = new MenuItem
+            {
+                Header = "🗑 清空所有区域",
+                Height = 36
+            };
+            clearAllItem.Click += async (s, e) => await ClearAllRegionImages();
+            contextMenu.Items.Add(clearAllItem);
+            
+            contextMenu.PlacementTarget = target;
+            contextMenu.IsOpen = true;
         }
         
         /// <summary>
@@ -1264,9 +1510,9 @@ namespace ImageColorChanger.UI
                     // 更新本地缓存
                     _currentSlide.SplitRegionsData = json;
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitConfig] 已保存 {regionDataList.Count} 个区域配置");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitConfig] 已保存 {regionDataList.Count} 个区域配置");
+                    //#endif
                 }
             }
             catch (Exception ex)
@@ -1312,7 +1558,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [HideSplitLinesForProjection] 失败: {ex.Message}");
+                #endif
             }
         }
         
@@ -1355,7 +1603,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitLinesAfterProjection] 失败: {ex.Message}");
+                #endif
             }
         }
         
@@ -1369,16 +1619,16 @@ namespace ImageColorChanger.UI
                 // 🆕 恢复拉伸模式
                 _splitStretchMode = slide.SplitStretchMode;
                 BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 已恢复拉伸模式: {(_splitStretchMode ? "拉伸" : "适中")}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 已恢复拉伸模式: {(_splitStretchMode ? "拉伸" : "适中")}");
+                //#endif
                 
                 // 检查是否有分割模式
                 if (slide.SplitMode == 0)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 单画面模式，清空分割区域");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 单画面模式，清空分割区域");
+                    //#endif
                     // 🔥 清空所有分割元素
                     ClearSplitLines();
                     ClearRegionBorders();
@@ -1392,9 +1642,9 @@ namespace ImageColorChanger.UI
                 // 检查是否有区域数据
                 if (string.IsNullOrEmpty(slide.SplitRegionsData))
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 分割模式={splitMode}，但无区域数据");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 分割模式={splitMode}，但无区域数据");
+                    //#endif
                     return;
                 }
                 
@@ -1402,15 +1652,15 @@ namespace ImageColorChanger.UI
                 var regionDataList = JsonSerializer.Deserialize<List<Database.Models.DTOs.SplitRegionData>>(slide.SplitRegionsData);
                 if (regionDataList == null || regionDataList.Count == 0)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 反序列化失败或数据为空");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 反序列化失败或数据为空");
+                    //#endif
                     return;
                 }
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 开始恢复 {regionDataList.Count} 个区域");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 开始恢复 {regionDataList.Count} 个区域");
+                //#endif
                 
                 // 清空现有数据
                 _regionImagePaths.Clear();
@@ -1425,18 +1675,43 @@ namespace ImageColorChanger.UI
                 {
                     if (string.IsNullOrEmpty(regionData.ImagePath) || !System.IO.File.Exists(regionData.ImagePath))
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 图片不存在: {regionData.ImagePath}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 图片不存在: {regionData.ImagePath}");
+                        //#endif
                         continue;
                     }
                     
                     if (regionData.RegionIndex >= _splitRegionBorders.Count)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域索引超出范围: {regionData.RegionIndex}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域索引超出范围: {regionData.RegionIndex}");
+                        //#endif
                         continue;
+                    }
+                    
+                    // 🆕 检查图片是否来自原图标记的文件夹
+                    bool shouldUseStretch = false;
+                    try
+                    {
+                        var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == regionData.ImagePath);
+                        if (mediaFile?.FolderId != null)
+                        {
+                            shouldUseStretch = _originalManager.CheckOriginalMark(
+                                Database.Models.Enums.ItemType.Folder, 
+                                mediaFile.FolderId.Value
+                            );
+                            
+                            #if DEBUG
+                            //if (shouldUseStretch)
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
+                            //}
+                            #endif
+                        }
+                    }
+                    catch
+                    {
+                        // 检查失败时使用默认设置
                     }
                     
                     // 获取区域边框信息
@@ -1454,15 +1729,20 @@ namespace ImageColorChanger.UI
                     bitmap.EndInit();
                     bitmap.Freeze(); // 🔥 冻结到GPU显存
                     
-                    // 创建 Image 控件，应用当前拉伸模式
+                    // 决定使用的拉伸模式：原图标记文件夹优先使用拉伸，否则使用保存的设置
+                    var stretchMode = shouldUseStretch ? 
+                        System.Windows.Media.Stretch.Fill :  // 原图文件夹：拉伸填满
+                        (_splitStretchMode ? 
+                            System.Windows.Media.Stretch.Fill :  // 用户设置：拉伸填满
+                            System.Windows.Media.Stretch.Uniform); // 用户设置：适中显示
+                    
+                    // 创建 Image 控件，应用拉伸模式
                     var imageControl = new System.Windows.Controls.Image
                     {
                         Source = bitmap,
                         Width = width,
                         Height = height,
-                        Stretch = _splitStretchMode ? 
-                            System.Windows.Media.Stretch.Fill : 
-                            System.Windows.Media.Stretch.Uniform,
+                        Stretch = stretchMode,
                         Tag = $"RegionImage_{regionData.RegionIndex}",
                         CacheMode = new BitmapCache // 🔥 启用GPU缓存
                         {
@@ -1484,14 +1764,14 @@ namespace ImageColorChanger.UI
                     // 更新边框样式（有图片的区域显示金色）
                     border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0));
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
+                    //#endif
                 }
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 分割配置恢复完成");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 分割配置恢复完成");
+                //#endif
             }
             catch (Exception ex)
             {
@@ -2073,6 +2353,70 @@ namespace ImageColorChanger.UI
                     EditorCanvas.Focus();
                     //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
                 }
+            }
+        }
+        
+        /// <summary>
+        /// 画布键盘事件（处理DEL快捷键）
+        /// </summary>
+        private async void EditorCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎹 [EditorCanvas_KeyDown] 按键: {e.Key}");
+            //System.Diagnostics.Debug.WriteLine($"   IsInSplitMode: {IsInSplitMode()}");
+            //System.Diagnostics.Debug.WriteLine($"   _selectedRegionIndex: {_selectedRegionIndex}");
+            //System.Diagnostics.Debug.WriteLine($"   _regionImages.Count: {_regionImages.Count}");
+            //System.Diagnostics.Debug.WriteLine($"   包含选中区域图片: {_regionImages.ContainsKey(_selectedRegionIndex)}");
+            //#endif
+            
+            // DEL键：只清除选中区域的图片（仅在分割模式下且有图片时）
+            if (e.Key == System.Windows.Input.Key.Delete)
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎹 [DEL键] 检测到 Delete 键");
+                //#endif
+                
+                if (IsInSplitMode())
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 在分割模式下");
+                    //#endif
+                    
+                    if (_selectedRegionIndex >= 0)
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 有选中区域: {_selectedRegionIndex}");
+                        //#endif
+                        
+                        if (_regionImages.ContainsKey(_selectedRegionIndex))
+                        {
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 区域有图片，执行清空");
+                            //#endif
+                            
+                            await ClearSelectedRegionImage();
+                            e.Handled = true;
+                        }
+                        //#if DEBUG
+                        //else
+                        //{
+                        //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 区域没有图片");
+                        //}
+                        //#endif
+                    }
+                    //#if DEBUG
+                    //else
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 没有选中区域");
+                    //}
+                    //#endif
+                }
+                //#if DEBUG
+                //else
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 不在分割模式");
+                //}
+                //#endif
             }
         }
 

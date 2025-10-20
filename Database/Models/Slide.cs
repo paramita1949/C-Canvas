@@ -102,7 +102,7 @@ namespace ImageColorChanger.Database.Models
         /// 辅助属性：显示信息（用于缩略图）
         /// </summary>
         [NotMapped]
-        public string DisplayInfo => ElementCount > 0 ? $"{ElementCount} 个元素" : "空白";
+        public string DisplayInfo => ElementCount > 0 ? $"{ElementCount} 个元素" : "";
 
         /// <summary>
         /// 辅助属性：缩略图路径（运行时生成）

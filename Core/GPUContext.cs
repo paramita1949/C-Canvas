@@ -333,23 +333,31 @@ namespace ImageColorChanger.Core
             {
                 int renderingTier = (System.Windows.Media.RenderCapability.Tier >> 16);
                 
-                Debug.WriteLine($"🎮 [GPU验证] WPF渲染层级: Tier {renderingTier}");
-                Debug.WriteLine($"   Tier 0 = 软件渲染（无GPU）");
-                Debug.WriteLine($"   Tier 1 = 部分GPU加速");
-                Debug.WriteLine($"   Tier 2 = 完全GPU加速 ✅");
+                #if DEBUG
+                //Debug.WriteLine($"🎮 [GPU验证] WPF渲染层级: Tier {renderingTier}");
+                //Debug.WriteLine($"   Tier 0 = 软件渲染（无GPU）");
+                //Debug.WriteLine($"   Tier 1 = 部分GPU加速");
+                //Debug.WriteLine($"   Tier 2 = 完全GPU加速 ✅");
+                #endif
                 
                 if (renderingTier < 2)
                 {
-                    Debug.WriteLine($"⚠️ [GPU警告] 当前未完全启用GPU加速！建议检查显卡驱动。");
+                    #if DEBUG
+                    //Debug.WriteLine($"⚠️ [GPU警告] 当前未完全启用GPU加速！建议检查显卡驱动。");
+                    #endif
                     return false;
                 }
                 
-                Debug.WriteLine($"✅ [GPU验证] WPF硬件加速已完全启用");
+                #if DEBUG
+                //Debug.WriteLine($"✅ [GPU验证] WPF硬件加速已完全启用");
+                #endif
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine($"❌ [GPU验证] 检测失败: {ex.Message}");
+                #if DEBUG
+                //Debug.WriteLine($"❌ [GPU验证] 检测失败");
+                #endif
                 return false;
             }
         }
@@ -365,11 +373,15 @@ namespace ImageColorChanger.Core
                 System.Windows.Media.RenderOptions.ProcessRenderMode = 
                     System.Windows.Interop.RenderMode.Default;
                 
-                Debug.WriteLine($"✅ [GPU] 已设置硬件加速为默认模式（自动优化）");
+                #if DEBUG
+                //Debug.WriteLine($"✅ [GPU] 已设置硬件加速为默认模式（自动优化）");
+                #endif
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine($"⚠️ [GPU] 设置硬件加速失败: {ex.Message}");
+                #if DEBUG
+                //Debug.WriteLine($"⚠️ [GPU] 设置硬件加速失败");
+                #endif
             }
         }
 
@@ -413,11 +425,15 @@ namespace ImageColorChanger.Core
                     System.Windows.Media.EdgeMode.Aliased
                 );
                 
-                Debug.WriteLine($"✅ [GPU] 已为元素启用位图缓存（高质量={enableHighQuality}）");
+                #if DEBUG
+                //Debug.WriteLine($"✅ [GPU] 已为元素启用位图缓存（高质量={enableHighQuality}）");
+                #endif
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine($"⚠️ [GPU] 启用位图缓存失败: {ex.Message}");
+                #if DEBUG
+                //Debug.WriteLine($"⚠️ [GPU] 启用位图缓存失败");
+                #endif
             }
         }
 

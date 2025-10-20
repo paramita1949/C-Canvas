@@ -87,7 +87,9 @@ namespace ImageColorChanger.Core
                     
                     // 读取文件数量
                     var fileCount = br.ReadInt32();
-                    System.Diagnostics.Debug.WriteLine($"📦 [PAK] 加载资源包: {fileCount} 个文件");
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📦 [PAK] 加载资源包: {fileCount} 个文件");
+                    #endif
                     
                     // 读取文件索引
                     for (int i = 0; i < fileCount; i++)
@@ -120,7 +122,9 @@ namespace ImageColorChanger.Core
                 }
                 
                 _isLoaded = true;
-                System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包加载成功: {_resourceCache.Count} 个文件");
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包加载成功: {_resourceCache.Count} 个文件");
+                #endif
                 return true;
             }
             catch (Exception ex)

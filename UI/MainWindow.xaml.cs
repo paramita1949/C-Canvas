@@ -368,11 +368,11 @@ namespace ImageColorChanger.UI
             bool isWpfGpuEnabled = Core.GPUContext.VerifyWPFHardwareAcceleration();
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine("========================================");
-            System.Diagnostics.Debug.WriteLine($"🎮 SkiaSharp GPU状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ CPU模式")}");
-            System.Diagnostics.Debug.WriteLine($"📊 SkiaSharp GPU信息: {gpuContext.GpuInfo}");
-            System.Diagnostics.Debug.WriteLine($"🖥️ WPF GPU加速状态: {(isWpfGpuEnabled ? "✅ Tier 2完全启用" : "⚠️ 未完全启用")}");
-            System.Diagnostics.Debug.WriteLine("========================================");
+            //System.Diagnostics.Debug.WriteLine("========================================");
+            //System.Diagnostics.Debug.WriteLine($"🎮 SkiaSharp GPU状态: {(gpuContext.IsGpuAvailable ? "✅ 已启用" : "⚠️ CPU模式")}");
+            //System.Diagnostics.Debug.WriteLine($"📊 SkiaSharp GPU信息: {gpuContext.GpuInfo}");
+            //System.Diagnostics.Debug.WriteLine($"🖥️ WPF GPU加速状态: {(isWpfGpuEnabled ? "✅ Tier 2完全启用" : "⚠️ 未完全启用")}");
+            //System.Diagnostics.Debug.WriteLine("========================================");
             #endif
             
             // ⚠️ 如果WPF GPU未启用，显示警告（仅在Release模式）
@@ -409,7 +409,7 @@ namespace ImageColorChanger.UI
             Core.GPUContext.EnableBitmapCache(ImageDisplay, enableHighQuality: true);
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine("✅ [滚动优化] 已为ScrollViewer和Image启用GPU位图缓存");
+            //System.Diagnostics.Debug.WriteLine("✅ [滚动优化] 已为ScrollViewer和Image启用GPU位图缓存");
             #endif
             
             // 初始化数据库

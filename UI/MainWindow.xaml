@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.0.1"
+        Title="Canvas Cast V5.0.2"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -1072,11 +1072,17 @@
                                     Style="{StaticResource SuccessButtonStyle}"
                                     ToolTip="添加文本框" Click="BtnAddText_Click"/>
                             
-                            <!-- 背景按钮（带下拉菜单） -->
-                            <Button x:Name="BtnBackground" Content="🎨 背景" 
+                            <!-- 背景图片按钮 -->
+                            <Button x:Name="BtnBackgroundImage" Content="🖼 背景图" 
                                     Style="{StaticResource MenuButtonStyle}"
-                                    ToolTip="设置背景（图片或颜色）"
-                                    Click="BtnBackground_Click"/>
+                                    ToolTip="导入背景图片"
+                                    Click="BtnBackgroundImage_Click"/>
+                            
+                            <!-- 背景颜色按钮 -->
+                            <Button x:Name="BtnBackgroundColor" Content="🎨 背景色" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    ToolTip="选择背景颜色"
+                                    Click="BtnBackgroundColor_Click"/>
                             
                             <!-- 分割按钮 -->
                             <Button x:Name="BtnSplitView" Content="🖼 分割" 
@@ -1258,7 +1264,7 @@
                                                     <Trigger Property="IsSelected" Value="True">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Setter Property="BorderBrush" Value="#2196F3"/>
-                                                        <Setter Property="BorderThickness" Value="3"/>
+                                                        <Setter Property="BorderThickness" Value="2"/>
                                                     </Trigger>
                                                     <Trigger Property="IsMouseOver" Value="True">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -1285,7 +1291,8 @@
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Center"/>
                                                         
-                                                        <!-- 占位符（如果没有缩略图） -->
+                                                        <!-- 占位符（如果没有缩略图） - 已隐藏 -->
+                                                        <!--
                                                         <StackPanel HorizontalAlignment="Center" 
                                                                    VerticalAlignment="Center">
                                                             <StackPanel.Style>
@@ -1308,6 +1315,7 @@
                                                                        HorizontalAlignment="Center" 
                                                                        Foreground="#999999"/>
                                                         </StackPanel>
+                                                        -->
                                                         
                                                         <!-- 序号标签（左下角，贴在内容区域内） -->
                                                         <Border Background="#FF6600" 
@@ -1347,6 +1355,8 @@
                                     Width="1080" Height="700"
                                     Background="White"
                                     MouseLeftButtonDown="EditorCanvas_MouseDown"
+                                    KeyDown="EditorCanvas_KeyDown"
+                                    Focusable="True"
                                     AllowDrop="True"
                                     ClipToBounds="True">
                                 
