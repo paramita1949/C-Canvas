@@ -323,30 +323,38 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🎬 [自动播放] 录制结束，准备启动播放: ImageId={imageId}");
-                
                 // 检查是否有录制的时间数据
                 var keyframes = await _keyframeManager.GetKeyframesAsync(imageId);
                 if (keyframes == null || keyframes.Count == 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 没有关键帧，取消自动播放");
                     return;
                 }
                 
-                // 使用ViewModel的播放命令
-                if (_mainWindow._playbackViewModel?.TogglePlaybackCommand?.CanExecute(null) == true)
+                // 🎬 检查是否启用了合成标记
+                bool isCompositeEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(imageId);
+                
+                if (isCompositeEnabled)
                 {
-                    //System.Diagnostics.Debug.WriteLine("▶️ [自动播放] 启动播放");
-                    await _mainWindow._playbackViewModel.TogglePlaybackCommand.ExecuteAsync(null);
+                    // 🎬 自动播放合成模式
+                    var compositeButton = _mainWindow.BtnFloatingCompositePlay;
+                    if (compositeButton != null)
+                    {
+                        compositeButton.RaiseEvent(new System.Windows.RoutedEventArgs(
+                            System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                    }
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine("⚠️ [自动播放] 播放命令不可执行");
+                    // 普通播放模式
+                    if (_mainWindow._playbackViewModel?.TogglePlaybackCommand?.CanExecute(null) == true)
+                    {
+                        await _mainWindow._playbackViewModel.TogglePlaybackCommand.ExecuteAsync(null);
+                    }
                 }
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [自动播放] 失败: {ex.Message}");
+                // 忽略异常
             }
         }
     }

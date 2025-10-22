@@ -343,6 +343,10 @@ namespace ImageColorChanger.UI
                                     // 保存当前选中的视频路径（用于双击播放和投影播放）
                                     _imagePath = selectedItem.Path;
                                     _currentImageId = fileId; // 🔧 同样设置ID
+                                    
+                                    // 🎬 隐藏合成播放按钮（媒体文件不需要）
+                                    BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                                    
                                     string fileType = selectedItem.FileType == FileType.Video ? "视频" : "音频";
                                     ShowStatus($"✅ 已选中{fileType}: {selectedItem.Name} (双击播放)");
                                     break;
@@ -650,39 +654,6 @@ namespace ImageColorChanger.UI
                     else if (item.Type == TreeItemType.File)
                     {
                         // 文件右键菜单
-                        
-                        // 原图标记菜单
-                        if (item.FileType == FileType.Image)
-                        {
-                            bool hasOriginalMark = _originalManager.CheckOriginalMark(ItemType.Image, item.Id);
-                            
-                            if (hasOriginalMark)
-                            {
-                                // 如果已有标记,显示"取消原图"
-                                var unmarkItem = new MenuItem { Header = "取消原图" };
-                                unmarkItem.Click += (s, args) => UnmarkOriginal(item);
-                                contextMenu.Items.Add(unmarkItem);
-                            }
-                            else
-                            {
-                                // 如果没有标记,显示原图标记选项
-                                var markMenuItem = new MenuItem { Header = "标记为原图" };
-                                
-                                // 循环模式
-                                var loopItem = new MenuItem { Header = "循环模式" };
-                                loopItem.Click += (s, args) => MarkAsOriginal(item, MarkType.Loop);
-                                markMenuItem.Items.Add(loopItem);
-                                
-                                // 顺序模式
-                                var sequenceItem = new MenuItem { Header = "顺序模式" };
-                                sequenceItem.Click += (s, args) => MarkAsOriginal(item, MarkType.Sequence);
-                                markMenuItem.Items.Add(sequenceItem);
-                                
-                                contextMenu.Items.Add(markMenuItem);
-                            }
-                            
-                            contextMenu.Items.Add(new Separator());
-                        }
                         
                         var deleteItem = new MenuItem { Header = "删除文件" };
                         deleteItem.Click += (s, args) => DeleteFile(item);

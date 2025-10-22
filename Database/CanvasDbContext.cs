@@ -363,6 +363,10 @@ namespace ImageColorChanger.Database
                 EnsureKeyframesTableExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
 
+                // 检查并添加合成播放标记字段（兼容旧数据库）
+                EnsureCompositePlaybackColumnExists();
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositePlaybackColumnExists() 完成");
+
                 // 执行SQLite性能优化配置
                 Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
                 Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
@@ -473,6 +477,59 @@ namespace ImageColorChanger.Database
             {
                 // System.Diagnostics.Debug.WriteLine($"❌ 检查/创建关键帧表失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 确保 images 表中存在 composite_playback_enabled 字段（兼容旧数据库）
+        /// </summary>
+        private void EnsureCompositePlaybackColumnExists()
+        {
+            try
+            {
+                var connection = Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    // 检查字段是否存在
+                    command.CommandText = "PRAGMA table_info(images)";
+                    using (var reader = command.ExecuteReader())
+                    {
+                        bool columnExists = false;
+                        while (reader.Read())
+                        {
+                            if (reader["name"].ToString() == "composite_playback_enabled")
+                            {
+                                columnExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!columnExists)
+                        {
+                            reader.Close();
+                            
+                            // 添加字段
+                            using (var alterCommand = connection.CreateCommand())
+                            {
+                                alterCommand.CommandText = @"
+                                    ALTER TABLE images 
+                                    ADD COLUMN composite_playback_enabled INTEGER NOT NULL DEFAULT 0";
+                                alterCommand.ExecuteNonQuery();
+                                System.Diagnostics.Debug.WriteLine("✅ 已添加 composite_playback_enabled 字段到 images 表");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 composite_playback_enabled 字段失败: {ex.Message}");
+                // 不抛出异常，因为这不是致命错误
             }
         }
     }

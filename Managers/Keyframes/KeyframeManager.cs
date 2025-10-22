@@ -19,6 +19,7 @@ namespace ImageColorChanger.Managers.Keyframes
         private readonly KeyframeRepository _repository;
         private readonly MainWindow _mainWindow;
         private KeyframeNavigator _navigator;
+        private readonly Repositories.Interfaces.IMediaFileRepository _mediaFileRepository;
 
         #region 状态管理
 
@@ -130,10 +131,14 @@ namespace ImageColorChanger.Managers.Keyframes
         /// <summary>
         /// 构造函数
         /// </summary>
-        public KeyframeManager(KeyframeRepository repository, MainWindow mainWindow)
+        public KeyframeManager(
+            KeyframeRepository repository, 
+            MainWindow mainWindow,
+            Repositories.Interfaces.IMediaFileRepository mediaFileRepository)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
+            _mediaFileRepository = mediaFileRepository ?? throw new ArgumentNullException(nameof(mediaFileRepository));
 
             // 初始化导航器
             _navigator = new KeyframeNavigator(this, mainWindow, repository);
@@ -478,6 +483,51 @@ namespace ImageColorChanger.Managers.Keyframes
         public void UpdatePreviewLines()
         {
             ScheduleUiUpdate("preview_lines");
+        }
+
+        #endregion
+
+        #region 合成播放标记
+
+        /// <summary>
+        /// 获取图片的合成播放启用状态
+        /// </summary>
+        public async Task<bool> GetCompositePlaybackEnabledAsync(int imageId)
+        {
+            if (imageId <= 0) return false;
+
+            try
+            {
+                var mediaFile = await _mediaFileRepository.GetByIdAsync(imageId);
+                return mediaFile?.CompositePlaybackEnabled ?? false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 设置图片的合成播放启用状态
+        /// </summary>
+        public async Task<bool> SetCompositePlaybackEnabledAsync(int imageId, bool enabled)
+        {
+            if (imageId <= 0) return false;
+
+            try
+            {
+                var mediaFile = await _mediaFileRepository.GetByIdAsync(imageId);
+                if (mediaFile == null) return false;
+
+                mediaFile.CompositePlaybackEnabled = enabled;
+                await _mediaFileRepository.UpdateAsync(mediaFile);
+                
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         #endregion

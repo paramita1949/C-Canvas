@@ -91,6 +91,9 @@ namespace ImageColorChanger.Core
             services.AddScoped<Services.Implementations.OriginalRecordingService>();
             services.AddScoped<Services.Implementations.OriginalPlaybackService>();
             
+            // 合成播放服务（Scoped）
+            services.AddScoped<Services.Implementations.CompositePlaybackService>();
+            
             // 默认服务接口注册（使用关键帧模式作为默认）
             services.AddScoped<Services.Interfaces.IRecordingService>(sp => 
                 sp.GetRequiredService<Services.Implementations.KeyframeRecordingService>());

@@ -71,6 +71,12 @@ namespace ImageColorChanger.Database.Models
         public string FileTypeString { get; set; } = "image";
 
         /// <summary>
+        /// 是否启用合成播放模式（录制完成后自动播放合成）
+        /// </summary>
+        [Column("composite_playback_enabled")]
+        public bool CompositePlaybackEnabled { get; set; } = false;
+
+        /// <summary>
         /// 文件类型枚举（不映射到数据库）
         /// </summary>
         [NotMapped]

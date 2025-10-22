@@ -886,7 +886,7 @@ namespace ImageColorChanger.Core
                 // 验证Freeze是否生效
                 if (wb.IsFrozen)
                 {
-                    System.Diagnostics.Debug.WriteLine($"✅ [WriteableBitmap] 已Freeze，GPU显存缓存生效");
+                    // WriteableBitmap已Freeze，GPU显存缓存生效
                 }
                 #endif
                 

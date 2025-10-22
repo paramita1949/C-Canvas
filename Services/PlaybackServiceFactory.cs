@@ -15,17 +15,20 @@ namespace ImageColorChanger.Services
         private readonly KeyframePlaybackService _keyframePlayback;
         private readonly OriginalRecordingService _originalRecording;
         private readonly OriginalPlaybackService _originalPlayback;
+        private readonly CompositePlaybackService _compositePlayback;
 
         public PlaybackServiceFactory(
             KeyframeRecordingService keyframeRecording,
             KeyframePlaybackService keyframePlayback,
             OriginalRecordingService originalRecording,
-            OriginalPlaybackService originalPlayback)
+            OriginalPlaybackService originalPlayback,
+            CompositePlaybackService compositePlayback)
         {
             _keyframeRecording = keyframeRecording ?? throw new ArgumentNullException(nameof(keyframeRecording));
             _keyframePlayback = keyframePlayback ?? throw new ArgumentNullException(nameof(keyframePlayback));
             _originalRecording = originalRecording ?? throw new ArgumentNullException(nameof(originalRecording));
             _originalPlayback = originalPlayback ?? throw new ArgumentNullException(nameof(originalPlayback));
+            _compositePlayback = compositePlayback ?? throw new ArgumentNullException(nameof(compositePlayback));
         }
 
         /// <summary>
@@ -37,6 +40,7 @@ namespace ImageColorChanger.Services
             {
                 PlaybackMode.Keyframe => _keyframeRecording,
                 PlaybackMode.Original => _originalRecording,
+                PlaybackMode.Composite => _keyframeRecording, // 合成播放复用关键帧录制服务
                 _ => throw new ArgumentException($"不支持的播放模式: {mode}", nameof(mode))
             };
         }
@@ -50,6 +54,7 @@ namespace ImageColorChanger.Services
             {
                 PlaybackMode.Keyframe => _keyframePlayback,
                 PlaybackMode.Original => _originalPlayback,
+                PlaybackMode.Composite => _compositePlayback,
                 _ => throw new ArgumentException($"不支持的播放模式: {mode}", nameof(mode))
             };
         }

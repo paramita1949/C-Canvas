@@ -100,6 +100,51 @@ namespace ImageColorChanger.UI
                 contextMenu.Items.Add(new Separator());
             }
 
+            // 合成标记菜单（异步加载状态）
+            var compositeMarkMenuItem = new MenuItem 
+            { 
+                Header = "合成标记",
+                IsCheckable = true,
+                IsChecked = false // 默认未选中，异步加载真实状态
+            };
+            
+            // 🔧 异步加载当前图片的合成标记状态
+            _ = Task.Run(async () =>
+            {
+                if (_keyframeManager != null && _currentImageId > 0)
+                {
+                    var isEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(_currentImageId);
+                    Dispatcher.Invoke(() => compositeMarkMenuItem.IsChecked = isEnabled);
+                }
+            });
+
+            compositeMarkMenuItem.Click += async (s, args) =>
+            {
+                if (_keyframeManager != null && _currentImageId > 0)
+                {
+                    // 🔧 MenuItem的IsChecked会在Click事件中自动切换，所以这里读取的是切换后的值
+                    bool newState = compositeMarkMenuItem.IsChecked;
+                    bool success = await _keyframeManager.SetCompositePlaybackEnabledAsync(_currentImageId, newState);
+                    
+                    if (success)
+                    {
+                        ShowStatus(newState 
+                            ? "✅ 已启用合成标记：录制完成后自动播放合成" 
+                            : "✅ 已关闭合成标记：录制完成后播放普通模式");
+                        
+                        // 🎨 立刻更新合成播放按钮颜色
+                        SetCompositeButtonColor(newState);
+                    }
+                    else
+                    {
+                        // 如果保存失败，恢复原状态
+                        compositeMarkMenuItem.IsChecked = !newState;
+                        ShowStatus("❌ 更新合成标记失败");
+                    }
+                }
+            };
+            contextMenu.Items.Add(compositeMarkMenuItem);
+
             // 变色颜色子菜单
             var colorMenuItem = new MenuItem { Header = "变色颜色" };
 

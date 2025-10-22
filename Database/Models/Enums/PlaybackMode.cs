@@ -9,7 +9,10 @@ namespace ImageColorChanger.Database.Models.Enums
         Keyframe,
         
         /// <summary>原图模式</summary>
-        Original
+        Original,
+        
+        /// <summary>合成播放模式（根据总时长平滑滚动）</summary>
+        Composite
     }
 }
 

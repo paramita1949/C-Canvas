@@ -1659,8 +1659,39 @@ namespace ImageColorChanger.UI
                 }
             }
             
+            // 记录录制前的状态
+            bool wasRecording = _playbackViewModel.IsRecording;
+            
             // 执行录制命令
             await _playbackViewModel.ToggleRecordingCommand.ExecuteAsync(null);
+            
+            // 🎬 如果是停止录制（录制完成），根据合成标记自动播放
+            if (wasRecording && !_playbackViewModel.IsRecording)
+            {
+                // 延迟200ms后自动启动播放（与Python版本一致）
+                await Task.Delay(200);
+                
+                // 关键帧模式：根据合成标记决定播放模式
+                if (!_originalMode && _keyframeManager != null)
+                {
+                    // 异步检查是否启用了合成标记
+                    bool isCompositeEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(_currentImageId);
+                    
+                    if (isCompositeEnabled)
+                    {
+                        // 🎬 自动播放合成模式
+                        BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                    }
+                    else
+                    {
+                        // 普通播放模式
+                        _playbackViewModel.CurrentImageId = _currentImageId;
+                        _playbackViewModel.CurrentMode = Database.Models.Enums.PlaybackMode.Keyframe;
+                        await _playbackViewModel.TogglePlaybackCommand.ExecuteAsync(null);
+                    }
+                }
+                // 原图模式：保持原有逻辑（在MainWindow.Original.cs中处理）
+            }
         }
 
         private async void BtnPlay_Click(object sender, RoutedEventArgs e)
@@ -1885,6 +1916,9 @@ namespace ImageColorChanger.UI
                     
                     // 更新关键帧预览线和指示块
                     _keyframeManager?.UpdatePreviewLines();
+                    
+                    // 🎬 更新浮动合成播放按钮的显示状态
+                    UpdateFloatingCompositePlayButton();
                     
                     // 🔧 更新 PlaybackViewModel 状态（检查时间数据，更新脚本按钮颜色）
                     if (_playbackViewModel != null && _currentImageId > 0)
@@ -2642,6 +2676,9 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
                     VideoContainer.Visibility = Visibility.Collapsed;
                     
+                    // 🎬 隐藏合成播放按钮（媒体文件不需要）
+                    BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                    
                     //System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     _projectionManager.ShowVideoProjection();
                     
@@ -2734,6 +2771,9 @@ namespace ImageColorChanger.UI
             {
                 // 显示视频播放区域
                 VideoContainer.Visibility = Visibility.Visible;
+                
+                // 🎬 隐藏合成播放按钮（媒体文件不需要）
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
                 
                 // 先隐藏文件名，等视频轨道检测完成后再决定是否显示
                 MediaFileNameBorder.Visibility = Visibility.Collapsed;

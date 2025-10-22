@@ -28,6 +28,9 @@ namespace ImageColorChanger.UI
         
         // 是否使用线性滚动（无缓动）
         private bool _isLinearScrolling = false;
+        
+        // 合成播放的Storyboard引用（用于停止时清除）
+        private System.Windows.Media.Animation.Storyboard _compositeScrollStoryboard = null;
 
         #endregion
 
@@ -71,8 +74,11 @@ namespace ImageColorChanger.UI
                 // 创建关键帧仓库
                 _keyframeRepository = new KeyframeRepository(dbContext);
 
+                // 获取MediaFileRepository
+                var mediaFileRepository = App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
+
                 // 创建关键帧管理器
-                _keyframeManager = new KeyframeManager(_keyframeRepository, this);
+                _keyframeManager = new KeyframeManager(_keyframeRepository, this, mediaFileRepository);
                 
                 // 从数据库加载滚动速度和缓动函数设置
                 LoadScrollSpeedSettings();
@@ -404,6 +410,432 @@ namespace ImageColorChanger.UI
         #endregion
 
         #region 播放按钮事件
+
+        /// <summary>
+        /// 合成播放按钮点击事件
+        /// </summary>
+        private async void BtnCompositePlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentImageId == 0)
+            {
+                ShowStatus("请先选择一张图片");
+                return;
+            }
+
+            if (_keyframeManager == null)
+            {
+                ShowStatus("关键帧系统未初始化");
+                return;
+            }
+
+            try
+            {
+                // 获取合成播放服务
+                var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+                var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                    as Services.Implementations.CompositePlaybackService;
+
+                if (compositeService == null)
+                {
+                    ShowStatus("❌ 合成播放服务未初始化");
+                    return;
+                }
+
+                // 如果正在播放，停止
+                if (compositeService.IsPlaying)
+                {
+                    await compositeService.StopPlaybackAsync();
+                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                    ShowStatus("⏹️ 已停止合成播放");
+                    return;
+                }
+
+                // 🔧 检查是否有关键帧（至少2个）
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                if (keyframes == null || keyframes.Count < 2)
+                {
+                    ShowToast("❌ 无录制数据", 2000);
+                    return;
+                }
+
+                // 🔧 检查是否有录制数据（时间数据）
+                var timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
+                var hasTimingData = await timingRepository.HasTimingDataAsync(_currentImageId);
+                if (!hasTimingData)
+                {
+                    ShowToast("❌ 无录制数据", 2000);
+                    return;
+                }
+
+                // 订阅滚动请求事件
+                compositeService.ScrollRequested -= OnCompositeScrollRequested;
+                compositeService.ScrollRequested += OnCompositeScrollRequested;
+
+                // 订阅停止滚动事件
+                compositeService.ScrollStopRequested -= OnCompositeScrollStopRequested;
+                compositeService.ScrollStopRequested += OnCompositeScrollStopRequested;
+
+                // 订阅播放完成事件
+                compositeService.PlaybackCompleted -= OnCompositePlaybackCompleted;
+                compositeService.PlaybackCompleted += OnCompositePlaybackCompleted;
+
+                // 订阅进度更新事件（用于倒计时）
+                compositeService.ProgressUpdated -= OnCompositeProgressUpdated;
+                compositeService.ProgressUpdated += OnCompositeProgressUpdated;
+
+                // 订阅当前关键帧变化事件（用于更新指示块颜色）
+                compositeService.CurrentKeyframeChanged -= OnCompositeCurrentKeyframeChanged;
+                compositeService.CurrentKeyframeChanged += OnCompositeCurrentKeyframeChanged;
+
+                // 设置播放次数（使用当前的播放次数设置）
+                compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
+
+                // 🔧 在开始播放前，先跳转到第一帧位置
+                var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
+                ImageScrollViewer.ScrollToVerticalOffset(firstKeyframe.YPosition);
+
+                // 开始播放
+                await compositeService.StartPlaybackAsync(_currentImageId);
+                BtnFloatingCompositePlay.Content = "⏹ 停止";
+                ShowStatus("▶️ 开始合成播放");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 合成播放失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 合成播放异常: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 合成播放滚动请求事件处理
+        /// </summary>
+        private void OnCompositeScrollRequested(object sender, Services.Implementations.CompositeScrollEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var scrollViewer = ImageScrollViewer;
+                    if (scrollViewer == null) return;
+
+                    // 停止之前的合成滚动动画（如果有）
+                    StopCompositeScrollAnimation();
+
+                    // 🔧 如果时长为0，表示直接跳转，不滚动
+                    if (e.Duration <= 0)
+                    {
+                        scrollViewer.ScrollToVerticalOffset(e.EndPosition);
+                        
+                        // 更新投影
+                        if (IsProjectionEnabled)
+                        {
+                            UpdateProjection();
+                        }
+                        return;
+                    }
+
+                    // 开始FPS监控
+                    StartFpsMonitoring();
+
+                    // 使用AnimationHelper执行滚动动画，并保存Storyboard引用
+                    _compositeScrollStoryboard = Utils.AnimationHelper.AnimateScroll(
+                        scrollViewer,
+                        e.StartPosition,
+                        e.EndPosition,
+                        TimeSpan.FromSeconds(e.Duration),
+                        () =>
+                        {
+                            // 滚动完成回调
+                            _compositeScrollStoryboard = null; // 清除引用
+                            System.Diagnostics.Debug.WriteLine($"✅ [合成播放] 滚动完成");
+                            
+                            // 更新投影
+                            if (IsProjectionEnabled)
+                            {
+                                UpdateProjection();
+                            }
+                            
+                            // 停止FPS监控
+                            StopFpsMonitoring();
+                        },
+                        _keyframeManager?.ScrollEasingType ?? "Bezier",
+                        _keyframeManager?.IsLinearScrolling ?? false
+                    );
+                }
+                catch (Exception)
+                {
+                    // 忽略异常
+                }
+            });
+        }
+        
+        /// <summary>
+        /// 停止合成播放的滚动动画
+        /// </summary>
+        private void StopCompositeScrollAnimation()
+        {
+            if (_compositeScrollStoryboard != null)
+            {
+                var scrollViewer = ImageScrollViewer;
+                if (scrollViewer != null)
+                {
+                    // 获取当前滚动位置
+                    var currentOffset = scrollViewer.VerticalOffset;
+                    
+                    // 停止Storyboard
+                    _compositeScrollStoryboard.Stop();
+                    
+                    // 清除动画属性（关键！）
+                    scrollViewer.BeginAnimation(Utils.AnimationHelper.GetAnimatedVerticalOffsetProperty(), null);
+                    
+                    // 清除引用
+                    _compositeScrollStoryboard = null;
+                    
+                    // 保持当前位置
+                    scrollViewer.ScrollToVerticalOffset(currentOffset);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 合成播放停止滚动请求事件处理
+        /// </summary>
+        private void OnCompositeScrollStopRequested(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 立即停止合成播放的滚动动画
+                    StopCompositeScrollAnimation();
+                    
+                    // 停止FPS监控
+                    StopFpsMonitoring();
+                    
+                    // 重置倒计时显示
+                    CountdownText.Text = "倒: --";
+                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                    countdownService?.Stop();
+                    
+                    // 恢复正常的关键帧指示块显示
+                    _keyframeManager?.UpdatePreviewLines();
+                }
+                catch (Exception)
+                {
+                    // 忽略异常
+                }
+            });
+        }
+
+        /// <summary>
+        /// 合成播放完成事件处理
+        /// </summary>
+        private void OnCompositePlaybackCompleted(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                ShowStatus("✅ 合成播放完成");
+                
+                // 停止倒计时显示
+                var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                countdownService?.Stop();
+                
+                // 恢复正常的关键帧指示块显示
+                _keyframeManager?.UpdatePreviewLines();
+            });
+        }
+
+        /// <summary>
+        /// 合成播放进度更新事件处理（显示倒计时）
+        /// </summary>
+        private void OnCompositeProgressUpdated(object sender, Services.Interfaces.PlaybackProgressEventArgs e)
+        {
+            // 启动倒计时服务
+            var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+            countdownService?.Start(e.RemainingTime);
+        }
+
+        /// <summary>
+        /// 合成播放当前关键帧变化事件处理（更新指示块颜色）
+        /// </summary>
+        private void OnCompositeCurrentKeyframeChanged(object sender, Services.Implementations.CurrentKeyframeChangedEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 重绘关键帧指示块，高亮当前播放的关键帧
+                    UpdateCompositePlaybackIndicator(e.KeyframeId, e.YPosition);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ 更新合成播放指示块失败: {ex.Message}");
+                }
+            });
+        }
+
+        /// <summary>
+        /// 更新浮动合成播放按钮的显示状态
+        /// </summary>
+        private void UpdateFloatingCompositePlayButton()
+        {
+            // 🔧 简化逻辑：只判断是否是正常图片文件
+            // 原图模式 → 隐藏
+            // 媒体文件 → 隐藏
+            // 正常图片 → 显示
+            
+            if (_originalMode)
+            {
+                // 原图模式，隐藏按钮
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (_currentImageId == 0)
+            {
+                // 没有加载图片，隐藏按钮
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // 正常文件夹的图片，显示按钮
+            BtnFloatingCompositePlay.Visibility = Visibility.Visible;
+            
+            // 🎨 异步加载合成标记状态并设置按钮颜色
+            _ = UpdateCompositeButtonColorAsync();
+        }
+
+        /// <summary>
+        /// 异步更新合成播放按钮颜色
+        /// </summary>
+        private async Task UpdateCompositeButtonColorAsync()
+        {
+            if (_keyframeManager == null || _currentImageId <= 0)
+            {
+                // 默认蓝色
+                SetCompositeButtonColor(false);
+                return;
+            }
+
+            try
+            {
+                bool isEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(_currentImageId);
+                SetCompositeButtonColor(isEnabled);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 更新按钮颜色失败: {ex.Message}");
+                SetCompositeButtonColor(false);
+            }
+        }
+
+        /// <summary>
+        /// 设置合成播放按钮颜色
+        /// </summary>
+        private void SetCompositeButtonColor(bool isCompositeEnabled)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isCompositeEnabled)
+                {
+                    // 已标记合成播放 → 绿色
+                    BtnFloatingCompositePlay.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(76, 175, 80)); // #4CAF50 绿色
+                    BtnFloatingCompositePlay.BorderBrush = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(56, 142, 60)); // #388E3C 深绿色
+                }
+                else
+                {
+                    // 未标记 → 蓝色（默认）
+                    BtnFloatingCompositePlay.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(33, 150, 243)); // #2196F3 蓝色
+                    BtnFloatingCompositePlay.BorderBrush = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(25, 118, 210)); // #1976D2 深蓝色
+                }
+            });
+        }
+
+        /// <summary>
+        /// 更新合成播放指示块（高亮当前播放的关键帧）
+        /// </summary>
+        private void UpdateCompositePlaybackIndicator(int currentKeyframeId, double yPosition)
+        {
+            try
+            {
+                if (_currentImageId <= 0) return;
+
+                // 清除所有指示块
+                ScrollbarIndicatorsCanvas.Children.Clear();
+
+                // 获取当前图片的所有关键帧
+                var keyframes = _keyframeManager?.GetKeyframesFromCache(_currentImageId);
+                if (keyframes == null || !keyframes.Any()) return;
+
+                // 获取尺寸信息
+                double imageCanvasHeight = KeyframePreviewLinesCanvas.ActualHeight;
+                double scrollbarCanvasHeight = ScrollbarIndicatorsCanvas.ActualHeight;
+
+                if (imageCanvasHeight <= 0 || scrollbarCanvasHeight <= 0) return;
+
+                // 绘制每个关键帧指示块
+                foreach (var keyframe in keyframes)
+                {
+                    double relativePosition = keyframe.YPosition / imageCanvasHeight;
+                    double indicatorY = relativePosition * scrollbarCanvasHeight;
+
+                    // 创建容器
+                    var indicatorContainer = new Grid();
+
+                    // 判断是否是当前播放的关键帧
+                    bool isCurrentPlayback = (keyframe.Id == currentKeyframeId);
+
+                    // 方块颜色：当前播放=绿色，其他=红色
+                    var indicator = new System.Windows.Shapes.Rectangle
+                    {
+                        Width = isCurrentPlayback ? 22 : 20,
+                        Height = isCurrentPlayback ? 22 : 20,
+                        Fill = new System.Windows.Media.SolidColorBrush(
+                            isCurrentPlayback 
+                                ? System.Windows.Media.Color.FromRgb(0, 255, 0)   // 绿色
+                                : System.Windows.Media.Color.FromRgb(255, 32, 32)), // 红色
+                        RadiusX = 3,
+                        RadiusY = 3,
+                        Opacity = isCurrentPlayback ? 0.7 : 0.45,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = keyframe.Id
+                    };
+
+                    indicatorContainer.Children.Add(indicator);
+
+                    // 如果有循环次数提示，显示数字
+                    if (keyframe.LoopCount.HasValue && keyframe.LoopCount.Value > 0)
+                    {
+                        var loopText = new TextBlock
+                        {
+                            Text = keyframe.LoopCount.Value.ToString(),
+                            FontSize = isCurrentPlayback ? 14 : 13,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush(
+                                System.Windows.Media.Color.FromRgb(255, 255, 255)),
+                            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                            IsHitTestVisible = false
+                        };
+                        indicatorContainer.Children.Add(loopText);
+                    }
+
+                    Canvas.SetTop(indicatorContainer, indicatorY - (isCurrentPlayback ? 11 : 10));
+                    Canvas.SetLeft(indicatorContainer, -2);
+                    ScrollbarIndicatorsCanvas.Children.Add(indicatorContainer);
+                }
+
+            }
+            catch (Exception)
+            {
+                // 忽略异常
+            }
+        }
 
         /// <summary>
         /// 清除时间数据按钮点击事件
@@ -1328,6 +1760,55 @@ namespace ImageColorChanger.UI
             return Task.CompletedTask;
         }
 
+
+        /// <summary>
+        /// 显示Toast悬浮提示（自动消失）
+        /// </summary>
+        /// <param name="message">提示消息</param>
+        /// <param name="durationMs">显示时长（毫秒），默认2000ms</param>
+        private async void ShowToast(string message, int durationMs = 2000)
+        {
+            await Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    // 设置消息
+                    ToastMessage.Text = message;
+                    
+                    // 显示Toast
+                    ToastNotification.Visibility = Visibility.Visible;
+                    
+                    // 淡入动画
+                    var fadeIn = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 0,
+                        To = 1,
+                        Duration = TimeSpan.FromMilliseconds(200)
+                    };
+                    ToastNotification.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                    
+                    // 等待指定时长
+                    await Task.Delay(durationMs);
+                    
+                    // 淡出动画
+                    var fadeOut = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 1,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(200)
+                    };
+                    fadeOut.Completed += (s, e) =>
+                    {
+                        ToastNotification.Visibility = Visibility.Collapsed;
+                    };
+                    ToastNotification.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Toast显示异常: {ex.Message}");
+                }
+            });
+        }
 
         #endregion
     }

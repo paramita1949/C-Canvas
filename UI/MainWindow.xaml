@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.0.6"
+        Title="Canvas Cast V5.0.7"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -284,6 +284,71 @@
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="5"/>
+            <!-- 🔧 设置滚动条样式，使其更明显 -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeView">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer Focusable="False" 
+                                         CanContentScroll="False"
+                                         Padding="{TemplateBinding Padding}">
+                                <ScrollViewer.Resources>
+                                    <!-- 滚动条样式 -->
+                                    <Style TargetType="ScrollBar">
+                                        <Setter Property="Background" Value="#F0F0F0"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="Orientation" Value="Vertical">
+                                                <Setter Property="Width" Value="18"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ScrollBar">
+                                                            <Grid>
+                                                                <Border Background="#F0F0F0" CornerRadius="9"/>
+                                                                <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                                    <Track.Thumb>
+                                                                        <Thumb>
+                                                                            <Thumb.Style>
+                                                                                <Style TargetType="Thumb">
+                                                                                    <Setter Property="Background" Value="#BDBDBD"/>
+                                                                                    <Setter Property="Template">
+                                                                                        <Setter.Value>
+                                                                                            <ControlTemplate TargetType="Thumb">
+                                                                                                <Border Background="{TemplateBinding Background}"
+                                                                                                       CornerRadius="7"
+                                                                                                       Width="14"
+                                                                                                       Margin="2"/>
+                                                                                            </ControlTemplate>
+                                                                                        </Setter.Value>
+                                                                                    </Setter>
+                                                                                    <Style.Triggers>
+                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                            <Setter Property="Background" Value="#9E9E9E"/>
+                                                                                        </Trigger>
+                                                                                        <Trigger Property="IsDragging" Value="True">
+                                                                                            <Setter Property="Background" Value="#757575"/>
+                                                                                        </Trigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Thumb.Style>
+                                                                        </Thumb>
+                                                                    </Track.Thumb>
+                                                                </Track>
+                                                            </Grid>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ScrollViewer.Resources>
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ComboBox样式 - 白色背景 -->
@@ -1349,6 +1414,57 @@
                             MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
+
+                <!-- 🎬 浮动合成播放按钮（右上角，避开滚动条） -->
+                <Button x:Name="BtnFloatingCompositePlay" 
+                        Content="🎬 合成播放" 
+                        HorizontalAlignment="Right" 
+                        VerticalAlignment="Top"
+                        Margin="0,15,60,0"
+                        Padding="15,8"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Background="#2196F3"
+                        Foreground="White"
+                        BorderBrush="#1976D2"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Panel.ZIndex="300"
+                        Click="BtnCompositePlay_Click"
+                        ToolTip="🎬 根据总时长平滑滚动播放（需要录制数据）"
+                        Opacity="0.75"
+                        Visibility="Collapsed">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" 
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="20"
+                                                Padding="{TemplateBinding Padding}">
+                                            <Border.Effect>
+                                                <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
+                                            </Border.Effect>
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1976D2"/>
+                                                <Setter Property="Opacity" Value="1.0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </Grid>
         </Grid>
 
@@ -1415,6 +1531,30 @@
                             ValueChanged="VolumeSlider_ValueChanged"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- ========== Toast 通知容器（悬浮提示，显示在合成播放按钮下方） ========== -->
+        <Border x:Name="ToastNotification" 
+                Grid.RowSpan="3"
+                Background="#CC000000"
+                CornerRadius="8"
+                Padding="20,12"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,110,50,0"
+                Visibility="Collapsed"
+                Panel.ZIndex="9999"
+                IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="3" BlurRadius="10" Opacity="0.5"/>
+            </Border.Effect>
+            <TextBlock x:Name="ToastMessage" 
+                       FontSize="14"
+                       FontWeight="Medium"
+                       Foreground="White"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       MaxWidth="200"/>
         </Border>
     </Grid>
 </Window>
