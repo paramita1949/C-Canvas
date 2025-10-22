@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.0.7"
+        Title="Canvas Cast V5.0.8"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -284,71 +284,8 @@
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="5"/>
-            <!-- 🔧 设置滚动条样式，使其更明显 -->
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TreeView">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <ScrollViewer Focusable="False" 
-                                         CanContentScroll="False"
-                                         Padding="{TemplateBinding Padding}">
-                                <ScrollViewer.Resources>
-                                    <!-- 滚动条样式 -->
-                                    <Style TargetType="ScrollBar">
-                                        <Setter Property="Background" Value="#F0F0F0"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="Orientation" Value="Vertical">
-                                                <Setter Property="Width" Value="18"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="ScrollBar">
-                                                            <Grid>
-                                                                <Border Background="#F0F0F0" CornerRadius="9"/>
-                                                                <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                                                    <Track.Thumb>
-                                                                        <Thumb>
-                                                                            <Thumb.Style>
-                                                                                <Style TargetType="Thumb">
-                                                                                    <Setter Property="Background" Value="#BDBDBD"/>
-                                                                                    <Setter Property="Template">
-                                                                                        <Setter.Value>
-                                                                                            <ControlTemplate TargetType="Thumb">
-                                                                                                <Border Background="{TemplateBinding Background}"
-                                                                                                       CornerRadius="7"
-                                                                                                       Width="14"
-                                                                                                       Margin="2"/>
-                                                                                            </ControlTemplate>
-                                                                                        </Setter.Value>
-                                                                                    </Setter>
-                                                                                    <Style.Triggers>
-                                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                                            <Setter Property="Background" Value="#9E9E9E"/>
-                                                                                        </Trigger>
-                                                                                        <Trigger Property="IsDragging" Value="True">
-                                                                                            <Setter Property="Background" Value="#757575"/>
-                                                                                        </Trigger>
-                                                                                    </Style.Triggers>
-                                                                                </Style>
-                                                                            </Thumb.Style>
-                                                                        </Thumb>
-                                                                    </Track.Thumb>
-                                                                </Track>
-                                                            </Grid>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </ScrollViewer.Resources>
-                                <ItemsPresenter/>
-                            </ScrollViewer>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
         </Style>
 
         <!-- ComboBox样式 - 白色背景 -->

@@ -446,6 +446,17 @@ namespace ImageColorChanger.UI
                 {
                     await compositeService.StopPlaybackAsync();
                     BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                    
+                    // 停止滚动动画
+                    _keyframeManager?.StopScrollAnimation();
+                    StopCompositeScrollAnimation();
+                    
+                    // 重置倒计时显示
+                    CountdownText.Text = "倒: --";
+                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                    countdownService?.Stop();
+                    
+                    System.Diagnostics.Debug.WriteLine("🛑 [合成播放] 已停止滚动动画和倒计时");
                     ShowStatus("⏹️ 已停止合成播放");
                     return;
                 }

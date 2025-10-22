@@ -247,10 +247,15 @@ namespace ImageColorChanger.UI
                                     ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
                                     : System.Windows.SystemColors.ControlBrush;
                                 
-                                // 🎯 停止播放时重置倒计时显示
+                                // 🎯 停止播放时重置倒计时显示和停止滚动动画
                                 if (!_playbackViewModel.IsPlaying)
                                 {
                                     CountdownText.Text = "倒: --";
+                                    
+                                    // 停止滚动动画（关键帧和合成播放的滚动）
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                    System.Diagnostics.Debug.WriteLine("🛑 [停止播放] 已停止滚动动画");
                                 }
                                 break;
                             case "IsPaused":
@@ -1016,6 +1021,88 @@ namespace ImageColorChanger.UI
                     BtnProjection.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // 淡绿色
                     ShowStatus("✅ 投影已开启");
                     
+                    // 🎯 投影时自动停止原图/关键帧播放并重置倒计时
+                    if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                    {
+                        // 异步停止播放（不阻塞UI线程）
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                if (_playbackViewModel.CurrentMode == PlaybackMode.Original)
+                                {
+                                    await StopOriginalModePlaybackAsync();
+                                    System.Diagnostics.Debug.WriteLine("📺 [投影] 已自动停止原图播放");
+                                }
+                                else
+                                {
+                                    await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
+                                    System.Diagnostics.Debug.WriteLine("📺 [投影] 已自动停止关键帧播放");
+                                }
+                                
+                                // 停止滚动动画
+                                Dispatcher.Invoke(() =>
+                                {
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                    System.Diagnostics.Debug.WriteLine("🛑 [投影] 已停止滚动动画");
+                                });
+                                
+                                // 重置倒计时显示
+                                Dispatcher.Invoke(() =>
+                                {
+                                    CountdownText.Text = "倒: --";
+                                    CountdownText.ToolTip = null;
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 停止播放失败: {ex.Message}");
+                            }
+                        });
+                    }
+                    
+                    // 🎯 投影时自动停止合成播放并重置倒计时
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+                            var compositeService = serviceFactory.GetPlaybackService(PlaybackMode.Composite) 
+                                as Services.Implementations.CompositePlaybackService;
+                            
+                            if (compositeService != null && compositeService.IsPlaying)
+                            {
+                                await compositeService.StopPlaybackAsync();
+                                System.Diagnostics.Debug.WriteLine("🎬 [投影] 已自动停止合成播放");
+                                
+                                // 更新UI
+                                Dispatcher.Invoke(() =>
+                                {
+                                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                                    
+                                    // 停止滚动动画
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                    
+                                    // 重置倒计时显示
+                                    CountdownText.Text = "倒: --";
+                                    CountdownText.ToolTip = null;
+                                    
+                                    // 停止倒计时服务
+                                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                                    countdownService?.Stop();
+                                    
+                                    System.Diagnostics.Debug.WriteLine("🛑 [投影] 已停止合成播放的滚动动画和倒计时");
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 停止合成播放失败: {ex.Message}");
+                        }
+                    });
+                    
                     // 更新预缓存管理器的投影尺寸
                     if (_preloadCacheManager != null && _projectionManager != null)
                     {
@@ -1074,6 +1161,88 @@ namespace ImageColorChanger.UI
                         _projectionTimeoutTimer = null;
                         //System.Diagnostics.Debug.WriteLine("🧹 已清理投影超时定时器");
                     }
+                    
+                    // 🎯 结束投影时自动停止原图/关键帧播放并重置倒计时
+                    if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                    {
+                        // 异步停止播放（不阻塞UI线程）
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                if (_playbackViewModel.CurrentMode == PlaybackMode.Original)
+                                {
+                                    await StopOriginalModePlaybackAsync();
+                                    System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止原图播放");
+                                }
+                                else
+                                {
+                                    await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
+                                    System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止关键帧播放");
+                                }
+                                
+                                // 停止滚动动画
+                                Dispatcher.Invoke(() =>
+                                {
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                    System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止滚动动画");
+                                });
+                                
+                                // 重置倒计时显示
+                                Dispatcher.Invoke(() =>
+                                {
+                                    CountdownText.Text = "倒: --";
+                                    CountdownText.ToolTip = null;
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"⚠️ [结束投影] 停止播放失败: {ex.Message}");
+                            }
+                        });
+                    }
+                    
+                    // 🎯 结束投影时自动停止合成播放并重置倒计时
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+                            var compositeService = serviceFactory.GetPlaybackService(PlaybackMode.Composite) 
+                                as Services.Implementations.CompositePlaybackService;
+                            
+                            if (compositeService != null && compositeService.IsPlaying)
+                            {
+                                await compositeService.StopPlaybackAsync();
+                                System.Diagnostics.Debug.WriteLine("🎬 [结束投影] 已自动停止合成播放");
+                                
+                                // 更新UI
+                                Dispatcher.Invoke(() =>
+                                {
+                                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                                    
+                                    // 停止滚动动画
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                    
+                                    // 重置倒计时显示
+                                    CountdownText.Text = "倒: --";
+                                    CountdownText.ToolTip = null;
+                                    
+                                    // 停止倒计时服务
+                                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                                    countdownService?.Stop();
+                                    
+                                    System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止合成播放的滚动动画和倒计时");
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [结束投影] 停止合成播放失败: {ex.Message}");
+                        }
+                    });
                     
                     // 如果当前正在播放视频，停止播放并重置VideoView绑定
                     if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
