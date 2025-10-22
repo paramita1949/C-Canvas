@@ -327,9 +327,9 @@ namespace ImageColorChanger.ViewModels
                 if (IsPlaying)
                 {
                     // 停止播放
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🛑 [停止播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🛑 [停止播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}");
+                    //#endif
                     await playbackService.StopPlaybackAsync();
                     _countdownService.Stop();
                     IsPlaying = false;
@@ -343,9 +343,9 @@ namespace ImageColorChanger.ViewModels
                     // 开始播放
                     if (_stateMachine.TryTransition(PlaybackStatus.Playing))
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
+                        //#endif
                         
                         // 🎯 订阅播放服务事件（每次播放时重新订阅，确保使用正确的服务）
                         playbackService.ProgressUpdated -= OnPlaybackProgressUpdated;

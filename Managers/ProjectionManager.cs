@@ -1245,9 +1245,9 @@ namespace ImageColorChanger.Managers
                         );
                         var renderTime = sw.ElapsedMilliseconds - renderStart;
                         
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚡ [UpdateProjection GPU] 耗时: {renderTime}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚡ [UpdateProjection GPU] 耗时: {renderTime}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
+                        //#endif
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"    ├─ GPU缩放: {renderTime}ms");
                         //#endif

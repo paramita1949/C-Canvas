@@ -52,55 +52,7 @@ namespace ImageColorChanger.UI
             
             contextMenu.Items.Clear();
             
-            // 重新添加滚动速度和滚动函数菜单
-            if (scrollSpeedMenu != null)
-            {
-                contextMenu.Items.Add(scrollSpeedMenu);
-                // 更新滚动速度菜单的选中状态
-                if (_keyframeManager != null)
-                {
-                    foreach (var item in ((MenuItem)scrollSpeedMenu).Items)
-                    {
-                        if (item is MenuItem subMenu && subMenu.Tag != null)
-                        {
-                            if (double.TryParse(subMenu.Tag.ToString(), out double speed))
-                            {
-                                subMenu.IsChecked = Math.Abs(speed - _keyframeManager.ScrollDuration) < 0.01;
-                            }
-                        }
-                    }
-                }
-            }
-            if (scrollEasingMenu != null)
-            {
-                contextMenu.Items.Add(scrollEasingMenu);
-                // 更新滚动函数菜单的选中状态
-                if (_keyframeManager != null)
-                {
-                    foreach (var item in ((MenuItem)scrollEasingMenu).Items)
-                    {
-                        if (item is MenuItem subMenu && subMenu.Tag != null)
-                        {
-                            string tag = subMenu.Tag.ToString();
-                            if (tag == "Linear")
-                            {
-                                subMenu.IsChecked = _keyframeManager.IsLinearScrolling;
-                            }
-                            else
-                            {
-                                subMenu.IsChecked = !_keyframeManager.IsLinearScrolling && 
-                                                    tag == _keyframeManager.ScrollEasingType;
-                            }
-                        }
-                    }
-                }
-            }
-            if (scrollSpeedMenu != null || scrollEasingMenu != null)
-            {
-                contextMenu.Items.Add(new Separator());
-            }
-
-            // 合成标记菜单（异步加载状态）
+            // 🎬 合成标记菜单（第一位）
             var compositeMarkMenuItem = new MenuItem 
             { 
                 Header = "合成标记",
@@ -145,7 +97,53 @@ namespace ImageColorChanger.UI
             };
             contextMenu.Items.Add(compositeMarkMenuItem);
 
-            // 变色颜色子菜单
+            // 重新添加滚动速度菜单（第二位，无分隔线）
+            if (scrollSpeedMenu != null)
+            {
+                contextMenu.Items.Add(scrollSpeedMenu);
+                // 更新滚动速度菜单的选中状态
+                if (_keyframeManager != null)
+                {
+                    foreach (var item in ((MenuItem)scrollSpeedMenu).Items)
+                    {
+                        if (item is MenuItem subMenu && subMenu.Tag != null)
+                        {
+                            if (double.TryParse(subMenu.Tag.ToString(), out double speed))
+                            {
+                                subMenu.IsChecked = Math.Abs(speed - _keyframeManager.ScrollDuration) < 0.01;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 重新添加滚动函数菜单（第三位，无分隔线）
+            if (scrollEasingMenu != null)
+            {
+                contextMenu.Items.Add(scrollEasingMenu);
+                // 更新滚动函数菜单的选中状态
+                if (_keyframeManager != null)
+                {
+                    foreach (var item in ((MenuItem)scrollEasingMenu).Items)
+                    {
+                        if (item is MenuItem subMenu && subMenu.Tag != null)
+                        {
+                            string tag = subMenu.Tag.ToString();
+                            if (tag == "Linear")
+                            {
+                                subMenu.IsChecked = _keyframeManager.IsLinearScrolling;
+                            }
+                            else
+                            {
+                                subMenu.IsChecked = !_keyframeManager.IsLinearScrolling && 
+                                                    tag == _keyframeManager.ScrollEasingType;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 🎨 变色颜色菜单（第四位，无分隔线）
             var colorMenuItem = new MenuItem { Header = "变色颜色" };
 
             // 从 ConfigManager 获取所有颜色预设

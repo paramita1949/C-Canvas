@@ -456,7 +456,7 @@ namespace ImageColorChanger.UI
                     var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
                     countdownService?.Stop();
                     
-                    System.Diagnostics.Debug.WriteLine("🛑 [合成播放] 已停止滚动动画和倒计时");
+                    //System.Diagnostics.Debug.WriteLine("🛑 [合成播放] 已停止滚动动画和倒计时");
                     ShowStatus("⏹️ 已停止合成播放");
                     return;
                 }

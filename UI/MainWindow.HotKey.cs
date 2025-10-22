@@ -191,70 +191,70 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine("\n⌨️ ========== 全局热键触发: ESC ==========");
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"   触发时间: {DateTime.Now:HH:mm:ss:fff}");
-                        #endif
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine("\n⌨️ ========== 全局热键触发: ESC ==========");
+//                        #if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"   触发时间: {DateTime.Now:HH:mm:ss:fff}");
+//                        #endif
+//#endif
                         Dispatcher.InvokeAsync(() =>
                         {
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine("   开始处理 ESC 键...");
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager != null: {_videoPlayerManager != null}");
-                            #endif
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager.IsPlaying: {_videoPlayerManager?.IsPlaying}");
-                            #endif
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   _projectionManager != null: {_projectionManager != null}");
-                            #endif
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   _projectionManager.IsProjectionActive: {_projectionManager?.IsProjectionActive}");
-                            #endif
-#endif
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine("   开始处理 ESC 键...");
+//                            #if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager != null: {_videoPlayerManager != null}");
+//                            #endif
+//                            #if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"   _videoPlayerManager.IsPlaying: {_videoPlayerManager?.IsPlaying}");
+//                            #endif
+//                            #if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"   _projectionManager != null: {_projectionManager != null}");
+//                            #endif
+//                            #if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"   _projectionManager.IsProjectionActive: {_projectionManager?.IsProjectionActive}");
+//                            #endif
+//#endif
                             
                             // 如果正在播放视频，先停止播放并重置界面
                             if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
                             {
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 检测到视频正在播放，调用 SwitchToImageMode()");
-#endif
+//#if DEBUG
+//                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 检测到视频正在播放，调用 SwitchToImageMode()");
+//#endif
                                 SwitchToImageMode();
                             }
-#if DEBUG
-                            else
-                            {
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 视频未播放，跳过 SwitchToImageMode()");
-                                #endif
-                            }
-#endif
+//#if DEBUG
+//                            else
+//                            {
+//                                #if DEBUG
+//                                System.Diagnostics.Debug.WriteLine("📹 ESC键: 视频未播放，跳过 SwitchToImageMode()");
+//                                #endif
+//                            }
+//#endif
                             
                             // 关闭投影
                             if (_projectionManager != null)
                             {
                                 bool wasClosed = _projectionManager.CloseProjection();
-#if DEBUG
-                                if (wasClosed)
-                                {
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
-                                    #endif
-                                }
-                                else
-                                {
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 无投影需要关闭");
-                                    #endif
-                                }
-#endif
+//#if DEBUG
+//                                if (wasClosed)
+//                                {
+//                                    #if DEBUG
+//                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 已关闭投影");
+//                                    #endif
+//                                }
+//                                else
+//                                {
+//                                    #if DEBUG
+//                                    System.Diagnostics.Debug.WriteLine("⌨️ ESC键: 无投影需要关闭");
+//                                    #endif
+//                                }
+//#endif
                             }
                             
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine("========== 全局热键 ESC 处理完成 ==========\n");
-#endif
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine("========== 全局热键 ESC 处理完成 ==========\n");
+//#endif
                         });
                     });
                 

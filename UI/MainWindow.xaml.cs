@@ -255,7 +255,7 @@ namespace ImageColorChanger.UI
                                     // 停止滚动动画（关键帧和合成播放的滚动）
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    System.Diagnostics.Debug.WriteLine("🛑 [停止播放] 已停止滚动动画");
+                                    //System.Diagnostics.Debug.WriteLine("🛑 [停止播放] 已停止滚动动画");
                                 }
                                 break;
                             case "IsPaused":
@@ -297,46 +297,46 @@ namespace ImageColorChanger.UI
                 {
                     kfService.JumpToKeyframeRequested += async (s, e) =>
                     {
-                        #if DEBUG
-                        var jumpTime = System.Diagnostics.Stopwatch.StartNew();
-                        System.Diagnostics.Debug.WriteLine($"\n🎯 ========== 关键帧跳转开始 ==========");
-                        System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
-                        #endif
+                        //#if DEBUG
+                        //var jumpTime = System.Diagnostics.Stopwatch.StartNew();
+                        //System.Diagnostics.Debug.WriteLine($"\n🎯 ========== 关键帧跳转开始 ==========");
+                        //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 目标关键帧: ID={e.KeyframeId}, Position={e.Position:F4}, 直接跳转={e.UseDirectJump}");
+                        //#endif
                         
                         await Dispatcher.InvokeAsync(() => {
                             if (_keyframeManager != null)
                             {
                                 // 🔧 根据UseDirectJump标志选择跳转方式（参考Python版本：keytime.py 第1199-1213行）
-                                #if DEBUG
-                                var scrollStart = jumpTime.ElapsedMilliseconds;
-                                #endif
+                                //#if DEBUG
+                                //var scrollStart = jumpTime.ElapsedMilliseconds;
+                                //#endif
                                 if (e.UseDirectJump)
                                 {
                                     // 直接跳转，不使用滚动动画（用于循环回第一帧或首次播放）
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
-                                    #if DEBUG
-                                    var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
-                                    System.Diagnostics.Debug.WriteLine($"⚡ [播放跳转] 直接跳转完成: {scrollTime}ms");
-                                    #endif
+                                    //#if DEBUG
+                                    //var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
+                                    //System.Diagnostics.Debug.WriteLine($"⚡ [播放跳转] 直接跳转完成: {scrollTime}ms");
+                                    //#endif
                                 }
                                 else
                                 {
                                     // 使用平滑滚动动画（播放时开启滚动函数）
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 开启滚动动画，持续时间: {_keyframeManager.ScrollDuration}秒, 缓动: {(_keyframeManager.IsLinearScrolling ? "Linear" : _keyframeManager.ScrollEasingType)}");
-                                    #endif
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 开启滚动动画，持续时间: {_keyframeManager.ScrollDuration}秒, 缓动: {(_keyframeManager.IsLinearScrolling ? "Linear" : _keyframeManager.ScrollEasingType)}");
+                                    //#endif
                                     _keyframeManager.SmoothScrollTo(e.Position);
-                                    #if DEBUG
-                                    var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
-                                    System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 平滑滚动已启动: {scrollTime}ms");
-                                    #endif
+                                    //#if DEBUG
+                                    //var scrollTime = jumpTime.ElapsedMilliseconds - scrollStart;
+                                    //System.Diagnostics.Debug.WriteLine($"🎬 [播放跳转] 平滑滚动已启动: {scrollTime}ms");
+                                    //#endif
                                 }
                                 
                                 // 🔧 更新关键帧索引和指示器（参考Python版本：keytime.py 第1184-1221行）
                                 // 1. 查找当前关键帧的索引（从缓存，性能优化）
-                                #if DEBUG
-                                var indexStart = jumpTime.ElapsedMilliseconds;
-                                #endif
+                                //#if DEBUG
+                                //var indexStart = jumpTime.ElapsedMilliseconds;
+                                //#endif
                                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                                 if (keyframes != null)
                                 {
@@ -346,27 +346,27 @@ namespace ImageColorChanger.UI
                                         {
                                             // 2. 更新关键帧索引
                                             _keyframeManager.UpdateKeyframeIndex(i);
-                                            #if DEBUG
-                                            var indexTime = jumpTime.ElapsedMilliseconds - indexStart;
-                                            System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新索引: {indexTime}ms -> 关键帧#{i + 1}/{keyframes.Count}");
-                                            #endif
+                                            //#if DEBUG
+                                            //var indexTime = jumpTime.ElapsedMilliseconds - indexStart;
+                                            //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新索引: {indexTime}ms -> 关键帧#{i + 1}/{keyframes.Count}");
+                                            //#endif
                                             break;
                                         }
                                     }
                                 }
                                 
                                 // 3. 更新指示器和预览线
-                                #if DEBUG
-                                var uiStart = jumpTime.ElapsedMilliseconds;
-                                #endif
+                                //#if DEBUG
+                                //var uiStart = jumpTime.ElapsedMilliseconds;
+                                //#endif
                                 _keyframeManager?.UpdatePreviewLines();
-                                #if DEBUG
-                                var uiTime = jumpTime.ElapsedMilliseconds - uiStart;
-                                System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新UI: {uiTime}ms");
-                                
-                                jumpTime.Stop();
-                                System.Diagnostics.Debug.WriteLine($"🎯 ========== 关键帧跳转完成: {jumpTime.ElapsedMilliseconds}ms ==========\n");
-                                #endif
+                                //#if DEBUG
+                                //var uiTime = jumpTime.ElapsedMilliseconds - uiStart;
+                                //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] 更新UI: {uiTime}ms");
+                                //
+                                //jumpTime.Stop();
+                                //System.Diagnostics.Debug.WriteLine($"🎯 ========== 关键帧跳转完成: {jumpTime.ElapsedMilliseconds}ms ==========\n");
+                                //#endif
                             }
                         });
                     };
@@ -1173,12 +1173,12 @@ namespace ImageColorChanger.UI
                                 if (_playbackViewModel.CurrentMode == PlaybackMode.Original)
                                 {
                                     await StopOriginalModePlaybackAsync();
-                                    System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止原图播放");
+                                    //System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止原图播放");
                                 }
                                 else
                                 {
                                     await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
-                                    System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止关键帧播放");
+                                    //System.Diagnostics.Debug.WriteLine("📺 [结束投影] 已自动停止关键帧播放");
                                 }
                                 
                                 // 停止滚动动画
@@ -1186,7 +1186,7 @@ namespace ImageColorChanger.UI
                                 {
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止滚动动画");
+                                    //System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止滚动动画");
                                 });
                                 
                                 // 重置倒计时显示
@@ -1215,7 +1215,7 @@ namespace ImageColorChanger.UI
                             if (compositeService != null && compositeService.IsPlaying)
                             {
                                 await compositeService.StopPlaybackAsync();
-                                System.Diagnostics.Debug.WriteLine("🎬 [结束投影] 已自动停止合成播放");
+                                //System.Diagnostics.Debug.WriteLine("🎬 [结束投影] 已自动停止合成播放");
                                 
                                 // 更新UI
                                 Dispatcher.Invoke(() =>
@@ -1234,7 +1234,7 @@ namespace ImageColorChanger.UI
                                     var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
                                     countdownService?.Stop();
                                     
-                                    System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止合成播放的滚动动画和倒计时");
+                                    //System.Diagnostics.Debug.WriteLine("🛑 [结束投影] 已停止合成播放的滚动动画和倒计时");
                                 });
                             }
                         }

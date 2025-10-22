@@ -68,9 +68,9 @@ namespace ImageColorChanger.Utils
             // 启动标题更新定时器
             _titleUpdateTimer.Start();
             
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [FPS监控] 监控已启动");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"✅ [FPS监控] 监控已启动");
+            //#endif
         }
 
         /// <summary>
@@ -92,9 +92,9 @@ namespace ImageColorChanger.Utils
                 _mainWindow.Title = _originalTitle;
             });
             
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⏹️ [FPS监控] 监控已停止");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"⏹️ [FPS监控] 监控已停止");
+            //#endif
         }
 
         /// <summary>
