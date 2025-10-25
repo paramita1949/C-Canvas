@@ -452,20 +452,10 @@ namespace ImageColorChanger.UI
                 // 🆕 如果点击在空白区域（没有TreeViewItem），显示新建项目菜单
                 if (treeViewItem == null)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("🎯 [ContextMenu] 创建新建项目菜单...");
-                    #endif
-                    
                     var contextMenu = new ContextMenu();
                     
                     // 🔑 关键：应用自定义样式（在 MainWindow.xaml 中定义）
                     contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📊 [ContextMenu] Style: {contextMenu.Style}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [ContextMenu] Background: {contextMenu.Background}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [ContextMenu] BorderThickness: {contextMenu.BorderThickness}");
-                    #endif
                     
                     var newProjectItem = new MenuItem { Header = "📝 新建项目" };
                     newProjectItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
@@ -473,22 +463,12 @@ namespace ImageColorChanger.UI
                     newProjectItem.BorderThickness = new Thickness(0);
                     newProjectItem.BorderBrush = Brushes.Transparent;
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📊 [MenuItem] Background: {newProjectItem.Background}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [MenuItem] Foreground: {newProjectItem.Foreground}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [MenuItem] BorderThickness: {newProjectItem.BorderThickness}");
-                    #endif
-                    
                     newProjectItem.Click += async (s, args) =>
                     {
                         string projectName = await GenerateDefaultProjectNameAsync();
                         await CreateTextProjectAsync(projectName);
                     };
                     contextMenu.Items.Add(newProjectItem);
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("✅ [ContextMenu] 菜单已创建，准备显示");
-                    #endif
                     
                     contextMenu.IsOpen = true;
                     contextMenu.PlacementTarget = sender as UIElement;

@@ -323,8 +323,8 @@ namespace ImageColorChanger.UI
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: {projectName}");
                 
-                // 🆕 强制更新投影（如果投影已开启）
-                if (_projectionManager.IsProjectionActive && _currentSlide != null)
+                // 🆕 强制更新投影（如果投影已开启且未锁定）
+                if (_projectionManager.IsProjectionActive && _currentSlide != null && !_isProjectionLocked)
                 {
                     //System.Diagnostics.Debug.WriteLine("🔄 新建项目完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
@@ -408,8 +408,8 @@ namespace ImageColorChanger.UI
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: {_currentTextProject.Name}");
                 
-                // 🆕 强制更新投影（如果投影已开启）
-                if (_projectionManager.IsProjectionActive && _currentSlide != null)
+                // 🆕 强制更新投影（如果投影已开启且未锁定）
+                if (_projectionManager.IsProjectionActive && _currentSlide != null && !_isProjectionLocked)
                 {
                     //System.Diagnostics.Debug.WriteLine("🔄 项目加载完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
@@ -2041,8 +2041,8 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                // 滚轮向上增大，向下减小，每次步进2
-                int delta = e.Delta > 0 ? 2 : -2;
+                // 滚轮向上增大，向下减小，每次步进1
+                int delta = e.Delta > 0 ? 1 : -1;
                 int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
                 
                 FontSizeInput.Text = newSize.ToString();
@@ -2058,7 +2058,7 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                int newSize = Math.Max(10, currentSize - 2);
+                int newSize = Math.Max(10, currentSize - 1);
                 FontSizeInput.Text = newSize.ToString();
             }
         }
@@ -2070,7 +2070,7 @@ namespace ImageColorChanger.UI
         {
             if (int.TryParse(FontSizeInput.Text, out int currentSize))
             {
-                int newSize = Math.Min(200, currentSize + 2);
+                int newSize = Math.Min(200, currentSize + 1);
                 FontSizeInput.Text = newSize.ToString();
             }
         }
@@ -2277,8 +2277,8 @@ namespace ImageColorChanger.UI
                 RefreshSlideList();
                 //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已刷新幻灯片列表");
                 
-                // 🔧 如果投影开启，自动更新投影
-                if (_projectionManager.IsProjectionActive)
+                // 🔧 如果投影开启且未锁定，自动更新投影
+                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
                     //System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
                     // 延迟确保UI完全渲染
@@ -2288,7 +2288,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启，跳过投影更新");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新");
                 }
                 
                 //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
@@ -3203,6 +3203,44 @@ namespace ImageColorChanger.UI
 
         #endregion
 
+        #region 🆕 投影锁定功能
+
+        /// <summary>
+        /// 投影锁定状态（true=锁定，切换幻灯片不自动更新投影；false=未锁定，自动更新）
+        /// </summary>
+        private bool _isProjectionLocked = false;
+
+        /// <summary>
+        /// 锁定投影按钮点击事件
+        /// </summary>
+        private void BtnLockProjection_Click(object sender, RoutedEventArgs e)
+        {
+            // 切换锁定状态
+            _isProjectionLocked = !_isProjectionLocked;
+
+            // 更新按钮显示
+            if (_isProjectionLocked)
+            {
+                // 锁定状态：设置橙色，Tag标记锁定（样式会根据Tag禁用悬停效果）
+                BtnLockProjection.Content = "🔒 锁定投影";
+                BtnLockProjection.ToolTip = "投影已锁定：切换幻灯片不会自动更新投影，点击解锁";
+                BtnLockProjection.Tag = "Locked";
+                BtnLockProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 165, 0));
+                BtnLockProjection.Foreground = new SolidColorBrush(Colors.White);
+            }
+            else
+            {
+                // 未锁定状态：恢复默认蓝色
+                BtnLockProjection.Content = "🔓 锁定投影";
+                BtnLockProjection.ToolTip = "投影未锁定：切换幻灯片自动更新投影，点击锁定";
+                BtnLockProjection.Tag = null;
+                BtnLockProjection.ClearValue(System.Windows.Controls.Button.BackgroundProperty);
+                BtnLockProjection.ClearValue(System.Windows.Controls.Button.ForegroundProperty);
+            }
+        }
+
+        #endregion
+
         #region 🆕 幻灯片管理
 
         /// <summary>
@@ -3541,8 +3579,8 @@ namespace ImageColorChanger.UI
                 // 🆕 恢复分割配置
                 RestoreSplitConfig(slide);
                 
-                // 🆕 加载完成后，如果投影已开启，自动更新投影
-                if (_projectionManager.IsProjectionActive)
+                // 🆕 加载完成后，如果投影已开启且未锁定，自动更新投影
+                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
                     // 延迟一点点，确保UI渲染完成
                     Dispatcher.BeginInvoke(new Action(() =>

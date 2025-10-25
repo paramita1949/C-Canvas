@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.0.9"
+        Title="Canvas Cast V5.1.1"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -117,22 +117,33 @@
                                             VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
+                            <!-- 悬停效果（但Tag="Locked"时不触发） -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="Tag" Value="{x:Null}"/>
+                                </MultiTrigger.Conditions>
                                 <Setter TargetName="border" Property="Background" Value="#1E88E5"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
                                         <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.4" Color="#2196F3"/>
                                     </Setter.Value>
                                 </Setter>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
+                            </MultiTrigger>
+                            
+                            <!-- 按下效果（但Tag="Locked"时不触发） -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsPressed" Value="True"/>
+                                    <Condition Property="Tag" Value="{x:Null}"/>
+                                </MultiTrigger.Conditions>
                                 <Setter TargetName="border" Property="Background" Value="#1565C0"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
                                         <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.3" Color="#1565C0"/>
                                     </Setter.Value>
                                 </Setter>
-                            </Trigger>
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -1025,7 +1036,9 @@
                                       MaxDropDownHeight="400"
                                       IsEditable="True"
                                       IsTextSearchEnabled="True"
-                                      GotFocus="FontFamilySelector_GotFocus">
+                                      GotFocus="FontFamilySelector_GotFocus"
+                                      Style="{StaticResource WhiteComboBoxPopup}"
+                                      ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
                                 <!-- 字体将在代码中动态加载 -->
                             </ComboBox>
 
@@ -1084,6 +1097,10 @@
                                     Style="{StaticResource MenuButtonStyle}"
                                     Foreground="#333333"
                                     ToolTip="保存项目" Click="BtnSaveTextProject_Click"/>
+                            
+                            <Button x:Name="BtnLockProjection" Content="🔓 锁定投影"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    ToolTip="锁定投影：开启后切换幻灯片不会自动更新投影" Click="BtnLockProjection_Click"/>
                             
                             <Button x:Name="BtnUpdateProjection" Content="🔄 更新投影"
                                     Style="{StaticResource PrimaryButtonStyle}"

@@ -125,36 +125,56 @@ namespace ImageColorChanger.UI
             // 计算按钮尺寸参数（使用主字号计算，按Python版本逻辑）
             var buttonParams = CalculateButtonParameters(fontSize, adaptiveFontSize, screenWidth);
             
-            // 更新所有菜单按钮
-            var menuButtons = new[]
+            // 主菜单按钮（不包括文本编辑器按钮）
+            var mainMenuButtons = new[]
             {
                 BtnImport, BtnProjection, BtnSync, BtnReset, BtnOriginal, BtnZoomReset, BtnColorEffect,
                 BtnAddKeyframe, BtnClearKeyframes, BtnPrevKeyframe, BtnNextKeyframe,
-                BtnPlay, BtnPlayCount, BtnRecord, BtnScript, BtnClearTiming, BtnPauseResume, BtnContact,
-                // 富文本编辑器相关按钮
-                BtnAddText, BtnBackgroundImage, BtnBackgroundColor, BtnSplitView, BtnSplitStretchMode,
-                BtnDecreaseFontSize, BtnIncreaseFontSize, BtnBold, BtnTextColor, BtnSaveTextProject,
-                BtnUpdateProjection, BtnCloseTextEditorInPanel
+                BtnPlay, BtnPlayCount, BtnRecord, BtnScript, BtnClearTiming, BtnPauseResume, BtnContact
             };
             
-            foreach (var btn in menuButtons)
+            // 文本编辑器按钮（应用缩小比例）
+            var textEditorButtons = new[]
+            {
+                BtnAddText, BtnBackgroundImage, BtnBackgroundColor, BtnSplitView, BtnSplitStretchMode,
+                BtnDecreaseFontSize, BtnIncreaseFontSize, BtnBold, BtnTextColor, BtnSaveTextProject,
+                BtnLockProjection, BtnUpdateProjection, BtnCloseTextEditorInPanel
+            };
+            
+            // 更新主菜单按钮
+            foreach (var btn in mainMenuButtons)
             {
                 if (btn != null)
                 {
-                    // 应用自适应字体大小
                     btn.FontSize = adaptiveFontSize;
-                    
-                    // 应用自适应按钮尺寸
                     btn.Height = buttonParams.Height;
                     btn.Padding = buttonParams.Padding;
                     btn.Margin = buttonParams.Margin;
-                    
-                    // 确保按钮垂直居中对齐
                     btn.VerticalAlignment = VerticalAlignment.Center;
-                    
-                    #if DEBUG
-                    // System.Diagnostics.Debug.WriteLine($"🔘 按钮 {btn.Content}: 高度={btn.Height:F1}, Padding={buttonParams.Padding}, Background={btn.Background}, VerticalAlignment={btn.VerticalAlignment}");
-                    #endif
+                }
+            }
+            
+            // 更新文本编辑器按钮（按比例缩小0.75倍）
+            double textEditorScale = 0.75;
+            foreach (var btn in textEditorButtons)
+            {
+                if (btn != null)
+                {
+                    btn.FontSize = adaptiveFontSize * textEditorScale;
+                    btn.Height = buttonParams.Height * textEditorScale;
+                    btn.Padding = new Thickness(
+                        buttonParams.Padding.Left * textEditorScale,
+                        buttonParams.Padding.Top * textEditorScale,
+                        buttonParams.Padding.Right * textEditorScale,
+                        buttonParams.Padding.Bottom * textEditorScale
+                    );
+                    btn.Margin = new Thickness(
+                        buttonParams.Margin.Left * textEditorScale,
+                        buttonParams.Margin.Top * textEditorScale,
+                        buttonParams.Margin.Right * textEditorScale,
+                        buttonParams.Margin.Bottom * textEditorScale
+                    );
+                    btn.VerticalAlignment = VerticalAlignment.Center;
                 }
             }
             
