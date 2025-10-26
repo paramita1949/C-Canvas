@@ -67,8 +67,8 @@
     <None Remove="V257\**" />
   </ItemGroup>
 
-  <!-- Pack resources after build and publish -->
-  <Target Name="PackResources" AfterTargets="Build;Publish">
+  <!-- Pack resources after build -->
+  <Target Name="PackResources" AfterTargets="Build">
     <Message Text="[PAK] Building pack tool..." Importance="high" />
     <Exec Command="dotnet build BuildTools\PackResources.csproj -c Release -o BuildTools\bin -v quiet" />
     
@@ -76,9 +76,6 @@
     <MakeDir Directories="$(OutDir)" Condition="!Exists('$(OutDir)')" />
     <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
     <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
-    
-    <!-- 确保PAK文件被复制到发布目录 -->
-    <Copy SourceFiles="$(OutDir)Resources.pak" DestinationFiles="$(PublishDir)Resources.pak" Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Resources.pak')" />
   </Target>
 
 </Project>

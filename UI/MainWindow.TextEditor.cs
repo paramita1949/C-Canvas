@@ -915,9 +915,11 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                #if DEBUG
+#if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
-                #endif
+#else
+                _ = ex; // 避免未使用警告
+#endif
             }
         }
 
