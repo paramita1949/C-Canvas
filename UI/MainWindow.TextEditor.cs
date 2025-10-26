@@ -1071,11 +1071,11 @@ namespace ImageColorChanger.UI
             _splitRegionBorders.Add(border);
             EditorCanvas.Children.Add(border);
             
-            // 🆕 在右上角添加序列号标签
+            // 🆕 在左上角添加序列号标签
             var label = new System.Windows.Controls.Border
             {
                 Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
-                CornerRadius = new System.Windows.CornerRadius(0, 0, 0, 8), // 左下圆角
+                CornerRadius = new System.Windows.CornerRadius(0, 0, 8, 0), // 右下圆角
                 Padding = new System.Windows.Thickness(8, 4, 8, 4),
                 Tag = $"RegionLabel_{regionIndex}",
                 IsHitTestVisible = false // 不响应鼠标事件
@@ -1091,8 +1091,8 @@ namespace ImageColorChanger.UI
             
             label.Child = labelText;
             
-            // 定位到右上角
-            Canvas.SetLeft(label, x + width - 30); // 右上角
+            // 定位到左上角
+            Canvas.SetLeft(label, x); // 左上角
             Canvas.SetTop(label, y);
             Canvas.SetZIndex(label, 1001); // 置于最顶层
             
