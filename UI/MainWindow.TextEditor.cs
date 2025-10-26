@@ -308,7 +308,8 @@ namespace ImageColorChanger.UI
                     Title = "幻灯片 1",
                     SortOrder = 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
-                    SplitMode = -1  // 默认无分割模式
+                    SplitMode = -1,  // 默认无分割模式
+                    SplitStretchMode = false  // 默认适中模式
                 };
                 _dbContext.Slides.Add(firstSlide);
                 await _dbContext.SaveChangesAsync();
@@ -338,8 +339,13 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 创建文本项目失败: {ex.Message}");
-                WpfMessageBox.Show($"创建项目失败: {ex.Message}", "错误", 
+                string errorMsg = $"创建项目失败: {ex.Message}";
+                if (ex.InnerException != null)
+                {
+                    errorMsg += $"\n\n详细信息: {ex.InnerException.Message}";
+                }
+                
+                WpfMessageBox.Show(errorMsg, "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -373,7 +379,8 @@ namespace ImageColorChanger.UI
                         Title = "幻灯片 1",
                         SortOrder = 1,
                         BackgroundColor = "#000000",  // 默认黑色背景
-                        SplitMode = -1  // 默认无分割模式
+                        SplitMode = -1,  // 默认无分割模式
+                        SplitStretchMode = false  // 默认适中模式
                     };
                     _dbContext.Slides.Add(firstSlide);
                     await _dbContext.SaveChangesAsync();
@@ -772,10 +779,21 @@ namespace ImageColorChanger.UI
             
             // 更新内部状态和按钮显示
             _splitStretchMode = (newStretch == System.Windows.Media.Stretch.Fill);
-            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+            UpdateStretchModeButton();
             
             // 保存到数据库
             await SaveSplitStretchModeAsync();
+        }
+        
+        /// <summary>
+        /// 更新拉伸模式按钮显示（根据当前图片的实际拉伸模式）
+        /// </summary>
+        private void UpdateStretchModeButton()
+        {
+            // 按钮显示当前的实际模式：
+            // - 如果图片是拉伸模式(Fill)，显示"📐 拉伸"
+            // - 如果图片是适中模式(Uniform)，显示"📐 适中"
+            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
         }
         
         /// <summary>
@@ -1311,7 +1329,7 @@ namespace ImageColorChanger.UI
                 
                 // 🆕 同步更新拉伸按钮显示
                 _splitStretchMode = (stretchMode == System.Windows.Media.Stretch.Fill);
-                BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+                UpdateStretchModeButton();
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
@@ -1656,10 +1674,7 @@ namespace ImageColorChanger.UI
             {
                 // 🆕 恢复拉伸模式
                 _splitStretchMode = slide.SplitStretchMode;
-                BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 已恢复拉伸模式: {(_splitStretchMode ? "拉伸" : "适中")}");
-                //#endif
+                UpdateStretchModeButton();
                 
                 // 检查是否有分割模式（-1 表示无分割模式）
                 if (slide.SplitMode < 0)
@@ -1818,6 +1833,21 @@ namespace ImageColorChanger.UI
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
                     //#endif
+                }
+                
+                // 🆕 最终同步：检查实际加载的图片拉伸模式，确保按钮显示正确
+                if (_regionImages.Count > 0)
+                {
+                    var firstImage = _regionImages.Values.FirstOrDefault();
+                    if (firstImage != null)
+                    {
+                        bool actualStretchMode = (firstImage.Stretch == System.Windows.Media.Stretch.Fill);
+                        if (_splitStretchMode != actualStretchMode)
+                        {
+                            _splitStretchMode = actualStretchMode;
+                            UpdateStretchModeButton();
+                        }
+                    }
                 }
                 
                 //#if DEBUG
@@ -3679,7 +3709,8 @@ namespace ImageColorChanger.UI
                     Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = maxOrder + 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
-                    SplitMode = -1  // 默认无分割模式
+                    SplitMode = -1,  // 默认无分割模式
+                    SplitStretchMode = false  // 默认适中模式
                 };
 
                 _dbContext.Slides.Add(newSlide);
@@ -3741,7 +3772,9 @@ namespace ImageColorChanger.UI
                     SortOrder = newSortOrder,
                     BackgroundColor = sourceSlide.BackgroundColor,
                     BackgroundImagePath = sourceSlide.BackgroundImagePath,
-                    SplitMode = sourceSlide.SplitMode  // 复制分割模式
+                    SplitMode = sourceSlide.SplitMode,  // 复制分割模式
+                    SplitStretchMode = sourceSlide.SplitStretchMode,  // 复制拉伸模式
+                    SplitRegionsData = sourceSlide.SplitRegionsData  // 复制区域数据
                 };
 
                 _dbContext.Slides.Add(newSlide);
