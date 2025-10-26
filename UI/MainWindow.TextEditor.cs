@@ -857,6 +857,16 @@ namespace ImageColorChanger.UI
             verticalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Vertical);
             contextMenu.Items.Add(verticalItem);
 
+            // 三分割
+            var tripleSplitItem = new MenuItem 
+            { 
+                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.TripleSplit 
+                    ? "✓ 三分割" : "   三分割",
+                Height = 36
+            };
+            tripleSplitItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.TripleSplit);
+            contextMenu.Items.Add(tripleSplitItem);
+
             // 四宫格
             var quadItem = new MenuItem 
             { 
@@ -961,6 +971,18 @@ namespace ImageColorChanger.UI
                     CreateRegionBorder(1, canvasWidth / 2, 0, canvasWidth / 2, canvasHeight / 2);
                     CreateRegionBorder(2, 0, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
                     CreateRegionBorder(3, canvasWidth / 2, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.TripleSplit:
+                    // 三分割：左边上下分割，右边整个竖分割
+                    // 绘制一条竖线（左右分割 50%）
+                    DrawVerticalLine(canvasWidth / 2, 0, canvasHeight);
+                    // 绘制一条横线（左边上下分割）
+                    DrawHorizontalLine(canvasHeight / 2, 0, canvasWidth / 2);
+                    // 创建三个区域边框
+                    CreateRegionBorder(0, 0, 0, canvasWidth / 2, canvasHeight / 2);  // 左上1
+                    CreateRegionBorder(1, 0, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);  // 左下2
+                    CreateRegionBorder(2, canvasWidth / 2, 0, canvasWidth / 2, canvasHeight);  // 右3
                     break;
             }
             
@@ -1244,14 +1266,14 @@ namespace ImageColorChanger.UI
                     // 原图标记文件夹：拉伸填满
                     stretchMode = System.Windows.Media.Stretch.Fill;
                 }
-                else if (_currentSlide.SplitMode == 0)
+                else if (_currentSlide.SplitMode == 0 || _currentSlide.SplitMode == 4)
                 {
-                    // 单画面模式：默认拉伸填满
+                    // 单画面模式或三分割模式：默认拉伸填满
                     stretchMode = System.Windows.Media.Stretch.Fill;
                 }
                 else
                 {
-                    // 分割模式：根据用户设置
+                    // 其他分割模式：根据用户设置
                     stretchMode = _splitStretchMode ? 
                         System.Windows.Media.Stretch.Fill : 
                         System.Windows.Media.Stretch.Uniform;
@@ -1750,14 +1772,14 @@ namespace ImageColorChanger.UI
                         // 原图标记文件夹：拉伸填满
                         stretchMode = System.Windows.Media.Stretch.Fill;
                     }
-                    else if (slide.SplitMode == 0)
+                    else if (slide.SplitMode == 0 || slide.SplitMode == 4)
                     {
-                        // 单画面模式：默认拉伸填满
+                        // 单画面模式或三分割模式：默认拉伸填满
                         stretchMode = System.Windows.Media.Stretch.Fill;
                     }
                     else
                     {
-                        // 分割模式：根据用户设置
+                        // 其他分割模式：根据用户设置
                         stretchMode = _splitStretchMode ? 
                             System.Windows.Media.Stretch.Fill : 
                             System.Windows.Media.Stretch.Uniform;

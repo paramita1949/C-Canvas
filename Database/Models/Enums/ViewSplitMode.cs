@@ -16,6 +16,9 @@ namespace ImageColorChanger.Database.Models.Enums
         
         /// <summary>四宫格 - 2x2网格布局，显示四张不同的图片</summary>
         Quad = 3,
+        
+        /// <summary>三分割 - 左边上下分割，右边整个竖分割（左上1 | 左下2 | 右3）</summary>
+        TripleSplit = 4,
     }
 }
 
