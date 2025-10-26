@@ -82,16 +82,48 @@ jobs:
     - name: 验证构建产物
       shell: pwsh
       run: |
+        echo "=== 验证构建产物 ==="
+        
+        # 检查主程序
         if (Test-Path "publish\Canvas Cast.exe") {
-          echo "✅ 构建产物验证成功"
+          echo "✅ 主程序验证成功"
           $exeInfo = Get-Item "publish\Canvas Cast.exe"
-          echo "文件大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
+          echo "主程序大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
         } else {
           echo "❌ 构建产物验证失败 - Canvas Cast.exe 不存在"
           echo "publish目录内容:"
           Get-ChildItem "publish" -ErrorAction SilentlyContinue | ForEach-Object { echo "  - $($_.Name)" }
           exit 1
         }
+        
+        # 检查并处理PAK文件
+        if (Test-Path "publish\Resources.pak") {
+          echo "✅ PAK文件已存在于publish目录"
+          $pakInfo = Get-Item "publish\Resources.pak"
+          echo "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ PAK文件不存在于publish目录，尝试从bin目录复制..."
+          if (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
+            Copy-Item "bin\Release\net8.0-windows\Resources.pak" "publish\Resources.pak"
+            echo "✅ PAK文件已从bin目录复制到publish根目录"
+            $pakInfo = Get-Item "publish\Resources.pak"
+            echo "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: bin目录中也没有PAK文件"
+            exit 1
+          }
+        }
+        
+        # 删除publish目录中的bin文件夹（如果存在）
+        if (Test-Path "publish\bin") {
+          echo "⚠️ 发现publish\bin目录，正在删除..."
+          Remove-Item "publish\bin" -Recurse -Force
+          echo "✅ 已删除publish\bin目录"
+        }
+        
+        echo ""
+        echo "=== publish目录最终内容 ==="
+        Get-ChildItem "publish" -Name | ForEach-Object { echo "  - $_" }
     
     - name: 创建发布包
       shell: pwsh
