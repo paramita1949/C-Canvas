@@ -185,6 +185,39 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
+                // 🆕 空格键: 停止播放（脚本录制播放或合成播放）
+                _globalHotKeyManager.RegisterHotKey(
+                    Key.Space,
+                    ModifierKeys.None,
+                    () =>
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Space");
+                        //#endif
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            // 检查是否正在合成播放
+                            var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
+                            if (compositeService != null && compositeService.IsPlaying)
+                            {
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] 空格键: 停止合成播放");
+                                //#endif
+                                // 触发合成播放按钮点击事件（停止播放）
+                                BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                            }
+                            // 检查是否正在脚本播放（关键帧模式或原图模式）
+                            else if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                            {
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] 空格键: 停止脚本播放");
+                                //#endif
+                                // 停止播放
+                                BtnPlay_Click(null, null);
+                            }
+                        });
+                    });
+                
                 // ESC键: 取消投影/停止播放视频
                 _globalHotKeyManager.RegisterHotKey(
                     Key.Escape,

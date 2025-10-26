@@ -1,9 +1,10 @@
 <Window x:Class="ImageColorChanger.UI.MainWindow"
+        x:Name="MainWindowRoot"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.1.5"
+        Title="Canvas Cast V5.1.6"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -753,12 +754,12 @@
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <!-- 默认使用文件字号 -->
-                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                        <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FileFontSize}"/>
                                                         <Setter Property="Visibility" Value="Visible"/>
                                                         <Style.Triggers>
                                                             <!-- 如果是文件夹，使用文件夹字号 -->
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
-                                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
                                                             <!-- 编辑模式时隐藏 -->
                                                             <DataTrigger Binding="{Binding IsEditing}" Value="True">
@@ -781,13 +782,13 @@
                                                      IsVisibleChanged="TreeItemEditBox_IsVisibleChanged">
                                                 <TextBox.Style>
                                                     <Style TargetType="TextBox">
-                                                        <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FileFontSize}"/>
+                                                        <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FileFontSize}"/>
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Setter Property="CaretBrush" Value="Black"/>
                                                         <Style.Triggers>
                                                             <!-- 如果是文件夹，使用文件夹字号 -->
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
-                                                                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderFontSize}"/>
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
                                                             <!-- 编辑模式时显示 -->
                                                             <DataTrigger Binding="{Binding IsEditing}" Value="True">
@@ -817,7 +818,7 @@
                                             </Style>
                                         </Border.Style>
                                         <TextBlock Text="{Binding FolderName}" 
-                                                   FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FolderTagFontSize}" 
+                                                   FontSize="{Binding ElementName=MainWindowRoot, Path=FolderTagFontSize}" 
                                                    Foreground="White"
                                                    FontWeight="SemiBold"/>
                                     </Border>
@@ -1385,7 +1386,6 @@
                         Cursor="Hand"
                         Panel.ZIndex="300"
                         Click="BtnCompositePlay_Click"
-                        ToolTip="🎬 根据总时长平滑滚动播放（需要录制数据）"
                         Opacity="0.75"
                         Visibility="Collapsed">
                     <Button.Style>

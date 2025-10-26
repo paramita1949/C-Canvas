@@ -2315,6 +2315,40 @@ namespace ImageColorChanger.UI
                 }
             }
 
+            // 🆕 空格键: 停止播放（脚本录制播放或合成播放）
+            if (e.Key == Key.Space)
+            {
+                bool handled = false;
+                
+                // 检查是否正在合成播放
+                var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
+                if (compositeService != null && compositeService.IsPlaying)
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 停止合成播放");
+                    //#endif
+                    // 触发合成播放按钮点击事件（停止播放）
+                    BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                    handled = true;
+                }
+                // 检查是否正在脚本播放（关键帧模式或原图模式）
+                else if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 停止脚本播放");
+                    //#endif
+                    // 停止播放
+                    BtnPlay_Click(null, null);
+                    handled = true;
+                }
+                
+                if (handled)
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             // ESC键: 关闭投影(优先级最高,不论是否原图模式)
             if (e.Key == Key.Escape)
             {
@@ -2349,7 +2383,8 @@ namespace ImageColorChanger.UI
             {
                 // 检查是否是全局热键相关的按键
                 bool isGlobalHotKey = (e.Key == Key.Left || e.Key == Key.Right || e.Key == Key.F2 || 
-                                     e.Key == Key.PageUp || e.Key == Key.PageDown || e.Key == Key.Escape);
+                                     e.Key == Key.PageUp || e.Key == Key.PageDown || e.Key == Key.Escape ||
+                                     e.Key == Key.Space);  // 🆕 空格键也由全局热键处理
                 
                 if (isGlobalHotKey)
                 {
