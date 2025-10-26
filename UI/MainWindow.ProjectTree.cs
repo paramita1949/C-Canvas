@@ -317,12 +317,12 @@ namespace ImageColorChanger.UI
                             switch (selectedItem.FileType)
                             {
                                 case FileType.Image:
-                                    // 🆕 检查是否在文本编辑模式且处于分割模式
+                                    // 🆕 检查是否在文本编辑模式
                                     if (TextEditorPanel.Visibility == Visibility.Visible && IsInSplitMode())
                                     {
-                                        // 加载图片到选中的分割区域
+                                        // 文本编辑模式（包括单画面模式）：加载图片到选中的分割区域
                                         await LoadImageToSplitRegion(selectedItem.Path);
-                                        ShowStatus($"📷 已加载到区域: {selectedItem.Name}");
+                                        ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     }
                                     else
                                     {

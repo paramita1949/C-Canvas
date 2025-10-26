@@ -307,7 +307,8 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = "幻灯片 1",
                     SortOrder = 1,
-                    BackgroundColor = "#000000"  // 默认黑色背景
+                    BackgroundColor = "#000000",  // 默认黑色背景
+                    SplitMode = -1  // 默认无分割模式
                 };
                 _dbContext.Slides.Add(firstSlide);
                 await _dbContext.SaveChangesAsync();
@@ -371,7 +372,8 @@ namespace ImageColorChanger.UI
                         ProjectId = _currentTextProject.Id,
                         Title = "幻灯片 1",
                         SortOrder = 1,
-                        BackgroundColor = "#000000"  // 默认黑色背景
+                        BackgroundColor = "#000000",  // 默认黑色背景
+                        SplitMode = -1  // 默认无分割模式
                     };
                     _dbContext.Slides.Add(firstSlide);
                     await _dbContext.SaveChangesAsync();
@@ -746,27 +748,34 @@ namespace ImageColorChanger.UI
         {
             if (_currentTextProject == null || _currentSlide == null)
                 return;
-                
-            // 切换模式
-            _splitStretchMode = !_splitStretchMode;
             
-            // 更新按钮显示
-            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+            // 如果没有区域图片，不执行操作
+            if (_regionImages.Count == 0)
+                return;
             
-            // 应用到所有区域图片
+            // 检查当前第一个区域图片的拉伸模式
+            var firstImage = _regionImages.Values.FirstOrDefault();
+            if (firstImage == null)
+                return;
+            
+            // 根据当前状态切换
+            bool isCurrentlyFill = firstImage.Stretch == System.Windows.Media.Stretch.Fill;
+            var newStretch = isCurrentlyFill ? 
+                System.Windows.Media.Stretch.Uniform :  // 当前是拉伸 → 切换为适中
+                System.Windows.Media.Stretch.Fill;      // 当前是适中 → 切换为拉伸
+            
+            // 应用到所有区域图片（包括单画面模式的区域0）
             foreach (var kvp in _regionImages)
             {
-                kvp.Value.Stretch = _splitStretchMode ? 
-                    System.Windows.Media.Stretch.Fill :  // 拉伸填满
-                    System.Windows.Media.Stretch.Uniform; // 适中显示
+                kvp.Value.Stretch = newStretch;
             }
+            
+            // 更新内部状态和按钮显示
+            _splitStretchMode = (newStretch == System.Windows.Media.Stretch.Fill);
+            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
             
             // 保存到数据库
             await SaveSplitStretchModeAsync();
-            
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📐 [拉伸模式] 已切换到: {(_splitStretchMode ? "拉伸填满" : "适中显示")}，已保存到数据库");
-            //#endif
         }
         
         /// <summary>
@@ -815,16 +824,15 @@ namespace ImageColorChanger.UI
             // 🔑 应用自定义样式
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
-            // 获取当前分割模式
-            var currentMode = (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode;
+            // 获取当前分割模式（-1 表示未设置，不勾选任何项）
+            int currentSplitMode = _currentSlide.SplitMode;
 
             // 单画面
             var singleItem = new MenuItem 
             { 
-                Header = "● 单画面",
-                Height = 36,
-                IsCheckable = true,
-                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Single
+                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Single 
+                    ? "✓ 单画面" : "   单画面",
+                Height = 36
             };
             singleItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Single);
             contextMenu.Items.Add(singleItem);
@@ -832,10 +840,9 @@ namespace ImageColorChanger.UI
             // 左右分割
             var horizontalItem = new MenuItem 
             { 
-                Header = "◫ 左右分割",
-                Height = 36,
-                IsCheckable = true,
-                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Horizontal
+                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Horizontal 
+                    ? "✓ 左右分割" : "   左右分割",
+                Height = 36
             };
             horizontalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Horizontal);
             contextMenu.Items.Add(horizontalItem);
@@ -843,10 +850,9 @@ namespace ImageColorChanger.UI
             // 上下分割
             var verticalItem = new MenuItem 
             { 
-                Header = "⬒ 上下分割",
-                Height = 36,
-                IsCheckable = true,
-                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Vertical
+                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Vertical 
+                    ? "✓ 上下分割" : "   上下分割",
+                Height = 36
             };
             verticalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Vertical);
             contextMenu.Items.Add(verticalItem);
@@ -854,10 +860,9 @@ namespace ImageColorChanger.UI
             // 四宫格
             var quadItem = new MenuItem 
             { 
-                Header = "⊞ 四宫格",
-                Height = 36,
-                IsCheckable = true,
-                IsChecked = currentMode == Database.Models.Enums.ViewSplitMode.Quad
+                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Quad 
+                    ? "✓ 四宫格" : "   四宫格",
+                Height = 36
             };
             quadItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Quad);
             contextMenu.Items.Add(quadItem);
@@ -876,10 +881,6 @@ namespace ImageColorChanger.UI
 
             try
             {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🖼 [SetSplitMode] 切换到: {mode}");
-                //#endif
-
                 // 更新数据库
                 var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
@@ -887,32 +888,25 @@ namespace ImageColorChanger.UI
                     slideToUpdate.SplitMode = (int)mode;
                     slideToUpdate.ModifiedTime = DateTime.Now;
                     
-                    // 如果切换到非单画面模式，清空分割区域数据
-                    if (mode != Database.Models.Enums.ViewSplitMode.Single)
-                    {
-                        slideToUpdate.SplitRegionsData = null;
-                    }
+                    // 切换分割模式时，清空分割区域数据
+                    slideToUpdate.SplitRegionsData = null;
                     
                     await _dbContext.SaveChangesAsync();
-                    
+
                     // 更新本地缓存
                     _currentSlide.SplitMode = (int)mode;
                     _currentSlide.SplitRegionsData = slideToUpdate.SplitRegionsData;
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ 分割模式已保存: {mode}");
-                    //#endif
                 }
 
-                // TODO: 更新预览画布显示分割布局
+                // 更新预览画布显示分割布局
                 UpdateSplitLayout(mode);
-                
+
                 MarkContentAsModified();
             }
-            catch
+            catch (Exception ex)
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败");
+                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
                 #endif
             }
         }
@@ -922,17 +916,13 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateSplitLayout(Database.Models.Enums.ViewSplitMode mode)
         {
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateSplitLayout] 更新布局: {mode}");
-            //#endif
-            
             // 清除旧的分割线和边框
             ClearSplitLines();
             ClearRegionBorders();
             
-            if (mode == Database.Models.Enums.ViewSplitMode.Single)
+            // 如果模式值 < 0，表示未设置分割模式，不创建任何区域
+            if ((int)mode < 0)
             {
-                // 单画面模式，不显示分割线
                 return;
             }
             
@@ -941,6 +931,11 @@ namespace ImageColorChanger.UI
             
             switch (mode)
             {
+                case Database.Models.Enums.ViewSplitMode.Single:
+                    // 🆕 单画面模式：创建一个占满整个画布的区域（不显示边框和标签）
+                    CreateRegionBorder(0, 0, 0, canvasWidth, canvasHeight);
+                    break;
+                    
                 case Database.Models.Enums.ViewSplitMode.Horizontal:
                     // 左右分割：绘制一条竖线
                     DrawVerticalLine(canvasWidth / 2, 0, canvasHeight);
@@ -1038,12 +1033,15 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CreateRegionBorder(int regionIndex, double x, double y, double width, double height)
         {
+            // 🆕 判断是否是单画面模式
+            bool isSingleMode = _currentSlide != null && _currentSlide.SplitMode == 0;
+            
             var border = new WpfRectangle
             {
                 Width = width,
                 Height = height,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(128, 128, 128)), // 灰色
-                StrokeThickness = 2,
+                Stroke = isSingleMode ? System.Windows.Media.Brushes.Transparent : new SolidColorBrush(WpfColor.FromRgb(128, 128, 128)), // 单画面模式透明
+                StrokeThickness = isSingleMode ? 0 : 2, // 单画面模式无边框
                 Fill = System.Windows.Media.Brushes.Transparent,
                 Tag = $"RegionBorder_{regionIndex}",
                 Cursor = System.Windows.Input.Cursors.Hand
@@ -1071,32 +1069,35 @@ namespace ImageColorChanger.UI
             _splitRegionBorders.Add(border);
             EditorCanvas.Children.Add(border);
             
-            // 🆕 在左上角添加序列号标签
-            var label = new System.Windows.Controls.Border
+            // 🆕 只在非单画面模式下显示序列号标签
+            if (!isSingleMode)
             {
-                Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
-                CornerRadius = new System.Windows.CornerRadius(0, 0, 8, 0), // 右下圆角
-                Padding = new System.Windows.Thickness(8, 4, 8, 4),
-                Tag = $"RegionLabel_{regionIndex}",
-                IsHitTestVisible = false // 不响应鼠标事件
-            };
-            
-            var labelText = new System.Windows.Controls.TextBlock
-            {
-                Text = (regionIndex + 1).ToString(),
-                FontSize = 18,
-                FontWeight = System.Windows.FontWeights.Bold,
-                Foreground = System.Windows.Media.Brushes.White
-            };
-            
-            label.Child = labelText;
-            
-            // 定位到左上角
-            Canvas.SetLeft(label, x); // 左上角
-            Canvas.SetTop(label, y);
-            Canvas.SetZIndex(label, 1001); // 置于最顶层
-            
-            EditorCanvas.Children.Add(label);
+                var label = new System.Windows.Controls.Border
+                {
+                    Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
+                    CornerRadius = new System.Windows.CornerRadius(0, 0, 8, 0), // 右下圆角
+                    Padding = new System.Windows.Thickness(8, 4, 8, 4),
+                    Tag = $"RegionLabel_{regionIndex}",
+                    IsHitTestVisible = false // 不响应鼠标事件
+                };
+                
+                var labelText = new System.Windows.Controls.TextBlock
+                {
+                    Text = (regionIndex + 1).ToString(),
+                    FontSize = 18,
+                    FontWeight = System.Windows.FontWeights.Bold,
+                    Foreground = System.Windows.Media.Brushes.White
+                };
+                
+                label.Child = labelText;
+                
+                // 定位到左上角
+                Canvas.SetLeft(label, x); // 左上角
+                Canvas.SetTop(label, y);
+                Canvas.SetZIndex(label, 1001); // 置于最顶层
+                
+                EditorCanvas.Children.Add(label);
+            }
         }
         
         /// <summary>
@@ -1177,10 +1178,6 @@ namespace ImageColorChanger.UI
             if (_currentSlide == null || _splitRegionBorders.Count == 0)
                 return;
                 
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🖼 [LoadImageToSplitRegion] 加载图片到区域 {_selectedRegionIndex}: {imagePath}");
-            //#endif
-            
             try
             {
                 // 🆕 检查图片是否来自原图标记的文件夹，如果是则自动使用拉伸模式
@@ -1240,12 +1237,25 @@ namespace ImageColorChanger.UI
                     return bitmap;
                 });
                 
-                // 决定使用的拉伸模式：原图标记文件夹优先使用拉伸，否则使用当前设置
-                var stretchMode = shouldUseStretch ? 
-                    System.Windows.Media.Stretch.Fill :  // 原图文件夹：拉伸填满
-                    (_splitStretchMode ? 
-                        System.Windows.Media.Stretch.Fill :  // 用户设置：拉伸填满
-                        System.Windows.Media.Stretch.Uniform); // 用户设置：适中显示（默认）
+                // 决定使用的拉伸模式
+                System.Windows.Media.Stretch stretchMode;
+                if (shouldUseStretch)
+                {
+                    // 原图标记文件夹：拉伸填满
+                    stretchMode = System.Windows.Media.Stretch.Fill;
+                }
+                else if (_currentSlide.SplitMode == 0)
+                {
+                    // 单画面模式：默认拉伸填满
+                    stretchMode = System.Windows.Media.Stretch.Fill;
+                }
+                else
+                {
+                    // 分割模式：根据用户设置
+                    stretchMode = _splitStretchMode ? 
+                        System.Windows.Media.Stretch.Fill : 
+                        System.Windows.Media.Stretch.Uniform;
+                }
                 
                 // 创建 Image 控件，应用拉伸模式
                 var imageControl = new System.Windows.Controls.Image
@@ -1274,6 +1284,10 @@ namespace ImageColorChanger.UI
                 
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
+                
+                // 🆕 同步更新拉伸按钮显示
+                _splitStretchMode = (stretchMode == System.Windows.Media.Stretch.Fill);
+                BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
@@ -1331,12 +1345,12 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 检查是否处于分割模式
+        /// 检查是否处于分割模式（包括单画面模式）
         /// </summary>
         public bool IsInSplitMode()
         {
             return _currentSlide != null && 
-                   _currentSlide.SplitMode > 0 && 
+                   _currentSlide.SplitMode >= 0 && 
                    _splitRegionBorders.Count > 0;
         }
         
@@ -1623,19 +1637,19 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 已恢复拉伸模式: {(_splitStretchMode ? "拉伸" : "适中")}");
                 //#endif
                 
-                // 检查是否有分割模式
-                if (slide.SplitMode == 0)
+                // 检查是否有分割模式（-1 表示无分割模式）
+                if (slide.SplitMode < 0)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 单画面模式，清空分割区域");
+                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 无分割模式，清空分割区域");
                     //#endif
-                    // 🔥 清空所有分割元素
+                    // 清空所有分割元素
                     ClearSplitLines();
                     ClearRegionBorders();
                     return;
                 }
                 
-                // 先更新分割布局
+                // 先更新分割布局（包括单画面模式）
                 var splitMode = (Database.Models.Enums.ViewSplitMode)slide.SplitMode;
                 UpdateSplitLayout(splitMode);
                 
@@ -1729,12 +1743,25 @@ namespace ImageColorChanger.UI
                     bitmap.EndInit();
                     bitmap.Freeze(); // 🔥 冻结到GPU显存
                     
-                    // 决定使用的拉伸模式：原图标记文件夹优先使用拉伸，否则使用保存的设置
-                    var stretchMode = shouldUseStretch ? 
-                        System.Windows.Media.Stretch.Fill :  // 原图文件夹：拉伸填满
-                        (_splitStretchMode ? 
-                            System.Windows.Media.Stretch.Fill :  // 用户设置：拉伸填满
-                            System.Windows.Media.Stretch.Uniform); // 用户设置：适中显示
+                    // 决定使用的拉伸模式
+                    System.Windows.Media.Stretch stretchMode;
+                    if (shouldUseStretch)
+                    {
+                        // 原图标记文件夹：拉伸填满
+                        stretchMode = System.Windows.Media.Stretch.Fill;
+                    }
+                    else if (slide.SplitMode == 0)
+                    {
+                        // 单画面模式：默认拉伸填满
+                        stretchMode = System.Windows.Media.Stretch.Fill;
+                    }
+                    else
+                    {
+                        // 分割模式：根据用户设置
+                        stretchMode = _splitStretchMode ? 
+                            System.Windows.Media.Stretch.Fill : 
+                            System.Windows.Media.Stretch.Uniform;
+                    }
                     
                     // 创建 Image 控件，应用拉伸模式
                     var imageControl = new System.Windows.Controls.Image
@@ -1815,19 +1842,15 @@ namespace ImageColorChanger.UI
                         // 更新本地缓存
                         _currentSlide.BackgroundImagePath = dialog.FileName;
                         _currentSlide.BackgroundColor = null;
-                        
-                        //System.Diagnostics.Debug.WriteLine($"✅ 背景图已保存到幻灯片: {dialog.FileName}");
                     }
                     
                     // 更新项目的背景图片路径（兼容旧数据）
                     await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
                     
-                    //System.Diagnostics.Debug.WriteLine($"✅ 背景图加载成功: {dialog.FileName}");
                     MarkContentAsModified();
                 }
                 catch (Exception ex)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"❌ 加载背景图失败: {ex.Message}");
                     WpfMessageBox.Show($"加载背景图失败: {ex.Message}", "错误", 
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -2258,6 +2281,10 @@ namespace ImageColorChanger.UI
                 // 批量更新所有元素
                 await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
                 //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
+
+                // 🆕 保存分割区域配置（单画面/分割模式的图片）
+                await SaveSplitConfigAsync();
+                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已保存分割区域配置");
 
                 // 🆕 生成当前幻灯片的缩略图
                 if (_currentSlide != null)
@@ -3627,7 +3654,8 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = maxOrder + 1,
-                    BackgroundColor = "#000000"  // 默认黑色背景
+                    BackgroundColor = "#000000",  // 默认黑色背景
+                    SplitMode = -1  // 默认无分割模式
                 };
 
                 _dbContext.Slides.Add(newSlide);
@@ -3688,7 +3716,8 @@ namespace ImageColorChanger.UI
                     Title = $"{sourceSlide.Title} (副本)",
                     SortOrder = newSortOrder,
                     BackgroundColor = sourceSlide.BackgroundColor,
-                    BackgroundImagePath = sourceSlide.BackgroundImagePath
+                    BackgroundImagePath = sourceSlide.BackgroundImagePath,
+                    SplitMode = sourceSlide.SplitMode  // 复制分割模式
                 };
 
                 _dbContext.Slides.Add(newSlide);
