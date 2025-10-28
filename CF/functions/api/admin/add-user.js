@@ -39,17 +39,22 @@ export async function onRequestPost(context) {
     // 获取客户端IP
     const clientIP = request.headers.get('CF-Connecting-IP') || 'admin-added';
     
+    // 生成临时硬件ID（管理员添加的用户）
+    const hardwareId = `admin_created_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
     // 插入用户
     await env.DB.prepare(
-      `INSERT INTO users (username, password_hash, email, expires_at, max_devices, register_ip) 
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO users (username, password_hash, email, expires_at, max_devices, register_ip, hardware_id, register_source) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       username,
       passwordHash,
       email || null,
       expiresAt.toISOString(),
       max_devices || 1,
-      clientIP
+      clientIP,
+      hardwareId,
+      'admin_panel'
     ).run();
     
     return jsonResponse({

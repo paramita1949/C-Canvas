@@ -917,6 +917,170 @@ else:
 
         // 重置用户绑定的设备
         async function resetDevices(username) {
+            // 获取该用户的所有设备信息
+            const response = await fetch('/api/admin/devices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_key: adminKey })
+            });
+            const result = await response.json();
+            
+            if (!result.success) {
+                alert('获取设备信息失败: ' + (result.message || '未知错误'));
+                return;
+            }
+            
+            // 找到该用户的设备列表
+            const user = result.users.find(u => u.username === username);
+            if (!user) {
+                alert('未找到用户信息');
+                return;
+            }
+            
+            // 显示设备管理模态框
+            showDeviceManagementModal(user);
+        }
+        
+        // 显示设备管理模态框
+        function showDeviceManagementModal(user) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 800px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+            `;
+            
+            let devicesHTML = '';
+            if (user.devices && user.devices.length > 0) {
+                devicesHTML = `
+                    <table class="table" style="margin-top: 20px;">
+                        <thead>
+                            <tr>
+                                <th>设备ID</th>
+                                <th>首次绑定</th>
+                                <th>最后活跃</th>
+                                <th>IP地址</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${user.devices.map(device => `
+                                <tr>
+                                    <td style="font-family: monospace; font-size: 12px;">
+                                        ${device.hardware_id.substring(0, 16)}...
+                                        <button class="btn btn-small" style="margin-left: 5px; padding: 2px 8px;" onclick="copyToClipboard('${device.hardware_id}')">📋</button>
+                                    </td>
+                                    <td style="font-size: 12px;">${new Date(device.created_at).toLocaleString('zh-CN')}</td>
+                                    <td style="font-size: 12px;">${new Date(device.last_seen).toLocaleString('zh-CN')}</td>
+                                    <td>${device.last_ip || '未知'}</td>
+                                    <td>
+                                        <span style="display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 12px; ${device.is_online ? 'background: #28a745; color: white;' : 'background: #6c757d; color: white;'}">
+                                            ${device.is_online ? '🟢 在线' : '⚫ 离线'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-small btn-danger" onclick="deleteSingleDevice(${device.id}, '${user.username}', ${user.id})">删除</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                devicesHTML = '<p style="text-align: center; color: #999; padding: 40px;">该用户暂无绑定设备</p>';
+            }
+            
+            modalContent.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>设备管理 - ${user.username}</h2>
+                    <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <p><strong>绑定情况：</strong> ${user.bound_devices} / ${user.max_devices} 台设备</p>
+                    <p><strong>剩余槽位：</strong> ${user.remaining_slots} 台</p>
+                    <p>
+                        <strong>解绑次数：</strong> 
+                        <span id="reset-count-${user.id}" style="color: ${user.reset_device_count > 0 ? '#28a745' : '#dc3545'}; font-weight: bold;">
+                            ${user.reset_device_count} 次
+                        </span>
+                        <button class="btn btn-small" style="margin-left: 10px; padding: 4px 10px;" onclick="setResetCount('${user.username}', ${user.reset_device_count}, ${user.id})">⚙️ 设置</button>
+                        <button class="btn btn-small btn-success" style="margin-left: 5px; padding: 4px 10px;" onclick="addResetCount('${user.username}', ${user.id}, 1)">+1</button>
+                        <button class="btn btn-small btn-success" style="margin-left: 5px; padding: 4px 10px;" onclick="addResetCount('${user.username}', ${user.id}, 3)">+3</button>
+                    </p>
+                </div>
+                ${devicesHTML}
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-danger" onclick="resetAllDevices('${user.username}', ${user.id})">🗑️ 重置所有设备</button>
+                    <button class="btn" style="background: #6c757d; margin-left: 10px;" onclick="this.closest('[style*=\\'position: fixed\\']').remove()">关闭</button>
+                </div>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // 点击背景关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ 已复制完整硬件ID到剪贴板');
+            }).catch(() => {
+                alert('❌ 复制失败');
+            });
+        }
+        
+        // 删除单个设备
+        async function deleteSingleDevice(deviceId, username, userId) {
+            if (!confirm(`确定要删除这个设备吗？\n\n删除后该设备将被解绑，用户可以重新绑定新设备。`)) return;
+            
+            const response = await fetch('/api/admin/device-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    user_id: userId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ ' + result.message);
+                // 关闭模态框并刷新
+                document.querySelector('[style*="position: fixed"]').remove();
+                loadUsers();
+            } else {
+                alert('❌ ' + result.message);
+            }
+        }
+        
+        // 重置所有设备
+        async function resetAllDevices(username, userId) {
             if (!confirm(`⚠️ 确定要重置用户 ${username} 的所有绑定设备吗？\n\n此操作将清除该用户的所有设备绑定信息，用户下次登录时可以重新绑定设备。`)) return;
 
             const response = await fetch('/api/admin/reset-devices', {
@@ -929,10 +1093,83 @@ else:
             });
 
             const result = await response.json();
-            showMessage('users-message', result.message, result.success ? 'success' : 'error');
             
             if (result.success) {
+                alert('✅ ' + result.message);
+                // 关闭模态框并刷新
+                document.querySelector('[style*="position: fixed"]').remove();
                 loadUsers();
+            } else {
+                alert('❌ ' + result.message);
+            }
+        }
+
+        // 设置重置次数（直接设置为指定值）
+        async function setResetCount(username, currentCount, userId) {
+            const newCount = prompt(`设置用户 ${username} 的重置次数（0-10）：\n当前: ${currentCount}次`, currentCount);
+            if (newCount === null) return;
+            
+            const count = parseInt(newCount);
+            if (isNaN(count) || count < 0 || count > 10) {
+                alert('重置次数必须是 0-10 之间的整数！');
+                return;
+            }
+            
+            const response = await fetch('/api/admin/set-reset-count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    admin_key: adminKey,
+                    username: username,
+                    reset_count: count
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(`✅ ${result.message}\n\n修改前: ${result.reset_count_before}次\n修改后: ${result.reset_count_after}次`);
+                
+                // 更新显示
+                const span = document.getElementById(`reset-count-${userId}`);
+                if (span) {
+                    span.textContent = `${count} 次`;
+                    span.style.color = count > 0 ? '#28a745' : '#dc3545';
+                }
+                
+                loadUsers();
+            } else {
+                alert('❌ ' + result.message);
+            }
+        }
+        
+        // 增加重置次数（相对值）
+        async function addResetCount(username, userId, addValue) {
+            const response = await fetch('/api/admin/add-reset-count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    admin_key: adminKey,
+                    username: username,
+                    add_count: addValue
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(`✅ ${result.message}\n\n修改前: ${result.reset_count_before}次\n修改后: ${result.reset_count_after}次\n增加: ${result.added}次`);
+                
+                // 更新显示
+                const span = document.getElementById(`reset-count-${userId}`);
+                if (span) {
+                    span.textContent = `${result.reset_count_after} 次`;
+                    span.style.color = result.reset_count_after > 0 ? '#28a745' : '#dc3545';
+                }
+                
+                loadUsers();
+            } else {
+                alert('❌ ' + result.message);
             }
         }
 

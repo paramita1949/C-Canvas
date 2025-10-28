@@ -27,13 +27,31 @@ export async function onRequestPost(context) {
       'SELECT COUNT(*) as count FROM devices WHERE user_id = ?'
     ).bind(user.id).first();
     
+    if (deviceCount.count === 0) {
+      return jsonResponse({
+        success: false,
+        message: '该用户没有绑定任何设备，无需重置'
+      });
+    }
+    
     // 删除该用户的所有绑定设备
     await env.DB.prepare('DELETE FROM devices WHERE user_id = ?')
       .bind(user.id).run();
     
+    // 🔥 管理员手动重置也消耗用户的重置次数（帮客户重置了一次）
+    const currentResetCount = user.reset_device_count ?? 3;
+    const newResetCount = Math.max(0, currentResetCount - 1);  // 不能为负数
+    
+    await env.DB.prepare('UPDATE users SET reset_device_count = ? WHERE id = ?')
+      .bind(newResetCount, user.id).run();
+    
     return jsonResponse({
       success: true,
-      message: `用户 ${username} 的所有绑定设备已清除（共清除 ${deviceCount.count} 台设备）`
+      message: `用户 ${username} 的所有绑定设备已清除（共清除 ${deviceCount.count} 台设备）`,
+      devices_cleared: deviceCount.count,
+      reset_count_before: currentResetCount,
+      reset_count_after: newResetCount,
+      reset_consumed: currentResetCount - newResetCount
     });
     
   } catch (error) {

@@ -52,10 +52,11 @@ namespace ImageColorChanger.UI
                 string resetInfo = resetCount > 0 ? $"可解绑{resetCount}次" : "解绑次数已用完";
                 BtnLogin.ToolTip = $"用户管理 - {resetInfo}";
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] 更新UI - 解绑次数: {resetCount}");
-                System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] Tooltip: {BtnLogin.ToolTip}");
-                #endif
+                // 调试信息已注释
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] 更新UI - 解绑次数: {resetCount}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] Tooltip: {BtnLogin.ToolTip}");
+                //#endif
             }
             else
             {
@@ -105,20 +106,21 @@ namespace ImageColorChanger.UI
             int resetCount = AuthService.Instance.ResetDeviceCount;
             var deviceInfo = AuthService.Instance.DeviceBindingInfo;
             
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 [ShowUserMenu] 显示用户菜单");
-            System.Diagnostics.Debug.WriteLine($"   用户名: {username}");
-            System.Diagnostics.Debug.WriteLine($"   剩余天数: {remainingDays}");
-            System.Diagnostics.Debug.WriteLine($"   解绑次数: {resetCount}");
-            System.Diagnostics.Debug.WriteLine($"   设备信息: {(deviceInfo != null ? $"已绑定{deviceInfo.BoundDevices}/{deviceInfo.MaxDevices}, 剩余{deviceInfo.RemainingSlots}" : "null")}");
-            #endif
+            // 调试信息已注释
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [ShowUserMenu] 显示用户菜单");
+            //System.Diagnostics.Debug.WriteLine($"   用户名: {username}");
+            //System.Diagnostics.Debug.WriteLine($"   剩余天数: {remainingDays}");
+            //System.Diagnostics.Debug.WriteLine($"   解绑次数: {resetCount}");
+            //System.Diagnostics.Debug.WriteLine($"   设备信息: {(deviceInfo != null ? $"已绑定{deviceInfo.BoundDevices}/{deviceInfo.MaxDevices}, 剩余{deviceInfo.RemainingSlots}" : "null")}");
+            //#endif
             
             // 创建自定义用户信息窗口
             var userWindow = new System.Windows.Window
             {
                 Title = "用户信息",
                 Width = 480,
-                Height = 420,
+                Height = 490,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize,
@@ -176,9 +178,10 @@ namespace ImageColorChanger.UI
                 btn.IsEnabled = false;
                 btn.Content = "刷新中...";
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [手动刷新] 用户点击刷新按钮");
-                #endif
+                // 调试信息已注释
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 [手动刷新] 用户点击刷新按钮");
+                //#endif
                 
                 bool success = await AuthService.Instance.RefreshAccountInfoAsync();
                 
@@ -187,9 +190,10 @@ namespace ImageColorChanger.UI
                 
                 if (success)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [手动刷新] 刷新成功，重新显示窗口");
-                    #endif
+                    // 调试信息已注释
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [手动刷新] 刷新成功，重新显示窗口");
+                    //#endif
                     
                     // 更新标题栏
                     UpdateAuthUI();
@@ -236,6 +240,10 @@ namespace ImageColorChanger.UI
             // 解绑次数
             string resetInfo = $"{resetCount} 次";
             AddInfoBlock(contentPanel, "解绑次数", resetInfo, "🔓");
+            
+            // 硬件ID（可点击复制）
+            string hardwareId = AuthService.Instance.GetCurrentHardwareId();
+            AddClickableCopyBlock(contentPanel, "硬件ID", hardwareId, "🖥️");
             
             mainPanel.Children.Add(contentPanel);
             
@@ -318,6 +326,171 @@ namespace ImageColorChanger.UI
             grid.Children.Add(labelText);
             grid.Children.Add(valueText);
             block.Child = grid;
+            parent.Children.Add(block);
+        }
+        
+        /// <summary>
+        /// 添加可点击复制的信息块
+        /// </summary>
+        private void AddClickableCopyBlock(System.Windows.Controls.StackPanel parent, string label, string value, string icon)
+        {
+            var block = new System.Windows.Controls.Border
+            {
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new System.Windows.CornerRadius(8),
+                Padding = new Thickness(15, 12, 15, 12),
+                Margin = new Thickness(0, 0, 0, 12),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            
+            // 保存原始背景色
+            var normalBg = System.Windows.Media.Brushes.White;
+            var hoverBg = new SolidColorBrush(Color.FromRgb(248, 249, 250));
+            var clickBg = new SolidColorBrush(Color.FromRgb(225, 243, 255));
+            
+            var grid = new System.Windows.Controls.Grid();
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(100) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            
+            var labelText = new System.Windows.Controls.TextBlock
+            {
+                Text = $"{icon} {label}",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            System.Windows.Controls.Grid.SetColumn(labelText, 0);
+            
+            // 显示硬件ID的前16位 + "..." 以节省空间
+            string displayValue = value.Length > 20 ? value.Substring(0, 20) + "..." : value;
+            
+            var valueText = new System.Windows.Controls.TextBlock
+            {
+                Text = displayValue,
+                FontSize = 13,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(Color.FromRgb(0, 123, 255)),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.NoWrap,
+                ToolTip = $"完整ID: {value}\n点击复制"
+            };
+            System.Windows.Controls.Grid.SetColumn(valueText, 1);
+            
+            // 复制图标
+            var copyIcon = new System.Windows.Controls.TextBlock
+            {
+                Text = "📋",
+                FontSize = 16,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = "点击复制完整硬件ID"
+            };
+            System.Windows.Controls.Grid.SetColumn(copyIcon, 2);
+            
+            grid.Children.Add(labelText);
+            grid.Children.Add(valueText);
+            grid.Children.Add(copyIcon);
+            block.Child = grid;
+            
+            // 鼠标悬停效果
+            block.MouseEnter += (s, e) =>
+            {
+                block.Background = hoverBg;
+            };
+            
+            block.MouseLeave += (s, e) =>
+            {
+                block.Background = normalBg;
+            };
+            
+            // 点击显示完整ID供手动复制
+            block.MouseDown += (s, e) =>
+            {
+                // 显示可选择的文本框供用户手动复制
+                var textWindow = new System.Windows.Window
+                {
+                    Title = "硬件ID - 请手动复制（Ctrl+C）",
+                    Width = 650,
+                    Height = 250,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    ResizeMode = ResizeMode.NoResize,
+                    Background = new SolidColorBrush(Color.FromRgb(245, 245, 245))
+                };
+                
+                var panel = new System.Windows.Controls.StackPanel
+                {
+                    Margin = new Thickness(20)
+                };
+                
+                var label = new System.Windows.Controls.TextBlock
+                {
+                    Text = "💡 提示：文本已自动全选，直接按 Ctrl+C 复制",
+                    FontSize = 13,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                panel.Children.Add(label);
+                
+                var textBox = new System.Windows.Controls.TextBox
+                {
+                    Text = value,
+                    IsReadOnly = true,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                    FontSize = 14,
+                    FontFamily = new System.Windows.Media.FontFamily("Consolas, Courier New"),
+                    Padding = new Thickness(10),
+                    Height = 100,
+                    Background = System.Windows.Media.Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                    BorderThickness = new Thickness(2)
+                };
+                panel.Children.Add(textBox);
+                
+                var buttonPanel = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 15, 0, 0)
+                };
+                
+                var closeButton = new System.Windows.Controls.Button
+                {
+                    Content = "关闭",
+                    Width = 100,
+                    Height = 35,
+                    FontSize = 14,
+                    Background = new SolidColorBrush(Color.FromRgb(108, 117, 125)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                closeButton.Click += (cs, ce) => textWindow.Close();
+                buttonPanel.Children.Add(closeButton);
+                
+                panel.Children.Add(buttonPanel);
+                textWindow.Content = panel;
+                
+                // 窗口加载后自动全选文本
+                textWindow.Loaded += (ws, we) =>
+                {
+                    textBox.SelectAll();
+                    textBox.Focus();
+                };
+                
+                // 调试信息已注释
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📋 [显示] 硬件ID窗口已打开: {value}");
+                //#endif
+                
+                textWindow.ShowDialog();
+            };
+            
             parent.Children.Add(block);
         }
         

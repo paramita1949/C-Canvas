@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     expires_at TIMESTAMP NOT NULL,
     is_active BOOLEAN DEFAULT 1,
     last_login TIMESTAMP,
-    hardware_id TEXT NOT NULL,  -- 注册硬件ID（必填）
+    hardware_id TEXT,  -- 注册硬件ID（可选，仅用于记录首次注册设备）
     max_devices INTEGER DEFAULT 1,  -- 最大设备数
     register_ip TEXT,  -- 注册IP地址
     register_source TEXT DEFAULT 'desktop_client',  -- 注册来源
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS devices (
     device_name TEXT,
     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_ip TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id),
     UNIQUE(user_id, hardware_id)
 );

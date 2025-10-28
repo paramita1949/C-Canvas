@@ -103,6 +103,17 @@ namespace ImageColorChanger.Services
         private DeviceInfo _deviceInfo;    // 设备绑定信息
         private int _resetDeviceCount = 0;     // 剩余重置设备次数（默认0）
         private System.Threading.Timer _heartbeatTimer;
+        private DateTime? _lastSuccessfulHeartbeat; // 最后一次成功心跳的时间
+        private const int MAX_OFFLINE_DAYS = 7;  // 最长离线天数（7天）
+        
+        // 🔒 全局互斥锁（防止多开）
+        private static System.Threading.Mutex _appMutex;
+        private const string MUTEX_NAME = "Global\\CanvasCast_SingleInstance_E8F3C2A1";
+        
+        // 🔒 文件版本号（防止旧文件覆盖新文件）
+        private static long _currentFileVersion = 0;  // 当前文件版本号（基于ticks，单调递增）
+        private const string VERSION_REGISTRY_KEY = @"Software\CanvasCast\Auth";
+        private const string VERSION_REGISTRY_VALUE = "MaxFileVersion";
         
         // 🔒 分散验证：多个验证令牌，防止单点破解
         private string _authToken1;  // 验证令牌1
@@ -140,10 +151,108 @@ namespace ImageColorChanger.Services
         {
             _isAuthenticated = false;
             
+            // 🔒 创建全局互斥锁（防止多开）
+            try
+            {
+                bool createdNew;
+                _appMutex = new System.Threading.Mutex(true, MUTEX_NAME, out createdNew);
+                
+                if (!createdNew)
+                {
+                    // 已经有实例在运行
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 检测到多开实例");
+                    #endif
+                    
+                    // 注意：这里不强制退出，由应用层决定如何处理
+                    // 但互斥锁会在进程退出时自动释放
+                }
+                else
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 已创建全局互斥锁");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 创建互斥锁失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            
             // 尝试从本地加载登录状态
             _ = TryLoadAuthDataAsync();
         }
 
+        /// <summary>
+        /// 检查是否为唯一实例（防止多开）
+        /// </summary>
+        public static bool CheckSingleInstance()
+        {
+            try
+            {
+                bool createdNew;
+                var testMutex = new System.Threading.Mutex(false, MUTEX_NAME, out createdNew);
+                
+                if (!createdNew)
+                {
+                    testMutex.Close();
+                    return false; // 已有实例运行
+                }
+                
+                testMutex.Close();
+                return true; // 唯一实例
+            }
+            catch
+            {
+                return true; // 检测失败，允许继续
+            }
+        }
+        
+        /// <summary>
+        /// 从注册表读取最大文件版本号（防止旧文件回滚）
+        /// </summary>
+        private static long GetMaxFileVersionFromRegistry()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(VERSION_REGISTRY_KEY))
+                {
+                    var value = key?.GetValue(VERSION_REGISTRY_VALUE);
+                    if (value != null && long.TryParse(value.ToString(), out var version))
+                    {
+                        return version;
+                    }
+                }
+            }
+            catch
+            {
+                // 读取失败，返回0
+            }
+            return 0;
+        }
+        
+        /// <summary>
+        /// 保存最大文件版本号到注册表
+        /// </summary>
+        private static void SaveMaxFileVersionToRegistry(long version)
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(VERSION_REGISTRY_KEY))
+                {
+                    key?.SetValue(VERSION_REGISTRY_VALUE, version, Microsoft.Win32.RegistryValueKind.QWord);
+                }
+            }
+            catch
+            {
+                // 保存失败，静默忽略
+            }
+        }
+        
         /// <summary>
         /// 是否已认证
         /// </summary>
@@ -173,6 +282,14 @@ namespace ImageColorChanger.Services
         /// 剩余重置设备次数
         /// </summary>
         public int ResetDeviceCount => _resetDeviceCount;
+
+        /// <summary>
+        /// 获取当前设备的硬件ID（用于显示）
+        /// </summary>
+        public string GetCurrentHardwareId()
+        {
+            return GetHardwareId();
+        }
 
         /// <summary>
         /// 认证状态改变事件参数
@@ -258,6 +375,9 @@ namespace ImageColorChanger.Services
                 _deviceInfo = authResponse.Data?.DeviceInfo;
                 _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 默认0次
                 _isAuthenticated = true;
+                
+                // 🔒 初始化心跳时间
+                _lastSuccessfulHeartbeat = DateTime.Now;
                 
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"🔓 [AuthService] 解绑次数: {_resetDeviceCount}次");
@@ -646,9 +766,10 @@ namespace ImageColorChanger.Services
 
             try
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳检查...");
-                #endif
+                // 调试信息已注释（心跳检查频繁输出）
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳检查...");
+                //#endif
 
                 var requestData = new
                 {
@@ -678,23 +799,43 @@ namespace ImageColorChanger.Services
                     System.Diagnostics.Debug.WriteLine($"   失效原因(reason): {authResponse?.Reason}");
                     #endif
                     
-                    // 如果是设备被重置，立即强制退出（不检查本地缓存）
+                    // 🔒 需要立即强制退出的情况（不检查本地缓存）
+                    bool forceLogout = false;
+                    string logoutTitle = "账号验证失败";
+                    
+                    // 1. 设备被重置/解绑
                     if (authResponse?.Reason == "device_reset" || 
                         authResponse?.Message?.Contains("设备已被") == true || 
                         authResponse?.Message?.Contains("解绑") == true)
                     {
+                        forceLogout = true;
+                        logoutTitle = "设备验证失败";
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 设备已被管理员重置，强制退出");
                         #endif
-                        
+                    }
+                    
+                    // 2. 账号被禁用
+                    if (authResponse?.Reason == "disabled")
+                    {
+                        forceLogout = true;
+                        logoutTitle = "账号已被禁用";
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 账号已被管理员禁用，强制退出");
+                        #endif
+                    }
+                    
+                    // 执行强制退出
+                    if (forceLogout)
+                    {
                         Logout();
                         
-                        // 通知UI显示设备重置消息
+                        // 通知UI显示消息
                         System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                         {
                             System.Windows.MessageBox.Show(
                                 failureReason,
-                                "设备验证失败",
+                                logoutTitle,
                                 System.Windows.MessageBoxButton.OK,
                                 System.Windows.MessageBoxImage.Warning);
                         });
@@ -738,28 +879,68 @@ namespace ImageColorChanger.Services
                 _deviceInfo = authResponse.Data?.DeviceInfo;  // 更新设备信息
                 _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 更新解绑次数（默认0）
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳更新解绑次数: {_resetDeviceCount}次");
-                #endif
+                // 🔒 记录成功心跳时间（用于离线时长检测）
+                _lastSuccessfulHeartbeat = DateTime.Now;
+                
+                // 调试信息已注释（心跳检查频繁输出）
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳更新解绑次数: {_resetDeviceCount}次");
+                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 最后成功心跳: {_lastSuccessfulHeartbeat}");
+                //#endif
                 
                 // 更新本地缓存
                 _ = SaveAuthDataAsync();
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 心跳正常，剩余{_remainingDays}天");
-                #endif
+                // 调试信息已注释（心跳检查频繁输出）
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 心跳正常，剩余{_remainingDays}天");
+                //#endif
             }
             catch (Exception ex)
             {
-                // 网络异常，检查本地缓存
+                // 网络异常，检查本地缓存和离线时长
+                
+                // 🔒 检查离线时长
+                if (_lastSuccessfulHeartbeat != null)
+                {
+                    var offlineDays = (DateTime.Now - _lastSuccessfulHeartbeat.Value).TotalDays;
+                    
+                    // 调试信息已注释（保留异常变量避免警告）
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 心跳网络异常: {ex.Message}");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 最后成功心跳: {_lastSuccessfulHeartbeat}");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 离线时长: {offlineDays:F1} 天");
+                    //#else
+                    _ = ex; // 避免未使用变量警告
+                    //#endif
+                    
+                    if (offlineDays > MAX_OFFLINE_DAYS)
+                    {
+                        // 离线时间超过限制，强制退出
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，强制退出");
+                        #endif
+                        
+                        Logout();
+                        
+                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                        {
+                            System.Windows.MessageBox.Show(
+                                $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
+                                "离线时间过长",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Warning);
+                        });
+                        return;
+                    }
+                }
+                
+                // 检查账号是否过期
                 if (CanUseProjection())
                 {
                     // 本地缓存显示还在有效期内，允许离线使用
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 心跳网络异常: {ex.Message}");
                     System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地缓存有效，允许离线使用");
-                    #else
-                    _ = ex; // 避免未使用变量警告
                     #endif
                     return;
                 }
@@ -786,9 +967,10 @@ namespace ImageColorChanger.Services
                 TimeSpan.FromMinutes(20)  // 之后每20分钟检查一次
             );
 
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳已启动（每20分钟检查一次）");
-            #endif
+            // 调试信息已注释
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳已启动（每20分钟检查一次）");
+            //#endif
         }
 
         /// <summary>
@@ -1002,21 +1184,40 @@ namespace ImageColorChanger.Services
 
         /// <summary>
         /// 获取硬件ID（用于设备绑定）
+        /// 使用主板、硬盘、CPU、内存信息生成唯一硬件ID
         /// </summary>
         private string GetHardwareId()
         {
             try
             {
-                // 使用CPU ID + 主板序列号生成唯一硬件ID
                 var cpuId = GetCpuId();
                 var boardSerial = GetBoardSerial();
-                var combined = $"{cpuId}_{boardSerial}";
+                var diskSerial = GetDiskSerial();
+                var memorySerial = GetMemorySerial();
+                
+                // 组合所有硬件信息
+                var combined = $"{cpuId}_{boardSerial}_{diskSerial}_{memorySerial}";
+                
+                // 调试信息已注释
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] CPU: {cpuId}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 主板: {boardSerial}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 硬盘: {diskSerial}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 内存: {memorySerial}");
+                //#endif
                 
                 // 生成SHA256哈希
                 using (var sha256 = SHA256.Create())
                 {
                     var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
-                    return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                    var hardwareId = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                    
+                    // 调试信息已注释
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 最终哈希: {hardwareId.Substring(0, 16)}...");
+                    //#endif
+                    
+                    return hardwareId;
                 }
             }
             catch (Exception ex)
@@ -1042,15 +1243,23 @@ namespace ImageColorChanger.Services
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        return obj["ProcessorId"]?.ToString() ?? "UNKNOWN";
+                        var cpuId = obj["ProcessorId"]?.ToString();
+                        if (!string.IsNullOrEmpty(cpuId) && cpuId != "UNKNOWN")
+                        {
+                            return cpuId;
+                        }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略异常
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取CPU ID失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
             }
-            return "UNKNOWN";
+            return "CPU_UNKNOWN";
         }
 
         /// <summary>
@@ -1064,15 +1273,104 @@ namespace ImageColorChanger.Services
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        return obj["SerialNumber"]?.ToString() ?? "UNKNOWN";
+                        var serial = obj["SerialNumber"]?.ToString();
+                        if (!string.IsNullOrEmpty(serial) && serial != "UNKNOWN")
+                        {
+                            return serial;
+                        }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略异常
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取主板序列号失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
             }
-            return "UNKNOWN";
+            return "BOARD_UNKNOWN";
+        }
+
+        /// <summary>
+        /// 获取硬盘序列号（物理磁盘）
+        /// </summary>
+        private string GetDiskSerial()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_PhysicalMedia"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        var serial = obj["SerialNumber"]?.ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(serial))
+                        {
+                            return serial;
+                        }
+                    }
+                }
+                
+                // 备用方案：使用 Win32_DiskDrive
+                using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_DiskDrive"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        var serial = obj["SerialNumber"]?.ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(serial))
+                        {
+                            return serial;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取硬盘序列号失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            return "DISK_UNKNOWN";
+        }
+
+        /// <summary>
+        /// 获取内存信息（使用内存条序列号）
+        /// </summary>
+        private string GetMemorySerial()
+        {
+            try
+            {
+                var memorySerials = new System.Collections.Generic.List<string>();
+                using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_PhysicalMemory"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        var serial = obj["SerialNumber"]?.ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(serial))
+                        {
+                            memorySerials.Add(serial);
+                        }
+                    }
+                }
+                
+                if (memorySerials.Count > 0)
+                {
+                    // 将所有内存序列号排序后组合（防止插槽顺序变化）
+                    memorySerials.Sort();
+                    return string.Join("_", memorySerials);
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取内存序列号失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            return "MEMORY_UNKNOWN";
         }
 
         /// <summary>
@@ -1261,6 +1559,15 @@ namespace ImageColorChanger.Services
         {
             try
             {
+                // 🔒 生成随机nonce（防止文件复制后重放）
+                var nonce = Guid.NewGuid().ToString("N");
+                var saveTime = DateTime.Now.Ticks;
+                
+                // 🔒 生成文件版本号（单调递增，防止旧文件回滚）
+                var maxVersion = GetMaxFileVersionFromRegistry();
+                var newVersion = Math.Max(saveTime, maxVersion + 1);
+                _currentFileVersion = newVersion;
+                
                 var authData = new
                 {
                     username = _username,
@@ -1271,6 +1578,10 @@ namespace ImageColorChanger.Services
                     last_local_time = _lastLocalTime?.ToString("O"),
                     last_tick_count = _lastTickCount,
                     reset_device_count = _resetDeviceCount,
+                    last_successful_heartbeat = _lastSuccessfulHeartbeat?.ToString("O"),  // 🔒 保存心跳时间
+                    nonce = nonce,  // 🔒 随机数（每次保存都不同）
+                    save_time = saveTime,  // 🔒 保存时间戳
+                    file_version = newVersion,  // 🔒 文件版本号（防止回滚攻击）
                     device_info = _deviceInfo != null ? new
                     {
                         bound_devices = _deviceInfo.BoundDevices,
@@ -1307,17 +1618,22 @@ namespace ImageColorChanger.Services
 
                 // 写入文件
                 await System.IO.File.WriteAllTextAsync(AUTH_DATA_FILE, encrypted);
+                
+                // 🔒 保存文件版本号到注册表（防止回滚攻击）
+                SaveMaxFileVersionToRegistry(newVersion);
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 登录状态已保存到: {AUTH_DATA_FILE}");
-                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 文件大小: {encrypted.Length} 字节");
-                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 数据已签名保护");
-                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的解绑次数: {_resetDeviceCount}");
-                if (_deviceInfo != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
-                }
-                #endif
+                // 调试信息已注释
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 登录状态已保存到: {AUTH_DATA_FILE}");
+                //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 文件大小: {encrypted.Length} 字节");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 数据已签名保护");
+                //System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 文件版本: {newVersion}");
+                //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的解绑次数: {_resetDeviceCount}");
+                //if (_deviceInfo != null)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                //}
+                //#endif
             }
             catch (Exception ex)
             {
@@ -1432,6 +1748,49 @@ namespace ImageColorChanger.Services
                         _resetDeviceCount = resetDeviceCount.GetInt32();
                     }
                     
+                    // 🔒 恢复心跳时间
+                    if (authData.TryGetValue("last_successful_heartbeat", out var lastHeartbeat) && !string.IsNullOrEmpty(lastHeartbeat.GetString()))
+                    {
+                        _lastSuccessfulHeartbeat = DateTime.Parse(lastHeartbeat.GetString());
+                    }
+                    
+                    // 🔒 检查文件版本号（防止旧文件回滚）
+                    long fileVersion = 0;
+                    if (authData.TryGetValue("file_version", out var fileVersionJson))
+                    {
+                        fileVersion = fileVersionJson.GetInt64();
+                    }
+                    
+                    var maxVersion = GetMaxFileVersionFromRegistry();
+                    
+                    if (fileVersion > 0 && fileVersion < maxVersion)
+                    {
+                        // 文件版本号低于注册表记录，说明是旧文件回滚
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 检测到文件回滚攻击！");
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 文件版本: {fileVersion}");
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 最大版本: {maxVersion}");
+                        #endif
+                        
+                        DeleteAuthData();
+                        
+                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                        {
+                            System.Windows.MessageBox.Show(
+                                "检测到凭证文件异常，请重新登录。",
+                                "安全警告",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Warning);
+                        });
+                        return;
+                    }
+                    
+                    // 更新当前版本号
+                    if (fileVersion > maxVersion)
+                    {
+                        SaveMaxFileVersionToRegistry(fileVersion);
+                    }
+                    
                     // 恢复设备信息
                     if (authData.TryGetValue("device_info", out var deviceInfoJson) && deviceInfoJson.ValueKind != JsonValueKind.Null)
                     {
@@ -1444,17 +1803,48 @@ namespace ImageColorChanger.Services
                         };
                     }
 
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 已解析登录数据: {_username}");
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 过期时间: {_expiresAt}");
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 剩余天数: {_remainingDays}");
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] TickCount: {_lastTickCount}");
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 解绑次数: {_resetDeviceCount}");
-                    if (_deviceInfo != null)
+                    // 调试信息已注释
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 已解析登录数据: {_username}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 过期时间: {_expiresAt}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 剩余天数: {_remainingDays}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] TickCount: {_lastTickCount}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 解绑次数: {_resetDeviceCount}");
+                    //System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 最后心跳: {_lastSuccessfulHeartbeat}");
+                    //if (_deviceInfo != null)
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                    //}
+                    //#endif
+
+                    // 🔒 检查离线时长（启动时检测）
+                    if (_lastSuccessfulHeartbeat != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                        var offlineDays = (DateTime.Now - _lastSuccessfulHeartbeat.Value).TotalDays;
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 启动时离线时长检测: {offlineDays:F1} 天");
+                        #endif
+                        
+                        if (offlineDays > MAX_OFFLINE_DAYS)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，清除登录状态");
+                            #endif
+                            
+                            DeleteAuthData();
+                            
+                            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                            {
+                                System.Windows.MessageBox.Show(
+                                    $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
+                                    "离线时间过长",
+                                    System.Windows.MessageBoxButton.OK,
+                                    System.Windows.MessageBoxImage.Warning);
+                            });
+                            return;
+                        }
                     }
-                    #endif
 
                     // 先设置为已认证状态，再检查是否过期
                     _isAuthenticated = true;
@@ -1533,8 +1923,8 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 生成数据签名（使用HMAC-SHA256 + 硬件ID作为密钥）
-        /// 防止数据被篡改
+        /// 生成数据签名（使用HMAC-SHA256 + 硬件ID + 文件路径作为密钥）
+        /// 防止数据被篡改和复制
         /// </summary>
         private string GenerateSignature(string data)
         {
@@ -1543,8 +1933,12 @@ namespace ImageColorChanger.Services
                 // 使用硬件ID作为密钥
                 var hardwareId = GetHardwareId();
                 
-                // 添加固定盐值，增加破解难度
-                var key = $"{hardwareId}_CANVAS_CAST_SECRET_2024";
+                // 🔒 获取凭证文件的绝对路径（防止复制到其他位置）
+                var filePath = System.IO.Path.GetFullPath(AUTH_DATA_FILE);
+                
+                // 🔒 组合多重密钥：硬件ID + 文件路径 + 固定盐值
+                // 这样即使在同一台机器上复制到不同位置也会失败
+                var key = $"{hardwareId}_{filePath}_CANVAS_CAST_SECRET_2024";
                 var keyBytes = Encoding.UTF8.GetBytes(key);
                 var dataBytes = Encoding.UTF8.GetBytes(data);
                 
@@ -1558,9 +1952,10 @@ namespace ImageColorChanger.Services
             catch
             {
                 // 降级方案：使用简单的哈希
+                var filePath = System.IO.Path.GetFullPath(AUTH_DATA_FILE);
                 using (var sha256 = SHA256.Create())
                 {
-                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data + GetHardwareId()));
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data + GetHardwareId() + filePath));
                     return Convert.ToBase64String(hashBytes);
                 }
             }

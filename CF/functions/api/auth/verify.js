@@ -71,7 +71,7 @@ export async function onRequestPost(context) {
     // 硬件ID验证(可选)，并获取设备绑定信息
     let deviceInfo = null;
     if (hardware_id) {
-      const deviceCheck = await checkDevice(env.DB, user.id, hardware_id, user.max_devices);
+      const deviceCheck = await checkDevice(env.DB, user.id, hardware_id, user.max_devices, request);
       if (!deviceCheck.allowed) {
         return jsonResponse({ 
           success: true,
@@ -135,10 +135,13 @@ export async function onRequestPost(context) {
 }
 
 // 设备检查
-async function checkDevice(db, userId, hardwareId, maxDevices) {
+async function checkDevice(db, userId, hardwareId, maxDevices, request) {
   const existingDevice = await db.prepare(
     'SELECT * FROM devices WHERE user_id = ? AND hardware_id = ?'
   ).bind(userId, hardwareId).first();
+  
+  // 获取客户端IP
+  const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
   
   // 查询当前已绑定设备数
   const deviceCount = await db.prepare(
@@ -146,10 +149,10 @@ async function checkDevice(db, userId, hardwareId, maxDevices) {
   ).bind(userId).first();
   
   if (existingDevice) {
-    // 设备已存在，更新最后活跃时间
+    // 设备已存在，更新最后活跃时间和IP
     await db.prepare(
-      'UPDATE devices SET last_seen = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(existingDevice.id).run();
+      'UPDATE devices SET last_seen = CURRENT_TIMESTAMP, last_ip = ? WHERE id = ?'
+    ).bind(clientIp, existingDevice.id).run();
     
     return { 
       allowed: true,
@@ -174,10 +177,10 @@ async function checkDevice(db, userId, hardwareId, maxDevices) {
     };
   }
   
-  // 新设备，插入数据库
+  // 新设备，插入数据库（包含IP）
   await db.prepare(
-    'INSERT INTO devices (user_id, hardware_id) VALUES (?, ?)'
-  ).bind(userId, hardwareId).run();
+    'INSERT INTO devices (user_id, hardware_id, last_ip) VALUES (?, ?, ?)'
+  ).bind(userId, hardwareId, clientIp).run();
   
   return { 
     allowed: true,
