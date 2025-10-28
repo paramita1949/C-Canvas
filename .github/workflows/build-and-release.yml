@@ -15,7 +15,7 @@ on:
 env:
   PROJECT_NAME: ImageColorChanger
   OUTPUT_NAME: Canvas Cast
-  DOTNET_VERSION: '6.0.x'
+  DOTNET_VERSION: '8.0.x'
 
 permissions:
   contents: write
@@ -37,10 +37,13 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: 📦 还原依赖
-      run: dotnet restore
+      run: dotnet restore ${{ env.PROJECT_NAME }}.csproj
     
     - name: 🔨 编译 Release 版本
-      run: dotnet build -c Release --no-restore
+      run: dotnet build ${{ env.PROJECT_NAME }}.csproj -c Release --no-restore
+    
+    - name: 📦 发布调试版（用于 Release）
+      run: dotnet publish ${{ env.PROJECT_NAME }}.csproj -c Release -o publish-original --self-contained false
     
     - name: 📋 获取版本号
       id: get_version
@@ -52,11 +55,16 @@ jobs:
           $content = Get-Content $xamlFile -Raw
           if ($content -match 'Title="[^"]*V(\d+\.\d+\.\d+)"') {
             $version = $matches[1]
+            $tag = "V$version"
             echo "version=$version" >> $env:GITHUB_OUTPUT
+            echo "tag=$tag" >> $env:GITHUB_OUTPUT
             Write-Host "读取到版本号: $version"
+            Write-Host "生成标签: $tag"
           } else {
             $version = "1.0.0"
+            $tag = "V$version"
             echo "version=$version" >> $env:GITHUB_OUTPUT
+            echo "tag=$tag" >> $env:GITHUB_OUTPUT
             Write-Host "未找到版本号，使用默认: $version"
           }
         }
@@ -71,27 +79,18 @@ jobs:
         Write-Host "版本: ${{ steps.get_version.outputs.version }}"
         Write-Host ""
         
-        $exePath = "bin\Release\net6.0-windows\${{ env.PROJECT_NAME }}.exe"
+        $exePath = "bin\Release\net8.0-windows\${{ env.PROJECT_NAME }}.exe"
         if (Test-Path $exePath) {
           $fileSize = (Get-Item $exePath).Length / 1MB
           Write-Host "原始文件大小: $([math]::Round($fileSize, 2)) MB" -ForegroundColor Green
         }
     
-    - name: 🔒 下载 ConfuserEx
+    - name: 🔒 安装 Obfuscar
       shell: pwsh
       run: |
-        Write-Host "下载 ConfuserEx 混淆工具..." -ForegroundColor Yellow
-        $url = "https://github.com/mkaring/ConfuserEx/releases/latest/download/ConfuserEx2-CLI.zip"
-        
-        try {
-          Invoke-WebRequest -Uri $url -OutFile "ConfuserEx.zip" -UseBasicParsing
-          Expand-Archive -Path "ConfuserEx.zip" -DestinationPath "ConfuserEx" -Force
-          Remove-Item "ConfuserEx.zip"
-          Write-Host "✅ ConfuserEx 下载完成" -ForegroundColor Green
-        } catch {
-          Write-Host "❌ 下载失败: $_" -ForegroundColor Red
-          exit 1
-        }
+        Write-Host "安装 Obfuscar 混淆工具（支持 .NET 8）..." -ForegroundColor Yellow
+        dotnet tool install --global Obfuscar.GlobalTool
+        Write-Host "✅ Obfuscar 安装成功" -ForegroundColor Green
     
     - name: 🔐 混淆代码
       shell: pwsh
@@ -100,87 +99,247 @@ jobs:
         Write-Host "🔐 开始混淆代码" -ForegroundColor Cyan
         Write-Host "=================================" -ForegroundColor Cyan
         
-        try {
-          .\ConfuserEx\Confuser.CLI.exe confuser.crproj
-          Write-Host "✅ 混淆完成！" -ForegroundColor Green
-        } catch {
-          Write-Host "❌ 混淆失败: $_" -ForegroundColor Red
+        # Add .NET tools to PATH
+        $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+        
+        # Change to the build output directory
+        cd "bin\Release\net8.0-windows"
+        
+        # Debug: List files
+        Write-Host "Files in build directory:" -ForegroundColor Yellow
+        Get-ChildItem -Name
+        
+        # Check if exe exists
+        $exeName = "Canvas Cast.exe"
+        if (Test-Path $exeName) {
+          $fileInfo = Get-Item $exeName
+          Write-Host "Found: $exeName - Size: $($fileInfo.Length) bytes" -ForegroundColor Green
+          
+          # Check if it's a valid .NET assembly
+          try {
+            $assembly = [System.Reflection.Assembly]::LoadFrom((Resolve-Path $exeName).Path)
+            Write-Host "Assembly loaded successfully: $($assembly.FullName)" -ForegroundColor Green
+          } catch {
+            Write-Host "WARNING: Failed to load as .NET assembly: $_" -ForegroundColor Red
+          }
+        } else {
+          Write-Host "ERROR: $exeName not found!" -ForegroundColor Red
           exit 1
         }
         
-        Write-Host ""
-        $obfuscatedPath = "bin\Release\net6.0-windows\Confused\${{ env.PROJECT_NAME }}.exe"
-        if (Test-Path $obfuscatedPath) {
-          $obfuscatedSize = (Get-Item $obfuscatedPath).Length / 1MB
-          Write-Host "混淆后文件大小: $([math]::Round($obfuscatedSize, 2)) MB" -ForegroundColor Green
-        } else {
-          Write-Host "❌ 未找到混淆后的文件！" -ForegroundColor Red
+        # Copy obfuscar config file to build directory
+        Copy-Item "..\..\..\obfuscar.xml" -Destination "."
+        
+        # Run obfuscation with Obfuscar (only DLL, not EXE)
+        obfuscar.console obfuscar.xml
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "❌ 混淆失败！" -ForegroundColor Red
           exit 1
         }
+        
+        Write-Host "✅ 混淆完成！" -ForegroundColor Green
+        
+        # Verify obfuscated DLL
+        $obfuscatedDll = "Confused\${{ env.OUTPUT_NAME }}.dll"
+        if (Test-Path $obfuscatedDll) {
+          $dllSize = (Get-Item $obfuscatedDll).Length / 1MB
+          Write-Host "混淆后 DLL 大小: $([math]::Round($dllSize, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "❌ 未找到混淆后的 DLL！" -ForegroundColor Red
+          exit 1
+        }
+        
+        # Copy EXE and other files to Confused directory
+        Write-Host "复制启动器和依赖文件..." -ForegroundColor Yellow
+        Copy-Item "${{ env.OUTPUT_NAME }}.exe" -Destination "Confused\" -Force
+        Copy-Item "${{ env.OUTPUT_NAME }}.runtimeconfig.json" -Destination "Confused\" -Force
+        Copy-Item "${{ env.OUTPUT_NAME }}.deps.json" -Destination "Confused\" -Force
+        Copy-Item "*.dll" -Destination "Confused\" -Force -Exclude "${{ env.OUTPUT_NAME }}.dll"
+        Copy-Item "*.pak" -Destination "Confused\" -Force -ErrorAction SilentlyContinue
+        Copy-Item "runtimes" -Destination "Confused\runtimes" -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item "libvlc" -Destination "Confused\libvlc" -Recurse -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "✅ 所有文件已复制到 Confused 目录" -ForegroundColor Green
     
     - name: 📦 打包发布文件
       shell: pwsh
       run: |
         $publishDir = "publish"
-        $confusedDir = "bin\Release\net6.0-windows\Confused"
+        $confusedDir = "bin\Release\net8.0-windows\Confused"
         
         # 创建发布目录
         New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
         
-        # 复制混淆后的文件
+        # 打包正式版文件
+        Write-Host "📦 打包正式版文件..." -ForegroundColor Green
         Copy-Item "$confusedDir\*" -Destination $publishDir -Recurse -Force
-        
         Write-Host "✅ 打包完成" -ForegroundColor Green
     
-    - name: 📤 上传混淆后的程序（Artifact）
+    - name: ✅ 验证构建产物
+      shell: pwsh
+      run: |
+        Write-Host "=== 验证构建产物 ===" -ForegroundColor Cyan
+        
+        # 检查主程序
+        if (Test-Path "publish\${{ env.OUTPUT_NAME }}.exe") {
+          Write-Host "✅ 主程序验证成功" -ForegroundColor Green
+          $exeInfo = Get-Item "publish\${{ env.OUTPUT_NAME }}.exe"
+          Write-Host "主程序大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
+        } else {
+          Write-Host "❌ 构建产物验证失败 - ${{ env.OUTPUT_NAME }}.exe 不存在" -ForegroundColor Red
+          Write-Host "publish目录内容:" -ForegroundColor Yellow
+          Get-ChildItem "publish" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  - $($_.Name)" }
+          exit 1
+        }
+        
+        # 检查并处理PAK文件
+        if (Test-Path "publish\Resources.pak") {
+          Write-Host "✅ PAK文件已存在于publish目录" -ForegroundColor Green
+          $pakInfo = Get-Item "publish\Resources.pak"
+          Write-Host "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+        } else {
+          Write-Host "⚠️ PAK文件不存在于publish目录，尝试从bin目录复制..." -ForegroundColor Yellow
+          if (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
+            Copy-Item "bin\Release\net8.0-windows\Resources.pak" "publish\Resources.pak"
+            Write-Host "✅ PAK文件已从bin目录复制到publish根目录" -ForegroundColor Green
+            $pakInfo = Get-Item "publish\Resources.pak"
+            Write-Host "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+          } else {
+            Write-Host "❌ 错误: bin目录中也没有PAK文件" -ForegroundColor Red
+            exit 1
+          }
+        }
+        
+        # 删除publish目录中的bin文件夹（如果存在）
+        if (Test-Path "publish\bin") {
+          Write-Host "⚠️ 发现publish\bin目录，正在删除..." -ForegroundColor Yellow
+          Remove-Item "publish\bin" -Recurse -Force
+          Write-Host "✅ 已删除publish\bin目录" -ForegroundColor Green
+        }
+        
+        Write-Host ""
+        Write-Host "=== publish目录最终内容 ===" -ForegroundColor Cyan
+        Get-ChildItem "publish" -Name | ForEach-Object { Write-Host "  - $_" }
+    
+    - name: 创建发布包
+      id: create_package
+      shell: pwsh
+      run: |
+        $version = "${{ steps.get_version.outputs.version }}"
+        $tag = "${{ steps.get_version.outputs.tag }}"
+        $releaseZip = "Canvas-Cast-$tag-win-x64.zip"
+        $debugZip = "Canvas-Cast-$tag-win-x64-Debug.zip"
+        
+        # 压缩正式版
+        Write-Host "创建正式版发布包..." -ForegroundColor Yellow
+        Compress-Archive -Path publish\* -DestinationPath $releaseZip
+        
+        if (Test-Path $releaseZip) {
+          $size = (Get-Item $releaseZip).Length / 1MB
+          Write-Host "✅ 正式版发布包创建成功: $([math]::Round($size, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "❌ 正式版发布包创建失败" -ForegroundColor Red
+          exit 1
+        }
+        
+        # 压缩调试版（使用 publish-original 目录）
+        Write-Host "创建调试版压缩包..." -ForegroundColor Yellow
+        Compress-Archive -Path publish-original\* -DestinationPath $debugZip
+        
+        if (Test-Path $debugZip) {
+          $size = (Get-Item $debugZip).Length / 1MB
+          Write-Host "✅ 调试版发布包创建成功: $([math]::Round($size, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "❌ 调试版发布包创建失败" -ForegroundColor Red
+          exit 1
+        }
+        
+        # 输出文件名供后续步骤使用
+        echo "release_zip=$releaseZip" >> $env:GITHUB_OUTPUT
+        echo "debug_zip=$debugZip" >> $env:GITHUB_OUTPUT
+    
+    - name: 📤 上传正式版程序（Artifact）
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}-Obfuscated
+        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}
         path: publish/
         retention-days: 30
     
-    - name: 📤 上传原始程序（调试用，7天后删除）
+    - name: 📤 上传调试版程序（调试用，7天后删除）
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}-Original
-        path: bin/Release/net6.0-windows/
+        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}-Debug
+        path: publish-original/
         retention-days: 7
     
+    - name: 📊 调试Release信息
+      shell: pwsh
+      run: |
+        Write-Host "=== Release调试信息 ===" -ForegroundColor Cyan
+        Write-Host "版本号: ${{ steps.get_version.outputs.version }}"
+        Write-Host "标签: ${{ steps.get_version.outputs.tag }}"
+        Write-Host "正式版包文件: ${{ steps.create_package.outputs.release_zip }}"
+        Write-Host "调试版包文件: ${{ steps.create_package.outputs.debug_zip }}"
+        Write-Host "正式版包存在: $(Test-Path '${{ steps.create_package.outputs.release_zip }}')"
+        Write-Host "调试版包存在: $(Test-Path '${{ steps.create_package.outputs.debug_zip }}')"
+        if (Test-Path '${{ steps.create_package.outputs.release_zip }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.release_zip }}').Length / 1MB
+          Write-Host "正式版包大小: $([math]::Round($size, 2)) MB" -ForegroundColor Green
+        }
+        if (Test-Path '${{ steps.create_package.outputs.debug_zip }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.debug_zip }}').Length / 1MB
+          Write-Host "调试版包大小: $([math]::Round($size, 2)) MB" -ForegroundColor Green
+        }
+        Write-Host "======================" -ForegroundColor Cyan
+    
     - name: 🎉 创建 GitHub Release
-      if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          publish/${{ env.PROJECT_NAME }}.exe
-        body: |
-          ## 🎨 ${{ env.OUTPUT_NAME }} v${{ steps.get_version.outputs.version }}
-          
-          ### ✨ 功能特性
-          - ✅ 代码已使用 ConfuserEx 混淆保护
-          - ✅ 防止反编译和逆向工程
-          - ✅ 包含完整运行时环境
-          - ✅ 支持 Windows 10/11
-          
-          ### 📥 下载说明
-          1. 下载 `${{ env.PROJECT_NAME }}.exe`
-          2. 双击运行即可
-          3. 首次运行可能需要 .NET 6 运行时
-          
-          ### 🔒 安全说明
-          本程序已使用 **ConfuserEx 2** 进行代码混淆保护，有效防止：
-          - 反编译查看源代码
-          - 逆向工程分析
-          - 非法破解和篡改
-          
-          ### 📋 更新日志
-          请查看提交记录了解详细更新内容
-          
-          ---
-          
-          **构建时间:** ${{ github.event.head_commit.timestamp }}  
-          **提交SHA:** ${{ github.sha }}
+          ${{ steps.create_package.outputs.release_zip }}
+          ${{ steps.create_package.outputs.debug_zip }}
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        name: Canvas Cast ${{ steps.get_version.outputs.tag }}
         draft: false
         prerelease: false
+        generate_release_notes: true
+        body: |
+          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.tag }}
+          
+          > 💡 **版本说明**：包含正式版和调试版两个下载选项
+          
+          ### 📦 下载说明
+          - **正式版** (推荐)：`${{ steps.create_package.outputs.release_zip }}` - 正式发布版本
+          - **调试版**：`${{ steps.create_package.outputs.debug_zip }}` - 开发调试用版本
+          
+          ### 📖 使用方法
+          1. 下载上述 ZIP 文件
+          2. 解压到任意目录
+          3. 运行 `Canvas Cast.exe`
+          
+          ### ⚙️ 系统要求
+          - Windows 10 或更高版本
+          - .NET 8.0 Runtime (如未安装会自动提示下载)
+          
+          ### 🔧 技术栈
+          - 开发语言：C#
+          - UI框架：WPF
+          - 运行时：.NET 8.0
+          
+          ### 📝 更新日志
+          请查看下方自动生成的变更记录
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 📊 构建摘要
+      shell: pwsh
+      run: |
+        Write-Host "### ✅ 构建成功" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "- **版本**: ${{ steps.get_version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "- **正式版**: ${{ steps.create_package.outputs.release_zip }}" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "- **调试版**: ${{ steps.create_package.outputs.debug_zip }}" >> $env:GITHUB_STEP_SUMMARY
+        Write-Host "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
 
