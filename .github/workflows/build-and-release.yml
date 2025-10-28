@@ -45,36 +45,6 @@ jobs:
     - name: 📦 发布调试版（用于 Release）
       run: dotnet publish ${{ env.PROJECT_NAME }}.csproj -c Release -o publish-original --self-contained false
     
-    - name: 🧹 清理调试版目录
-      shell: pwsh
-      run: |
-        Write-Host "=== 清理调试版 publish-original 目录 ===" -ForegroundColor Cyan
-        
-        # 删除 bin 文件夹（如果存在）
-        if (Test-Path "publish-original\bin") {
-          Write-Host "⚠️ 发现并删除 bin 文件夹..." -ForegroundColor Yellow
-          Remove-Item "publish-original\bin" -Recurse -Force
-          Write-Host "✅ 已删除 bin 文件夹" -ForegroundColor Green
-        } else {
-          Write-Host "✅ 不存在 bin 文件夹" -ForegroundColor Green
-        }
-        
-        # 检查 PAK 文件
-        if (Test-Path "publish-original\Resources.pak") {
-          $pakSize = (Get-Item "publish-original\Resources.pak").Length / 1MB
-          Write-Host "✅ PAK 文件存在: $([math]::Round($pakSize, 2)) MB" -ForegroundColor Green
-        } else {
-          Write-Host "❌ PAK 文件不存在！" -ForegroundColor Red
-          exit 1
-        }
-        
-        Write-Host ""
-        Write-Host "=== publish-original 目录内容 ===" -ForegroundColor Cyan
-        $fileCount = (Get-ChildItem "publish-original" -File | Measure-Object).Count
-        $dirCount = (Get-ChildItem "publish-original" -Directory | Measure-Object).Count
-        Write-Host "文件数量: $fileCount" -ForegroundColor Green
-        Write-Host "目录数量: $dirCount" -ForegroundColor Green
-    
     - name: 📋 获取版本号
       id: get_version
       shell: pwsh
@@ -293,9 +263,27 @@ jobs:
         $releaseZip = "Canvas-Cast-$tag-win-x64.zip"
         $debugZip = "Canvas-Cast-$tag-win-x64-Debug.zip"
         
-        # 压缩正式版
+        # 压缩正式版（应该已经没有 bin 文件夹了）
         Write-Host "创建正式版发布包..." -ForegroundColor Yellow
-        Compress-Archive -Path publish\* -DestinationPath $releaseZip
+        
+        # 检查是否有 bin 文件夹
+        if (Test-Path "publish\bin") {
+          Write-Host "⚠️ 警告: publish 目录中仍存在 bin 文件夹，将排除它" -ForegroundColor Yellow
+          
+          # 创建临时目录
+          $tempReleaseDir = "publish-temp"
+          New-Item -ItemType Directory -Force -Path $tempReleaseDir | Out-Null
+          
+          # 复制所有文件和目录，但排除 bin
+          Get-ChildItem "publish" | Where-Object { $_.Name -ne "bin" } | ForEach-Object {
+            Copy-Item $_.FullName -Destination $tempReleaseDir -Recurse -Force
+          }
+          
+          Compress-Archive -Path "$tempReleaseDir\*" -DestinationPath $releaseZip
+          Remove-Item $tempReleaseDir -Recurse -Force
+        } else {
+          Compress-Archive -Path publish\* -DestinationPath $releaseZip
+        }
         
         if (Test-Path $releaseZip) {
           $size = (Get-Item $releaseZip).Length / 1MB
@@ -305,9 +293,24 @@ jobs:
           exit 1
         }
         
-        # 压缩调试版（使用 publish-original 目录）
-        Write-Host "创建调试版压缩包..." -ForegroundColor Yellow
-        Compress-Archive -Path publish-original\* -DestinationPath $debugZip
+        # 压缩调试版（使用 publish-original 目录，排除 bin 文件夹）
+        Write-Host "创建调试版压缩包（排除 bin 文件夹）..." -ForegroundColor Yellow
+        
+        # 创建临时目录用于压缩
+        $tempDir = "publish-original-temp"
+        New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+        
+        # 复制所有文件和目录，但排除 bin 文件夹
+        Get-ChildItem "publish-original" | Where-Object { $_.Name -ne "bin" } | ForEach-Object {
+          Copy-Item $_.FullName -Destination $tempDir -Recurse -Force
+          Write-Host "  打包: $($_.Name)" -ForegroundColor Gray
+        }
+        
+        # 压缩临时目录
+        Compress-Archive -Path "$tempDir\*" -DestinationPath $debugZip
+        
+        # 删除临时目录
+        Remove-Item $tempDir -Recurse -Force
         
         if (Test-Path $debugZip) {
           $size = (Get-Item $debugZip).Length / 1MB
