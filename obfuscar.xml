@@ -2,16 +2,37 @@
 <Obfuscator>
   <Var name="InPath" value="." />
   <Var name="OutPath" value="Confused" />
-  <Var name="KeepPublicApi" value="false" />
+  <Var name="KeepPublicApi" value="true" />
   <Var name="HidePrivateApi" value="true" />
-  <Var name="RenameProperties" value="true" />
-  <Var name="RenameEvents" value="true" />
+  <Var name="RenameProperties" value="false" />
+  <Var name="RenameEvents" value="false" />
   <Var name="RenameFields" value="true" />
   <Var name="RenameMethods" value="true" />
-  <Var name="UseUnicodeNames" value="true" />
+  <Var name="UseUnicodeNames" value="false" />
   
   <Module file="$(InPath)\Canvas Cast.dll">
+    <!-- 跳过资源类 -->
     <SkipType name="*.Resources" />
     <SkipType name="*.Properties.*" />
+    
+    <!-- 跳过 XAML 相关类（WPF 必需） -->
+    <SkipType name="*Window" />
+    <SkipType name="*Page" />
+    <SkipType name="*UserControl" />
+    
+    <!-- 跳过 App 入口 -->
+    <SkipType name="*.App" />
+    
+    <!-- 跳过数据库实体类（EF Core） -->
+    <SkipNamespace name="*.Database.Models*" />
+    
+    <!-- 跳过 DTO 类 -->
+    <SkipNamespace name="*.DTOs*" />
+    
+    <!-- 跳过枚举类型 -->
+    <SkipNamespace name="*.Enums*" />
+    
+    <!-- 跳过 ViewModel（可能被 XAML 绑定） -->
+    <SkipNamespace name="*.ViewModels*" />
   </Module>
 </Obfuscator>

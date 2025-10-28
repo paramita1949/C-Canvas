@@ -45,6 +45,52 @@ jobs:
     - name: 📦 发布调试版（用于 Release）
       run: dotnet publish ${{ env.PROJECT_NAME }}.csproj -c Release -o publish-original --self-contained false
     
+    - name: 🔧 处理调试版 PAK 文件
+      shell: pwsh
+      run: |
+        Write-Host "=== 处理调试版 PAK 文件 ===" -ForegroundColor Cyan
+        
+        # 检查 publish-original 根目录是否有 PAK 文件
+        if (Test-Path "publish-original\Resources.pak") {
+          $pakSize = (Get-Item "publish-original\Resources.pak").Length / 1MB
+          Write-Host "✅ PAK 文件已在根目录: $([math]::Round($pakSize, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "⚠️ PAK 文件不在根目录，尝试查找..." -ForegroundColor Yellow
+          
+          # 在 bin 目录中查找
+          if (Test-Path "publish-original\bin\Resources.pak") {
+            Write-Host "  找到 PAK 文件在 bin 目录中，复制到根目录..." -ForegroundColor Yellow
+            Copy-Item "publish-original\bin\Resources.pak" "publish-original\Resources.pak"
+            $pakSize = (Get-Item "publish-original\Resources.pak").Length / 1MB
+            Write-Host "✅ PAK 文件已复制到根目录: $([math]::Round($pakSize, 2)) MB" -ForegroundColor Green
+          } elseif (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
+            Write-Host "  从编译目录复制 PAK 文件..." -ForegroundColor Yellow
+            Copy-Item "bin\Release\net8.0-windows\Resources.pak" "publish-original\Resources.pak"
+            $pakSize = (Get-Item "publish-original\Resources.pak").Length / 1MB
+            Write-Host "✅ PAK 文件已复制到根目录: $([math]::Round($pakSize, 2)) MB" -ForegroundColor Green
+          } else {
+            Write-Host "❌ 错误: 未找到 PAK 文件！" -ForegroundColor Red
+            Write-Host "查找位置:" -ForegroundColor Yellow
+            Write-Host "  - publish-original\Resources.pak" -ForegroundColor Gray
+            Write-Host "  - publish-original\bin\Resources.pak" -ForegroundColor Gray
+            Write-Host "  - bin\Release\net8.0-windows\Resources.pak" -ForegroundColor Gray
+            exit 1
+          }
+        }
+        
+        Write-Host ""
+        Write-Host "=== publish-original 目录统计 ===" -ForegroundColor Cyan
+        $fileCount = (Get-ChildItem "publish-original" -File | Measure-Object).Count
+        $dirCount = (Get-ChildItem "publish-original" -Directory | Measure-Object).Count
+        Write-Host "文件数量: $fileCount" -ForegroundColor Green
+        Write-Host "目录数量: $dirCount" -ForegroundColor Green
+        
+        Write-Host ""
+        Write-Host "根目录主要文件:" -ForegroundColor Yellow
+        Get-ChildItem "publish-original" -File | Where-Object { $_.Extension -in ".exe",".dll",".pak",".json" } | ForEach-Object {
+          Write-Host "  - $($_.Name)" -ForegroundColor Gray
+        }
+    
     - name: 📋 获取版本号
       id: get_version
       shell: pwsh
