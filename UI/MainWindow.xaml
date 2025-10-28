@@ -472,7 +472,7 @@
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
                     <Button x:Name="BtnPlay" Content="播放" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
+                            ToolTip="开始/停止自动播放 (停止快捷键: F3)" Click="BtnPlay_Click"/>
 
                     <!-- 播放控制按钮 -->
                     <Button x:Name="BtnPlayCount" Content="5次" Style="{StaticResource MenuButtonStyle}"
@@ -1386,6 +1386,7 @@
                         BorderThickness="0"
                         Cursor="Hand"
                         Panel.ZIndex="300"
+                        ToolTip="开始/停止合成播放 (停止快捷键: F3)"
                         Click="BtnCompositePlay_Click"
                         Opacity="0.75"
                         Visibility="Collapsed">
