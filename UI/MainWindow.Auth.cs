@@ -130,7 +130,7 @@ namespace ImageColorChanger.UI
                 Margin = new Thickness(0)
             };
             
-            // 标题栏
+            // 标题栏（带刷新按钮）
             var headerPanel = new System.Windows.Controls.Border
             {
                 Background = new System.Windows.Media.LinearGradientBrush(
@@ -140,51 +140,35 @@ namespace ImageColorChanger.UI
                 Padding = new Thickness(20, 15, 20, 15)
             };
             
+            // 使用Grid布局，左边标题，右边刷新按钮
+            var headerGrid = new System.Windows.Controls.Grid();
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            
             var headerText = new System.Windows.Controls.TextBlock
             {
                 Text = "👤 个人中心",
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
-                Foreground = System.Windows.Media.Brushes.White
+                Foreground = System.Windows.Media.Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            headerPanel.Child = headerText;
-            mainPanel.Children.Add(headerPanel);
+            System.Windows.Controls.Grid.SetColumn(headerText, 0);
+            headerGrid.Children.Add(headerText);
             
-            // 信息内容区域
-            var contentPanel = new System.Windows.Controls.StackPanel
+            // 刷新按钮（简化版）
+            var refreshBtn = new System.Windows.Controls.Button
             {
-                Margin = new Thickness(20, 20, 20, 20)
+                Content = "🔄 刷新信息",
+                Background = new System.Windows.Media.SolidColorBrush(Color.FromRgb(40, 167, 69)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 6, 12, 6),
+                FontSize = 12,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
             };
             
-            // 用户名
-            AddInfoBlock(contentPanel, "用户名", username, "👤");
-            
-            // 账号有效期（只显示日期，不显示具体时间）
-            string expireInfo = $"{expiresAt?.ToString("yyyy年MM月dd日") ?? "未知"}  (剩余 {remainingDays} 天)";
-            AddInfoBlock(contentPanel, "有效期", expireInfo, "⏰");
-            
-            // 设备绑定 - 显示剩余可绑定数量
-            string deviceBindInfo = deviceInfo != null 
-                ? $"剩余可绑定 {deviceInfo.RemainingSlots} 台  (已绑定 {deviceInfo.BoundDevices} / {deviceInfo.MaxDevices})"
-                : "未知";
-            AddInfoBlock(contentPanel, "设备绑定", deviceBindInfo, "📱");
-            
-            // 解绑次数
-            string resetInfo = $"{resetCount} 次";
-            AddInfoBlock(contentPanel, "解绑次数", resetInfo, "🔓");
-            
-            mainPanel.Children.Add(contentPanel);
-            
-            // 按钮区域
-            var buttonPanel = new System.Windows.Controls.StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-            
-            // 刷新按钮
-            var refreshBtn = CreateStyledButton("🔄 刷新", Color.FromRgb(40, 167, 69));
             refreshBtn.Click += async (s, e) =>
             {
                 var btn = s as System.Windows.Controls.Button;
@@ -224,6 +208,45 @@ namespace ImageColorChanger.UI
                 }
             };
             
+            System.Windows.Controls.Grid.SetColumn(refreshBtn, 1);
+            headerGrid.Children.Add(refreshBtn);
+            
+            headerPanel.Child = headerGrid;
+            mainPanel.Children.Add(headerPanel);
+            
+            // 信息内容区域
+            var contentPanel = new System.Windows.Controls.StackPanel
+            {
+                Margin = new Thickness(20, 20, 20, 10)
+            };
+            
+            // 用户名
+            AddInfoBlock(contentPanel, "用户名", username, "👤");
+            
+            // 账号有效期（只显示日期，不显示具体时间）
+            string expireInfo = $"{expiresAt?.ToString("yyyy年MM月dd日") ?? "未知"}  (剩余 {remainingDays} 天)";
+            AddInfoBlock(contentPanel, "有效期", expireInfo, "⏰");
+            
+            // 设备绑定 - 显示剩余可绑定数量
+            string deviceBindInfo = deviceInfo != null 
+                ? $"剩余可绑定 {deviceInfo.RemainingSlots} 台  (已绑定 {deviceInfo.BoundDevices} / {deviceInfo.MaxDevices})"
+                : "未知";
+            AddInfoBlock(contentPanel, "设备绑定", deviceBindInfo, "📱");
+            
+            // 解绑次数
+            string resetInfo = $"{resetCount} 次";
+            AddInfoBlock(contentPanel, "解绑次数", resetInfo, "🔓");
+            
+            mainPanel.Children.Add(contentPanel);
+            
+            // 按钮区域（底部操作按钮）
+            var buttonPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            
             // 退出按钮
             var logoutBtn = CreateStyledButton("退出", Color.FromRgb(108, 117, 125));
             logoutBtn.Click += (s, e) =>
@@ -244,7 +267,6 @@ namespace ImageColorChanger.UI
                 UnbindDeviceWithConfirm();
             };
             
-            buttonPanel.Children.Add(refreshBtn);
             buttonPanel.Children.Add(logoutBtn);
             buttonPanel.Children.Add(unbindBtn);
             mainPanel.Children.Add(buttonPanel);

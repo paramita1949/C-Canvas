@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Navigation;
 using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
@@ -123,6 +125,25 @@ namespace ImageColorChanger.UI
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red)
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
             StatusText.Visibility = Visibility.Visible;
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            try
+            {
+                // 使用默认浏览器打开链接
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = e.Uri.AbsoluteUri,
+                    UseShellExecute = true
+                });
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"无法打开浏览器: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

@@ -559,8 +559,8 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // 设置较短的超时时间（2秒），快速失败
-                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2)))
+                // 设置较短的超时时间（8秒），快速失败
+                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8)))
                 {
                     var response = await _httpClient.PostAsync(API_BASE_URL + HEARTBEAT_ENDPOINT, content, cts.Token);
                     var responseContent = await response.Content.ReadAsStringAsync();
