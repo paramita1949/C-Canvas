@@ -152,14 +152,42 @@ jobs:
         
         # Copy EXE and other files to Confused directory
         Write-Host "复制启动器和依赖文件..." -ForegroundColor Yellow
+        
+        # 复制主程序文件
         Copy-Item "${{ env.OUTPUT_NAME }}.exe" -Destination "Confused\" -Force
         Copy-Item "${{ env.OUTPUT_NAME }}.runtimeconfig.json" -Destination "Confused\" -Force
         Copy-Item "${{ env.OUTPUT_NAME }}.deps.json" -Destination "Confused\" -Force
-        Copy-Item "*.dll" -Destination "Confused\" -Force -Exclude "${{ env.OUTPUT_NAME }}.dll"
-        Copy-Item "*.pak" -Destination "Confused\" -Force -ErrorAction SilentlyContinue
-        Copy-Item "runtimes" -Destination "Confused\runtimes" -Recurse -Force -ErrorAction SilentlyContinue
-        Copy-Item "libvlc" -Destination "Confused\libvlc" -Recurse -Force -ErrorAction SilentlyContinue
         
+        # 复制所有 DLL（除了主 DLL，因为已经混淆过了）
+        Get-ChildItem -Filter "*.dll" | Where-Object { $_.Name -ne "${{ env.OUTPUT_NAME }}.dll" } | ForEach-Object {
+          Copy-Item $_.FullName -Destination "Confused\" -Force
+          Write-Host "  复制 DLL: $($_.Name)"
+        }
+        
+        # 复制 PAK 文件
+        if (Test-Path "Resources.pak") {
+          Copy-Item "Resources.pak" -Destination "Confused\" -Force
+          Write-Host "  复制 PAK: Resources.pak"
+        }
+        
+        # 复制 runtimes 目录（包含本机依赖）
+        if (Test-Path "runtimes") {
+          Copy-Item "runtimes" -Destination "Confused\runtimes" -Recurse -Force
+          Write-Host "  复制目录: runtimes"
+        }
+        
+        # 复制 libvlc 目录（如果存在）
+        if (Test-Path "libvlc") {
+          Copy-Item "libvlc" -Destination "Confused\libvlc" -Recurse -Force
+          Write-Host "  复制目录: libvlc"
+        }
+        
+        # 列出 Confused 目录内容以便检查
+        Write-Host ""
+        Write-Host "=== Confused 目录内容 ===" -ForegroundColor Cyan
+        Get-ChildItem "Confused" -Name | ForEach-Object { Write-Host "  - $_" }
+        
+        Write-Host ""
         Write-Host "✅ 所有文件已复制到 Confused 目录" -ForegroundColor Green
     
     - name: 📦 打包发布文件
@@ -174,6 +202,13 @@ jobs:
         # 打包正式版文件
         Write-Host "📦 打包正式版文件..." -ForegroundColor Green
         Copy-Item "$confusedDir\*" -Destination $publishDir -Recurse -Force
+        
+        # 删除可能复制进来的 bin 文件夹
+        if (Test-Path "$publishDir\bin") {
+          Write-Host "⚠️ 发现并删除 bin 文件夹..." -ForegroundColor Yellow
+          Remove-Item "$publishDir\bin" -Recurse -Force
+        }
+        
         Write-Host "✅ 打包完成" -ForegroundColor Green
     
     - name: ✅ 验证构建产物
@@ -199,23 +234,27 @@ jobs:
           $pakInfo = Get-Item "publish\Resources.pak"
           Write-Host "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
         } else {
-          Write-Host "⚠️ PAK文件不存在于publish目录，尝试从bin目录复制..." -ForegroundColor Yellow
-          if (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
+          Write-Host "⚠️ PAK文件不存在于publish目录，尝试从Confused目录复制..." -ForegroundColor Yellow
+          if (Test-Path "bin\Release\net8.0-windows\Confused\Resources.pak") {
+            Copy-Item "bin\Release\net8.0-windows\Confused\Resources.pak" "publish\Resources.pak"
+            Write-Host "✅ PAK文件已从Confused目录复制到publish根目录" -ForegroundColor Green
+            $pakInfo = Get-Item "publish\Resources.pak"
+            Write-Host "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+          } elseif (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
             Copy-Item "bin\Release\net8.0-windows\Resources.pak" "publish\Resources.pak"
             Write-Host "✅ PAK文件已从bin目录复制到publish根目录" -ForegroundColor Green
             $pakInfo = Get-Item "publish\Resources.pak"
             Write-Host "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
           } else {
-            Write-Host "❌ 错误: bin目录中也没有PAK文件" -ForegroundColor Red
+            Write-Host "❌ 错误: 未找到PAK文件" -ForegroundColor Red
             exit 1
           }
         }
         
-        # 删除publish目录中的bin文件夹（如果存在）
+        # 确认没有 bin 文件夹（应该在打包步骤已删除）
         if (Test-Path "publish\bin") {
-          Write-Host "⚠️ 发现publish\bin目录，正在删除..." -ForegroundColor Yellow
-          Remove-Item "publish\bin" -Recurse -Force
-          Write-Host "✅ 已删除publish\bin目录" -ForegroundColor Green
+          Write-Host "❌ 错误: publish\bin目录不应该存在！" -ForegroundColor Red
+          exit 1
         }
         
         Write-Host ""
