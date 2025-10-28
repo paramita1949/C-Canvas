@@ -301,8 +301,8 @@ namespace ImageColorChanger.UI
                             _imageProcessor.CurrentImage,
                             _isColorEffectEnabled,
                             _currentZoom,
-                            false,
-                            ImageColorChanger.Core.OriginalDisplayMode.Stretch
+                            true,  // 🔧 修复：脚本播放时也是原图模式，应该传true而不是false
+                            _originalDisplayMode  // 使用当前的显示模式设置
                         );
                     }                }
                 catch (Exception)

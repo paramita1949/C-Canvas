@@ -295,6 +295,8 @@ namespace ImageColorChanger.Managers
                         {
                             #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
+                            #else
+                            _ = ex; // 避免未使用变量警告
                             #endif
                         }
                     });
