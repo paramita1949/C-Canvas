@@ -1,0 +1,186 @@
+name: 构建和发布（混淆保护）
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.cs'
+      - '**.xaml'
+      - '**.csproj'
+      - 'updata.txt'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: ImageColorChanger
+  OUTPUT_NAME: Canvas Cast
+  DOTNET_VERSION: '6.0.x'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 编译、混淆和发布
+    runs-on: windows-latest
+    
+    steps:
+    - name: 📥 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🔧 设置 .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📦 还原依赖
+      run: dotnet restore
+    
+    - name: 🔨 编译 Release 版本
+      run: dotnet build -c Release --no-restore
+    
+    - name: 📋 获取版本号
+      id: get_version
+      shell: pwsh
+      run: |
+        # 从 MainWindow.xaml 读取版本号
+        $xamlFile = "UI\MainWindow.xaml"
+        if (Test-Path $xamlFile) {
+          $content = Get-Content $xamlFile -Raw
+          if ($content -match 'Title="[^"]*V(\d+\.\d+\.\d+)"') {
+            $version = $matches[1]
+            echo "version=$version" >> $env:GITHUB_OUTPUT
+            Write-Host "读取到版本号: $version"
+          } else {
+            $version = "1.0.0"
+            echo "version=$version" >> $env:GITHUB_OUTPUT
+            Write-Host "未找到版本号，使用默认: $version"
+          }
+        }
+    
+    - name: 📦 显示编译信息
+      shell: pwsh
+      run: |
+        Write-Host "=================================" -ForegroundColor Cyan
+        Write-Host "📦 编译信息" -ForegroundColor Cyan
+        Write-Host "=================================" -ForegroundColor Cyan
+        Write-Host "项目: ${{ env.PROJECT_NAME }}"
+        Write-Host "版本: ${{ steps.get_version.outputs.version }}"
+        Write-Host ""
+        
+        $exePath = "bin\Release\net6.0-windows\${{ env.PROJECT_NAME }}.exe"
+        if (Test-Path $exePath) {
+          $fileSize = (Get-Item $exePath).Length / 1MB
+          Write-Host "原始文件大小: $([math]::Round($fileSize, 2)) MB" -ForegroundColor Green
+        }
+    
+    - name: 🔒 下载 ConfuserEx
+      shell: pwsh
+      run: |
+        Write-Host "下载 ConfuserEx 混淆工具..." -ForegroundColor Yellow
+        $url = "https://github.com/mkaring/ConfuserEx/releases/latest/download/ConfuserEx2-CLI.zip"
+        
+        try {
+          Invoke-WebRequest -Uri $url -OutFile "ConfuserEx.zip" -UseBasicParsing
+          Expand-Archive -Path "ConfuserEx.zip" -DestinationPath "ConfuserEx" -Force
+          Remove-Item "ConfuserEx.zip"
+          Write-Host "✅ ConfuserEx 下载完成" -ForegroundColor Green
+        } catch {
+          Write-Host "❌ 下载失败: $_" -ForegroundColor Red
+          exit 1
+        }
+    
+    - name: 🔐 混淆代码
+      shell: pwsh
+      run: |
+        Write-Host "=================================" -ForegroundColor Cyan
+        Write-Host "🔐 开始混淆代码" -ForegroundColor Cyan
+        Write-Host "=================================" -ForegroundColor Cyan
+        
+        try {
+          .\ConfuserEx\Confuser.CLI.exe confuser.crproj
+          Write-Host "✅ 混淆完成！" -ForegroundColor Green
+        } catch {
+          Write-Host "❌ 混淆失败: $_" -ForegroundColor Red
+          exit 1
+        }
+        
+        Write-Host ""
+        $obfuscatedPath = "bin\Release\net6.0-windows\Confused\${{ env.PROJECT_NAME }}.exe"
+        if (Test-Path $obfuscatedPath) {
+          $obfuscatedSize = (Get-Item $obfuscatedPath).Length / 1MB
+          Write-Host "混淆后文件大小: $([math]::Round($obfuscatedSize, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "❌ 未找到混淆后的文件！" -ForegroundColor Red
+          exit 1
+        }
+    
+    - name: 📦 打包发布文件
+      shell: pwsh
+      run: |
+        $publishDir = "publish"
+        $confusedDir = "bin\Release\net6.0-windows\Confused"
+        
+        # 创建发布目录
+        New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+        
+        # 复制混淆后的文件
+        Copy-Item "$confusedDir\*" -Destination $publishDir -Recurse -Force
+        
+        Write-Host "✅ 打包完成" -ForegroundColor Green
+    
+    - name: 📤 上传混淆后的程序（Artifact）
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}-Obfuscated
+        path: publish/
+        retention-days: 30
+    
+    - name: 📤 上传原始程序（调试用，7天后删除）
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.OUTPUT_NAME }}-v${{ steps.get_version.outputs.version }}-Original
+        path: bin/Release/net6.0-windows/
+        retention-days: 7
+    
+    - name: 🎉 创建 GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          publish/${{ env.PROJECT_NAME }}.exe
+        body: |
+          ## 🎨 ${{ env.OUTPUT_NAME }} v${{ steps.get_version.outputs.version }}
+          
+          ### ✨ 功能特性
+          - ✅ 代码已使用 ConfuserEx 混淆保护
+          - ✅ 防止反编译和逆向工程
+          - ✅ 包含完整运行时环境
+          - ✅ 支持 Windows 10/11
+          
+          ### 📥 下载说明
+          1. 下载 `${{ env.PROJECT_NAME }}.exe`
+          2. 双击运行即可
+          3. 首次运行可能需要 .NET 6 运行时
+          
+          ### 🔒 安全说明
+          本程序已使用 **ConfuserEx 2** 进行代码混淆保护，有效防止：
+          - 反编译查看源代码
+          - 逆向工程分析
+          - 非法破解和篡改
+          
+          ### 📋 更新日志
+          请查看提交记录了解详细更新内容
+          
+          ---
+          
+          **构建时间:** ${{ github.event.head_commit.timestamp }}  
+          **提交SHA:** ${{ github.sha }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
