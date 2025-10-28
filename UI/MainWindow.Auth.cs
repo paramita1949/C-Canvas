@@ -65,8 +65,7 @@ namespace ImageColorChanger.UI
                 BtnLogin.ToolTip = "登录账号";
             }
             
-            // 窗口标题统一显示，不显示登录信息
-            this.Title = "Canvas Cast V5.1.6";
+            // 窗口标题由 XAML 设置，无需在代码中修改
         }
 
         /// <summary>
