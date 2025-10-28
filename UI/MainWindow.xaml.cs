@@ -194,6 +194,9 @@ namespace ImageColorChanger.UI
             
             // 初始化FPS监控器
             InitializeFpsMonitor();
+            
+            // 🔐 初始化认证服务
+            InitializeAuthService();
         }
         
         /// <summary>
@@ -1507,20 +1510,6 @@ namespace ImageColorChanger.UI
             ShowStatus("已重置缩放比例");
         }
 
-        private void BtnContact_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var contactWindow = new ContactWindow();
-                contactWindow.Owner = this;
-                contactWindow.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"打开联系窗口失败: {ex.Message}", "错误", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
         
         /// <summary>
         /// 切换原图模式

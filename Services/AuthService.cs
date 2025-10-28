@@ -1,0 +1,1721 @@
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using System.Security.Cryptography;
+using System.Management;
+using System.Linq;
+
+namespace ImageColorChanger.Services
+{
+    /// <summary>
+    /// 验证响应数据结构
+    /// </summary>
+    public class AuthResponse
+    {
+        public bool Success { get; set; }
+        public bool Valid { get; set; }
+        public string Message { get; set; }
+        public string Reason { get; set; }
+        public AuthData Data { get; set; }
+        
+        [JsonPropertyName("server_time")]
+        public string ServerTimeString { get; set; }
+    }
+
+    public class AuthData
+    {
+        public string Username { get; set; }
+        public string Email { get; set; }
+        
+        [JsonPropertyName("expires_at")]
+        public string ExpiresAtString { get; set; }
+        
+        [JsonPropertyName("remaining_days")]
+        public int RemainingDays { get; set; }
+        
+        [JsonPropertyName("remaining_hours")]
+        public int RemainingHours { get; set; }
+        
+        public string Token { get; set; }
+        
+        [JsonPropertyName("server_time")]
+        public string ServerTimeString { get; set; }
+        
+        public string Warning { get; set; }
+        
+        [JsonPropertyName("device_info")]
+        public DeviceInfo DeviceInfo { get; set; }
+        
+        [JsonPropertyName("reset_device_count")]
+        public int? ResetDeviceCount { get; set; }
+    }
+
+    /// <summary>
+    /// 设备绑定信息
+    /// </summary>
+    public class DeviceInfo
+    {
+        [JsonPropertyName("bound_devices")]
+        public int BoundDevices { get; set; }
+        
+        [JsonPropertyName("max_devices")]
+        public int MaxDevices { get; set; }
+        
+        [JsonPropertyName("remaining_slots")]
+        public int RemainingSlots { get; set; }
+        
+        [JsonPropertyName("is_new_device")]
+        public bool IsNewDevice { get; set; }
+    }
+
+    /// <summary>
+    /// 网络验证服务
+    /// 负责与Cloudflare Workers API通信，验证用户身份和有效期
+    /// 使用服务器时间防止本地时间篡改
+    /// </summary>
+    public class AuthService
+    {
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        
+        // TODO: 替换为实际的Cloudflare Workers API地址
+        private const string API_BASE_URL = "https://wx.019890311.xyz";
+        private const string VERIFY_ENDPOINT = "/api/auth/verify";
+        private const string HEARTBEAT_ENDPOINT = "/api/auth/heartbeat";
+        
+        // 持久化文件路径
+        private static readonly string AUTH_DATA_FILE = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "CanvasCast",
+            ".auth"
+        );
+        
+        private string _username;
+        private string _token;
+        private bool _isAuthenticated;
+        private DateTime? _expiresAt;
+        private DateTime? _lastServerTime; // 最后一次服务器时间
+        private DateTime? _lastLocalTime;  // 对应的本地时间（仅用于兼容旧版本）
+        private long _lastTickCount;       // 最后一次记录的 TickCount64（防篡改）
+        private int _remainingDays;
+        private DeviceInfo _deviceInfo;    // 设备绑定信息
+        private int _resetDeviceCount = 0;     // 剩余重置设备次数（默认0）
+        private System.Threading.Timer _heartbeatTimer;
+        
+        // 🔒 分散验证：多个验证令牌，防止单点破解
+        private string _authToken1;  // 验证令牌1
+        private string _authToken2;  // 验证令牌2
+        private long _authChecksum;  // 验证校验和
+        
+        // 🔒 试用投影验证（防止破解随机时间限制）
+        private long _trialProjectionStartTick;  // 试用投影开始时刻（TickCount64）
+        private int _trialDurationSeconds;       // 试用时长（秒）
+        private string _trialProjectionToken;    // 试用投影令牌（SHA256）
+        
+        // 单例模式
+        private static AuthService _instance;
+        private static readonly object _lock = new object();
+        
+        public static AuthService Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_instance == null)
+                        {
+                            _instance = new AuthService();
+                        }
+                    }
+                }
+                return _instance;
+            }
+        }
+
+        private AuthService()
+        {
+            _isAuthenticated = false;
+            
+            // 尝试从本地加载登录状态
+            _ = TryLoadAuthDataAsync();
+        }
+
+        /// <summary>
+        /// 是否已认证
+        /// </summary>
+        public bool IsAuthenticated => _isAuthenticated;
+
+        /// <summary>
+        /// 用户名
+        /// </summary>
+        public string Username => _username;
+
+        /// <summary>
+        /// 账号到期时间
+        /// </summary>
+        public DateTime? ExpiresAt => _expiresAt;
+
+        /// <summary>
+        /// 剩余天数
+        /// </summary>
+        public int RemainingDays => _remainingDays;
+
+        /// <summary>
+        /// 设备绑定信息
+        /// </summary>
+        public DeviceInfo DeviceBindingInfo => _deviceInfo;
+
+        /// <summary>
+        /// 剩余重置设备次数
+        /// </summary>
+        public int ResetDeviceCount => _resetDeviceCount;
+
+        /// <summary>
+        /// 认证状态改变事件参数
+        /// </summary>
+        public class AuthenticationChangedEventArgs : EventArgs
+        {
+            public bool IsAuthenticated { get; set; }
+            public bool IsAutoLogin { get; set; }
+        }
+
+        /// <summary>
+        /// 事件：认证状态改变
+        /// </summary>
+        public event EventHandler<AuthenticationChangedEventArgs> AuthenticationChanged;
+
+        /// <summary>
+        /// 登录验证
+        /// </summary>
+        public async Task<(bool success, string message)> LoginAsync(string username, string password)
+        {
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 开始登录验证: {username}");
+                #endif
+
+                var hardwareId = GetHardwareId();
+                
+                var requestData = new
+                {
+                    username = username,
+                    password = password,
+                    hardware_id = hardwareId
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(API_BASE_URL + VERIFY_ENDPOINT, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 服务器响应: {responseContent}");
+                #endif
+
+                var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (authResponse == null)
+                {
+                    return (false, "服务器响应解析失败");
+                }
+
+                if (!authResponse.Success)
+                {
+                    return (false, authResponse.Message ?? "验证失败");
+                }
+
+                if (!authResponse.Valid)
+                {
+                    return (false, authResponse.Message ?? "账号无效");
+                }
+
+                // 登录成功，保存状态
+                _username = username;
+                _token = authResponse.Data?.Token;
+                
+                // 解析过期时间
+                if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                {
+                    if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
+                    {
+                        _expiresAt = expiresAt;
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 过期时间: {_expiresAt}");
+                        #endif
+                    }
+                }
+                
+                _remainingDays = authResponse.Data?.RemainingDays ?? 0;
+                _deviceInfo = authResponse.Data?.DeviceInfo;
+                _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 默认0次
+                _isAuthenticated = true;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔓 [AuthService] 解绑次数: {_resetDeviceCount}次");
+                System.Diagnostics.Debug.WriteLine($"🔓 [AuthService] 服务器返回的 ResetDeviceCount: {authResponse.Data?.ResetDeviceCount?.ToString() ?? "null"}");
+                #endif
+                
+                // 🔒 生成验证令牌（防止跳过登录）
+                GenerateAuthTokens();
+                
+                // 输出设备绑定信息
+                #if DEBUG
+                if (_deviceInfo != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 设备绑定信息:");
+                    System.Diagnostics.Debug.WriteLine($"   已绑定设备: {_deviceInfo.BoundDevices}台");
+                    System.Diagnostics.Debug.WriteLine($"   最大设备数: {_deviceInfo.MaxDevices}台");
+                    System.Diagnostics.Debug.WriteLine($"   剩余可绑定: {_deviceInfo.RemainingSlots}台");
+                    if (_deviceInfo.IsNewDevice)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   ✨ 这是新绑定的设备");
+                    }
+                }
+                #endif
+                
+                // 保存服务器时间和本地时间的对应关系
+                if (!string.IsNullOrEmpty(authResponse.Data?.ServerTimeString))
+                {
+                    if (DateTime.TryParse(authResponse.Data.ServerTimeString, out var serverTime))
+                    {
+                        _lastServerTime = serverTime;
+                        _lastLocalTime = DateTime.Now;
+                        _lastTickCount = Environment.TickCount64; // 记录 TickCount，防篡改
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 服务器时间: {_lastServerTime}");
+                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 本地时间: {_lastLocalTime}");
+                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] TickCount: {_lastTickCount}");
+                        var timeDiff = (_lastLocalTime.Value - _lastServerTime.Value).TotalSeconds;
+                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 时间差: {timeDiff:F1}秒 (本地-服务器)");
+                        #endif
+                    }
+                }
+
+                // 启动心跳
+                StartHeartbeat();
+
+                // 保存登录状态到本地
+                _ = SaveAuthDataAsync();
+
+                // 触发事件（手动登录）
+                AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs 
+                { 
+                    IsAuthenticated = true, 
+                    IsAutoLogin = false 
+                });
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 登录成功: {_username}, 剩余{_remainingDays}天");
+                #endif
+
+                return (true, $"登录成功！账号有效期剩余 {_remainingDays} 天");
+            }
+            catch (HttpRequestException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+                return (false, "网络连接失败，请检查网络设置");
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 登录异常: {ex.Message}");
+                #endif
+                return (false, $"登录失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 注册新账号（自动获取硬件ID）
+        /// </summary>
+        public async Task<(bool success, string message)> RegisterAsync(string username, string password, string email = null)
+        {
+            try
+            {
+                var hardwareId = GetHardwareId();
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 开始注册: {username}");
+                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 硬件ID: {hardwareId}");
+                #endif
+
+                var requestData = new
+                {
+                    username = username,
+                    password = password,
+                    email = email,
+                    hardware_id = hardwareId,
+                    source = "desktop_client"
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/register", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 服务器响应: {responseContent}");
+                #endif
+
+                var registerResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (registerResponse == null)
+                {
+                    return (false, "服务器响应解析失败");
+                }
+
+                if (!registerResponse.Success)
+                {
+                    return (false, registerResponse.Message ?? "注册失败");
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 注册成功: {username}");
+                #endif
+
+                return (true, "注册成功！请等待管理员激活您的账号。");
+            }
+            catch (HttpRequestException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+                return (false, "网络连接失败，请检查网络设置");
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 注册异常: {ex.Message}");
+                #endif
+                return (false, $"注册失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 退出登录
+        /// </summary>
+        public void Logout()
+        {
+            _isAuthenticated = false;
+            _username = null;
+            _token = null;
+            _expiresAt = null;
+            _remainingDays = 0;
+            _lastServerTime = null;
+            _lastLocalTime = null;
+            
+            StopHeartbeat();
+            
+            // 删除本地保存的登录状态
+            DeleteAuthData();
+            
+            AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs 
+            { 
+                IsAuthenticated = false, 
+                IsAutoLogin = false 
+            });
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 已退出登录");
+            #endif
+        }
+
+        /// <summary>
+        /// 快速验证投影权限（联网验证，用于投影开始时）
+        /// 如果未登录，强制要求联网验证
+        /// </summary>
+        public async Task<(bool allowed, string message)> VerifyProjectionPermissionAsync()
+        {
+            // 如果已登录且有效，快速通过
+            if (_isAuthenticated && CanUseProjection())
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [投影权限] 已登录且有效，允许投影");
+                #endif
+                return (true, "已登录");
+            }
+
+            // 未登录，尝试联网验证
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 未登录，尝试联网验证...");
+            #endif
+
+            // 第一步：检查基础网络（百度）
+            bool networkAvailable = false;
+            try
+            {
+                using (var networkClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) })
+                {
+                    var networkResponse = await networkClient.GetAsync("https://www.baidu.com");
+                    networkAvailable = networkResponse.IsSuccessStatusCode;
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影权限] 网络检测（百度）: {(networkAvailable ? "可用" : "不可用")}");
+                    #endif
+                }
+            }
+            catch
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"ℹ️ [投影权限] 网络检测（百度）: 不可用");
+                #endif
+                // 网络不可用，允许试用模式
+                return (true, "试用模式（离线）");
+            }
+
+            // 第二步：如果网络可用，检查服务器健康状态
+            if (networkAvailable)
+            {
+                try
+                {
+                    using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3)))
+                    {
+                        var response = await _httpClient.GetAsync(API_BASE_URL + "/api/auth/verify", cts.Token);
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            // 服务器正常，但用户未登录
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器正常但未登录，试用投影");
+                            #endif
+                            return (false, "检测到网络连接，请先登录后使用投影功能");
+                        }
+                        else
+                        {
+                            // 服务器返回错误状态码（如500），视为服务器故障
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器故障（{response.StatusCode}），允许试用模式");
+                            #endif
+                            return (true, "试用模式（服务器异常）");
+                        }
+                    }
+                }
+                catch (System.Threading.Tasks.TaskCanceledException)
+                {
+                    // 服务器超时，视为服务器故障
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影权限] 服务器超时，允许试用模式");
+                    #endif
+                    return (true, "试用模式（服务器超时）");
+                }
+                catch (Exception ex)
+                {
+                    // 服务器连接失败，允许试用
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影权限] 服务器连接失败: {ex.Message}，允许试用模式");
+                    #else
+                    _ = ex;
+                    #endif
+                    return (true, "试用模式（服务器不可达）");
+                }
+            }
+
+            return (false, "请先登录");
+        }
+
+        /// <summary>
+        /// 手动刷新账号信息（尝试从服务器获取最新信息）
+        /// 成功返回true，失败返回false（使用本地缓存）
+        /// </summary>
+        public async Task<bool> RefreshAccountInfoAsync()
+        {
+            if (!_isAuthenticated || string.IsNullOrEmpty(_username))
+            {
+                return false;
+            }
+
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [刷新] 尝试从服务器刷新账号信息...");
+                #endif
+
+                var requestData = new
+                {
+                    username = _username,
+                    token = _token,
+                    hardware_id = GetHardwareId()
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                // 设置较短的超时时间（2秒），快速失败
+                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2)))
+                {
+                    var response = await _httpClient.PostAsync(API_BASE_URL + HEARTBEAT_ENDPOINT, content, cts.Token);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (authResponse == null || !authResponse.Success || !authResponse.Valid)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"❌ [刷新] 服务器返回失败: {authResponse?.Message}");
+                        #endif
+                        return false;
+                    }
+
+                    // 更新所有信息
+                    if (!string.IsNullOrEmpty(authResponse.Data?.ServerTimeString))
+                    {
+                        if (DateTime.TryParse(authResponse.Data.ServerTimeString, out var serverTime))
+                        {
+                            _lastServerTime = serverTime;
+                            _lastLocalTime = DateTime.Now;
+                            _lastTickCount = Environment.TickCount64;
+                        }
+                    }
+                    
+                    if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                    {
+                        if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
+                        {
+                            _expiresAt = expiresAt;
+                        }
+                    }
+                    
+                    _remainingDays = authResponse.Data?.RemainingDays ?? 0;
+                    _deviceInfo = authResponse.Data?.DeviceInfo;
+                    _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;
+                    
+                    // 更新本地缓存
+                    _ = SaveAuthDataAsync();
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                    if (_deviceInfo != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"✅ [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                    }
+                    #endif
+
+                    return true;
+                }
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⏱️ [刷新] 超时，使用本地缓存");
+                #endif
+                return false;
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [刷新] 异常: {ex.Message}，使用本地缓存");
+                #else
+                _ = ex;
+                #endif
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 心跳检查（定期验证账号状态）
+        /// </summary>
+        private async void HeartbeatCallback(object state)
+        {
+            if (!_isAuthenticated || string.IsNullOrEmpty(_username))
+            {
+                StopHeartbeat();
+                return;
+            }
+
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳检查...");
+                #endif
+
+                var requestData = new
+                {
+                    username = _username,
+                    token = _token,
+                    hardware_id = GetHardwareId()  // 添加硬件ID，用于设备验证
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(API_BASE_URL + HEARTBEAT_ENDPOINT, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (authResponse == null || !authResponse.Success || !authResponse.Valid)
+                {
+                    // 检查失效原因
+                    string failureReason = authResponse?.Message ?? "账号已失效";
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 心跳检查失败: {failureReason}");
+                    System.Diagnostics.Debug.WriteLine($"   失效原因(reason): {authResponse?.Reason}");
+                    #endif
+                    
+                    // 如果是设备被重置，立即强制退出（不检查本地缓存）
+                    if (authResponse?.Reason == "device_reset" || 
+                        authResponse?.Message?.Contains("设备已被") == true || 
+                        authResponse?.Message?.Contains("解绑") == true)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 设备已被管理员重置，强制退出");
+                        #endif
+                        
+                        Logout();
+                        
+                        // 通知UI显示设备重置消息
+                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                        {
+                            System.Windows.MessageBox.Show(
+                                failureReason,
+                                "设备验证失败",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Warning);
+                        });
+                        return;
+                    }
+                    
+                    // 其他失效原因，检查本地缓存
+                    if (CanUseProjection())
+                    {
+                        // 本地缓存显示还在有效期内，可能是网络问题，继续使用
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 心跳失败，但本地缓存显示未过期，继续使用");
+                        #endif
+                        return;
+                    }
+                    
+                    // 本地缓存也显示已过期，真的失效了
+                    Logout();
+                    return;
+                }
+
+                // 更新服务器时间和过期时间
+                if (!string.IsNullOrEmpty(authResponse.Data?.ServerTimeString))
+                {
+                    if (DateTime.TryParse(authResponse.Data.ServerTimeString, out var serverTime))
+                    {
+                        _lastServerTime = serverTime;
+                        _lastLocalTime = DateTime.Now;
+                        _lastTickCount = Environment.TickCount64; // 记录 TickCount，防篡改
+                    }
+                }
+                
+                if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                {
+                    if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
+                    {
+                        _expiresAt = expiresAt;
+                    }
+                }
+                _remainingDays = authResponse.Data?.RemainingDays ?? 0;
+                _deviceInfo = authResponse.Data?.DeviceInfo;  // 更新设备信息
+                _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 更新解绑次数（默认0）
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳更新解绑次数: {_resetDeviceCount}次");
+                #endif
+                
+                // 更新本地缓存
+                _ = SaveAuthDataAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 心跳正常，剩余{_remainingDays}天");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                // 网络异常，检查本地缓存
+                if (CanUseProjection())
+                {
+                    // 本地缓存显示还在有效期内，允许离线使用
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 心跳网络异常: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地缓存有效，允许离线使用");
+                    #else
+                    _ = ex; // 避免未使用变量警告
+                    #endif
+                    return;
+                }
+                
+                // 本地缓存也过期了，强制退出
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 心跳网络异常且本地缓存已过期");
+                #endif
+                
+                Logout();
+            }
+        }
+
+        /// <summary>
+        /// 启动心跳定时器（每20分钟检查一次）
+        /// </summary>
+        private void StartHeartbeat()
+        {
+            StopHeartbeat();
+            _heartbeatTimer = new System.Threading.Timer(
+                HeartbeatCallback,
+                null,
+                TimeSpan.FromMinutes(5),  // 5分钟后首次检查
+                TimeSpan.FromMinutes(20)  // 之后每20分钟检查一次
+            );
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳已启动（每20分钟检查一次）");
+            #endif
+        }
+
+        /// <summary>
+        /// 停止心跳定时器
+        /// </summary>
+        private void StopHeartbeat()
+        {
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+        }
+
+        /// <summary>
+        /// 生成验证令牌（登录成功时调用）
+        /// </summary>
+        private void GenerateAuthTokens()
+        {
+            if (string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(_token))
+            {
+                _authToken1 = null;
+                _authToken2 = null;
+                _authChecksum = 0;
+                return;
+            }
+            
+            // 令牌1：用户名 + Token 的哈希
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes1 = Encoding.UTF8.GetBytes($"{_username}:{_token}:TOKEN1");
+                var hash1 = sha256.ComputeHash(bytes1);
+                _authToken1 = Convert.ToBase64String(hash1);
+            }
+            
+            // 令牌2：过期时间 + 剩余天数的哈希
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes2 = Encoding.UTF8.GetBytes($"{_expiresAt?.Ticks}:{_remainingDays}:TOKEN2");
+                var hash2 = sha256.ComputeHash(bytes2);
+                _authToken2 = Convert.ToBase64String(hash2);
+            }
+            
+            // 校验和：令牌1和令牌2的组合哈希
+            _authChecksum = _authToken1.GetHashCode() ^ _authToken2.GetHashCode();
+        }
+        
+        /// <summary>
+        /// 验证令牌完整性（防止单点破解）
+        /// </summary>
+        private bool ValidateAuthTokens()
+        {
+            // 如果没有令牌，认为未登录
+            if (string.IsNullOrEmpty(_authToken1) || string.IsNullOrEmpty(_authToken2))
+            {
+                return false;
+            }
+            
+            // 验证校验和
+            var expectedChecksum = _authToken1.GetHashCode() ^ _authToken2.GetHashCode();
+            if (_authChecksum != expectedChecksum)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌校验和不匹配，可能被篡改");
+                #endif
+                return false;
+            }
+            
+            // 重新验证令牌1
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes1 = Encoding.UTF8.GetBytes($"{_username}:{_token}:TOKEN1");
+                var hash1 = sha256.ComputeHash(bytes1);
+                var expectedToken1 = Convert.ToBase64String(hash1);
+                if (_authToken1 != expectedToken1)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌1验证失败");
+                    #endif
+                    return false;
+                }
+            }
+            
+            // 重新验证令牌2
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes2 = Encoding.UTF8.GetBytes($"{_expiresAt?.Ticks}:{_remainingDays}:TOKEN2");
+                var hash2 = sha256.ComputeHash(bytes2);
+                var expectedToken2 = Convert.ToBase64String(hash2);
+                if (_authToken2 != expectedToken2)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌2验证失败");
+                    #endif
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// 验证是否可以使用投影功能（防止时间篡改 + 防止单点破解）
+        /// </summary>
+        public bool CanUseProjection()
+        {
+            // 🔒 多重验证1：检查认证状态
+            if (!_isAuthenticated)
+            {
+                return false;
+            }
+            
+            // 🔒 多重验证2：验证令牌完整性（防止跳过登录）
+            if (!ValidateAuthTokens())
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌验证失败，拒绝投影");
+                #endif
+                return false;
+            }
+
+            // 使用服务器时间进行验证
+            var estimatedServerTime = GetEstimatedServerTime();
+            
+            if (_expiresAt == null)
+            {
+                return false;
+            }
+
+            bool isValid = estimatedServerTime < _expiresAt.Value;
+
+            #if DEBUG
+            if (!isValid)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 账号已过期");
+                System.Diagnostics.Debug.WriteLine($"   估算服务器时间: {estimatedServerTime}");
+                System.Diagnostics.Debug.WriteLine($"   过期时间: {_expiresAt}");
+            }
+            #endif
+
+            return isValid;
+        }
+
+        /// <summary>
+        /// 获取估算的服务器时间（使用 TickCount64 防止本地时间篡改）
+        /// TickCount64 是系统启动后的毫秒数，不受系统时间修改影响
+        /// </summary>
+        private DateTime GetEstimatedServerTime()
+        {
+            if (_lastServerTime == null)
+            {
+                // 如果没有服务器时间记录，使用本地时间（降级方案）
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 无服务器时间记录，使用本地时间: {DateTime.Now}");
+                #endif
+                return DateTime.Now;
+            }
+
+            // 使用 TickCount64 计算真实流逝的时间（不受系统时间修改影响）
+            long currentTick = Environment.TickCount64;
+            long elapsedMilliseconds = currentTick - _lastTickCount;
+            
+            // 防止负数（系统重启导致 TickCount 重置）
+            if (elapsedMilliseconds < 0)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] TickCount 异常（可能系统重启），使用本地时间");
+                #endif
+                // 降级到使用本地时间差（虽然不完美，但总比崩溃好）
+                if (_lastLocalTime != null)
+                {
+                    var localElapsed = DateTime.Now - _lastLocalTime.Value;
+                    // 防止用户回退时间
+                    if (localElapsed.TotalSeconds < 0)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 检测到时间回退，强制使用正向流逝");
+                        #endif
+                        localElapsed = TimeSpan.Zero;
+                    }
+                    return _lastServerTime.Value + localElapsed;
+                }
+                return DateTime.Now;
+            }
+            
+            // 估算当前的服务器时间
+            var elapsedTimeSpan = TimeSpan.FromMilliseconds(elapsedMilliseconds);
+            var estimatedServerTime = _lastServerTime.Value + elapsedTimeSpan;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次服务器时间: {_lastServerTime.Value}");
+            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次Tick: {_lastTickCount}");
+            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 当前Tick: {currentTick}");
+            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 真实流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
+            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 估算服务器时间: {estimatedServerTime}");
+            
+            // 额外检测：对比本地时间流逝，检测时间篡改
+            if (_lastLocalTime != null)
+            {
+                var localElapsed = DateTime.Now - _lastLocalTime.Value;
+                var timeDiff = Math.Abs((localElapsed - elapsedTimeSpan).TotalSeconds);
+                if (timeDiff > 60) // 差异超过1分钟
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 检测到时间异常！");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地时间流逝: {localElapsed.TotalSeconds:F1} 秒");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] Tick流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 差异: {timeDiff:F1} 秒（可能本地时间被修改）");
+                }
+            }
+            #endif
+
+            return estimatedServerTime;
+        }
+
+        /// <summary>
+        /// 获取硬件ID（用于设备绑定）
+        /// </summary>
+        private string GetHardwareId()
+        {
+            try
+            {
+                // 使用CPU ID + 主板序列号生成唯一硬件ID
+                var cpuId = GetCpuId();
+                var boardSerial = GetBoardSerial();
+                var combined = $"{cpuId}_{boardSerial}";
+                
+                // 生成SHA256哈希
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
+                    return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 获取硬件ID失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+                // 降级方案：使用机器名
+                return Environment.MachineName;
+            }
+        }
+
+        /// <summary>
+        /// 获取CPU ID
+        /// </summary>
+        private string GetCpuId()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        return obj["ProcessorId"]?.ToString() ?? "UNKNOWN";
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略异常
+            }
+            return "UNKNOWN";
+        }
+
+        /// <summary>
+        /// 获取主板序列号
+        /// </summary>
+        private string GetBoardSerial()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        return obj["SerialNumber"]?.ToString() ?? "UNKNOWN";
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略异常
+            }
+            return "UNKNOWN";
+        }
+
+        /// <summary>
+        /// 获取认证状态摘要（用于UI显示）
+        /// </summary>
+        public string GetStatusSummary()
+        {
+            if (!_isAuthenticated)
+            {
+                return "未登录";
+            }
+
+            if (!CanUseProjection())
+            {
+                return "账号已过期";
+            }
+
+            if (_remainingDays <= 7)
+            {
+                return $"账号即将过期（剩余{_remainingDays}天）";
+            }
+
+            return $"已登录 - {_username}（剩余{_remainingDays}天）";
+        }
+
+        /// <summary>
+        /// 获取设备绑定信息摘要
+        /// </summary>
+        public string GetDeviceBindingSummary()
+        {
+            if (_deviceInfo == null)
+            {
+                return "设备信息未知";
+            }
+
+            if (_deviceInfo.RemainingSlots <= 0)
+            {
+                return $"设备已满：{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}台";
+            }
+
+            return $"设备绑定：{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}台（剩余{_deviceInfo.RemainingSlots}个槽位）";
+        }
+
+        /// <summary>
+        /// 用户自助重置绑定设备（需要密码验证，限3次）
+        /// </summary>
+        public async Task<(bool success, string message, int remainingCount)> ResetDevicesAsync(string password)
+        {
+            if (!_isAuthenticated || string.IsNullOrEmpty(_username))
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 未登录或用户名为空");
+                System.Diagnostics.Debug.WriteLine($"   IsAuthenticated: {_isAuthenticated}");
+                System.Diagnostics.Debug.WriteLine($"   Username: {_username ?? "null"}");
+                #endif
+                return (false, "请先登录", 0);
+            }
+
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 开始重置设备: {_username}");
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 当前解绑次数: {_resetDeviceCount}");
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {API_BASE_URL}/api/user/reset-devices");
+                #endif
+
+                var requestData = new
+                {
+                    username = _username,
+                    password = password
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求数据: username={_username}, password=***");
+                #endif
+                
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 正在发送HTTP POST请求...");
+                #endif
+                
+                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/reset-devices", content);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] HTTP状态码: {response.StatusCode}");
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应头: {response.Headers}");
+                #endif
+                
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 服务器响应内容: {responseContent}");
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应长度: {responseContent.Length} 字节");
+                #endif
+
+                var resetResponse = JsonSerializer.Deserialize<ResetDeviceResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (resetResponse == null)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON 反序列化失败，返回 null");
+                    #endif
+                    return (false, "服务器响应解析失败", 0);
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 解析结果:");
+                System.Diagnostics.Debug.WriteLine($"   Success: {resetResponse.Success}");
+                System.Diagnostics.Debug.WriteLine($"   Message: {resetResponse.Message}");
+                System.Diagnostics.Debug.WriteLine($"   ResetCount: {resetResponse.ResetCount}");
+                System.Diagnostics.Debug.WriteLine($"   ResetRemaining: {resetResponse.ResetRemaining}");
+                #endif
+
+                if (!resetResponse.Success)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 服务器返回失败: {resetResponse.Message}");
+                    #endif
+                    return (false, resetResponse.Message, resetResponse.ResetCount);
+                }
+
+                // 更新本地重置次数
+                _resetDeviceCount = resetResponse.ResetRemaining;
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 设备重置成功，剩余{_resetDeviceCount}次");
+                System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 本地_resetDeviceCount已更新为: {_resetDeviceCount}");
+                #endif
+
+                return (true, resetResponse.Message, _resetDeviceCount);
+            }
+            catch (HttpRequestException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] HTTP请求异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                #endif
+                return (false, $"网络请求失败: {ex.Message}", 0);
+            }
+            catch (JsonException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON解析异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                #endif
+                return (false, $"响应解析失败: {ex.Message}", 0);
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 未知异常: {ex.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常消息: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                #endif
+                return (false, $"重置失败: {ex.Message}", 0);
+            }
+        }
+
+        /// <summary>
+        /// 重置设备响应
+        /// </summary>
+        private class ResetDeviceResponse
+        {
+            public bool Success { get; set; }
+            public string Message { get; set; }
+            
+            [JsonPropertyName("reset_count")]
+            public int ResetCount { get; set; }
+            
+            [JsonPropertyName("reset_remaining")]
+            public int ResetRemaining { get; set; }
+        }
+
+        #region 登录状态持久化
+
+        /// <summary>
+        /// 保存登录状态到本地文件（带签名防篡改）
+        /// </summary>
+        private async Task SaveAuthDataAsync()
+        {
+            try
+            {
+                var authData = new
+                {
+                    username = _username,
+                    token = _token,
+                    expires_at = _expiresAt?.ToString("O"),
+                    remaining_days = _remainingDays,
+                    last_server_time = _lastServerTime?.ToString("O"),
+                    last_local_time = _lastLocalTime?.ToString("O"),
+                    last_tick_count = _lastTickCount,
+                    reset_device_count = _resetDeviceCount,
+                    device_info = _deviceInfo != null ? new
+                    {
+                        bound_devices = _deviceInfo.BoundDevices,
+                        max_devices = _deviceInfo.MaxDevices,
+                        remaining_slots = _deviceInfo.RemainingSlots,
+                        is_new_device = _deviceInfo.IsNewDevice
+                    } : null
+                };
+
+                var json = JsonSerializer.Serialize(authData);
+                
+                // 生成HMAC签名（使用硬件ID作为密钥）
+                var signature = GenerateSignature(json);
+                
+                // 组合数据和签名
+                var signedData = new
+                {
+                    data = Convert.ToBase64String(Encoding.UTF8.GetBytes(json)),
+                    signature = signature
+                };
+                
+                var signedJson = JsonSerializer.Serialize(signedData);
+                var encrypted = Convert.ToBase64String(Encoding.UTF8.GetBytes(signedJson));
+
+                // 确保目录存在
+                var directory = System.IO.Path.GetDirectoryName(AUTH_DATA_FILE);
+                if (!System.IO.Directory.Exists(directory))
+                {
+                    System.IO.Directory.CreateDirectory(directory);
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 已创建目录: {directory}");
+                    #endif
+                }
+
+                // 写入文件
+                await System.IO.File.WriteAllTextAsync(AUTH_DATA_FILE, encrypted);
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 登录状态已保存到: {AUTH_DATA_FILE}");
+                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 文件大小: {encrypted.Length} 字节");
+                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 数据已签名保护");
+                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的解绑次数: {_resetDeviceCount}");
+                if (_deviceInfo != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 保存的设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                }
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 目标路径: {AUTH_DATA_FILE}");
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 异常详情: {ex}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 从本地文件加载登录状态
+        /// </summary>
+        private async Task TryLoadAuthDataAsync()
+        {
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 尝试加载登录状态: {AUTH_DATA_FILE}");
+                #endif
+
+                if (!System.IO.File.Exists(AUTH_DATA_FILE))
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 无本地登录状态文件");
+                    #endif
+                    return;
+                }
+
+                // 读取文件
+                var encrypted = await System.IO.File.ReadAllTextAsync(AUTH_DATA_FILE);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 已读取文件，大小: {encrypted.Length} 字节");
+                #endif
+                
+                // 第一层解密
+                var bytes = Convert.FromBase64String(encrypted);
+                var signedJson = Encoding.UTF8.GetString(bytes);
+                
+                // 解析带签名的数据
+                var signedData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(signedJson);
+                
+                if (signedData == null || !signedData.ContainsKey("data") || !signedData.ContainsKey("signature"))
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 数据格式错误，缺少签名");
+                    #endif
+                    DeleteAuthData();
+                    return;
+                }
+                
+                // 提取数据和签名
+                var dataBase64 = signedData["data"].GetString();
+                var storedSignature = signedData["signature"].GetString();
+                var dataBytes = Convert.FromBase64String(dataBase64);
+                var json = Encoding.UTF8.GetString(dataBytes);
+                
+                // 验证签名
+                var expectedSignature = GenerateSignature(json);
+                if (storedSignature != expectedSignature)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 签名验证失败，数据可能被篡改");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 存储签名: {storedSignature}");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 期望签名: {expectedSignature}");
+                    #endif
+                    DeleteAuthData();
+                    return;
+                }
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 签名验证成功");
+                #endif
+
+                // 解析数据
+                var authData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+
+                if (authData != null)
+                {
+                    _username = authData["username"].GetString();
+                    _token = authData["token"].GetString();
+                    
+                    if (authData.TryGetValue("expires_at", out var expiresAt) && !string.IsNullOrEmpty(expiresAt.GetString()))
+                    {
+                        _expiresAt = DateTime.Parse(expiresAt.GetString());
+                    }
+                    
+                    _remainingDays = authData["remaining_days"].GetInt32();
+                    
+                    if (authData.TryGetValue("last_server_time", out var lastServerTime) && !string.IsNullOrEmpty(lastServerTime.GetString()))
+                    {
+                        _lastServerTime = DateTime.Parse(lastServerTime.GetString());
+                    }
+                    
+                    if (authData.TryGetValue("last_local_time", out var lastLocalTime) && !string.IsNullOrEmpty(lastLocalTime.GetString()))
+                    {
+                        _lastLocalTime = DateTime.Parse(lastLocalTime.GetString());
+                    }
+                    
+                    if (authData.TryGetValue("last_tick_count", out var lastTickCount))
+                    {
+                        _lastTickCount = lastTickCount.GetInt64();
+                    }
+                    
+                    // 恢复解绑次数
+                    if (authData.TryGetValue("reset_device_count", out var resetDeviceCount))
+                    {
+                        _resetDeviceCount = resetDeviceCount.GetInt32();
+                    }
+                    
+                    // 恢复设备信息
+                    if (authData.TryGetValue("device_info", out var deviceInfoJson) && deviceInfoJson.ValueKind != JsonValueKind.Null)
+                    {
+                        _deviceInfo = new DeviceInfo
+                        {
+                            BoundDevices = deviceInfoJson.GetProperty("bound_devices").GetInt32(),
+                            MaxDevices = deviceInfoJson.GetProperty("max_devices").GetInt32(),
+                            RemainingSlots = deviceInfoJson.GetProperty("remaining_slots").GetInt32(),
+                            IsNewDevice = deviceInfoJson.GetProperty("is_new_device").GetBoolean()
+                        };
+                    }
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 已解析登录数据: {_username}");
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 过期时间: {_expiresAt}");
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 剩余天数: {_remainingDays}");
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] TickCount: {_lastTickCount}");
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 解绑次数: {_resetDeviceCount}");
+                    if (_deviceInfo != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 设备信息: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                    }
+                    #endif
+
+                    // 先设置为已认证状态，再检查是否过期
+                    _isAuthenticated = true;
+                    
+                    // 🔒 生成验证令牌（自动登录）
+                    GenerateAuthTokens();
+                    
+                    // 检查账号是否仍然有效
+                    if (CanUseProjection())
+                    {
+                        // 启动心跳
+                        StartHeartbeat();
+                        
+                        // 触发事件（自动登录，不弹窗）
+                        AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs 
+                        { 
+                            IsAuthenticated = true, 
+                            IsAutoLogin = true 
+                        });
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 自动登录成功: {_username}, 剩余{_remainingDays}天");
+                        #endif
+                    }
+                    else
+                    {
+                        // 账号已过期，清除认证状态并删除本地文件
+                        _isAuthenticated = false;
+                        _username = null;
+                        _token = null;
+                        DeleteAuthData();
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 本地登录已过期");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 加载登录状态失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+                
+                // 加载失败，删除损坏的文件
+                DeleteAuthData();
+            }
+        }
+
+        /// <summary>
+        /// 删除本地保存的登录状态
+        /// </summary>
+        private void DeleteAuthData()
+        {
+            try
+            {
+                if (System.IO.File.Exists(AUTH_DATA_FILE))
+                {
+                    System.IO.File.Delete(AUTH_DATA_FILE);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 本地登录状态已删除");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 删除登录状态失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 生成数据签名（使用HMAC-SHA256 + 硬件ID作为密钥）
+        /// 防止数据被篡改
+        /// </summary>
+        private string GenerateSignature(string data)
+        {
+            try
+            {
+                // 使用硬件ID作为密钥
+                var hardwareId = GetHardwareId();
+                
+                // 添加固定盐值，增加破解难度
+                var key = $"{hardwareId}_CANVAS_CAST_SECRET_2024";
+                var keyBytes = Encoding.UTF8.GetBytes(key);
+                var dataBytes = Encoding.UTF8.GetBytes(data);
+                
+                // 使用HMAC-SHA256生成签名
+                using (var hmac = new System.Security.Cryptography.HMACSHA256(keyBytes))
+                {
+                    var hashBytes = hmac.ComputeHash(dataBytes);
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+            catch
+            {
+                // 降级方案：使用简单的哈希
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data + GetHardwareId()));
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+        }
+
+        #endregion
+
+        #region 试用投影验证（防止破解随机时间限制）
+
+        /// <summary>
+        /// 开始试用投影（未登录状态）
+        /// 生成随机时长和加密令牌
+        /// </summary>
+        public void StartTrialProjection()
+        {
+            // 已登录用户不需要试用
+            if (_isAuthenticated)
+            {
+                _trialProjectionStartTick = 0;
+                _trialDurationSeconds = 0;
+                _trialProjectionToken = null;
+                return;
+            }
+
+            // 生成随机试用时长（30-60秒）
+            var hardwareId = _username ?? Environment.MachineName;
+            var hashCode = hardwareId.GetHashCode();
+            var seed = Math.Abs(hashCode);
+            var random = new Random(seed);
+            _trialDurationSeconds = random.Next(30, 61);
+
+            // 记录开始时刻
+            _trialProjectionStartTick = Environment.TickCount64;
+
+            // 生成加密令牌（防止篡改）
+            _trialProjectionToken = GenerateTrialProjectionToken();
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔒 [试用投影] 已启动，时长: {_trialDurationSeconds}秒");
+            #endif
+        }
+
+        /// <summary>
+        /// 检查试用投影是否已过期
+        /// </summary>
+        public bool IsTrialProjectionExpired()
+        {
+            // 已登录用户无限制
+            if (_isAuthenticated)
+            {
+                return false;
+            }
+
+            // 未启动试用投影
+            if (_trialProjectionStartTick == 0)
+            {
+                return false;
+            }
+
+            // 验证令牌完整性
+            if (!ValidateTrialProjectionToken())
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [试用投影] 令牌验证失败，可能被篡改");
+                #endif
+                return true; // 令牌无效，视为过期
+            }
+
+            // 计算已流逝时间
+            var elapsedMs = Environment.TickCount64 - _trialProjectionStartTick;
+            var elapsedSeconds = elapsedMs / 1000;
+
+            //#if DEBUG
+            //if (elapsedSeconds % 10 == 0) // 每10秒输出一次
+            //{
+            //    System.Diagnostics.Debug.WriteLine($"🔒 [试用投影] 已用时: {elapsedSeconds}秒 / {_trialDurationSeconds}秒");
+            //}
+            //#endif
+
+            return elapsedSeconds >= _trialDurationSeconds;
+        }
+
+        /// <summary>
+        /// 获取试用投影剩余时间（秒）
+        /// </summary>
+        public int GetTrialProjectionRemainingSeconds()
+        {
+            if (_isAuthenticated || _trialProjectionStartTick == 0)
+            {
+                return -1; // 无限制
+            }
+
+            var elapsedMs = Environment.TickCount64 - _trialProjectionStartTick;
+            var elapsedSeconds = (int)(elapsedMs / 1000);
+            var remaining = _trialDurationSeconds - elapsedSeconds;
+
+            return Math.Max(0, remaining);
+        }
+
+        /// <summary>
+        /// 重置试用投影状态
+        /// </summary>
+        public void ResetTrialProjection()
+        {
+            _trialProjectionStartTick = 0;
+            _trialDurationSeconds = 0;
+            _trialProjectionToken = null;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔒 [试用投影] 已重置");
+            #endif
+        }
+
+        /// <summary>
+        /// 生成试用投影令牌（SHA256加密 + 动态密钥）
+        /// </summary>
+        private string GenerateTrialProjectionToken()
+        {
+            try
+            {
+                // 🔒 动态密钥（混淆在代码中，增加破解难度）
+                const string SECRET_SALT_1 = "CanvasCast_Trial_Projection_Key_2024";
+                const string SECRET_SALT_2 = "AntiCrack_Protection_Layer_SHA256";
+                
+                // 组合多个参数生成令牌（增加破解难度）
+                var data = $"{SECRET_SALT_1}:{_trialProjectionStartTick}:{_trialDurationSeconds}:{Environment.MachineName}:{Environment.UserName}:{SECRET_SALT_2}";
+                
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data));
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 验证试用投影令牌
+        /// </summary>
+        private bool ValidateTrialProjectionToken()
+        {
+            if (string.IsNullOrEmpty(_trialProjectionToken))
+            {
+                return false;
+            }
+
+            var expectedToken = GenerateTrialProjectionToken();
+            return _trialProjectionToken == expectedToken;
+        }
+
+        #endregion
+    }
+}
+
+

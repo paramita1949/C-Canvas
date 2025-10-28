@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Cast - 投影演示工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.95;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .feature {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .feature h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .feature p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .download-section {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .download-section h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .download-section p {
+            font-size: 16px;
+            margin-bottom: 25px;
+            opacity: 0.95;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+            padding: 12px 30px;
+            margin-left: 15px;
+        }
+        
+        .btn-secondary:hover {
+            background: white;
+            color: #667eea;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        
+        .info-box ol, .info-box ul {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.8;
+            padding-left: 25px;
+        }
+        
+        .info-box li {
+            margin-bottom: 8px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            border: 1px solid #ffc107;
+        }
+        
+        .warning-box h3 {
+            color: #856404;
+        }
+        
+        .warning-box ol, .warning-box ul {
+            color: #856404;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left-color: #28a745;
+            border: 1px solid #28a745;
+        }
+        
+        .success-box h3 {
+            color: #155724;
+        }
+        
+        .success-box ol, .success-box ul {
+            color: #155724;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-top: 30px;
+            opacity: 0.9;
+        }
+        
+        .version {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Canvas Cast</h1>
+            <p>专业的投影演示工具 - 让每一次演示都完美呈现</p>
+        </div>
+        
+        <div class="card">
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">🖼️</div>
+                    <h3>图片投影</h3>
+                    <p>支持多种格式，快速切换，流畅展示</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎬</div>
+                    <h3>视频播放</h3>
+                    <p>高清视频播放，支持实时控制</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📝</div>
+                    <h3>文本编辑</h3>
+                    <p>实时文本显示，多种字体样式</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⌨️</div>
+                    <h3>快捷操作</h3>
+                    <h3>快捷操作</h3>
+                    <p>丰富的快捷键，高效控制演示</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>关键帧</h3>
+                    <p>快速标记重点，精准定位内容</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <h3>设备绑定</h3>
+                    <p>支持多设备授权，安全可靠</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="download-section">
+            <h2>📥 下载 Canvas Cast</h2>
+            <p>下载后在软件内注册账号，联系管理员激活后即可使用</p>
+            <a href="#" class="btn" onclick="alert('请联系管理员获取下载链接'); return false;">下载 Windows 版本</a>
+            <a href="#contact" class="btn btn-secondary">联系管理员</a>
+        </div>
+        
+        <div class="card">
+            <div class="info-box">
+                <h3>🚀 使用流程</h3>
+                <ol>
+                    <li><strong>下载软件</strong> - 点击上方按钮下载最新版本</li>
+                    <li><strong>安装运行</strong> - 安装后打开软件</li>
+                    <li><strong>注册账号</strong> - 在软件内点击"注册账号"按钮</li>
+                    <li><strong>联系激活</strong> - 联系管理员完成付费和激活</li>
+                    <li><strong>开始使用</strong> - 激活后即可正常使用所有功能</li>
+                </ol>
+            </div>
+            
+            <div class="info-box warning-box">
+                <h3>⚠️ 重要说明</h3>
+                <ul>
+                    <li><strong>只能在软件内注册</strong> - 不支持网页注册，请下载软件后在软件内注册</li>
+                    <li><strong>设备绑定</strong> - 每个账号绑定到注册时的设备，更换设备需重新激活</li>
+                    <li><strong>账号激活</strong> - 注册成功后账号默认未激活，需联系管理员付费后开通</li>
+                    <li><strong>妥善保管</strong> - 请妥善保管您的账号密码，避免泄露</li>
+                </ul>
+            </div>
+            
+            <div class="info-box success-box" id="contact">
+                <h3>💬 联系方式</h3>
+                <ul>
+                    <li><strong>微信</strong>：请扫描软件内的二维码</li>
+                    <li><strong>邮箱</strong>：irenminbi@vip.qq.com（请替换为实际邮箱）</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Canvas Cast - 专业投影演示工具</p>
+            <span class="version">Version 5.1.6</span>
+            <p style="margin-top: 15px; font-size: 12px;">
+                © 2024 Canvas Cast. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -61,6 +61,9 @@ namespace ImageColorChanger.UI
                     _fpsMonitor.Dispose();
                 }
                 
+                // 🔐 清理认证服务
+                CleanupAuthService();
+                
                 // 清理数据库连接（关闭WAL文件）
                 CleanupDatabase();
             }

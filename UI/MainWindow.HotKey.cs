@@ -185,14 +185,14 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
-                // 🆕 空格键: 停止播放（脚本录制播放或合成播放）
+                // 🆕 F3键: 停止播放（脚本录制播放或合成播放）
                 _globalHotKeyManager.RegisterHotKey(
-                    Key.Space,
+                    Key.F3,
                     ModifierKeys.None,
                     () =>
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: Space");
+                        //System.Diagnostics.Debug.WriteLine("🎯 全局热键触发: F3");
                         //#endif
                         Dispatcher.InvokeAsync(() =>
                         {
@@ -201,7 +201,7 @@ namespace ImageColorChanger.UI
                             if (compositeService != null && compositeService.IsPlaying)
                             {
                                 //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] 空格键: 停止合成播放");
+                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] F3键: 停止合成播放");
                                 //#endif
                                 // 触发合成播放按钮点击事件（停止播放）
                                 BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
@@ -210,7 +210,7 @@ namespace ImageColorChanger.UI
                             else if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
                             {
                                 //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] 空格键: 停止脚本播放");
+                                //System.Diagnostics.Debug.WriteLine("⌨️ [投影] F3键: 停止脚本播放");
                                 //#endif
                                 // 停止播放
                                 BtnPlay_Click(null, null);

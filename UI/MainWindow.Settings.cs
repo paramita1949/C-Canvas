@@ -130,7 +130,7 @@ namespace ImageColorChanger.UI
             {
                 BtnImport, BtnProjection, BtnSync, BtnReset, BtnOriginal, BtnZoomReset, BtnColorEffect,
                 BtnAddKeyframe, BtnClearKeyframes, BtnPrevKeyframe, BtnNextKeyframe,
-                BtnPlay, BtnPlayCount, BtnRecord, BtnScript, BtnClearTiming, BtnPauseResume, BtnContact
+                BtnPlay, BtnPlayCount, BtnRecord, BtnScript, BtnClearTiming, BtnPauseResume, BtnLogin
             };
             
             // 文本编辑器按钮（应用缩小比例）

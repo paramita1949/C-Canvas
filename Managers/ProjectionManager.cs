@@ -19,6 +19,7 @@ using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using Screen = System.Windows.Forms.Screen;
 using LibVLCSharp.WPF;
 using Microsoft.Extensions.Caching.Memory;
+using ImageColorChanger.Services;
 
 namespace ImageColorChanger.Managers
 {
@@ -96,6 +97,30 @@ namespace ImageColorChanger.Managers
         #if DEBUG
         private int _scrollVerifyCount = 0;
         #endif
+        
+        // 🔒 投影时间限制（未登录状态）
+        private DateTime? _projectionStartTime;
+        private System.Threading.Timer _projectionTimer;
+        private long _projectionStartTick; // 使用 TickCount64 防篡改
+        private string _localProjectionChecksum; // 本地校验和（额外防护层）
+        
+        /// <summary>
+        /// 获取试用时长限制（随机30-60秒）
+        /// 随机化使得破解者无法预测具体时长
+        /// </summary>
+        private int GetTrialDurationSeconds()
+        {
+            // 基于硬件ID生成伪随机数，保证每台电脑相对固定，但不同电脑不同
+            var hardwareId = Services.AuthService.Instance.Username ?? Environment.MachineName;
+            var hashCode = hardwareId.GetHashCode();
+            var seed = Math.Abs(hashCode);
+            var random = new Random(seed);
+            
+            // 30-60秒随机
+            int minSeconds = 30;
+            int maxSeconds = 60;
+            return random.Next(minSeconds, maxSeconds + 1);
+        }
 
         /// <summary>
         /// 是否正在投影
@@ -231,6 +256,73 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
+                    // 🔒 后台静默验证投影权限（仅在有网络时执行，不阻塞UI）
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // 快速检测网络可用性（1秒超时）
+                            using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(1) })
+                            {
+                                try
+                                {
+                                    await client.GetAsync("https://www.baidu.com", System.Threading.CancellationToken.None);
+                                    
+                                    // 有网络，执行验证
+                                    #if DEBUG
+                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 检测到网络连接，开始后台验证");
+                                    #endif
+                                    
+                                    var (allowed, message) = await AuthService.Instance.VerifyProjectionPermissionAsync();
+                                    
+                                    #if DEBUG
+                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 后台网络验证结果: {message}（allowed={allowed}）");
+                                    #endif
+                                    
+                                    // 🔒 后台静默记录验证结果，不影响试用
+                                    // 验证目的：防止破解者绕过登录，但不阻止正常试用
+                                }
+                                catch
+                                {
+                                    // 无网络，跳过验证
+                                    #if DEBUG
+                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 无网络连接，跳过后台验证");
+                                    #endif
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
+                            #endif
+                        }
+                    });
+                    
+                    // 🔒 检查账号验证状态
+                    if (!AuthService.Instance.IsAuthenticated)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("⚠️ [投影] 未登录，将启用随机试用限制");
+                        #endif
+                        
+                        // 未登录，静默启用随机试用限制（不弹窗）
+                        // 时长由 GetTrialDurationSeconds() 随机决定（30-60秒）
+                    }
+                    else if (!AuthService.Instance.CanUseProjection())
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("❌ [投影] 账号已过期");
+                        #endif
+                        
+                        WpfMessageBox.Show(
+                            "您的账号已过期，无法使用投影功能。\n请联系管理员续费。",
+                            "账号已过期",
+                            WpfMessageBoxButton.OK,
+                            WpfMessageBoxImage.Warning);
+                        return false;
+                    }
+                    
                     // System.Diagnostics.Debug.WriteLine("打开投影窗口");
                     return OpenProjection();
                 }
@@ -1109,6 +1201,17 @@ namespace ImageColorChanger.Managers
                     // TODO: 设置全局热键
                 });
 
+                // 🔒 启动投影时间限制（未登录状态）
+                if (!AuthService.Instance.IsAuthenticated)
+                {
+                    StartProjectionTimer();
+                }
+                else
+                {
+                    // 已登录但需要检查账号有效期
+                    CheckAuthenticationPeriodically();
+                }
+
                 // 触发投影状态改变事件
                 ProjectionStateChanged?.Invoke(this, true);
 
@@ -1131,6 +1234,9 @@ namespace ImageColorChanger.Managers
             {
                 bool hadProjection = false;
                 _syncEnabled = false;
+
+                // 🔒 停止投影计时器
+                StopProjectionTimer();
 
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
@@ -1618,6 +1724,230 @@ namespace ImageColorChanger.Managers
                     mainWindow.SwitchToNextSimilarImage();
                 }
             });
+        }
+
+        #endregion
+
+        #region 投影时间限制
+
+        /// <summary>
+        /// 启动投影计时器（未登录状态的随机时间限制）
+        /// 🔒 集成AuthService双重验证 + 本地校验和，三层防护
+        /// </summary>
+        private void StartProjectionTimer()
+        {
+            // 🔒 第1层：AuthService启动试用投影验证（生成加密令牌）
+            AuthService.Instance.StartTrialProjection();
+            
+            // 🔒 第2层：本地记录（双重验证）
+            _projectionStartTime = DateTime.Now;
+            _projectionStartTick = Environment.TickCount64;
+            
+            // 🔒 第3层：生成本地校验和（额外防护）
+            _localProjectionChecksum = GenerateLocalProjectionChecksum();
+            
+            // 创建计时器，每秒检查一次
+            _projectionTimer = new System.Threading.Timer(
+                CheckProjectionTimeLimit,
+                null,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1)
+            );
+
+            #if DEBUG
+            int trialDuration = AuthService.Instance.GetTrialProjectionRemainingSeconds();
+            if (trialDuration > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已启动，{trialDuration}秒后自动关闭");
+            }
+            #endif
+        }
+
+        /// <summary>
+        /// 停止投影计时器
+        /// </summary>
+        private void StopProjectionTimer()
+        {
+            _projectionTimer?.Dispose();
+            _projectionTimer = null;
+            _projectionStartTime = null;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已停止");
+            #endif
+        }
+
+        /// <summary>
+        /// 检查投影时间限制（定时器回调）
+        /// 🔒 四重验证：登录状态 + AuthService令牌 + 本地时间 + 本地校验和
+        /// </summary>
+        private void CheckProjectionTimeLimit(object state)
+        {
+            if (!_projectionStartTime.HasValue || _projectionWindow == null)
+            {
+                StopProjectionTimer();
+                return;
+            }
+
+            // 🔐 验证1：先检查登录状态
+            if (AuthService.Instance.IsAuthenticated && AuthService.Instance.CanUseProjection())
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [投影限制] 检测到已登录，取消时间限制");
+                #endif
+                StopProjectionTimer();
+                AuthService.Instance.ResetTrialProjection();
+                _localProjectionChecksum = null;
+                return;
+            }
+
+            // 🔒 验证2：本地校验和验证（防止数据篡改）
+            bool checksumValid = ValidateLocalProjectionChecksum();
+            if (!checksumValid)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 本地校验和验证失败，数据可能被篡改！");
+                #endif
+                
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    CloseProjection();
+                });
+                
+                StopProjectionTimer();
+                AuthService.Instance.ResetTrialProjection();
+                _localProjectionChecksum = null;
+                return;
+            }
+
+            // 🔒 验证3：AuthService加密令牌验证（主要防护）
+            bool authExpired = AuthService.Instance.IsTrialProjectionExpired();
+            
+            // 🔒 验证4：本地时间验证（辅助防护）
+            long currentTick = Environment.TickCount64;
+            long elapsedMilliseconds = currentTick - _projectionStartTick;
+            int elapsedSeconds = (int)(elapsedMilliseconds / 1000);
+            
+            var elapsedByDateTime = (DateTime.Now - _projectionStartTime.Value).TotalSeconds;
+            int actualElapsedSeconds = Math.Max(elapsedSeconds, (int)elapsedByDateTime);
+            
+            int trialDuration = GetTrialDurationSeconds();
+            bool localExpired = actualElapsedSeconds >= trialDuration;
+
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 本地验证: {actualElapsedSeconds}/{trialDuration}秒, AuthService: {(authExpired ? "已过期" : "有效")}, 校验和: {(checksumValid ? "通过" : "失败")}");
+            //
+            //// 检测时间异常
+            //if (Math.Abs(elapsedSeconds - elapsedByDateTime) > 5)
+            //{
+            //    System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 检测到时间异常（差异{Math.Abs(elapsedSeconds - elapsedByDateTime):F1}秒）");
+            //}
+            //#endif
+
+            // 🔒 任一验证失败，立即关闭投影
+            if (authExpired || localExpired)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 时间已到，自动关闭投影");
+                System.Diagnostics.Debug.WriteLine($"   - AuthService验证: {(authExpired ? "失败" : "通过")}");
+                System.Diagnostics.Debug.WriteLine($"   - 本地时间验证: {(localExpired ? "失败" : "通过")}");
+                System.Diagnostics.Debug.WriteLine($"   - 本地校验和: {(checksumValid ? "通过" : "失败")}");
+                #endif
+
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    CloseProjection();
+                });
+
+                StopProjectionTimer();
+                AuthService.Instance.ResetTrialProjection();
+                _localProjectionChecksum = null;
+            }
+        }
+
+        /// <summary>
+        /// 定期检查账号有效期（已登录状态）
+        /// </summary>
+        private void CheckAuthenticationPeriodically()
+        {
+            // 创建计时器，每20分钟检查一次账号状态
+            _projectionTimer = new System.Threading.Timer(
+                (state) =>
+                {
+                    if (_projectionWindow == null)
+                    {
+                        StopProjectionTimer();
+                        return;
+                    }
+
+                    // 检查账号是否仍然有效
+                    if (!AuthService.Instance.IsAuthenticated || !AuthService.Instance.CanUseProjection())
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"❌ [投影验证] 账号已失效，关闭投影");
+                        #endif
+
+                        _mainWindow.Dispatcher.Invoke(() =>
+                        {
+                            CloseProjection();
+                            WpfMessageBox.Show(
+                                "您的账号已过期，投影功能已自动关闭。",
+                                "账号已过期",
+                                WpfMessageBoxButton.OK,
+                                WpfMessageBoxImage.Warning);
+                        });
+
+                        StopProjectionTimer();
+                    }
+                },
+                null,
+                TimeSpan.FromMinutes(5),  // 5分钟后首次检查
+                TimeSpan.FromMinutes(20)  // 之后每20分钟检查一次
+            );
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"✅ [投影验证] 已启动账号有效期监控（每20分钟检查一次）");
+            #endif
+        }
+
+        /// <summary>
+        /// 生成本地投影校验和（额外防护层，使用不同的密钥）
+        /// </summary>
+        private string GenerateLocalProjectionChecksum()
+        {
+            try
+            {
+                // 🔒 使用不同的密钥（与AuthService不同，增加破解难度）
+                const string LOCAL_SECRET_KEY_1 = "ProjectionManager_Local_Checksum_2024";
+                const string LOCAL_SECRET_KEY_2 = "MultiLayer_AntiCrack_Protection_System";
+                
+                var trialDuration = GetTrialDurationSeconds();
+                var data = $"{LOCAL_SECRET_KEY_1}:{_projectionStartTick}:{trialDuration}:{Environment.ProcessorCount}:{LOCAL_SECRET_KEY_2}";
+                
+                using (var sha256 = System.Security.Cryptography.SHA256.Create())
+                {
+                    var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(data));
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 验证本地投影校验和
+        /// </summary>
+        private bool ValidateLocalProjectionChecksum()
+        {
+            if (string.IsNullOrEmpty(_localProjectionChecksum))
+            {
+                return false;
+            }
+
+            var expectedChecksum = GenerateLocalProjectionChecksum();
+            return _localProjectionChecksum == expectedChecksum;
         }
 
         #endregion

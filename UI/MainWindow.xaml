@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.1.6"
+        Title="Canvas Cast V5.1.7"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -507,8 +507,9 @@
 
                     <!-- 暂停/继续按钮 -->
                     
-                    <Button x:Name="BtnContact" Content="联系" Style="{StaticResource BreathingContactButtonStyle}"
-                            ToolTip="Wechat" Click="BtnContact_Click" Margin="15,0,4,0"/>
+                    <!-- 登录按钮（使用联系按钮样式） -->
+                    <Button x:Name="BtnLogin" Content="登录" Style="{StaticResource BreathingContactButtonStyle}"
+                            ToolTip="登录账号解除投影限制" Click="BtnLogin_Click" Margin="15,0,4,0"/>
                 </StackPanel>
 
             </Grid>
