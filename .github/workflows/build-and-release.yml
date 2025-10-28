@@ -45,6 +45,36 @@ jobs:
     - name: 📦 发布调试版（用于 Release）
       run: dotnet publish ${{ env.PROJECT_NAME }}.csproj -c Release -o publish-original --self-contained false
     
+    - name: 🧹 清理调试版目录
+      shell: pwsh
+      run: |
+        Write-Host "=== 清理调试版 publish-original 目录 ===" -ForegroundColor Cyan
+        
+        # 删除 bin 文件夹（如果存在）
+        if (Test-Path "publish-original\bin") {
+          Write-Host "⚠️ 发现并删除 bin 文件夹..." -ForegroundColor Yellow
+          Remove-Item "publish-original\bin" -Recurse -Force
+          Write-Host "✅ 已删除 bin 文件夹" -ForegroundColor Green
+        } else {
+          Write-Host "✅ 不存在 bin 文件夹" -ForegroundColor Green
+        }
+        
+        # 检查 PAK 文件
+        if (Test-Path "publish-original\Resources.pak") {
+          $pakSize = (Get-Item "publish-original\Resources.pak").Length / 1MB
+          Write-Host "✅ PAK 文件存在: $([math]::Round($pakSize, 2)) MB" -ForegroundColor Green
+        } else {
+          Write-Host "❌ PAK 文件不存在！" -ForegroundColor Red
+          exit 1
+        }
+        
+        Write-Host ""
+        Write-Host "=== publish-original 目录内容 ===" -ForegroundColor Cyan
+        $fileCount = (Get-ChildItem "publish-original" -File | Measure-Object).Count
+        $dirCount = (Get-ChildItem "publish-original" -Directory | Measure-Object).Count
+        Write-Host "文件数量: $fileCount" -ForegroundColor Green
+        Write-Host "目录数量: $dirCount" -ForegroundColor Green
+    
     - name: 📋 获取版本号
       id: get_version
       shell: pwsh
@@ -152,40 +182,33 @@ jobs:
         
         # Copy EXE and other files to Confused directory
         Write-Host "复制启动器和依赖文件..." -ForegroundColor Yellow
+        Write-Host ""
         
-        # 复制主程序文件
-        Copy-Item "${{ env.OUTPUT_NAME }}.exe" -Destination "Confused\" -Force
-        Copy-Item "${{ env.OUTPUT_NAME }}.runtimeconfig.json" -Destination "Confused\" -Force
-        Copy-Item "${{ env.OUTPUT_NAME }}.deps.json" -Destination "Confused\" -Force
-        
-        # 复制所有 DLL（除了主 DLL，因为已经混淆过了）
-        Get-ChildItem -Filter "*.dll" | Where-Object { $_.Name -ne "${{ env.OUTPUT_NAME }}.dll" } | ForEach-Object {
+        # 先复制所有文件（除了主 DLL）到 Confused 目录
+        Get-ChildItem -File | Where-Object { $_.Name -ne "${{ env.OUTPUT_NAME }}.dll" } | ForEach-Object {
           Copy-Item $_.FullName -Destination "Confused\" -Force
-          Write-Host "  复制 DLL: $($_.Name)"
+          Write-Host "  复制文件: $($_.Name)" -ForegroundColor Gray
         }
         
-        # 复制 PAK 文件
-        if (Test-Path "Resources.pak") {
-          Copy-Item "Resources.pak" -Destination "Confused\" -Force
-          Write-Host "  复制 PAK: Resources.pak"
-        }
-        
-        # 复制 runtimes 目录（包含本机依赖）
-        if (Test-Path "runtimes") {
-          Copy-Item "runtimes" -Destination "Confused\runtimes" -Recurse -Force
-          Write-Host "  复制目录: runtimes"
-        }
-        
-        # 复制 libvlc 目录（如果存在）
-        if (Test-Path "libvlc") {
-          Copy-Item "libvlc" -Destination "Confused\libvlc" -Recurse -Force
-          Write-Host "  复制目录: libvlc"
+        # 复制所有子目录（runtimes、libvlc 等）
+        Get-ChildItem -Directory | Where-Object { $_.Name -ne "Confused" } | ForEach-Object {
+          Copy-Item $_.FullName -Destination "Confused\$($_.Name)" -Recurse -Force
+          Write-Host "  复制目录: $($_.Name)" -ForegroundColor Gray
         }
         
         # 列出 Confused 目录内容以便检查
         Write-Host ""
         Write-Host "=== Confused 目录内容 ===" -ForegroundColor Cyan
-        Get-ChildItem "Confused" -Name | ForEach-Object { Write-Host "  - $_" }
+        $confusedFiles = Get-ChildItem "Confused" -Recurse -File | Measure-Object
+        $confusedDirs = Get-ChildItem "Confused" -Recurse -Directory | Measure-Object
+        Write-Host "文件数量: $($confusedFiles.Count)" -ForegroundColor Green
+        Write-Host "目录数量: $($confusedDirs.Count)" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "根目录文件:" -ForegroundColor Yellow
+        Get-ChildItem "Confused" -File -Name | ForEach-Object { Write-Host "  - $_" }
+        Write-Host ""
+        Write-Host "子目录:" -ForegroundColor Yellow
+        Get-ChildItem "Confused" -Directory -Name | ForEach-Object { Write-Host "  - $_" }
         
         Write-Host ""
         Write-Host "✅ 所有文件已复制到 Confused 目录" -ForegroundColor Green
