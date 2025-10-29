@@ -1309,7 +1309,7 @@ namespace ImageColorChanger.UI
                     Tag = $"RegionImage_{_selectedRegionIndex}",
                     CacheMode = new BitmapCache // 🔥 启用GPU缓存，减少重复渲染
                     {
-                        RenderAtScale = 1.0
+                        RenderAtScale = CalculateOptimalRenderScale()  // 🔥 动态计算渲染质量：自适应1080p/2K/4K投影屏
                     }
                 };
                 
@@ -1610,7 +1610,27 @@ namespace ImageColorChanger.UI
                     border.Visibility = Visibility.Collapsed;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已调整分割线为细线，隐藏边框");
+                // 🔥 隐藏未加载图片的区域的序号标签
+                var labels = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
+                    .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
+                    .ToList();
+                
+                foreach (var label in labels)
+                {
+                    // 从Tag中提取区域索引
+                    var tagStr = label.Tag.ToString();
+                    if (int.TryParse(tagStr.Replace("RegionLabel_", ""), out int regionIndex))
+                    {
+                        // 检查该区域是否已加载图片
+                        if (!_regionImages.ContainsKey(regionIndex))
+                        {
+                            // 未加载图片，隐藏标签
+                            label.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已调整分割线为细线，隐藏边框和空白区域标签");
             }
             catch
             {
@@ -1655,7 +1675,17 @@ namespace ImageColorChanger.UI
                     border.Visibility = Visibility.Visible;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已恢复分割线和边框");
+                // 🔥 恢复所有区域序号标签（包括未加载图片的）
+                var labels = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
+                    .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
+                    .ToList();
+                
+                foreach (var label in labels)
+                {
+                    label.Visibility = Visibility.Visible;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已恢复分割线、边框和标签");
             }
             catch
             {
@@ -1812,7 +1842,7 @@ namespace ImageColorChanger.UI
                         Tag = $"RegionImage_{regionData.RegionIndex}",
                         CacheMode = new BitmapCache // 🔥 启用GPU缓存
                         {
-                            RenderAtScale = 1.0
+                            RenderAtScale = CalculateOptimalRenderScale()  // 🔥 动态计算渲染质量：自适应1080p/2K/4K投影屏
                         }
                     };
                     
@@ -2802,16 +2832,35 @@ namespace ImageColorChanger.UI
                 height = frameworkElement.ActualHeight > 0 ? frameworkElement.ActualHeight : frameworkElement.Height;
             }
             
+            // 🔥 根据投影屏分辨率动态计算渲染DPI，确保投影质量
+            var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionSize() ?? (1920, 1080);
+            
+            // 计算需要的DPI倍数（投影屏分辨率 / Canvas尺寸）
+            double scaleX = projWidth / width;
+            double scaleY = projHeight / height;
+            double dpiScale = Math.Max(scaleX, scaleY);
+            
+            // 计算渲染DPI（96为基准，限制最大4倍避免内存溢出）
+            double renderDpi = 96.0 * Math.Min(dpiScale, 4.0);
+            
+            // 计算实际渲染尺寸（按DPI缩放）
+            int renderWidth = (int)(width * renderDpi / 96.0);
+            int renderHeight = (int)(height * renderDpi / 96.0);
+            
+            #if DEBUG
+            // System.Diagnostics.Debug.WriteLine($"🎨 [RenderCanvas] Canvas={width}×{height}, 投影={projWidth}×{projHeight}, DPI={renderDpi:F0}, 渲染={renderWidth}×{renderHeight}");
+            #endif
+            
             // 确保元素已完成布局
             element.Measure(new System.Windows.Size(width, height));
             element.Arrange(new Rect(new System.Windows.Size(width, height)));
             element.UpdateLayout();
 
-            // 渲染到位图
+            // 渲染到高分辨率位图
             var renderBitmap = new RenderTargetBitmap(
-                (int)width,
-                (int)height,
-                96, 96,
+                renderWidth,
+                renderHeight,
+                renderDpi, renderDpi,  // 🔥 使用动态计算的DPI
                 PixelFormats.Pbgra32);
 
             renderBitmap.Render(element);
@@ -2862,6 +2911,44 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"   拉伸模式: 宽度填满，高度填满");
 
             return scaled;
+        }
+
+        /// <summary>
+        /// 计算最佳的BitmapCache渲染缩放比例，以适应投影屏幕分辨率
+        /// </summary>
+        /// <returns>渲染缩放比例（1.0-4.0）</returns>
+        private double CalculateOptimalRenderScale()
+        {
+            try
+            {
+                // 获取投影屏幕分辨率
+                var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionSize() ?? (1920, 1080);
+                
+                // 编辑器画布固定尺寸
+                const double canvasWidth = 1080.0;
+                const double canvasHeight = 700.0;
+                
+                // 计算宽度和高度的缩放比例
+                double scaleX = projWidth / canvasWidth;
+                double scaleY = projHeight / canvasHeight;
+                
+                // 使用较大的缩放比例，确保投影时质量充足
+                double scale = Math.Max(scaleX, scaleY);
+                
+                // 限制范围：1.0-4.0（避免过大导致内存问题）
+                scale = Math.Max(1.0, Math.Min(4.0, scale));
+                
+                #if DEBUG
+                // System.Diagnostics.Debug.WriteLine($"🎨 [RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
+                #endif
+                
+                return scale;
+            }
+            catch
+            {
+                // 异常时返回默认值2.0（适合1080p投影）
+                return 2.0;
+            }
         }
 
         /// <summary>
