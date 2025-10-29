@@ -130,7 +130,7 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $zipName = "Canvas-Cast-CSharp-$tag-win-x64.zip"
+        $zipName = "Canvas.zip"
         
         # 压缩发布文件
         Compress-Archive -Path publish\* -DestinationPath $zipName
@@ -139,7 +139,9 @@ jobs:
         if (Test-Path $zipName) {
           $size = (Get-Item $zipName).Length / 1MB
           echo "✅ 发布包创建成功"
+          echo "包名称: $zipName"
           echo "包大小: $([math]::Round($size, 2)) MB"
+          echo "版本号: $tag"
         } else {
           echo "❌ 发布包创建失败"
           exit 1
@@ -247,7 +249,7 @@ jobs:
           > 💡 **版本说明**：本版本使用 C# / WPF 开发，基于 .NET 8.0 框架
           
           ### 📦 下载说明
-          - 下载 `${{ steps.create_package.outputs.zip_name }}` 
+          - 下载 `Canvas.zip` 
           - 解压到任意目录
           - 运行 `Canvas Cast.exe`
           
