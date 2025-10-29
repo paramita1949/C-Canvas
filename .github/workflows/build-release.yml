@@ -170,6 +170,68 @@ jobs:
         }
         echo "======================"
     
+    - name: 检查并删除已存在的 Release
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $tag = "${{ steps.get_version.outputs.tag }}"
+        echo "=== 检查 Release 是否存在 ==="
+        echo "标签: $tag"
+        
+        # 获取 Release 信息
+        $headers = @{
+          "Authorization" = "Bearer $env:GITHUB_TOKEN"
+          "Accept" = "application/vnd.github+json"
+          "X-GitHub-Api-Version" = "2022-11-28"
+        }
+        
+        $repo = "${{ github.repository }}"
+        $releaseUrl = "https://api.github.com/repos/$repo/releases/tags/$tag"
+        
+        try {
+          $response = Invoke-WebRequest -Uri $releaseUrl -Headers $headers -Method Get -ErrorAction Stop
+          $releaseData = $response.Content | ConvertFrom-Json
+          $releaseId = $releaseData.id
+          
+          echo "⚠️ 发现已存在的 Release (ID: $releaseId)，正在删除..."
+          
+          # 删除 Release
+          $deleteUrl = "https://api.github.com/repos/$repo/releases/$releaseId"
+          Invoke-WebRequest -Uri $deleteUrl -Headers $headers -Method Delete -ErrorAction Stop | Out-Null
+          echo "✅ 已删除旧的 Release"
+          
+          # 等待一下确保删除完成
+          Start-Sleep -Seconds 2
+        } catch {
+          if ($_.Exception.Response.StatusCode -eq 404) {
+            echo "✅ Release 不存在，无需删除"
+          } else {
+            echo "⚠️ 检查 Release 时出错: $($_.Exception.Message)"
+          }
+        }
+        
+        # 检查并删除 Tag
+        $tagUrl = "https://api.github.com/repos/$repo/git/refs/tags/$tag"
+        try {
+          Invoke-WebRequest -Uri $tagUrl -Headers $headers -Method Get -ErrorAction Stop | Out-Null
+          echo "⚠️ 发现已存在的 Tag，正在删除..."
+          
+          Invoke-WebRequest -Uri $tagUrl -Headers $headers -Method Delete -ErrorAction Stop | Out-Null
+          echo "✅ 已删除旧的 Tag"
+          
+          # 等待一下确保删除完成
+          Start-Sleep -Seconds 2
+        } catch {
+          if ($_.Exception.Response.StatusCode -eq 404) {
+            echo "✅ Tag 不存在，无需删除"
+          } else {
+            echo "⚠️ 检查 Tag 时出错: $($_.Exception.Message)"
+          }
+        }
+        
+        echo "=== 检查完成，准备创建新的 Release ==="
+    
     - name: 创建 GitHub Release
       uses: softprops/action-gh-release@v1
       with:

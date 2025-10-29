@@ -1169,7 +1169,7 @@ namespace ImageColorChanger.Services
             {
                 var localElapsed = DateTime.Now - _lastLocalTime.Value;
                 var timeDiff = Math.Abs((localElapsed - elapsedTimeSpan).TotalSeconds);
-                if (timeDiff > 60) // 差异超过1分钟
+                if (timeDiff > 600) // 差异超过1分钟
                 {
                     System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 检测到时间异常！");
                     System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地时间流逝: {localElapsed.TotalSeconds:F1} 秒");
