@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
-using Microsoft.International.Converters.PinYinConverter;
+using TinyPinyin;
 
 namespace ImageColorChanger.Managers
 {
@@ -113,42 +113,40 @@ namespace ImageColorChanger.Managers
             if (string.IsNullOrEmpty(text))
                 return "";
 
-            var pinyin = new System.Text.StringBuilder();
-
-            foreach (char c in text)
+            try
             {
-                if (ChineseChar.IsValidChar(c))
+                // 使用 TinyPinyin 获取拼音首字母
+                var pinyin = new System.Text.StringBuilder();
+                
+                foreach (char c in text)
                 {
-                    // 中文字符，获取拼音首字母
-                    try
+                    if (PinyinHelper.IsChinese(c))
                     {
-                        var chineseChar = new ChineseChar(c);
-                        var pinyins = chineseChar.Pinyins;
-                        if (pinyins != null && pinyins.Count > 0)
+                        // 获取拼音首字母
+                        var py = PinyinHelper.GetPinyin(c.ToString());
+                        if (!string.IsNullOrEmpty(py))
                         {
-                            // 获取第一个拼音的首字母
-                            var firstPinyin = pinyins[0];
-                            if (!string.IsNullOrEmpty(firstPinyin))
-                            {
-                                pinyin.Append(firstPinyin[0]);
-                            }
+                            pinyin.Append(py[0]); // 取首字母
+                        }
+                        else
+                        {
+                            pinyin.Append(c);
                         }
                     }
-                    catch
+                    else
                     {
-                        // 如果转换失败，保留原字符
+                        // 非中文字符，直接添加
                         pinyin.Append(c);
                     }
                 }
-                else
-                {
-                    // 非中文字符，直接添加
-                    pinyin.Append(c);
-                }
-            }
 
-            return pinyin.ToString();
+                return pinyin.ToString();
+            }
+            catch
+            {
+                // 如果转换失败，返回原文本
+                return text;
+            }
         }
     }
 }
-

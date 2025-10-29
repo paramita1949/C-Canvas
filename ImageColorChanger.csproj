@@ -1,5 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -16,9 +15,8 @@
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 Canvas Cast</Copyright>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.International.Converters.PinYinConverter" Version="1.0.0" />
+    <PackageReference Include="TinyPinyin.NET" Version="1.0.2" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />
     <!-- GPU加速支持 -->
@@ -38,15 +36,13 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.20" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
   </ItemGroup>
-  
   <ItemGroup>
     <Resource Include="baodian.ico" />
     <!-- weixin.png 和 pay.png 现在从 PAK 加载，不再嵌入为资源 -->
   </ItemGroup>
-  
   <!-- 确保PAK文件被包含在发布输出中 -->
   <ItemGroup>
     <Content Include="$(OutDir)Resources.pak" Condition="Exists('$(OutDir)Resources.pak')">
@@ -54,29 +50,24 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
-  
   <!-- Fonts 和图片资源现在通过 PAK 打包，不再复制到输出目录 -->
-  
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Remove="V257\**" />
     <Compile Remove="BuildTools\**" />
     <EmbeddedResource Remove="V257\**" />
     <None Remove="V257\**" />
   </ItemGroup>
-
   <!-- Pack resources after build -->
   <Target Name="PackResources" AfterTargets="Build">
     <Message Text="[PAK] Building pack tool..." Importance="high" />
     <Exec Command="dotnet build BuildTools\PackResources.csproj -c Release -o BuildTools\bin -v quiet" />
-    
     <Message Text="[PAK] Packing resources..." Importance="high" />
     <MakeDir Directories="$(OutDir)" Condition="!Exists('$(OutDir)')" />
     <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
     <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
   </Target>
-
+  <Import Project="ImageColorChanger.dotnet_reactor.targets" Condition="Exists('ImageColorChanger.dotnet_reactor.targets')" />
 </Project>
