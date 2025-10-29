@@ -922,10 +922,10 @@
                                 <MenuItem Header="15.0秒" Click="SetScrollSpeed_Click" Tag="15.0" IsCheckable="True"/>
                             </MenuItem>
                             <MenuItem Header="滚动函数">
-                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True" IsChecked="True"/>
+                                <MenuItem Header="贝塞尔曲线" Click="SetScrollEasing_Click" Tag="Bezier" IsCheckable="True"/>
                                 <MenuItem Header="CSS缓入缓出" Click="SetScrollEasing_Click" Tag="CssEaseInOut" IsCheckable="True"/>
                                 <MenuItem Header="超级平滑" Click="SetScrollEasing_Click" Tag="UltraSmooth" IsCheckable="True"/>
-                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True"/>
+                                <MenuItem Header="线性滚动" Click="SetScrollEasing_Click" Tag="Linear" IsCheckable="True" IsChecked="True"/>
                             </MenuItem>
                         </ContextMenu>
                     </ScrollViewer.ContextMenu>

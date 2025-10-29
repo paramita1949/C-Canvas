@@ -23,11 +23,11 @@ namespace ImageColorChanger.UI
         // 滚动速度设置（默认9秒）
         private double _scrollDuration = 9.0;
         
-        // 滚动缓动类型（默认贝塞尔曲线）
-        private string _scrollEasingType = "Bezier";
+        // 滚动缓动类型（默认线性）
+        private string _scrollEasingType = "Linear";
         
         // 是否使用线性滚动（无缓动）
-        private bool _isLinearScrolling = false;
+        private bool _isLinearScrolling = true;
         
         // 合成播放的Storyboard引用（用于停止时清除）
         private System.Windows.Media.Animation.Storyboard _compositeScrollStoryboard = null;
