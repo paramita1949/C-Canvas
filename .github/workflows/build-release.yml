@@ -43,37 +43,31 @@ jobs:
       id: get_version
       shell: pwsh
       run: |
-        if ($env:GITHUB_REF -like 'refs/tags/v*') {
-          $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        if ($env:GITHUB_REF -like 'refs/tags/*') {
+          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          $version = $tag
+          echo "检测到推送 tag: $tag"
         } else {
-          # 从MainWindow.xaml的Title属性中读取版本号
-          $xamlFile = "UI\MainWindow.xaml"
-          if (Test-Path $xamlFile) {
-            $titleMatch = Select-String -Path $xamlFile -Pattern 'Title="[^"]*V(\d+\.\d+\.\d+)"' | ForEach-Object { $_.Matches[0].Groups[1].Value }
-            if ($titleMatch) {
-              $version = $titleMatch
-              echo "从MainWindow.xaml读取版本: $version"
-            } else {
-              # 如果读取失败，使用时间戳作为后备
-              $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-              $version = "dev-$timestamp"
-              echo "无法从MainWindow.xaml读取版本，使用时间戳: $version"
-            }
-          } else {
-            # 如果文件不存在，使用时间戳作为后备
-            $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-            $version = "dev-$timestamp"
-            echo "MainWindow.xaml文件不存在，使用时间戳: $version"
+          $runNumber = $env:GITHUB_RUN_NUMBER
+          $tagBase = "auto-$runNumber"
+
+          try {
+            $shortSha = (git rev-parse --short HEAD).Trim()
+          } catch {
+            $shortSha = ''
+            echo "警告: 无法获取提交哈希，tag 将不包含哈希"
           }
+
+          if ($shortSha) {
+            $tag = "$tagBase-$shortSha"
+          } else {
+            $tag = $tagBase
+          }
+
+          $version = $tag
+          echo "未检测到外部 tag，自动生成 tag: $tag"
         }
-        
-        # 如果版本号已经有V前缀，直接使用；否则添加V前缀
-        if ($version -like 'V*') {
-          $tag = $version
-        } else {
-          $tag = "V$version"
-        }
-        
+
         echo "version=$version" >> $env:GITHUB_OUTPUT
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
         echo "构建版本: $version"
