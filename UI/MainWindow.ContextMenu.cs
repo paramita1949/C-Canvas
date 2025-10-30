@@ -27,10 +27,35 @@ namespace ImageColorChanger.UI
             }
         }
 
+        /// <summary>
+        /// 右键菜单打开事件 - 如果没有图片则阻止显示
+        /// </summary>
+        private void CanvasContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            // 如果没有加载图片，立即关闭菜单
+            if (_imageProcessor.CurrentImage == null)
+            {
+                if (sender is ContextMenu menu)
+                {
+                    menu.IsOpen = false;
+                }
+            }
+        }
+
         private void ImageScrollViewer_RightClick(object sender, MouseButtonEventArgs e)
         {
+            // 如果没有加载图片，阻止显示右键菜单
             if (_imageProcessor.CurrentImage == null)
+            {
+                e.Handled = true;
+                
+                // 确保菜单不会显示
+                if (ImageScrollViewer.ContextMenu != null)
+                {
+                    ImageScrollViewer.ContextMenu.IsOpen = false;
+                }
                 return;
+            }
 
             // 使用XAML中定义的ContextMenu
             var contextMenu = ImageScrollViewer.ContextMenu;

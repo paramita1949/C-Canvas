@@ -1655,6 +1655,27 @@ namespace ImageColorChanger.UI
                         }
                     }
                 }
+                else
+                {
+                    // 如果数据库中没有设置，默认使用线性滚动
+                    _isLinearScrolling = true;
+                    if (_keyframeManager != null)
+                    {
+                        _keyframeManager.IsLinearScrolling = true;
+                    }
+                    
+                    // 保存默认设置到数据库
+                    dbContext.Settings.Add(new Database.Models.Setting
+                    {
+                        Key = "scroll_easing",
+                        Value = "Linear"
+                    });
+                    dbContext.SaveChanges();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("✅ 已设置默认滚动函数为线性");
+                    #endif
+                }
             }
             catch (Exception)
             {

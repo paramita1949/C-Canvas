@@ -907,7 +907,7 @@
                         <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FixedScrollBarStyle}"/>
                     </ScrollViewer.Resources>
                     <ScrollViewer.ContextMenu>
-                        <ContextMenu x:Name="CanvasContextMenu" Style="{StaticResource NoBorderContextMenuStyle}">
+                        <ContextMenu x:Name="CanvasContextMenu" Style="{StaticResource NoBorderContextMenuStyle}" Opened="CanvasContextMenu_Opened">
                             <MenuItem Header="滚动速度">
                                 <MenuItem Header="0秒 (直接跳转)" Click="SetScrollSpeed_Click" Tag="0" IsCheckable="True"/>
                                 <MenuItem Header="0.5秒" Click="SetScrollSpeed_Click" Tag="0.5" IsCheckable="True"/>
