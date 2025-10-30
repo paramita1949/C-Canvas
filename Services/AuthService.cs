@@ -30,14 +30,17 @@ namespace ImageColorChanger.Services
         public string Username { get; set; }
         public string Email { get; set; }
         
+        [JsonPropertyName("license_type")]
+        public string LicenseType { get; set; }
+        
         [JsonPropertyName("expires_at")]
-        public string ExpiresAtString { get; set; }
+        public long? ExpiresAt { get; set; }  // Unix时间戳（秒）
         
         [JsonPropertyName("remaining_days")]
-        public int RemainingDays { get; set; }
+        public int? RemainingDays { get; set; }
         
         [JsonPropertyName("remaining_hours")]
-        public int RemainingHours { get; set; }
+        public int? RemainingHours { get; set; }
         
         public string Token { get; set; }
         
@@ -51,6 +54,12 @@ namespace ImageColorChanger.Services
         
         [JsonPropertyName("reset_device_count")]
         public int? ResetDeviceCount { get; set; }
+        
+        [JsonPropertyName("trial_days")]
+        public int? TrialDays { get; set; }
+        
+        [JsonPropertyName("max_devices")]
+        public int? MaxDevices { get; set; }
     }
 
     /// <summary>
@@ -104,7 +113,7 @@ namespace ImageColorChanger.Services
         private int _resetDeviceCount = 0;     // 剩余重置设备次数（默认0）
         private System.Threading.Timer _heartbeatTimer;
         private DateTime? _lastSuccessfulHeartbeat; // 最后一次成功心跳的时间
-        private const int MAX_OFFLINE_DAYS = 7;  // 最长离线天数（7天）
+        private const int MAX_OFFLINE_DAYS = 14;  // 最长离线天数（14天）
         
         // 🔒 全局互斥锁（防止多开）
         private static System.Threading.Mutex _appMutex;
@@ -316,13 +325,17 @@ namespace ImageColorChanger.Services
                 System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 开始登录验证: {username}");
                 #endif
 
+                // 获取混合后的硬件ID
                 var hardwareId = GetHardwareId();
                 
                 var requestData = new
                 {
                     username = username,
                     password = password,
-                    hardware_id = hardwareId
+                    hardware_id = hardwareId,
+                    device_name = Environment.MachineName,
+                    os_version = Environment.OSVersion.ToString(),
+                    app_version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString()
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
@@ -359,16 +372,13 @@ namespace ImageColorChanger.Services
                 _username = username;
                 _token = authResponse.Data?.Token;
                 
-                // 解析过期时间
-                if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                // 解析过期时间（Unix时间戳转DateTime）
+                if (authResponse.Data?.ExpiresAt.HasValue == true)
                 {
-                    if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
-                    {
-                        _expiresAt = expiresAt;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 过期时间: {_expiresAt}");
-                        #endif
-                    }
+                    _expiresAt = DateTimeOffset.FromUnixTimeSeconds(authResponse.Data.ExpiresAt.Value).LocalDateTime;
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 过期时间: {_expiresAt}");
+                    #endif
                 }
                 
                 _remainingDays = authResponse.Data?.RemainingDays ?? 0;
@@ -465,20 +475,28 @@ namespace ImageColorChanger.Services
         {
             try
             {
-                var hardwareId = GetHardwareId();
-                
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 开始注册: {username}");
-                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 硬件ID: {hardwareId}");
                 #endif
+
+                // 获取5项硬件指纹
+                var cpuId = GetCpuId();
+                var motherboardSerial = GetBoardSerial();
+                var diskSerial = GetDiskSerial();
+                var biosUuid = GetBiosUuid();
+                var windowsInstallId = GetWindowsInstallId();
 
                 var requestData = new
                 {
                     username = username,
                     password = password,
                     email = email,
-                    hardware_id = hardwareId,
-                    source = "desktop_client"
+                    cpu_id = cpuId,
+                    motherboard_serial = motherboardSerial,
+                    disk_serial = diskSerial,
+                    bios_uuid = biosUuid,
+                    windows_install_id = windowsInstallId,
+                    device_name = Environment.MachineName
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
@@ -508,9 +526,19 @@ namespace ImageColorChanger.Services
 
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 注册成功: {username}");
+                if (registerResponse.Data != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"📝 [注册] 试用期: {registerResponse.Data.TrialDays}天");
+                    System.Diagnostics.Debug.WriteLine($"📝 [注册] 最大设备数: {registerResponse.Data.MaxDevices}");
+                    if (registerResponse.Data.ExpiresAt.HasValue)
+                    {
+                        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(registerResponse.Data.ExpiresAt.Value).LocalDateTime;
+                        System.Diagnostics.Debug.WriteLine($"📝 [注册] 过期时间: {expiresAt}");
+                    }
+                }
                 #endif
 
-                return (true, "注册成功！请等待管理员激活您的账号。");
+                return (true, registerResponse.Message ?? "注册成功！");
             }
             catch (HttpRequestException ex)
             {
@@ -669,11 +697,13 @@ namespace ImageColorChanger.Services
                 System.Diagnostics.Debug.WriteLine($"🔄 [刷新] 尝试从服务器刷新账号信息...");
                 #endif
 
+                // 获取混合后的硬件ID
+                var hardwareId = GetHardwareId();
+                
                 var requestData = new
                 {
-                    username = _username,
                     token = _token,
-                    hardware_id = GetHardwareId()
+                    hardware_id = hardwareId
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
@@ -692,9 +722,83 @@ namespace ImageColorChanger.Services
 
                     if (authResponse == null || !authResponse.Success || !authResponse.Valid)
                     {
+                        // 检查失效原因
+                        string failureReason = authResponse?.Message ?? "账号验证失败";
+                        
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ [刷新] 服务器返回失败: {authResponse?.Message}");
+                        System.Diagnostics.Debug.WriteLine($"❌ [刷新] 服务器返回失败: {failureReason}");
+                        System.Diagnostics.Debug.WriteLine($"   失效原因(reason): {authResponse?.Reason}");
                         #endif
+                        
+                        // 🔒 只有成功获得服务器响应且明确返回失效原因时才强制退出
+                        // 如果 authResponse 为 null（网络问题/解析失败），不强制退出
+                        if (authResponse != null && !string.IsNullOrEmpty(authResponse.Reason))
+                        {
+                            bool forceLogout = false;
+                            string logoutTitle = "账号验证失败";
+                            
+                            // 1. 设备被删除/解绑
+                            if (authResponse.Reason == "device_unbound" || 
+                                authResponse.Reason == "device_reset" ||
+                                authResponse.Reason == "device_mismatch")
+                            {
+                                forceLogout = true;
+                                logoutTitle = "设备验证失败";
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 设备已被删除或不匹配，强制退出");
+                                #endif
+                            }
+                            
+                            // 2. 账号被禁用
+                            if (authResponse.Reason == "disabled")
+                            {
+                                forceLogout = true;
+                                logoutTitle = "账号已被禁用";
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 账号已被管理员禁用，强制退出");
+                                #endif
+                            }
+                            
+                            // 3. 会话过期（可能账号被删除）
+                            if (authResponse.Reason == "session_expired")
+                            {
+                                forceLogout = true;
+                                logoutTitle = "会话已过期";
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 会话已过期（可能账号被删除），强制退出");
+                                #endif
+                            }
+                            
+                            // 执行强制退出
+                            if (forceLogout)
+                            {
+                                Logout();
+                                
+                                // 通知UI显示消息
+                                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                                {
+                                    System.Windows.MessageBox.Show(
+                                        failureReason,
+                                        logoutTitle,
+                                        System.Windows.MessageBoxButton.OK,
+                                        System.Windows.MessageBoxImage.Warning);
+                                });
+                                return false;
+                            }
+                        }
+                        
+                        // 网络问题或其他失效原因，不强制退出，返回false让UI处理
+                        #if DEBUG
+                        if (authResponse == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [刷新] 响应解析失败（可能网络问题），不强制退出");
+                        }
+                        else if (string.IsNullOrEmpty(authResponse.Reason))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [刷新] 无明确失效原因，不强制退出");
+                        }
+                        #endif
+                        
                         return false;
                     }
 
@@ -709,12 +813,10 @@ namespace ImageColorChanger.Services
                         }
                     }
                     
-                    if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                    // 解析过期时间（Unix时间戳转DateTime）
+                    if (authResponse.Data?.ExpiresAt.HasValue == true)
                     {
-                        if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
-                        {
-                            _expiresAt = expiresAt;
-                        }
+                        _expiresAt = DateTimeOffset.FromUnixTimeSeconds(authResponse.Data.ExpiresAt.Value).LocalDateTime;
                     }
                     
                     _remainingDays = authResponse.Data?.RemainingDays ?? 0;
@@ -766,16 +868,17 @@ namespace ImageColorChanger.Services
 
             try
             {
-                // 调试信息已注释（心跳检查频繁输出）
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳检查...");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💓 [心跳] 开始心跳检查... (当前时间: {DateTime.Now:HH:mm:ss})");
+                #endif
 
+                // 获取混合后的硬件ID
+                var hardwareId = GetHardwareId();
+                
                 var requestData = new
                 {
-                    username = _username,
                     token = _token,
-                    hardware_id = GetHardwareId()  // 添加硬件ID，用于设备验证
+                    hardware_id = hardwareId
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
@@ -868,12 +971,10 @@ namespace ImageColorChanger.Services
                     }
                 }
                 
-                if (!string.IsNullOrEmpty(authResponse.Data?.ExpiresAtString))
+                // 解析过期时间（Unix时间戳转DateTime）
+                if (authResponse.Data?.ExpiresAt.HasValue == true)
                 {
-                    if (DateTime.TryParse(authResponse.Data.ExpiresAtString, out var expiresAt))
-                    {
-                        _expiresAt = expiresAt;
-                    }
+                    _expiresAt = DateTimeOffset.FromUnixTimeSeconds(authResponse.Data.ExpiresAt.Value).LocalDateTime;
                 }
                 _remainingDays = authResponse.Data?.RemainingDays ?? 0;
                 _deviceInfo = authResponse.Data?.DeviceInfo;  // 更新设备信息
@@ -882,19 +983,14 @@ namespace ImageColorChanger.Services
                 // 🔒 记录成功心跳时间（用于离线时长检测）
                 _lastSuccessfulHeartbeat = DateTime.Now;
                 
-                // 调试信息已注释（心跳检查频繁输出）
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳更新解绑次数: {_resetDeviceCount}次");
-                //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 最后成功心跳: {_lastSuccessfulHeartbeat}");
-                //#endif
-                
                 // 更新本地缓存
                 _ = SaveAuthDataAsync();
 
-                // 调试信息已注释（心跳检查频繁输出）
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 心跳正常，剩余{_remainingDays}天");
-                //#endif
+                #if DEBUG
+                var nextHeartbeat = DateTime.Now.AddMinutes(20);
+                System.Diagnostics.Debug.WriteLine($"✅ [心跳] 心跳正常，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                System.Diagnostics.Debug.WriteLine($"💓 [心跳] 下次心跳时间: {nextHeartbeat:HH:mm:ss}");
+                #endif
             }
             catch (Exception ex)
             {
@@ -967,10 +1063,13 @@ namespace ImageColorChanger.Services
                 TimeSpan.FromMinutes(20)  // 之后每20分钟检查一次
             );
 
-            // 调试信息已注释
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"💓 [AuthService] 心跳已启动（每20分钟检查一次）");
-            //#endif
+            #if DEBUG
+            var firstHeartbeat = DateTime.Now.AddMinutes(5);
+            var secondHeartbeat = DateTime.Now.AddMinutes(25); // 首次5分钟 + 间隔20分钟
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每20分钟检查一次）");
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
+            #endif
         }
 
         /// <summary>
@@ -1184,7 +1283,7 @@ namespace ImageColorChanger.Services
 
         /// <summary>
         /// 获取硬件ID（用于设备绑定）
-        /// 使用主板、硬盘、CPU、内存信息生成唯一硬件ID
+        /// 混合5项硬件信息生成唯一硬件ID
         /// </summary>
         private string GetHardwareId()
         {
@@ -1193,18 +1292,19 @@ namespace ImageColorChanger.Services
                 var cpuId = GetCpuId();
                 var boardSerial = GetBoardSerial();
                 var diskSerial = GetDiskSerial();
-                var memorySerial = GetMemorySerial();
+                var biosUuid = GetBiosUuid();
+                var windowsInstallId = GetWindowsInstallId();
                 
-                // 组合所有硬件信息
-                var combined = $"{cpuId}_{boardSerial}_{diskSerial}_{memorySerial}";
+                // 组合5项硬件信息
+                var combined = $"{cpuId}|{boardSerial}|{diskSerial}|{biosUuid}|{windowsInstallId}";
                 
-                // 调试信息已注释
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] CPU: {cpuId}");
-                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 主板: {boardSerial}");
-                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 硬盘: {diskSerial}");
-                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 内存: {memorySerial}");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] CPU: {cpuId}");
+                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 主板: {boardSerial}");
+                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 硬盘: {diskSerial}");
+                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] BIOS UUID: {biosUuid}");
+                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] Windows安装ID: {windowsInstallId}");
+                #endif
                 
                 // 生成SHA256哈希
                 using (var sha256 = SHA256.Create())
@@ -1212,10 +1312,9 @@ namespace ImageColorChanger.Services
                     var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
                     var hardwareId = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
                     
-                    // 调试信息已注释
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 最终哈希: {hardwareId.Substring(0, 16)}...");
-                    //#endif
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 最终哈希: {hardwareId}");
+                    #endif
                     
                     return hardwareId;
                 }
@@ -1227,8 +1326,12 @@ namespace ImageColorChanger.Services
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
-                // 降级方案：使用机器名
-                return Environment.MachineName;
+                // 降级方案：使用机器名的哈希
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(Environment.MachineName));
+                    return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                }
             }
         }
 
@@ -1374,6 +1477,66 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
+        /// 获取BIOS UUID
+        /// </summary>
+        private string GetBiosUuid()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        var uuid = obj["UUID"]?.ToString();
+                        if (!string.IsNullOrEmpty(uuid) && uuid != "UNKNOWN")
+                        {
+                            return uuid;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取BIOS UUID失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 获取Windows安装ID（MachineGuid）
+        /// </summary>
+        private string GetWindowsInstallId()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                {
+                    if (key != null)
+                    {
+                        var guid = key.GetValue("MachineGuid")?.ToString();
+                        if (!string.IsNullOrEmpty(guid))
+                        {
+                            return guid;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取Windows安装ID失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 获取认证状态摘要（用于UI显示）
         /// </summary>
         public string GetStatusSummary()
@@ -1437,16 +1600,20 @@ namespace ImageColorChanger.Services
                 System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {API_BASE_URL}/api/user/reset-devices");
                 #endif
 
+                // 获取当前设备的硬件ID
+                var hardwareId = GetHardwareId();
+                
                 var requestData = new
                 {
                     username = _username,
-                    password = password
+                    password = password,
+                    hardware_id = hardwareId  // 只能解绑当前设备
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求数据: username={_username}, password=***");
+                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求数据: username={_username}, password=***, hardware_id={hardwareId.Substring(0, 16)}...");
                 #endif
                 
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
@@ -1540,7 +1707,10 @@ namespace ImageColorChanger.Services
         /// </summary>
         private class ResetDeviceResponse
         {
+            [JsonPropertyName("success")]
             public bool Success { get; set; }
+            
+            [JsonPropertyName("message")]
             public string Message { get; set; }
             
             [JsonPropertyName("reset_count")]

@@ -82,12 +82,25 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 调用注册服务
-                var (success, message) = await AuthService.Instance.RegisterAsync(
+                // 设置超时：60秒
+                var registerTask = AuthService.Instance.RegisterAsync(
                     username, 
                     password, 
                     string.IsNullOrEmpty(email) ? null : email
                 );
+                var timeoutTask = System.Threading.Tasks.Task.Delay(60000); // 60秒超时
+
+                var completedTask = await System.Threading.Tasks.Task.WhenAny(registerTask, timeoutTask);
+
+                if (completedTask == timeoutTask)
+                {
+                    // 超时
+                    ShowStatus("连接超时：网络不佳或服务器无响应，请检查网络后重试", isError: true);
+                    return;
+                }
+
+                // 获取注册结果
+                var (success, message) = await registerTask;
 
                 if (success)
                 {
@@ -104,9 +117,22 @@ namespace ImageColorChanger.UI
                     ShowStatus(message, isError: true);
                 }
             }
+            catch (System.Net.Http.HttpRequestException)
+            {
+                // 网络请求异常
+                ShowStatus($"网络错误：无法连接到服务器，请检查网络", isError: true);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                // 任务取消或超时
+                ShowStatus("请求超时：服务器响应太慢，请稍后重试", isError: true);
+            }
             catch (Exception ex)
             {
-                ShowStatus($"注册异常: {ex.Message}", isError: true);
+                ShowStatus($"注册异常：{ex.Message}", isError: true);
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [注册] 未知异常: {ex}");
+                #endif
             }
             finally
             {

@@ -44,13 +44,26 @@ namespace ImageColorChanger.UI
             }
 
             // 显示登录中状态
-            ShowStatus("正在验证...", isError: false);
+            ShowStatus("正在验证,不要关闭窗口", isError: false);
             LoginButton.IsEnabled = false;
 
             try
             {
-                // 调用验证服务
-                var (success, message) = await AuthService.Instance.LoginAsync(username, password);
+                // 设置超时：60秒
+                var loginTask = AuthService.Instance.LoginAsync(username, password);
+                var timeoutTask = System.Threading.Tasks.Task.Delay(60000); // 60秒超时
+
+                var completedTask = await System.Threading.Tasks.Task.WhenAny(loginTask, timeoutTask);
+
+                if (completedTask == timeoutTask)
+                {
+                    // 超时
+                    ShowStatus("连接超时：网络不佳或服务器无响应，请检查网络后重试", isError: true);
+                    return;
+                }
+
+                // 获取登录结果
+                var (success, message) = await loginTask;
 
                 if (success)
                 {
@@ -67,9 +80,22 @@ namespace ImageColorChanger.UI
                     ShowStatus(message, isError: true);
                 }
             }
+            catch (System.Net.Http.HttpRequestException)
+            {
+                // 网络请求异常
+                ShowStatus($"网络错误：无法连接到服务器，请检查网络", isError: true);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                // 任务取消或超时
+                ShowStatus("请求超时：服务器响应太慢，请稍后重试", isError: true);
+            }
             catch (Exception ex)
             {
-                ShowStatus($"登录异常: {ex.Message}", isError: true);
+                ShowStatus($"登录异常：{ex.Message}", isError: true);
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [登录] 未知异常: {ex}");
+                #endif
             }
             finally
             {
