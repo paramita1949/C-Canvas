@@ -82,7 +82,7 @@ export async function onRequestPost(context) {
     const nowTimestamp = Math.floor(Date.now() / 1000);
     const newResetCount = Math.max(0, currentResetCount - 1);
     
-    // 删除设备
+    // 只删除设备，不动 session（让心跳时自然检测到设备不存在）
     await env.DB.prepare('DELETE FROM devices WHERE id = ?')
       .bind(device_id).run();
     

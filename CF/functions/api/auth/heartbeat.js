@@ -28,16 +28,43 @@ export async function onRequestPost(context) {
     // 获取客户端IP
     const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
     
-    // 查询会话
+    // 查询会话（包括已失效的）
     const now = Math.floor(Date.now() / 1000);
     const session = await env.DB.prepare(
       `SELECT s.*, u.username, u.is_active as user_active 
        FROM sessions s
        JOIN users u ON s.user_id = u.id
-       WHERE s.token = ? AND s.is_active = 1 AND s.expires_at > ?`
-    ).bind(token, now).first();
+       WHERE s.token = ?`
+    ).bind(token).first();
     
+    // 检查 session 是否存在
     if (!session) {
+      // 可能是用户被删除或 token 无效
+      const sessionOnly = await env.DB.prepare(
+        'SELECT * FROM sessions WHERE token = ?'
+      ).bind(token).first();
+      
+      if (sessionOnly) {
+        // Session 存在但用户被删除了
+        return jsonResponse({ 
+          success: false,
+          valid: false,
+          message: '账号不存在，请联系管理员',
+          reason: 'user_not_found'
+        });
+      }
+      
+      // Token 完全无效
+      return jsonResponse({ 
+        success: false,
+        valid: false,
+        message: '会话已过期，请重新登录',
+        reason: 'session_expired'
+      });
+    }
+    
+    // 检查 session 是否过期 (100天)
+    if (session.expires_at <= now) {
       return jsonResponse({ 
         success: false,
         valid: false,
@@ -73,10 +100,10 @@ export async function onRequestPost(context) {
       });
     }
     
-    // 验证设备（简单的硬件ID匹配）
+    // 验证设备（直接用硬件ID查询，最简单直接）
     const device = await env.DB.prepare(
-      'SELECT * FROM devices WHERE id = ? AND user_id = ? AND is_active = 1'
-    ).bind(session.device_id, session.user_id).first();
+      'SELECT * FROM devices WHERE user_id = ? AND hardware_id = ? AND is_active = 1'
+    ).bind(session.user_id, hardware_id).first();
     
     if (!device) {
       return jsonResponse({ 
@@ -87,20 +114,11 @@ export async function onRequestPost(context) {
       });
     }
     
-    // 验证硬件ID是否匹配
-    if (device.hardware_id !== hardware_id) {
-      return jsonResponse({ 
-        success: true,
-        valid: false,
-        message: '设备硬件信息不匹配',
-        reason: 'device_mismatch'
-      });
-    }
-    
-    // 更新会话心跳时间
+    // 更新会话心跳时间并续期100天
+    const newExpiresAt = now + 86400 * 100; // 续期100天
     await env.DB.prepare(
-      'UPDATE sessions SET last_heartbeat_at = ?, ip_address = ? WHERE id = ?'
-    ).bind(now, clientIp, session.id).run();
+      'UPDATE sessions SET last_heartbeat_at = ?, expires_at = ?, ip_address = ? WHERE id = ?'
+    ).bind(now, newExpiresAt, clientIp, session.id).run();
     
     // 更新设备最后活跃时间
     await env.DB.prepare(

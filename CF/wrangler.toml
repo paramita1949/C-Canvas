@@ -6,7 +6,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "canvasdb"
-database_id = "a7f8fac3-21e0-4a80-bbbd-6c73481f4400"
+database_id = "7e2ae250-63bc-4bf2-8acf-64912c317c31"
 
 # KV 命名空间配置（用于安全防护）
 # 创建命令: wrangler kv:namespace create "SECURITY_KV"

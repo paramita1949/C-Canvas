@@ -179,12 +179,12 @@ export async function onRequestPost(context) {
     
     // 生成Token并创建会话
     const token = await generateToken();
-    const expiresAt = now + 86400; // 24小时
+    const expiresAt = now + 86400 * 100; // 100天
     
     await env.DB.prepare(
-      `INSERT INTO sessions (user_id, device_id, token, expires_at, created_at, last_heartbeat_at, ip_address, is_active)
+      `INSERT INTO sessions (user_id, device_id, token, expires_at, created_at, last_heartbeat_at, ip_address, user_agent)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(user.id, deviceCheck.deviceId, token, expiresAt, now, now, clientIp, 1).run();
+    ).bind(user.id, deviceCheck.deviceId, token, expiresAt, now, now, clientIp, request.headers.get('User-Agent')).run();
     
     // 计算剩余时间
     const remainingDays = license.expires_at ? Math.ceil((license.expires_at - now) / 86400) : null;

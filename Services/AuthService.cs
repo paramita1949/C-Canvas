@@ -735,7 +735,8 @@ namespace ImageColorChanger.Services
                         if (authResponse != null && !string.IsNullOrEmpty(authResponse.Reason))
                         {
                             bool forceLogout = false;
-                            string logoutTitle = "账号验证失败";
+                            string logoutTitle = "登录已失效";
+                            string logoutMessage = failureReason;
                             
                             // 1. 设备被删除/解绑
                             if (authResponse.Reason == "device_unbound" || 
@@ -744,6 +745,7 @@ namespace ImageColorChanger.Services
                             {
                                 forceLogout = true;
                                 logoutTitle = "设备验证失败";
+                                logoutMessage = "您的设备已被解绑，请重新登录";
                                 #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 设备已被删除或不匹配，强制退出");
                                 #endif
@@ -754,18 +756,42 @@ namespace ImageColorChanger.Services
                             {
                                 forceLogout = true;
                                 logoutTitle = "账号已被禁用";
+                                logoutMessage = "您的账号已被禁用，请联系管理员";
                                 #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 账号已被管理员禁用，强制退出");
                                 #endif
                             }
                             
-                            // 3. 会话过期（可能账号被删除）
+                            // 3. 账号已过期
+                            if (authResponse.Reason == "expired")
+                            {
+                                forceLogout = true;
+                                logoutTitle = "账号已过期";
+                                logoutMessage = "您的账号已过期，请联系管理员续期";
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 账号已过期，强制退出");
+                                #endif
+                            }
+                            
+                            // 4. 会话过期
                             if (authResponse.Reason == "session_expired")
                             {
                                 forceLogout = true;
-                                logoutTitle = "会话已过期";
+                                logoutTitle = "登录已失效";
+                                logoutMessage = "登录已失效，请重新登录";
                                 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 会话已过期（可能账号被删除），强制退出");
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 会话已过期（可能账号被删除或在其他设备登录），强制退出");
+                                #endif
+                            }
+                            
+                            // 5. 用户不存在
+                            if (authResponse.Reason == "user_not_found")
+                            {
+                                forceLogout = true;
+                                logoutTitle = "账号不存在";
+                                logoutMessage = "账号不存在，请联系管理员";
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔒 [刷新] 用户不存在（账号已被删除），强制退出");
                                 #endif
                             }
                             
@@ -778,7 +804,7 @@ namespace ImageColorChanger.Services
                                 System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                                 {
                                     System.Windows.MessageBox.Show(
-                                        failureReason,
+                                        logoutMessage,
                                         logoutTitle,
                                         System.Windows.MessageBoxButton.OK,
                                         System.Windows.MessageBoxImage.Warning);
@@ -904,15 +930,19 @@ namespace ImageColorChanger.Services
                     
                     // 🔒 需要立即强制退出的情况（不检查本地缓存）
                     bool forceLogout = false;
-                    string logoutTitle = "账号验证失败";
+                    string logoutTitle = "登录已失效";
+                    string logoutMessage = failureReason;
                     
                     // 1. 设备被重置/解绑
                     if (authResponse?.Reason == "device_reset" || 
+                        authResponse?.Reason == "device_unbound" ||
+                        authResponse?.Reason == "device_mismatch" ||
                         authResponse?.Message?.Contains("设备已被") == true || 
                         authResponse?.Message?.Contains("解绑") == true)
                     {
                         forceLogout = true;
                         logoutTitle = "设备验证失败";
+                        logoutMessage = "您的设备已被解绑，请重新登录";
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 设备已被管理员重置，强制退出");
                         #endif
@@ -923,8 +953,42 @@ namespace ImageColorChanger.Services
                     {
                         forceLogout = true;
                         logoutTitle = "账号已被禁用";
+                        logoutMessage = "您的账号已被禁用，请联系管理员";
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 账号已被管理员禁用，强制退出");
+                        #endif
+                    }
+                    
+                    // 3. 账号已过期
+                    if (authResponse?.Reason == "expired")
+                    {
+                        forceLogout = true;
+                        logoutTitle = "账号已过期";
+                        logoutMessage = "您的账号已过期，请联系管理员续期";
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 账号已过期，强制退出");
+                        #endif
+                    }
+                    
+                    // 4. 会话过期（可能是在其他设备登录、账号被删除、或凭证文件跨版本复制）
+                    if (authResponse?.Reason == "session_expired")
+                    {
+                        forceLogout = true;
+                        logoutTitle = "登录已失效";
+                        logoutMessage = "登录已失效，请重新登录";
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 会话已过期（可能账号被删除或在其他设备登录），强制退出");
+                        #endif
+                    }
+                    
+                    // 5. 用户不存在
+                    if (authResponse?.Reason == "user_not_found")
+                    {
+                        forceLogout = true;
+                        logoutTitle = "账号不存在";
+                        logoutMessage = "账号不存在，请联系管理员";
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [AuthService] 用户不存在（账号已被删除），强制退出");
                         #endif
                     }
                     
@@ -937,7 +1001,7 @@ namespace ImageColorChanger.Services
                         System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                         {
                             System.Windows.MessageBox.Show(
-                                failureReason,
+                                logoutMessage,
                                 logoutTitle,
                                 System.Windows.MessageBoxButton.OK,
                                 System.Windows.MessageBoxImage.Warning);
@@ -945,7 +1009,7 @@ namespace ImageColorChanger.Services
                         return;
                     }
                     
-                    // 其他失效原因，检查本地缓存
+                    // 其他失效原因（网络问题等），检查本地缓存
                     if (CanUseProjection())
                     {
                         // 本地缓存显示还在有效期内，可能是网络问题，继续使用
@@ -1051,7 +1115,7 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 启动心跳定时器（每20分钟检查一次）
+        /// 启动心跳定时器（每1分钟检查一次 - 调试模式）
         /// </summary>
         private void StartHeartbeat()
         {
@@ -1059,14 +1123,14 @@ namespace ImageColorChanger.Services
             _heartbeatTimer = new System.Threading.Timer(
                 HeartbeatCallback,
                 null,
-                TimeSpan.FromMinutes(5),  // 5分钟后首次检查
-                TimeSpan.FromMinutes(20)  // 之后每20分钟检查一次
+                TimeSpan.FromSeconds(10),  // 🔧 调试：10秒后首次检查
+                TimeSpan.FromMinutes(1)    // 🔧 调试：之后每1分钟检查一次
             );
 
             #if DEBUG
-            var firstHeartbeat = DateTime.Now.AddMinutes(5);
-            var secondHeartbeat = DateTime.Now.AddMinutes(25); // 首次5分钟 + 间隔20分钟
-            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每20分钟检查一次）");
+            var firstHeartbeat = DateTime.Now.AddSeconds(10);
+            var secondHeartbeat = DateTime.Now.AddSeconds(70); // 首次10秒 + 间隔60秒
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每1分钟检查一次 - 调试模式）");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
             #endif

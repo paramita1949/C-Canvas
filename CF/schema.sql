@@ -95,8 +95,9 @@ CREATE TABLE IF NOT EXISTS sessions (
     token TEXT NOT NULL UNIQUE,
     expires_at INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
-    last_activity INTEGER NOT NULL,
+    last_heartbeat_at INTEGER NOT NULL,
     ip_address TEXT,
+    user_agent TEXT,
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE SET NULL

@@ -69,13 +69,9 @@ export async function onRequestPost(context) {
       });
     }
     
-    // 删除当前设备
+    // 只删除设备，不动 session（让心跳时自然检测到设备不存在）
     await env.DB.prepare('DELETE FROM devices WHERE id = ?')
       .bind(currentDevice.id).run();
-    
-    // 删除当前设备的会话
-    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND hardware_id = ?')
-      .bind(user.id, hardware_id).run();
     
     // 减少重置次数（更新licenses表）
     const newResetCount = resetCount - 1;
