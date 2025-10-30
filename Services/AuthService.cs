@@ -1115,7 +1115,7 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 启动心跳定时器（每1分钟检查一次 - 调试模式）
+        /// 启动心跳定时器（登录后1分钟首次检查，之后每20分钟检查一次）
         /// </summary>
         private void StartHeartbeat()
         {
@@ -1123,14 +1123,14 @@ namespace ImageColorChanger.Services
             _heartbeatTimer = new System.Threading.Timer(
                 HeartbeatCallback,
                 null,
-                TimeSpan.FromSeconds(10),  // 🔧 调试：10秒后首次检查
-                TimeSpan.FromMinutes(1)    // 🔧 调试：之后每1分钟检查一次
+                TimeSpan.FromMinutes(1),   // 登录后1分钟首次检查
+                TimeSpan.FromMinutes(20)   // 之后每20分钟检查一次
             );
 
             #if DEBUG
-            var firstHeartbeat = DateTime.Now.AddSeconds(10);
-            var secondHeartbeat = DateTime.Now.AddSeconds(70); // 首次10秒 + 间隔60秒
-            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每1分钟检查一次 - 调试模式）");
+            var firstHeartbeat = DateTime.Now.AddMinutes(1);
+            var secondHeartbeat = DateTime.Now.AddMinutes(21); // 首次1分钟 + 间隔20分钟
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（登录后1分钟首次检查，之后每20分钟）");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
             #endif
@@ -1240,7 +1240,13 @@ namespace ImageColorChanger.Services
             // 🔒 多重验证1：检查认证状态
             if (!_isAuthenticated)
             {
-                return false;
+                // 🔒 隐藏验证：未登录时检查试用投影状态
+                // 即使破解者跳过 IsTrialProjectionExpired()，这里也会验证
+                if (GetTrialProjectionStatus() != 0x1A2B3C4D)
+                {
+                    return false;
+                }
+                return false; // 未登录不允许使用（试用投影由其他逻辑控制）
             }
             
             // 🔒 多重验证2：验证令牌完整性（防止跳过登录）
@@ -2199,9 +2205,13 @@ namespace ImageColorChanger.Services
 
         #region 试用投影验证（防止破解随机时间限制）
 
+        // 🔒 试用投影配置常量（分散定义,增加破解难度）
+        private const int TRIAL_MIN_SECONDS = 30;
+        private const int TRIAL_MAX_SECONDS = 60;
+
         /// <summary>
         /// 开始试用投影（未登录状态）
-        /// 生成随机时长和加密令牌
+        /// 每次点击都生成新的随机时长和加密令牌
         /// </summary>
         public void StartTrialProjection()
         {
@@ -2214,12 +2224,13 @@ namespace ImageColorChanger.Services
                 return;
             }
 
-            // 生成随机试用时长（30-60秒）
-            var hardwareId = _username ?? Environment.MachineName;
-            var hashCode = hardwareId.GetHashCode();
-            var seed = Math.Abs(hashCode);
-            var random = new Random(seed);
-            _trialDurationSeconds = random.Next(30, 61);
+            // 🔒 每次都生成新的随机试用时长
+            // 不使用固定种子,确保每次点击都是真随机
+            var random = new Random();
+            var randomDuration = random.Next(TRIAL_MIN_SECONDS, TRIAL_MAX_SECONDS + 1);
+            
+            // 🔒 强制限制上限（防止内存修改）
+            _trialDurationSeconds = Math.Min(randomDuration, TRIAL_MAX_SECONDS);
 
             // 记录开始时刻
             _trialProjectionStartTick = Environment.TickCount64;
@@ -2234,19 +2245,29 @@ namespace ImageColorChanger.Services
 
         /// <summary>
         /// 检查试用投影是否已过期
+        /// 🔒 返回验证码而非简单bool，防止直接跳过逻辑判断
         /// </summary>
         public bool IsTrialProjectionExpired()
+        {
+            return GetTrialProjectionStatus() != 0x1A2B3C4D;
+        }
+        
+        /// <summary>
+        /// 🔒 获取试用投影状态验证码（内部方法，增加破解难度）
+        /// 返回: 0x1A2B3C4D = 有效, 其他值 = 已过期
+        /// </summary>
+        private int GetTrialProjectionStatus()
         {
             // 已登录用户无限制
             if (_isAuthenticated)
             {
-                return false;
+                return 0x1A2B3C4D; // 魔数：有效 (439041101)
             }
 
             // 未启动试用投影
             if (_trialProjectionStartTick == 0)
             {
-                return false;
+                return 0x1A2B3C4D; // 魔数：有效
             }
 
             // 验证令牌完整性
@@ -2255,25 +2276,34 @@ namespace ImageColorChanger.Services
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"⚠️ [试用投影] 令牌验证失败，可能被篡改");
                 #endif
-                return true; // 令牌无效，视为过期
+                return unchecked((int)0xDEADBEEF); // 魔数：令牌无效
             }
+
+            // 🔒 强制限制最大试用时长（防止内存修改）
+            int effectiveDuration = Math.Min(_trialDurationSeconds, TRIAL_MAX_SECONDS);
 
             // 计算已流逝时间
             var elapsedMs = Environment.TickCount64 - _trialProjectionStartTick;
             var elapsedSeconds = elapsedMs / 1000;
 
-            //#if DEBUG
-            //if (elapsedSeconds % 10 == 0) // 每10秒输出一次
-            //{
-            //    System.Diagnostics.Debug.WriteLine($"🔒 [试用投影] 已用时: {elapsedSeconds}秒 / {_trialDurationSeconds}秒");
-            //}
-            //#endif
+            // 🔒 隐藏验证：多重检查
+            if (elapsedSeconds >= effectiveDuration)
+            {
+                return unchecked((int)0xBADC0DE0); // 魔数：已过期
+            }
+            
+            // 🔒 额外验证：检查是否被异常重置
+            if (_trialProjectionStartTick > Environment.TickCount64)
+            {
+                return unchecked((int)0xBADC0DE1); // 魔数：时间异常
+            }
 
-            return elapsedSeconds >= _trialDurationSeconds;
+            return 0x1A2B3C4D; // 魔数：有效
         }
 
         /// <summary>
         /// 获取试用投影剩余时间（秒）
+        /// 🔒 内部也进行验证，防止破解者只修改 IsTrialProjectionExpired()
         /// </summary>
         public int GetTrialProjectionRemainingSeconds()
         {
@@ -2282,9 +2312,18 @@ namespace ImageColorChanger.Services
                 return -1; // 无限制
             }
 
+            // 🔒 隐藏验证：检查状态码
+            if (GetTrialProjectionStatus() != 0x1A2B3C4D)
+            {
+                return 0; // 已过期或异常，返回0
+            }
+
             var elapsedMs = Environment.TickCount64 - _trialProjectionStartTick;
             var elapsedSeconds = (int)(elapsedMs / 1000);
-            var remaining = _trialDurationSeconds - elapsedSeconds;
+            
+            // 🔒 强制限制最大时长
+            int effectiveDuration = Math.Min(_trialDurationSeconds, TRIAL_MAX_SECONDS);
+            var remaining = effectiveDuration - elapsedSeconds;
 
             return Math.Max(0, remaining);
         }
@@ -2305,6 +2344,7 @@ namespace ImageColorChanger.Services
 
         /// <summary>
         /// 生成试用投影令牌（SHA256加密 + 动态密钥）
+        /// 关键：令牌中包含时长的哈希，修改时长会导致令牌失效
         /// </summary>
         private string GenerateTrialProjectionToken()
         {
@@ -2314,8 +2354,12 @@ namespace ImageColorChanger.Services
                 const string SECRET_SALT_1 = "CanvasCast_Trial_Projection_Key_2024";
                 const string SECRET_SALT_2 = "AntiCrack_Protection_Layer_SHA256";
                 
+                // 🔒 关键：计算时长的限制值（硬编码在令牌生成中）
+                // 即使破解者修改 _trialDurationSeconds，令牌验证也会失败
+                int validDuration = Math.Min(_trialDurationSeconds, TRIAL_MAX_SECONDS);
+                
                 // 组合多个参数生成令牌（增加破解难度）
-                var data = $"{SECRET_SALT_1}:{_trialProjectionStartTick}:{_trialDurationSeconds}:{Environment.MachineName}:{Environment.UserName}:{SECRET_SALT_2}";
+                var data = $"{SECRET_SALT_1}:{_trialProjectionStartTick}:{validDuration}:{Environment.MachineName}:{Environment.UserName}:{SECRET_SALT_2}";
                 
                 using (var sha256 = SHA256.Create())
                 {
