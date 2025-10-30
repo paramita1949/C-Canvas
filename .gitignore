@@ -118,3 +118,6 @@ Desktop.ini
 Canvas/
 docs/
 
+# .NET Reactor configuration (local only)
+*.dotnet_reactor.targets
+

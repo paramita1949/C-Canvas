@@ -124,32 +124,95 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $zipName = "Canvas.zip"
+        $fullZipName = "Canvas-Full.zip"
+        $updateZipName = "Canvas-Update.zip"
         
-        # 压缩发布文件
-        Compress-Archive -Path publish\* -DestinationPath $zipName
+        # ========== 创建完整包 ==========
+        echo "=== 创建完整包 ==="
+        Compress-Archive -Path publish\* -DestinationPath $fullZipName
         
-        # 验证zip文件
-        if (Test-Path $zipName) {
-          $size = (Get-Item $zipName).Length / 1MB
-          echo "✅ 发布包创建成功"
-          echo "包名称: $zipName"
+        # 验证完整包
+        if (Test-Path $fullZipName) {
+          $size = (Get-Item $fullZipName).Length / 1MB
+          echo "✅ 完整包创建成功"
+          echo "包名称: $fullZipName"
           echo "包大小: $([math]::Round($size, 2)) MB"
-          echo "版本号: $tag"
         } else {
-          echo "❌ 发布包创建失败"
+          echo "❌ 完整包创建失败"
           exit 1
         }
         
+        # ========== 创建增量更新包 ==========
+        echo ""
+        echo "=== 创建增量更新包 ==="
+        
+        # 创建临时目录存放更新文件
+        $updateDir = "update_temp"
+        New-Item -ItemType Directory -Path $updateDir -Force | Out-Null
+        
+        # 复制核心文件到临时目录
+        $dllFile = "publish\Canvas Cast.dll"
+        $pakFile = "publish\Resources.pak"
+        
+        if (Test-Path $dllFile) {
+          Copy-Item $dllFile $updateDir\
+          $dllSize = (Get-Item $dllFile).Length / 1MB
+          echo "✅ 已添加 Canvas Cast.dll ($([math]::Round($dllSize, 2)) MB)"
+        } else {
+          echo "❌ 错误: Canvas Cast.dll 不存在"
+          exit 1
+        }
+        
+        if (Test-Path $pakFile) {
+          Copy-Item $pakFile $updateDir\
+          $pakSize = (Get-Item $pakFile).Length / 1MB
+          echo "✅ 已添加 Resources.pak ($([math]::Round($pakSize, 2)) MB)"
+        } else {
+          echo "⚠️ 警告: Resources.pak 不存在，继续..."
+        }
+        
+        # 压缩更新包
+        Compress-Archive -Path $updateDir\* -DestinationPath $updateZipName
+        
+        # 验证更新包
+        if (Test-Path $updateZipName) {
+          $updateSize = (Get-Item $updateZipName).Length / 1MB
+          echo "✅ 增量更新包创建成功"
+          echo "包名称: $updateZipName"
+          echo "包大小: $([math]::Round($updateSize, 2)) MB"
+        } else {
+          echo "❌ 增量更新包创建失败"
+          exit 1
+        }
+        
+        # 清理临时目录
+        Remove-Item $updateDir -Recurse -Force
+        
+        # ========== 输出统计信息 ==========
+        echo ""
+        echo "=== 打包完成统计 ==="
+        echo "完整包: $fullZipName - $([math]::Round((Get-Item $fullZipName).Length / 1MB, 2)) MB"
+        echo "更新包: $updateZipName - $([math]::Round((Get-Item $updateZipName).Length / 1MB, 2)) MB"
+        $ratio = ((Get-Item $updateZipName).Length / (Get-Item $fullZipName).Length) * 100
+        echo "更新包仅为完整包的 $([math]::Round($ratio, 1))%"
+        
         # 输出文件名供后续步骤使用
-        echo "zip_name=$zipName" >> $env:GITHUB_OUTPUT
+        echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
+        echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
       id: create_package
     
-    - name: 上传构建产物
+    - name: 上传完整包
       uses: actions/upload-artifact@v4
       with:
-        name: Canvas-Cast-${{ steps.get_version.outputs.version }}
-        path: ${{ steps.create_package.outputs.zip_name }}
+        name: Canvas-Cast-Full-${{ steps.get_version.outputs.version }}
+        path: ${{ steps.create_package.outputs.full_zip_name }}
+        retention-days: 30
+    
+    - name: 上传更新包
+      uses: actions/upload-artifact@v4
+      with:
+        name: Canvas-Cast-Update-${{ steps.get_version.outputs.version }}
+        path: ${{ steps.create_package.outputs.update_zip_name }}
         retention-days: 30
     
     - name: 调试Release信息
@@ -158,11 +221,19 @@ jobs:
         echo "=== Release调试信息 ==="
         echo "版本号: ${{ steps.get_version.outputs.version }}"
         echo "标签: ${{ steps.get_version.outputs.tag }}"
-        echo "包文件: ${{ steps.create_package.outputs.zip_name }}"
-        echo "包文件存在: $(Test-Path '${{ steps.create_package.outputs.zip_name }}')"
-        if (Test-Path '${{ steps.create_package.outputs.zip_name }}') {
-          $size = (Get-Item '${{ steps.create_package.outputs.zip_name }}').Length / 1MB
-          echo "包文件大小: $([math]::Round($size, 2)) MB"
+        echo ""
+        echo "完整包: ${{ steps.create_package.outputs.full_zip_name }}"
+        echo "完整包存在: $(Test-Path '${{ steps.create_package.outputs.full_zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.full_zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.full_zip_name }}').Length / 1MB
+          echo "完整包大小: $([math]::Round($size, 2)) MB"
+        }
+        echo ""
+        echo "更新包: ${{ steps.create_package.outputs.update_zip_name }}"
+        echo "更新包存在: $(Test-Path '${{ steps.create_package.outputs.update_zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.update_zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.update_zip_name }}').Length / 1MB
+          echo "更新包大小: $([math]::Round($size, 2)) MB"
         }
         echo "======================"
     
@@ -231,7 +302,9 @@ jobs:
     - name: 创建 GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{ steps.create_package.outputs.zip_name }}
+        files: |
+          ${{ steps.create_package.outputs.full_zip_name }}
+          ${{ steps.create_package.outputs.update_zip_name }}
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: Canvas Cast ${{ steps.get_version.outputs.tag }}
         draft: false
@@ -241,9 +314,21 @@ jobs:
           ## 🎉 Canvas Cast ${{ steps.get_version.outputs.tag }}
           
           ### 📦 下载说明
-          - 下载 `Canvas.zip` 
-          - 解压到任意目录
-          - 运行 `Canvas Cast.exe`
+          
+          本次发布提供两个安装包，请根据需要选择：
+          
+          #### 🆕 新用户 - 完整安装包
+          - 📥 下载 `Canvas-Full.zip` 
+          - 📂 解压到任意目录
+          - ▶️ 运行 `Canvas Cast.exe`
+          
+          #### 🔄 老用户 - 增量更新包（推荐）
+          - 📥 下载 `Canvas-Update.zip` （体积更小，下载更快）
+          - 📂 解压得到 `Canvas Cast.dll` 和 `Resources.pak`
+          - 🔁 覆盖原程序目录中的同名文件
+          - ▶️ 重启程序即可
+          
+          > **提示**: 增量更新包仅包含核心程序文件，体积小，适合快速更新
           
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
@@ -261,6 +346,16 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "- **版本**: ${{ steps.get_version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
         echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **包名**: ${{ steps.create_package.outputs.zip_name }}" >> $env:GITHUB_STEP_SUMMARY
         echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "### 📦 发布包" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        
+        $fullSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.full_zip_name }}").Length / 1MB, 2)
+        $updateSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.update_zip_name }}").Length / 1MB, 2)
+        $ratio = [math]::Round(($updateSize / $fullSize) * 100, 1)
+        
+        echo "- **完整包**: ``${{ steps.create_package.outputs.full_zip_name }}`` - $fullSize MB" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **节省比例**: 更新包仅为完整包的 $ratio%" >> $env:GITHUB_STEP_SUMMARY
 

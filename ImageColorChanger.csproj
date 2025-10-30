@@ -15,6 +15,19 @@
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 Canvas Cast</Copyright>
   </PropertyGroup>
+
+  <!-- Debug 配置：生成完整的调试信息 -->
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- Release 配置：不生成 .pdb 文件，优化代码 -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TinyPinyin.NET" Version="1.0.2" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
