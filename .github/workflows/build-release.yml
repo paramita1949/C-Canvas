@@ -199,6 +199,7 @@ jobs:
         # 输出文件名供后续步骤使用
         echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
         echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
+        echo "dll_file_path=$dllFile" >> $env:GITHUB_OUTPUT
       id: create_package
     
     - name: 上传完整包
@@ -213,6 +214,13 @@ jobs:
       with:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
+        retention-days: 30
+    
+    - name: 上传单独DLL文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: Canvas-Cast-DLL-${{ steps.get_version.outputs.version }}
+        path: ${{ steps.create_package.outputs.dll_file_path }}
         retention-days: 30
     
     - name: 调试Release信息
@@ -234,6 +242,13 @@ jobs:
         if (Test-Path '${{ steps.create_package.outputs.update_zip_name }}') {
           $size = (Get-Item '${{ steps.create_package.outputs.update_zip_name }}').Length / 1MB
           echo "更新包大小: $([math]::Round($size, 2)) MB"
+        }
+        echo ""
+        echo "单独DLL: ${{ steps.create_package.outputs.dll_file_path }}"
+        echo "DLL文件存在: $(Test-Path '${{ steps.create_package.outputs.dll_file_path }}')"
+        if (Test-Path '${{ steps.create_package.outputs.dll_file_path }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.dll_file_path }}').Length / 1MB
+          echo "DLL文件大小: $([math]::Round($size, 2)) MB"
         }
         echo "======================"
     
@@ -305,6 +320,7 @@ jobs:
         files: |
           ${{ steps.create_package.outputs.full_zip_name }}
           ${{ steps.create_package.outputs.update_zip_name }}
+          ${{ steps.create_package.outputs.dll_file_path }}
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: Canvas Cast ${{ steps.get_version.outputs.tag }}
         draft: false
@@ -322,13 +338,20 @@ jobs:
           - 📂 解压到任意目录
           - ▶️ 运行 `Canvas Cast.exe`
           
-          #### 🔄 老用户 - 增量更新包（推荐）
-          - 📥 下载 `Canvas-Update.zip` （体积更小，下载更快）
+          #### 🔄 老用户 - 增量更新（推荐）
+          
+          **方式一：完整更新包**
+          - 📥 下载 `Canvas-Update.zip` 
           - 📂 解压得到 `Canvas Cast.dll` 和 `Resources.pak`
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
           
-          > **提示**: 增量更新包仅包含核心程序文件，体积小，适合快速更新
+          **方式二：仅更新DLL（最快）**
+          - 📥 直接下载 `Canvas Cast.dll`（无需解压）
+          - 🔁 直接覆盖原程序目录中的 `Canvas Cast.dll`
+          - ▶️ 重启程序即可
+          
+          > **提示**: 如果只是代码逻辑更新，下载单独的DLL文件最快；如果包含资源更新，请下载完整更新包
           
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
@@ -353,9 +376,11 @@ jobs:
         
         $fullSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.full_zip_name }}").Length / 1MB, 2)
         $updateSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.update_zip_name }}").Length / 1MB, 2)
-        $ratio = [math]::Round(($updateSize / $fullSize) * 100, 1)
+        $dllSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.dll_file_path }}").Length / 1MB, 2)
+        $updateRatio = [math]::Round(($updateSize / $fullSize) * 100, 1)
+        $dllRatio = [math]::Round(($dllSize / $fullSize) * 100, 1)
         
         echo "- **完整包**: ``${{ steps.create_package.outputs.full_zip_name }}`` - $fullSize MB" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **节省比例**: 更新包仅为完整包的 $ratio%" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB (完整包的 $updateRatio%)" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **单独DLL**: ``Canvas Cast.dll`` - $dllSize MB (完整包的 $dllRatio%)" >> $env:GITHUB_STEP_SUMMARY
 
