@@ -469,6 +469,139 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
+        /// 发送邮箱验证码（用于密码重置）
+        /// </summary>
+        public async Task<(bool success, string message)> SendVerificationCodeAsync(string username, string email)
+        {
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📧 [AuthService] 发送验证码: {username}, {email}");
+                #endif
+
+                var requestData = new
+                {
+                    username = username,
+                    email = email
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/send-verification-code", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📧 [AuthService] 服务器响应: {responseContent}");
+                #endif
+
+                var result = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (result == null)
+                {
+                    return (false, "服务器响应解析失败");
+                }
+
+                if (!result.Success)
+                {
+                    return (false, result.Message ?? "发送失败");
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 验证码发送成功");
+                #endif
+
+                return (true, result.Message ?? "验证码已发送");
+            }
+            catch (HttpRequestException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+                return (false, "网络连接失败，请检查网络设置");
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 发送验证码异常: {ex.Message}");
+                #endif
+                return (false, $"发送失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 重置密码（通过邮箱验证码）
+        /// </summary>
+        public async Task<(bool success, string message)> ResetPasswordAsync(string email, string code, string newPassword)
+        {
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔑 [AuthService] 重置密码: {email}");
+                #endif
+
+                var requestData = new
+                {
+                    email = email,
+                    code = code,
+                    new_password = newPassword
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/reset-password", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔑 [AuthService] 服务器响应: {responseContent}");
+                #endif
+
+                var result = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (result == null)
+                {
+                    return (false, "服务器响应解析失败");
+                }
+
+                if (!result.Success)
+                {
+                    return (false, result.Message ?? "重置失败");
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 密码重置成功");
+                #endif
+
+                return (true, result.Message ?? "密码重置成功");
+            }
+            catch (HttpRequestException ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+                return (false, "网络连接失败，请检查网络设置");
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 重置密码异常: {ex.Message}");
+                #endif
+                return (false, $"重置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 注册新账号（自动获取硬件ID）
         /// </summary>
         public async Task<(bool success, string message)> RegisterAsync(string username, string password, string email = null)

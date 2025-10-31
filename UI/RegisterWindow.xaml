@@ -170,15 +170,20 @@
                    FontSize="11"
                    Foreground="#999999"/>
 
-        <!-- 邮箱（可选） -->
+        <!-- 邮箱（必填） -->
         <TextBlock Grid.Row="16" 
-                   Text="邮箱（可选）："
+                   Text="邮箱："
                    FontSize="14"
                    Foreground="#333333"/>
         <TextBox x:Name="EmailTextBox" 
                  Grid.Row="18"
                  Style="{StaticResource InputBox}"
                  TabIndex="3"/>
+        <TextBlock Grid.Row="19"
+                   Text="用于密码找回，请填写真实邮箱"
+                   FontSize="11"
+                   Foreground="#999999"
+                   Margin="0,3,0,0"/>
 
         <!-- 状态信息 -->
         <TextBlock x:Name="StatusText" 

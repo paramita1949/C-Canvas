@@ -171,6 +171,31 @@ namespace ImageColorChanger.UI
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void ForgotPassword_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 打开密码重置窗口
+                var resetWindow = new ResetPasswordWindow
+                {
+                    Owner = this
+                };
+
+                var result = resetWindow.ShowDialog();
+
+                if (result == true)
+                {
+                    // 密码重置成功，显示提示信息
+                    ShowStatus("密码已重置，请使用新密码登录", isError: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"打开窗口失败: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }
 

@@ -281,9 +281,20 @@
                         Style="{StaticResource PrimaryButton}"
                         Width="280"
                         Height="44"
-                        Margin="0,0,0,15"
+                        Margin="0,0,0,8"
                         Click="LoginButton_Click"
                         TabIndex="3"/>
+
+                <!-- 忘记密码 -->
+                <TextBlock HorizontalAlignment="Center"
+                           Margin="0,0,0,15">
+                    <Hyperlink Click="ForgotPassword_Click"
+                               TextDecorations="None"
+                               Foreground="#2196F3"
+                               FontSize="12">
+                        <Run Text="忘记密码？"/>
+                    </Hyperlink>
+                </TextBlock>
 
                 <!-- 注册和付费按钮 -->
                 <StackPanel Orientation="Horizontal" 

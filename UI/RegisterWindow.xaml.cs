@@ -64,15 +64,19 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 验证邮箱（可选）
-            if (!string.IsNullOrEmpty(email))
+            // 验证邮箱（必填）
+            if (string.IsNullOrEmpty(email))
             {
-                if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-                {
-                    ShowStatus("邮箱格式不正确", isError: true);
-                    EmailTextBox.Focus();
-                    return;
-                }
+                ShowStatus("请输入邮箱", isError: true);
+                EmailTextBox.Focus();
+                return;
+            }
+
+            if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                ShowStatus("邮箱格式不正确", isError: true);
+                EmailTextBox.Focus();
+                return;
             }
 
             // 显示注册中状态
@@ -86,7 +90,7 @@ namespace ImageColorChanger.UI
                 var registerTask = AuthService.Instance.RegisterAsync(
                     username, 
                     password, 
-                    string.IsNullOrEmpty(email) ? null : email
+                    email  // 邮箱必填
                 );
                 var timeoutTask = System.Threading.Tasks.Task.Delay(60000); // 60秒超时
 
