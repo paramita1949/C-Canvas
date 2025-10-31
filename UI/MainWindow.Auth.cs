@@ -739,33 +739,128 @@ namespace ImageColorChanger.UI
             System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] 调用 ResetDevicesAsync");
             #endif
             
-            // 执行解绑
-            var (success, message, remaining) = await AuthService.Instance.ResetDevicesAsync(passwordBox.Password);
-            
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] ResetDevicesAsync 返回:");
-            System.Diagnostics.Debug.WriteLine($"   success: {success}");
-            System.Diagnostics.Debug.WriteLine($"   message: {message}");
-            System.Diagnostics.Debug.WriteLine($"   remaining: {remaining}");
-            #endif
-            
-            if (success)
+            // 创建加载提示窗口
+            var loadingWindow = new System.Windows.Window
             {
-                // 解绑成功，自动退出登录
-                MessageBox.Show(
-                    $"✅ {message}\n\n剩余解绑次数：{remaining}次\n\n当前账号已自动退出，请重新登录。",
-                    "解绑成功",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                Title = "正在解绑",
+                Width = 400,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                AllowsTransparency = true
+            };
+            
+            var loadingPanel = new System.Windows.Controls.StackPanel
+            {
+                Margin = new Thickness(30),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+            
+            // 加载动画（使用Unicode旋转字符模拟）
+            var loadingText = new System.Windows.Controls.TextBlock
+            {
+                Text = "⏳",
+                FontSize = 48,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            
+            var messageText = new System.Windows.Controls.TextBlock
+            {
+                Text = "正在解绑设备，请稍候...\n最长可能需要30秒",
+                FontSize = 14,
+                TextAlignment = System.Windows.TextAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                TextWrapping = System.Windows.TextWrapping.Wrap
+            };
+            
+            loadingPanel.Children.Add(loadingText);
+            loadingPanel.Children.Add(messageText);
+            
+            var loadingBorder = new System.Windows.Controls.Border
+            {
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 53, 69)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new System.Windows.CornerRadius(10),
+                Child = loadingPanel
+            };
+            
+            loadingWindow.Content = loadingBorder;
+            
+            // 简单的旋转动画
+            var rotateTransform = new System.Windows.Media.RotateTransform();
+            loadingText.RenderTransform = rotateTransform;
+            loadingText.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+            
+            var rotateAnimation = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 0,
+                To = 360,
+                Duration = TimeSpan.FromSeconds(2),
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+            };
+            
+            loadingWindow.Loaded += (s, e) =>
+            {
+                rotateTransform.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty, rotateAnimation);
+            };
+            
+            // 异步显示加载窗口并执行解绑
+            loadingWindow.Show();
+            
+            try
+            {
+                // 执行解绑
+                var (success, message, remaining) = await AuthService.Instance.ResetDevicesAsync(passwordBox.Password);
                 
-                // 自动退出登录
-                AuthService.Instance.Logout();
-                UpdateAuthUI();
+                // 关闭加载窗口
+                loadingWindow.Close();
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] ResetDevicesAsync 返回:");
+                System.Diagnostics.Debug.WriteLine($"   success: {success}");
+                System.Diagnostics.Debug.WriteLine($"   message: {message}");
+                System.Diagnostics.Debug.WriteLine($"   remaining: {remaining}");
+                #endif
+                
+                if (success)
+                {
+                    // 解绑成功，自动退出登录
+                    MessageBox.Show(
+                        $"✅ {message}\n\n剩余解绑次数：{remaining}次\n\n当前账号已自动退出，请重新登录。",
+                        "解绑成功",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    
+                    // 自动退出登录
+                    AuthService.Instance.Logout();
+                    UpdateAuthUI();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"❌ {message}",
+                        "解绑失败",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
             }
-            else
+            catch (Exception ex)
             {
+                // 关闭加载窗口
+                loadingWindow.Close();
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [UnbindDevice] 异常: {ex.Message}");
+                #endif
+                
                 MessageBox.Show(
-                    $"❌ {message}",
+                    $"❌ 解绑过程中发生错误：{ex.Message}",
                     "解绑失败",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

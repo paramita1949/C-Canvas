@@ -1782,6 +1782,7 @@ namespace ImageColorChanger.Services
 
         /// <summary>
         /// 用户自助重置绑定设备（需要密码验证，限3次）
+        /// 支持30秒超时和自动重试机制
         /// </summary>
         public async Task<(bool success, string message, int remainingCount)> ResetDevicesAsync(string password)
         {
@@ -1795,114 +1796,199 @@ namespace ImageColorChanger.Services
                 return (false, "请先登录", 0);
             }
 
-            try
+            // 重试配置
+            const int maxRetries = 2; // 最多重试2次（总共3次尝试）
+            const int retryDelayMs = 1000; // 重试间隔1秒
+            
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 开始重置设备: {_username}");
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 当前解绑次数: {_resetDeviceCount}");
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {API_BASE_URL}/api/user/reset-devices");
-                #endif
-
-                // 获取当前设备的硬件ID
-                var hardwareId = GetHardwareId();
-                
-                var requestData = new
-                {
-                    username = _username,
-                    password = password,
-                    hardware_id = hardwareId  // 只能解绑当前设备
-                };
-
-                var jsonContent = JsonSerializer.Serialize(requestData);
-                
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求数据: username={_username}, password=***, hardware_id={hardwareId.Substring(0, 16)}...");
-                #endif
-                
-                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 正在发送HTTP POST请求...");
-                #endif
-                
-                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/reset-devices", content);
-                
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] HTTP状态码: {response.StatusCode}");
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应头: {response.Headers}");
-                #endif
-                
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 服务器响应内容: {responseContent}");
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应长度: {responseContent.Length} 字节");
-                #endif
-
-                var resetResponse = JsonSerializer.Deserialize<ResetDeviceResponse>(responseContent, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (resetResponse == null)
+                try
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON 反序列化失败，返回 null");
+                    if (attempt > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 第 {attempt + 1} 次尝试（重试 {attempt}）");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 开始重置设备: {_username}");
+                    }
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 当前解绑次数: {_resetDeviceCount}");
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {API_BASE_URL}/api/user/reset-devices");
                     #endif
-                    return (false, "服务器响应解析失败", 0);
+
+                    // 获取当前设备的硬件ID
+                    var hardwareId = GetHardwareId();
+                    
+                    var requestData = new
+                    {
+                        username = _username,
+                        password = password,
+                        hardware_id = hardwareId  // 只能解绑当前设备
+                    };
+
+                    var jsonContent = JsonSerializer.Serialize(requestData);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求数据: username={_username}, password=***, hardware_id={hardwareId.Substring(0, 16)}...");
+                    #endif
+                    
+                    var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 正在发送HTTP POST请求...");
+                    #endif
+                    
+                    // 创建专用的HttpClient，设置30秒超时
+                    using (var unbindClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) })
+                    {
+                        var response = await unbindClient.PostAsync(API_BASE_URL + "/api/user/reset-devices", content);
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] HTTP状态码: {response.StatusCode}");
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应头: {response.Headers}");
+                        #endif
+                        
+                        var responseContent = await response.Content.ReadAsStringAsync();
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 服务器响应内容: {responseContent}");
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应长度: {responseContent.Length} 字节");
+                        #endif
+
+                        var resetResponse = JsonSerializer.Deserialize<ResetDeviceResponse>(responseContent, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (resetResponse == null)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON 反序列化失败，返回 null");
+                            #endif
+                            
+                            // 如果是最后一次尝试，返回失败
+                            if (attempt == maxRetries)
+                            {
+                                return (false, "服务器响应解析失败", 0);
+                            }
+                            
+                            // 否则继续重试
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                            #endif
+                            await Task.Delay(retryDelayMs);
+                            continue;
+                        }
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 解析结果:");
+                        System.Diagnostics.Debug.WriteLine($"   Success: {resetResponse.Success}");
+                        System.Diagnostics.Debug.WriteLine($"   Message: {resetResponse.Message}");
+                        System.Diagnostics.Debug.WriteLine($"   ResetCount: {resetResponse.ResetCount}");
+                        System.Diagnostics.Debug.WriteLine($"   ResetRemaining: {resetResponse.ResetRemaining}");
+                        #endif
+
+                        if (!resetResponse.Success)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 服务器返回失败: {resetResponse.Message}");
+                            #endif
+                            // 服务器明确返回失败（如密码错误），不重试
+                            return (false, resetResponse.Message, resetResponse.ResetCount);
+                        }
+
+                        // 更新本地重置次数
+                        _resetDeviceCount = resetResponse.ResetRemaining;
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 设备重置成功，剩余{_resetDeviceCount}次");
+                        System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 本地_resetDeviceCount已更新为: {_resetDeviceCount}");
+                        #endif
+
+                        return (true, resetResponse.Message, _resetDeviceCount);
+                    }
                 }
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 解析结果:");
-                System.Diagnostics.Debug.WriteLine($"   Success: {resetResponse.Success}");
-                System.Diagnostics.Debug.WriteLine($"   Message: {resetResponse.Message}");
-                System.Diagnostics.Debug.WriteLine($"   ResetCount: {resetResponse.ResetCount}");
-                System.Diagnostics.Debug.WriteLine($"   ResetRemaining: {resetResponse.ResetRemaining}");
-                #endif
-
-                if (!resetResponse.Success)
+                catch (TaskCanceledException ex)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 服务器返回失败: {resetResponse.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 请求超时: {ex.Message}");
                     #endif
-                    return (false, resetResponse.Message, resetResponse.ResetCount);
+                    
+                    // 如果是最后一次尝试，返回超时错误
+                    if (attempt == maxRetries)
+                    {
+                        return (false, "请求超时（30秒），请检查网络连接后重试", 0);
+                    }
+                    
+                    // 否则继续重试
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                    #endif
+                    await Task.Delay(retryDelayMs);
                 }
-
-                // 更新本地重置次数
-                _resetDeviceCount = resetResponse.ResetRemaining;
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 设备重置成功，剩余{_resetDeviceCount}次");
-                System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 本地_resetDeviceCount已更新为: {_resetDeviceCount}");
-                #endif
-
-                return (true, resetResponse.Message, _resetDeviceCount);
+                catch (HttpRequestException ex)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] HTTP请求异常: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                    #endif
+                    
+                    // 如果是最后一次尝试，返回网络错误
+                    if (attempt == maxRetries)
+                    {
+                        return (false, $"网络请求失败: {ex.Message}", 0);
+                    }
+                    
+                    // 否则继续重试
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                    #endif
+                    await Task.Delay(retryDelayMs);
+                }
+                catch (JsonException ex)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON解析异常: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                    #endif
+                    
+                    // 如果是最后一次尝试，返回解析错误
+                    if (attempt == maxRetries)
+                    {
+                        return (false, $"响应解析失败: {ex.Message}", 0);
+                    }
+                    
+                    // 否则继续重试
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                    #endif
+                    await Task.Delay(retryDelayMs);
+                }
+                catch (Exception ex)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 未知异常: {ex.GetType().Name}");
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常消息: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
+                    #endif
+                    
+                    // 如果是最后一次尝试，返回未知错误
+                    if (attempt == maxRetries)
+                    {
+                        return (false, $"重置失败: {ex.Message}", 0);
+                    }
+                    
+                    // 否则继续重试
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                    #endif
+                    await Task.Delay(retryDelayMs);
+                }
             }
-            catch (HttpRequestException ex)
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] HTTP请求异常: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
-                #endif
-                return (false, $"网络请求失败: {ex.Message}", 0);
-            }
-            catch (JsonException ex)
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON解析异常: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
-                #endif
-                return (false, $"响应解析失败: {ex.Message}", 0);
-            }
-            catch (Exception ex)
-            {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 未知异常: {ex.GetType().Name}");
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常消息: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 异常堆栈: {ex.StackTrace}");
-                #endif
-                return (false, $"重置失败: {ex.Message}", 0);
-            }
+            
+            // 理论上不会到这里，但为了安全起见
+            return (false, "解绑失败，已达到最大重试次数", 0);
         }
 
         /// <summary>
