@@ -1,12 +1,62 @@
 using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
 {
     public partial class MainWindow
     {
         #region 窗口生命周期事件
+
+        /// <summary>
+        /// 窗口加载完成后检查更新
+        /// </summary>
+        private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            // 延迟5秒后检查更新，避免影响启动速度
+            await Task.Delay(5000);
+            await CheckForUpdatesAsync();
+        }
+
+        /// <summary>
+        /// 检查软件更新
+        /// </summary>
+        private async Task CheckForUpdatesAsync()
+        {
+            try
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("[MainWindow] 开始检查更新...");
+#endif
+                var versionInfo = await UpdateService.CheckForUpdatesAsync();
+                
+                if (versionInfo != null)
+                {
+                    // 在UI线程显示更新窗口
+                    Dispatcher.Invoke(() =>
+                    {
+                        var updateWindow = new UpdateWindow(versionInfo);
+                        updateWindow.Owner = this;
+                        updateWindow.ShowDialog();
+                    });
+                }
+#if DEBUG
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[MainWindow] 当前已是最新版本");
+                }
+#endif
+            }
+            catch (Exception)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("[MainWindow] 检查更新失败");
+#endif
+                // 静默失败，不影响用户使用
+            }
+        }
 
         /// <summary>
         /// 窗口关闭事件 - 清理资源

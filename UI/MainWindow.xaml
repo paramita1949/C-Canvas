@@ -15,7 +15,8 @@
         Icon="/baodian.ico"
         PreviewKeyDown="Window_PreviewKeyDown"
         Closing="Window_Closing"
-        Activated="Window_Activated">
+        Activated="Window_Activated"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
         <!-- 无边框 ContextMenu 样式 -->
