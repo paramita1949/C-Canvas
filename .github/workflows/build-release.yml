@@ -204,6 +204,13 @@ jobs:
         # 清理临时目录
         Remove-Item $updateDir -Recurse -Force
         
+        # ========== 复制单独DLL到根目录（用于Release上传）==========
+        $dllFileName = "Canvas Cast.dll"
+        Copy-Item $dllFile $dllFileName -Force
+        echo ""
+        echo "=== 单独DLL文件 ==="
+        echo "已复制 $dllFileName 到根目录，用于Release上传"
+        
         # ========== 输出统计信息 ==========
         echo ""
         echo "=== 打包完成统计 ==="
@@ -212,10 +219,10 @@ jobs:
         $ratio = ((Get-Item $updateZipName).Length / (Get-Item $fullZipName).Length) * 100
         echo "更新包仅为完整包的 $([math]::Round($ratio, 1))%"
         
-        # 输出文件名供后续步骤使用
+        # 输出文件名供后续步骤使用（DLL使用根目录路径）
         echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
         echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
-        echo "dll_file_path=$dllFile" >> $env:GITHUB_OUTPUT
+        echo "dll_file_path=$dllFileName" >> $env:GITHUB_OUTPUT
       id: create_package
     
     - name: 上传完整包
@@ -262,7 +269,7 @@ jobs:
           echo "更新包大小: $([math]::Round($size, 2)) MB"
         }
         echo ""
-        echo "单独DLL: ${{ steps.create_package.outputs.dll_file_path }}"
+        echo "单独DLL: ${{ steps.create_package.outputs.dll_file_path }} (已复制到根目录)"
         echo "DLL文件存在: $(Test-Path '${{ steps.create_package.outputs.dll_file_path }}')"
         if (Test-Path '${{ steps.create_package.outputs.dll_file_path }}') {
           $size = (Get-Item '${{ steps.create_package.outputs.dll_file_path }}').Length / 1MB
