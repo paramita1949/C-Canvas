@@ -295,12 +295,12 @@ jobs:
         }
     
     - name: 创建 GitHub Release
+      id: create_release
       uses: softprops/action-gh-release@v1
       with:
         files: |
           ${{ steps.create_package.outputs.full_zip_name }}
           ${{ steps.create_package.outputs.update_zip_name }}
-          ${{ steps.create_package.outputs.dll_file_path }}
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: Canvas Cast ${{ steps.get_version.outputs.full_version }}
         draft: false
@@ -344,6 +344,25 @@ jobs:
           请查看下方自动生成的变更记录
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 上传单独DLL文件到Release
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $tag = "${{ steps.get_version.outputs.tag }}"
+        $dllFile = "${{ steps.create_package.outputs.dll_file_path }}"
+        $repo = "${{ github.repository }}"
+        
+        echo "=== 使用 GitHub CLI 上传 DLL 文件 ==="
+        echo "仓库: $repo"
+        echo "标签: $tag"
+        echo "文件: $dllFile"
+        
+        # 使用 gh CLI 上传文件，保持原始文件名
+        gh release upload $tag "$dllFile" --repo $repo --clobber
+        
+        echo "✅ DLL 文件上传完成"
     
     - name: 构建摘要
       shell: pwsh
