@@ -204,13 +204,6 @@ jobs:
         # 清理临时目录
         Remove-Item $updateDir -Recurse -Force
         
-        # ========== 复制单独DLL到根目录（用于Release上传）==========
-        $dllFileName = "Canvas Cast.dll"
-        Copy-Item $dllFile $dllFileName -Force
-        echo ""
-        echo "=== 单独DLL文件 ==="
-        echo "已复制 $dllFileName 到根目录，用于Release上传"
-        
         # ========== 输出统计信息 ==========
         echo ""
         echo "=== 打包完成统计 ==="
@@ -219,10 +212,9 @@ jobs:
         $ratio = ((Get-Item $updateZipName).Length / (Get-Item $fullZipName).Length) * 100
         echo "更新包仅为完整包的 $([math]::Round($ratio, 1))%"
         
-        # 输出文件名供后续步骤使用（DLL使用根目录路径）
+        # 输出文件名供后续步骤使用
         echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
         echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
-        echo "dll_file_path=$dllFileName" >> $env:GITHUB_OUTPUT
       id: create_package
     
     - name: 上传完整包
@@ -238,14 +230,6 @@ jobs:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
         retention-days: 30
-    
-    - name: 上传单独DLL文件（Artifact会自动压缩）
-      uses: actions/upload-artifact@v4
-      with:
-        name: Canvas-Cast-DLL-${{ steps.get_version.outputs.full_version }}
-        path: ${{ steps.create_package.outputs.dll_file_path }}
-        retention-days: 30
-        compression-level: 0  # 尝试不压缩，但Artifact仍会打包成zip
     
     - name: 调试Release信息
       shell: pwsh
@@ -268,13 +252,6 @@ jobs:
           $size = (Get-Item '${{ steps.create_package.outputs.update_zip_name }}').Length / 1MB
           echo "更新包大小: $([math]::Round($size, 2)) MB"
         }
-        echo ""
-        echo "单独DLL: ${{ steps.create_package.outputs.dll_file_path }} (已复制到根目录)"
-        echo "DLL文件存在: $(Test-Path '${{ steps.create_package.outputs.dll_file_path }}')"
-        if (Test-Path '${{ steps.create_package.outputs.dll_file_path }}') {
-          $size = (Get-Item '${{ steps.create_package.outputs.dll_file_path }}').Length / 1MB
-          echo "DLL文件大小: $([math]::Round($size, 2)) MB"
-        }
         echo "======================"
     
     - name: 验证上传文件
@@ -283,8 +260,7 @@ jobs:
         echo "=== 验证即将上传的文件 ==="
         $files = @(
           "${{ steps.create_package.outputs.full_zip_name }}",
-          "${{ steps.create_package.outputs.update_zip_name }}",
-          "${{ steps.create_package.outputs.dll_file_path }}"
+          "${{ steps.create_package.outputs.update_zip_name }}"
         )
         foreach ($file in $files) {
           if (Test-Path $file) {
@@ -319,22 +295,14 @@ jobs:
           - ▶️ 运行 `Canvas Cast.exe`
           
           #### 🔄 老用户 - 增量更新（推荐）
-          
-          **方式一：完整更新包**
           - 📥 下载 `Canvas-Update.zip` 
           - 📂 解压得到 `Canvas Cast.dll` 和 `Resources.pak`
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
           
-          **方式二：仅更新DLL（最快）**
-          - 📥 直接下载 `Canvas Cast.dll`（原始DLL文件，无需解压）
-          - 🔁 直接覆盖原程序目录中的 `Canvas Cast.dll`
-          - ▶️ 重启程序即可
-          
           > **提示**: 
-          > - Release中的 `Canvas Cast.dll` 是原始文件，可直接使用
-          > - 如果只是代码逻辑更新，下载单独的DLL文件最快
-          > - 如果包含资源更新，请下载完整更新包
+          > - 如果只是代码逻辑更新，只需替换 `Canvas Cast.dll`
+          > - 如果包含资源更新，需要同时替换 `Resources.pak`
           
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
@@ -344,25 +312,6 @@ jobs:
           请查看下方自动生成的变更记录
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: 上传单独DLL文件到Release
-      shell: pwsh
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $tag = "${{ steps.get_version.outputs.tag }}"
-        $dllFile = "${{ steps.create_package.outputs.dll_file_path }}"
-        $repo = "${{ github.repository }}"
-        
-        echo "=== 使用 GitHub CLI 上传 DLL 文件 ==="
-        echo "仓库: $repo"
-        echo "标签: $tag"
-        echo "文件: $dllFile"
-        
-        # 使用 gh CLI 上传文件，保持原始文件名
-        gh release upload $tag "$dllFile" --repo $repo --clobber
-        
-        echo "✅ DLL 文件上传完成"
     
     - name: 构建摘要
       shell: pwsh
@@ -380,11 +329,8 @@ jobs:
         
         $fullSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.full_zip_name }}").Length / 1MB, 2)
         $updateSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.update_zip_name }}").Length / 1MB, 2)
-        $dllSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.dll_file_path }}").Length / 1MB, 2)
         $updateRatio = [math]::Round(($updateSize / $fullSize) * 100, 1)
-        $dllRatio = [math]::Round(($dllSize / $fullSize) * 100, 1)
         
         echo "- **完整包**: ``${{ steps.create_package.outputs.full_zip_name }}`` - $fullSize MB" >> $env:GITHUB_STEP_SUMMARY
         echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB (完整包的 $updateRatio%)" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **单独DLL**: ``Canvas Cast.dll`` - $dllSize MB (完整包的 $dllRatio%)" >> $env:GITHUB_STEP_SUMMARY
 
