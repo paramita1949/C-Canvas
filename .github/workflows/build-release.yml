@@ -43,9 +43,19 @@ jobs:
       id: get_version
       shell: pwsh
       run: |
+        # 从 MainWindow.xaml 中提取版本号
+        $xamlContent = Get-Content "UI\MainWindow.xaml" -Raw
+        if ($xamlContent -match 'Title="Canvas Cast (V[\d.]+)"') {
+          $appVersion = $matches[1]
+          echo "从 MainWindow.xaml 提取到版本号: $appVersion"
+        } else {
+          $appVersion = "V5.2.8"
+          echo "⚠️ 无法从 MainWindow.xaml 提取版本号，使用默认值: $appVersion"
+        }
+        
+        # 生成或获取 tag
         if ($env:GITHUB_REF -like 'refs/tags/*') {
           $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
-          $version = $tag
           echo "检测到推送 tag: $tag"
         } else {
           $runNumber = $env:GITHUB_RUN_NUMBER
@@ -63,15 +73,21 @@ jobs:
           } else {
             $tag = $tagBase
           }
-
-          $version = $tag
+          
           echo "未检测到外部 tag，自动生成 tag: $tag"
         }
+        
+        # 组合完整版本号: V5.2.8-auto-104-6548a7b
+        $fullVersion = "$appVersion-$tag"
 
-        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "app_version=$appVersion" >> $env:GITHUB_OUTPUT
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
-        echo "构建版本: $version"
-        echo "标签: $tag"
+        echo "full_version=$fullVersion" >> $env:GITHUB_OUTPUT
+        echo ""
+        echo "=== 版本信息 ==="
+        echo "应用版本: $appVersion"
+        echo "构建标签: $tag"
+        echo "完整版本: $fullVersion"
     
     - name: 验证构建产物
       shell: pwsh
@@ -122,7 +138,7 @@ jobs:
     - name: 创建发布包
       shell: pwsh
       run: |
-        $version = "${{ steps.get_version.outputs.version }}"
+        $fullVersion = "${{ steps.get_version.outputs.full_version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
         $fullZipName = "Canvas-Full.zip"
         $updateZipName = "Canvas-Update.zip"
@@ -205,30 +221,32 @@ jobs:
     - name: 上传完整包
       uses: actions/upload-artifact@v4
       with:
-        name: Canvas-Cast-Full-${{ steps.get_version.outputs.version }}
+        name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.full_zip_name }}
         retention-days: 30
     
     - name: 上传更新包
       uses: actions/upload-artifact@v4
       with:
-        name: Canvas-Cast-Update-${{ steps.get_version.outputs.version }}
+        name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
         retention-days: 30
     
-    - name: 上传单独DLL文件
+    - name: 上传单独DLL文件（Artifact会自动压缩）
       uses: actions/upload-artifact@v4
       with:
-        name: Canvas-Cast-DLL-${{ steps.get_version.outputs.version }}
+        name: Canvas-Cast-DLL-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.dll_file_path }}
         retention-days: 30
+        compression-level: 0  # 尝试不压缩，但Artifact仍会打包成zip
     
     - name: 调试Release信息
       shell: pwsh
       run: |
         echo "=== Release调试信息 ==="
-        echo "版本号: ${{ steps.get_version.outputs.version }}"
-        echo "标签: ${{ steps.get_version.outputs.tag }}"
+        echo "应用版本: ${{ steps.get_version.outputs.app_version }}"
+        echo "构建标签: ${{ steps.get_version.outputs.tag }}"
+        echo "完整版本: ${{ steps.get_version.outputs.full_version }}"
         echo ""
         echo "完整包: ${{ steps.create_package.outputs.full_zip_name }}"
         echo "完整包存在: $(Test-Path '${{ steps.create_package.outputs.full_zip_name }}')"
@@ -252,68 +270,6 @@ jobs:
         }
         echo "======================"
     
-    - name: 检查并删除已存在的 Release
-      shell: pwsh
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $tag = "${{ steps.get_version.outputs.tag }}"
-        echo "=== 检查 Release 是否存在 ==="
-        echo "标签: $tag"
-        
-        # 获取 Release 信息
-        $headers = @{
-          "Authorization" = "Bearer $env:GITHUB_TOKEN"
-          "Accept" = "application/vnd.github+json"
-          "X-GitHub-Api-Version" = "2022-11-28"
-        }
-        
-        $repo = "${{ github.repository }}"
-        $releaseUrl = "https://api.github.com/repos/$repo/releases/tags/$tag"
-        
-        try {
-          $response = Invoke-WebRequest -Uri $releaseUrl -Headers $headers -Method Get -ErrorAction Stop
-          $releaseData = $response.Content | ConvertFrom-Json
-          $releaseId = $releaseData.id
-          
-          echo "⚠️ 发现已存在的 Release (ID: $releaseId)，正在删除..."
-          
-          # 删除 Release
-          $deleteUrl = "https://api.github.com/repos/$repo/releases/$releaseId"
-          Invoke-WebRequest -Uri $deleteUrl -Headers $headers -Method Delete -ErrorAction Stop | Out-Null
-          echo "✅ 已删除旧的 Release"
-          
-          # 等待一下确保删除完成
-          Start-Sleep -Seconds 2
-        } catch {
-          if ($_.Exception.Response.StatusCode -eq 404) {
-            echo "✅ Release 不存在，无需删除"
-          } else {
-            echo "⚠️ 检查 Release 时出错: $($_.Exception.Message)"
-          }
-        }
-        
-        # 检查并删除 Tag
-        $tagUrl = "https://api.github.com/repos/$repo/git/refs/tags/$tag"
-        try {
-          Invoke-WebRequest -Uri $tagUrl -Headers $headers -Method Get -ErrorAction Stop | Out-Null
-          echo "⚠️ 发现已存在的 Tag，正在删除..."
-          
-          Invoke-WebRequest -Uri $tagUrl -Headers $headers -Method Delete -ErrorAction Stop | Out-Null
-          echo "✅ 已删除旧的 Tag"
-          
-          # 等待一下确保删除完成
-          Start-Sleep -Seconds 2
-        } catch {
-          if ($_.Exception.Response.StatusCode -eq 404) {
-            echo "✅ Tag 不存在，无需删除"
-          } else {
-            echo "⚠️ 检查 Tag 时出错: $($_.Exception.Message)"
-          }
-        }
-        
-        echo "=== 检查完成，准备创建新的 Release ==="
-    
     - name: 创建 GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -322,12 +278,12 @@ jobs:
           ${{ steps.create_package.outputs.update_zip_name }}
           ${{ steps.create_package.outputs.dll_file_path }}
         tag_name: ${{ steps.get_version.outputs.tag }}
-        name: Canvas Cast ${{ steps.get_version.outputs.tag }}
+        name: Canvas Cast ${{ steps.get_version.outputs.full_version }}
         draft: false
         prerelease: false
         generate_release_notes: true
         body: |
-          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.tag }}
+          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.full_version }}
           
           ### 📦 下载说明
           
@@ -347,11 +303,14 @@ jobs:
           - ▶️ 重启程序即可
           
           **方式二：仅更新DLL（最快）**
-          - 📥 直接下载 `Canvas Cast.dll`（无需解压）
+          - 📥 直接下载 `Canvas Cast.dll`（原始DLL文件，无需解压）
           - 🔁 直接覆盖原程序目录中的 `Canvas Cast.dll`
           - ▶️ 重启程序即可
           
-          > **提示**: 如果只是代码逻辑更新，下载单独的DLL文件最快；如果包含资源更新，请下载完整更新包
+          > **提示**: 
+          > - Release中的 `Canvas Cast.dll` 是原始文件，可直接使用
+          > - 如果只是代码逻辑更新，下载单独的DLL文件最快
+          > - 如果包含资源更新，请下载完整更新包
           
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
@@ -367,7 +326,9 @@ jobs:
       run: |
         echo "### ✅ 构建成功" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **版本**: ${{ steps.get_version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **完整版本**: ${{ steps.get_version.outputs.full_version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **应用版本**: ${{ steps.get_version.outputs.app_version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **构建标签**: ${{ steps.get_version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
         echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
         echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
