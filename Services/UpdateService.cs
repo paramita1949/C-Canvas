@@ -72,13 +72,13 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 获取当前应用程序版本（从 MainWindow.xaml 的 Title 属性读取）
+        /// 获取当前应用程序版本（从 MainWindow 的 Title 属性读取）
         /// </summary>
         public static string GetCurrentVersion()
         {
             try
             {
-                // 尝试从运行时的 MainWindow 获取 Title
+                // 从运行时的 MainWindow 获取 Title（动态获取，无论程序在什么位置）
                 var mainWindow = System.Windows.Application.Current?.MainWindow as ImageColorChanger.UI.MainWindow;
                 if (mainWindow != null && !string.IsNullOrEmpty(mainWindow.Title))
                 {
@@ -89,23 +89,7 @@ namespace ImageColorChanger.Services
                     }
                 }
 
-                // 如果 MainWindow 还未创建，尝试读取 XAML 文件
-                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                var location = assembly.Location;
-                var directory = Path.GetDirectoryName(location);
-                var xamlPath = Path.Combine(directory ?? "", "UI", "MainWindow.xaml");
-                
-                if (File.Exists(xamlPath))
-                {
-                    var xamlContent = File.ReadAllText(xamlPath);
-                    var match = Regex.Match(xamlContent, @"Title=""[^""]*V(\d+\.\d+\.\d+)[^""]*""");
-                    if (match.Success)
-                    {
-                        return match.Groups[1].Value;
-                    }
-                }
-
-                // 如果都失败，返回默认版本
+                // 如果 MainWindow 还未创建（更新检查在窗口加载后执行，这种情况不应该发生），返回默认版本
                 return "5.2.8";
             }
             catch
