@@ -1918,7 +1918,7 @@ namespace ImageColorChanger.Services
                     // 如果是最后一次尝试，返回超时错误
                     if (attempt == maxRetries)
                     {
-                        return (false, "请求超时（30秒），请检查网络连接后重试", 0);
+                        return (false, $"请求超时（30秒），请检查网络连接后重试。{ex.Message}", 0);
                     }
                     
                     // 否则继续重试
