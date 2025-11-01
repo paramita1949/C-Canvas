@@ -277,6 +277,23 @@ jobs:
         }
         echo "======================"
     
+    - name: 验证上传文件
+      shell: pwsh
+      run: |
+        echo "=== 验证即将上传的文件 ==="
+        $files = @(
+          "${{ steps.create_package.outputs.full_zip_name }}",
+          "${{ steps.create_package.outputs.update_zip_name }}",
+          "${{ steps.create_package.outputs.dll_file_path }}"
+        )
+        foreach ($file in $files) {
+          if (Test-Path $file) {
+            echo "✅ $file"
+          } else {
+            echo "❌ 文件不存在: $file"
+          }
+        }
+    
     - name: 创建 GitHub Release
       uses: softprops/action-gh-release@v1
       with:
