@@ -223,12 +223,19 @@ jobs:
         name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.full_zip_name }}
         retention-days: 30
-    
+
     - name: 上传更新包
       uses: actions/upload-artifact@v4
       with:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
+        retention-days: 30
+
+    - name: 上传DLL原文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: CanvasCast-DLL-${{ steps.get_version.outputs.full_version }}
+        path: publish/CanvasCast.dll
         retention-days: 30
     
     - name: 调试Release信息
@@ -260,7 +267,8 @@ jobs:
         echo "=== 验证即将上传的文件 ==="
         $files = @(
           "${{ steps.create_package.outputs.full_zip_name }}",
-          "${{ steps.create_package.outputs.update_zip_name }}"
+          "${{ steps.create_package.outputs.update_zip_name }}",
+          "publish/CanvasCast.dll"
         )
         foreach ($file in $files) {
           if (Test-Path $file) {
@@ -277,6 +285,7 @@ jobs:
         files: |
           ${{ steps.create_package.outputs.full_zip_name }}
           ${{ steps.create_package.outputs.update_zip_name }}
+          publish/CanvasCast.dll
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: Canvas Cast ${{ steps.get_version.outputs.full_version }}
         draft: false
@@ -284,30 +293,36 @@ jobs:
         generate_release_notes: true
         body: |
           ## 🎉 Canvas Cast ${{ steps.get_version.outputs.full_version }}
-          
+
           ### 📦 下载说明
-          
-          本次发布提供两个安装包，请根据需要选择：
-          
+
+          本次发布提供三种文件，请根据需要选择：
+
           #### 🆕 新用户 - 完整安装包
-          - 📥 下载 `Canvas-Full.zip` 
+          - 📥 下载 `Canvas-Full.zip`
           - 📂 解压到任意目录
           - ▶️ 运行 `CanvasCast.exe`
-          
+
           #### 🔄 老用户 - 增量更新（推荐）
-          - 📥 下载 `Canvas-Update.zip` 
+          - 📥 下载 `Canvas-Update.zip`
           - 📂 解压得到 `CanvasCast.dll` 和 `Resources.pak`
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
-          
-          > **提示**: 
+
+          #### 🔧 开发者 - DLL原文件
+          - 📥 下载 `CanvasCast.dll` (单独文件)
+          - 🔁 直接替换原程序目录中的 `CanvasCast.dll`
+          - ▶️ 适用于仅代码逻辑更新的场景
+
+          > **提示**:
           > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，需要同时替换 `Resources.pak`
-          
+          > - DLL原文件未经过代码保护，仅供开发调试使用
+
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
           - .NET 8.0 Runtime (如未安装会自动提示下载)
-          
+
           ### 📝 更新日志
           请查看下方自动生成的变更记录
       env:
@@ -326,11 +341,13 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "### 📦 发布包" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
-        
+
         $fullSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.full_zip_name }}").Length / 1MB, 2)
         $updateSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.update_zip_name }}").Length / 1MB, 2)
+        $dllSize = [math]::Round((Get-Item "publish/CanvasCast.dll").Length / 1MB, 2)
         $updateRatio = [math]::Round(($updateSize / $fullSize) * 100, 1)
-        
+
         echo "- **完整包**: ``${{ steps.create_package.outputs.full_zip_name }}`` - $fullSize MB" >> $env:GITHUB_STEP_SUMMARY
         echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB (完整包的 $updateRatio%)" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **DLL原文件**: ``CanvasCast.dll`` - $dllSize MB" >> $env:GITHUB_STEP_SUMMARY
 
