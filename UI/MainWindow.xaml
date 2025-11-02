@@ -641,7 +641,12 @@
                                   PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
                                   MouseDoubleClick="ProjectTree_MouseDoubleClick"
                                   PreviewMouseRightButtonDown="ProjectTree_RightClick"
-                                  MouseMove="ProjectTree_MouseMove">
+                                  MouseMove="ProjectTree_MouseMove"
+                                  AllowDrop="True"
+                                  Drop="ProjectTree_ExternalDrop"
+                                  DragEnter="ProjectTree_ExternalDragEnter"
+                                  DragOver="ProjectTree_ExternalDragOver"
+                                  DragLeave="ProjectTree_ExternalDragLeave">
                         <TreeView.ItemContainerStyle>
                             <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
@@ -1388,9 +1393,10 @@
                         Cursor="Hand"
                         Panel.ZIndex="300"
                         Click="BtnCompositePlay_Click"
+                        MouseRightButtonUp="BtnCompositePlay_RightClick"
                         Opacity="0.75"
                         Visibility="Collapsed"
-                        ToolTip="开始/停止合成播放">
+                        ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Template">

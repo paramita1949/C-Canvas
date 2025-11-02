@@ -23,9 +23,9 @@ namespace ImageColorChanger.UI
                 double newZoom = _currentZoom + delta;
                 newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 滚轮缩放: {_currentZoom:F2} -> {newZoom:F2}");
-#endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 滚轮缩放: {_currentZoom:F2} -> {newZoom:F2}");
+                //#endif
                 
                 // 🔧 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
                 // 避免双重缩放导致的拉伸变形问题
@@ -33,9 +33,9 @@ namespace ImageColorChanger.UI
                 {
                     _currentZoom = newZoom; // 更新当前缩放值
                     
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 同步到ImageProcessor.ZoomRatio: {newZoom:F2}");
-#endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 同步到ImageProcessor.ZoomRatio: {newZoom:F2}");
+                    //#endif
                     _imageProcessor.ZoomRatio = newZoom; // ImageProcessor会重新渲染图片
                     
                     // 更新投影屏幕

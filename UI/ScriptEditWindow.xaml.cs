@@ -71,7 +71,7 @@ namespace ImageColorChanger.UI
                     TotalDurationTextBox.Text = totalFromKeyframes.ToString("F1");
                     TotalDurationTextBox.IsReadOnly = true;
                     TotalDurationTextBox.Background = System.Windows.Media.Brushes.LightGray;
-                    TotalInfoTextBlock.Text = "有关键帧时，TOTAL自动累计（只读）";
+                    TotalInfoTextBlock.Text = "有关键帧时，总时长自动累计（只读）";
                     TotalInfoTextBlock.Foreground = System.Windows.Media.Brushes.Orange;
                 }
                 else
@@ -81,7 +81,7 @@ namespace ImageColorChanger.UI
                     TotalDurationTextBox.Text = totalDuration.ToString("F1");
                     TotalDurationTextBox.IsReadOnly = false;
                     TotalDurationTextBox.Background = System.Windows.Media.Brushes.White;
-                    TotalInfoTextBlock.Text = "无关键帧数据，只能设置TOTAL时长";
+                    TotalInfoTextBlock.Text = "无关键帧数据，只能设置总时长";
                     TotalInfoTextBlock.Foreground = System.Windows.Media.Brushes.Blue;
                     
                     // 隐藏关键帧脚本编辑区域
@@ -91,7 +91,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载TOTAL时间失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 加载总时间失败: {ex.Message}");
                 TotalDurationTextBox.Text = "100";
             }
         }

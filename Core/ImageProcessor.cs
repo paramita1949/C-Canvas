@@ -202,15 +202,15 @@ namespace ImageColorChanger.Core
                 double newZoom = Math.Max(Constants.MinZoomRatio, Math.Min(Constants.MaxZoomRatio, value));
                 if (Math.Abs(zoomRatio - newZoom) > 0.001)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
+                    //#endif
                     zoomRatio = newZoom;
                     if (currentImage != null && !originalMode)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 触发UpdateImage()更新主屏显示");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 触发UpdateImage()更新主屏显示");
+                        //#endif
                         UpdateImage();
                     }
                     else if (originalMode)

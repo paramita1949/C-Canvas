@@ -237,9 +237,9 @@ namespace ImageColorChanger.Services.Implementations
             else if (!hasKeyframes)
             {
                 // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（默认100秒）
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📊 合成播放模式3：无关键帧，从顶部滚动");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式3：无关键帧，从顶部滚动");
+                //#endif
 
                 // 从CompositeScript获取TOTAL时间，如果没有则使用默认100秒
                 _totalDuration = compositeScript?.TotalDuration ?? 100.0;
@@ -248,9 +248,9 @@ namespace ImageColorChanger.Services.Implementations
                 if (compositeScript == null)
                 {
                     await _compositeScriptRepository.CreateOrUpdateAsync(imageId, _totalDuration, autoCalculate: false);
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   创建默认CompositeScript: {_totalDuration}秒");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   创建默认CompositeScript: {_totalDuration}秒");
+                    //#endif
                 }
 
                 // 使用整个图片的范围作为滚动区域（从0到可滚动高度）
@@ -264,12 +264,12 @@ namespace ImageColorChanger.Services.Implementations
                 double fullScrollableHeight = heightArgs.ScrollableHeight > 0 ? heightArgs.ScrollableHeight : 10000;
                 _endPosition = fullScrollableHeight * 0.75;
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   完整可滚动高度: {fullScrollableHeight:F0}");
-                System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (75%)");
-                System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (25%)");
-                System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   完整可滚动高度: {fullScrollableHeight:F0}");
+                //System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (75%)");
+                //System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (25%)");
+                //System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
+                //#endif
 
                 // 构建一个简单的滚动段：从顶部滚动到底部
                 // 滚动函数（线性/贝塞尔等）会在TOTAL时间内自然完成滚动
@@ -602,22 +602,22 @@ namespace ImageColorChanger.Services.Implementations
             double actualElapsed = _playbackStopwatch.Elapsed.TotalSeconds;
             double expectedDuration = _totalDuration;
 
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"");
-            System.Diagnostics.Debug.WriteLine($"🕐 [TOTAL时间检测]");
-            System.Diagnostics.Debug.WriteLine($"   实际播放时间: {actualElapsed:F2}秒");
-            System.Diagnostics.Debug.WriteLine($"   设定TOTAL时间: {expectedDuration:F2}秒");
-            System.Diagnostics.Debug.WriteLine($"   差异百分比: {(expectedDuration - actualElapsed) / expectedDuration * 100:F1}%");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [TOTAL时间检测]");
+            //System.Diagnostics.Debug.WriteLine($"   实际播放时间: {actualElapsed:F2}秒");
+            //System.Diagnostics.Debug.WriteLine($"   设定TOTAL时间: {expectedDuration:F2}秒");
+            //System.Diagnostics.Debug.WriteLine($"   差异百分比: {(expectedDuration - actualElapsed) / expectedDuration * 100:F1}%");
+            //#endif
 
             // 如果实际时间明显小于预期时间（提前20%以上完成）
             // 说明TOTAL时间设置得太长了，需要调整
             if (actualElapsed < expectedDuration * 0.8 && actualElapsed >= 5.0)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 检测到TOTAL时间过长，自动调整:");
-                System.Diagnostics.Debug.WriteLine($"   {expectedDuration:F1}秒 -> {actualElapsed:F1}秒");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 检测到TOTAL时间过长，自动调整:");
+                //System.Diagnostics.Debug.WriteLine($"   {expectedDuration:F1}秒 -> {actualElapsed:F1}秒");
+                //#endif
 
                 // 更新数据库的TOTAL时间
                 await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, actualElapsed, autoCalculate: false);
@@ -629,15 +629,15 @@ namespace ImageColorChanger.Services.Implementations
                 // 重置计时器，下一轮使用新时间
                 _playbackStopwatch.Restart();
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ TOTAL时间已自动更新为 {actualElapsed:F1}秒");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ TOTAL时间已自动更新为 {actualElapsed:F1}秒");
+                //#endif
             }
             else
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✓ TOTAL时间合理，无需调整");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✓ TOTAL时间合理，无需调整");
+                //#endif
                 
                 // 重置计时器，准备下一轮
                 _playbackStopwatch.Restart();

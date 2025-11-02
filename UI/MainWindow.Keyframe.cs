@@ -3,10 +3,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Animation;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Managers.Keyframes;
 using MessageBox = System.Windows.MessageBox;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.UI
 {
@@ -533,6 +535,136 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 合成播放按钮右键点击事件 - 快捷设置总时长
+        /// </summary>
+        private void BtnCompositePlay_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_currentImageId == 0)
+            {
+                ShowStatus("请先选择一张图片");
+                return;
+            }
+
+            try
+            {
+                // 创建右键菜单
+                var contextMenu = new ContextMenu();
+                
+                // 应用自定义样式
+                contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+
+                // 标题项
+                var titleItem = new MenuItem 
+                { 
+                    Header = "⏱️ 快捷设置总时长",
+                    IsEnabled = false,
+                    FontWeight = FontWeights.Bold
+                };
+                contextMenu.Items.Add(titleItem);
+                contextMenu.Items.Add(new Separator());
+
+                // 预设时长选项：60、80、100、120秒
+                var durations = new[] { 60, 80, 100, 120 };
+                
+                foreach (var duration in durations)
+                {
+                    var menuItem = new MenuItem 
+                    { 
+                        Header = $"{duration} 秒",
+                        Tag = duration
+                    };
+                    
+                    menuItem.Click += async (s, args) =>
+                    {
+                        await SetCompositeTotalDuration(duration);
+                    };
+                    
+                    contextMenu.Items.Add(menuItem);
+                }
+
+                contextMenu.Items.Add(new Separator());
+
+                // 自定义时长选项
+                var customItem = new MenuItem { Header = "⚙️ 自定义时长..." };
+                customItem.Click += (s, args) => OpenScriptEditWindow();
+                contextMenu.Items.Add(customItem);
+
+                // 显示菜单
+                contextMenu.PlacementTarget = sender as UIElement;
+                contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                contextMenu.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 显示右键菜单失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 设置合成播放的总时长
+        /// </summary>
+        private async System.Threading.Tasks.Task SetCompositeTotalDuration(int duration)
+        {
+            try
+            {
+                // 获取CompositeScriptRepository
+                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+                
+                // 更新TOTAL时长
+                await compositeScriptRepo.CreateOrUpdateAsync(_currentImageId, duration, autoCalculate: false);
+                
+                ShowStatus($"✅ 总时长已设置为 {duration} 秒");
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 总时长已设置: {duration}秒 (图片ID: {_currentImageId})");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 设置时长失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 设置总时长失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 打开脚本编辑窗口
+        /// </summary>
+        private async void OpenScriptEditWindow()
+        {
+            try
+            {
+                // 从数据库获取关键帧时间数据
+                var timings = new System.Collections.Generic.List<Database.Models.DTOs.TimingSequenceDto>();
+                
+                string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
+                using (var context = new Database.CanvasDbContext(dbPath))
+                {
+                    var keyframeTimings = await context.KeyframeTimings
+                        .Where(t => t.ImageId == _currentImageId)
+                        .OrderBy(t => t.SequenceOrder)
+                        .ToListAsync();
+                    
+                    timings = keyframeTimings.Select(t => new Database.Models.DTOs.TimingSequenceDto
+                    {
+                        KeyframeId = t.KeyframeId,
+                        Duration = t.Duration,
+                        SequenceOrder = t.SequenceOrder
+                    }).ToList();
+                }
+                
+                // 打开脚本编辑窗口
+                var scriptWindow = new ScriptEditWindow(_currentImageId, timings);
+                scriptWindow.Owner = this;
+                scriptWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 打开脚本窗口失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 打开脚本窗口失败: {ex}");
+            }
+        }
+
+        /// <summary>
         /// 合成播放滚动请求事件处理
         /// </summary>
         private void OnCompositeScrollRequested(object sender, Services.Implementations.CompositeScrollEventArgs e)
@@ -716,12 +848,12 @@ namespace ImageColorChanger.UI
                     // ScrollableHeight: 可滚动的高度（ExtentHeight - ViewportHeight）
                     double scrollableHeight = ImageScrollViewer.ScrollableHeight;
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📏 ScrollViewer信息:");
-                    System.Diagnostics.Debug.WriteLine($"   ExtentHeight: {ImageScrollViewer.ExtentHeight}");
-                    System.Diagnostics.Debug.WriteLine($"   ViewportHeight: {ImageScrollViewer.ViewportHeight}");
-                    System.Diagnostics.Debug.WriteLine($"   ScrollableHeight: {scrollableHeight}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📏 ScrollViewer信息:");
+                    //System.Diagnostics.Debug.WriteLine($"   ExtentHeight: {ImageScrollViewer.ExtentHeight}");
+                    //System.Diagnostics.Debug.WriteLine($"   ViewportHeight: {ImageScrollViewer.ViewportHeight}");
+                    //System.Diagnostics.Debug.WriteLine($"   ScrollableHeight: {scrollableHeight}");
+                    //#endif
                     
                     // 返回可滚动高度
                     e.ScrollableHeight = scrollableHeight;
