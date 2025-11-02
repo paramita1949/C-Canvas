@@ -1297,6 +1297,8 @@ namespace ImageColorChanger.UI
                         {
                             #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 应用变色效果失败: {ex.Message}");
+                            #else
+                            _ = ex; // 避免未使用变量警告
                             #endif
                         }
                     }
@@ -1877,6 +1879,8 @@ namespace ImageColorChanger.UI
                         {
                             #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 应用变色效果失败: {ex.Message}");
+                            #else
+                            _ = ex; // 避免未使用变量警告
                             #endif
 
                             // 失败时使用正常方式

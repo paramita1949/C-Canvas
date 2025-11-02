@@ -454,7 +454,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 🆕 自动重命名：给文件名前面加上序号
-                await RenameFilesWithSequenceNumbers(files, sourceFolderId);
+                RenameFilesWithSequenceNumbers(files, sourceFolderId);
 
                 // 保存更改
                 _dbManager.UpdateMediaFilesOrder(files);
@@ -927,7 +927,7 @@ namespace ImageColorChanger.UI
         /// 自动重命名文件，在文件名前面加上序号（如：1. 2. 3.）
         /// 格式：序号. 原文件名（去掉旧序号）
         /// </summary>
-        private async Task RenameFilesWithSequenceNumbers(List<MediaFile> files, int? folderId)
+        private void RenameFilesWithSequenceNumbers(List<MediaFile> files, int? folderId)
         {
             try
             {
@@ -991,6 +991,8 @@ namespace ImageColorChanger.UI
                     {
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"  ❌ [{i + 1}] 重命名失败: {file.Name} - {ex.Message}");
+                        #else
+                        _ = ex; // 避免未使用变量警告
                         #endif
                     }
                 }
@@ -1003,6 +1005,8 @@ namespace ImageColorChanger.UI
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 自动序号重命名失败: {ex.Message}");
+                #else
+                _ = ex; // 避免未使用变量警告
                 #endif
             }
         }
