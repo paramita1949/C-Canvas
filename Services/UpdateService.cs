@@ -54,13 +54,31 @@ namespace ImageColorChanger.Services
         private const string FILES_LIST_URL_TEMPLATE = R2_BASE_URL + "/v{version}/files.txt";
         
         // 尝试自动发现的文件名列表（如果 files.txt 不存在时使用）
+        // 优先级：压缩包 > DLL > 资源文件 > 配置文件
         private static readonly string[] COMMON_UPDATE_FILES = new[]
         {
-            "CanvasCast.dll",
-            "Resources.pak",
+            // 压缩包（优先）
             "update.zip",
             "update.7z",
-            "update.rar"
+            "update.rar",
+            "Canvas-Update.zip",
+            "Canvas-Full.zip",
+
+            // 主程序文件
+            "CanvasCast.dll",
+            "CanvasCast.exe",
+
+            // 资源文件
+            "Resources.pak",
+
+            // 配置文件
+            "appsettings.json",
+            "config.json",
+
+            // 其他可能的更新文件
+            "*.dll",
+            "*.pak",
+            "*.exe"
         };
         
         private static readonly HttpClient _httpClient = new HttpClient();
@@ -428,12 +446,14 @@ namespace ImageColorChanger.Services
                     return false;
                 }
 
-                // 获取当前程序目录
+                // 获取当前程序目录和主程序路径
                 var currentDir = AppDomain.CurrentDomain.BaseDirectory;
+                var currentExePath = Process.GetCurrentProcess().MainModule?.FileName ??
+                                    Path.Combine(currentDir, "CanvasCast.exe");
                 var updaterScript = Path.Combine(Path.GetTempPath(), "update_canvas.bat");
 
-                // 获取所有需要更新的文件
-                var updateFiles = Directory.GetFiles(updateDir);
+                // 获取所有需要更新的文件（包括子目录）
+                var updateFiles = Directory.GetFiles(updateDir, "*.*", SearchOption.AllDirectories);
                 if (updateFiles.Length == 0)
                 {
 #if DEBUG
@@ -441,6 +461,15 @@ namespace ImageColorChanger.Services
 #endif
                     return false;
                 }
+
+#if DEBUG
+                Debug.WriteLine($"[UpdateService] 当前程序: {currentExePath}");
+                Debug.WriteLine($"[UpdateService] 发现 {updateFiles.Length} 个更新文件:");
+                foreach (var file in updateFiles)
+                {
+                    Debug.WriteLine($"  - {Path.GetFileName(file)}");
+                }
+#endif
 
                 // 构建备份命令
                 var backupCommands = new System.Text.StringBuilder();
@@ -450,21 +479,33 @@ namespace ImageColorChanger.Services
 
                 foreach (var sourceFile in updateFiles)
                 {
-                    var fileName = Path.GetFileName(sourceFile);
-                    var targetFile = Path.Combine(currentDir, fileName);
+                    // 计算相对路径，支持子目录结构
+                    var relativePath = Path.GetRelativePath(updateDir, sourceFile);
+                    var targetFile = Path.Combine(currentDir, relativePath);
+                    var targetDir = Path.GetDirectoryName(targetFile);
                     var backupFile = targetFile + ".bak";
 
+                    // 如果目标文件在子目录中，确保目录存在
+                    if (!string.IsNullOrEmpty(targetDir) && targetDir != currentDir)
+                    {
+                        updateCommands.AppendLine($"if not exist \"{targetDir}\" mkdir \"{targetDir}\"");
+                    }
+
+                    // 备份旧文件
                     backupCommands.AppendLine($"if exist \"{targetFile}\" (");
                     backupCommands.AppendLine($"    copy \"{targetFile}\" \"{backupFile}\" > nul 2>&1");
                     backupCommands.AppendLine($")");
 
+                    // 复制新文件
                     updateCommands.AppendLine($"copy /Y \"{sourceFile}\" \"{targetFile}\" > nul 2>&1");
                     updateCommands.AppendLine($"if %errorlevel% neq 0 set UPDATE_FAILED=1");
 
+                    // 恢复备份（失败时）
                     restoreCommands.AppendLine($"if exist \"{backupFile}\" (");
                     restoreCommands.AppendLine($"    copy /Y \"{backupFile}\" \"{targetFile}\" > nul 2>&1");
                     restoreCommands.AppendLine($")");
 
+                    // 清理备份
                     cleanupCommands.AppendLine($"del \"{backupFile}\" > nul 2>&1");
                 }
 
@@ -483,6 +524,7 @@ set UPDATE_FAILED=0
 {updateCommands}
 
 if %UPDATE_FAILED% neq 0 (
+    REM 更新失败，恢复备份
 {restoreCommands}
     exit /b 1
 )
@@ -491,9 +533,9 @@ REM 清理备份和临时文件
 {cleanupCommands}
 rd /s /q ""{updateDir}"" > nul 2>&1
 
-REM 重启程序
+REM 重启程序（使用当前运行的程序路径）
 timeout /t 1 /nobreak > nul 2>&1
-start """" ""{Path.Combine(currentDir, "CanvasCast.exe")}""
+start """" ""{currentExePath}""
 
 REM 删除自身
 (goto) 2>nul & del ""%~f0"" > nul 2>&1
@@ -505,6 +547,7 @@ exit
 #if DEBUG
                 Debug.WriteLine($"[UpdateService] 创建更新脚本: {updaterScript}");
                 Debug.WriteLine($"[UpdateService] 将更新 {updateFiles.Length} 个文件");
+                Debug.WriteLine($"[UpdateService] 更新完成后将重启: {currentExePath}");
 #endif
 
                 // 启动更新脚本（隐藏窗口，静默执行）
