@@ -878,12 +878,13 @@ namespace ImageColorChanger.UI
                     var files = _dbManager.GetMediaFilesByFolder(item.Id);
                     if (files.Count > 0)
                     {
-                        // 使用SortManager的排序键对文件进行排序
+                        // 🔑 关键：使用物理文件名（从Path获取）进行排序，而不是显示名称
                         var sortedFiles = files
                             .Select(f => new
                             {
                                 File = f,
-                                SortKey = _sortManager.GetSortKey(f.Name + System.IO.Path.GetExtension(f.Path))
+                                OriginalFileName = System.IO.Path.GetFileName(f.Path),
+                                SortKey = _sortManager.GetSortKey(System.IO.Path.GetFileName(f.Path))
                             })
                             .OrderBy(x => x.SortKey.prefixNumber)
                             .ThenBy(x => x.SortKey.pinyinPart)
@@ -895,6 +896,13 @@ namespace ImageColorChanger.UI
                         for (int i = 0; i < sortedFiles.Count; i++)
                         {
                             sortedFiles[i].OrderIndex = i + 1;
+                        }
+
+                        // 🔑 恢复显示名称为物理文件名（去掉扩展名，保持与导入时一致）
+                        for (int i = 0; i < sortedFiles.Count; i++)
+                        {
+                            string originalFileName = System.IO.Path.GetFileNameWithoutExtension(sortedFiles[i].Path);
+                            sortedFiles[i].Name = originalFileName;
                         }
 
                         // 保存更改

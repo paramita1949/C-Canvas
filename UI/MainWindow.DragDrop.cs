@@ -924,87 +924,62 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 自动重命名文件，在文件名前面加上序号（如：1. 2. 3.）
+        /// 更新数据库中的显示名称，在前面加上序号（如：1. 2. 3.）
+        /// 注意：只更新数据库的 Name 字段，不修改物理文件名
         /// 格式：序号. 原文件名（去掉旧序号）
         /// </summary>
         private void RenameFilesWithSequenceNumbers(List<MediaFile> files, int? folderId)
         {
             try
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔢 开始自动添加序号重命名 ({files.Count} 个文件)");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔢 开始更新显示名称序号 ({files.Count} 个文件)");
+                //#endif
 
                 for (int i = 0; i < files.Count; i++)
                 {
                     var file = files[i];
                     int newNumber = i + 1;
                     
-                    // 获取原文件名（不含扩展名）
-                    string oldNameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(file.Name);
-                    string extension = System.IO.Path.GetExtension(file.Name);
+                    // 🔑 关键：始终从物理文件路径获取原始文件名（保持不变）
+                    string originalFileName = System.IO.Path.GetFileName(file.Path);
+                    string originalNameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(originalFileName);
                     
-                    // 去掉文件名前面的旧序号（支持多种格式）
-                    string nameWithoutNumber = RemoveSequenceNumber(oldNameWithoutExt);
+                    // 去掉原始文件名前面的序号（如果有）
+                    string nameWithoutNumber = RemoveSequenceNumber(originalNameWithoutExt);
                     
-                    // 构建新文件名：序号. 文件名
-                    string newNameWithoutExt = $"{newNumber}. {nameWithoutNumber}";
-                    string newName = newNameWithoutExt + extension;
+                    // 构建新显示名称：序号. 原始文件名（去序号，不带扩展名）
+                    string newDisplayName = $"{newNumber}. {nameWithoutNumber}";
                     
-                    // 如果文件名没有变化，跳过
-                    if (newName == file.Name)
+                    // 如果显示名称没有变化，跳过
+                    if (newDisplayName == file.Name)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  ⏭️ [{i + 1}] 跳过（文件名未变）: {file.Name}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"  ⏭️ [{i + 1}] 跳过（名称未变）: {file.Name}");
+                        //#endif
                         continue;
                     }
                     
-                    // 构建新的文件路径
-                    string oldPath = file.Path;
-                    string directory = System.IO.Path.GetDirectoryName(oldPath);
-                    string newPath = System.IO.Path.Combine(directory, newName);
+                    // 只更新数据库中的 Name 字段，不修改物理文件
+                    string oldDisplayName = file.Name;
+                    file.Name = newDisplayName;
+                    // Path 保持不变
                     
-                    // 检查新文件名是否已存在
-                    if (System.IO.File.Exists(newPath))
-                    {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  ⚠️ [{i + 1}] 跳过（文件名冲突）: {newName}");
-                        #endif
-                        continue;
-                    }
-                    
-                    // 重命名物理文件
-                    try
-                    {
-                        System.IO.File.Move(oldPath, newPath);
-                        
-                        // 更新数据库记录
-                        file.Name = newName;
-                        file.Path = newPath;
-                        
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  ✅ [{i + 1}] {oldNameWithoutExt} → {newNameWithoutExt}");
-                        #endif
-                    }
-                    catch (Exception ex)
-                    {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  ❌ [{i + 1}] 重命名失败: {file.Name} - {ex.Message}");
-                        #else
-                        _ = ex; // 避免未使用变量警告
-                        #endif
-                    }
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"  ✅ [{i + 1}] 显示名称: {oldDisplayName} → {newDisplayName}");
+                    //System.Diagnostics.Debug.WriteLine($"      原始文件: {originalFileName}");
+                    //System.Diagnostics.Debug.WriteLine($"      物理路径: {file.Path} (不变)");
+                    //#endif
                 }
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 自动序号重命名完成");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ 显示名称序号更新完成");
+                //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 自动序号重命名失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 显示名称序号更新失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
