@@ -369,6 +369,20 @@ namespace ImageColorChanger.UI
                 }
             }
             
+            // 🎯 合成播放中：更新TOTAL时间并重新开始循环
+            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+            var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                as Services.Implementations.CompositePlaybackService;
+            
+            if (compositeService != null && compositeService.IsPlaying)
+            {
+                // 合成播放中：更新TOTAL时间为当前已播放时间，并重新开始循环
+                await compositeService.UpdateTotalAndRestartAsync();
+                ShowStatus($"✅ 已更新TOTAL时间为 {compositeService.GetElapsedSeconds():F1}秒，重新开始循环");
+                sw.Stop();
+                return;
+            }
+            
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
             if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
@@ -379,8 +393,7 @@ namespace ImageColorChanger.UI
                     var currentIndex = _keyframeManager.CurrentKeyframeIndex;
                     
                     // 调用播放服务的手动修正方法
-                    var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                        .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                    var playbackService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
@@ -461,22 +474,11 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🔧 检查是否有关键帧（至少2个）
+                // 🔧 获取关键帧（可以为空或少于2个，支持无关键帧播放）
+                // 注意：即使没有录制数据（时间数据）也允许播放
+                // - 有关键帧（>=2）：使用TOTAL时间从第一帧滚动到最后一帧
+                // - 无关键帧：使用TOTAL时间从顶部滚动到底部
                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                if (keyframes == null || keyframes.Count < 2)
-                {
-                    ShowToast("❌ 无录制数据", 2000);
-                    return;
-                }
-
-                // 🔧 检查是否有录制数据（时间数据）
-                var timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
-                var hasTimingData = await timingRepository.HasTimingDataAsync(_currentImageId);
-                if (!hasTimingData)
-                {
-                    ShowToast("❌ 无录制数据", 2000);
-                    return;
-                }
 
                 // 订阅滚动请求事件
                 compositeService.ScrollRequested -= OnCompositeScrollRequested;
@@ -498,12 +500,25 @@ namespace ImageColorChanger.UI
                 compositeService.CurrentKeyframeChanged -= OnCompositeCurrentKeyframeChanged;
                 compositeService.CurrentKeyframeChanged += OnCompositeCurrentKeyframeChanged;
 
+                // 订阅获取可滚动高度事件
+                compositeService.ScrollableHeightRequested -= OnScrollableHeightRequested;
+                compositeService.ScrollableHeightRequested += OnScrollableHeightRequested;
+
                 // 设置播放次数（使用当前的播放次数设置）
                 compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
 
-                // 🔧 在开始播放前，先跳转到第一帧位置
-                var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
-                ImageScrollViewer.ScrollToVerticalOffset(firstKeyframe.YPosition);
+                // 🔧 在开始播放前，根据情况跳转到起始位置
+                if (keyframes != null && keyframes.Count >= 2)
+                {
+                    // 有关键帧：跳转到第一帧位置
+                    var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
+                    ImageScrollViewer.ScrollToVerticalOffset(firstKeyframe.YPosition);
+                }
+                else
+                {
+                    // 无关键帧：跳转到顶部
+                    ImageScrollViewer.ScrollToVerticalOffset(0);
+                }
 
                 // 开始播放
                 await compositeService.StartPlaybackAsync(_currentImageId);
@@ -682,6 +697,39 @@ namespace ImageColorChanger.UI
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ 更新合成播放指示块失败: {ex.Message}");
+                }
+            });
+        }
+
+        /// <summary>
+        /// 处理获取可滚动高度请求
+        /// </summary>
+        private void OnScrollableHeightRequested(object sender, Services.Implementations.ScrollableHeightRequestEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 获取ScrollViewer的可滚动高度（ExtentHeight - ViewportHeight）
+                    // ExtentHeight: 内容的总高度
+                    // ViewportHeight: 可视区域的高度
+                    // ScrollableHeight: 可滚动的高度（ExtentHeight - ViewportHeight）
+                    double scrollableHeight = ImageScrollViewer.ScrollableHeight;
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📏 ScrollViewer信息:");
+                    System.Diagnostics.Debug.WriteLine($"   ExtentHeight: {ImageScrollViewer.ExtentHeight}");
+                    System.Diagnostics.Debug.WriteLine($"   ViewportHeight: {ImageScrollViewer.ViewportHeight}");
+                    System.Diagnostics.Debug.WriteLine($"   ScrollableHeight: {scrollableHeight}");
+                    #endif
+                    
+                    // 返回可滚动高度
+                    e.ScrollableHeight = scrollableHeight;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ 获取可滚动高度失败: {ex.Message}");
+                    e.ScrollableHeight = 0; // 失败时返回0，使用默认值
                 }
             });
         }

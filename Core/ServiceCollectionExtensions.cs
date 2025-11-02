@@ -68,6 +68,7 @@ namespace ImageColorChanger.Core
             services.AddScoped<Repositories.Interfaces.ITimingRepository, Repositories.Implementations.TimingRepository>();
             services.AddScoped<Repositories.Interfaces.IOriginalModeRepository, Repositories.Implementations.OriginalModeRepositoryImpl>();
             services.AddScoped<Repositories.Interfaces.IMediaFileRepository, Repositories.Implementations.MediaFileRepositoryImpl>();
+            services.AddScoped<Repositories.Interfaces.ICompositeScriptRepository, Repositories.Implementations.CompositeScriptRepository>();
 
             // 保留旧的Repository（向后兼容）
             services.AddScoped<KeyframeRepository>();

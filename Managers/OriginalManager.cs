@@ -352,9 +352,11 @@ namespace ImageColorChanger.Managers
                 int folderId = currentFile.FolderId.Value;
                 
                 // 获取文件夹中所有图片
+                // 优先使用OrderIndex（自定义排序），如果没有OrderIndex则按文件名排序
                 var allImages = _dbManager.GetMediaFilesByFolder(folderId)
                     .Where(f => f.FileType == FileType.Image)
-                    .OrderBy(f => f.Name) // 按文件名排序
+                    .OrderBy(f => f.OrderIndex ?? int.MaxValue) // 优先使用OrderIndex
+                    .ThenBy(f => f.Name) // OrderIndex相同时按文件名排序
                     .ToList();
 
                 if (allImages.Count == 0)

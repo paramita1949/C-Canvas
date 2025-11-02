@@ -31,6 +31,9 @@ namespace ImageColorChanger.UI
             Title = "关键帧脚本编辑";
             // 格式化并显示脚本内容
             ScriptTextBox.Text = FormatKeyframeScriptContent(timings);
+            
+            // 加载TOTAL时间
+            _ = LoadTotalDurationAsync();
         }
         
         // 原图模式构造函数
@@ -44,6 +47,53 @@ namespace ImageColorChanger.UI
             Title = "原图模式脚本编辑";
             // 格式化并显示脚本内容
             ScriptTextBox.Text = FormatOriginalScriptContent(timings);
+            
+            // 原图模式隐藏TOTAL时间设置（原图模式不需要）
+            TotalDurationTextBox.IsEnabled = false;
+            TotalDurationTextBox.Visibility = Visibility.Collapsed;
+            TotalInfoTextBlock.Visibility = Visibility.Collapsed;
+        }
+        
+        /// <summary>
+        /// 加载TOTAL时间
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadTotalDurationAsync()
+        {
+            try
+            {
+                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+                var compositeScript = await compositeScriptRepo.GetByImageIdAsync(_imageId);
+                
+                if (_keyframeTimings != null && _keyframeTimings.Any())
+                {
+                    // 有关键帧时，显示累计值（只读）
+                    double totalFromKeyframes = _keyframeTimings.Sum(t => t.Duration);
+                    TotalDurationTextBox.Text = totalFromKeyframes.ToString("F1");
+                    TotalDurationTextBox.IsReadOnly = true;
+                    TotalDurationTextBox.Background = System.Windows.Media.Brushes.LightGray;
+                    TotalInfoTextBlock.Text = "有关键帧时，TOTAL自动累计（只读）";
+                    TotalInfoTextBlock.Foreground = System.Windows.Media.Brushes.Orange;
+                }
+                else
+                {
+                    // 无关键帧时，从CompositeScript读取或使用默认值100秒
+                    double totalDuration = compositeScript?.TotalDuration ?? 100.0;
+                    TotalDurationTextBox.Text = totalDuration.ToString("F1");
+                    TotalDurationTextBox.IsReadOnly = false;
+                    TotalDurationTextBox.Background = System.Windows.Media.Brushes.White;
+                    TotalInfoTextBlock.Text = "无关键帧数据，只能设置TOTAL时长";
+                    TotalInfoTextBlock.Foreground = System.Windows.Media.Brushes.Blue;
+                    
+                    // 隐藏关键帧脚本编辑区域
+                    ScriptTextBox.Visibility = Visibility.Collapsed;
+                    ScriptTextBox.Height = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 加载TOTAL时间失败: {ex.Message}");
+                TotalDurationTextBox.Text = "100";
+            }
         }
 
         /// <summary>
@@ -128,7 +178,7 @@ namespace ImageColorChanger.UI
             {
                 await SaveKeyframeScript();
             }
-            else
+            else if (_mode == PlaybackMode.Original)
             {
                 await SaveOriginalScript();
             }
@@ -141,6 +191,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 如果没有关键帧数据，只保存TOTAL时间
+                if (_keyframeTimings == null || _keyframeTimings.Count == 0)
+                {
+                    await SaveTotalDurationAsync();
+                    // 静默保存，不弹窗
+                    DialogResult = true;
+                    Close();
+                    return;
+                }
+                
                 // 解析修改后的文本
                 var lines = ScriptTextBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 var newTimings = new List<(int keyframeId, double duration, int sequenceOrder)>();
@@ -214,6 +274,9 @@ namespace ImageColorChanger.UI
                 // 保存到数据库
                 if (await SaveTimingsToDatabase(newTimings))
                 {
+                    // 保存TOTAL时间
+                    await SaveTotalDurationAsync();
+                    
                     MessageBox.Show("脚本信息已更新", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
                     DialogResult = true;
                     Close();
@@ -426,6 +489,37 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
                 return false;
+            }
+        }
+        
+        /// <summary>
+        /// 保存TOTAL时间到数据库
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveTotalDurationAsync()
+        {
+            try
+            {
+                // 解析TOTAL时间
+                if (!double.TryParse(TotalDurationTextBox.Text, out double totalDuration) || totalDuration < 0)
+                {
+                    totalDuration = 100.0; // 默认值
+                }
+                
+                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+                
+                // 判断是否有关键帧数据
+                bool hasKeyframes = _keyframeTimings != null && _keyframeTimings.Any();
+                
+                // 保存或更新CompositeScript
+                await compositeScriptRepo.CreateOrUpdateAsync(_imageId, totalDuration, autoCalculate: hasKeyframes);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 已保存TOTAL时间: {totalDuration:F2}秒, AutoCalculate={hasKeyframes}");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 保存TOTAL时间失败: {ex.Message}");
             }
         }
     }

@@ -1923,14 +1923,12 @@ namespace ImageColorChanger.UI
             var timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
             var timings = await timingRepository.GetTimingSequenceAsync(_currentImageId);
             
-            if (timings == null || timings.Count == 0)
-            {
-                MessageBox.Show("当前图片没有录制的时间数据", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
+            // 即使没有关键帧数据，也可以打开脚本窗口来设置TOTAL时间
+            // 传入空列表即可
+            var timingList = timings?.ToList() ?? new System.Collections.Generic.List<Database.Models.DTOs.TimingSequenceDto>();
 
             // 创建并显示脚本编辑窗口
-            var scriptWindow = new ScriptEditWindow(_currentImageId, timings.ToList())
+            var scriptWindow = new ScriptEditWindow(_currentImageId, timingList)
             {
                 Owner = this
             };
@@ -1938,7 +1936,7 @@ namespace ImageColorChanger.UI
             // 如果保存成功，刷新UI状态
             if (scriptWindow.ShowDialog() == true)
             {
-                ShowStatus("✅ 关键帧脚本已更新");
+                ShowStatus("✅ 脚本已更新");
             }
         }
         

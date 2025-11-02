@@ -19,6 +19,7 @@ namespace ImageColorChanger.Services.Implementations
     {
         private readonly IKeyframeRepository _keyframeRepository;
         private readonly ITimingRepository _timingRepository;
+        private readonly Repositories.Interfaces.ICompositeScriptRepository _compositeScriptRepository;
         private readonly Stopwatch _stopwatch;
 
         private int _currentImageId;
@@ -37,10 +38,12 @@ namespace ImageColorChanger.Services.Implementations
 
         public KeyframeRecordingService(
             IKeyframeRepository keyframeRepository,
-            ITimingRepository timingRepository)
+            ITimingRepository timingRepository,
+            Repositories.Interfaces.ICompositeScriptRepository compositeScriptRepository)
         {
             _keyframeRepository = keyframeRepository ?? throw new ArgumentNullException(nameof(keyframeRepository));
             _timingRepository = timingRepository ?? throw new ArgumentNullException(nameof(timingRepository));
+            _compositeScriptRepository = compositeScriptRepository ?? throw new ArgumentNullException(nameof(compositeScriptRepository));
             _stopwatch = new Stopwatch();
         }
 
@@ -132,6 +135,14 @@ namespace ImageColorChanger.Services.Implementations
             if (_recordingData.Any())
             {
                 await _timingRepository.BatchSaveTimingsAsync(_currentImageId, _recordingData);
+
+                // 🎬 自动更新合成脚本的总时长（从关键帧时间累计）
+                double totalDuration = _recordingData.Sum(t => t.Duration);
+                await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, totalDuration, autoCalculate: true);
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 录制完成，自动更新合成脚本总时长: {totalDuration:F2}秒");
+                #endif
             }
             else
             {

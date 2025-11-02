@@ -453,6 +453,9 @@ namespace ImageColorChanger.UI
                     files[i].OrderIndex = i + 1;
                 }
 
+                // 🆕 自动重命名：给文件名前面加上序号
+                await RenameFilesWithSequenceNumbers(files, sourceFolderId);
+
                 // 保存更改
                 _dbManager.UpdateMediaFilesOrder(files);
 
@@ -918,6 +921,125 @@ namespace ImageColorChanger.UI
             
             // 如果没找到，说明是根目录文件
             return null;
+        }
+
+        /// <summary>
+        /// 自动重命名文件，在文件名前面加上序号（如：1. 2. 3.）
+        /// 格式：序号. 原文件名（去掉旧序号）
+        /// </summary>
+        private async Task RenameFilesWithSequenceNumbers(List<MediaFile> files, int? folderId)
+        {
+            try
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔢 开始自动添加序号重命名 ({files.Count} 个文件)");
+                #endif
+
+                for (int i = 0; i < files.Count; i++)
+                {
+                    var file = files[i];
+                    int newNumber = i + 1;
+                    
+                    // 获取原文件名（不含扩展名）
+                    string oldNameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(file.Name);
+                    string extension = System.IO.Path.GetExtension(file.Name);
+                    
+                    // 去掉文件名前面的旧序号（支持多种格式）
+                    string nameWithoutNumber = RemoveSequenceNumber(oldNameWithoutExt);
+                    
+                    // 构建新文件名：序号. 文件名
+                    string newNameWithoutExt = $"{newNumber}. {nameWithoutNumber}";
+                    string newName = newNameWithoutExt + extension;
+                    
+                    // 如果文件名没有变化，跳过
+                    if (newName == file.Name)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  ⏭️ [{i + 1}] 跳过（文件名未变）: {file.Name}");
+                        #endif
+                        continue;
+                    }
+                    
+                    // 构建新的文件路径
+                    string oldPath = file.Path;
+                    string directory = System.IO.Path.GetDirectoryName(oldPath);
+                    string newPath = System.IO.Path.Combine(directory, newName);
+                    
+                    // 检查新文件名是否已存在
+                    if (System.IO.File.Exists(newPath))
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  ⚠️ [{i + 1}] 跳过（文件名冲突）: {newName}");
+                        #endif
+                        continue;
+                    }
+                    
+                    // 重命名物理文件
+                    try
+                    {
+                        System.IO.File.Move(oldPath, newPath);
+                        
+                        // 更新数据库记录
+                        file.Name = newName;
+                        file.Path = newPath;
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  ✅ [{i + 1}] {oldNameWithoutExt} → {newNameWithoutExt}");
+                        #endif
+                    }
+                    catch (Exception ex)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  ❌ [{i + 1}] 重命名失败: {file.Name} - {ex.Message}");
+                        #endif
+                    }
+                }
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 自动序号重命名完成");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 自动序号重命名失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 去掉文件名前面的序号（支持多种格式）
+        /// 支持格式：
+        /// - "1. 文件名" → "文件名"
+        /// - "001. 文件名" → "文件名"
+        /// - "第001首 文件名" → "文件名"
+        /// - "10文件名" → "文件名"
+        /// </summary>
+        private string RemoveSequenceNumber(string name)
+        {
+            // 格式1: "1. 文件名" 或 "001. 文件名"
+            var match1 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+\.\s*(.+)$");
+            if (match1.Success)
+            {
+                return match1.Groups[1].Value.Trim();
+            }
+            
+            // 格式2: "第001首 文件名" 或 "第001 文件名"
+            var match2 = System.Text.RegularExpressions.Regex.Match(name, @"^第\d+(?:首)?\s*(.+)$");
+            if (match2.Success)
+            {
+                return match2.Groups[1].Value.Trim();
+            }
+            
+            // 格式3: "10文件名"（开头数字+文字，但没有点或空格）
+            var match3 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+([^\d\s].*)$");
+            if (match3.Success)
+            {
+                return match3.Groups[1].Value.Trim();
+            }
+            
+            // 没有匹配到序号，返回原名
+            return name;
         }
 
         #endregion

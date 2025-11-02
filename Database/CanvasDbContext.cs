@@ -114,6 +114,11 @@ namespace ImageColorChanger.Database
         public DbSet<Slide> Slides { get; set; }
 
         /// <summary>
+        /// 合成播放脚本表
+        /// </summary>
+        public DbSet<CompositeScript> CompositeScripts { get; set; }
+
+        /// <summary>
         /// 配置数据库连接
         /// </summary>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -344,6 +349,30 @@ namespace ImageColorChanger.Database
                     .HasForeignKey(s => s.ProjectId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // ========== 合成播放脚本表配置 ==========
+            modelBuilder.Entity<CompositeScript>(entity =>
+            {
+                // 图片ID唯一索引（一个图片只能有一个合成脚本）
+                entity.HasIndex(e => e.ImageId)
+                    .IsUnique()
+                    .HasDatabaseName("idx_composite_scripts_image");
+
+                // 配置日期时间转换
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                entity.Property(e => e.UpdatedAt)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                // 外键关系：合成脚本 -> 媒体文件
+                entity.HasOne(s => s.MediaFile)
+                    .WithMany()
+                    .HasForeignKey(s => s.ImageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
         }
 
         /// <summary>
@@ -366,6 +395,10 @@ namespace ImageColorChanger.Database
                 // 检查并添加合成播放标记字段（兼容旧数据库）
                 EnsureCompositePlaybackColumnExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositePlaybackColumnExists() 完成");
+
+                // 检查并创建合成播放脚本表（兼容旧数据库）
+                EnsureCompositeScriptTableExists();
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositeScriptTableExists() 完成");
 
                 // 执行SQLite性能优化配置
                 Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
@@ -529,6 +562,55 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 composite_playback_enabled 字段失败: {ex.Message}");
+                // 不抛出异常，因为这不是致命错误
+            }
+        }
+
+        /// <summary>
+        /// 确保合成播放脚本表存在（兼容旧数据库）
+        /// </summary>
+        private void EnsureCompositeScriptTableExists()
+        {
+            try
+            {
+                var connection = Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    // 检查表是否存在
+                    command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='composite_scripts'";
+                    var result = command.ExecuteScalar();
+
+                    if (result == null)
+                    {
+                        // 创建合成播放脚本表（默认TOTAL时长为100秒）
+                        Database.ExecuteSqlRaw(@"
+                            CREATE TABLE composite_scripts (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                image_id INTEGER NOT NULL UNIQUE,
+                                total_duration REAL NOT NULL DEFAULT 100.0,
+                                auto_calculate INTEGER NOT NULL DEFAULT 0,
+                                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                                FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                            )");
+
+                        // 创建索引
+                        Database.ExecuteSqlRaw("CREATE UNIQUE INDEX idx_composite_scripts_image ON composite_scripts(image_id)");
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ 已创建 composite_scripts 表");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 检查/创建 composite_scripts 表失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }

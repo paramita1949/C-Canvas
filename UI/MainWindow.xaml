@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.3.3"
+        Title="Canvas Cast V5.3.4"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -1389,7 +1389,8 @@
                         Panel.ZIndex="300"
                         Click="BtnCompositePlay_Click"
                         Opacity="0.75"
-                        Visibility="Collapsed">
+                        Visibility="Collapsed"
+                        ToolTip="开始/停止合成播放">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Template">
