@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Canvas Cast</AssemblyName>
+    <AssemblyName>CanvasCast</AssemblyName>
     <Product>Canvas Cast</Product>
     <Company>Canvas Cast</Company>
     <Title>Canvas Cast</Title>

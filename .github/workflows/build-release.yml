@@ -8,7 +8,7 @@ on:
 
 env:
   PROJECT_NAME: ImageColorChanger
-  OUTPUT_NAME: Canvas Cast
+  OUTPUT_NAME: CanvasCast
   DOTNET_VERSION: '8.0.x'
 
 permissions:
@@ -95,12 +95,12 @@ jobs:
         echo "=== 验证构建产物 ==="
         
         # 检查主程序
-        if (Test-Path "publish\Canvas Cast.exe") {
+        if (Test-Path "publish\CanvasCast.exe") {
           echo "✅ 主程序验证成功"
-          $exeInfo = Get-Item "publish\Canvas Cast.exe"
+          $exeInfo = Get-Item "publish\CanvasCast.exe"
           echo "主程序大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
         } else {
-          echo "❌ 构建产物验证失败 - Canvas Cast.exe 不存在"
+          echo "❌ 构建产物验证失败 - CanvasCast.exe 不存在"
           echo "publish目录内容:"
           Get-ChildItem "publish" -ErrorAction SilentlyContinue | ForEach-Object { echo "  - $($_.Name)" }
           exit 1
@@ -167,15 +167,15 @@ jobs:
         New-Item -ItemType Directory -Path $updateDir -Force | Out-Null
         
         # 复制核心文件到临时目录
-        $dllFile = "publish\Canvas Cast.dll"
+        $dllFile = "publish\CanvasCast.dll"
         $pakFile = "publish\Resources.pak"
         
         if (Test-Path $dllFile) {
           Copy-Item $dllFile $updateDir\
           $dllSize = (Get-Item $dllFile).Length / 1MB
-          echo "✅ 已添加 Canvas Cast.dll ($([math]::Round($dllSize, 2)) MB)"
+          echo "✅ 已添加 CanvasCast.dll ($([math]::Round($dllSize, 2)) MB)"
         } else {
-          echo "❌ 错误: Canvas Cast.dll 不存在"
+          echo "❌ 错误: CanvasCast.dll 不存在"
           exit 1
         }
         
@@ -292,16 +292,16 @@ jobs:
           #### 🆕 新用户 - 完整安装包
           - 📥 下载 `Canvas-Full.zip` 
           - 📂 解压到任意目录
-          - ▶️ 运行 `Canvas Cast.exe`
+          - ▶️ 运行 `CanvasCast.exe`
           
           #### 🔄 老用户 - 增量更新（推荐）
           - 📥 下载 `Canvas-Update.zip` 
-          - 📂 解压得到 `Canvas Cast.dll` 和 `Resources.pak`
+          - 📂 解压得到 `CanvasCast.dll` 和 `Resources.pak`
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
           
           > **提示**: 
-          > - 如果只是代码逻辑更新，只需替换 `Canvas Cast.dll`
+          > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，需要同时替换 `Resources.pak`
           
           ### ⚙️ 系统要求

@@ -56,7 +56,7 @@ namespace ImageColorChanger.Services
         // 尝试自动发现的文件名列表（如果 files.txt 不存在时使用）
         private static readonly string[] COMMON_UPDATE_FILES = new[]
         {
-            "Canvas Cast.dll",
+            "CanvasCast.dll",
             "Resources.pak",
             "update.zip",
             "update.7z",
@@ -375,6 +375,8 @@ namespace ImageColorChanger.Services
                         failedFiles++;
 #if DEBUG
                         Debug.WriteLine($"[UpdateService] 下载文件失败: {file.FileName}, 错误: {ex.Message}");
+#else
+                        _ = ex; // 避免Release模式下的未使用警告
 #endif
                         continue;
                     }
@@ -404,6 +406,8 @@ namespace ImageColorChanger.Services
             {
 #if DEBUG
                 Debug.WriteLine($"[UpdateService] 下载更新失败: {ex.Message}");
+#else
+                _ = ex; // 避免Release模式下的未使用警告
 #endif
                 return null;
             }
@@ -489,7 +493,7 @@ rd /s /q ""{updateDir}"" > nul 2>&1
 
 REM 重启程序
 timeout /t 1 /nobreak > nul 2>&1
-start """" ""{Path.Combine(currentDir, "Canvas Cast.exe")}""
+start """" ""{Path.Combine(currentDir, "CanvasCast.exe")}""
 
 REM 删除自身
 (goto) 2>nul & del ""%~f0"" > nul 2>&1
@@ -522,6 +526,8 @@ exit
             {
 #if DEBUG
                 Debug.WriteLine($"[UpdateService] 应用更新失败: {ex.Message}");
+#else
+                _ = ex; // 避免Release模式下的未使用警告
 #endif
                 return false;
             }
@@ -652,6 +658,8 @@ exit
                 {
 #if DEBUG
                     Debug.WriteLine($"[UpdateService] 解压失败: {ex.Message}");
+#else
+                    _ = ex; // 避免Release模式下的未使用警告
 #endif
                     throw;
                 }

@@ -11,10 +11,36 @@ namespace ImageColorChanger.UI
         #region 窗口生命周期事件
 
         /// <summary>
-        /// 窗口加载完成后检查更新
+        /// 窗口加载完成后执行初始化任务
         /// </summary>
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
+            // 🔄 静默同步所有文件夹（不显示状态提示）
+            await Task.Run(() =>
+            {
+                try
+                {
+                    if (_importManager != null)
+                    {
+                        _importManager.SyncAllFolders();
+
+                        // 在UI线程刷新项目树和搜索范围
+                        Dispatcher.Invoke(() =>
+                        {
+                            LoadProjects();
+                            LoadSearchScopes();
+                        });
+                    }
+                }
+                catch (Exception)
+                {
+                    // 静默失败，不影响用户使用
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[MainWindow] 启动时同步失败");
+#endif
+                }
+            });
+
             // 延迟5秒后检查更新，避免影响启动速度
             await Task.Delay(5000);
             await CheckForUpdatesAsync();

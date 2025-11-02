@@ -57,7 +57,7 @@ echo ================================
 echo   Build Successful!
 echo ================================
 echo.
-echo Output: bin\Release\net8.0-windows\Canvas Cast.exe
+echo Output: bin\Release\net8.0-windows\CanvasCast.exe
 echo.
 echo Run 'run.bat' to start the application
 echo.

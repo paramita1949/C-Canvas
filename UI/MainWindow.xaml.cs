@@ -1476,10 +1476,10 @@ namespace ImageColorChanger.UI
                 BtnSync.Background = new SolidColorBrush(Colors.LightGreen);
 
                 var (added, removed, updated) = _importManager.SyncAllFolders();
-                
+
                 LoadProjects(); // 刷新项目树
                 LoadSearchScopes(); // 刷新搜索范围
-                
+
                 ShowStatus($"🔄 同步完成: 新增 {added}, 删除 {removed}");
             }
             catch (Exception ex)
@@ -1489,7 +1489,7 @@ namespace ImageColorChanger.UI
             finally
             {
                 BtnSync.IsEnabled = true;
-                BtnSync.Content = "🔄 同步";
+                BtnSync.Content = "同步"; // 🔧 修复：恢复为与XAML一致的初始值（不带图标）
                 BtnSync.Background = Brushes.Transparent; // 使用透明背景，让样式生效
             }
         }

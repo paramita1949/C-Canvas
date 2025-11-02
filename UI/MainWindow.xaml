@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Canvas Cast V5.2.9"
+        Title="Canvas Cast V5.3.1"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
         WindowStartupLocation="CenterScreen"
@@ -1372,12 +1372,12 @@
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
 
-                <!-- 🎬 浮动合成播放按钮（右上角，避开滚动条） -->
-                <Button x:Name="BtnFloatingCompositePlay" 
-                        Content="🎬 合成播放" 
-                        HorizontalAlignment="Right" 
+                <!-- 🎬 浮动合成播放按钮（左上角） -->
+                <Button x:Name="BtnFloatingCompositePlay"
+                        Content="🎬 合成播放"
+                        HorizontalAlignment="Left"
                         VerticalAlignment="Top"
-                        Margin="0,15,60,0"
+                        Margin="15,45,0,0"
                         Padding="15,8"
                         FontSize="16"
                         FontWeight="SemiBold"

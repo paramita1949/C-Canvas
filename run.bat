@@ -11,15 +11,15 @@ echo Starting application...
 echo.
 
 cd /d "bin\Release\net8.0-windows"
-if exist "Canvas Cast.exe" (
-    start "" "Canvas Cast.exe"
+if exist "CanvasCast.exe" (
+    start "" "CanvasCast.exe"
     goto :end
 )
 
 cd /d "%~dp0"
 cd /d "bin\Debug\net8.0-windows"
-if exist "Canvas Cast.exe" (
-    start "" "Canvas Cast.exe"
+if exist "CanvasCast.exe" (
+    start "" "CanvasCast.exe"
     goto :end
 )
 
