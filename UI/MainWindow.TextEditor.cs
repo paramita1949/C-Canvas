@@ -1222,8 +1222,8 @@ namespace ImageColorChanger.UI
                 
             try
             {
-                // 🆕 检查图片是否来自原图标记的文件夹，如果是则自动使用拉伸模式
-                bool shouldUseStretch = await Task.Run(() =>
+                // 🆕 检查图片是否来自原图标记或变色标记的文件夹
+                (bool shouldUseStretch, bool shouldApplyColorEffect) = await Task.Run(() =>
                 {
                     try
                     {
@@ -1232,24 +1232,31 @@ namespace ImageColorChanger.UI
                         {
                             // 检查文件夹是否有原图标记
                             bool isOriginalFolder = _originalManager.CheckOriginalMark(
-                                Database.Models.Enums.ItemType.Folder, 
+                                Database.Models.Enums.ItemType.Folder,
                                 mediaFile.FolderId.Value
                             );
-                            
+
+                            // 🎨 检查文件夹是否有变色标记
+                            bool hasColorEffectMark = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+
                             #if DEBUG
                             //if (isOriginalFolder)
                             //{
                             //    System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
                             //}
+                            //if (hasColorEffectMark)
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
+                            //}
                             #endif
-                            
-                            return isOriginalFolder;
+
+                            return (isOriginalFolder, hasColorEffectMark);
                         }
-                        return false;
+                        return (false, false);
                     }
                     catch
                     {
-                        return false;
+                        return (false, false);
                     }
                 });
                 
@@ -1268,8 +1275,33 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 🚀 使用优化的图片加载（GPU加速 + 缓存）
-                var bitmapSource = await Task.Run(() =>
+                var bitmapSource = await Task.Run<BitmapSource>(() =>
                 {
+                    // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
+                    if (shouldApplyColorEffect)
+                    {
+                        try
+                        {
+                            using var skBitmap = SkiaSharp.SKBitmap.Decode(imagePath);
+                            if (skBitmap != null)
+                            {
+                                // 应用变色效果
+                                _imageProcessor.ApplyYellowTextEffect(skBitmap);
+
+                                // 转换为 WPF BitmapSource
+                                var result = _imageProcessor.ConvertToBitmapSource(skBitmap);
+                                return result;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 应用变色效果失败: {ex.Message}");
+                            #endif
+                        }
+                    }
+
+                    // 正常加载（无变色效果）
                     var bitmap = new BitmapImage();
                     bitmap.BeginInit();
                     bitmap.UriSource = new Uri(imagePath);
@@ -1772,22 +1804,30 @@ namespace ImageColorChanger.UI
                         continue;
                     }
                     
-                    // 🆕 检查图片是否来自原图标记的文件夹
+                    // 🆕 检查图片是否来自原图标记或变色标记的文件夹
                     bool shouldUseStretch = false;
+                    bool shouldApplyColorEffect = false;
                     try
                     {
                         var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == regionData.ImagePath);
                         if (mediaFile?.FolderId != null)
                         {
                             shouldUseStretch = _originalManager.CheckOriginalMark(
-                                Database.Models.Enums.ItemType.Folder, 
+                                Database.Models.Enums.ItemType.Folder,
                                 mediaFile.FolderId.Value
                             );
-                            
+
+                            // 🎨 检查文件夹是否有变色标记
+                            shouldApplyColorEffect = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+
                             #if DEBUG
                             //if (shouldUseStretch)
                             //{
                             //    System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
+                            //}
+                            //if (shouldApplyColorEffect)
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自变色标记文件夹，应用变色效果");
                             //}
                             #endif
                         }
@@ -1805,12 +1845,61 @@ namespace ImageColorChanger.UI
                     double height = border.Height;
                     
                     // 🚀 使用优化的图片加载（GPU加速 + 缓存）
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(regionData.ImagePath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze(); // 🔥 冻结到GPU显存
+                    BitmapSource bitmap;
+
+                    // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
+                    if (shouldApplyColorEffect)
+                    {
+                        try
+                        {
+                            using var skBitmap = SkiaSharp.SKBitmap.Decode(regionData.ImagePath);
+                            if (skBitmap != null)
+                            {
+                                // 应用变色效果
+                                _imageProcessor.ApplyYellowTextEffect(skBitmap);
+
+                                // 转换为 WPF BitmapSource
+                                bitmap = _imageProcessor.ConvertToBitmapSource(skBitmap);
+                            }
+                            else
+                            {
+                                // 加载失败，使用正常方式
+                                var bmp = new BitmapImage();
+                                bmp.BeginInit();
+                                bmp.UriSource = new Uri(regionData.ImagePath);
+                                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                                bmp.EndInit();
+                                bmp.Freeze();
+                                bitmap = bmp;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 应用变色效果失败: {ex.Message}");
+                            #endif
+
+                            // 失败时使用正常方式
+                            var bmp = new BitmapImage();
+                            bmp.BeginInit();
+                            bmp.UriSource = new Uri(regionData.ImagePath);
+                            bmp.CacheOption = BitmapCacheOption.OnLoad;
+                            bmp.EndInit();
+                            bmp.Freeze();
+                            bitmap = bmp;
+                        }
+                    }
+                    else
+                    {
+                        // 正常加载（无变色效果）
+                        var bmp = new BitmapImage();
+                        bmp.BeginInit();
+                        bmp.UriSource = new Uri(regionData.ImagePath);
+                        bmp.CacheOption = BitmapCacheOption.OnLoad;
+                        bmp.EndInit();
+                        bmp.Freeze(); // 🔥 冻结到GPU显存
+                        bitmap = bmp;
+                    }
                     
                     // 决定使用的拉伸模式
                     System.Windows.Media.Stretch stretchMode;

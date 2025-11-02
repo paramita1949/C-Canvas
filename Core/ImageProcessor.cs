@@ -844,7 +844,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 转换SKBitmap为WPF BitmapSource（高性能直接转换）
         /// </summary>
-        private WriteableBitmap ConvertToBitmapSource(SKBitmap skBitmap)
+        public WriteableBitmap ConvertToBitmapSource(SKBitmap skBitmap)
         {
             try
             {

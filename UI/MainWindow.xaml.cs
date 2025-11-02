@@ -1561,14 +1561,14 @@ namespace ImageColorChanger.UI
                 BtnOriginal.Background = Brushes.Transparent;
                 //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭原图模式");
             }
-            
+
             // 重置缩放比例为1.0
             if (Math.Abs(_imageProcessor.ZoomRatio - 1.0) > 0.001)
             {
                 _imageProcessor.ZoomRatio = 1.0;
                 //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已重置缩放比例为1.0");
             }
-            
+
             // 关闭变色效果
             if (_isColorEffectEnabled)
             {
@@ -1576,10 +1576,13 @@ namespace ImageColorChanger.UI
                 BtnColorEffect.Background = Brushes.Transparent;
                 //System.Diagnostics.Debug.WriteLine("🔄 文本编辑器模式：已关闭变色效果");
             }
-            
-            // 清除当前图片ID
-            _currentImageId = 0;
-            
+
+            // 🆕 清空图片显示（包括清空路径、ID、ImageProcessor、重置缩放）
+            ClearImageDisplay();
+
+            // 🆕 更新合成播放按钮显示状态（因为已清空图片，按钮会被隐藏）
+            UpdateFloatingCompositePlayButton();
+
             //System.Diagnostics.Debug.WriteLine("✅ 视图状态已重置为文本编辑器模式");
         }
 
@@ -2111,13 +2114,17 @@ namespace ImageColorChanger.UI
                 // 清空图片路径
                 _imagePath = null;
                 _currentImageId = 0;
-                
+
                 // 清空ImageProcessor（内部管理图片资源）
                 _imageProcessor.ClearCurrentImage();
-                
+
                 // 重置缩放
                 _currentZoom = 1.0;
-                
+
+                // 🆕 清空关键帧指示块
+                KeyframePreviewLinesCanvas.Children.Clear();
+                ScrollbarIndicatorsCanvas.Children.Clear();
+
                 ShowStatus("✅ 已清空图片显示");
             }
             catch (Exception ex)
