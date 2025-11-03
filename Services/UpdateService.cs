@@ -82,12 +82,20 @@ namespace ImageColorChanger.Services
         };
         
         private static readonly HttpClient _httpClient = new HttpClient();
+        
+        // 保存最新检查到的版本信息（用于显示更新提示）
+        private static VersionInfo? _lastCheckedVersionInfo = null;
 
         static UpdateService()
         {
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Canvas-Cast-Updater");
             _httpClient.Timeout = TimeSpan.FromMinutes(5);
         }
+        
+        /// <summary>
+        /// 获取最后一次检查到的版本信息（如果有新版本）
+        /// </summary>
+        public static VersionInfo? GetLastCheckedVersionInfo() => _lastCheckedVersionInfo;
 
         /// <summary>
         /// 获取当前应用程序版本（从 MainWindow 的 Title 属性读取）
@@ -165,16 +173,24 @@ namespace ImageColorChanger.Services
                 // 获取更新文件列表
                 var files = await GetUpdateFilesListAsync(latestVersion);
                 
-                return new VersionInfo
+                var versionInfo = new VersionInfo
                 {
                     Version = latestVersion,
                     Files = files
                 };
+                
+                // 保存版本信息供UI使用
+                _lastCheckedVersionInfo = versionInfo;
+                
+                return versionInfo;
             }
 
 #if DEBUG
             Debug.WriteLine($"[UpdateService] 已是最新版本");
 #endif
+            
+            // 没有新版本，清除缓存
+            _lastCheckedVersionInfo = null;
             return null;
         }
 

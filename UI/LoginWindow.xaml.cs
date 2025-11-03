@@ -21,6 +21,57 @@ namespace ImageColorChanger.UI
         {
             // 聚焦到用户名输入框
             UsernameTextBox.Focus();
+            
+            // 检查是否有新版本
+            CheckForUpdateNotification();
+        }
+        
+        /// <summary>
+        /// 检查更新通知
+        /// </summary>
+        private void CheckForUpdateNotification()
+        {
+            try
+            {
+                var versionInfo = UpdateService.GetLastCheckedVersionInfo();
+                if (versionInfo != null)
+                {
+                    // 显示更新通知文字
+                    UpdateVersionRun.Text = $"V{versionInfo.Version}";
+                    UpdateNotificationText.Visibility = System.Windows.Visibility.Visible;
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[LoginWindow] 显示更新提示: V{versionInfo.Version}");
+#endif
+                }
+            }
+            catch (Exception)
+            {
+#if DEBUG
+                // 静默失败，不影响用户登录体验
+#endif
+            }
+        }
+        
+        /// <summary>
+        /// 点击更新按钮
+        /// </summary>
+        private void BtnShowUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var versionInfo = UpdateService.GetLastCheckedVersionInfo();
+                if (versionInfo != null)
+                {
+                    var updateWindow = new UpdateWindow(versionInfo);
+                    updateWindow.Owner = this;
+                    updateWindow.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"打开更新窗口失败: {ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void LoginButton_Click(object sender, RoutedEventArgs e)

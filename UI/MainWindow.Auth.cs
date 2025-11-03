@@ -141,9 +141,10 @@ namespace ImageColorChanger.UI
                 Padding = new Thickness(20, 15, 20, 15)
             };
             
-            // 使用Grid布局，左边标题，右边刷新按钮
+            // 使用Grid布局，左边标题，中间更新提示，右边刷新按钮
             var headerGrid = new System.Windows.Controls.Grid();
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
             
             var headerText = new System.Windows.Controls.TextBlock
@@ -156,6 +157,53 @@ namespace ImageColorChanger.UI
             };
             System.Windows.Controls.Grid.SetColumn(headerText, 0);
             headerGrid.Children.Add(headerText);
+            
+            // 检查并添加更新提示（放在刷新按钮左边）
+            var versionInfo = UpdateService.GetLastCheckedVersionInfo();
+            if (versionInfo != null)
+            {
+                var updateText = new System.Windows.Controls.TextBlock
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                
+                updateText.Inlines.Add(new System.Windows.Documents.Run("🚀 ") 
+                { 
+                    FontSize = 14 
+                });
+                
+                var updateHyperlink = new System.Windows.Documents.Hyperlink();
+                updateHyperlink.Inlines.Add(new System.Windows.Documents.Run($"发现新版本 V{versionInfo.Version}，") 
+                { 
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(255, 235, 59)) // 黄色
+                });
+                updateHyperlink.Inlines.Add(new System.Windows.Documents.Run("点击更新") 
+                { 
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)) // 绿色
+                });
+                updateHyperlink.Foreground = new SolidColorBrush(Color.FromRgb(255, 235, 59)); // 默认黄色
+                updateHyperlink.TextDecorations = null;
+                updateHyperlink.Click += (s, e) =>
+                {
+                    // 关闭用户信息窗口
+                    userWindow.Close();
+                    
+                    // 显示更新窗口
+                    var updateWindow = new UpdateWindow(versionInfo);
+                    updateWindow.Owner = this;
+                    updateWindow.ShowDialog();
+                };
+                
+                updateText.Inlines.Add(updateHyperlink);
+                System.Windows.Controls.Grid.SetColumn(updateText, 1);
+                headerGrid.Children.Add(updateText);
+            }
             
             // 刷新按钮（简化版）
             var refreshBtn = new System.Windows.Controls.Button
@@ -211,7 +259,7 @@ namespace ImageColorChanger.UI
                 }
             };
             
-            System.Windows.Controls.Grid.SetColumn(refreshBtn, 1);
+            System.Windows.Controls.Grid.SetColumn(refreshBtn, 2);
             headerGrid.Children.Add(refreshBtn);
             
             headerPanel.Child = headerGrid;

@@ -2,9 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="咏慕投影 - 用户中心" 
-        Height="400" 
+        Height="450" 
         Width="400"
-        MinHeight="480" 
+        MinHeight="520" 
         MinWidth="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -229,6 +229,22 @@
                            Margin="0,3,0,0"
                            FontSize="13"
                            Foreground="#E3F2FD"/>
+                
+                <!-- 更新提示（在标题栏底部） -->
+                <TextBlock x:Name="UpdateNotificationText"
+                           HorizontalAlignment="Center"
+                           Margin="0,12,0,0"
+                           Visibility="Collapsed">
+                    <Run Text="🚀 " FontSize="15"/>
+                    <Hyperlink x:Name="UpdateHyperlink"
+                               Click="BtnShowUpdate_Click"
+                               TextDecorations="None"
+                               Foreground="#FFEB3B">
+                        <Run Text="发现新版本 " FontSize="14" FontWeight="Bold"/>
+                        <Run x:Name="UpdateVersionRun" Text="" FontSize="14" FontWeight="Bold"/>
+                        <Run Text="，点击立即更新" FontSize="14" FontWeight="Bold"/>
+                    </Hyperlink>
+                </TextBlock>
             </StackPanel>
         </Border>
 
