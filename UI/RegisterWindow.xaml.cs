@@ -102,9 +102,33 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            // 更严格的邮箱格式验证
+            // 规则：用户名@域名.顶级域名
+            // 用户名：3-64个字符，允许字母、数字、点、下划线、连字符
+            // 域名：1-63个字符，允许字母、数字、连字符
+            // 顶级域名：2-6个字母
+            if (!Regex.IsMatch(email, @"^[a-zA-Z0-9._-]{3,64}@[a-zA-Z0-9-]{1,63}\.[a-zA-Z]{2,6}$"))
             {
-                ShowStatus("邮箱格式不正确", isError: true);
+                ShowStatus("邮箱格式不正确，请输入有效的邮箱地址（如：example@domain.com）", isError: true);
+                EmailTextBox.Focus();
+                return;
+            }
+            
+            // 额外验证：不允许以点、下划线、连字符开头或结尾
+            var emailParts = email.Split('@');
+            if (emailParts[0].StartsWith(".") || emailParts[0].EndsWith(".") ||
+                emailParts[0].StartsWith("_") || emailParts[0].EndsWith("_") ||
+                emailParts[0].StartsWith("-") || emailParts[0].EndsWith("-"))
+            {
+                ShowStatus("邮箱用户名不能以特殊字符开头或结尾", isError: true);
+                EmailTextBox.Focus();
+                return;
+            }
+            
+            // 不允许连续的点
+            if (emailParts[0].Contains(".."))
+            {
+                ShowStatus("邮箱格式不正确，不允许连续的点", isError: true);
                 EmailTextBox.Focus();
                 return;
             }

@@ -117,67 +117,163 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 检查是否有新版本
+        /// 检查是否有新版本（带重试机制）
         /// </summary>
         public static async Task<VersionInfo?> CheckForUpdatesAsync()
         {
-            try
+            return await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 3, retryDelayMs: 2000);
+        }
+
+        /// <summary>
+        /// 检查是否有新版本（内部实现）
+        /// </summary>
+        private static async Task<VersionInfo?> CheckForUpdatesInternalAsync()
+        {
+#if DEBUG
+            Debug.WriteLine("[UpdateService] 开始检查更新...");
+            Debug.WriteLine($"[UpdateService] 检查地址: {LATEST_VERSION_URL}");
+#endif
+            // 下载 latest.txt 获取最新版本号
+            var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL);
+            latestVersion = latestVersion.Trim();
+
+#if DEBUG
+            Debug.WriteLine($"[UpdateService] 最新版本: {latestVersion}");
+#endif
+
+            // 验证版本号格式
+            if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+$"))
             {
 #if DEBUG
-                Debug.WriteLine("[UpdateService] 开始检查更新...");
-                Debug.WriteLine($"[UpdateService] 检查地址: {LATEST_VERSION_URL}");
+                Debug.WriteLine($"[UpdateService] 版本号格式无效: {latestVersion}");
 #endif
-                // 下载 latest.txt 获取最新版本号
-                var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL);
-                latestVersion = latestVersion.Trim();
+                return null;
+            }
 
+            // 比较版本号
+            var currentVersion = GetCurrentVersion();
 #if DEBUG
-                Debug.WriteLine($"[UpdateService] 最新版本: {latestVersion}");
+            Debug.WriteLine($"[UpdateService] 当前版本: {currentVersion}");
 #endif
 
-                // 验证版本号格式
-                if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+$"))
+            if (CompareVersions(latestVersion, currentVersion) > 0)
+            {
+#if DEBUG
+                Debug.WriteLine($"[UpdateService] 发现新版本: {latestVersion}");
+#endif
+
+                // 获取更新文件列表
+                var files = await GetUpdateFilesListAsync(latestVersion);
+                
+                return new VersionInfo
                 {
-#if DEBUG
-                    Debug.WriteLine($"[UpdateService] 版本号格式无效: {latestVersion}");
-#endif
-                    return null;
-                }
+                    Version = latestVersion,
+                    Files = files
+                };
+            }
 
-                // 比较版本号
-                var currentVersion = GetCurrentVersion();
 #if DEBUG
-                Debug.WriteLine($"[UpdateService] 当前版本: {currentVersion}");
+            Debug.WriteLine($"[UpdateService] 已是最新版本");
 #endif
+            return null;
+        }
 
-                if (CompareVersions(latestVersion, currentVersion) > 0)
+        /// <summary>
+        /// 通用重试机制（引用类型）
+        /// </summary>
+        private static async Task<T?> RetryAsync<T>(Func<Task<T?>> operation, int maxRetries = 3, int retryDelayMs = 2000) where T : class
+        {
+            int attempt = 0;
+            Exception? lastException = null;
+
+            while (attempt < maxRetries)
+            {
+                try
                 {
+                    attempt++;
 #if DEBUG
-                    Debug.WriteLine($"[UpdateService] 发现新版本: {latestVersion}");
-#endif
-
-                    // 获取更新文件列表
-                    var files = await GetUpdateFilesListAsync(latestVersion);
-                    
-                    return new VersionInfo
+                    if (attempt > 1)
                     {
-                        Version = latestVersion,
-                        Files = files
-                    };
+                        Debug.WriteLine($"[UpdateService] 重试 {attempt}/{maxRetries}...");
+                    }
+#endif
+                    var result = await operation();
+                    return result;
                 }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+#if DEBUG
+                    Debug.WriteLine($"[UpdateService] 尝试 {attempt}/{maxRetries} 失败: {ex.Message}");
+#endif
+                    
+                    // 如果不是最后一次尝试，等待后重试
+                    if (attempt < maxRetries)
+                    {
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] 等待 {retryDelayMs}ms 后重试...");
+#endif
+                        await Task.Delay(retryDelayMs);
+                    }
+                }
+            }
 
 #if DEBUG
-                Debug.WriteLine($"[UpdateService] 已是最新版本");
+            Debug.WriteLine($"[UpdateService] 所有重试均失败，最后错误: {lastException?.Message}");
 #endif
-                return null;
-            }
-            catch (Exception)
+            return null;
+        }
+
+        /// <summary>
+        /// 通用重试机制（布尔返回值）
+        /// </summary>
+        private static async Task<bool> RetryAsync(Func<Task<bool>> operation, int maxRetries = 3, int retryDelayMs = 2000)
+        {
+            int attempt = 0;
+            Exception? lastException = null;
+
+            while (attempt < maxRetries)
             {
+                try
+                {
+                    attempt++;
 #if DEBUG
-                Debug.WriteLine("[UpdateService] 检查更新失败");
+                    if (attempt > 1)
+                    {
+                        Debug.WriteLine($"[UpdateService] 重试 {attempt}/{maxRetries}...");
+                    }
 #endif
-                return null;
+                    var result = await operation();
+                    if (result)
+                    {
+                        return true;
+                    }
+                    
+                    // 如果返回false但没有异常，不重试（比如404情况）
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+#if DEBUG
+                    Debug.WriteLine($"[UpdateService] 尝试 {attempt}/{maxRetries} 失败: {ex.Message}");
+#endif
+                    
+                    // 如果不是最后一次尝试，等待后重试
+                    if (attempt < maxRetries)
+                    {
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] 等待 {retryDelayMs}ms 后重试...");
+#endif
+                        await Task.Delay(retryDelayMs);
+                    }
+                }
             }
+
+#if DEBUG
+            Debug.WriteLine($"[UpdateService] 所有重试均失败，最后错误: {lastException?.Message}");
+#endif
+            return false;
         }
 
         /// <summary>
@@ -336,18 +432,18 @@ namespace ImageColorChanger.Services
 #endif
                     var filePath = Path.Combine(tempDir, file.FileName);
                     
-                    try
+                    // 使用重试机制下载单个文件
+                    bool downloadSuccess = await RetryAsync(async () =>
                     {
                         using (var response = await _httpClient.GetAsync(file.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
                         {
-                            // 如果文件不存在（404），跳过
+                            // 如果文件不存在（404），返回false表示跳过
                             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                             {
 #if DEBUG
                                 Debug.WriteLine($"[UpdateService] 文件不存在，跳过: {file.FileName} (404)");
 #endif
-                                failedFiles++;
-                                continue;
+                                return false;
                             }
                             
                             response.EnsureSuccessStatusCode();
@@ -357,46 +453,45 @@ namespace ImageColorChanger.Services
                             {
                                 var buffer = new byte[8192];
                                 int bytesRead;
+                                long fileDownloadedBytes = 0;
 
                                 while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                                 {
                                     await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                    fileDownloadedBytes += bytesRead;
                                     downloadedBytes += bytesRead;
                                     progress?.Report((downloadedBytes, totalBytes));
                                 }
                             }
+                            
+                            return true;
                         }
-                        
-                        successfulFiles++;
+                    }, maxRetries: 3, retryDelayMs: 2000);
+                    
+                    if (!downloadSuccess)
+                    {
+                        failedFiles++;
+                        continue;
+                    }
+                    
+                    successfulFiles++;
 #if DEBUG
-                        Debug.WriteLine($"[UpdateService] 完成: {file.FileName}");
+                    Debug.WriteLine($"[UpdateService] 完成: {file.FileName}");
 #endif
 
-                        // 如果是压缩包，自动解压
-                        if (IsCompressedFile(file.FileName))
-                        {
-#if DEBUG
-                            Debug.WriteLine($"[UpdateService] 检测到压缩包，开始解压: {file.FileName}");
-#endif
-                            await ExtractCompressedFileAsync(filePath, tempDir);
-                            
-                            // 删除压缩包文件
-                            File.Delete(filePath);
-#if DEBUG
-                            Debug.WriteLine($"[UpdateService] 解压完成，已删除压缩包");
-#endif
-                        }
-                    }
-                    catch (Exception ex)
+                    // 如果是压缩包，自动解压
+                    if (IsCompressedFile(file.FileName))
                     {
-                        // 下载失败，记录但继续下载其他文件
-                        failedFiles++;
 #if DEBUG
-                        Debug.WriteLine($"[UpdateService] 下载文件失败: {file.FileName}, 错误: {ex.Message}");
-#else
-                        _ = ex; // 避免Release模式下的未使用警告
+                        Debug.WriteLine($"[UpdateService] 检测到压缩包，开始解压: {file.FileName}");
 #endif
-                        continue;
+                        await ExtractCompressedFileAsync(filePath, tempDir);
+                        
+                        // 删除压缩包文件
+                        File.Delete(filePath);
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] 解压完成，已删除压缩包");
+#endif
                     }
                 }
                 
