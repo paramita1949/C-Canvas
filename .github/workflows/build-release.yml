@@ -45,11 +45,11 @@ jobs:
       run: |
         # 从 MainWindow.xaml 中提取版本号
         $xamlContent = Get-Content "UI\MainWindow.xaml" -Raw
-        if ($xamlContent -match 'Title="Canvas Cast (V[\d.]+)"') {
+        if ($xamlContent -match 'Title="咏慕投影 (V[\d.]+)"') {
           $appVersion = $matches[1]
           echo "从 MainWindow.xaml 提取到版本号: $appVersion"
         } else {
-          $appVersion = "V5.2.8"
+          $appVersion = "V5.3.5"
           echo "⚠️ 无法从 MainWindow.xaml 提取版本号，使用默认值: $appVersion"
         }
         
@@ -287,12 +287,12 @@ jobs:
           ${{ steps.create_package.outputs.update_zip_name }}
           publish/CanvasCast.dll
         tag_name: ${{ steps.get_version.outputs.tag }}
-        name: Canvas Cast ${{ steps.get_version.outputs.full_version }}
+        name: 咏慕投影 ${{ steps.get_version.outputs.full_version }}
         draft: false
         prerelease: false
         generate_release_notes: true
         body: |
-          ## 🎉 Canvas Cast ${{ steps.get_version.outputs.full_version }}
+          ## 🎉 咏慕投影 ${{ steps.get_version.outputs.full_version }}
 
           ### 📦 下载说明
 
