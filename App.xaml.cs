@@ -121,8 +121,8 @@ namespace ImageColorChanger
             try
             {
                 // 从MainWindow.xaml的Title属性中提取版本号
-                // Title格式: "Canvas Cast V2.5.8"
-                string title = "Canvas Cast V3.0.6"; // 从MainWindow.xaml中获取的实际Title
+                // Title格式: "咏慕投影 V5.3.5"
+                string title = "咏慕投影 V5.3.5"; // 从MainWindow.xaml中获取的实际Title（显示用中文）
                 
                 // 使用正则表达式提取版本号
                 var match = Regex.Match(title, @"V(\d+\.\d+\.\d+)");

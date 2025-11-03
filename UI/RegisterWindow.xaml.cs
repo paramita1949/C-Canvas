@@ -21,10 +21,55 @@ namespace ImageColorChanger.UI
             UsernameTextBox.Focus();
         }
 
+        private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            CheckPasswordMatch();
+        }
+
+        private void ConfirmPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            CheckPasswordMatch();
+        }
+
+        private void CheckPasswordMatch()
+        {
+            var password = PasswordBox.Password;
+            var confirmPassword = ConfirmPasswordBox.Password;
+
+            // 如果两个密码框都为空，不显示提示
+            if (string.IsNullOrEmpty(password) && string.IsNullOrEmpty(confirmPassword))
+            {
+                PasswordMatchHint.Text = "";
+                PasswordMatchHint.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Gray);
+                return;
+            }
+
+            // 如果重复密码框为空，显示提示
+            if (string.IsNullOrEmpty(confirmPassword))
+            {
+                PasswordMatchHint.Text = "请再次输入密码";
+                PasswordMatchHint.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Gray);
+                return;
+            }
+
+            // 检查两次密码是否一致
+            if (password == confirmPassword)
+            {
+                PasswordMatchHint.Text = "✓ 两次密码一致";
+                PasswordMatchHint.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
+            }
+            else
+            {
+                PasswordMatchHint.Text = "✗ 两次密码不一致";
+                PasswordMatchHint.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+            }
+        }
+
         private async void RegisterButton_Click(object sender, RoutedEventArgs e)
         {
             var username = UsernameTextBox.Text.Trim();
             var password = PasswordBox.Password;
+            var confirmPassword = ConfirmPasswordBox.Password;
             var email = EmailTextBox.Text.Trim();
 
             // 验证用户名
@@ -49,6 +94,21 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            // 验证邮箱（必填）
+            if (string.IsNullOrEmpty(email))
+            {
+                ShowStatus("请输入邮箱", isError: true);
+                EmailTextBox.Focus();
+                return;
+            }
+
+            if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                ShowStatus("邮箱格式不正确", isError: true);
+                EmailTextBox.Focus();
+                return;
+            }
+
             // 验证密码
             if (string.IsNullOrEmpty(password))
             {
@@ -64,18 +124,20 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 验证邮箱（必填）
-            if (string.IsNullOrEmpty(email))
+            // 验证重复密码
+            if (string.IsNullOrEmpty(confirmPassword))
             {
-                ShowStatus("请输入邮箱", isError: true);
-                EmailTextBox.Focus();
+                ShowStatus("请再次输入密码", isError: true);
+                ConfirmPasswordBox.Focus();
                 return;
             }
 
-            if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            // 验证两次密码是否一致
+            if (password != confirmPassword)
             {
-                ShowStatus("邮箱格式不正确", isError: true);
-                EmailTextBox.Focus();
+                ShowStatus("两次输入的密码不一致，请重新输入", isError: true);
+                ConfirmPasswordBox.Focus();
+                ConfirmPasswordBox.Clear();
                 return;
             }
 
