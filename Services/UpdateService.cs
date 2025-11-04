@@ -630,12 +630,31 @@ namespace ImageColorChanger.Services
                     cleanupCommands.AppendLine($"del \"{backupFile}\" > nul 2>&1");
                 }
 
+                // 获取当前进程ID和EXE文件名
+                var currentProcessId = Process.GetCurrentProcess().Id;
+                var exeFileName = Path.GetFileName(currentExePath);
+
                 // 创建更新脚本（静默模式，无窗口）
                 var scriptContent = $@"@echo off
 chcp 65001 > nul 2>&1
 
-REM 等待主程序退出
-timeout /t 2 /nobreak > nul 2>&1
+REM 等待主程序进程完全退出（最多等待30秒）
+echo Waiting for process {currentProcessId} to exit...
+set WAIT_COUNT=0
+:WAIT_LOOP
+tasklist /FI ""PID eq {currentProcessId}"" 2>nul | find ""{currentProcessId}"" >nul
+if %errorlevel% equ 0 (
+    if %WAIT_COUNT% lss 30 (
+        timeout /t 1 /nobreak > nul 2>&1
+        set /a WAIT_COUNT+=1
+        goto WAIT_LOOP
+    ) else (
+        echo Process still running after 30 seconds, attempting update anyway...
+    )
+)
+
+REM 额外等待确保文件句柄释放
+timeout /t 1 /nobreak > nul 2>&1
 
 REM 备份旧文件
 {backupCommands}

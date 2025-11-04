@@ -168,8 +168,18 @@ jobs:
         New-Item -ItemType Directory -Path $updateDir -Force | Out-Null
         
         # 复制核心文件到临时目录
+        $exeFile = "publish\CanvasCast.exe"
         $dllFile = "publish\CanvasCast.dll"
         $pakFile = "publish\Resources.pak"
+        
+        if (Test-Path $exeFile) {
+          Copy-Item $exeFile $updateDir\
+          $exeSize = (Get-Item $exeFile).Length / 1MB
+          echo "✅ 已添加 CanvasCast.exe ($([math]::Round($exeSize, 2)) MB)"
+        } else {
+          echo "❌ 错误: CanvasCast.exe 不存在"
+          exit 1
+        }
         
         if (Test-Path $dllFile) {
           Copy-Item $dllFile $updateDir\
@@ -306,7 +316,7 @@ jobs:
 
           #### 🔄 老用户 - 增量更新（推荐）
           - 📥 下载 `Canvas-Update.zip`
-          - 📂 解压得到 `CanvasCast.dll` 和 `Resources.pak`
+          - 📂 解压得到 `CanvasCast.exe`、`CanvasCast.dll` 和 `Resources.pak`
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
 
@@ -316,8 +326,10 @@ jobs:
           - ▶️ 适用于仅代码逻辑更新的场景
 
           > **提示**:
+          > - 增量更新包包含完整的核心文件（EXE、DLL、PAK）
           > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，需要同时替换 `Resources.pak`
+          > - 如果主程序有更新，需要替换 `CanvasCast.exe`
           > - DLL原文件未经过代码保护，仅供开发调试使用
 
           ### ⚙️ 系统要求
