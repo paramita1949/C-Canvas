@@ -77,7 +77,27 @@ namespace ImageColorChanger.UI
             
             contextMenu.Items.Clear();
             
-            // 🎬 合成标记菜单（第一位）
+            // 歌词模式切换菜单（第一位）
+            var lyricsMenuItem = new MenuItem 
+            { 
+                Header = _isLyricsMode ? "退出歌词" : "进入歌词",
+                IsCheckable = false
+            };
+            
+            lyricsMenuItem.Click += (s, args) =>
+            {
+                if (_isLyricsMode)
+                {
+                    ExitLyricsMode();
+                }
+                else
+                {
+                    EnterLyricsMode();
+                }
+            };
+            contextMenu.Items.Add(lyricsMenuItem);
+
+            // 🎬 合成标记菜单（第二位）
             var compositeMarkMenuItem = new MenuItem 
             { 
                 Header = "合成标记",
@@ -122,7 +142,7 @@ namespace ImageColorChanger.UI
             };
             contextMenu.Items.Add(compositeMarkMenuItem);
 
-            // 重新添加滚动速度菜单（第二位，无分隔线）
+            // 重新添加滚动速度菜单（无分隔线）
             if (scrollSpeedMenu != null)
             {
                 contextMenu.Items.Add(scrollSpeedMenu);
@@ -142,7 +162,7 @@ namespace ImageColorChanger.UI
                 }
             }
             
-            // 重新添加滚动函数菜单（第三位，无分隔线）
+            // 重新添加滚动函数菜单（无分隔线）
             if (scrollEasingMenu != null)
             {
                 contextMenu.Items.Add(scrollEasingMenu);
@@ -168,7 +188,7 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            // 🎨 变色颜色菜单（第四位，无分隔线）
+            // 🎨 变色颜色菜单（无分隔线）
             var colorMenuItem = new MenuItem { Header = "变色颜色" };
 
             // 从 ConfigManager 获取所有颜色预设

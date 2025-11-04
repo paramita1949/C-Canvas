@@ -355,6 +355,22 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 全局默认歌词颜色
+        /// </summary>
+        public string DefaultLyricsColor
+        {
+            get => _config.DefaultLyricsColor;
+            set
+            {
+                if (_config.DefaultLyricsColor != value)
+                {
+                    _config.DefaultLyricsColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -585,6 +601,11 @@ namespace ImageColorChanger.Core
         /// 菜单栏字号（默认：22，范围18-40，按照Python版本设计）
         /// </summary>
         public double MenuFontSize { get; set; } = 22.0;
+
+        /// <summary>
+        /// 全局默认歌词颜色（默认：#FFFFFF 白色）
+        /// </summary>
+        public string DefaultLyricsColor { get; set; } = "#FFFFFF";
     }
 
     /// <summary>

@@ -1362,6 +1362,213 @@
                     </Grid>
                 </Grid>
 
+                <!-- 🆕 歌词编辑器面板（极简黑色版） -->
+                <Grid x:Name="LyricsEditorPanel" 
+                      Visibility="Collapsed" 
+                      Background="#000000" 
+                      Panel.ZIndex="100">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
+                        <RowDefinition Height="*"/>     <!-- 编辑区域 -->
+                    </Grid.RowDefinitions>
+
+                    <!-- 极简工具栏 -->
+                    <Border Grid.Row="0" 
+                            Background="#1A1A1A" 
+                            BorderBrush="#333333" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="12,8">
+                        <StackPanel Orientation="Horizontal" 
+                                    HorizontalAlignment="Left">
+                            
+                            <!-- 退出按钮 -->
+                            <Button x:Name="BtnCloseLyricsEditor" 
+                                    Content="❌ 退出"
+                                    Width="100" Height="40"
+                                    Margin="0,0,12,0"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Click="BtnCloseLyricsEditor_Click"
+                                    ToolTip="退出歌词模式"/>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
+                                       Margin="0,0,12,0"/>
+
+                            <!-- 字号显示和滚轮调整 -->
+                            <Border Background="#2D2D2D" 
+                                    BorderBrush="#555555" 
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="12,6"
+                                    Margin="0,0,8,0"
+                                    ToolTip="鼠标滚轮调整字号">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="字号:" 
+                                               Foreground="#AAAAAA"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"
+                                               FontSize="14"/>
+                                    <TextBlock x:Name="LyricsFontSizeDisplay" 
+                                               Text="48" 
+                                               Width="40" 
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               Foreground="#FFFFFF"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               MouseWheel="LyricsFontSizeDisplay_MouseWheel"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
+                                       Margin="0,0,12,0"/>
+
+                            <!-- 文字颜色 -->
+                            <Button x:Name="BtnLyricsTextColor" 
+                                    Content="🎨 颜色"
+                                    Width="110" Height="40"
+                                    Margin="0,0,12,0"
+                                    FontSize="16"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Click="BtnLyricsTextColor_Click"
+                                    ToolTip="选择文字颜色"/>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
+                                       Margin="0,0,12,0"/>
+
+                            <!-- 对齐方式 - 重新设计的按钮 -->
+                            <Button x:Name="BtnLyricsAlignLeft" 
+                                    Width="56" Height="40"
+                                    Margin="0,0,8,0"
+                                    Click="BtnLyricsAlignLeft_Click"
+                                    ToolTip="左对齐"
+                                    Background="#2C2C2C"
+                                    BorderBrush="#444"
+                                    BorderThickness="1">
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <Line X1="3" Y1="0" X2="22" Y2="0" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="3" Y1="6" X2="17" Y2="6" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="3" Y1="12" X2="22" Y2="12" Stroke="#AAA" StrokeThickness="2.5"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="BtnLyricsAlignCenter" 
+                                    Width="56" Height="40"
+                                    Margin="0,0,8,0"
+                                    Click="BtnLyricsAlignCenter_Click"
+                                    ToolTip="居中对齐"
+                                    Background="#2C2C2C"
+                                    BorderBrush="#444"
+                                    BorderThickness="1">
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <Line X1="3" Y1="0" X2="22" Y2="0" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="6" Y1="6" X2="19" Y2="6" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="3" Y1="12" X2="22" Y2="12" Stroke="#AAA" StrokeThickness="2.5"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="BtnLyricsAlignRight" 
+                                    Width="56" Height="40"
+                                    Margin="0,0,12,0"
+                                    Click="BtnLyricsAlignRight_Click"
+                                    ToolTip="右对齐"
+                                    Background="#2C2C2C"
+                                    BorderBrush="#444"
+                                    BorderThickness="1">
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <Line X1="3" Y1="0" X2="22" Y2="0" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="8" Y1="6" X2="22" Y2="6" Stroke="#AAA" StrokeThickness="2.5"/>
+                                    <Line X1="3" Y1="12" X2="22" Y2="12" Stroke="#AAA" StrokeThickness="2.5"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
+                                       Margin="0,0,12,0"/>
+
+                            <!-- 清空内容 -->
+                            <Button x:Name="BtnLyricsClear" 
+                                    Content="🗑 清空"
+                                    Width="100" Height="40"
+                                    Margin="0,0,12,0"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Click="BtnLyricsClear_Click"
+                                    Style="{StaticResource RecordButtonStyle}"
+                                    ToolTip="清空所有内容"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 编辑区域 - 黑色背景，白色文字 -->
+                    <Grid Grid.Row="1" Background="#000000">
+                        <!-- 可滚动的编辑区域 -->
+                        <ScrollViewer x:Name="LyricsScrollViewer"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Background="#000000"
+                                      Padding="60,40"
+                                      ScrollChanged="LyricsScrollViewer_ScrollChanged"
+                                      MouseRightButtonUp="LyricsScrollViewer_RightClick">
+                            <ScrollViewer.Resources>
+                                <Style TargetType="{x:Type ScrollBar}" 
+                                       BasedOn="{StaticResource FixedScrollBarStyle}"/>
+                            </ScrollViewer.Resources>
+                            <TextBox x:Name="LyricsTextBox"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     FontSize="48"
+                                     FontFamily="Microsoft YaHei UI"
+                                     Foreground="White"
+                                     TextAlignment="Center"
+                                     MinHeight="600"
+                                     CaretBrush="White"
+                                     VerticalAlignment="Top"
+                                     TextChanged="LyricsTextBox_TextChanged"
+                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel">
+                                <!-- 水印提示 -->
+                                <TextBox.Resources>
+                                    <VisualBrush x:Key="HintBrush" 
+                                                 TileMode="None" 
+                                                 Opacity="0.3" 
+                                                 Stretch="None" 
+                                                 AlignmentX="Left" 
+                                                 AlignmentY="Top">
+                                        <VisualBrush.Visual>
+                                            <TextBlock Text="在此粘贴或输入歌谱文字内容...&#x0a;&#x0a;支持 Ctrl+V 粘贴"
+                                                       FontSize="28"
+                                                       FontStyle="Italic"
+                                                       Foreground="#666666"
+                                                       TextAlignment="Left"
+                                                       Margin="0,20,0,0"/>
+                                        </VisualBrush.Visual>
+                                    </VisualBrush>
+                                </TextBox.Resources>
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TextBox">
+                                                    <ScrollViewer x:Name="PART_ContentHost" 
+                                                                  Focusable="False"
+                                                                  HorizontalScrollBarVisibility="Disabled"
+                                                                  VerticalScrollBarVisibility="Disabled"/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="Text" Value="">
+                                                <Setter Property="Background" 
+                                                        Value="{StaticResource HintBrush}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+
                 <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
                 <Border x:Name="ScrollbarIndicatorsBorder"
                         HorizontalAlignment="Right"
@@ -1376,7 +1583,6 @@
                             MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
-
                 <!-- 🎬 浮动合成播放按钮（左上角） -->
                 <Button x:Name="BtnFloatingCompositePlay"
                         Content="🎬 合成播放"

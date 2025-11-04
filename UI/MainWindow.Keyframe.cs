@@ -874,11 +874,19 @@ namespace ImageColorChanger.UI
             // 🔧 简化逻辑：只判断是否是正常图片文件
             // 原图模式 → 隐藏
             // 媒体文件 → 隐藏
+            // 歌词模式 → 隐藏
             // 正常图片 → 显示
             
             if (_originalMode)
             {
                 // 原图模式，隐藏按钮
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (_isLyricsMode)
+            {
+                // 歌词模式，隐藏按钮
                 BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
                 return;
             }

@@ -324,6 +324,23 @@ namespace ImageColorChanger.UI
                                         await LoadImageToSplitRegion(selectedItem.Path);
                                         ShowStatus($"📷 已加载: {selectedItem.Name}");
                                     }
+                                    // 🎤 检查是否在歌词模式
+                                    else if (_isLyricsMode)
+                                    {
+#if DEBUG
+                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 在歌词模式下点击图片，切换歌词");
+                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 旧图片ID: {_currentImageId}, 新图片ID: {fileId}");
+                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 图片名称: {selectedItem.Name}");
+#endif
+                                        // 更新当前图片ID和路径
+                                        _currentImageId = fileId;
+                                        _imagePath = selectedItem.Path;
+                                        
+                                        // 触发歌词切换（会保存当前歌词，加载新图片的歌词）
+                                        OnImageChangedInLyricsMode();
+                                        
+                                        ShowStatus($"🎤 已切换到: {selectedItem.Name} 的歌词");
+                                    }
                                     else
                                     {
                                         // 切换回图片模式（注意：这会清空_currentImageId）

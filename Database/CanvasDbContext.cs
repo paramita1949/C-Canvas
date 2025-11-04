@@ -104,6 +104,11 @@ namespace ImageColorChanger.Database
         public DbSet<TextProject> TextProjects { get; set; }
 
         /// <summary>
+        /// 歌词项目表
+        /// </summary>
+        public DbSet<LyricsProject> LyricsProjects { get; set; }
+
+        /// <summary>
         /// 文本元素表
         /// </summary>
         public DbSet<TextElement> TextElements { get; set; }
@@ -400,6 +405,10 @@ namespace ImageColorChanger.Database
                 EnsureCompositeScriptTableExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositeScriptTableExists() 完成");
 
+                // 检查并添加歌词项目的图片关联字段（兼容旧数据库）
+                EnsureLyricsImageIdColumnExists();
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
+
                 // 执行SQLite性能优化配置
                 Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
                 Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
@@ -611,6 +620,59 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 检查/创建 composite_scripts 表失败: {ex.Message}");
+                // 不抛出异常，因为这不是致命错误
+            }
+        }
+
+        /// <summary>
+        /// 确保 lyrics_projects 表中存在 image_id 字段（兼容旧数据库）
+        /// </summary>
+        private void EnsureLyricsImageIdColumnExists()
+        {
+            try
+            {
+                var connection = Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    // 检查字段是否存在
+                    command.CommandText = "PRAGMA table_info(lyrics_projects)";
+                    using (var reader = command.ExecuteReader())
+                    {
+                        bool columnExists = false;
+                        while (reader.Read())
+                        {
+                            if (reader["name"].ToString() == "image_id")
+                            {
+                                columnExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!columnExists)
+                        {
+                            reader.Close();
+                            
+                            // 添加字段
+                            using (var alterCommand = connection.CreateCommand())
+                            {
+                                alterCommand.CommandText = @"
+                                    ALTER TABLE lyrics_projects 
+                                    ADD COLUMN image_id INTEGER NULL";
+                                alterCommand.ExecuteNonQuery();
+                                System.Diagnostics.Debug.WriteLine("✅ 已添加 image_id 字段到 lyrics_projects 表");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 image_id 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }

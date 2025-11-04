@@ -512,6 +512,8 @@ namespace ImageColorChanger.UI
             {
                 this.Focus();
                 this.Activate();
+                
+                // 浮动歌词按钮已删除
             };
         }
         
@@ -1434,8 +1436,32 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 🆕 如果是歌词模式，处理歌词投影
+                if (LyricsEditorPanel.Visibility == Visibility.Visible)
+                {
+                    // 如果是打开投影操作，先渲染内容
+                    if (!_projectionManager.IsProjectionActive)
+                    {
+                        // 先打开投影窗口
+                        _projectionManager.ToggleProjection();
+                        
+                        // 然后投影歌词（延迟确保投影窗口完全初始化）
+                        if (_projectionManager.IsProjectionActive)
+                        {
+                            Dispatcher.InvokeAsync(() =>
+                            {
+                                OnProjectionStateChanged(true);
+                            }, System.Windows.Threading.DispatcherPriority.Background);
+                        }
+                    }
+                    else
+                    {
+                        // 如果已经打开，直接关闭
+                        _projectionManager.ToggleProjection();
+                    }
+                }
                 // 🆕 如果是文本编辑器模式，先更新投影内容
-                if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
+                else if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
                 {
                     // 如果是打开投影操作，先渲染内容
                     if (!_projectionManager.IsProjectionActive)
@@ -2086,6 +2112,14 @@ namespace ImageColorChanger.UI
                             _originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe);
                     }
                     
+                    // 🎤 如果处于歌词模式，切换到新图片的歌词
+                    if (_isLyricsMode)
+                    {
+                        OnImageChangedInLyricsMode();
+                    }
+                    
+                    // 浮动歌词按钮已删除
+                    
                     sw.Stop();
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }
@@ -2122,6 +2156,8 @@ namespace ImageColorChanger.UI
                 // 🆕 清空关键帧指示块
                 KeyframePreviewLinesCanvas.Children.Clear();
                 ScrollbarIndicatorsCanvas.Children.Clear();
+
+                // 浮动歌词按钮已删除
 
                 ShowStatus("✅ 已清空图片显示");
             }

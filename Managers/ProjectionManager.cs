@@ -127,6 +127,28 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public bool IsProjecting => _projectionWindow != null;
 
+        /// <summary>
+        /// 获取当前投影屏幕的实际尺寸（考虑DPI缩放）
+        /// </summary>
+        public (double width, double height) GetProjectionScreenSize()
+        {
+            if (_projectionScrollViewer != null && _projectionScrollViewer.ActualWidth > 0)
+            {
+                // 返回ScrollViewer的实际尺寸（已考虑DPI缩放）
+                return (_projectionScrollViewer.ActualWidth, _projectionScrollViewer.ActualHeight);
+            }
+            
+            if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
+            {
+                // 返回屏幕的物理尺寸
+                var screen = _screens[_currentScreenIndex];
+                return (screen.Bounds.Width, screen.Bounds.Height);
+            }
+            
+            // 默认返回1920x1080
+            return (1920, 1080);
+        }
+
         public ProjectionManager(
             Window mainWindow,
             ScrollViewer mainScrollViewer,
@@ -335,6 +357,156 @@ namespace ImageColorChanger.Managers
                 // System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
                 WpfMessageBox.Show($"投影失败: {ex.Message}", "错误", WpfMessageBoxButton.OK, WpfMessageBoxImage.Error);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 清空图片投影状态（用于切换到纯文字模式时）
+        /// </summary>
+        public void ClearImageState()
+        {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("🧹 [投影] 清空图片状态");
+#endif
+            // 清空当前图片引用，防止图片投影逻辑干扰文字投影
+            _currentImage = null;
+            _currentImagePath = null;
+            _isColorEffectEnabled = false;
+            _zoomRatio = 1.0;
+        }
+
+        /// <summary>
+        /// 同步歌词滚动位置到投影
+        /// </summary>
+        public void SyncLyricsScroll(ScrollViewer lyricsScrollViewer)
+        {
+            if (!_syncEnabled || _projectionWindow == null || lyricsScrollViewer == null)
+                return;
+
+            try
+            {
+                // 性能节流
+                var currentTime = DateTime.Now;
+                if (currentTime - _lastSyncTime < _syncThrottleInterval)
+                    return;
+                _lastSyncTime = currentTime;
+
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    if (_projectionScrollViewer == null)
+                        return;
+
+                    // 🔧 歌词滚动同步：直接使用主屏滚动位置（两者内容高度相同）
+                    double mainScrollTop = lyricsScrollViewer.VerticalOffset;
+                    
+                    // 🔧 关键：直接使用相同的滚动位置（因为两者渲染的是相同内容）
+                    // 不需要比例计算，因为主屏和投影的内容高度是一样的
+                    double projScrollTop = mainScrollTop;
+                    
+                    _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
+
+#if DEBUG
+                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
+                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+                    double scrollPercentage = mainScrollableHeight > 0 ? mainScrollTop / mainScrollableHeight : 0;
+                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动同步] 主屏: {mainScrollTop:F2} → 投影: {projScrollTop:F2} (1:1直接同步)");
+                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 主屏内容: {lyricsScrollViewer.ExtentHeight:F2}, 可滚动: {mainScrollableHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 投影内容: {_projectionScrollViewer.ExtentHeight:F2}, 可滚动: {projScrollableHeight:F2}");
+#endif
+                });
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 更新投影文字内容（专门用于歌词/文本编辑器）
+        /// 语义清晰：这是文字投影，不是图片投影
+        /// </summary>
+        public void UpdateProjectionText(SKBitmap renderedTextImage)
+        {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"📝 [文字投影] 开始渲染 - 尺寸: {renderedTextImage?.Width}x{renderedTextImage?.Height}");
+#endif
+
+            if (_projectionWindow == null || renderedTextImage == null)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [文字投影] 投影窗口或文字图像为空，跳过");
+#endif
+                return;
+            }
+
+            try
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    // 直接转换并显示，无需缓存、变色、缩放等复杂逻辑
+                    var bitmapSource = ConvertToBitmapSource(renderedTextImage);
+                    
+                    if (bitmapSource != null)
+                    {
+                        // 更新投影窗口的图像控件
+                        _projectionImageControl.Source = bitmapSource;
+                        _projectionImageControl.Width = renderedTextImage.Width;
+                        _projectionImageControl.Height = renderedTextImage.Height;
+                        
+                        var screen = _screens[_currentScreenIndex];
+                        double screenWidth = screen.Bounds.Width;
+                        double screenHeight = screen.Bounds.Height;
+                        
+                        // 🔧 像素级对齐：与图片投影保持一致（左上角对齐+Margin）
+                        _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Left;
+                        _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                        
+                        // 计算居中位置的偏移量
+                        double containerWidth = _projectionScrollViewer?.ActualWidth ?? screenWidth;
+                        double containerHeight = _projectionScrollViewer?.ActualHeight ?? screenHeight;
+                        if (containerWidth <= 0) containerWidth = screenWidth;
+                        if (containerHeight <= 0) containerHeight = screenHeight;
+                        
+                        // 🔧 居中对齐：允许负数（图片宽度 > 容器时，左右居中裁剪）
+                        double x = (containerWidth - renderedTextImage.Width) / 2.0;
+                        double y = 0; // 文字顶部对齐，不居中
+                        
+                        _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
+
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
+                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
+#endif
+                        
+                        // 🔧 设置容器高度：文字投影 = 图片高度 + 屏幕高度（像图片投影一样添加额外滚动空间）
+                        if (_projectionContainer != null)
+                        {
+                            // 文字投影：容器高度 = 图片高度 + 屏幕高度（支持滚动到底部后继续向上滚动）
+                            _projectionContainer.Height = renderedTextImage.Height + containerHeight;
+                            _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (图片{renderedTextImage.Height} + 屏幕{containerHeight})");
+#endif
+                        }
+
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+#endif
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
+#endif
             }
         }
 
@@ -1173,7 +1345,11 @@ namespace ImageColorChanger.Managers
                     // System.Diagnostics.Debug.WriteLine("✅ 投影窗口已激活并获取焦点");
 
                     // 🔧 从主窗口同步当前状态到投影（解决打开投影时图片为空的问题）
-                    if (_imageProcessor?.CurrentImage != null)
+                    // 🎤 但如果处于歌词模式，跳过图片同步，避免显示图片
+                    var mainWindow = _mainWindow as MainWindow;
+                    bool isInLyricsMode = mainWindow?.IsInLyricsMode ?? false;
+                    
+                    if (_imageProcessor?.CurrentImage != null && !isInLyricsMode)
                     {
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"📺 [OpenProjection] 同步主窗口状态到投影:");
@@ -1192,10 +1368,16 @@ namespace ImageColorChanger.Managers
                         _zoomRatio = _imageProcessor.ZoomRatio;
                         _isOriginalMode = _imageProcessor.OriginalMode;
                         _originalDisplayMode = _imageProcessor.OriginalDisplayModeValue;
+                        
+                        // 更新投影内容
+                        UpdateProjection();
                     }
-                    
-                    // 更新投影内容
-                    UpdateProjection();
+#if DEBUG
+                    else if (isInLyricsMode)
+                    {
+                        System.Diagnostics.Debug.WriteLine("🎤 [OpenProjection] 歌词模式，跳过图片同步");
+                    }
+#endif
 
                     // 启用同步
                     _syncEnabled = true;

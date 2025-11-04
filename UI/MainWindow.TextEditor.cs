@@ -449,17 +449,15 @@ namespace ImageColorChanger.UI
             // 🆕 重置投影状态：清空之前的图片投影状态
             if (_projectionManager.IsProjectionActive)
             {
-                //System.Diagnostics.Debug.WriteLine("🔄 切换到文本编辑器模式，重置投影状态");
+                //System.Diagnostics.Debug.WriteLine("🔄 切换到文本编辑器模式，清空图片状态");
                 
                 // 重置投影滚动位置
                 _projectionManager.ResetProjectionScroll();
                 
-                // 创建一个1x1的透明图片来清空投影
-                var clearImage = new SKBitmap(1, 1);
-                clearImage.SetPixel(0, 0, new SKColor(0, 0, 0, 255));
-                _projectionManager.UpdateProjectionImage(clearImage, false, 1.0, false);
-                clearImage.Dispose();
-                //System.Diagnostics.Debug.WriteLine("✅ 投影状态已重置");
+                // 清空图片投影状态（文本编辑器不使用图片）
+                _projectionManager.ClearImageState();
+                
+                //System.Diagnostics.Debug.WriteLine("✅ 图片状态已清空");
             }
         }
 
@@ -470,6 +468,13 @@ namespace ImageColorChanger.UI
         {
             TextEditorPanel.Visibility = Visibility.Collapsed;
             ImageScrollViewer.Visibility = Visibility.Visible;
+            
+            // 🔧 如果投影已开启，恢复图片投影
+            if (_projectionManager != null && _projectionManager.IsProjectionActive)
+            {
+                //System.Diagnostics.Debug.WriteLine("🔄 退出文本编辑器，恢复图片投影");
+                UpdateProjection();
+            }
         }
 
         /// <summary>
@@ -2874,9 +2879,9 @@ namespace ImageColorChanger.UI
                 var scaledImage = ScaleImageForProjection(image, 1920, 1080);
                 //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缩放后图像: {scaledImage.Width}x{scaledImage.Height}");
 
-                // 4. 更新投影（文本编辑器模式：绕过缓存，确保每次都重新渲染）
-                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 调用ProjectionManager.UpdateProjectionImage...");
-                _projectionManager.UpdateProjectionImage(scaledImage, false, 1.0, false, ImageColorChanger.Core.OriginalDisplayMode.Stretch, bypassCache: true);
+                // 4. 更新投影（使用专用的文字投影方法，语义清晰）
+                //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 调用ProjectionManager.UpdateProjectionText...");
+                _projectionManager.UpdateProjectionText(scaledImage);
 
                 //System.Diagnostics.Debug.WriteLine($"✅ [更新投影] 投影更新成功");
             }
