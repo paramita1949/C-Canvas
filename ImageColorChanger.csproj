@@ -7,13 +7,15 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CanvasCast</AssemblyName>
-    <Product>Canvas Cast</Product>
-    <Company>Canvas Cast</Company>
-    <Title>Canvas Cast</Title>
-    <Description>Canvas Cast - 专业的图片浏览与管理工具</Description>
-    <Version>4.0</Version>
+    <Product>咏慕投影</Product>
+    <Company>咏慕投影</Company>
+    <Title>咏慕投影</Title>
+    <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
+    <Version>5.3.5</Version>
+    <FileVersion>5.3.5</FileVersion>
+    <AssemblyVersion>5.3.5</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
-    <Copyright>Copyright © 2025 Canvas Cast</Copyright>
+    <Copyright>Copyright © 2025 咏慕投影</Copyright>
   </PropertyGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">

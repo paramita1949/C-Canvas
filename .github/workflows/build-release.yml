@@ -43,14 +43,15 @@ jobs:
       id: get_version
       shell: pwsh
       run: |
-        # 从 MainWindow.xaml 中提取版本号
-        $xamlContent = Get-Content "UI\MainWindow.xaml" -Raw
-        if ($xamlContent -match 'Title="咏慕投影 (V[\d.]+)"') {
-          $appVersion = $matches[1]
-          echo "从 MainWindow.xaml 提取到版本号: $appVersion"
+        # 从 .csproj 中提取版本号
+        $csprojContent = Get-Content "ImageColorChanger.csproj" -Raw
+        if ($csprojContent -match '<Version>([\d.]+)</Version>') {
+          $version = $matches[1]
+          $appVersion = "V$version"
+          echo "从 .csproj 提取到版本号: $appVersion"
         } else {
           $appVersion = "V5.3.5"
-          echo "⚠️ 无法从 MainWindow.xaml 提取版本号，使用默认值: $appVersion"
+          echo "⚠️ 无法从 .csproj 提取版本号，使用默认值: $appVersion"
         }
         
         # 生成或获取 tag

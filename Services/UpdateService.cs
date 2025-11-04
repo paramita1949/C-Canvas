@@ -98,29 +98,39 @@ namespace ImageColorChanger.Services
         public static VersionInfo? GetLastCheckedVersionInfo() => _lastCheckedVersionInfo;
 
         /// <summary>
-        /// 获取当前应用程序版本（从 MainWindow 的 Title 属性读取）
+        /// 获取当前应用程序版本（从程序集属性读取）
         /// </summary>
         public static string GetCurrentVersion()
         {
             try
             {
-                // 从运行时的 MainWindow 获取 Title（动态获取，无论程序在什么位置）
-                var mainWindow = System.Windows.Application.Current?.MainWindow as ImageColorChanger.UI.MainWindow;
-                if (mainWindow != null && !string.IsNullOrEmpty(mainWindow.Title))
+                // 从程序集版本属性获取（由 .csproj 中的 Version 定义）
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                var version = assembly.GetName().Version;
+                
+                if (version != null)
                 {
-                    var match = Regex.Match(mainWindow.Title, @"V(\d+\.\d+\.\d+)");
-                    if (match.Success)
-                    {
-                        return match.Groups[1].Value;
-                    }
+                    // 返回 Major.Minor.Build 格式（例如：5.3.5）
+                    return $"{version.Major}.{version.Minor}.{version.Build}";
                 }
 
-                // 如果 MainWindow 还未创建（更新检查在窗口加载后执行，这种情况不应该发生），返回默认版本
-                return "5.2.8";
+                // 备用方案：尝试从 AssemblyInformationalVersion 获取
+                var infoVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                    .FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute;
+                
+                if (infoVersionAttr != null && !string.IsNullOrEmpty(infoVersionAttr.InformationalVersion))
+                {
+                    // 移除可能的版本后缀（如 +hash）
+                    var versionStr = infoVersionAttr.InformationalVersion.Split('+')[0];
+                    return versionStr;
+                }
+
+                // 如果都失败，返回默认版本
+                return "5.3.5";
             }
             catch
             {
-                return "5.2.8";
+                return "5.3.5";
             }
         }
 
