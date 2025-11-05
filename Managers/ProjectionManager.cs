@@ -405,21 +405,21 @@ namespace ImageColorChanger.Managers
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
-#if DEBUG
-                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
-                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
-                    double scrollPercentage = mainScrollableHeight > 0 ? mainScrollTop / mainScrollableHeight : 0;
-                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动同步] 主屏: {mainScrollTop:F2} → 投影: {projScrollTop:F2} (1:1直接同步)");
-                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 主屏内容: {lyricsScrollViewer.ExtentHeight:F2}, 可滚动: {mainScrollableHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 投影内容: {_projectionScrollViewer.ExtentHeight:F2}, 可滚动: {projScrollableHeight:F2}");
-#endif
+//#if DEBUG
+//                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
+//                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+//                    double scrollPercentage = mainScrollableHeight > 0 ? mainScrollTop / mainScrollableHeight : 0;
+//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动同步] 主屏: {mainScrollTop:F2} → 投影: {projScrollTop:F2} (1:1直接同步)");
+//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 主屏内容: {lyricsScrollViewer.ExtentHeight:F2}, 可滚动: {mainScrollableHeight:F2}");
+//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 投影内容: {_projectionScrollViewer.ExtentHeight:F2}, 可滚动: {projScrollableHeight:F2}");
+//#endif
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
+//#endif
             }
         }
 
@@ -429,15 +429,15 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public void UpdateProjectionText(SKBitmap renderedTextImage)
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📝 [文字投影] 开始渲染 - 尺寸: {renderedTextImage?.Width}x{renderedTextImage?.Height}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"📝 [文字投影] 开始渲染 - 尺寸: {renderedTextImage?.Width}x{renderedTextImage?.Height}");
+//#endif
 
             if (_projectionWindow == null || renderedTextImage == null)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [文字投影] 投影窗口或文字图像为空，跳过");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"⚠️ [文字投影] 投影窗口或文字图像为空，跳过");
+//#endif
                 return;
             }
 
@@ -475,15 +475,15 @@ namespace ImageColorChanger.Managers
                         
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
 
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
+//#endif
                         
                         // 🔧 设置容器高度：文字投影 = 图片高度 + 屏幕高度（像图片投影一样添加额外滚动空间）
                         if (_projectionContainer != null)
@@ -491,22 +491,22 @@ namespace ImageColorChanger.Managers
                             // 文字投影：容器高度 = 图片高度 + 屏幕高度（支持滚动到底部后继续向上滚动）
                             _projectionContainer.Height = renderedTextImage.Height + containerHeight;
                             _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (图片{renderedTextImage.Height} + 屏幕{containerHeight})");
-#endif
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (图片{renderedTextImage.Height} + 屏幕{containerHeight})");
+//#endif
                         }
 
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//#endif
                     }
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
+//#endif
             }
         }
 
@@ -1372,12 +1372,12 @@ namespace ImageColorChanger.Managers
                         // 更新投影内容
                         UpdateProjection();
                     }
-#if DEBUG
-                    else if (isInLyricsMode)
-                    {
-                        System.Diagnostics.Debug.WriteLine("🎤 [OpenProjection] 歌词模式，跳过图片同步");
-                    }
-#endif
+//#if DEBUG
+//                    else if (isInLyricsMode)
+//                    {
+//                        System.Diagnostics.Debug.WriteLine("🎤 [OpenProjection] 歌词模式，跳过图片同步");
+//                    }
+//#endif
 
                     // 启用同步
                     _syncEnabled = true;

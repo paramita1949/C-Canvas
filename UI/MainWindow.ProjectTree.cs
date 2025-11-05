@@ -327,11 +327,11 @@ namespace ImageColorChanger.UI
                                     // 🎤 检查是否在歌词模式
                                     else if (_isLyricsMode)
                                     {
-#if DEBUG
-                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 在歌词模式下点击图片，切换歌词");
-                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 旧图片ID: {_currentImageId}, 新图片ID: {fileId}");
-                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 图片名称: {selectedItem.Name}");
-#endif
+//#if DEBUG
+//                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 在歌词模式下点击图片，切换歌词");
+//                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 旧图片ID: {_currentImageId}, 新图片ID: {fileId}");
+//                                        System.Diagnostics.Debug.WriteLine($"[歌词-树状图] 图片名称: {selectedItem.Name}");
+//#endif
                                         // 更新当前图片ID和路径
                                         _currentImageId = fileId;
                                         _imagePath = selectedItem.Path;

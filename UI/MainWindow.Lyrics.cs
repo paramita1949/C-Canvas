@@ -56,9 +56,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void EnterLyricsMode()
         {
-#if DEBUG
-            Debug.WriteLine("[歌词] 进入歌词模式");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 进入歌词模式");
+//#endif
 
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -84,31 +84,31 @@ namespace ImageColorChanger.UI
             StartAutoSaveTimer();
 
             // 🔧 如果投影已开启，先清空图片投影状态，再投影歌词
-#if DEBUG
-            Debug.WriteLine($"[歌词] 检查投影状态 - _projectionManager: {_projectionManager != null}, IsProjecting: {_projectionManager?.IsProjecting}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词] 检查投影状态 - _projectionManager: {_projectionManager != null}, IsProjecting: {_projectionManager?.IsProjecting}");
+//#endif
 
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 投影已开启，先清空图片状态");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 投影已开启，先清空图片状态");
+//#endif
                 // 清空投影的图片状态（歌词模式不使用图片）
                 _projectionManager.ClearImageState();
                 
-#if DEBUG
-                Debug.WriteLine("[歌词] 准备渲染歌词");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 准备渲染歌词");
+//#endif
                 RenderLyricsToProjection();
-#if DEBUG
-                Debug.WriteLine("[歌词] 进入模式时自动投影完成");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 进入模式时自动投影完成");
+//#endif
             }
             else
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 投影未开启，跳过投影");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 投影未开启，跳过投影");
+//#endif
             }
 
             _isLyricsMode = true;
@@ -119,9 +119,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ExitLyricsMode()
         {
-#if DEBUG
-            Debug.WriteLine("[歌词] 退出歌词模式");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 退出歌词模式");
+//#endif
 
             // 停止自动保存计时器
             StopAutoSaveTimer();
@@ -143,9 +143,9 @@ namespace ImageColorChanger.UI
             // 🔧 如果投影已开启，恢复图片投影（刷新当前图片）
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 退出歌词模式，恢复图片投影");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 退出歌词模式，恢复图片投影");
+//#endif
                 UpdateProjection();
             }
         }
@@ -169,9 +169,9 @@ namespace ImageColorChanger.UI
                     LyricsTextBox.FontSize = Math.Min(200, currentSize + 4);
                     LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
 
-#if DEBUG
-                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
+//#endif
                 }
             }
             else
@@ -182,9 +182,9 @@ namespace ImageColorChanger.UI
                     LyricsTextBox.FontSize = Math.Max(20, currentSize - 4);
                     LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
 
-#if DEBUG
-                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
+//#endif
                 }
             }
             
@@ -228,9 +228,9 @@ namespace ImageColorChanger.UI
                 SetLyricsColor(color.R, color.G, color.B);
                 ShowStatus($"✨ 全局歌词颜色已更新");
 
-#if DEBUG
-                Debug.WriteLine($"[歌词-全局] 自定义颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词-全局] 自定义颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
+//#endif
             }
         }
 
@@ -245,9 +245,9 @@ namespace ImageColorChanger.UI
             // 更新全局默认颜色配置（保存到config.json）
             _configManager.DefaultLyricsColor = hexColor;
 
-#if DEBUG
-            Debug.WriteLine($"[歌词-全局] 颜色更改为 {hexColor}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词-全局] 颜色更改为 {hexColor}");
+//#endif
 
             // 更新当前UI显示
             var brush = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(r, g, b));
@@ -272,9 +272,9 @@ namespace ImageColorChanger.UI
             LyricsTextBox.TextAlignment = TextAlignment.Left;
             UpdateAlignmentButtonsState(TextAlignment.Left);
 
-#if DEBUG
-            Debug.WriteLine("[歌词] 切换到左对齐");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 切换到左对齐");
+//#endif
 
             // 对齐方式改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -291,9 +291,9 @@ namespace ImageColorChanger.UI
             LyricsTextBox.TextAlignment = TextAlignment.Center;
             UpdateAlignmentButtonsState(TextAlignment.Center);
 
-#if DEBUG
-            Debug.WriteLine("[歌词] 切换到居中对齐");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 切换到居中对齐");
+//#endif
 
             // 对齐方式改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -310,9 +310,9 @@ namespace ImageColorChanger.UI
             LyricsTextBox.TextAlignment = TextAlignment.Right;
             UpdateAlignmentButtonsState(TextAlignment.Right);
 
-#if DEBUG
-            Debug.WriteLine("[歌词] 切换到右对齐");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 切换到右对齐");
+//#endif
 
             // 对齐方式改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -378,9 +378,9 @@ namespace ImageColorChanger.UI
                 LyricsTextBox.Text = "";
                 LyricsTextBox.Focus();
 
-#if DEBUG
-                Debug.WriteLine("[歌词] 清空内容");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 清空内容");
+//#endif
             }
         }
 
@@ -402,15 +402,15 @@ namespace ImageColorChanger.UI
             }
 
             // 如果投影已开启，自动更新投影
-#if DEBUG
-            Debug.WriteLine($"[歌词] TextChanged - _isLyricsMode: {_isLyricsMode}, _projectionManager: {_projectionManager != null}, IsProjecting: {_projectionManager?.IsProjecting}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词] TextChanged - _isLyricsMode: {_isLyricsMode}, _projectionManager: {_projectionManager != null}, IsProjecting: {_projectionManager?.IsProjecting}");
+//#endif
             
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 文字改变，触发投影更新");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 文字改变，触发投影更新");
+//#endif
                 RenderLyricsToProjection();
             }
         }
@@ -446,9 +446,9 @@ namespace ImageColorChanger.UI
             // 如果投影已开启且在歌词模式，同步滚动位置
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine($"[歌词] 滚动位置改变: {e.VerticalOffset:F2}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] 滚动位置改变: {e.VerticalOffset:F2}");
+//#endif
                 // 🔧 同步投影滚动位置（传入歌词ScrollViewer）
                 _projectionManager.SyncLyricsScroll(LyricsScrollViewer);
             }
@@ -550,15 +550,15 @@ namespace ImageColorChanger.UI
                 // 获取当前图片ID（从主窗口）
                 int currentImageId = _currentImageId;
                 
-#if DEBUG
-                Debug.WriteLine($"[歌词-加载] 当前图片ID: {currentImageId}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词-加载] 当前图片ID: {currentImageId}");
+//#endif
                 
                 if (currentImageId == 0)
                 {
-#if DEBUG
-                    Debug.WriteLine("[歌词] 当前无图片，无法加载歌词");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine("[歌词] 当前无图片，无法加载歌词");
+//#endif
                     // 创建临时项目（不关联图片）
                     CreateTempLyricsProject();
                     return;
@@ -567,43 +567,43 @@ namespace ImageColorChanger.UI
                 // 🔧 强制刷新数据库上下文（确保查询到最新数据）
                 _dbContext.ChangeTracker.Clear();
                 
-#if DEBUG
-                Debug.WriteLine($"[歌词-加载] 开始查询，条件：ImageId == {currentImageId}");
-                // 显示数据库中所有歌词项目
-                var allProjects = _dbContext.LyricsProjects.ToList();
-                Debug.WriteLine($"[歌词-加载] 数据库中共有 {allProjects.Count} 个歌词项目：");
-                foreach (var proj in allProjects)
-                {
-                    Debug.WriteLine($"  - ID: {proj.Id}, 名称: {proj.Name}, 关联图片ID: {proj.ImageId}, 内容长度: {(proj.Content ?? "").Length}");
-                }
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词-加载] 开始查询，条件：ImageId == {currentImageId}");
+//                // 显示数据库中所有歌词项目
+//                var allProjects = _dbContext.LyricsProjects.ToList();
+//                Debug.WriteLine($"[歌词-加载] 数据库中共有 {allProjects.Count} 个歌词项目：");
+//                foreach (var proj in allProjects)
+//                {
+//                    Debug.WriteLine($"  - ID: {proj.Id}, 名称: {proj.Name}, 关联图片ID: {proj.ImageId}, 内容长度: {(proj.Content ?? "").Length}");
+//                }
+//#endif
                 
                 // 尝试加载当前图片对应的歌词项目
                 _currentLyricsProject = _dbContext.LyricsProjects
                     .FirstOrDefault(p => p.ImageId == currentImageId);
                     
-#if DEBUG
-                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
+//#endif
 
                 if (_currentLyricsProject != null)
                 {
                     // 加载现有项目
-#if DEBUG
-                    Debug.WriteLine($"[歌词-加载] 项目ID: {_currentLyricsProject.Id}, 名称: {_currentLyricsProject.Name}");
-                    Debug.WriteLine($"[歌词-加载] 关联图片ID: {_currentLyricsProject.ImageId}");
-                    Debug.WriteLine($"[歌词-加载] 内容长度: {(_currentLyricsProject.Content ?? "").Length}");
-                    Debug.WriteLine($"[歌词-加载] 内容完整: {_currentLyricsProject.Content ?? "(空)"}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词-加载] 项目ID: {_currentLyricsProject.Id}, 名称: {_currentLyricsProject.Name}");
+//                    Debug.WriteLine($"[歌词-加载] 关联图片ID: {_currentLyricsProject.ImageId}");
+//                    Debug.WriteLine($"[歌词-加载] 内容长度: {(_currentLyricsProject.Content ?? "").Length}");
+//                    Debug.WriteLine($"[歌词-加载] 内容完整: {_currentLyricsProject.Content ?? "(空)"}");
+//#endif
 
                     // 🔧 自动升级旧项目：对齐方式
                     if (_currentLyricsProject.TextAlign == "Left")
                     {
                         _currentLyricsProject.TextAlign = "Center";
                         _dbContext.SaveChanges();
-#if DEBUG
-                        Debug.WriteLine($"[歌词-升级] 对齐从左对齐更新为居中");
-#endif
+//#if DEBUG
+//                        Debug.WriteLine($"[歌词-升级] 对齐从左对齐更新为居中");
+//#endif
                     }
 
                     LyricsTextBox.Text = _currentLyricsProject.Content ?? "";
@@ -613,19 +613,19 @@ namespace ImageColorChanger.UI
                     // 始终使用全局默认颜色（不从数据库读取）
                     var textColor = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor));
                     LyricsTextBox.Foreground = textColor;
-#if DEBUG
-                    Debug.WriteLine($"[歌词-颜色] 使用全局默认颜色: {_configManager.DefaultLyricsColor}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词-颜色] 使用全局默认颜色: {_configManager.DefaultLyricsColor}");
+//#endif
 
                     // 恢复对齐方式
                     var alignment = (TextAlignment)Enum.Parse(typeof(TextAlignment), _currentLyricsProject.TextAlign);
                     LyricsTextBox.TextAlignment = alignment;
                     UpdateAlignmentButtonsState(alignment);
 
-#if DEBUG
-                    Debug.WriteLine($"[歌词] 加载项目完成: {_currentLyricsProject.Name}");
-                    Debug.WriteLine($"[歌词] TextBox当前文本长度: {LyricsTextBox.Text.Length}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词] 加载项目完成: {_currentLyricsProject.Name}");
+//                    Debug.WriteLine($"[歌词] TextBox当前文本长度: {LyricsTextBox.Text.Length}");
+//#endif
                 }
                 else
                 {
@@ -658,17 +658,17 @@ namespace ImageColorChanger.UI
                     // 初始化对齐按钮状态
                     UpdateAlignmentButtonsState(TextAlignment.Center);
 
-#if DEBUG
-                    Debug.WriteLine($"[歌词] 创建新项目: {_currentLyricsProject.Name}, 关联图片ID: {currentImageId}");
-                    Debug.WriteLine($"[歌词] TextBox已清空");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词] 创建新项目: {_currentLyricsProject.Name}, 关联图片ID: {currentImageId}");
+//                    Debug.WriteLine($"[歌词] TextBox已清空");
+//#endif
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                Debug.WriteLine($"[歌词] 加载项目出错: {ex.Message}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] 加载项目出错: {ex.Message}");
+//#endif
                 CreateTempLyricsProject();
             }
         }
@@ -710,15 +710,15 @@ namespace ImageColorChanger.UI
                 // 保存到数据库
                 _dbContext.SaveChanges();
 
-#if DEBUG
-                Debug.WriteLine($"[歌词] 保存成功: {_currentLyricsProject.Name}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] 保存成功: {_currentLyricsProject.Name}");
+//#endif
             }
             catch (Exception ex)
             {
-#if DEBUG
-                Debug.WriteLine($"[歌词] 保存出错: {ex.Message}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] 保存出错: {ex.Message}");
+//#endif
 
                 WpfMessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -757,18 +757,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenderLyricsToProjection()
         {
-#if DEBUG
-            Debug.WriteLine($"[歌词] 开始渲染投影 - 文字内容长度: {LyricsTextBox.Text?.Length ?? 0}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词] 开始渲染投影 - 文字内容长度: {LyricsTextBox.Text?.Length ?? 0}");
+//#endif
 
             try
             {
                 // 🔧 获取投影屏幕的实际尺寸（考虑DPI缩放）
                 var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
                 
-#if DEBUG
-                Debug.WriteLine($"📐 [歌词渲染] 投影屏幕实际尺寸: {screenWidth}x{screenHeight}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"📐 [歌词渲染] 投影屏幕实际尺寸: {screenWidth}x{screenHeight}");
+//#endif
 
                 // 创建一个与投影窗口同尺寸的Canvas
                 var canvas = new Canvas
@@ -800,40 +800,40 @@ namespace ImageColorChanger.UI
                 textBlock.Measure(new WpfSize(screenWidth, double.PositiveInfinity));
                 double textBlockHeight = textBlock.DesiredSize.Height;
 
-#if DEBUG
-                Debug.WriteLine($"📐 [歌词渲染] TextBlock实际高度: {textBlockHeight}, 屏幕高度: {screenHeight}");
-                Debug.WriteLine($"📐 [歌词渲染] TextBlock宽度: {textBlock.Width}, Padding: {textBlock.Padding}");
-                Debug.WriteLine($"📐 [歌词渲染] TextBlock FontSize: {textBlock.FontSize}");
-                Debug.WriteLine($"📐 [歌词渲染] TextBlock对齐 - Text: {textBlock.TextAlignment}, H: {textBlock.HorizontalAlignment}, V: {textBlock.VerticalAlignment}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"📐 [歌词渲染] TextBlock实际高度: {textBlockHeight}, 屏幕高度: {screenHeight}");
+//                Debug.WriteLine($"📐 [歌词渲染] TextBlock宽度: {textBlock.Width}, Padding: {textBlock.Padding}");
+//                Debug.WriteLine($"📐 [歌词渲染] TextBlock FontSize: {textBlock.FontSize}");
+//                Debug.WriteLine($"📐 [歌词渲染] TextBlock对齐 - Text: {textBlock.TextAlignment}, H: {textBlock.HorizontalAlignment}, V: {textBlock.VerticalAlignment}");
+//#endif
 
                 // 如果内容超过屏幕高度，调整Canvas高度
                 if (textBlockHeight > screenHeight)
                 {
                     actualHeight = textBlockHeight;
                     canvas.Height = actualHeight;
-#if DEBUG
-                    Debug.WriteLine($"📐 [歌词渲染] 内容超出屏幕，Canvas高度调整为: {actualHeight}");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"📐 [歌词渲染] 内容超出屏幕，Canvas高度调整为: {actualHeight}");
+//#endif
                 }
 
                 Canvas.SetLeft(textBlock, 0); // 从左边缘开始
                 Canvas.SetTop(textBlock, 0);  // 从顶部开始
                 canvas.Children.Add(textBlock);
 
-#if DEBUG
-                Debug.WriteLine($"📐 [歌词渲染] Canvas.Left: {Canvas.GetLeft(textBlock)}, Canvas.Top: {Canvas.GetTop(textBlock)}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"📐 [歌词渲染] Canvas.Left: {Canvas.GetLeft(textBlock)}, Canvas.Top: {Canvas.GetTop(textBlock)}");
+//#endif
 
                 // 渲染到图片
                 canvas.Measure(new WpfSize(screenWidth, actualHeight));
                 canvas.Arrange(new Rect(0, 0, screenWidth, actualHeight));
                 canvas.UpdateLayout();
 
-#if DEBUG
-                Debug.WriteLine($"📐 [歌词渲染] Canvas最终尺寸: {screenWidth}x{actualHeight}");
-                Debug.WriteLine($"📐 [歌词渲染] RenderTargetBitmap尺寸: {(int)screenWidth}x{(int)Math.Ceiling(actualHeight)}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"📐 [歌词渲染] Canvas最终尺寸: {screenWidth}x{actualHeight}");
+//                Debug.WriteLine($"📐 [歌词渲染] RenderTargetBitmap尺寸: {(int)screenWidth}x{(int)Math.Ceiling(actualHeight)}");
+//#endif
 
                 var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
                     (int)screenWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
@@ -842,29 +842,29 @@ namespace ImageColorChanger.UI
 
                 // 转换为SKBitmap并更新投影
                 var skBitmap = ConvertToSKBitmap(renderBitmap);
-#if DEBUG
-                Debug.WriteLine($"📐 [歌词渲染] SKBitmap转换结果: {skBitmap != null}, 尺寸: {skBitmap?.Width}x{skBitmap?.Height}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"📐 [歌词渲染] SKBitmap转换结果: {skBitmap != null}, 尺寸: {skBitmap?.Width}x{skBitmap?.Height}");
+//#endif
 
                 if (skBitmap != null)
                 {
-#if DEBUG
-                    Debug.WriteLine($"[歌词] 准备调用 UpdateProjectionText (文字投影专用方法)");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine($"[歌词] 准备调用 UpdateProjectionText (文字投影专用方法)");
+//#endif
                     // ✅ 使用专门的文字投影方法，语义清晰
                     _projectionManager?.UpdateProjectionText(skBitmap);
                     skBitmap.Dispose();
                 }
 
-#if DEBUG
-                Debug.WriteLine("[歌词] 投影渲染完成");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 投影渲染完成");
+//#endif
             }
             catch (Exception ex)
             {
-#if DEBUG
-                Debug.WriteLine($"[歌词] 投影出错: {ex.Message}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] 投影出错: {ex.Message}");
+//#endif
 
                 WpfMessageBox.Show($"投影失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -886,17 +886,17 @@ namespace ImageColorChanger.UI
                 _lyricsAutoSaveTimer.Tick += (s, e) =>
                 {
                     SaveLyricsProject();
-#if DEBUG
-                    Debug.WriteLine("[歌词] 自动保存");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine("[歌词] 自动保存");
+//#endif
                 };
             }
 
             _lyricsAutoSaveTimer.Start();
 
-#if DEBUG
-            Debug.WriteLine("[歌词] 自动保存计时器已启动");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 自动保存计时器已启动");
+//#endif
         }
 
         /// <summary>
@@ -908,9 +908,9 @@ namespace ImageColorChanger.UI
             {
                 _lyricsAutoSaveTimer.Stop();
 
-#if DEBUG
-                Debug.WriteLine("[歌词] 自动保存计时器已停止");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 自动保存计时器已停止");
+//#endif
             }
         }
 
@@ -927,9 +927,9 @@ namespace ImageColorChanger.UI
             if (!_isLyricsMode)
                 return;
 
-#if DEBUG
-            Debug.WriteLine("[歌词] 检测到图片切换，重新加载对应歌词");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 检测到图片切换，重新加载对应歌词");
+//#endif
 
             // 保存当前歌词
             SaveLyricsProject();
@@ -940,9 +940,9 @@ namespace ImageColorChanger.UI
             // 如果投影已开启，更新投影
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 图片切换，自动更新歌词投影");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 图片切换，自动更新歌词投影");
+//#endif
                 RenderLyricsToProjection();
             }
         }
@@ -953,9 +953,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void OnImageChangedInLyricsMode()
         {
-#if DEBUG
-            Debug.WriteLine("[歌词] 检测到图片切换，准备切换歌词");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[歌词] 检测到图片切换，准备切换歌词");
+//#endif
 
             // 1. 保存当前歌词项目
             SaveLyricsProject();
@@ -966,15 +966,15 @@ namespace ImageColorChanger.UI
             // 3. 如果投影已开启，更新投影
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 投影已开启，渲染新图片的歌词");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 投影已开启，渲染新图片的歌词");
+//#endif
                 RenderLyricsToProjection();
             }
 
-#if DEBUG
-            Debug.WriteLine($"[歌词] 已切换到新图片的歌词: {_currentLyricsProject?.Name}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词] 已切换到新图片的歌词: {_currentLyricsProject?.Name}");
+//#endif
         }
 
         /// <summary>
@@ -983,15 +983,15 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void OnProjectionStateChanged(bool isProjecting)
         {
-#if DEBUG
-            Debug.WriteLine($"[歌词] 投影状态改变 - IsProjecting: {isProjecting}, _isLyricsMode: {_isLyricsMode}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[歌词] 投影状态改变 - IsProjecting: {isProjecting}, _isLyricsMode: {_isLyricsMode}");
+//#endif
 
             if (isProjecting && _isLyricsMode)
             {
-#if DEBUG
-                Debug.WriteLine("[歌词] 投影开启且在歌词模式，触发投影");
-#endif
+//#if DEBUG
+//                Debug.WriteLine("[歌词] 投影开启且在歌词模式，触发投影");
+//#endif
                 // 🔧 立即清空图片状态（防止自动刷新显示图片）
                 _projectionManager.ClearImageState();
                 
@@ -1003,9 +1003,9 @@ namespace ImageColorChanger.UI
                 timer.Tick += (s, e) =>
                 {
                     timer.Stop();
-#if DEBUG
-                    Debug.WriteLine("[歌词] 延迟后开始投影歌词");
-#endif
+//#if DEBUG
+//                    Debug.WriteLine("[歌词] 延迟后开始投影歌词");
+//#endif
                     RenderLyricsToProjection();
                 };
                 timer.Start();
@@ -1045,11 +1045,11 @@ namespace ImageColorChanger.UI
 
                 return skBitmap;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-#if DEBUG
-                Debug.WriteLine($"[歌词] BitmapSource转SKBitmap出错: {ex.Message}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[歌词] BitmapSource转SKBitmap出错: {ex.Message}");
+//#endif
                 return null;
             }
         }
