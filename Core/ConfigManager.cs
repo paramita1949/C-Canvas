@@ -588,9 +588,9 @@ namespace ImageColorChanger.Core
         public double FileFontSize { get; set; } = 26.0;
 
         /// <summary>
-        /// 导航栏宽度（默认：280）
+        /// 导航栏宽度（默认：370，圣经模式5列表格需要370宽度）
         /// </summary>
-        public double NavigationPanelWidth { get; set; } = 280.0;
+        public double NavigationPanelWidth { get; set; } = 370.0;
 
         /// <summary>
         /// 文件夹标签字号（搜索结果显示，默认：18）

@@ -62,6 +62,10 @@ namespace ImageColorChanger.Managers
         private VideoView _projectionVideoView;  // 视频视图
         private Grid _projectionMediaFileNameBorder;  // 媒体文件名容器
         private TextBlock _projectionMediaFileNameText;  // 媒体文件名文本
+        
+        // 圣经投影相关
+        private Border _projectionBibleTitleBorder;  // 圣经标题容器（固定在顶部）
+        private TextBlock _projectionBibleTitleText;  // 圣经标题文本
 
         // 屏幕管理
         private List<Screen> _screens;
@@ -405,14 +409,32 @@ namespace ImageColorChanger.Managers
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
-//#if DEBUG
-//                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
-//                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
-//                    double scrollPercentage = mainScrollableHeight > 0 ? mainScrollTop / mainScrollableHeight : 0;
-//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动同步] 主屏: {mainScrollTop:F2} → 投影: {projScrollTop:F2} (1:1直接同步)");
-//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 主屏内容: {lyricsScrollViewer.ExtentHeight:F2}, 可滚动: {mainScrollableHeight:F2}");
-//                    System.Diagnostics.Debug.WriteLine($"📝 [歌词滚动-详细] 投影内容: {_projectionScrollViewer.ExtentHeight:F2}, 可滚动: {projScrollableHeight:F2}");
-//#endif
+#if DEBUG
+                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
+                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+                    double mainViewportHeight = lyricsScrollViewer.ViewportHeight;
+                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
+                    double mainExtentHeight = lyricsScrollViewer.ExtentHeight;
+                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
+                    
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+                    
+                    if (_projectionBibleTitleBorder != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题高度: {_projectionBibleTitleBorder.ActualHeight:F2}");
+                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题可见: {_projectionBibleTitleBorder.Visibility}");
+                    }
+                    
+                    // 🔍 关键对比：主屏第一节经文顶部位置 vs 投影第一节经文顶部位置
+                    // 主屏：ScrollViewer.Padding.Top (应该是20)
+                    // 投影：渲染内容的顶部Padding (应该也是20)
+                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+#endif
                 });
             }
             catch (Exception)
@@ -420,6 +442,59 @@ namespace ImageColorChanger.Managers
 //#if DEBUG
 //                System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
 //#endif
+            }
+        }
+
+        /// <summary>
+        /// 同步圣经滚动位置到投影（与歌词完全一致）
+        /// </summary>
+        public void SyncBibleScroll(ScrollViewer bibleScrollViewer)
+        {
+            if (!_syncEnabled || _projectionWindow == null || bibleScrollViewer == null)
+                return;
+
+            try
+            {
+                // 性能节流
+                var currentTime = DateTime.Now;
+                if (currentTime - _lastSyncTime < _syncThrottleInterval)
+                    return;
+                _lastSyncTime = currentTime;
+
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    if (_projectionScrollViewer == null)
+                        return;
+
+                    // 🔧 圣经滚动同步：直接使用主屏滚动位置（两者内容高度相同）
+                    double mainScrollTop = bibleScrollViewer.VerticalOffset;
+                    
+                    // 🔧 关键：直接使用相同的滚动位置（因为两者渲染的是相同内容）
+                    double projScrollTop = mainScrollTop;
+                    
+                    _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
+
+#if DEBUG
+                    double mainScrollableHeight = bibleScrollViewer.ScrollableHeight;
+                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+                    double mainViewportHeight = bibleScrollViewer.ViewportHeight;
+                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
+                    double mainExtentHeight = bibleScrollViewer.ExtentHeight;
+                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
+                    
+                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+#endif
+                });
+            }
+            catch (Exception)
+            {
+                // 忽略错误
             }
         }
 
@@ -485,15 +560,15 @@ namespace ImageColorChanger.Managers
 //                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
 //#endif
                         
-                        // 🔧 设置容器高度：文字投影 = 图片高度 + 屏幕高度（像图片投影一样添加额外滚动空间）
+                        // 🔧 设置容器高度：直接使用图片高度（图片渲染时已经包含扩展空间）
                         if (_projectionContainer != null)
                         {
-                            // 文字投影：容器高度 = 图片高度 + 屏幕高度（支持滚动到底部后继续向上滚动）
-                            _projectionContainer.Height = renderedTextImage.Height + containerHeight;
+                            // 圣经/歌词投影：容器高度 = 图片高度（渲染时已经扩展了Canvas高度）
+                            _projectionContainer.Height = renderedTextImage.Height;
                             _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
-//#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (图片{renderedTextImage.Height} + 屏幕{containerHeight})");
-//#endif
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (等于图片高度)");
+#endif
                         }
 
 //#if DEBUG
@@ -1060,6 +1135,91 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
+        /// 设置圣经标题（固定在顶部）
+        /// </summary>
+        public void SetBibleTitle(string title, bool visible)
+        {
+            if (_projectionWindow == null || _projectionBibleTitleBorder == null || _projectionBibleTitleText == null)
+                return;
+                
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                _projectionBibleTitleText.Text = title;
+                _projectionBibleTitleBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📖 [圣经标题] 设置: {title}, 可见: {visible}");
+                #endif
+            });
+        }
+        
+        /// <summary>
+        /// 直接设置投影滚动位置（用于圣经同步）
+        /// </summary>
+        public void SetProjectionScrollPosition(double offset, bool shouldDebug = false)
+        {
+            if (!_syncEnabled || _projectionWindow == null || _projectionScrollViewer == null)
+                return;
+
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                // 🔧 尝试多次设置，确保生效
+                _projectionScrollViewer.ScrollToVerticalOffset(offset);
+                _projectionScrollViewer.InvalidateScrollInfo();
+                _projectionScrollViewer.UpdateLayout();
+                _projectionScrollViewer.ScrollToVerticalOffset(offset); // 再次设置
+                
+                #if DEBUG
+                // 只在主屏幕要求输出时才输出（保持同步）
+                if (shouldDebug)
+                {
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 接收偏移: {offset:F2} (主屏传入)");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际偏移: {_projectionScrollViewer.VerticalOffset:F2} (双重设置后)");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {_projectionScrollViewer.ScrollableHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] CanContentScroll: {_projectionScrollViewer.CanContentScroll}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                }
+                #endif
+            });
+        }
+        
+        /// <summary>
+        /// 按比例设置投影滚动位置（用于圣经同步，确保像素级对齐）
+        /// </summary>
+        public void SetProjectionScrollPositionByRatio(double scrollRatio, bool shouldDebug = false)
+        {
+            if (!_syncEnabled || _projectionWindow == null || _projectionScrollViewer == null)
+                return;
+
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                // 根据比例计算投影屏幕的滚动位置
+                double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+                double projScrollOffset = scrollRatio * projScrollableHeight;
+                
+                _projectionScrollViewer.ScrollToVerticalOffset(projScrollOffset);
+                _projectionScrollViewer.InvalidateScrollInfo();
+                _projectionScrollViewer.UpdateLayout();
+                _projectionScrollViewer.ScrollToVerticalOffset(projScrollOffset); // 再次设置
+                
+                #if DEBUG
+                if (shouldDebug)
+                {
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动比例: {scrollRatio:P2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 计算滚动偏移: {projScrollOffset:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际滚动偏移: {_projectionScrollViewer.VerticalOffset:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                }
+                #endif
+            });
+        }
+        
+        /// <summary>
         /// 显示视频投影（隐藏图片，显示视频）
         /// </summary>
         public void ShowVideoProjection()
@@ -1210,7 +1370,8 @@ namespace ImageColorChanger.Managers
                     {
                         HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
                         VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-                        Background = WpfBrushes.Black
+                        Background = WpfBrushes.Black,
+                        CanContentScroll = false // 🔧 使用像素级滚动，确保精确同步
                     };
 
                     // 创建容器Grid来控制滚动区域(类似主屏幕的imageContainer)
@@ -1224,9 +1385,9 @@ namespace ImageColorChanger.Managers
                     // 创建Image控件 (初始设置,会在UpdateProjection中动态调整)
                     _projectionImageControl = new System.Windows.Controls.Image
                     {
-                        Stretch = System.Windows.Media.Stretch.Fill,  // 填充模式
-                        HorizontalAlignment = WpfHorizontalAlignment.Center,  // 默认居中
-                        VerticalAlignment = System.Windows.VerticalAlignment.Top
+                        Stretch = System.Windows.Media.Stretch.None,  // 🔧 不拉伸，使用原始尺寸，确保滚动精确
+                        HorizontalAlignment = WpfHorizontalAlignment.Left,  // 🔧 左对齐
+                        VerticalAlignment = System.Windows.VerticalAlignment.Top  // 顶部对齐
                     };
 
                     projectionContainer.Children.Add(_projectionImageControl);
@@ -1297,13 +1458,35 @@ namespace ImageColorChanger.Managers
                     _projectionMediaFileNameBorder.Children.Add(fileNameStack);
                     _projectionVideoContainer.Children.Add(_projectionMediaFileNameBorder);
                     
-                    // 创建主Grid来容纳图片和视频
+                    // 🔧 创建圣经标题层（固定在顶部，不滚动）
+                    _projectionBibleTitleBorder = new Border
+                    {
+                        Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(28, 28, 28)), // #1C1C1C
+                        Padding = new Thickness(20, 15, 20, 15),
+                        Visibility = Visibility.Collapsed,  // 默认隐藏
+                        VerticalAlignment = System.Windows.VerticalAlignment.Top
+                    };
+                    System.Windows.Controls.Panel.SetZIndex(_projectionBibleTitleBorder, 100);  // 确保在最上层
+                    
+                    _projectionBibleTitleText = new TextBlock
+                    {
+                        Text = "",
+                        FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI"),
+                        FontSize = 32,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 87, 34)) // #FF5722
+                    };
+                    
+                    _projectionBibleTitleBorder.Child = _projectionBibleTitleText;
+                    
+                    // 创建主Grid来容纳图片、视频和圣经标题
                     var mainGrid = new Grid
                     {
                         Background = WpfBrushes.Black
                     };
-                    mainGrid.Children.Add(_projectionScrollViewer);
-                    mainGrid.Children.Add(_projectionVideoContainer);
+                    mainGrid.Children.Add(_projectionScrollViewer);  // 层0：可滚动内容
+                    mainGrid.Children.Add(_projectionVideoContainer);  // 层1：视频
+                    mainGrid.Children.Add(_projectionBibleTitleBorder);  // 层2：圣经标题（固定）
                     
                     _projectionWindow.Content = mainGrid;
                     

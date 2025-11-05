@@ -519,8 +519,8 @@
         <!-- ========== 主内容区 ========== -->
         <Grid Grid.Row="1" x:Name="MainContentGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="NavigationPanelColumn" Width="280"/>
-                <!-- 左侧导航栏 -->
+                <ColumnDefinition x:Name="NavigationPanelColumn" Width="370"/>
+                <!-- 左侧导航栏（圣经模式5列表格需要370宽度） -->
                 <ColumnDefinition Width="Auto"/>
                 <!-- 分隔条 -->
                 <ColumnDefinition Width="*"/>
@@ -1299,29 +1299,28 @@
 
                 <!-- 🆕 圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
                 <!-- 注意：圣经模式下，左侧ProjectTree会被替换为圣经专用导航 -->
-                <Grid x:Name="BibleVerseScrollViewer" 
-                      Visibility="Collapsed"
-                      Background="#000000">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- 章节标题 -->
-                    <Border Grid.Row="0" Background="#1C1C1C" Padding="20,15">
-                        <TextBlock x:Name="BibleChapterTitle" 
-                                   Text="创世记1章" 
-                                   FontSize="32" 
-                                   FontWeight="Bold" 
-                                   Foreground="#FF5722"/>
-                    </Border>
-                    
-                    <!-- 经文列表 -->
-                    <ScrollViewer Grid.Row="1" 
-                                  x:Name="BibleVerseContentScroller"
-                                  VerticalScrollBarVisibility="Auto"
-                                  Padding="20">
-                        <ItemsControl x:Name="BibleVerseList">
+                <!-- 圣经经文显示区（标题和内容都可滚动） -->
+                <ScrollViewer x:Name="BibleVerseScrollViewer" 
+                              Visibility="Collapsed"
+                              Background="#000000"
+                              VerticalScrollBarVisibility="Auto"
+                              Padding="0"
+                              ScrollChanged="BibleVerseContentScroller_ScrollChanged">
+                    <StackPanel>
+                        <!-- 章节标题（可滚动） -->
+                        <Border Background="#1C1C1C" Padding="20,15">
+                            <TextBlock x:Name="BibleChapterTitle" 
+                                       Text="创世记1章" 
+                                       FontSize="32" 
+                                       FontWeight="Bold" 
+                                       Foreground="#FF5722"/>
+                        </Border>
+                        
+                        <!-- 顶部边距 -->
+                        <Border Height="20"/>
+                        
+                        <!-- 经文列表 -->
+                        <ItemsControl x:Name="BibleVerseList" Margin="20,0,20,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="Transparent"
@@ -1358,8 +1357,14 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
+                        
+                        <!-- 底部边距 -->
+                        <Border Height="20"/>
+                        
+                        <!-- 底部扩展空间（支持底部内容向上拉，动态计算高度） -->
+                        <Border x:Name="BibleBottomExtension" Height="0" Background="Transparent"/>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
                 <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0" 

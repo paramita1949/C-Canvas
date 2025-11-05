@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using static ImageColorChanger.Core.Constants;
@@ -825,16 +826,19 @@ namespace ImageColorChanger.UI
 //                Debug.WriteLine($"📐 [歌词渲染] Canvas.Left: {Canvas.GetLeft(textBlock)}, Canvas.Top: {Canvas.GetTop(textBlock)}");
 //#endif
 
-                // 渲染到图片
+                // 渲染到图片（固定使用96 DPI，确保逻辑像素=物理像素）
                 canvas.Measure(new WpfSize(screenWidth, actualHeight));
                 canvas.Arrange(new Rect(0, 0, screenWidth, actualHeight));
                 canvas.UpdateLayout();
 
 //#if DEBUG
 //                Debug.WriteLine($"📐 [歌词渲染] Canvas最终尺寸: {screenWidth}x{actualHeight}");
+//                Debug.WriteLine($"📐 [歌词渲染] 使用DPI: 96x96 (固定，确保像素对齐)");
 //                Debug.WriteLine($"📐 [歌词渲染] RenderTargetBitmap尺寸: {(int)screenWidth}x{(int)Math.Ceiling(actualHeight)}");
 //#endif
 
+                // 🔧 关键：固定使用96 DPI，确保渲染的图片逻辑像素=物理像素
+                // 如果使用高DPI（如192），WPF会按DPI缩放显示，导致滚动不对齐
                 var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
                     (int)screenWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                 renderBitmap.Render(canvas);

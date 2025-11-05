@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
@@ -196,6 +197,33 @@ namespace ImageColorChanger.UI
 
             #if DEBUG
             Debug.WriteLine($"[圣经] 导航切换完成, ProjectTree={ProjectTree.Visibility}, BiblePanel={BibleNavigationPanel.Visibility}");
+            
+            // 🔍 打印导航栏宽度信息（异步调试输出，不需要等待）
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (NavigationPanelColumn != null)
+                {
+                    Debug.WriteLine($"");
+                    Debug.WriteLine($"🔍 ===== 圣经导航栏宽度信息 =====");
+                    Debug.WriteLine($"📐 [导航栏] 设定宽度: {NavigationPanelColumn.Width}");
+                    Debug.WriteLine($"📐 [导航栏] 实际宽度: {NavigationPanelColumn.ActualWidth:F2}");
+                }
+                
+                if (BibleNavigationPanel != null)
+                {
+                    Debug.WriteLine($"📐 [圣经面板] 实际宽度: {BibleNavigationPanel.ActualWidth:F2}");
+                }
+                
+                // 打印5列的宽度设置
+                Debug.WriteLine($"📊 [表格列宽] 第1列(分类): 70");
+                Debug.WriteLine($"📊 [表格列宽] 第2列(书卷): 120");
+                Debug.WriteLine($"📊 [表格列宽] 第3列(章): 60");
+                Debug.WriteLine($"📊 [表格列宽] 第4列(起始节): 60");
+                Debug.WriteLine($"📊 [表格列宽] 第5列(结束节): 60");
+                Debug.WriteLine($"📊 [表格列宽] 总计: 370");
+                Debug.WriteLine($"⚠️  [结论] 导航栏宽度需要390以上才能完整显示5列！");
+                Debug.WriteLine($"");
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
             #endif
 
             // 加载圣经数据
@@ -561,7 +589,49 @@ namespace ImageColorChanger.UI
 
                 #if DEBUG
                 Debug.WriteLine($"[圣经] 加载经文范围: {book?.Name} {chapter}:{startVerse}-{endVerse}, 共 {verses.Count} 节");
+                
+                // 🔍 输出主屏幕的字体参数（等待UI渲染完成后）
+                _ = Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (BibleVerseList.Items.Count > 0)
+                    {
+                        Debug.WriteLine($"🔍 [主屏幕] 标题字体: FontSize={BibleChapterTitle.FontSize}, Padding={(BibleChapterTitle.Parent as Border)?.Padding}");
+                        
+                        var firstItem = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(0) as FrameworkElement;
+                        if (firstItem != null)
+                        {
+                            // 查找Border的Padding
+                            var border = FindVisualChild<Border>(firstItem);
+                            if (border != null)
+                            {
+                                Debug.WriteLine($"🔍 [主屏幕] 经文Border: Padding={border.Padding}");
+                            }
+                            
+                            // 查找经文TextBlock
+                            var verseTexts = FindVisualChildren<TextBlock>(firstItem).ToList();
+                            if (verseTexts.Count >= 2)
+                            {
+                                var numberText = verseTexts[0]; // 节号
+                                var scriptureText = verseTexts[1]; // 经文
+                                Debug.WriteLine($"🔍 [主屏幕] 节号字体: FontSize={numberText.FontSize}, FontWeight={numberText.FontWeight}, Margin={numberText.Margin}");
+                                Debug.WriteLine($"🔍 [主屏幕] 经文字体: FontSize={scriptureText.FontSize}, LineHeight={scriptureText.LineHeight}, TextWrapping={scriptureText.TextWrapping}");
+                            }
+                        }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
                 #endif
+                
+                // 🔧 设置主屏幕底部扩展空间（等于视口高度,支持底部内容向上拉）
+                UpdateMainScreenBottomExtension();
+                
+                // 🆕 如果投影已开启，自动更新投影
+                if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+                {
+#if DEBUG
+                    Debug.WriteLine("[圣经] 检测到投影开启，自动更新投影内容");
+#endif
+                    RenderBibleToProjection();
+                }
             }
 #if DEBUG
             catch (Exception ex)
@@ -671,6 +741,97 @@ namespace ImageColorChanger.UI
             }
 #endif
         }
+
+        /// <summary>
+        /// 更新主屏幕底部扩展空间（支持底部内容向上拉）
+        /// </summary>
+        private void UpdateMainScreenBottomExtension()
+        {
+            try
+            {
+                // 等待 ScrollViewer 完成布局
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (BibleVerseScrollViewer != null && BibleBottomExtension != null)
+                    {
+                        double viewportHeight = BibleVerseScrollViewer.ViewportHeight;
+                        BibleBottomExtension.Height = viewportHeight;
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"🔧 [主屏扩展] 设置底部扩展高度: {viewportHeight:F2}");
+                        Debug.WriteLine($"🔧 [主屏扩展] 说明: 主屏幕和投影的底部扩展高度必须一致(=屏幕/视口高度)，以确保顶部对齐");
+                        #endif
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+            catch (Exception)
+            {
+                // 忽略错误
+            }
+        }
+        
+        /// <summary>
+        /// 圣经内容滚动事件（同步到投影）
+        /// </summary>
+        private void BibleVerseContentScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            // 如果投影已开启且在圣经模式，同步滚动位置
+            if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                // 🔧 直接偏移滚动同步：主屏幕和投影屏幕使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
+                double mainScrollOffset = BibleVerseScrollViewer.VerticalOffset;
+                
+                #if DEBUG
+                _debugScrollCount++;
+                bool shouldDebug = (_debugScrollCount % 10 == 0);
+                
+                // 每隔10次输出一次详细信息（减少日志量）
+                if (shouldDebug)
+                {
+                    Debug.WriteLine($"");
+                    Debug.WriteLine($"🔍 ===== 圣经滚动详细调试 =====");
+                    
+                    // 获取主屏幕DPI
+                    var mainDpi = VisualTreeHelper.GetDpi(BibleVerseScrollViewer);
+                    Debug.WriteLine($"📐 [主屏幕] DPI: {mainDpi.PixelsPerInchX} x {mainDpi.PixelsPerInchY}");
+                    Debug.WriteLine($"📐 [主屏幕] DPI缩放: {mainDpi.DpiScaleX:F2} x {mainDpi.DpiScaleY:F2}");
+                    
+                    Debug.WriteLine($"📊 [主屏幕] 滚动偏移: {mainScrollOffset:F2} (将传给投影)");
+                    Debug.WriteLine($"📊 [主屏幕] 可滚动高度: {BibleVerseScrollViewer.ScrollableHeight:F2}");
+                    Debug.WriteLine($"📊 [主屏幕] 视口高度: {BibleVerseScrollViewer.ViewportHeight:F2}");
+                    Debug.WriteLine($"📊 [主屏幕] 内容总高度: {BibleVerseScrollViewer.ExtentHeight:F2}");
+                    
+                    if (BibleChapterTitle != null)
+                    {
+                        Debug.WriteLine($"📊 [主屏幕] 标题实际高度: {BibleChapterTitle.ActualHeight:F2}");
+                        var titleBorder = BibleChapterTitle.Parent as Border;
+                        if (titleBorder != null)
+                        {
+                            Debug.WriteLine($"📊 [主屏幕] 标题Border总高度: {titleBorder.ActualHeight:F2} (含Padding)");
+                        }
+                    }
+                    
+                    if (BibleVerseList != null)
+                    {
+                        Debug.WriteLine($"📊 [主屏幕] 经文列表高度: {BibleVerseList.ActualHeight:F2}");
+                    }
+                    
+                    if (BibleBottomExtension != null)
+                    {
+                        Debug.WriteLine($"📊 [主屏幕] 底部扩展高度: {BibleBottomExtension.ActualHeight:F2}");
+                    }
+                }
+                #endif
+
+                // 🔧 圣经滚动同步：直接使用主屏滚动位置（与歌词投影完全一致）
+                // 因为两者使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
+                _projectionManager.SyncBibleScroll(BibleVerseScrollViewer);
+            }
+        }
+        
+#if DEBUG
+        private int _debugScrollCount = 0;
+#endif
 
         #endregion
 
@@ -817,92 +978,263 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 渲染经文到投影屏幕
+        /// 投影经文范围（多节）
         /// </summary>
-        private SKBitmap RenderVerseToProjection(BibleVerse verse)
+        private async Task ProjectBibleVerseRangeAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
             try
             {
-                // 获取投影屏幕尺寸
+                #if DEBUG
+                var sw = Stopwatch.StartNew();
+                Debug.WriteLine($"[圣经] 开始投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
+                #endif
+
+                // 加载经文范围
+                var verses = new List<BibleVerse>();
+                for (int verse = startVerse; verse <= endVerse; verse++)
+                {
+                    var verseData = await _bibleService.GetVerseAsync(bookId, chapter, verse);
+                    if (verseData != null)
+                    {
+                        verses.Add(verseData);
+                    }
+                }
+
+                if (verses.Count == 0)
+                {
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经] 没有加载到任何经文");
+                    #endif
+                    return;
+                }
+
+                // 渲染多节经文到投影
+                var skBitmap = RenderVersesToProjection(verses);
+                if (skBitmap != null)
+                {
+                    _projectionManager?.UpdateProjectionText(skBitmap);
+                    skBitmap.Dispose();
+
+                    #if DEBUG
+                    sw.Stop();
+                    Debug.WriteLine($"[圣经] 投影范围成功: {verses.Count}节, 耗时: {sw.ElapsedMilliseconds}ms");
+                    #endif
+                }
+
+                await Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 投影范围失败: {ex.Message}");
+                #endif
+
+                WpfMessageBox.Show(
+                    $"投影失败：{ex.Message}",
+                    "错误",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 渲染经文到投影屏幕（单节）
+        /// </summary>
+        private SKBitmap RenderVerseToProjection(BibleVerse verse)
+        {
+            var verses = new List<BibleVerse> { verse };
+            return RenderVersesToProjection(verses);
+        }
+
+        /// <summary>
+        /// 渲染多节经文到投影屏幕（标题通过固定层显示，内容可滚动）
+        /// </summary>
+        /// <summary>
+        /// 渲染圣经经文到投影（完全按照歌词投影的方式）
+        /// </summary>
+        private SKBitmap RenderVersesToProjection(List<BibleVerse> verses)
+        {
+            if (verses == null || verses.Count == 0)
+                return null;
+
+            try
+            {
+                // 🔧 获取投影屏幕的实际尺寸（考虑DPI缩放）
                 var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
 
                 #if DEBUG
-                Debug.WriteLine($"[圣经] 渲染投影: {screenWidth}x{screenHeight}, 经文: {verse.Reference}");
+                Debug.WriteLine($"📐 [圣经渲染] 投影屏幕实际尺寸: {screenWidth}x{screenHeight}");
+                Debug.WriteLine($"📐 [圣经渲染] 经文数量: {verses.Count}");
                 #endif
 
-                // 创建Canvas
+                // 创建Canvas容器
                 var canvas = new Canvas
                 {
                     Width = screenWidth,
-                    Height = screenHeight,
+                    Height = screenHeight, // 先设置屏幕高度，后续会根据内容调整
                     Background = WpfBrushes.Black
                 };
 
-                // 创建经文显示区域
-                var stackPanel = new StackPanel
+                double actualHeight = screenHeight;
+
+                // 🔧 获取章节标题文本
+                string chapterTitle = "";
+                if (Dispatcher.CheckAccess())
                 {
-                    Width = screenWidth - 120, // 左右各留60像素边距
-                    HorizontalAlignment = WpfHorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    chapterTitle = BibleChapterTitle.Text;
+                }
+                else
+                {
+                    chapterTitle = Dispatcher.Invoke(() => BibleChapterTitle.Text);
+                }
+                
+                // 创建内容容器（包含标题和经文）
+                var mainStackPanel = new StackPanel
+                {
+                    Width = screenWidth,
+                    Orientation = System.Windows.Controls.Orientation.Vertical
                 };
 
-                // 经文引用（书卷 章:节）
-                var referenceText = new TextBlock
+                // 1. 添加章节标题
+                var titleBorder = new Border
                 {
-                    Text = verse.Reference,
+                    Width = screenWidth,
+                    Background = new WpfSolidColorBrush(WpfColor.FromRgb(28, 28, 28)), // #1C1C1C
+                    Padding = new Thickness(20, 15, 20, 15)
+                };
+                
+                var titleText = new TextBlock
+                {
+                    Text = chapterTitle,
                     FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = 48,
+                    FontSize = 32,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 193, 7)), // 金色
-                    TextAlignment = TextAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 30),
-                    TextWrapping = TextWrapping.Wrap
+                    Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 87, 34)) // #FF5722
                 };
+                
+                titleBorder.Child = titleText;
+                mainStackPanel.Children.Add(titleBorder);
 
-                // 经文内容
-                var scriptureText = new TextBlock
+                // 2. 添加顶部边距
+                var topPadding = new Border
                 {
-                    Text = verse.Scripture,
-                    FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = 64,
-                    FontWeight = FontWeights.Medium,
-                    Foreground = WpfBrushes.White,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    LineHeight = 90
+                    Height = 20,
+                    Width = screenWidth
                 };
+                mainStackPanel.Children.Add(topPadding);
 
-                stackPanel.Children.Add(referenceText);
-                stackPanel.Children.Add(scriptureText);
+                // 3. 渲染每一节经文
+                foreach (var verse in verses)
+                {
+                    var verseBorder = new Border
+                    {
+                        Background = WpfBrushes.Transparent,
+                        Margin = new Thickness(0, 10, 0, 10),
+                        Padding = new Thickness(10)
+                    };
+                    
+                    var verseContainer = new StackPanel
+                    {
+                        Orientation = System.Windows.Controls.Orientation.Horizontal,
+                        Margin = new Thickness(20, 0, 20, 0)
+                    };
 
-                // 测量StackPanel实际高度
-                stackPanel.Measure(new WpfSize(stackPanel.Width, double.PositiveInfinity));
-                double contentHeight = stackPanel.DesiredSize.Height;
+                    var verseNumber = new TextBlock
+                    {
+                        Text = $"{verse.Verse}",
+                        FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                        FontSize = 24,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 193, 7)), // #FFC107 金色
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(0, 0, 10, 0)
+                    };
 
-                // 计算垂直居中位置
-                double topMargin = (screenHeight - contentHeight) / 2;
-                if (topMargin < 0) topMargin = 40; // 如果内容太多，至少留40像素顶部边距
+                    var scriptureText = new TextBlock
+                    {
+                        Text = verse.Scripture,
+                        FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                        FontSize = 20,
+                        FontWeight = FontWeights.Normal,
+                        Foreground = WpfBrushes.White,
+                        TextWrapping = TextWrapping.Wrap,
+                        LineHeight = 36,
+                        VerticalAlignment = VerticalAlignment.Top
+                    };
 
-                Canvas.SetLeft(stackPanel, 60);
-                Canvas.SetTop(stackPanel, topMargin);
-                canvas.Children.Add(stackPanel);
+                    verseContainer.Children.Add(verseNumber);
+                    verseContainer.Children.Add(scriptureText);
+                    verseBorder.Child = verseContainer;
+                    mainStackPanel.Children.Add(verseBorder);
+                }
 
-                // 强制布局更新
-                canvas.Measure(new WpfSize(screenWidth, screenHeight));
-                canvas.Arrange(new Rect(0, 0, screenWidth, screenHeight));
+                // 4. 添加底部边距
+                var bottomPadding = new Border
+                {
+                    Height = 20,
+                    Width = screenWidth
+                };
+                mainStackPanel.Children.Add(bottomPadding);
+
+                // 🔧 5. 添加底部扩展空间（与主屏幕一致，支持底部内容向上拉）
+                // 扩展高度 = 屏幕高度，使得最后一节经文可以滚动到顶部
+                var bottomExtension = new Border
+                {
+                    Height = screenHeight,
+                    Width = screenWidth,
+                    Background = WpfBrushes.Transparent
+                };
+                mainStackPanel.Children.Add(bottomExtension);
+
+                // 6. 测量内容实际高度（包含底部扩展）
+                mainStackPanel.Measure(new WpfSize(screenWidth, double.PositiveInfinity));
+                double contentHeight = mainStackPanel.DesiredSize.Height;
+
+                #if DEBUG
+                Debug.WriteLine($"📐 [圣经渲染] 内容实际高度: {contentHeight:F2}, 屏幕高度: {screenHeight:F2}");
+                Debug.WriteLine($"📐 [圣经渲染] 底部扩展高度: {screenHeight:F2} (与主屏幕一致)");
+                #endif
+
+                // 7. 如果内容超过屏幕高度，调整Canvas高度（与歌词完全一致）
+                if (contentHeight > screenHeight)
+                {
+                    actualHeight = contentHeight;
+                    canvas.Height = actualHeight;
+                    #if DEBUG
+                    Debug.WriteLine($"📐 [圣经渲染] 内容超出屏幕，Canvas高度调整为: {actualHeight:F2}");
+                    #endif
+                }
+
+                // 8. 将内容添加到Canvas
+                Canvas.SetLeft(mainStackPanel, 0);
+                Canvas.SetTop(mainStackPanel, 0);
+                canvas.Children.Add(mainStackPanel);
+
+                // 9. 渲染到图片（固定使用96 DPI，确保逻辑像素=物理像素）
+                canvas.Measure(new WpfSize(screenWidth, actualHeight));
+                canvas.Arrange(new Rect(0, 0, screenWidth, actualHeight));
                 canvas.UpdateLayout();
 
-                // 渲染到位图
+                #if DEBUG
+                Debug.WriteLine($"📐 [圣经渲染] Canvas最终尺寸: {screenWidth:F0}x{actualHeight:F0}");
+                Debug.WriteLine($"📐 [圣经渲染] 使用DPI: 96x96 (固定，确保像素对齐)");
+                #endif
+
+                // 🔧 关键：固定使用96 DPI，确保渲染的图片逻辑像素=物理像素
+                // 如果使用高DPI（如192），WPF会按DPI缩放显示，导致滚动不对齐
                 var renderBitmap = new RenderTargetBitmap(
-                    (int)screenWidth,
-                    (int)screenHeight,
-                    96, 96,
-                    WpfPixelFormats.Pbgra32);
+                    (int)screenWidth, (int)Math.Ceiling(actualHeight), 96, 96, WpfPixelFormats.Pbgra32);
                 renderBitmap.Render(canvas);
                 renderBitmap.Freeze();
 
-                // 转换为SKBitmap
-                return ConvertToSKBitmap(renderBitmap);
+                // 转换为SKBitmap并返回
+                var skBitmap = ConvertToSKBitmap(renderBitmap);
+                
+                #if DEBUG
+                Debug.WriteLine($"📐 [圣经渲染] SKBitmap转换结果: {skBitmap != null}, 尺寸: {skBitmap?.Width}x{skBitmap?.Height}");
+                #endif
+
+                return skBitmap;
             }
 #if DEBUG
             catch (Exception ex)
@@ -919,6 +1251,107 @@ namespace ImageColorChanger.UI
         }
 
         // ConvertToSKBitmap方法已在MainWindow.Lyrics.cs中定义，此处复用
+
+        /// <summary>
+        /// 渲染圣经经文到投影（参考歌词渲染逻辑）
+        /// </summary>
+        private void RenderBibleToProjection()
+        {
+#if DEBUG
+            Debug.WriteLine($"[圣经] 开始渲染投影 - 经文数量: {BibleVerseList.Items.Count}");
+#endif
+
+            try
+            {
+                // 如果没有经文，不投影
+                if (BibleVerseList.ItemsSource == null || BibleVerseList.Items.Count == 0)
+                {
+#if DEBUG
+                    Debug.WriteLine("[圣经] 没有经文可投影");
+#endif
+                    return;
+                }
+
+                // 获取当前显示的所有经文
+                var versesList = new List<BibleVerse>();
+                var verses = BibleVerseList.ItemsSource as System.Collections.IEnumerable;
+                if (verses != null)
+                {
+                    foreach (var item in verses)
+                    {
+                        if (item is BibleVerse verse)
+                        {
+                            versesList.Add(verse);
+                        }
+                    }
+                }
+
+                if (versesList.Count == 0)
+                {
+#if DEBUG
+                    Debug.WriteLine("[圣经] 没有有效的经文数据");
+#endif
+                    return;
+                }
+
+                // 🔧 使用统一的渲染方法
+                var skBitmap = RenderVersesToProjection(versesList);
+                if (skBitmap != null)
+                {
+                    _projectionManager?.UpdateProjectionText(skBitmap);
+                    skBitmap.Dispose();
+
+#if DEBUG
+                    Debug.WriteLine($"[圣经] 投影渲染完成，共{versesList.Count}节");
+#endif
+                }
+            }
+#if DEBUG
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[圣经] 渲染投影失败: {ex.Message}\n{ex.StackTrace}");
+            }
+#else
+            catch (Exception)
+            {
+            }
+#endif
+        }
+
+        /// <summary>
+        /// 投影状态改变时的回调（供主窗口调用）
+        /// 当投影开启时，如果在圣经模式，自动投影圣经
+        /// </summary>
+        public void OnBibleProjectionStateChanged(bool isProjecting)
+        {
+#if DEBUG
+            Debug.WriteLine($"[圣经] 投影状态改变 - IsProjecting: {isProjecting}, _isBibleMode: {_isBibleMode}");
+#endif
+
+            if (isProjecting && _isBibleMode)
+            {
+#if DEBUG
+                Debug.WriteLine("[圣经] 投影开启且在圣经模式，触发投影");
+#endif
+                // 🔧 立即清空图片状态（防止自动刷新显示图片）
+                _projectionManager.ClearImageState();
+
+                // 延迟2ms确保投影窗口完全初始化
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(2)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+#if DEBUG
+                    Debug.WriteLine("[圣经] 延迟后开始投影圣经");
+#endif
+                    RenderBibleToProjection();
+                };
+                timer.Start();
+            }
+        }
 
         #endregion
 
@@ -1006,6 +1439,12 @@ namespace ImageColorChanger.UI
 
                 // 加载该槽位的经文
                 await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+
+                // 🔧 如果投影已开启，自动投影该范围的经文
+                if (_projectionManager != null && _projectionManager.IsProjecting)
+                {
+                    await ProjectBibleVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                }
             }
         }
 
@@ -1065,6 +1504,49 @@ namespace ImageColorChanger.UI
             #endif
         }
 
+        #endregion
+        
+        #region 辅助方法
+        
+        /// <summary>
+        /// 查找Visual树中第一个指定类型的子元素
+        /// </summary>
+        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                    return result;
+                    
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// 查找Visual树中所有指定类型的子元素
+        /// </summary>
+        private IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) yield break;
+            
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                    yield return result;
+                    
+                foreach (var childOfChild in FindVisualChildren<T>(child))
+                    yield return childOfChild;
+            }
+        }
+        
         #endregion
     }
 }

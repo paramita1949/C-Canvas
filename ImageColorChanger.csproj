@@ -64,11 +64,12 @@
     </Content>
   </ItemGroup>
   <!-- Fonts 和图片资源现在通过 PAK 打包，不再复制到输出目录 -->
-  <!-- 复制圣经数据库到输出目录 -->
+  <!-- 复制圣经数据库到输出目录，保持目录结构 -->
   <ItemGroup>
     <None Include="data\assets\bible.db" Condition="Exists('data\assets\bible.db')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>data\assets\bible.db</Link>
     </None>
   </ItemGroup>
   <PropertyGroup>

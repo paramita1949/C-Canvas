@@ -1328,6 +1328,18 @@ namespace ImageColorChanger.UI
                     // 重置投影模式标志
                     _videoPlayerManager?.ResetProjectionMode();
                 }
+                
+                // 🆕 通知圣经模式投影状态改变
+                if (_isBibleMode)
+                {
+                    OnBibleProjectionStateChanged(isActive);
+                }
+                
+                // 🆕 通知歌词模式投影状态改变
+                if (_isLyricsMode)
+                {
+                    OnProjectionStateChanged(isActive);
+                }
             });
         }
 
@@ -1486,8 +1498,32 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 🆕 如果是圣经模式，处理圣经投影
+                if (BibleVerseScrollViewer.Visibility == Visibility.Visible && _isBibleMode)
+                {
+                    // 如果是打开投影操作，先渲染内容
+                    if (!_projectionManager.IsProjectionActive)
+                    {
+                        // 先打开投影窗口
+                        _projectionManager.ToggleProjection();
+                        
+                        // 然后投影圣经（延迟确保投影窗口完全初始化）
+                        if (_projectionManager.IsProjectionActive)
+                        {
+                            Dispatcher.InvokeAsync(() =>
+                            {
+                                OnProjectionStateChanged(true);
+                            }, System.Windows.Threading.DispatcherPriority.Background);
+                        }
+                    }
+                    else
+                    {
+                        // 如果已经打开，直接关闭
+                        _projectionManager.ToggleProjection();
+                    }
+                }
                 // 🆕 如果是歌词模式，处理歌词投影
-                if (LyricsEditorPanel.Visibility == Visibility.Visible)
+                else if (LyricsEditorPanel.Visibility == Visibility.Visible)
                 {
                     // 如果是打开投影操作，先渲染内容
                     if (!_projectionManager.IsProjectionActive)
