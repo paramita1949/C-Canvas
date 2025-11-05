@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -108,7 +109,8 @@ namespace ImageColorChanger.UI
         private enum NavigationViewMode
         {
             Files,      // 文件模式：显示文件夹和单文件
-            Projects    // 项目模式：显示TextProject节点
+            Projects,   // 项目模式：显示TextProject节点
+            Bible       // 圣经模式：显示圣经导航
         }
         private NavigationViewMode _currentViewMode = NavigationViewMode.Files; // 🆕 当前视图模式，默认显示文件
 
@@ -887,9 +889,30 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowFiles_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentViewMode == NavigationViewMode.Files) return;
+            #if DEBUG
+            Debug.WriteLine($"[MainWindow] 切换到文件视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
+            #endif
+
+            // 如果已经在文件模式且不是从圣经模式切换过来,直接返回
+            if (_currentViewMode == NavigationViewMode.Files && !_isBibleMode) return;
             
             _currentViewMode = NavigationViewMode.Files;
+            _isBibleMode = false;  // 退出圣经模式
+            
+            // 隐藏圣经视图，显示文件视图
+            BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
+            ImageScrollViewer.Visibility = Visibility.Visible;
+            VideoContainer.Visibility = Visibility.Visible;
+            TextEditorPanel.Visibility = Visibility.Collapsed;
+            
+            // 显示ProjectTree，隐藏圣经导航
+            ProjectTree.Visibility = Visibility.Visible;
+            BibleNavigationPanel.Visibility = Visibility.Collapsed;
+            
+            #if DEBUG
+            Debug.WriteLine($"[MainWindow] 文件视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
+            #endif
+            
             UpdateViewModeButtons();
             FilterProjectTree();
         }
@@ -899,9 +922,33 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowProjects_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentViewMode == NavigationViewMode.Projects) return;
+            #if DEBUG
+            Debug.WriteLine($"[MainWindow] 切换到幻灯片视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
+            #endif
+
+            // 如果已经在项目模式且不是从圣经模式切换过来,直接返回
+            if (_currentViewMode == NavigationViewMode.Projects && !_isBibleMode) return;
             
             _currentViewMode = NavigationViewMode.Projects;
+            _isBibleMode = false;  // 退出圣经模式
+            
+            // 清空图片显示（包括合成播放按钮）
+            ClearImageDisplay();
+            
+            // 隐藏圣经视图，显示文件视图
+            BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
+            ImageScrollViewer.Visibility = Visibility.Visible;
+            VideoContainer.Visibility = Visibility.Visible;
+            TextEditorPanel.Visibility = Visibility.Collapsed;
+            
+            // 显示ProjectTree，隐藏圣经导航
+            ProjectTree.Visibility = Visibility.Visible;
+            BibleNavigationPanel.Visibility = Visibility.Collapsed;
+            
+            #if DEBUG
+            Debug.WriteLine($"[MainWindow] 幻灯片视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
+            #endif
+            
             UpdateViewModeButtons();
             FilterProjectTree();
         }
@@ -911,30 +958,33 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateViewModeButtons()
         {
-            if (_currentViewMode == NavigationViewMode.Files)
-            {
-                // 文件按钮激活
-                BtnShowFiles.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
-                BtnShowFiles.Foreground = new SolidColorBrush(Colors.White);
-                BtnShowFiles.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2"));
-                
-                // 项目按钮未激活
-                BtnShowProjects.Background = new SolidColorBrush(Colors.White);
-                BtnShowProjects.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
-                BtnShowProjects.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
-            }
-            else
-            {
-                // 文件按钮未激活
-                BtnShowFiles.Background = new SolidColorBrush(Colors.White);
-                BtnShowFiles.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
-                BtnShowFiles.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
-                
-                // 项目按钮激活
-                BtnShowProjects.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
-                BtnShowProjects.Foreground = new SolidColorBrush(Colors.White);
-                BtnShowProjects.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2"));
-            }
+            #if DEBUG
+            Debug.WriteLine($"[MainWindow] 更新按钮状态, 当前模式: {_currentViewMode}");
+            #endif
+
+            // 先将所有按钮设为未激活状态
+            var inactiveBackground = new SolidColorBrush(Colors.White);
+            var inactiveForeground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
+            var inactiveBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
+            
+            var activeBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+            var activeForeground = new SolidColorBrush(Colors.White);
+            var activeBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2"));
+
+            // 文件按钮
+            BtnShowFiles.Background = _currentViewMode == NavigationViewMode.Files ? activeBackground : inactiveBackground;
+            BtnShowFiles.Foreground = _currentViewMode == NavigationViewMode.Files ? activeForeground : inactiveForeground;
+            BtnShowFiles.BorderBrush = _currentViewMode == NavigationViewMode.Files ? activeBorder : inactiveBorder;
+            
+            // 项目按钮
+            BtnShowProjects.Background = _currentViewMode == NavigationViewMode.Projects ? activeBackground : inactiveBackground;
+            BtnShowProjects.Foreground = _currentViewMode == NavigationViewMode.Projects ? activeForeground : inactiveForeground;
+            BtnShowProjects.BorderBrush = _currentViewMode == NavigationViewMode.Projects ? activeBorder : inactiveBorder;
+            
+            // 圣经按钮
+            BtnShowBible.Background = _currentViewMode == NavigationViewMode.Bible ? activeBackground : inactiveBackground;
+            BtnShowBible.Foreground = _currentViewMode == NavigationViewMode.Bible ? activeForeground : inactiveForeground;
+            BtnShowBible.BorderBrush = _currentViewMode == NavigationViewMode.Bible ? activeBorder : inactiveBorder;
         }
 
         /// <summary>
@@ -2333,6 +2383,22 @@ namespace ImageColorChanger.UI
 //            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
 //#endif
             
+            // 🆕 圣经模式：PageUp/PageDown 用于切换经文
+            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.PageUp)
+                {
+                    _ = NavigateBibleVerseAsync(-1); // 上一节
+                    e.Handled = true;
+                    return;
+                }
+                else if (e.Key == Key.PageDown)
+                {
+                    _ = NavigateBibleVerseAsync(1); // 下一节
+                    e.Handled = true;
+                    return;
+                }
+            }
             
             // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
             if (TextEditorPanel.Visibility == Visibility.Visible)
@@ -3286,6 +3352,7 @@ namespace ImageColorChanger.UI
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }
+        public object Tag { get; set; }  // 通用标签，用于存储额外数据（如圣经书卷ID和章节）
         public ObservableCollection<ProjectTreeItem> Children { get; set; } = new ObservableCollection<ProjectTreeItem>();
         
         // 文件夹标签（用于在搜索结果中显示所属文件夹）
@@ -3354,7 +3421,10 @@ namespace ImageColorChanger.UI
         Image,
         Video,
         Audio,
-        TextProject  // 文本项目
+        TextProject,     // 文本项目
+        BibleTestament,  // 圣经约（旧约/新约）
+        BibleBook,       // 圣经书卷
+        BibleChapter     // 圣经章节
     }
 
     #endregion

@@ -564,7 +564,7 @@
                             <ComboBoxItem Content="当前文件夹" Style="{StaticResource WhiteComboBoxItem}"/>
                         </ComboBox>
                         
-                        <!-- 🆕 文件/项目 切换按钮 -->
+                        <!-- 🆕 文件/圣经/幻灯片 切换按钮 -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,8">
                             <Button x:Name="BtnShowFiles" 
                                     Content="文件" 
@@ -597,6 +597,37 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
+                            <Button x:Name="BtnShowBible" 
+                                    Content="圣经" 
+                                    Width="100" 
+                                    Height="32"
+                                    FontSize="13"
+                                    FontWeight="Medium"
+                                    Background="#FFFFFF"
+                                    Foreground="#666666"
+                                    BorderBrush="#E0E0E0"
+                                    BorderThickness="0,1,1,1"
+                                    Cursor="Hand"
+                                    Click="BtnShowBible_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" 
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="0,0,0,0"
+                                                            SnapsToDevicePixels="True">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                             <Button x:Name="BtnShowProjects" 
                                     Content="幻灯片" 
                                     Width="100" 
@@ -606,7 +637,7 @@
                                     Background="#FFFFFF"
                                     Foreground="#666666"
                                     BorderBrush="#E0E0E0"
-                                    BorderThickness="1,1,1,1"
+                                    BorderThickness="0,1,1,1"
                                     Cursor="Hand"
                                     Click="BtnShowProjects_Click">
                                 <Button.Style>
@@ -631,7 +662,284 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- 项目树 -->
+                    <!-- 🆕 圣经导航面板（圣经模式下显示） -->
+                    <Grid Grid.Row="1" x:Name="BibleNavigationPanel" Visibility="Collapsed" Background="#2D2D30">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>    <!-- 历史记录 -->
+                            <RowDefinition Height="Auto"/>    <!-- 历史操作按钮 -->
+                            <RowDefinition Height="*"/>       <!-- 经文选择表格 -->
+                        </Grid.RowDefinitions>
+                        
+                        <!-- 历史记录列表（显示1-10号槽位） -->
+                        <ScrollViewer Grid.Row="0" MaxHeight="240" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
+                            <ListBox x:Name="BibleHistoryList" 
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Margin="5"
+                                     SelectionChanged="BibleHistoryList_SelectionChanged">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#FF5722"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#2D2D30" 
+                                                BorderBrush="#4D4D4D" 
+                                                BorderThickness="0,0,0,1"
+                                                Padding="8,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>  <!-- 复选框 -->
+                                                    <ColumnDefinition Width="Auto"/>  <!-- 序号 -->
+                                                    <ColumnDefinition Width="*"/>     <!-- 内容 -->
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- 复选框 -->
+                                                <CheckBox Grid.Column="0" 
+                                                          IsChecked="{Binding IsChecked}" 
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,5,0"
+                                                          Foreground="White"/>
+                                                
+                                                <!-- 序号 -->
+                                                <TextBlock Grid.Column="1" 
+                                                           Text="{Binding Index}" 
+                                                           Foreground="#FFC107" 
+                                                           FontSize="14" 
+                                                           FontWeight="Bold"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,5,0"/>
+                                                
+                                                <!-- 经文信息 -->
+                                                <TextBlock Grid.Column="2" 
+                                                           Text="{Binding DisplayText}" 
+                                                           Foreground="White" 
+                                                           FontSize="13"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </ScrollViewer>
+                        
+                        <!-- 历史操作按钮 -->
+                        <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button x:Name="BtnHistorySelectAll" 
+                                        Content="全选" 
+                                        Width="80" 
+                                        Height="30" 
+                                        FontSize="12"
+                                        Margin="2"
+                                        Style="{StaticResource MenuButtonStyle}"
+                                        Click="BtnHistorySelectAll_Click"/>
+                                <Button x:Name="BtnHistoryDeselectAll" 
+                                        Content="全不选" 
+                                        Width="80" 
+                                        Height="30" 
+                                        FontSize="12"
+                                        Margin="2"
+                                        Style="{StaticResource MenuButtonStyle}"
+                                        Click="BtnHistoryDeselectAll_Click"/>
+                                <Button x:Name="BtnHistoryClearSelected" 
+                                        Content="清空勾选" 
+                                        Width="100" 
+                                        Height="30" 
+                                        FontSize="12"
+                                        Margin="2"
+                                        Style="{StaticResource MenuButtonStyle}"
+                                        Click="BtnHistoryClearSelected_Click"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 经文选择表格 -->
+                        <!-- 5列表格布局：分类 | 书卷 | 章 | 起始节 | 结束节 -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70"/>   <!-- 第1列:分类(4个字宽度) -->
+                                <ColumnDefinition Width="120"/>  <!-- 第2列:书卷 -->
+                                <ColumnDefinition Width="60"/>   <!-- 第3列:章 -->
+                                <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->
+                                <ColumnDefinition Width="60"/>   <!-- 第5列:结束节 -->
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- 第1列:分类列表 -->
+                            <ListBox Grid.Column="0" 
+                                     x:Name="BibleCategoryList"
+                                     Background="#3C3C3C"
+                                     BorderThickness="0,0,1,0"
+                                     BorderBrush="#555555"
+                                     SelectionChanged="BibleCategory_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="#FF5722"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D4D4D"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" 
+                                                   TextWrapping="NoWrap" 
+                                                   TextTrimming="None"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            
+                            <!-- 第2列:书卷列表 -->
+                            <ListBox Grid.Column="1" 
+                                     x:Name="BibleBookList"
+                                     Background="#3C3C3C"
+                                     BorderThickness="0,0,1,0"
+                                     BorderBrush="#555555"
+                                     SelectionChanged="BibleBook_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="#FF5722"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D4D4D"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" 
+                                                   TextWrapping="NoWrap" 
+                                                   TextTrimming="None"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            
+                            <!-- 第3列:章列表 -->
+                            <ListBox Grid.Column="2" 
+                                     x:Name="BibleChapterList"
+                                     Background="#3C3C3C"
+                                     BorderThickness="0,0,1,0"
+                                     BorderBrush="#555555"
+                                     SelectionChanged="BibleChapter_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="#FF5722"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D4D4D"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                            
+                            <!-- 第4列:起始节 -->
+                            <ListBox Grid.Column="3" 
+                                     x:Name="BibleStartVerse"
+                                     Background="#3C3C3C"
+                                     BorderThickness="0,0,1,0"
+                                     BorderBrush="#555555"
+                                     SelectionChanged="BibleStartVerse_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="#FF5722"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D4D4D"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                            
+                            <!-- 第5列:结束节 -->
+                            <ListBox Grid.Column="4" 
+                                     x:Name="BibleEndVerse"
+                                     Background="#3C3C3C"
+                                     BorderThickness="0"
+                                     SelectionChanged="BibleEndVerse_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="#FF5722"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D4D4D"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </Grid>
+                    </Grid>
+                    
+                    <!-- 项目树（文件模式下显示） -->
                     <TreeView Grid.Row="1" x:Name="ProjectTree" 
                                   Style="{StaticResource ProjectTreeStyle}"
                                   VirtualizingPanel.IsVirtualizing="True"
@@ -987,6 +1295,70 @@
                                        Padding="20,0"/>
                         </StackPanel>
                     </Grid>
+                </Grid>
+
+                <!-- 🆕 圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
+                <!-- 注意：圣经模式下，左侧ProjectTree会被替换为圣经专用导航 -->
+                <Grid x:Name="BibleVerseScrollViewer" 
+                      Visibility="Collapsed"
+                      Background="#000000">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- 章节标题 -->
+                    <Border Grid.Row="0" Background="#1C1C1C" Padding="20,15">
+                        <TextBlock x:Name="BibleChapterTitle" 
+                                   Text="创世记1章" 
+                                   FontSize="32" 
+                                   FontWeight="Bold" 
+                                   Foreground="#FF5722"/>
+                    </Border>
+                    
+                    <!-- 经文列表 -->
+                    <ScrollViewer Grid.Row="1" 
+                                  x:Name="BibleVerseContentScroller"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Padding="20">
+                        <ItemsControl x:Name="BibleVerseList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="Transparent"
+                                            Margin="0,10,0,10"
+                                            Padding="10"
+                                            MouseDown="BibleVerseItem_MouseDown"
+                                            Cursor="Hand">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#2D2D30"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- 节号 -->
+                                            <TextBlock Text="{Binding Verse}" 
+                                                       FontSize="24" 
+                                                       FontWeight="Bold" 
+                                                       Foreground="#FFC107"
+                                                       VerticalAlignment="Top"
+                                                       Margin="0,0,10,0"/>
+                                            <!-- 经文内容 -->
+                                            <TextBlock Text="{Binding Scripture}" 
+                                                       FontSize="20" 
+                                                       Foreground="White"
+                                                       TextWrapping="Wrap"
+                                                       LineHeight="36"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </Grid>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->

@@ -11,9 +11,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>5.4.1</Version>
-    <FileVersion>5.4.1</FileVersion>
-    <AssemblyVersion>5.4.1</AssemblyVersion>
+    <Version>5.5.1</Version>
+    <FileVersion>5.5.1</FileVersion>
+    <AssemblyVersion>5.5.1</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
   </PropertyGroup>
@@ -64,6 +64,13 @@
     </Content>
   </ItemGroup>
   <!-- Fonts 和图片资源现在通过 PAK 打包，不再复制到输出目录 -->
+  <!-- 复制圣经数据库到输出目录 -->
+  <ItemGroup>
+    <None Include="data\assets\bible.db" Condition="Exists('data\assets\bible.db')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

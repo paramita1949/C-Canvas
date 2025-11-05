@@ -125,6 +125,13 @@ namespace ImageColorChanger.UI
                 var treeViewItem = FindParent<TreeViewItem>(element);
                 if (treeViewItem != null && treeViewItem.DataContext is ProjectTreeItem selectedItem)
                 {
+                    // 🆕 圣经模式下的特殊处理
+                    if (_isBibleMode && selectedItem.Type == TreeItemType.BibleChapter)
+                    {
+                        await HandleBibleNodeClickAsync(selectedItem);
+                        return;
+                    }
+
                     // 🆕 处理文本项目节点：单击加载项目
                     if (selectedItem.Type == TreeItemType.Project || selectedItem.Type == TreeItemType.TextProject)
                     {

@@ -125,6 +125,25 @@ jobs:
           }
         }
         
+        # 检查并处理圣经数据库文件
+        if (Test-Path "publish\data\assets\bible.db") {
+          echo "✅ 圣经数据库文件已存在"
+          $dbInfo = Get-Item "publish\data\assets\bible.db"
+          echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ 圣经数据库不存在于publish目录，尝试复制..."
+          if (Test-Path "data\assets\bible.db") {
+            New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
+            Copy-Item "data\assets\bible.db" "publish\data\assets\bible.db"
+            echo "✅ 圣经数据库已复制到publish目录"
+            $dbInfo = Get-Item "publish\data\assets\bible.db"
+            echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: 源代码中也没有圣经数据库文件"
+            exit 1
+          }
+        }
+        
         # 删除publish目录中的bin文件夹（如果存在）
         if (Test-Path "publish\bin") {
           echo "⚠️ 发现publish\bin目录，正在删除..."
@@ -135,6 +154,11 @@ jobs:
         echo ""
         echo "=== publish目录最终内容 ==="
         Get-ChildItem "publish" -Name | ForEach-Object { echo "  - $_" }
+        if (Test-Path "publish\data") {
+          echo ""
+          echo "=== data目录内容 ==="
+          Get-ChildItem "publish\data" -Recurse -Name | ForEach-Object { echo "  - $_" }
+        }
     
     - name: 创建发布包
       shell: pwsh

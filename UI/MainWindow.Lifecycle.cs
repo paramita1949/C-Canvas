@@ -15,6 +15,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
+            // 初始化圣经服务
+            InitializeBibleService();
+
             // 🔄 静默同步所有文件夹（不显示状态提示）
             await Task.Run(() =>
             {
