@@ -371,6 +371,230 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 圣经译本
+        /// </summary>
+        public string BibleVersion
+        {
+            get => _config.BibleVersion;
+            set
+            {
+                if (_config.BibleVersion != value)
+                {
+                    _config.BibleVersion = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经字体
+        /// </summary>
+        public string BibleFontFamily
+        {
+            get => _config.BibleFontFamily;
+            set
+            {
+                if (_config.BibleFontFamily != value)
+                {
+                    _config.BibleFontFamily = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经字体大小
+        /// </summary>
+        public double BibleFontSize
+        {
+            get => _config.BibleFontSize;
+            set
+            {
+                if (Math.Abs(_config.BibleFontSize - value) > 0.001)
+                {
+                    _config.BibleFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经行距
+        /// </summary>
+        public double BibleLineHeight
+        {
+            get => _config.BibleLineHeight;
+            set
+            {
+                if (Math.Abs(_config.BibleLineHeight - value) > 0.001)
+                {
+                    _config.BibleLineHeight = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经背景色
+        /// </summary>
+        public string BibleBackgroundColor
+        {
+            get => _config.BibleBackgroundColor;
+            set
+            {
+                if (_config.BibleBackgroundColor != value)
+                {
+                    _config.BibleBackgroundColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经经文文字颜色
+        /// </summary>
+        public string BibleTextColor
+        {
+            get => _config.BibleTextColor;
+            set
+            {
+                if (_config.BibleTextColor != value)
+                {
+                    _config.BibleTextColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经标题颜色
+        /// </summary>
+        public string BibleTitleColor
+        {
+            get => _config.BibleTitleColor;
+            set
+            {
+                if (_config.BibleTitleColor != value)
+                {
+                    _config.BibleTitleColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经节号颜色
+        /// </summary>
+        public string BibleVerseNumberColor
+        {
+            get => _config.BibleVerseNumberColor;
+            set
+            {
+                if (_config.BibleVerseNumberColor != value)
+                {
+                    _config.BibleVerseNumberColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经标题字体大小
+        /// </summary>
+        public double BibleTitleFontSize
+        {
+            get => _config.BibleTitleFontSize;
+            set
+            {
+                if (Math.Abs(_config.BibleTitleFontSize - value) > 0.001)
+                {
+                    _config.BibleTitleFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经节号字体大小
+        /// </summary>
+        public double BibleVerseNumberFontSize
+        {
+            get => _config.BibleVerseNumberFontSize;
+            set
+            {
+                if (Math.Abs(_config.BibleVerseNumberFontSize - value) > 0.001)
+                {
+                    _config.BibleVerseNumberFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经左右边距
+        /// </summary>
+        public double BibleMargin
+        {
+            get => _config.BibleMargin;
+            set
+            {
+                if (Math.Abs(_config.BibleMargin - value) > 0.001)
+                {
+                    _config.BibleMargin = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经节间距（节与节之间的间距）
+        /// </summary>
+        public double BibleVerseSpacing
+        {
+            get => _config.BibleVerseSpacing;
+            set
+            {
+                if (Math.Abs(_config.BibleVerseSpacing - value) > 0.001)
+                {
+                    _config.BibleVerseSpacing = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经设置窗口X坐标（null表示使用自动计算位置）
+        /// </summary>
+        public double? BibleSettingsWindowLeft
+        {
+            get => _config.BibleSettingsWindowLeft;
+            set
+            {
+                if (_config.BibleSettingsWindowLeft != value)
+                {
+                    _config.BibleSettingsWindowLeft = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经设置窗口Y坐标（null表示使用自动计算位置）
+        /// </summary>
+        public double? BibleSettingsWindowTop
+        {
+            get => _config.BibleSettingsWindowTop;
+            set
+            {
+                if (_config.BibleSettingsWindowTop != value)
+                {
+                    _config.BibleSettingsWindowTop = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -606,6 +830,76 @@ namespace ImageColorChanger.Core
         /// 全局默认歌词颜色（默认：#FFFFFF 白色）
         /// </summary>
         public string DefaultLyricsColor { get; set; } = "#FFFFFF";
+
+        /// <summary>
+        /// 圣经译本（默认：和合本）
+        /// </summary>
+        public string BibleVersion { get; set; } = "和合本";
+
+        /// <summary>
+        /// 圣经字体（默认：微软雅黑）
+        /// </summary>
+        public string BibleFontFamily { get; set; } = "Microsoft YaHei UI";
+
+        /// <summary>
+        /// 圣经字体大小（经文和节号，默认：46）
+        /// </summary>
+        public double BibleFontSize { get; set; } = 46.0;
+
+        /// <summary>
+        /// 圣经行距（默认：15.0 = 30 × 1.0 × 0.5，对应显示值1.0）
+        /// </summary>
+        public double BibleLineHeight { get; set; } = 15.0;
+
+        /// <summary>
+        /// 圣经背景色（默认：#000000 黑色）
+        /// </summary>
+        public string BibleBackgroundColor { get; set; } = "#000000";
+
+        /// <summary>
+        /// 圣经经文文字颜色（默认：#FF8040 橙色 RGB(255, 128, 64)）
+        /// </summary>
+        public string BibleTextColor { get; set; } = "#FF8040";
+
+        /// <summary>
+        /// 圣经标题颜色（默认：#FFFF00 黄色）
+        /// </summary>
+        public string BibleTitleColor { get; set; } = "#FFFF00";
+
+        /// <summary>
+        /// 圣经节号颜色（默认：#FFFF00 黄色）
+        /// </summary>
+        public string BibleVerseNumberColor { get; set; } = "#FFFF00";
+
+        /// <summary>
+        /// 圣经标题字体大小（默认：61.3 = 46 * 1.333）
+        /// </summary>
+        public double BibleTitleFontSize { get; set; } = 61.3;
+
+        /// <summary>
+        /// 圣经节号字体大小（默认：46，与经文相同）
+        /// </summary>
+        public double BibleVerseNumberFontSize { get; set; } = 46.0;
+
+        /// <summary>
+        /// 圣经左右边距（默认：50）
+        /// </summary>
+        public double BibleMargin { get; set; } = 50.0;
+
+        /// <summary>
+        /// 圣经节间距（节与节之间的间距，默认：8）
+        /// </summary>
+        public double BibleVerseSpacing { get; set; } = 8.0;
+
+        /// <summary>
+        /// 圣经设置窗口X坐标（默认：null，使用自动计算位置）
+        /// </summary>
+        public double? BibleSettingsWindowLeft { get; set; } = null;
+
+        /// <summary>
+        /// 圣经设置窗口Y坐标（默认：null，使用自动计算位置）
+        /// </summary>
+        public double? BibleSettingsWindowTop { get; set; } = null;
     }
 
     /// <summary>

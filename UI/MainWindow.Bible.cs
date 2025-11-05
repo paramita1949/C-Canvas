@@ -239,6 +239,9 @@ namespace ImageColorChanger.UI
             Debug.WriteLine($"[圣经] 圣经视图已显示, ImageScroll={ImageScrollViewer.Visibility}, BibleVerse={BibleVerseScrollViewer.Visibility}");
             #endif
 
+            // 应用圣经设置
+            ApplyBibleSettings();
+
             // 更新按钮状态
             UpdateViewModeButtons();
         }
@@ -363,7 +366,20 @@ namespace ImageColorChanger.UI
                 var bookInfo = BibleBookConfig.GetBook(book);
                 
                 BibleChapterTitle.Text = $"{bookInfo?.Name}{chapter}章";
+                
+                // 先隐藏列表，避免显示默认样式的闪烁
+                BibleVerseList.Visibility = Visibility.Collapsed;
                 BibleVerseList.ItemsSource = verses;
+                
+                // 重置滚动条到顶部
+                BibleVerseScrollViewer.ScrollToTop();
+
+                // 延迟应用样式并显示列表（等待ItemsControl生成容器）
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    ApplyBibleSettings();
+                    BibleVerseList.Visibility = Visibility.Visible;
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 #if DEBUG
                 sw.Stop();
@@ -392,6 +408,8 @@ namespace ImageColorChanger.UI
             {
                 BibleBookList.ItemsSource = null;
                 BibleChapterList.ItemsSource = null;
+                BibleStartVerse.ItemsSource = null;
+                BibleEndVerse.ItemsSource = null;
                 return;
             }
 
@@ -434,10 +452,15 @@ namespace ImageColorChanger.UI
 
             var bookList = books.OrderBy(b => b.BookId).ToList();
             BibleBookList.ItemsSource = bookList;
+            
+            // 清空书卷、章节和节号选择
+            BibleBookList.SelectedIndex = -1;
             BibleChapterList.ItemsSource = null;
+            BibleStartVerse.ItemsSource = null;
+            BibleEndVerse.ItemsSource = null;
 
             #if DEBUG
-            Debug.WriteLine($"[圣经] 加载了 {bookList.Count} 卷书");
+            Debug.WriteLine($"[圣经] 加载了 {bookList.Count} 卷书，已清空选择");
             #endif
         }
 
@@ -447,6 +470,8 @@ namespace ImageColorChanger.UI
             if (BibleBookList.SelectedItem is not BibleBook book)
             {
                 BibleChapterList.ItemsSource = null;
+                BibleStartVerse.ItemsSource = null;
+                BibleEndVerse.ItemsSource = null;
                 return;
             }
 
@@ -458,13 +483,18 @@ namespace ImageColorChanger.UI
             var chapters = Enumerable.Range(1, book.ChapterCount).Select(c => $"{c}").ToList();
             BibleChapterList.ItemsSource = chapters;
             BibleChapterList.Tag = book.BookId; // 保存BookId供后续使用
+            
+            // 清空章节选择和起始/结束节列表
+            BibleChapterList.SelectedIndex = -1;
+            BibleStartVerse.ItemsSource = null;
+            BibleEndVerse.ItemsSource = null;
 
             #if DEBUG
-            Debug.WriteLine($"[圣经] 加载了 {chapters.Count} 章");
+            Debug.WriteLine($"[圣经] 加载了 {chapters.Count} 章，已清空章节和节号选择");
             #endif
         }
 
-        // 第3列:章选择事件
+        // 第3列:章选择事件（单击只加载节号列表，不显示经文）
         private async void BibleChapter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BibleChapterList.SelectedItem is not string chapterStr)
@@ -478,6 +508,48 @@ namespace ImageColorChanger.UI
 
             #if DEBUG
             Debug.WriteLine($"[圣经] 选中章: BookId={bookId}, Chapter={chapter}");
+            #endif
+
+            // 查询该章的节数
+            var verses = await _bibleService.GetChapterVersesAsync(bookId, chapter);
+            int verseCount = verses?.Count ?? 0;
+            
+            if (verseCount > 0)
+            {
+                // 生成节号列表 1, 2, 3, ... verseCount
+                var verseNumbers = Enumerable.Range(1, verseCount).Select(v => v.ToString()).ToList();
+                
+                BibleStartVerse.ItemsSource = verseNumbers;
+                BibleEndVerse.ItemsSource = verseNumbers;
+                
+                // 清空起始节和结束节选择，要求用户手动选择
+                BibleStartVerse.SelectedIndex = -1;
+                BibleEndVerse.SelectedIndex = -1;
+                
+                // 清空经文显示
+                BibleVerseList.ItemsSource = null;
+                BibleChapterTitle.Text = "";
+
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 已加载节号列表 1-{verseCount}，等待用户选择节范围");
+                #endif
+            }
+        }
+        
+        // 第3列:章双击事件（双击加载整章经文）
+        private async void BibleChapter_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (BibleChapterList.SelectedItem is not string chapterStr)
+                return;
+
+            if (!int.TryParse(chapterStr, out int chapter))
+                return;
+
+            if (BibleChapterList.Tag is not int bookId)
+                return;
+
+            #if DEBUG
+            Debug.WriteLine($"[圣经] 双击章: BookId={bookId}, Chapter={chapter}，加载整章");
             #endif
 
             // 加载整章经文
@@ -500,7 +572,7 @@ namespace ImageColorChanger.UI
                 BibleEndVerse.SelectedIndex = verseCount - 1;
 
                 #if DEBUG
-                Debug.WriteLine($"[圣经] 节范围: 1-{verseCount}");
+                Debug.WriteLine($"[圣经] 双击加载整章，节范围: 1-{verseCount}");
                 #endif
             }
         }
@@ -585,7 +657,37 @@ namespace ImageColorChanger.UI
 
                 var book = BibleBookConfig.GetBook(bookId);
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {startVerse}-{endVerse}节";
+                
+                #if DEBUG
+                // 检查创世记1:26是否完整
+                if (bookId == 1 && chapter == 1)
+                {
+                    var verse26 = verses.FirstOrDefault(v => v.Verse == 26);
+                    if (verse26 != null)
+                    {
+                        Debug.WriteLine($"");
+                        Debug.WriteLine($"🔍 [经文完整性检查] 创世记1:26");
+                        Debug.WriteLine($"   经文内容: {verse26.Scripture}");
+                        Debug.WriteLine($"   字符长度: {verse26.Scripture?.Length}");
+                        Debug.WriteLine($"   应包含: '并地上所爬的一切昆虫' - {(verse26.Scripture?.Contains("并地上所爬的一切昆虫") == true ? "✅存在" : "❌缺失")}");
+                        Debug.WriteLine($"");
+                    }
+                }
+                #endif
+                
+                // 先隐藏列表，避免显示默认样式的闪烁
+                BibleVerseList.Visibility = Visibility.Collapsed;
                 BibleVerseList.ItemsSource = verses;
+                
+                // 重置滚动条到顶部
+                BibleVerseScrollViewer.ScrollToTop();
+
+                // 延迟应用样式并显示列表（等待ItemsControl生成容器）
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    ApplyBibleSettings();
+                    BibleVerseList.Visibility = Visibility.Visible;
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 #if DEBUG
                 Debug.WriteLine($"[圣经] 加载经文范围: {book?.Name} {chapter}:{startVerse}-{endVerse}, 共 {verses.Count} 节");
@@ -695,23 +797,6 @@ namespace ImageColorChanger.UI
 #endif
         }
 
-        /// <summary>
-        /// 经文项点击事件
-        /// </summary>
-        private async void BibleVerseItem_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (sender is Border border && border.DataContext is BibleVerse verse)
-            {
-                #if DEBUG
-                Debug.WriteLine($"[圣经] 点击经文: {verse.Reference}");
-                #endif
-
-                _currentVerse = verse.Verse;
-
-                // 投影当前经文
-                await ProjectBibleVerseAsync(verse);
-            }
-        }
 
         /// <summary>
         /// 加载单节经文
@@ -1067,12 +1152,19 @@ namespace ImageColorChanger.UI
                 Debug.WriteLine($"📐 [圣经渲染] 经文数量: {verses.Count}");
                 #endif
 
+                // 从配置中获取样式设置
+                var backgroundColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleBackgroundColor);
+                var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
+                var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
+                var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
+                var fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+
                 // 创建Canvas容器
                 var canvas = new Canvas
                 {
                     Width = screenWidth,
                     Height = screenHeight, // 先设置屏幕高度，后续会根据内容调整
-                    Background = WpfBrushes.Black
+                    Background = new WpfSolidColorBrush(backgroundColor)
                 };
 
                 double actualHeight = screenHeight;
@@ -1106,10 +1198,10 @@ namespace ImageColorChanger.UI
                 var titleText = new TextBlock
                 {
                     Text = chapterTitle,
-                    FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = 32,
+                    FontFamily = fontFamily,
+                    FontSize = _configManager.BibleTitleFontSize,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 87, 34)) // #FF5722
+                    Foreground = new WpfSolidColorBrush(titleColor)
                 };
                 
                 titleBorder.Child = titleText;
@@ -1129,38 +1221,43 @@ namespace ImageColorChanger.UI
                     var verseBorder = new Border
                     {
                         Background = WpfBrushes.Transparent,
-                        Margin = new Thickness(0, 10, 0, 10),
-                        Padding = new Thickness(10)
+                        Margin = new Thickness(0, _configManager.BibleVerseSpacing / 2, 0, _configManager.BibleVerseSpacing / 2),
+                        Padding = new Thickness(2)
                     };
                     
-                    var verseContainer = new StackPanel
+                    // 使用 Grid 布局替代 StackPanel，确保经文可以换行
+                    var verseContainer = new Grid
                     {
-                        Orientation = System.Windows.Controls.Orientation.Horizontal,
-                        Margin = new Thickness(20, 0, 20, 0)
+                        Margin = new Thickness(_configManager.BibleMargin, 0, _configManager.BibleMargin, 0)
                     };
+                    
+                    // 定义两列：节号列（自动宽度）和经文列（填充剩余空间）
+                    verseContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    verseContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
                     var verseNumber = new TextBlock
                     {
                         Text = $"{verse.Verse}",
-                        FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                        FontSize = 24,
+                        FontFamily = fontFamily,
+                        FontSize = _configManager.BibleVerseNumberFontSize,
                         FontWeight = FontWeights.Bold,
-                        Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 193, 7)), // #FFC107 金色
+                        Foreground = new WpfSolidColorBrush(verseNumberColor),
                         VerticalAlignment = VerticalAlignment.Top,
                         Margin = new Thickness(0, 0, 10, 0)
                     };
+                    Grid.SetColumn(verseNumber, 0);
 
                     var scriptureText = new TextBlock
                     {
                         Text = verse.Scripture,
-                        FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                        FontSize = 20,
+                        FontFamily = fontFamily,
+                        FontSize = _configManager.BibleFontSize,
                         FontWeight = FontWeights.Normal,
-                        Foreground = WpfBrushes.White,
+                        Foreground = new WpfSolidColorBrush(textColor),
                         TextWrapping = TextWrapping.Wrap,
-                        LineHeight = 36,
                         VerticalAlignment = VerticalAlignment.Top
                     };
+                    Grid.SetColumn(scriptureText, 1);
 
                     verseContainer.Children.Add(verseNumber);
                     verseContainer.Children.Add(scriptureText);
@@ -1502,6 +1599,219 @@ namespace ImageColorChanger.UI
             #if DEBUG
             Debug.WriteLine($"[圣经] 清除了 {checkedItems.Count} 个勾选的槽位");
             #endif
+        }
+
+        #endregion
+
+        #region 圣经设置
+
+
+        /// <summary>
+        /// 圣经导航面板设置按钮点击事件（悬浮在按钮右侧）
+        /// </summary>
+        private void BtnBibleSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 创建设置窗口，传递回调函数以实现实时更新
+                var settingsWindow = new BibleSettingsWindow(_configManager, () =>
+                {
+                    // 设置改变时立即应用
+                    ApplyBibleSettings();
+
+                    // 如果投影已开启，重新渲染投影
+                    if (_projectionManager != null && _projectionManager.IsProjecting)
+                    {
+                        RenderBibleToProjection();
+                    }
+                })
+                {
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.Manual
+                };
+
+                // 优先使用保存的窗口位置，如果没有则自动计算
+                if (_configManager.BibleSettingsWindowLeft.HasValue && _configManager.BibleSettingsWindowTop.HasValue)
+                {
+                    // 使用保存的位置
+                    settingsWindow.Left = _configManager.BibleSettingsWindowLeft.Value;
+                    settingsWindow.Top = _configManager.BibleSettingsWindowTop.Value;
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经设置] 使用保存的位置: Left={settingsWindow.Left}, Top={settingsWindow.Top}");
+                    #endif
+                }
+                else if (BibleNavigationPanel != null)
+                {
+                    // 获取面板左上角和右上角的屏幕坐标
+                    var panelTopLeft = BibleNavigationPanel.PointToScreen(new System.Windows.Point(0, 0));
+                    var panelTopRight = BibleNavigationPanel.PointToScreen(
+                        new System.Windows.Point(BibleNavigationPanel.ActualWidth, 0));
+                    
+                    // 获取屏幕工作区域
+                    var screen = System.Windows.Forms.Screen.FromPoint(
+                        new System.Drawing.Point((int)panelTopLeft.X, (int)panelTopLeft.Y));
+                    var workingArea = screen.WorkingArea;
+                    
+                    // 计算窗口位置：
+                    // 水平：面板右边缘内侧，留出35像素边距
+                    // 垂直：面板顶部向下7像素
+                    double windowLeft = panelTopRight.X - settingsWindow.Width - 35;
+                    double windowTop = panelTopLeft.Y + 7;
+                    
+                    // 确保窗口不超出屏幕左边界
+                    if (windowLeft < workingArea.Left)
+                    {
+                        windowLeft = workingArea.Left + 10;
+                    }
+                    
+                    // 确保窗口不超出屏幕下边界
+                    if (windowTop + settingsWindow.Height > workingArea.Bottom)
+                    {
+                        windowTop = workingArea.Bottom - settingsWindow.Height - 10;
+                    }
+                    
+                    // 确保窗口不超出屏幕上边界
+                    if (windowTop < workingArea.Top)
+                    {
+                        windowTop = workingArea.Top + 10;
+                    }
+                    
+                    settingsWindow.Left = windowLeft;
+                    settingsWindow.Top = windowTop;
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经设置] 面板左上角: X={panelTopLeft.X}, Y={panelTopLeft.Y}");
+                    Debug.WriteLine($"[圣经设置] 面板右边缘: X={panelTopRight.X}");
+                    Debug.WriteLine($"[圣经设置] 面板大小: Width={BibleNavigationPanel.ActualWidth}, Height={BibleNavigationPanel.ActualHeight}");
+                    Debug.WriteLine($"[圣经设置] 屏幕工作区: {workingArea}");
+                    Debug.WriteLine($"[圣经设置] 窗口大小: Width={settingsWindow.Width}, Height={settingsWindow.Height}");
+                    Debug.WriteLine($"[圣经设置] 计算位置: Left={windowLeft:F1}, Top={windowTop:F1}");
+                    Debug.WriteLine($"[圣经设置] 最终位置: Left={settingsWindow.Left}, Top={settingsWindow.Top}");
+                    #endif
+                }
+
+                // 显示设置窗口（设置已通过回调实时应用，无需等待窗口关闭）
+                settingsWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 打开设置窗口失败: {ex.Message}");
+                #endif
+
+                WpfMessageBox.Show(
+                    $"打开设置失败：{ex.Message}",
+                    "错误",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 应用圣经设置到界面
+        /// </summary>
+        private void ApplyBibleSettings()
+        {
+            try
+            {
+                // 应用背景色
+                var backgroundColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleBackgroundColor);
+                BibleVerseScrollViewer.Background = new WpfSolidColorBrush(backgroundColor);
+
+                // 应用标题样式
+                BibleChapterTitle.FontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                BibleChapterTitle.FontSize = _configManager.BibleTitleFontSize;
+                var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
+                BibleChapterTitle.Foreground = new WpfSolidColorBrush(titleColor);
+
+                // 应用经文样式到已生成的项
+                ApplyVerseStyles();
+
+                #if DEBUG
+                Debug.WriteLine("[圣经] 界面样式已更新");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 应用设置失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 应用经文样式到列表项
+        /// </summary>
+        private void ApplyVerseStyles()
+        {
+            try
+            {
+                if (BibleVerseList.Items.Count == 0)
+                    return;
+
+                var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
+                var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
+                var fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+
+                // 遍历所有已生成的容器
+                for (int i = 0; i < BibleVerseList.Items.Count; i++)
+                {
+                    var container = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                    if (container == null)
+                        continue;
+
+                    // 查找节号和经文TextBlock
+                    var textBlocks = FindVisualChildren<TextBlock>(container).ToList();
+                    if (textBlocks.Count >= 2)
+                    {
+                        // 第一个是节号
+                        var verseNumberBlock = textBlocks[0];
+                        verseNumberBlock.FontFamily = fontFamily;
+                        verseNumberBlock.FontSize = _configManager.BibleVerseNumberFontSize;
+                        verseNumberBlock.Foreground = new WpfSolidColorBrush(verseNumberColor);
+
+                        // 第二个是经文
+                        var scriptureBlock = textBlocks[1];
+                        scriptureBlock.FontFamily = fontFamily;
+                        scriptureBlock.FontSize = _configManager.BibleFontSize;
+                        scriptureBlock.Foreground = new WpfSolidColorBrush(textColor);
+                    }
+                    
+                    // 设置Border的Margin（节间距）
+                    var border = FindVisualChild<Border>(container);
+                    if (border != null)
+                    {
+                        border.Margin = new Thickness(0, _configManager.BibleVerseSpacing / 2, 0, _configManager.BibleVerseSpacing / 2);
+                        
+                        #if DEBUG
+                        if (i == 0) // 只输出第一个经文的调试信息
+                        {
+                            Debug.WriteLine($"");
+                            Debug.WriteLine($"🔧 [圣经样式应用]");
+                            Debug.WriteLine($"   字体大小: {_configManager.BibleFontSize}px");
+                            Debug.WriteLine($"   节间距配置: {_configManager.BibleVerseSpacing}px");
+                            Debug.WriteLine($"   Border Margin: {border.Margin} (上下各{_configManager.BibleVerseSpacing / 2}px)");
+                            Debug.WriteLine($"   说明: 节间距控制经文之间的间距");
+                            Debug.WriteLine($"");
+                        }
+                        #endif
+                    }
+                }
+
+                // 更新边距
+                BibleVerseList.Margin = new Thickness(_configManager.BibleMargin, 0, _configManager.BibleMargin, 0);
+
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 已应用样式到 {BibleVerseList.Items.Count} 个经文项");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 应用经文样式失败: {ex.Message}");
+                #endif
+            }
         }
 
         #endregion
