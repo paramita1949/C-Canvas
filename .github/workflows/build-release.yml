@@ -94,6 +94,8 @@ jobs:
       shell: pwsh
       run: |
         echo "=== 验证构建产物 ==="
+        echo "当前工作目录: $pwd"
+        echo ""
         
         # 检查主程序
         if (Test-Path "publish\CanvasCast.exe") {
@@ -132,6 +134,13 @@ jobs:
           echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
         } else {
           echo "⚠️ 圣经数据库不存在于publish目录，尝试复制..."
+          echo "调试信息: 检查源文件路径..."
+          echo "  - data\assets\bible.db 存在: $(Test-Path 'data\assets\bible.db')"
+          echo "  - .\data\assets\bible.db 存在: $(Test-Path '.\data\assets\bible.db')"
+          if (Test-Path "data") {
+            echo "  - data目录内容:"
+            Get-ChildItem "data" -Recurse -Name | ForEach-Object { echo "    - $_" }
+          }
           if (Test-Path "data\assets\bible.db") {
             New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
             Copy-Item "data\assets\bible.db" "publish\data\assets\bible.db"
@@ -140,6 +149,7 @@ jobs:
             echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
           } else {
             echo "❌ 错误: 源代码中也没有圣经数据库文件"
+            echo "这不应该发生,因为该文件已在代码仓库中"
             exit 1
           }
         }

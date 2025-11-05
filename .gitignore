@@ -59,6 +59,9 @@ ServiceFabricBackup/
 *.db-wal
 pyimages.db
 
+# 但是保留圣经数据库文件(用于发布)
+!data/assets/bible.db
+
 # Python cache
 __pycache__/
 *.py[cod]
