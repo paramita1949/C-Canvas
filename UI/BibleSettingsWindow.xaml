@@ -39,11 +39,11 @@
 
         <!-- 颜色块样式（小正方形） -->
         <Style x:Key="ColorBlockStyle" TargetType="Border">
-            <Setter Property="Width" Value="24"/>
-            <Setter Property="Height" Value="24"/>
+            <Setter Property="Width" Value="23"/>
+            <Setter Property="Height" Value="23"/>
             <Setter Property="BorderBrush" Value="#999999"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="CornerRadius" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="5,0,0,0"/>
         </Style>
@@ -51,9 +51,9 @@
         <!-- 颜色标签样式 -->
         <Style x:Key="ColorLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="Margin" Value="7,0,0,0"/>
         </Style>
     </Window.Resources>
 
@@ -163,7 +163,7 @@
             </Grid>
 
             <!-- 节距（节与节之间的间距） -->
-            <Grid Margin="0,0,0,15">
+            <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -184,7 +184,7 @@
                 </ComboBox>
             </Grid>
 
-            <!-- 颜色设置（横向一行：背景 ■ 经文 ■ 标题 ■ 节号 ■） -->
+            <!-- 颜色设置（横向一行：背景 ■ 经文 ■ 标题 ■ 节号 ■ 选中 ■） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <TextBlock Text="背景" Style="{StaticResource ColorLabelStyle}" Margin="0,0,5,0"/>
                 <Border x:Name="BorderBackgroundColor" 
@@ -208,6 +208,12 @@
                 <Border x:Name="BorderVerseNumberColor" 
                         Style="{StaticResource ColorBlockStyle}"
                         Background="#FFC107"
+                        MouseLeftButtonDown="ColorButton_Click"/>
+                
+                <TextBlock Text="选中" Style="{StaticResource ColorLabelStyle}"/>
+                <Border x:Name="BorderHighlightColor" 
+                        Style="{StaticResource ColorBlockStyle}"
+                        Background="#FFFF00"
                         MouseLeftButtonDown="ColorButton_Click"/>
             </StackPanel>
 

@@ -500,6 +500,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经选中高亮颜色
+        /// </summary>
+        public string BibleHighlightColor
+        {
+            get => _config.BibleHighlightColor;
+            set
+            {
+                if (_config.BibleHighlightColor != value)
+                {
+                    _config.BibleHighlightColor = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 圣经标题字体大小
         /// </summary>
         public double BibleTitleFontSize
@@ -870,6 +886,11 @@ namespace ImageColorChanger.Core
         /// 圣经节号颜色（默认：#FFFF00 黄色）
         /// </summary>
         public string BibleVerseNumberColor { get; set; } = "#FFFF00";
+
+        /// <summary>
+        /// 圣经选中高亮颜色（默认：#FFFF00 黄色）
+        /// </summary>
+        public string BibleHighlightColor { get; set; } = "#FFFF00";
 
         /// <summary>
         /// 圣经标题字体大小（默认：61.3 = 46 * 1.333）

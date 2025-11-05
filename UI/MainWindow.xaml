@@ -670,13 +670,16 @@
                             <RowDefinition Height="*"/>       <!-- 经文选择表格 -->
                         </Grid.RowDefinitions>
                         
-                        <!-- 历史记录列表（显示1-10号槽位） -->
-                        <ScrollViewer Grid.Row="0" MaxHeight="240" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
+                        <!-- 历史记录列表（显示1-20号槽位） -->
+                        <ScrollViewer x:Name="BibleHistoryScrollViewer" Grid.Row="0" MaxHeight="330" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
                             <ListBox x:Name="BibleHistoryList" 
                                      Background="Transparent"
                                      BorderThickness="0"
                                      Margin="5"
-                                     SelectionChanged="BibleHistoryList_SelectionChanged">
+                                     SelectionChanged="BibleHistoryList_SelectionChanged"
+                                     PreviewMouseWheel="BibleHistoryList_PreviewMouseWheel"
+                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -1317,7 +1320,7 @@
                               ScrollChanged="BibleVerseContentScroller_ScrollChanged">
                     <StackPanel>
                         <!-- 章节标题（可滚动） -->
-                        <Border Background="#1C1C1C" Padding="20,15">
+                        <Border x:Name="BibleChapterTitleBorder" Background="#000000" Padding="20,15">
                             <TextBlock x:Name="BibleChapterTitle" 
                                        Text="" 
                                        FontSize="32" 
@@ -1333,7 +1336,10 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="Transparent"
-                                            Padding="2">
+                                            Padding="2"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="BibleVerse_Click"
+                                            Tag="{Binding}">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="Transparent"/>
@@ -1357,13 +1363,16 @@
                                                        FontWeight="Bold" 
                                                        Foreground="#FFC107"
                                                        VerticalAlignment="Top"
-                                                       Margin="0,0,10,0"/>
+                                                       Margin="0,0,10,0"
+                                                       IsHitTestVisible="False"/>
                                             <!-- 经文内容 - 字体大小、行高、颜色等由C#代码动态设置 -->
                                             <TextBlock Grid.Column="1"
+                                                       x:Name="VerseScriptureText"
                                                        Text="{Binding Scripture}" 
                                                        FontSize="20" 
                                                        Foreground="White"
-                                                       TextWrapping="Wrap"/>
+                                                       TextWrapping="Wrap"
+                                                       IsHitTestVisible="False"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.CompilerServices;
 
 namespace ImageColorChanger.Database.Models.Bible
 {
@@ -6,8 +8,14 @@ namespace ImageColorChanger.Database.Models.Bible
     /// 圣经经文模型
     /// </summary>
     [Table("Bible")]
-    public class BibleVerse
+    public class BibleVerse : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
         /// <summary>
         /// 主键ID
         /// </summary>
@@ -50,6 +58,24 @@ namespace ImageColorChanger.Database.Models.Bible
         /// </summary>
         [NotMapped]
         public string ChapterReference => $"{BookName} {Chapter} 章";
+
+        /// <summary>
+        /// 是否被选中高亮（用于UI显示）
+        /// </summary>
+        private bool _isHighlighted;
+        [NotMapped]
+        public bool IsHighlighted
+        {
+            get => _isHighlighted;
+            set
+            {
+                if (_isHighlighted != value)
+                {
+                    _isHighlighted = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
     }
 }
 

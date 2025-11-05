@@ -263,6 +263,10 @@ namespace ImageColorChanger.UI
                 {
                     UpdateColorPreview(BorderVerseNumberColor, _configManager.BibleVerseNumberColor);
                 }
+                if (BorderHighlightColor != null && !string.IsNullOrEmpty(_configManager.BibleHighlightColor))
+                {
+                    UpdateColorPreview(BorderHighlightColor, _configManager.BibleHighlightColor);
+                }
 
                 #if DEBUG
                 Debug.WriteLine("[圣经设置] 已加载当前设置");
@@ -568,6 +572,14 @@ namespace ImageColorChanger.UI
                     _configManager.BibleVerseNumberColor = ColorToHex(BorderVerseNumberColor.Background);
                     #if DEBUG
                     Debug.WriteLine($"[圣经设置] 保存节号色: {_configManager.BibleVerseNumberColor}");
+                    #endif
+                }
+                
+                if (BorderHighlightColor != null && BorderHighlightColor.Background != null)
+                {
+                    _configManager.BibleHighlightColor = ColorToHex(BorderHighlightColor.Background);
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经设置] 保存选中色: {_configManager.BibleHighlightColor}");
                     #endif
                 }
 

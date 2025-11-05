@@ -37,7 +37,7 @@ namespace ImageColorChanger.UI
         private int _currentChapter = 1;    // 当前章节
         private int _currentVerse = 1;      // 当前节号
         private bool _isBibleMode = false;  // 是否处于圣经模式
-        private ObservableCollection<BibleHistoryItem> _historySlots = new ObservableCollection<BibleHistoryItem>(); // 10个历史槽位
+        private ObservableCollection<BibleHistoryItem> _historySlots = new ObservableCollection<BibleHistoryItem>(); // 20个历史槽位
 
         #endregion
 
@@ -296,7 +296,7 @@ namespace ImageColorChanger.UI
                 var sw = Stopwatch.StartNew();
                 #endif
 
-                // 初始化10个历史槽位
+                // 初始化20个历史槽位
                 InitializeHistorySlots();
                 BibleHistoryList.ItemsSource = _historySlots;
 
@@ -1017,6 +1017,118 @@ namespace ImageColorChanger.UI
 
         #endregion
 
+        #region 圣经经文点击高亮
+
+        /// <summary>
+        /// 经文点击事件（单选模式：只允许一个经文高亮）
+        /// </summary>
+        private void BibleVerse_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not Border border || border.Tag is not BibleVerse clickedVerse)
+                return;
+
+            #if DEBUG
+            Debug.WriteLine($"[圣经] 经文点击: {clickedVerse.Reference}");
+            #endif
+
+            // 获取所有经文
+            var verses = BibleVerseList.ItemsSource as System.Collections.Generic.List<BibleVerse>;
+            if (verses == null)
+                return;
+
+            // 如果点击的是已高亮的经文，则取消高亮
+            if (clickedVerse.IsHighlighted)
+            {
+                clickedVerse.IsHighlighted = false;
+                
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 取消高亮: {clickedVerse.Reference}");
+                #endif
+                
+                // 更新UI颜色
+                UpdateVerseHighlight(border, clickedVerse);
+            }
+            else
+            {
+                // 先取消所有经文的高亮
+                foreach (var verse in verses)
+                {
+                    if (verse.IsHighlighted)
+                    {
+                        verse.IsHighlighted = false;
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经] 取消高亮: {verse.Reference}");
+                        #endif
+                    }
+                }
+
+                // 高亮当前点击的经文
+                clickedVerse.IsHighlighted = true;
+                
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 设置高亮: {clickedVerse.Reference}");
+                #endif
+
+                // 刷新整个列表的UI
+                ApplyVerseStyles();
+            }
+
+            // 重新渲染投影
+            if (_projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderBibleToProjection();
+            }
+        }
+
+        /// <summary>
+        /// 更新经文的高亮颜色显示
+        /// </summary>
+        private void UpdateVerseHighlight(Border border, BibleVerse verse)
+        {
+            try
+            {
+                var grid = border.Child as Grid;
+                if (grid == null || grid.Children.Count < 2)
+                    return;
+
+                // 获取经文文本块（第二列）
+                var textBlock = grid.Children[1] as TextBlock;
+                if (textBlock == null)
+                    return;
+
+                // 根据高亮状态设置颜色
+                if (verse.IsHighlighted)
+                {
+                    // 使用高亮颜色
+                    var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
+                    textBlock.Foreground = new WpfSolidColorBrush(highlightColor);
+
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经] 应用高亮颜色: {_configManager.BibleHighlightColor} 到 {verse.Reference}");
+                    #endif
+                }
+                else
+                {
+                    // 使用默认经文颜色
+                    var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
+                    textBlock.Foreground = new WpfSolidColorBrush(textColor);
+
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经] 恢复默认颜色: {_configManager.BibleTextColor} 到 {verse.Reference}");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经] 更新高亮颜色失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        #endregion
+
         #region 圣经投影
 
         /// <summary>
@@ -1187,11 +1299,11 @@ namespace ImageColorChanger.UI
                     Orientation = System.Windows.Controls.Orientation.Vertical
                 };
 
-                // 1. 添加章节标题
+                // 1. 添加章节标题（背景色与经文背景色一致）
                 var titleBorder = new Border
                 {
                     Width = screenWidth,
-                    Background = new WpfSolidColorBrush(WpfColor.FromRgb(28, 28, 28)), // #1C1C1C
+                    Background = new WpfSolidColorBrush(backgroundColor),
                     Padding = new Thickness(20, 15, 20, 15)
                 };
                 
@@ -1247,13 +1359,21 @@ namespace ImageColorChanger.UI
                     };
                     Grid.SetColumn(verseNumber, 0);
 
+                    // 根据高亮状态选择颜色
+                    WpfColor scriptureColor = textColor;
+                    if (verse.IsHighlighted)
+                    {
+                        var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
+                        scriptureColor = highlightColor;
+                    }
+
                     var scriptureText = new TextBlock
                     {
                         Text = verse.Scripture,
                         FontFamily = fontFamily,
                         FontSize = _configManager.BibleFontSize,
                         FontWeight = FontWeights.Normal,
-                        Foreground = new WpfSolidColorBrush(textColor),
+                        Foreground = new WpfSolidColorBrush(scriptureColor),
                         TextWrapping = TextWrapping.Wrap,
                         VerticalAlignment = VerticalAlignment.Top
                     };
@@ -1497,14 +1617,14 @@ namespace ImageColorChanger.UI
         #region 圣经历史记录按钮事件
 
         /// <summary>
-        /// 初始化历史槽位（1-10号）
+        /// 初始化历史槽位（1-20号）
         /// </summary>
         private void InitializeHistorySlots()
         {
             _historySlots.Clear();
             
-            // 创建10个空槽位
-            for (int i = 1; i <= 10; i++)
+            // 创建20个空槽位
+            for (int i = 1; i <= 20; i++)
             {
                 _historySlots.Add(new BibleHistoryItem
                 {
@@ -1519,7 +1639,7 @@ namespace ImageColorChanger.UI
             }
             
             #if DEBUG
-            Debug.WriteLine("[圣经] 初始化10个历史槽位，默认勾选槽位1");
+            Debug.WriteLine("[圣经] 初始化20个历史槽位，默认勾选槽位1");
             #endif
         }
 
@@ -1718,6 +1838,9 @@ namespace ImageColorChanger.UI
                 // 应用背景色
                 var backgroundColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleBackgroundColor);
                 BibleVerseScrollViewer.Background = new WpfSolidColorBrush(backgroundColor);
+                
+                // 应用标题背景色（与经文背景色一致）
+                BibleChapterTitleBorder.Background = new WpfSolidColorBrush(backgroundColor);
 
                 // 应用标题样式
                 BibleChapterTitle.FontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
@@ -1775,7 +1898,18 @@ namespace ImageColorChanger.UI
                         var scriptureBlock = textBlocks[1];
                         scriptureBlock.FontFamily = fontFamily;
                         scriptureBlock.FontSize = _configManager.BibleFontSize;
-                        scriptureBlock.Foreground = new WpfSolidColorBrush(textColor);
+                        
+                        // 根据高亮状态设置颜色
+                        var verse = BibleVerseList.Items[i] as BibleVerse;
+                        if (verse != null && verse.IsHighlighted)
+                        {
+                            var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
+                            scriptureBlock.Foreground = new WpfSolidColorBrush(highlightColor);
+                        }
+                        else
+                        {
+                            scriptureBlock.Foreground = new WpfSolidColorBrush(textColor);
+                        }
                     }
                     
                     // 设置Border的Margin（节间距）
@@ -1856,7 +1990,25 @@ namespace ImageColorChanger.UI
                     yield return childOfChild;
             }
         }
-        
+
+        /// <summary>
+        /// 历史记录列表鼠标滚轮事件（将滚轮事件传递给 ScrollViewer）
+        /// </summary>
+        private void BibleHistoryList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (BibleHistoryScrollViewer != null)
+            {
+                // 计算滚动偏移量
+                double offset = e.Delta > 0 ? -60 : 60; // 向上滚动为负值，向下滚动为正值
+                
+                // 应用滚动偏移
+                BibleHistoryScrollViewer.ScrollToVerticalOffset(BibleHistoryScrollViewer.VerticalOffset + offset);
+                
+                // 标记事件已处理，防止继续传递
+                e.Handled = true;
+            }
+        }
+
         #endregion
     }
 }
