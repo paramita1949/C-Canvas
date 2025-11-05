@@ -57,9 +57,9 @@ namespace ImageColorChanger.Database
                 var connectionString = $"Data Source={_databasePath};";
                 optionsBuilder.UseSqlite(connectionString);
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[圣经数据库] 连接字符串: {connectionString}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[圣经数据库] 连接字符串: {connectionString}");
+                //#endif
             }
         }
 

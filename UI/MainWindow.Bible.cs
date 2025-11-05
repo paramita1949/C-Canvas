@@ -1644,6 +1644,57 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 历史记录项点击事件 - 点击整行切换勾选状态并加载经文
+        /// </summary>
+        private async void BibleHistoryItem_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is BibleHistoryItem item)
+            {
+                // 🔧 单选逻辑：只允许选中一条记录（除非使用全选按钮）
+                if (!item.IsChecked)
+                {
+                    // 取消其他所有记录的勾选
+                    foreach (var slot in _historySlots)
+                    {
+                        if (slot != item)
+                        {
+                            slot.IsChecked = false;
+                        }
+                    }
+                    
+                    // 勾选当前记录
+                    item.IsChecked = true;
+
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"[圣经] 选中槽位{item.Index}: {item.DisplayText}");
+//#endif
+
+                    // 如果有有效经文数据，则加载经文
+                    if (item.BookId > 0)
+                    {
+                        // 加载该槽位的经文
+                        await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+
+                        // 🔧 如果投影已开启，自动投影该范围的经文
+                        if (_projectionManager != null && _projectionManager.IsProjecting)
+                        {
+                            await ProjectBibleVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                        }
+                    }
+                }
+                else
+                {
+                    // 取消勾选
+                    item.IsChecked = false;
+
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"[圣经] 取消选中槽位{item.Index}");
+//#endif
+                }
+            }
+        }
+
+        /// <summary>
         /// 历史记录列表选择事件
         /// </summary>
         private async void BibleHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)

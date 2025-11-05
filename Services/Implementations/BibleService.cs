@@ -53,9 +53,9 @@ namespace ImageColorChanger.Services.Implementations
 
             if (_cache.TryGetValue(cacheKey, out BibleVerse cachedVerse))
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
+                //#endif
                 return cachedVerse;
             }
 
@@ -108,9 +108,9 @@ namespace ImageColorChanger.Services.Implementations
 
             if (_cache.TryGetValue(cacheKey, out List<BibleVerse> cachedVerses))
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
+                //#endif
                 return cachedVerses;
             }
 
@@ -126,10 +126,10 @@ namespace ImageColorChanger.Services.Implementations
                     .OrderBy(v => v.Verse)
                     .ToListAsync();
 
-                #if DEBUG
-                sw.Stop();
-                Debug.WriteLine($"[圣经服务] 查询整章: {sw.ElapsedMilliseconds}ms, 结果数: {verses.Count}");
-                #endif
+                //#if DEBUG
+                //sw.Stop();
+                //Debug.WriteLine($"[圣经服务] 查询整章: {sw.ElapsedMilliseconds}ms, 结果数: {verses.Count}");
+                //#endif
 
                 // 缓存30分钟
                 _cache.Set(cacheKey, verses, TimeSpan.FromMinutes(30));
@@ -159,9 +159,9 @@ namespace ImageColorChanger.Services.Implementations
 
             if (_cache.TryGetValue(cacheKey, out List<BibleTitle> cachedTitles))
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经服务] 缓存命中: {cacheKey}");
+                //#endif
                 return cachedTitles;
             }
 
