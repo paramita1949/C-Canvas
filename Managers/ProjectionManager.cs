@@ -295,15 +295,15 @@ namespace ImageColorChanger.Managers
                                     await client.GetAsync("https://www.baidu.com", System.Threading.CancellationToken.None);
                                     
                                     // 有网络，执行验证
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 检测到网络连接，开始后台验证");
-                                    #endif
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 检测到网络连接，开始后台验证");
+                                    //#endif
                                     
                                     var (allowed, message) = await AuthService.Instance.VerifyProjectionPermissionAsync();
                                     
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 后台网络验证结果: {message}（allowed={allowed}）");
-                                    #endif
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 后台网络验证结果: {message}（allowed={allowed}）");
+                                    //#endif
                                     
                                     // 🔒 后台静默记录验证结果，不影响试用
                                     // 验证目的：防止破解者绕过登录，但不阻止正常试用
@@ -311,37 +311,37 @@ namespace ImageColorChanger.Managers
                                 catch
                                 {
                                     // 无网络，跳过验证
-                                    #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 无网络连接，跳过后台验证");
-                                    #endif
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 无网络连接，跳过后台验证");
+                                    //#endif
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
-                            #else
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
+                            //#else
                             _ = ex; // 避免未使用变量警告
-                            #endif
+                            //#endif
                         }
                     });
                     
                     // 🔒 检查账号验证状态
                     if (!AuthService.Instance.IsAuthenticated)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("⚠️ [投影] 未登录，将启用随机试用限制");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("⚠️ [投影] 未登录，将启用随机试用限制");
+                        //#endif
                         
                         // 未登录，静默启用随机试用限制（不弹窗）
                         // 时长由 GetTrialDurationSeconds() 随机决定（30-60秒）
                     }
                     else if (!AuthService.Instance.CanUseProjection())
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("❌ [投影] 账号已过期");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("❌ [投影] 账号已过期");
+                        //#endif
                         
                         WpfMessageBox.Show(
                             "您的账号已过期，无法使用投影功能。\n请联系管理员续费。",
@@ -369,9 +369,9 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public void ClearImageState()
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("🧹 [投影] 清空图片状态");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine("🧹 [投影] 清空图片状态");
+//#endif
             // 清空当前图片引用，防止图片投影逻辑干扰文字投影
             _currentImage = null;
             _currentImagePath = null;
@@ -409,32 +409,32 @@ namespace ImageColorChanger.Managers
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
-#if DEBUG
-                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
-                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
-                    double mainViewportHeight = lyricsScrollViewer.ViewportHeight;
-                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
-                    double mainExtentHeight = lyricsScrollViewer.ExtentHeight;
-                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
-                    
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
-                    
-                    if (_projectionBibleTitleBorder != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题高度: {_projectionBibleTitleBorder.ActualHeight:F2}");
-                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题可见: {_projectionBibleTitleBorder.Visibility}");
-                    }
-                    
-                    // 🔍 关键对比：主屏第一节经文顶部位置 vs 投影第一节经文顶部位置
-                    // 主屏：ScrollViewer.Padding.Top (应该是20)
-                    // 投影：渲染内容的顶部Padding (应该也是20)
-                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
-#endif
+//#if DEBUG
+//                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
+//                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+//                    double mainViewportHeight = lyricsScrollViewer.ViewportHeight;
+//                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
+//                    double mainExtentHeight = lyricsScrollViewer.ExtentHeight;
+//                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
+//                    
+//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+//                    
+//                    if (_projectionBibleTitleBorder != null)
+//                    {
+//                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题高度: {_projectionBibleTitleBorder.ActualHeight:F2}");
+//                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题可见: {_projectionBibleTitleBorder.Visibility}");
+//                    }
+//                    
+//                    // 🔍 关键对比：主屏第一节经文顶部位置 vs 投影第一节经文顶部位置
+//                    // 主屏：ScrollViewer.Padding.Top (应该是20)
+//                    // 投影：渲染内容的顶部Padding (应该也是20)
+//                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+//                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+//                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+//#endif
                 });
             }
             catch (Exception)
@@ -482,13 +482,13 @@ namespace ImageColorChanger.Managers
                     double mainExtentHeight = bibleScrollViewer.ExtentHeight;
                     double projExtentHeight = _projectionScrollViewer.ExtentHeight;
                     
-                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
-                    System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
-                    System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
 #endif
                 });
             }
@@ -566,9 +566,9 @@ namespace ImageColorChanger.Managers
                             // 圣经/歌词投影：容器高度 = 图片高度（渲染时已经扩展了Canvas高度）
                             _projectionContainer.Height = renderedTextImage.Height;
                             _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (等于图片高度)");
-#endif
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (等于图片高度)");
+//#endif
                         }
 
 //#if DEBUG
@@ -641,9 +641,9 @@ namespace ImageColorChanger.Managers
             {
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
-                    #if DEBUG
-                    var sw = System.Diagnostics.Stopwatch.StartNew();
-                    #endif
+                    //#if DEBUG
+                    //var sw = System.Diagnostics.Stopwatch.StartNew();
+                    //#endif
                     
                     var screen = _screens[_currentScreenIndex];
                     int screenWidth = screen.Bounds.Width;
@@ -697,18 +697,18 @@ namespace ImageColorChanger.Managers
                         }
                     }
                     
-                    #if DEBUG
-                    sw.Stop();
-                    #endif
+                    //#if DEBUG
+                    //sw.Stop();
+                    //#endif
                 });
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [共享渲染] 失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [共享渲染] 失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
             
             return System.Threading.Tasks.Task.CompletedTask;
@@ -782,16 +782,16 @@ namespace ImageColorChanger.Managers
                         SKFilterQuality.High  // 保持最高质量
                     );
                     
-                    #if DEBUG
-                    gpuStart.Stop();
-                    System.Diagnostics.Debug.WriteLine($"⚡ [PreRender GPU] 耗时: {gpuStart.ElapsedMilliseconds}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
-                    #endif
+                    //#if DEBUG
+                    //gpuStart.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⚡ [PreRender GPU] 耗时: {gpuStart.ElapsedMilliseconds}ms, 尺寸: {newWidth}x{newHeight}, 质量: High");
+                    //#endif
 
                     if (processedImage == null)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 渲染失败");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 渲染失败");
+                        //#endif
                         return;
                     }
 
@@ -866,11 +866,11 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 预渲染失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [PreRender] 预渲染失败: {ex.Message}");
+                //#else
                 _ = ex; // 避免未使用变量警告
-                #endif
+                //#endif
             }
             finally
             {
@@ -1147,9 +1147,9 @@ namespace ImageColorChanger.Managers
                 _projectionBibleTitleText.Text = title;
                 _projectionBibleTitleBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📖 [圣经标题] 设置: {title}, 可见: {visible}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📖 [圣经标题] 设置: {title}, 可见: {visible}");
+                //#endif
             });
         }
         
@@ -1169,19 +1169,19 @@ namespace ImageColorChanger.Managers
                 _projectionScrollViewer.UpdateLayout();
                 _projectionScrollViewer.ScrollToVerticalOffset(offset); // 再次设置
                 
-                #if DEBUG
-                // 只在主屏幕要求输出时才输出（保持同步）
-                if (shouldDebug)
-                {
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 接收偏移: {offset:F2} (主屏传入)");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际偏移: {_projectionScrollViewer.VerticalOffset:F2} (双重设置后)");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {_projectionScrollViewer.ScrollableHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] CanContentScroll: {_projectionScrollViewer.CanContentScroll}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
-                }
-                #endif
+                //#if DEBUG
+                //// 只在主屏幕要求输出时才输出（保持同步）
+                //if (shouldDebug)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 接收偏移: {offset:F2} (主屏传入)");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际偏移: {_projectionScrollViewer.VerticalOffset:F2} (双重设置后)");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {_projectionScrollViewer.ScrollableHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] CanContentScroll: {_projectionScrollViewer.CanContentScroll}");
+                //    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                //}
+                //#endif
             });
         }
         
@@ -1204,18 +1204,18 @@ namespace ImageColorChanger.Managers
                 _projectionScrollViewer.UpdateLayout();
                 _projectionScrollViewer.ScrollToVerticalOffset(projScrollOffset); // 再次设置
                 
-                #if DEBUG
-                if (shouldDebug)
-                {
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动比例: {scrollRatio:P2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 计算滚动偏移: {projScrollOffset:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际滚动偏移: {_projectionScrollViewer.VerticalOffset:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
-                }
-                #endif
+                //#if DEBUG
+                //if (shouldDebug)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动比例: {scrollRatio:P2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 计算滚动偏移: {projScrollOffset:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际滚动偏移: {_projectionScrollViewer.VerticalOffset:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                //}
+                //#endif
             });
         }
         
@@ -1858,12 +1858,12 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
                 sw.Stop();
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message} (耗时: {sw.ElapsedMilliseconds}ms)");
-                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 堆栈: {ex.StackTrace}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 更新投影失败: {ex.Message} (耗时: {sw.ElapsedMilliseconds}ms)");
+                //System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 堆栈: {ex.StackTrace}");
+                //#else
                 _ = ex; // 避免未使用变量警告
-                #endif
+                //#endif
             }
         }
 

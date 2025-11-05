@@ -54,9 +54,9 @@ namespace ImageColorChanger.UI
             // 如果正在选择颜色，不要关闭窗口
             if (_isSelectingColor)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 窗口失去焦点，但正在选择颜色，不关闭");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 窗口失去焦点，但正在选择颜色，不关闭");
+                //#endif
                 return;
             }
             
@@ -76,10 +76,10 @@ namespace ImageColorChanger.UI
                 _configManager.BibleSettingsWindowLeft = this.Left;
                 _configManager.BibleSettingsWindowTop = this.Top;
                 
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 窗口拖动后位置: Left={this.Left}, Top={this.Top}");
-                Debug.WriteLine($"[圣经设置] 位置已保存到配置");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 窗口拖动后位置: Left={this.Left}, Top={this.Top}");
+                //Debug.WriteLine($"[圣经设置] 位置已保存到配置");
+                //#endif
             }
         }
 
@@ -95,9 +95,9 @@ namespace ImageColorChanger.UI
                 
                 if (string.IsNullOrEmpty(json))
                 {
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 未找到 fonts-simplified.json，使用系统默认字体");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 未找到 fonts-simplified.json，使用系统默认字体");
+                    //#endif
                     LoadDefaultFonts();
                     return;
                 }
@@ -110,9 +110,9 @@ namespace ImageColorChanger.UI
 
                 if (config == null || config.FontCategories == null || config.FontCategories.Count == 0)
                 {
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] fonts-simplified.json 配置为空，使用系统默认字体");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] fonts-simplified.json 配置为空，使用系统默认字体");
+                    //#endif
                     LoadDefaultFonts();
                     return;
                 }
@@ -150,15 +150,15 @@ namespace ImageColorChanger.UI
                     }
                 }
 
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 加载了 {totalFonts} 个字体");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 加载了 {totalFonts} 个字体");
+                //#endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 加载字体失败: {ex.Message}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 加载字体失败: {ex.Message}");
+                //#endif
                 LoadDefaultFonts();
             }
         }
@@ -206,14 +206,14 @@ namespace ImageColorChanger.UI
             _isLoading = true; // 开始加载，禁止保存
             try
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 开始加载设置");
-                Debug.WriteLine($"[圣经设置] 译本: {_configManager.BibleVersion}");
-                Debug.WriteLine($"[圣经设置] 字体: {_configManager.BibleFontFamily}");
-                Debug.WriteLine($"[圣经设置] 字号: {_configManager.BibleFontSize}");
-                Debug.WriteLine($"[圣经设置] 行距: {_configManager.BibleLineHeight}");
-                Debug.WriteLine($"[圣经设置] 边距: {_configManager.BibleMargin}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 开始加载设置");
+                //Debug.WriteLine($"[圣经设置] 译本: {_configManager.BibleVersion}");
+                //Debug.WriteLine($"[圣经设置] 字体: {_configManager.BibleFontFamily}");
+                //Debug.WriteLine($"[圣经设置] 字号: {_configManager.BibleFontSize}");
+                //Debug.WriteLine($"[圣经设置] 行距: {_configManager.BibleLineHeight}");
+                //Debug.WriteLine($"[圣经设置] 边距: {_configManager.BibleMargin}");
+                //#endif
 
                 // 译本
                 if (CmbBibleVersion != null)
@@ -268,16 +268,16 @@ namespace ImageColorChanger.UI
                     UpdateColorPreview(BorderHighlightColor, _configManager.BibleHighlightColor);
                 }
 
-                #if DEBUG
-                Debug.WriteLine("[圣经设置] 已加载当前设置");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine("[圣经设置] 已加载当前设置");
+                //#endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 加载设置失败: {ex.Message}");
-                Debug.WriteLine($"[圣经设置] 堆栈: {ex.StackTrace}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 加载设置失败: {ex.Message}");
+                //Debug.WriteLine($"[圣经设置] 堆栈: {ex.StackTrace}");
+                //#endif
             }
             finally
             {
@@ -362,21 +362,21 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ColorButton_Click(object sender, MouseButtonEventArgs e)
         {
-            #if DEBUG
-            Debug.WriteLine($"[圣经设置] 颜色块点击事件触发");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经设置] 颜色块点击事件触发");
+            //#endif
             
             if (sender is not System.Windows.Controls.Border border)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] sender 不是 Border，类型: {sender?.GetType().Name}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] sender 不是 Border，类型: {sender?.GetType().Name}");
+                //#endif
                 return;
             }
 
-            #if DEBUG
-            Debug.WriteLine($"[圣经设置] Border 名称: {border.Name}, 当前颜色: {border.Background}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经设置] Border 名称: {border.Name}, 当前颜色: {border.Background}");
+            //#endif
 
             // 获取当前颜色
             WpfColor currentColor;
@@ -387,22 +387,22 @@ namespace ImageColorChanger.UI
                 _colorDialog.Color = System.Drawing.Color.FromArgb(
                     currentColor.A, currentColor.R, currentColor.G, currentColor.B);
                 
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 准备打开颜色对话框，当前颜色: #{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 准备打开颜色对话框，当前颜色: #{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}");
+                //#endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 获取当前颜色失败: {ex.Message}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 获取当前颜色失败: {ex.Message}");
+                //#endif
                 _colorDialog.Color = System.Drawing.Color.White;
             }
 
             // 打开颜色选择器（需要设置 Owner 为当前 WPF 窗口）
-            #if DEBUG
-            Debug.WriteLine($"[圣经设置] 准备打开颜色对话框");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经设置] 准备打开颜色对话框");
+            //#endif
             
             // 设置标志，防止窗口在选择颜色时自动关闭
             _isSelectingColor = true;
@@ -423,19 +423,19 @@ namespace ImageColorChanger.UI
                 var owner = new System.Windows.Forms.NativeWindow();
                 owner.AssignHandle(hwnd);
                 
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 开始调用 ColorDialog.ShowDialog(owner)");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 开始调用 ColorDialog.ShowDialog(owner)");
+                //#endif
                 
                 result = _colorDialog.ShowDialog(owner);
                 
                 owner.ReleaseHandle();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] ShowDialog() 异常: {ex.Message}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] ShowDialog() 异常: {ex.Message}");
+                //#endif
                 // 如果设置 Owner 失败，尝试不带 Owner 调用
                 result = _colorDialog.ShowDialog();
             }
@@ -445,9 +445,9 @@ namespace ImageColorChanger.UI
                 _isSelectingColor = false;
             }
             
-            #if DEBUG
-            Debug.WriteLine($"[圣经设置] ShowDialog() 返回: {result}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经设置] ShowDialog() 返回: {result}");
+            //#endif
             
             if (result == System.Windows.Forms.DialogResult.OK)
             {
@@ -455,9 +455,9 @@ namespace ImageColorChanger.UI
                 var wpfColor = WpfColor.FromArgb(color.A, color.R, color.G, color.B);
                 border.Background = new System.Windows.Media.SolidColorBrush(wpfColor);
 
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 选择颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 选择颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
+                //#endif
 
                 // 实时保存颜色设置
                 SaveSettings();
@@ -481,17 +481,17 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                #if DEBUG
-                Debug.WriteLine("[圣经设置] 开始保存设置...");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine("[圣经设置] 开始保存设置...");
+                //#endif
 
                 // 保存译本
                 if (CmbBibleVersion != null && !string.IsNullOrEmpty(CmbBibleVersion.Text))
                 {
                     _configManager.BibleVersion = CmbBibleVersion.Text;
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存译本: {CmbBibleVersion.Text}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存译本: {CmbBibleVersion.Text}");
+                    //#endif
                 }
 
                 // 保存字体（保存FontFamily）
@@ -499,9 +499,9 @@ namespace ImageColorChanger.UI
                     selectedFontItem.Tag is CustomFont selectedFont)
                 {
                     _configManager.BibleFontFamily = selectedFont.Family;
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存字体: {selectedFont.Family}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存字体: {selectedFont.Family}");
+                    //#endif
                 }
 
                 // 保存字号（经文和节号）
@@ -512,95 +512,95 @@ namespace ImageColorChanger.UI
                     _configManager.BibleTitleFontSize = fontSize * 1.333; // 标题 = 字号 × 1.333
                     _configManager.BibleVerseNumberFontSize = fontSize; // 节号 = 经文字号
 
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存字号: 经文={fontSize}, 标题={fontSize * 1.333}, 节号={fontSize}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存字号: 经文={fontSize}, 标题={fontSize * 1.333}, 节号={fontSize}");
+                    //#endif
                 }
 
                 // 保存边距
                 if (CmbMargin != null && CmbMargin.SelectedItem is System.Windows.Controls.ComboBoxItem marginItem)
                 {
                     _configManager.BibleMargin = double.Parse(marginItem.Content.ToString());
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存边距: {marginItem.Content}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存边距: {marginItem.Content}");
+                    //#endif
                 }
 
                 // 保存节间距
                 if (CmbVerseSpacing != null && CmbVerseSpacing.SelectedItem is System.Windows.Controls.ComboBoxItem spacingItem)
                 {
                     _configManager.BibleVerseSpacing = double.Parse(spacingItem.Content.ToString());
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存节间距: {spacingItem.Content}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存节间距: {spacingItem.Content}");
+                    //#endif
                 }
 
                 // 保存颜色
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] 开始保存颜色...");
-                Debug.WriteLine($"[圣经设置] BorderBackgroundColor is null: {BorderBackgroundColor == null}");
-                if (BorderBackgroundColor != null)
-                    Debug.WriteLine($"[圣经设置] BorderBackgroundColor.Background is null: {BorderBackgroundColor.Background == null}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 开始保存颜色...");
+                //Debug.WriteLine($"[圣经设置] BorderBackgroundColor is null: {BorderBackgroundColor == null}");
+                //if (BorderBackgroundColor != null)
+                //    Debug.WriteLine($"[圣经设置] BorderBackgroundColor.Background is null: {BorderBackgroundColor.Background == null}");
+                //#endif
 
                 if (BorderBackgroundColor != null && BorderBackgroundColor.Background != null)
                 {
                     _configManager.BibleBackgroundColor = ColorToHex(BorderBackgroundColor.Background);
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存背景色: {_configManager.BibleBackgroundColor}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存背景色: {_configManager.BibleBackgroundColor}");
+                    //#endif
                 }
                 
                 if (BorderTextColor != null && BorderTextColor.Background != null)
                 {
                     _configManager.BibleTextColor = ColorToHex(BorderTextColor.Background);
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存经文色: {_configManager.BibleTextColor}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存经文色: {_configManager.BibleTextColor}");
+                    //#endif
                 }
                 
                 if (BorderTitleColor != null && BorderTitleColor.Background != null)
                 {
                     _configManager.BibleTitleColor = ColorToHex(BorderTitleColor.Background);
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存标题色: {_configManager.BibleTitleColor}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存标题色: {_configManager.BibleTitleColor}");
+                    //#endif
                 }
                 
                 if (BorderVerseNumberColor != null && BorderVerseNumberColor.Background != null)
                 {
                     _configManager.BibleVerseNumberColor = ColorToHex(BorderVerseNumberColor.Background);
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存节号色: {_configManager.BibleVerseNumberColor}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存节号色: {_configManager.BibleVerseNumberColor}");
+                    //#endif
                 }
                 
                 if (BorderHighlightColor != null && BorderHighlightColor.Background != null)
                 {
                     _configManager.BibleHighlightColor = ColorToHex(BorderHighlightColor.Background);
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经设置] 保存选中色: {_configManager.BibleHighlightColor}");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经设置] 保存选中色: {_configManager.BibleHighlightColor}");
+                    //#endif
                 }
 
-                #if DEBUG
-                Debug.WriteLine("[圣经设置] 设置已实时保存");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine("[圣经设置] 设置已实时保存");
+                //#endif
 
                 // 通知主窗口设置已改变，立即应用
                 _onSettingsChanged?.Invoke();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                Debug.WriteLine($"[圣经设置] ❌ 保存设置失败: {ex.Message}");
-                Debug.WriteLine($"[圣经设置] 错误类型: {ex.GetType().Name}");
-                Debug.WriteLine($"[圣经设置] 错误堆栈: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Debug.WriteLine($"[圣经设置] 内部异常: {ex.InnerException.Message}");
-                }
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] ❌ 保存设置失败: {ex.Message}");
+                //Debug.WriteLine($"[圣经设置] 错误类型: {ex.GetType().Name}");
+                //Debug.WriteLine($"[圣经设置] 错误堆栈: {ex.StackTrace}");
+                //if (ex.InnerException != null)
+                //{
+                //    Debug.WriteLine($"[圣经设置] 内部异常: {ex.InnerException.Message}");
+                //}
+                //#endif
             }
         }
 
@@ -657,9 +657,9 @@ namespace ImageColorChanger.UI
             // 标记事件已处理，防止滚动传递到父控件
             e.Handled = true;
 
-            #if DEBUG
-            Debug.WriteLine($"[圣经设置] {comboBox.Name} 滚轮切换: 索引 {currentIndex} -> {comboBox.SelectedIndex}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经设置] {comboBox.Name} 滚轮切换: 索引 {currentIndex} -> {comboBox.SelectedIndex}");
+            //#endif
         }
     }
 }

@@ -30,10 +30,10 @@ namespace ImageColorChanger.Services.Implementations
                 AppDomain.CurrentDomain.BaseDirectory,
                 "data", "assets", "bible.db");
 
-            #if DEBUG
-            Debug.WriteLine($"[圣经服务] 数据库路径: {_databasePath}");
-            Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_databasePath)}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经服务] 数据库路径: {_databasePath}");
+            //Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_databasePath)}");
+            //#endif
         }
 
         /// <summary>
@@ -385,9 +385,9 @@ namespace ImageColorChanger.Services.Implementations
                 using var context = CreateDbContext();
                 var count = await context.Bible.CountAsync();
 
-                #if DEBUG
-                Debug.WriteLine($"[圣经服务] 数据库可用，经文数: {count}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经服务] 数据库可用，经文数: {count}");
+                //#endif
 
                 return count > 0;
             }
