@@ -97,10 +97,6 @@ namespace ImageColorChanger.Managers
         // ⚡ 共享渲染缓存
         private BitmapSource _lastSharedBitmap = null;
         
-        // 📊 共享渲染验证计数
-        #if DEBUG
-        private int _scrollVerifyCount = 0;
-        #endif
         
         // 🔒 投影时间限制（未登录状态）
         private DateTime? _projectionStartTime;
