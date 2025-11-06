@@ -39,6 +39,7 @@ namespace ImageColorChanger.UI
         private int _currentChapter = 1;    // 当前章节
         private int _currentVerse = 1;      // 当前节号
         private bool _isBibleMode = false;  // 是否处于圣经模式
+        private bool _bibleNavigationInitialized = false;  // 圣经导航是否已初始化（用于保留用户选择状态）
         private ObservableCollection<BibleHistoryItem> _historySlots = new ObservableCollection<BibleHistoryItem>(); // 20个历史槽位
         
         // 拼音快速定位功能
@@ -195,12 +196,36 @@ namespace ImageColorChanger.UI
         #region 圣经视图切换
 
         /// <summary>
+        /// 重置圣经导航状态（清空所有选择和经文显示）
+        /// </summary>
+        public void ResetBibleNavigation()
+        {
+            _bibleNavigationInitialized = false;
+            
+            // 清空所有下拉框选择
+            BibleCategoryList.SelectedIndex = -1;
+            BibleBookList.ItemsSource = null;
+            BibleChapterList.ItemsSource = null;
+            BibleStartVerse.ItemsSource = null;
+            BibleEndVerse.ItemsSource = null;
+            
+            // 清空经文显示
+            BibleVerseList.ItemsSource = null;
+            BibleChapterTitle.Text = "";
+            
+            //#if DEBUG
+            //Debug.WriteLine("[圣经] 导航状态已重置");
+            //#endif
+        }
+
+        /// <summary>
         /// 圣经按钮点击事件
         /// </summary>
         private async void BtnShowBible_Click(object sender, RoutedEventArgs e)
         {
             //#if DEBUG
             //Debug.WriteLine($"[圣经] 切换到圣经视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
+            //Debug.WriteLine($"[圣经] 导航已初始化: {_bibleNavigationInitialized}");
             //#endif
 
             _isBibleMode = true;
@@ -253,12 +278,27 @@ namespace ImageColorChanger.UI
             
             // 初始化拼音快速定位服务
             InitializePinyinService();
-
+            
             // 显示圣经视图区域，隐藏其他区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
             TextEditorPanel.Visibility = Visibility.Collapsed;
             BibleDisplayContainer.Visibility = Visibility.Visible;
+            
+            // 🔧 确保 BibleVerseScrollViewer 可见（关键修复！）
+            BibleVerseScrollViewer.Visibility = Visibility.Visible;
+            
+            // 🔧 如果有经文内容，确保列表可见
+            if (BibleVerseList.ItemsSource != null && 
+                BibleVerseList.ItemsSource is System.Collections.IEnumerable enumerable &&
+                enumerable.Cast<object>().Any())
+            {
+                BibleVerseList.Visibility = Visibility.Visible;
+                
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经] 恢复经文显示，共 {BibleVerseList.Items.Count} 项");
+                //#endif
+            }
 
             //#if DEBUG
             //Debug.WriteLine($"[圣经] 圣经视图已显示, ImageScroll={ImageScrollViewer.Visibility}, BibleVerse={BibleVerseScrollViewer.Visibility}");
@@ -312,6 +352,7 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 加载圣经导航数据（历史记录 + 经文表格）
+        /// 🔧 优化：只在首次加载时初始化，后续切换回来时保留用户选择状态
         /// </summary>
         private Task LoadBibleNavigationDataAsync()
         {
@@ -321,34 +362,47 @@ namespace ImageColorChanger.UI
                 var sw = Stopwatch.StartNew();
                 #endif
 
-                // 初始化20个历史槽位
-                InitializeHistorySlots();
-                BibleHistoryList.ItemsSource = _historySlots;
-
-                // 加载第1列:分类列表(用户要求的10个准确分类)
-                var categories = new ObservableCollection<string>
+                // 🔧 只在首次加载时初始化
+                if (!_bibleNavigationInitialized)
                 {
-                    "旧约",          // 旧约全部39卷
-                    "新约",          // 新约全部27卷
-                    "摩西五经",      // 创-申 (5卷)
-                    "旧约历史",      // 书-斯 (12卷)
-                    "诗歌智慧",      // 伯-歌 (5卷)
-                    "大先知书",      // 赛-但 (5卷)
-                    "小先知书",      // 何-玛 (12卷)
-                    "福音使徒",      // 太-徒 (5卷:四福音+使徒行传)
-                    "保罗书信",      // 罗-门 (13卷)
-                    "普通书信"       // 来-启 (9卷:8封普通书信+启示录)
-                };
+                    // 初始化20个历史槽位
+                    InitializeHistorySlots();
+                    BibleHistoryList.ItemsSource = _historySlots;
 
-                BibleCategoryList.ItemsSource = categories;
+                    // 加载第1列:分类列表(用户要求的10个准确分类)
+                    var categories = new ObservableCollection<string>
+                    {
+                        "旧约",          // 旧约全部39卷
+                        "新约",          // 新约全部27卷
+                        "摩西五经",      // 创-申 (5卷)
+                        "旧约历史",      // 书-斯 (12卷)
+                        "诗歌智慧",      // 伯-歌 (5卷)
+                        "大先知书",      // 赛-但 (5卷)
+                        "小先知书",      // 何-玛 (12卷)
+                        "福音使徒",      // 太-徒 (5卷:四福音+使徒行传)
+                        "保罗书信",      // 罗-门 (13卷)
+                        "普通书信"       // 来-启 (9卷:8封普通书信+启示录)
+                    };
 
-                // 默认选中"旧约"
-                BibleCategoryList.SelectedIndex = 0;
+                    BibleCategoryList.ItemsSource = categories;
 
-                //#if DEBUG
-                //sw.Stop();
-                //Debug.WriteLine($"[圣经] 导航数据加载完成: {sw.ElapsedMilliseconds}ms, 分类数: {categories.Count}");
-                //#endif
+                    // 默认选中"旧约"
+                    BibleCategoryList.SelectedIndex = 0;
+                    
+                    // 标记已初始化
+                    _bibleNavigationInitialized = true;
+
+                    //#if DEBUG
+                    //sw.Stop();
+                    //Debug.WriteLine($"[圣经] 导航数据首次加载完成: {sw.ElapsedMilliseconds}ms, 分类数: {categories.Count}");
+                    //#endif
+                }
+                else
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经] 导航数据已初始化，保留用户选择状态");
+                    //#endif
+                }
 
                 return Task.CompletedTask;
             }

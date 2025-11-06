@@ -93,9 +93,9 @@
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
                            Margin="0,8,0,0">
-                    <Run Text="年费用：98元/1台电脑授权，每增加1台电脑+10元"/>
+                    <Run Text="小团队年费:168元/3台电脑授权，大团队年费:278元/7台电脑授权"/>
                 </TextBlock>
-                <TextBlock Text="扫描下方二维码联系客服或付款支持" 
+                <TextBlock Text="扫描下方二维码联系咨询" 
                            FontSize="13" 
                            Foreground="#B3E5FC"
                            HorizontalAlignment="Center"
