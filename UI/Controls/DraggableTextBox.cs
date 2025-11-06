@@ -551,6 +551,10 @@ namespace ImageColorChanger.UI.Controls
                 Data.Height = newHeight;
             }
 
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📐 [TextBox] 调整大小: {Data.Width}×{Data.Height}, IsSelected={IsSelected}, 背景={_border.Background}");
+            //#endif
+
             // 触发尺寸改变事件
             SizeChanged?.Invoke(this, new WpfSize(Data.Width, Data.Height));
         }
@@ -574,12 +578,20 @@ namespace ImageColorChanger.UI.Controls
         {
             IsSelected = selected;
             
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📋 [TextBox] SetSelected={selected}, 当前背景={_border.Background}");
+            //#endif
+            
             if (selected)
             {
                 // 选中时：显示虚线边框和淡蓝色半透明背景
                 _selectionRect.Visibility = System.Windows.Visibility.Visible;
                 _border.Background = new WpfSolidColorBrush(WpfColor.FromArgb(20, 33, 150, 243));
                 _resizeThumb.Visibility = System.Windows.Visibility.Visible;
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [TextBox] 已设置选中背景: {_border.Background}");
+                //#endif
             }
             else
             {
@@ -587,6 +599,10 @@ namespace ImageColorChanger.UI.Controls
                 _selectionRect.Visibility = System.Windows.Visibility.Collapsed;
                 _border.Background = WpfBrushes.Transparent;
                 _resizeThumb.Visibility = System.Windows.Visibility.Collapsed;
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 [TextBox] 已设置透明背景: {_border.Background}");
+                //#endif
             }
 
             SelectionChanged?.Invoke(this, selected);
@@ -766,6 +782,7 @@ namespace ImageColorChanger.UI.Controls
             if (_border != null)
             {
                 _border.BorderBrush = WpfBrushes.Transparent;
+                _border.Background = WpfBrushes.Transparent;  // 🔧 关键：确保背景完全透明
             }
             if (_selectionRect != null)
             {
@@ -780,6 +797,10 @@ namespace ImageColorChanger.UI.Controls
             {
                 System.Windows.Input.Keyboard.ClearFocus();
             }
+            
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [TextBox] HideDecorations - 背景已设置为透明: {_border.Background}");
+            //#endif
         }
 
         /// <summary>
