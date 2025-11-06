@@ -488,21 +488,21 @@ namespace ImageColorChanger.Managers
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
-#if DEBUG
-                    double mainScrollableHeight = bibleScrollViewer.ScrollableHeight;
-                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
-                    double mainViewportHeight = bibleScrollViewer.ViewportHeight;
-                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
-                    // mainExtentHeight 和 projExtentHeight 已在上面定义，不重复定义
-                    
-                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
-                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
-                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
-                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
-#endif
+//#if DEBUG
+//                    double mainScrollableHeight = bibleScrollViewer.ScrollableHeight;
+//                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+//                    double mainViewportHeight = bibleScrollViewer.ViewportHeight;
+//                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
+//                    // mainExtentHeight 和 projExtentHeight 已在上面定义，不重复定义
+//                    
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [圣经投影] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 [圣经投影] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+//#endif
                 });
             }
             catch (Exception)
@@ -567,33 +567,33 @@ namespace ImageColorChanger.Managers
                         
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
 
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸后ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸比例: {containerWidth / renderedTextImage.Width:F4}");
-                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸模式: {_projectionImageControl.Stretch}");
-                        
-                        // 🔍 DPI相关调试信息
-                        var presentationSource = PresentationSource.FromVisual(_projectionWindow);
-                        if (presentationSource?.CompositionTarget != null)
-                        {
-                            double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
-                            double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 投影窗口DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2} (1.0=96DPI, 1.25=120DPI, 1.5=144DPI)");
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 实际物理像素: {containerWidth * dpiScaleX:F0}x{containerHeight * dpiScaleY:F0}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 无法获取DPI信息");
-                        }
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸后ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸比例: {containerWidth / renderedTextImage.Width:F4}");
+//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸模式: {_projectionImageControl.Stretch}");
+//                        
+//                        // 🔍 DPI相关调试信息
+//                        var presentationSource = PresentationSource.FromVisual(_projectionWindow);
+//                        if (presentationSource?.CompositionTarget != null)
+//                        {
+//                            double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
+//                            double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 投影窗口DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2} (1.0=96DPI, 1.25=120DPI, 1.5=144DPI)");
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 实际物理像素: {containerWidth * dpiScaleX:F0}x{containerHeight * dpiScaleY:F0}");
+//                        }
+//                        else
+//                        {
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 无法获取DPI信息");
+//                        }
+//#endif
                         
                         // 🔧 设置容器高度：使用拉伸后的高度
                         if (_projectionContainer != null)
@@ -601,16 +601,16 @@ namespace ImageColorChanger.Managers
                             // 圣经/歌词投影：容器高度 = 拉伸后的图片高度
                             _projectionContainer.Height = _projectionImageControl.Height;
                             _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (拉伸后)");
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 原始图片高度: {renderedTextImage.Height}");
-                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 高度缩放比例: {_projectionImageControl.Height / renderedTextImage.Height:F4}");
-#endif
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (拉伸后)");
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 原始图片高度: {renderedTextImage.Height}");
+//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 高度缩放比例: {_projectionImageControl.Height / renderedTextImage.Height:F4}");
+//#endif
                         }
 
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//#endif
                     }
                 });
             }
@@ -1372,12 +1372,12 @@ namespace ImageColorChanger.Managers
                 var screen = _screens[selectedIndex];
                 _currentScreenIndex = selectedIndex;
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 选择的屏幕: 索引={selectedIndex}, 是否主屏={screen.Primary}");
-                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕分辨率: {screen.Bounds.Width}x{screen.Bounds.Height}");
-                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
-                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 工作区域: {screen.WorkingArea.Width}x{screen.WorkingArea.Height}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 选择的屏幕: 索引={selectedIndex}, 是否主屏={screen.Primary}");
+//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕分辨率: {screen.Bounds.Width}x{screen.Bounds.Height}");
+//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
+//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 工作区域: {screen.WorkingArea.Width}x{screen.WorkingArea.Height}");
+//#endif
 
                 // 检查是否是主显示器
                 if (screen.Primary)
@@ -1392,10 +1392,10 @@ namespace ImageColorChanger.Managers
                 // 创建投影窗口
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 尺寸: {screen.Bounds.Width}x{screen.Bounds.Height}");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 尺寸: {screen.Bounds.Width}x{screen.Bounds.Height}");
+//#endif
                     
                     _projectionWindow = new Window
                     {
@@ -1559,38 +1559,38 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Left = screen.Bounds.Left;
                     _projectionWindow.Top = screen.Bounds.Top;
                     
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
-                    
-                    // 检测DPI
-                    var presentationSource = PresentationSource.FromVisual(_projectionWindow);
-                    if (presentationSource?.CompositionTarget != null)
-                    {
-                        double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
-                        double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
-                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2}");
-                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 逻辑DPI: X={96 * dpiScaleX:F0}, Y={96 * dpiScaleY:F0}");
-                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 物理像素: {_projectionWindow.ActualWidth * dpiScaleX:F0}x{_projectionWindow.ActualHeight * dpiScaleY:F0}");
-                    }
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+//                    
+//                    // 检测DPI
+//                    var presentationSource = PresentationSource.FromVisual(_projectionWindow);
+//                    if (presentationSource?.CompositionTarget != null)
+//                    {
+//                        double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
+//                        double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
+//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2}");
+//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 逻辑DPI: X={96 * dpiScaleX:F0}, Y={96 * dpiScaleY:F0}");
+//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 物理像素: {_projectionWindow.ActualWidth * dpiScaleX:F0}x{_projectionWindow.ActualHeight * dpiScaleY:F0}");
+//                    }
+//#endif
                     
                     // 最大化到指定屏幕
                     _projectionWindow.WindowState = WindowState.Maximized;
                     
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口状态: State={_projectionWindow.WindowState}");
-                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口状态: State={_projectionWindow.WindowState}");
+//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+//#endif
                     
                     // 确保窗口可以接收键盘焦点
                     _projectionWindow.Focusable = true;
                     _projectionWindow.Focus();
                     _projectionWindow.Activate();
                     
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("✅ [投影窗口显示] 投影窗口已激活并获取焦点");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine("✅ [投影窗口显示] 投影窗口已激活并获取焦点");
+//#endif
 
                     // 🔧 从主窗口同步当前状态到投影（解决打开投影时图片为空的问题）
                     // 🎤 但如果处于歌词模式，跳过图片同步，避免显示图片
