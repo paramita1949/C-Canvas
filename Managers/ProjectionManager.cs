@@ -1220,6 +1220,19 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
+        /// 获取当前投影显示器的物理像素分辨率（用于高质量渲染）
+        /// </summary>
+        public (int width, int height) GetCurrentProjectionPhysicalSize()
+        {
+            if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
+            {
+                var screen = _screens[_currentScreenIndex];
+                return (screen.Bounds.Width, screen.Bounds.Height);
+            }
+            return (1920, 1080);
+        }
+        
+        /// <summary>
         /// 获取当前投影显示器的分辨率（WPF设备独立单位）
         /// 🔧 修复：Screen.Bounds返回物理像素，需要转换为WPF的DIU（设备独立单位）
         /// </summary>
@@ -1255,14 +1268,14 @@ namespace ImageColorChanger.Managers
                 int width = (int)(screen.Bounds.Width / dpiScaleX);
                 int height = (int)(screen.Bounds.Height / dpiScaleY);
                 
-                #if DEBUG
-                if (dpiScaleX != 1.0 || dpiScaleY != 1.0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] 物理像素: {screen.Bounds.Width}×{screen.Bounds.Height}");
-                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] DPI缩放: {dpiScaleX:F2}×{dpiScaleY:F2}");
-                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] WPF单位: {width}×{height}");
-                }
-                #endif
+                //#if DEBUG
+                //if (dpiScaleX != 1.0 || dpiScaleY != 1.0)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] 物理像素: {screen.Bounds.Width}×{screen.Bounds.Height}");
+                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] DPI缩放: {dpiScaleX:F2}×{dpiScaleY:F2}");
+                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] WPF单位: {width}×{height}");
+                //}
+                //#endif
                 
                 return (width, height);
             }

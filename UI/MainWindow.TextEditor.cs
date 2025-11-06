@@ -56,6 +56,8 @@ namespace ImageColorChanger.UI
         // 🚀 渲染节流（避免过于频繁的更新）
         private DateTime _lastCanvasUpdateTime = DateTime.MinValue;
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
+        
+        // 🔍 PAK字体列表输出标记（仅输出一次）
 
         #endregion
 
@@ -2820,18 +2822,22 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 生成Canvas渲染缓存键（基于所有区域图片路径和文本框内容）
+        /// 生成Canvas渲染缓存键（基于所有区域图片路径、文本框内容、背景色和背景图）
         /// </summary>
         private string GenerateCanvasCacheKey()
         {
             // 图片路径部分
             var imagePart = string.Join("|", _regionImagePaths.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"));
             
-            // 文本框内容部分（包括内容、位置、样式）
+            // 文本框内容部分（包括内容、位置、尺寸、样式等所有影响渲染的属性）
             var textPart = string.Join("|", _textBoxes.Select(tb => 
-                $"{tb.Data.Content}_{tb.Data.X}_{tb.Data.Y}_{tb.Data.FontSize}_{tb.Data.FontFamily}_{tb.Data.FontColor}"));
+                $"{tb.Data.Content}_{tb.Data.X}_{tb.Data.Y}_{tb.Data.Width}_{tb.Data.Height}_{tb.Data.FontSize}_{tb.Data.FontFamily}_{tb.Data.FontColor}_{tb.Data.IsBold}_{tb.Data.TextAlign}_{tb.Data.ZIndex}"));
             
-            return $"{imagePart}#{textPart}#{_currentSlide?.SplitMode}#{_splitStretchMode}";
+            // 🎨 背景色和背景图部分（确保背景变化时缓存失效）
+            var bgColor = _currentSlide?.BackgroundColor ?? "";
+            var bgImage = _currentSlide?.BackgroundImagePath ?? "";
+            
+            return $"{imagePart}#{textPart}#{_currentSlide?.SplitMode}#{_splitStretchMode}#{bgColor}#{bgImage}";
         }
         
         /// <summary>
@@ -2868,9 +2874,9 @@ namespace ImageColorChanger.UI
             var now = DateTime.Now;
             if ((now - _lastCanvasUpdateTime).TotalMilliseconds < CanvasUpdateThrottleMs)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 节流跳过 (距上次 {(now - _lastCanvasUpdateTime).TotalMilliseconds:F0}ms)");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 节流跳过 (距上次 {(now - _lastCanvasUpdateTime).TotalMilliseconds:F0}ms)");
+                //#endif
                 return;
             }
             _lastCanvasUpdateTime = now;
@@ -2879,17 +2885,17 @@ namespace ImageColorChanger.UI
             string cacheKey = GenerateCanvasCacheKey();
             if (cacheKey == _lastCanvasCacheKey && _lastCanvasRenderCache != null)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 缓存命中，直接复用");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 缓存命中，直接复用");
+                //#endif
                 _projectionManager.UpdateProjectionText(_lastCanvasRenderCache);
                 return;
             }
             
-            #if DEBUG
-            var totalSw = System.Diagnostics.Stopwatch.StartNew();
-            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缓存未命中，开始完整渲染");
-            #endif
+            //#if DEBUG
+            //var totalSw = System.Diagnostics.Stopwatch.StartNew();
+            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缓存未命中，开始完整渲染");
+            //#endif
 
             // 🔧 保存辅助线的可见性状态
             var guidesVisibility = AlignmentGuidesCanvas.Visibility;
@@ -2914,69 +2920,58 @@ namespace ImageColorChanger.UI
                     return;
                 }
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 尺寸: {EditorCanvas.ActualWidth}×{EditorCanvas.ActualHeight}");
-                System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 子元素数量: {EditorCanvas.Children.Count}");
-                System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 区域图片: {_regionImages.Count}");
-                System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 文本框: {_textBoxes.Count}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 尺寸: {EditorCanvas.ActualWidth}×{EditorCanvas.ActualHeight}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 子元素数量: {EditorCanvas.Children.Count}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 区域图片: {_regionImages.Count}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [Canvas信息] 文本框: {_textBoxes.Count}");
+                //#endif
                 
                 // 🚀 新方案：直接用SkiaSharp合成Canvas，完全跳过RenderTargetBitmap！
-                #if DEBUG
-                var composeSw = System.Diagnostics.Stopwatch.StartNew();
-                #endif
+                // 2. 🚀 直接按投影物理像素分辨率合成Canvas内容（最高质量，避免二次缩放）
+                //#if DEBUG
+                //var composeSw = System.Diagnostics.Stopwatch.StartNew();
+                //#endif
                 
-                var canvasImage = ComposeCanvasWithSkia();
+                // 🎯 使用物理像素分辨率（而非WPF单位），获得最高质量
+                var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
                 
-                #if DEBUG
-                composeSw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ComposeCanvasWithSkia: {composeSw.ElapsedMilliseconds}ms ({canvasImage.Width}×{canvasImage.Height})");
-                #endif
-                
-                // 3. 使用GPU缩放到投影分辨率（快速）
-                #if DEBUG
-                var scaleSw = System.Diagnostics.Stopwatch.StartNew();
-                #endif
-                
-                var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionSize() ?? (1920, 1080);
-                var finalImage = ScaleImageForProjection(canvasImage, projWidth, projHeight);
-                canvasImage.Dispose(); // 释放中间位图
-                
-                #if DEBUG
-                scaleSw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ScaleImageForProjection (GPU): {scaleSw.ElapsedMilliseconds}ms ({finalImage.Width}×{finalImage.Height})");
-                #endif
+                //#if DEBUG
+                //composeSw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ComposeCanvasWithSkia (物理像素分辨率): {composeSw.ElapsedMilliseconds}ms ({finalImage.Width}×{finalImage.Height})");
+                //#endif
 
                 // 4. 更新投影（使用专用的文字投影方法，语义清晰）
-                #if DEBUG
-                var updateSw = System.Diagnostics.Stopwatch.StartNew();
-                #endif
+                //#if DEBUG
+                //var updateSw = System.Diagnostics.Stopwatch.StartNew();
+                //#endif
                 
                 _projectionManager.UpdateProjectionText(finalImage);
                 
-                #if DEBUG
-                updateSw.Stop();
-                System.Diagnostics.Debug.WriteLine($"⏱️ [性能] UpdateProjectionText: {updateSw.ElapsedMilliseconds}ms");
-                #endif
+                //#if DEBUG
+                //updateSw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] UpdateProjectionText: {updateSw.ElapsedMilliseconds}ms");
+                //#endif
 
                 // 🚀 优化3：保存渲染结果到缓存
                 _lastCanvasRenderCache?.Dispose(); // 释放旧缓存
                 _lastCanvasRenderCache = finalImage;
                 _lastCanvasCacheKey = cacheKey;
 
-                #if DEBUG
-                totalSw.Stop();
-                System.Diagnostics.Debug.WriteLine($"✅ [性能] 总耗时: {totalSw.ElapsedMilliseconds}ms");
-                #endif
+                //#if DEBUG
+                //totalSw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"✅ [性能] 总耗时: {totalSw.ElapsedMilliseconds}ms");
+                //#endif
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 更新投影失败: {ex.Message}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 堆栈: {ex.StackTrace}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 更新投影失败: {ex.Message}");
+                //#endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [更新投影] 堆栈: {ex.StackTrace}");
+                //#endif
                 WpfMessageBox.Show($"更新投影失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -3003,63 +2998,177 @@ namespace ImageColorChanger.UI
         /// 使用SkiaSharp直接合成Canvas内容（跳过WPF的RenderTargetBitmap）
         /// 🚀 核心优化：直接访问Image控件的Source，避免WPF渲染管道
         /// </summary>
-        private SKBitmap ComposeCanvasWithSkia()
+        /// <param name="targetWidth">目标宽度（0表示使用Canvas实际宽度）</param>
+        /// <param name="targetHeight">目标高度（0表示使用Canvas实际高度）</param>
+        private SKBitmap ComposeCanvasWithSkia(int targetWidth = 0, int targetHeight = 0)
         {
-            int canvasWidth = (int)EditorCanvas.ActualWidth;
-            int canvasHeight = (int)EditorCanvas.ActualHeight;
+            // 编辑器画布的实际尺寸（用于计算缩放比例）
+            double canvasWidth = EditorCanvas.ActualWidth;
+            double canvasHeight = EditorCanvas.ActualHeight;
             
-            #if DEBUG
-            var createSw = System.Diagnostics.Stopwatch.StartNew();
-            #endif
+            // 如果没有指定目标尺寸，使用Canvas实际尺寸
+            if (targetWidth <= 0) targetWidth = (int)canvasWidth;
+            if (targetHeight <= 0) targetHeight = (int)canvasHeight;
             
-            // 创建SkiaSharp画布
-            var bitmap = new SKBitmap(canvasWidth, canvasHeight);
+            // 计算缩放比例
+            double scaleX = targetWidth / canvasWidth;
+            double scaleY = targetHeight / canvasHeight;
+            
+            //#if DEBUG
+            //var createSw = System.Diagnostics.Stopwatch.StartNew();
+            //System.Diagnostics.Debug.WriteLine($"  [Compose] 画布尺寸: 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
+            //#endif
+            
+            // 创建SkiaSharp画布（使用目标尺寸）
+            var bitmap = new SKBitmap(targetWidth, targetHeight);
             using (var canvas = new SKCanvas(bitmap))
             {
-                // 背景色（黑色）
-                canvas.Clear(SKColors.Black);
+                // 🎨 使用幻灯片设置的背景色
+                SKColor backgroundColor = SKColors.Black; // 默认黑色
+                if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundColor))
+                {
+                    try
+                    {
+                        // 解析十六进制颜色（如 #FFFFFF）
+                        string hexColor = _currentSlide.BackgroundColor.TrimStart('#');
+                        if (hexColor.Length == 6)
+                        {
+                            byte r = Convert.ToByte(hexColor.Substring(0, 2), 16);
+                            byte g = Convert.ToByte(hexColor.Substring(2, 2), 16);
+                            byte b = Convert.ToByte(hexColor.Substring(4, 2), 16);
+                            backgroundColor = new SKColor(r, g, b);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景色: {_currentSlide.BackgroundColor} -> RGB({r},{g},{b})");
+                            //#endif
+                        }
+                    }
+                    catch
+                    {
+                        // 解析失败，使用默认黑色
+                    }
+                }
                 
-                #if DEBUG
-                createSw.Stop();
-                System.Diagnostics.Debug.WriteLine($"  [Compose] 创建画布: {createSw.ElapsedMilliseconds}ms");
-                #endif
+                canvas.Clear(backgroundColor);
+                
+                // 🎨 应用缩放变换，一次性将所有内容缩放到目标尺寸
+                canvas.Scale((float)scaleX, (float)scaleY);
+                
+                //#if DEBUG
+                //createSw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"  [Compose] 创建画布: {createSw.ElapsedMilliseconds}ms");
+                //#endif
+                
+                // 🎨 绘制背景图（如果有）
+                if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) &&
+                    System.IO.File.Exists(_currentSlide.BackgroundImagePath))
+                {
+                    try
+                    {
+                        //#if DEBUG
+                        //var bgSw = System.Diagnostics.Stopwatch.StartNew();
+                        //#endif
+                        
+                        // 加载背景图
+                        var bgBitmap = SKBitmap.Decode(_currentSlide.BackgroundImagePath);
+                        if (bgBitmap != null)
+                        {
+                            // 绘制背景图，铺满整个画布
+                            var destRect = new SKRect(0, 0, (float)canvasWidth, (float)canvasHeight);
+                            var paint = new SKPaint
+                            {
+                                FilterQuality = SKFilterQuality.High,
+                                IsAntialias = true
+                            };
+                            canvas.DrawBitmap(bgBitmap, destRect, paint);
+                            paint.Dispose();
+                            bgBitmap.Dispose();
+                            
+                            //#if DEBUG
+                            //bgSw.Stop();
+                            //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景图绘制: {_currentSlide.BackgroundImagePath}, 耗时: {bgSw.ElapsedMilliseconds}ms");
+                            //#endif
+                        }
+                    }
+                    catch
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景图加载失败: {ex.Message}");
+                        //#endif
+                    }
+                }
                 
                 // 绘制所有区域图片
                 foreach (var kvp in _regionImages)
                 {
                     var imageControl = kvp.Value;
-                    if (imageControl?.Source is BitmapSource bitmapSource)
+                    int regionIndex = kvp.Key;
+                    
+                    //#if DEBUG
+                    //var imgSw = System.Diagnostics.Stopwatch.StartNew();
+                    //#endif
+                    
+                    // 获取Image控件的位置和尺寸
+                    double left = Canvas.GetLeft(imageControl);
+                    double top = Canvas.GetTop(imageControl);
+                    double width = imageControl.ActualWidth;
+                    double height = imageControl.ActualHeight;
+                    
+                    SKBitmap skBitmap = null;
+                    
+                    // 🎯 优先从原始文件加载高质量图片
+                    if (_regionImagePaths.ContainsKey(regionIndex) && 
+                        System.IO.File.Exists(_regionImagePaths[regionIndex]))
                     {
-                        #if DEBUG
-                        var imgSw = System.Diagnostics.Stopwatch.StartNew();
-                        #endif
+                        try
+                        {
+                            string imagePath = _regionImagePaths[regionIndex];
+                            skBitmap = SKBitmap.Decode(imagePath);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {regionIndex}: 从原始文件加载 {skBitmap.Width}×{skBitmap.Height}, 位置: ({left}, {top}), 显示: {width}×{height}");
+                            //#endif
+                        }
+                        catch
+                        {
+                            // 加载失败，回退到BitmapSource
+                            skBitmap = null;
+                        }
+                    }
+                    
+                    // 回退方案：从WPF控件的BitmapSource转换
+                    if (skBitmap == null && imageControl?.Source is BitmapSource bitmapSource)
+                    {
+                        skBitmap = ConvertBitmapSourceToSKBitmap(bitmapSource);
                         
-                        // 获取Image控件的位置和尺寸
-                        double left = Canvas.GetLeft(imageControl);
-                        double top = Canvas.GetTop(imageControl);
-                        double width = imageControl.ActualWidth;
-                        double height = imageControl.ActualHeight;
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {regionIndex}: 从BitmapSource转换 {bitmapSource.PixelWidth}×{bitmapSource.PixelHeight}, 位置: ({left}, {top}), 显示: {width}×{height}");
+                        //#endif
+                    }
+                    
+                    if (skBitmap != null)
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"  [Compose] 加载耗时: {imgSw.ElapsedMilliseconds}ms");
+                        //imgSw.Restart();
+                        //#endif
                         
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {kvp.Key}: {bitmapSource.PixelWidth}×{bitmapSource.PixelHeight}, 位置: ({left}, {top}), 显示: {width}×{height}");
-                        #endif
-                        
-                        // 转换WPF BitmapSource到SKBitmap
-                        var skBitmap = ConvertBitmapSourceToSKBitmap(bitmapSource);
-                        
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [Compose] 转换耗时: {imgSw.ElapsedMilliseconds}ms");
-                        imgSw.Restart();
-                        #endif
-                        
-                        // 绘制图片到指定位置
+                        // 绘制图片到指定位置（使用高质量过滤）
                         var destRect = new SKRect((float)left, (float)top, 
                                                    (float)(left + width), (float)(top + height));
-                        canvas.DrawBitmap(skBitmap, destRect);
                         
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [Compose] 绘制耗时: {imgSw.ElapsedMilliseconds}ms");
-                        #endif
+                        // 🎨 使用高质量过滤模式，确保投影质量
+                        var paint = new SKPaint
+                        {
+                            FilterQuality = SKFilterQuality.High,
+                            IsAntialias = true
+                        };
+                        canvas.DrawBitmap(skBitmap, destRect, paint);
+                        paint.Dispose();
+                        
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"  [Compose] 绘制耗时: {imgSw.ElapsedMilliseconds}ms");
+                        //#endif
                         
                         skBitmap.Dispose();
                     }
@@ -3080,9 +3189,132 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"  [Compose] 绘制文本框: {textSw.ElapsedMilliseconds}ms");
                     //#endif
                 }
+                
+                // 🎨 绘制分割线（如果有分割模式）
+                if (_currentSlide != null && _currentSlide.SplitMode >= 0)
+                {
+                    DrawSplitLinesToCanvas(canvas, (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode, canvasWidth, canvasHeight);
+                }
             }
             
             return bitmap;
+        }
+        
+        /// <summary>
+        /// 在SkiaSharp画布上绘制分割线和角标（匹配投影样式：细实线）
+        /// </summary>
+        private void DrawSplitLinesToCanvas(SKCanvas canvas, Database.Models.Enums.ViewSplitMode mode, double canvasWidth, double canvasHeight)
+        {
+            // 分割线画笔（橙色细实线，1像素 - 匹配投影前的调整）
+            var linePaint = new SKPaint
+            {
+                Color = new SKColor(255, 165, 0), // 橙色 RGB(255, 165, 0)
+                StrokeWidth = 1,                   // 细线1px（投影样式）
+                Style = SKPaintStyle.Stroke,
+                IsAntialias = true
+                // 不使用虚线，投影时用实线
+            };
+            
+            // 角标背景画笔（半透明橙色）
+            var labelBgPaint = new SKPaint
+            {
+                Color = new SKColor(255, 102, 0, 200), // ARGB(200, 255, 102, 0)
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            
+            // 角标文字画笔（白色粗体）
+            var labelTextPaint = new SKPaint
+            {
+                Color = SKColors.White,
+                TextSize = 18,
+                IsAntialias = true,
+                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
+            };
+            
+            switch (mode)
+            {
+                case Database.Models.Enums.ViewSplitMode.Single:
+                    // 单画面：不绘制分割线和角标
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.Horizontal:
+                    // 左右分割：绘制竖线
+                    canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
+                    // 角标（只显示已加载图片的区域）
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.Vertical:
+                    // 上下分割：绘制横线
+                    canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
+                    // 角标（只显示已加载图片的区域）
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.Quad:
+                    // 四宫格：绘制十字线
+                    canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
+                    canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
+                    // 角标（只显示已加载图片的区域）
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(3)) DrawLabel(canvas, "4", (float)(canvasWidth / 2), (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    break;
+                    
+                case Database.Models.Enums.ViewSplitMode.TripleSplit:
+                    // 三分割：左边上下分割，右边整个
+                    canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
+                    canvas.DrawLine(0, (float)(canvasHeight / 2), (float)(canvasWidth / 2), (float)(canvasHeight / 2), linePaint);
+                    // 角标（只显示已加载图片的区域）
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    break;
+            }
+            
+            linePaint.Dispose();
+            labelBgPaint.Dispose();
+            labelTextPaint.Dispose();
+        }
+        
+        /// <summary>
+        /// 绘制角标（带圆角背景的数字标签）
+        /// </summary>
+        private void DrawLabel(SKCanvas canvas, string text, float x, float y, SKPaint bgPaint, SKPaint textPaint)
+        {
+            // 测量文本尺寸
+            var textBounds = new SKRect();
+            textPaint.MeasureText(text, ref textBounds);
+            
+            // 标签尺寸（padding: 8, 4, 8, 4）
+            float padding = 8;
+            float labelWidth = textBounds.Width + padding * 2;
+            float labelHeight = textBounds.Height + 8; // 上下padding各4
+            
+            // 绘制圆角矩形背景（右下圆角）
+            var path = new SKPath();
+            var rect = new SKRect(x, y, x + labelWidth, y + labelHeight);
+            float cornerRadius = 8;
+            
+            // 创建右下圆角的路径
+            path.MoveTo(rect.Left, rect.Top);
+            path.LineTo(rect.Right, rect.Top);
+            path.LineTo(rect.Right, rect.Bottom - cornerRadius);
+            path.ArcTo(new SKRect(rect.Right - cornerRadius, rect.Bottom - cornerRadius, rect.Right, rect.Bottom), 0, 90, false);
+            path.LineTo(rect.Left, rect.Bottom);
+            path.Close();
+            
+            canvas.DrawPath(path, bgPaint);
+            path.Dispose();
+            
+            // 绘制文本（居中）
+            float textX = x + padding;
+            float textY = y + labelHeight - 4 - textBounds.Bottom; // 垂直居中
+            canvas.DrawText(text, textX, textY, textPaint);
         }
         
         /// <summary>
@@ -3098,6 +3330,11 @@ namespace ImageColorChanger.UI
             double actualWidth = textBox.ActualWidth;
             double actualHeight = textBox.ActualHeight;
             
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"  [文本框] 内容: '{data.Content}', 字体: {data.FontFamily}, 大小: {data.FontSize}, 加粗: {data.IsBoldBool}, 颜色: {data.FontColor}");
+            //System.Diagnostics.Debug.WriteLine($"  [文本框] 位置: ({actualLeft}, {actualTop}), 尺寸: {actualWidth}×{actualHeight}");
+            //#endif
+            
             // 处理NaN的情况
             if (double.IsNaN(actualLeft)) actualLeft = data.X;
             if (double.IsNaN(actualTop)) actualTop = data.Y;
@@ -3112,6 +3349,11 @@ namespace ImageColorChanger.UI
                 
                 if (width > 0 && height > 0)
                 {
+                    // 🔧 渲染前强制更新文本框的布局（确保样式已应用）
+                    textBox.Measure(new System.Windows.Size(actualWidth, actualHeight));
+                    textBox.Arrange(new Rect(actualLeft, actualTop, actualWidth, actualHeight));
+                    textBox.UpdateLayout();
+                    
                     // 🔧 关键：使用VisualBrush创建文本框的视觉副本，不影响原控件
                     var visualBrush = new System.Windows.Media.VisualBrush(textBox)
                     {
@@ -3133,31 +3375,238 @@ namespace ImageColorChanger.UI
                     container.Arrange(new Rect(0, 0, actualWidth, actualHeight));
                     container.UpdateLayout();
                     
-                    // 渲染临时容器
+                    // 🎯 渲染临时容器（使用96 DPI，让画布的缩放变换来提升质量）
                     var renderBitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
                     renderBitmap.Render(container);
                     
                     // 转换为SKBitmap
                     var skBitmap = ConvertBitmapSourceToSKBitmap(renderBitmap);
                     
-                    // 绘制到Canvas（使用实际位置和尺寸）
+                    // 绘制到Canvas（使用实际位置和尺寸，画布的Scale变换会自动处理缩放）
                     var destRect = new SKRect(
                         (float)actualLeft, 
                         (float)actualTop, 
                         (float)(actualLeft + actualWidth), 
                         (float)(actualTop + actualHeight));
                     
-                    canvas.DrawBitmap(skBitmap, destRect);
+                    // 🎨 使用高质量过滤模式，确保投影质量
+                    var paint = new SKPaint
+                    {
+                        FilterQuality = SKFilterQuality.High,
+                        IsAntialias = true
+                    };
+                    canvas.DrawBitmap(skBitmap, destRect, paint);
+                    paint.Dispose();
                     
                     skBitmap.Dispose();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [文本绘制] 失败: {ex.Message}");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [文本绘制] 失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
             }
+        }
+        
+        /// <summary>
+        /// 直接用SkiaSharp绘制文字（支持加粗、对齐等样式）
+        /// </summary>
+        private void DrawTextDirectly(SKCanvas canvas, TextElement data, float x, float y, float width, float height)
+        {
+            // 解析颜色
+            SKColor textColor = SKColors.White;
+            try
+            {
+                string hexColor = data.FontColor.TrimStart('#');
+                if (hexColor.Length == 6)
+                {
+                    byte r = Convert.ToByte(hexColor.Substring(0, 2), 16);
+                    byte g = Convert.ToByte(hexColor.Substring(2, 2), 16);
+                    byte b = Convert.ToByte(hexColor.Substring(4, 2), 16);
+                    textColor = new SKColor(r, g, b);
+                }
+            }
+            catch { }
+            
+            // 🔧 创建字体（支持PAK资源、文件路径和系统字体）
+            SKTypeface typeface = null;
+            try
+            {
+                // 字体路径格式：./CCanvas_Fonts/江西拙楷.ttf#江西拙楷
+                string fontPath = data.FontFamily;
+                
+                // 如果是文件路径格式（包含#号分隔符），提取文件路径部分
+                if (fontPath.Contains("#"))
+                {
+                    fontPath = fontPath.Split('#')[0];
+                }
+                
+                // 检查是否是相对路径（从PAK加载）
+                if (fontPath.StartsWith("./") || fontPath.StartsWith(".\\"))
+                {
+                    // 🎯 从PAK资源包加载字体
+                    // 提取文件名（例如从 ./CCanvas_Fonts/江西拙楷.ttf 提取 江西拙楷.ttf）
+                    string fileName = System.IO.Path.GetFileName(fontPath);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"  [字体] 尝试从PAK加载: 原始路径='{fontPath}', 文件名='{fileName}'");
+                    #endif
+                    
+                    // 在PAK中搜索匹配的字体文件
+                    string actualPakPath = null;
+                    var allResources = Core.PakManager.Instance.GetAllResourcePaths();
+                    foreach (var resourcePath in allResources)
+                    {
+                        if (System.IO.Path.GetFileName(resourcePath) == fileName && 
+                            resourcePath.StartsWith("Fonts/"))
+                        {
+                            actualPakPath = resourcePath;
+                            break;
+                        }
+                    }
+                    
+                    if (actualPakPath != null)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  [字体] 在PAK中找到: {actualPakPath}");
+                        #endif
+                        
+                        var fontData = Core.PakManager.Instance.GetResource(actualPakPath);
+                        
+                        if (fontData != null)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"  [字体] PAK数据获取成功: {fontData.Length} bytes");
+                            #endif
+                            
+                            typeface = SKTypeface.FromData(SKData.CreateCopy(fontData));
+                            
+                            if (typeface != null)
+                            {
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"  [字体] 从PAK加载成功: {actualPakPath}");
+                                #endif
+                            }
+                            else
+                            {
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"  [字体] SKTypeface创建失败，数据可能不是有效字体");
+                                #endif
+                            }
+                        }
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  [字体] PAK中未找到字体，尝试文件系统");
+                        #endif
+                        
+                        // PAK中没有，尝试从文件系统加载
+                        if (System.IO.File.Exists(fontPath))
+                        {
+                            typeface = SKTypeface.FromFile(fontPath);
+                            
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
+                            #endif
+                        }
+                        else
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"  [字体] 文件也不存在: {fontPath}");
+                            #endif
+                        }
+                    }
+                }
+                else if (System.IO.Path.IsPathRooted(fontPath))
+                {
+                    // 绝对路径，从文件加载
+                    if (System.IO.File.Exists(fontPath))
+                    {
+                        typeface = SKTypeface.FromFile(fontPath);
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
+                        #endif
+                    }
+                }
+                
+                // 如果字体加载失败，使用系统字体
+                if (typeface == null)
+                {
+                    var fontStyle = data.IsBoldBool ? SKFontStyle.Bold : SKFontStyle.Normal;
+                    typeface = SKTypeface.FromFamilyName(fontPath, fontStyle);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"  [字体] 使用系统字体: {fontPath}");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"  [字体] 加载失败: {ex.Message}，使用默认字体");
+                #endif
+                // 加载失败，使用默认字体
+                var fontStyle = data.IsBoldBool ? SKFontStyle.Bold : SKFontStyle.Normal;
+                typeface = SKTypeface.FromFamilyName("Arial", fontStyle);
+            }
+            
+            // 创建画笔
+            var paint = new SKPaint
+            {
+                Color = textColor,
+                TextSize = (float)data.FontSize,
+                IsAntialias = true,
+                Typeface = typeface
+            };
+            
+            // 处理文本对齐
+            paint.TextAlign = data.TextAlign switch
+            {
+                "Center" => SKTextAlign.Center,
+                "Right" => SKTextAlign.Right,
+                _ => SKTextAlign.Left
+            };
+            
+            // 计算文本位置
+            float textX = x;
+            if (data.TextAlign == "Center")
+            {
+                textX = x + width / 2;
+            }
+            else if (data.TextAlign == "Right")
+            {
+                textX = x + width;
+            }
+            
+            // 绘制文本（支持多行）
+            string[] lines = data.Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            float lineHeight = paint.FontSpacing;
+            
+            // 🔧 正确计算第一行基线位置
+            // 使用 FontMetrics 获取字体度量信息
+            var fontMetrics = paint.FontMetrics;
+            float firstLineBaseline = y - fontMetrics.Ascent; // Ascent是负值，表示基线到顶部的距离
+            float currentY = firstLineBaseline;
+            
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"  [文本绘制] 位置: ({textX}, {currentY}), 字号: {paint.TextSize}, 行高: {lineHeight}, 对齐: {paint.TextAlign}");
+            System.Diagnostics.Debug.WriteLine($"  [文本绘制] 区域: x={x}, y={y}, w={width}, h={height}");
+            System.Diagnostics.Debug.WriteLine($"  [字体度量] Ascent: {fontMetrics.Ascent}, Descent: {fontMetrics.Descent}, Leading: {fontMetrics.Leading}");
+            #endif
+            
+            foreach (string line in lines)
+            {
+                canvas.DrawText(line, textX, currentY, paint);
+                currentY += lineHeight;
+            }
+            
+            paint.Dispose();
+            typeface.Dispose();
         }
         
         /// <summary>
