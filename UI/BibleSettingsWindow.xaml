@@ -83,7 +83,8 @@
                 <TextBlock Grid.Column="0" Text="译本" Style="{StaticResource LabelStyle}"/>
                 <ComboBox x:Name="CmbBibleVersion" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
                           SelectionChanged="Setting_Changed">
-                    <ComboBoxItem Content="和合本" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="和合本" Tag="bible.db" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="和合本繁体" Tag="hehebenfanti.db" Style="{StaticResource ComboBoxItemStyle}"/>
                 </ComboBox>
             </Grid>
 

@@ -19,21 +19,62 @@ namespace ImageColorChanger.Services.Implementations
     public class BibleService : IBibleService
     {
         private readonly IMemoryCache _cache;
-        private readonly string _databasePath;
+        private readonly ConfigManager _configManager;
+        private string _currentDatabasePath;
 
-        public BibleService(IMemoryCache cache)
+        public BibleService(IMemoryCache cache, ConfigManager configManager)
         {
             _cache = cache;
+            _configManager = configManager;
             
-            // 构建数据库路径
-            _databasePath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "data", "assets", "bible.db");
+            // 根据配置获取数据库路径
+            _currentDatabasePath = GetDatabasePath();
 
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经服务] 数据库路径: {_databasePath}");
-            //Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_databasePath)}");
-            //#endif
+            #if DEBUG
+            Debug.WriteLine($"[圣经服务] 数据库路径: {_currentDatabasePath}");
+            Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_currentDatabasePath)}");
+            #endif
+        }
+
+        /// <summary>
+        /// 根据配置获取数据库路径
+        /// </summary>
+        private string GetDatabasePath()
+        {
+            // 从配置中获取数据库文件名
+            var dbFileName = _configManager.BibleDatabaseFileName ?? "bible.db";
+            
+            var path = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "data", "assets", dbFileName);
+
+            #if DEBUG
+            Debug.WriteLine($"[圣经服务] 选择数据库: {dbFileName}");
+            #endif
+
+            return path;
+        }
+
+        /// <summary>
+        /// 更新数据库路径（译本切换时调用）
+        /// </summary>
+        public void UpdateDatabasePath()
+        {
+            var newPath = GetDatabasePath();
+            if (newPath != _currentDatabasePath)
+            {
+                _currentDatabasePath = newPath;
+                
+                // 清除所有缓存，因为数据来源已改变
+                if (_cache is MemoryCache memCache)
+                {
+                    memCache.Compact(1.0);
+                }
+
+                #if DEBUG
+                Debug.WriteLine($"[圣经服务] 切换数据库: {_currentDatabasePath}");
+                #endif
+            }
         }
 
         /// <summary>
@@ -41,7 +82,7 @@ namespace ImageColorChanger.Services.Implementations
         /// </summary>
         private BibleDbContext CreateDbContext()
         {
-            return new BibleDbContext(_databasePath);
+            return new BibleDbContext(_currentDatabasePath);
         }
 
         /// <summary>
@@ -374,10 +415,10 @@ namespace ImageColorChanger.Services.Implementations
         {
             try
             {
-                if (!File.Exists(_databasePath))
+                if (!File.Exists(_currentDatabasePath))
                 {
                     #if DEBUG
-                    Debug.WriteLine($"[圣经服务] 数据库文件不存在: {_databasePath}");
+                    Debug.WriteLine($"[圣经服务] 数据库文件不存在: {_currentDatabasePath}");
                     #endif
                     return false;
                 }

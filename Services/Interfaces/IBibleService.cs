@@ -58,6 +58,11 @@ namespace ImageColorChanger.Services.Interfaces
         /// 获取数据库元数据
         /// </summary>
         Task<Dictionary<string, string>> GetMetadataAsync();
+
+        /// <summary>
+        /// 更新数据库路径（译本切换时调用）
+        /// </summary>
+        void UpdateDatabasePath();
     }
 }
 

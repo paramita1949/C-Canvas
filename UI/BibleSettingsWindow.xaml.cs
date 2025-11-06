@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.Interfaces;
 using WpfColor = System.Windows.Media.Color;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -21,18 +22,20 @@ namespace ImageColorChanger.UI
     public partial class BibleSettingsWindow : Window
     {
         private readonly ConfigManager _configManager;
+        private readonly IBibleService _bibleService;
         private System.Windows.Forms.ColorDialog _colorDialog;
         private Dictionary<string, CustomFont> _fontMap = new Dictionary<string, CustomFont>(); // 字体名称到字体信息的映射
         private bool _isLoading = false; // 标记是否正在加载设置，避免触发保存
         private bool _isSelectingColor = false; // 标记是否正在选择颜色，避免窗口自动关闭
         private Action _onSettingsChanged; // 设置改变时的回调
 
-        public BibleSettingsWindow(ConfigManager configManager, Action onSettingsChanged = null)
+        public BibleSettingsWindow(ConfigManager configManager, IBibleService bibleService, Action onSettingsChanged = null)
         {
             _isLoading = true; // 在 InitializeComponent 之前设置，防止初始化时触发保存
             
             InitializeComponent();
             _configManager = configManager;
+            _bibleService = bibleService;
             _onSettingsChanged = onSettingsChanged;
             _colorDialog = new System.Windows.Forms.ColorDialog
             {
@@ -215,10 +218,20 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"[圣经设置] 边距: {_configManager.BibleMargin}");
                 //#endif
 
-                // 译本
+                // 译本（根据配置的数据库文件名选择对应的译本）
                 if (CmbBibleVersion != null)
                 {
-                    CmbBibleVersion.Text = _configManager.BibleVersion ?? "和合本";
+                    var dbFileName = _configManager.BibleDatabaseFileName ?? "bible.db";
+                    
+                    // 根据数据库文件名找到对应的ComboBoxItem并选中
+                    foreach (System.Windows.Controls.ComboBoxItem item in CmbBibleVersion.Items)
+                    {
+                        if (item.Tag?.ToString() == dbFileName)
+                        {
+                            item.IsSelected = true;
+                            break;
+                        }
+                    }
                 }
 
                 // 字体（根据Family查找对应的字体名称）
@@ -485,13 +498,33 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine("[圣经设置] 开始保存设置...");
                 //#endif
 
-                // 保存译本
-                if (CmbBibleVersion != null && !string.IsNullOrEmpty(CmbBibleVersion.Text))
+                // 保存译本和数据库文件名
+                if (CmbBibleVersion != null && CmbBibleVersion.SelectedItem is System.Windows.Controls.ComboBoxItem selectedVersionItem)
                 {
-                    _configManager.BibleVersion = CmbBibleVersion.Text;
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] 保存译本: {CmbBibleVersion.Text}");
-                    //#endif
+                    var versionName = selectedVersionItem.Content?.ToString() ?? "和合本";
+                    var dbFileName = selectedVersionItem.Tag?.ToString() ?? "bible.db";
+                    
+                    // 检查是否发生了译本切换
+                    bool versionChanged = _configManager.BibleDatabaseFileName != dbFileName;
+                    
+                    _configManager.BibleVersion = versionName;
+                    _configManager.BibleDatabaseFileName = dbFileName;
+                    
+                    // 如果译本切换了，通知 BibleService 更新数据库路径
+                    if (versionChanged)
+                    {
+                        _bibleService?.UpdateDatabasePath();
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经设置] 译本已切换: {versionName}, 数据库: {dbFileName}");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经设置] 保存译本: {versionName}, 数据库: {dbFileName}");
+                        #endif
+                    }
                 }
 
                 // 保存字体（保存FontFamily）

@@ -433,7 +433,7 @@
                 <!-- 左侧：所有按钮在一排 -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
-                    <Button x:Name="BtnImport" Content="导入" Style="{StaticResource MenuButtonStyle}" 
+                    <Button x:Name="BtnImport" Content="文件" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
 
                     <Button x:Name="BtnProjection" Content="投影" Style="{StaticResource MenuButtonStyle}"
@@ -1316,8 +1316,13 @@
                 <!-- 🆕 圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
                 <!-- 注意：圣经模式下，左侧ProjectTree会被替换为圣经专用导航 -->
                 <Grid x:Name="BibleDisplayContainer" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>      <!-- 经文显示区 -->
+                        <RowDefinition Height="Auto"/>   <!-- 底部工具栏 -->
+                    </Grid.RowDefinitions>
+                    
                     <!-- 圣经经文显示区（标题和内容都可滚动） -->
-                    <ScrollViewer x:Name="BibleVerseScrollViewer" 
+                    <ScrollViewer Grid.Row="0" x:Name="BibleVerseScrollViewer" 
                                   Background="#000000"
                                   VerticalScrollBarVisibility="Auto"
                                   Padding="0"
@@ -1413,9 +1418,9 @@
                                                        Margin="0,0,10,0"
                                                        IsHitTestVisible="False"/>
                                             <!-- 经文内容 - 字体大小、行高、颜色等由C#代码动态设置 -->
+                                            <!-- Text不再使用绑定,由C#代码通过TextFormatHelper设置,以支持格式化标记 -->
                                             <TextBlock Grid.Column="1"
                                                        x:Name="VerseScriptureText"
-                                                       Text="{Binding Scripture}" 
                                                        FontSize="20" 
                                                        Foreground="White"
                                                        TextWrapping="Wrap"
@@ -1439,6 +1444,108 @@
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center"
                                                  Panel.ZIndex="1000"/>
+                
+                <!-- 🆕 底部工具栏：快速切换译本 -->
+                <Border Grid.Row="1" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Padding="10,8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBlock Text="译本:" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        
+                        <!-- 和合本 -->
+                        <RadioButton x:Name="RadioBibleVersionSimplified" 
+                                     Content="和合本" 
+                                     Tag="bible.db"
+                                     GroupName="BibleVersion"
+                                     IsChecked="True"
+                                     Click="BibleVersionRadio_Click"
+                                     Foreground="White"
+                                     FontSize="12"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,15,0">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" 
+                                                        Background="Transparent" 
+                                                        BorderBrush="#555555" 
+                                                        BorderThickness="1" 
+                                                        CornerRadius="3"
+                                                        Padding="8,4"
+                                                        Cursor="Hand">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#FF5722"/>
+                                                        <Setter TargetName="Border" Property="BorderBrush" Value="#FF5722"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#3A3A3A"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsChecked" Value="True"/>
+                                                            <Condition Property="IsMouseOver" Value="True"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="Border" Property="Background" Value="#E64A19"/>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
+                        
+                        <!-- 和合本繁体 -->
+                        <RadioButton x:Name="RadioBibleVersionTraditional" 
+                                     Content="和合本繁体" 
+                                     Tag="hehebenfanti.db"
+                                     GroupName="BibleVersion"
+                                     Click="BibleVersionRadio_Click"
+                                     Foreground="White"
+                                     FontSize="12"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,0,0">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" 
+                                                        Background="Transparent" 
+                                                        BorderBrush="#555555" 
+                                                        BorderThickness="1" 
+                                                        CornerRadius="3"
+                                                        Padding="8,4"
+                                                        Cursor="Hand">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#FF5722"/>
+                                                        <Setter TargetName="Border" Property="BorderBrush" Value="#FF5722"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#3A3A3A"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsChecked" Value="True"/>
+                                                            <Condition Property="IsMouseOver" Value="True"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="Border" Property="Background" Value="#E64A19"/>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
             </Grid>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->

@@ -81,6 +81,9 @@ namespace ImageColorChanger.Core
         /// </summary>
         private static IServiceCollection AddCoreServices(this IServiceCollection services)
         {
+            // 配置管理器（Singleton）- 全局唯一配置
+            services.AddSingleton<ConfigManager>();
+            
             // 内存缓存（Singleton）- 圣经服务需要
             services.AddMemoryCache();
             
@@ -98,8 +101,13 @@ namespace ImageColorChanger.Core
             // 合成播放服务（Scoped）
             services.AddScoped<Services.Implementations.CompositePlaybackService>();
             
-            // 圣经服务（Singleton）
-            services.AddSingleton<Services.Interfaces.IBibleService, Services.Implementations.BibleService>();
+            // 圣经服务（Singleton，需要 ConfigManager）
+            services.AddSingleton<Services.Interfaces.IBibleService>(sp => 
+            {
+                var cache = sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                var configManager = sp.GetRequiredService<ConfigManager>();
+                return new Services.Implementations.BibleService(cache, configManager);
+            });
             
             // 默认服务接口注册（使用关键帧模式作为默认）
             services.AddScoped<Services.Interfaces.IRecordingService>(sp => 

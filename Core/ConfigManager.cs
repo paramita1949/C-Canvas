@@ -388,6 +388,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经数据库文件名
+        /// </summary>
+        public string BibleDatabaseFileName
+        {
+            get => _config.BibleDatabaseFileName;
+            set
+            {
+                if (_config.BibleDatabaseFileName != value)
+                {
+                    _config.BibleDatabaseFileName = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 圣经字体
         /// </summary>
         public string BibleFontFamily
@@ -851,6 +867,11 @@ namespace ImageColorChanger.Core
         /// 圣经译本（默认：和合本）
         /// </summary>
         public string BibleVersion { get; set; } = "和合本";
+
+        /// <summary>
+        /// 圣经数据库文件名（默认：bible.db）
+        /// </summary>
+        public string BibleDatabaseFileName { get; set; } = "bible.db";
 
         /// <summary>
         /// 圣经字体（默认：微软雅黑）

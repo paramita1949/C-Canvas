@@ -149,7 +149,10 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                _bibleService = App.GetRequiredService<IBibleService>();
+                // 🔧 重要：手动创建 BibleService，使用主窗口的 _configManager 实例
+                // 这样确保配置修改能立即生效
+                var cache = App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                _bibleService = new Services.Implementations.BibleService(cache, _configManager);
 
                 //#if DEBUG
                 //Debug.WriteLine("[圣经] 服务初始化成功");
@@ -284,6 +287,9 @@ namespace ImageColorChanger.UI
             
             // 💾 加载滚动节数设置
             LoadBibleScrollVerseCountSetting();
+            
+            // 🆕 更新译本选择按钮状态
+            UpdateBibleVersionRadioButtons();
             
             // 显示圣经视图区域，隐藏其他区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -1547,7 +1553,6 @@ namespace ImageColorChanger.UI
 
                     var scriptureText = new TextBlock
                     {
-                        Text = verse.Scripture,
                         FontFamily = fontFamily,
                         FontSize = _configManager.BibleFontSize,
                         FontWeight = FontWeights.Normal,
@@ -1555,6 +1560,10 @@ namespace ImageColorChanger.UI
                         TextWrapping = TextWrapping.Wrap,
                         VerticalAlignment = VerticalAlignment.Top
                     };
+                    
+                    // 处理经文中的格式标记(如<u>下划线</u>)
+                    Utils.TextFormatHelper.SetFormattedText(scriptureText, verse.Scripture);
+                    
                     Grid.SetColumn(scriptureText, 1);
 
                     verseContainer.Children.Add(verseNumber);
@@ -1974,10 +1983,20 @@ namespace ImageColorChanger.UI
             try
             {
                 // 创建设置窗口，传递回调函数以实现实时更新
-                var settingsWindow = new BibleSettingsWindow(_configManager, () =>
+                var settingsWindow = new BibleSettingsWindow(_configManager, _bibleService, async () =>
                 {
                     // 设置改变时立即应用
                     ApplyBibleSettings();
+
+                    // 🔄 重新加载当前章节（译本切换时需要）
+                    if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
+                    {
+                        await LoadChapterVersesAsync(_currentBook, _currentChapter);
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经设置] 重新加载经文: {BibleBookConfig.GetBook(_currentBook).Name} {_currentChapter}章");
+                        #endif
+                    }
 
                     // 如果投影已开启，重新渲染投影
                     if (_projectionManager != null && _projectionManager.IsProjecting)
@@ -2069,6 +2088,92 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 更新底部工具栏译本选择状态
+        /// </summary>
+        private void UpdateBibleVersionRadioButtons()
+        {
+            try
+            {
+                var dbFileName = _configManager.BibleDatabaseFileName ?? "bible.db";
+                
+                if (RadioBibleVersionSimplified != null)
+                    RadioBibleVersionSimplified.IsChecked = (dbFileName == "bible.db");
+                
+                if (RadioBibleVersionTraditional != null)
+                    RadioBibleVersionTraditional.IsChecked = (dbFileName == "hehebenfanti.db");
+                
+                #if DEBUG
+                Debug.WriteLine($"[圣经译本] 更新按钮状态: {dbFileName}");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经译本] 更新按钮状态失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 底部工具栏快速切换译本
+        /// </summary>
+        private async void BibleVersionRadio_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.RadioButton radioButton) return;
+            
+            try
+            {
+                var dbFileName = radioButton.Tag?.ToString() ?? "bible.db";
+                var versionName = radioButton.Content?.ToString() ?? "和合本";
+                
+                // 检查是否真的切换了译本
+                if (_configManager.BibleDatabaseFileName == dbFileName)
+                {
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经译本] 已经是当前译本: {versionName}");
+                    #endif
+                    return;
+                }
+                
+                #if DEBUG
+                Debug.WriteLine($"[圣经译本] 快速切换: {versionName} ({dbFileName})");
+                #endif
+                
+                // 保存配置
+                _configManager.BibleVersion = versionName;
+                _configManager.BibleDatabaseFileName = dbFileName;
+                
+                // 更新数据库路径
+                _bibleService?.UpdateDatabasePath();
+                
+                // 重新加载当前章节
+                if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
+                {
+                    await LoadChapterVersesAsync(_currentBook, _currentChapter);
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经译本] 已重新加载: {BibleBookConfig.GetBook(_currentBook).Name} {_currentChapter}章");
+                    #endif
+                }
+                
+                // 如果投影已开启，重新渲染投影
+                if (_projectionManager != null && _projectionManager.IsProjecting)
+                {
+                    RenderBibleToProjection();
+                }
+                
+                ShowStatus($"✅ 已切换到: {versionName}");
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"[圣经译本] 切换失败: {ex.Message}");
+                #endif
+                ShowStatus($"❌ 切换译本失败");
+            }
+        }
+
+        /// <summary>
         /// 应用圣经设置到界面
         /// </summary>
         private void ApplyBibleSettings()
@@ -2149,6 +2254,12 @@ namespace ImageColorChanger.UI
                         else
                         {
                             scriptureBlock.Foreground = new WpfSolidColorBrush(textColor);
+                        }
+                        
+                        // 处理经文中的格式标记(如<u>下划线</u>)
+                        if (verse != null && !string.IsNullOrEmpty(verse.Scripture))
+                        {
+                            Utils.TextFormatHelper.SetFormattedText(scriptureBlock, verse.Scripture);
                         }
                     }
                     
