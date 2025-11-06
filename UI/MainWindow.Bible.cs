@@ -2110,6 +2110,8 @@ namespace ImageColorChanger.UI
             {
                 #if DEBUG
                 Debug.WriteLine($"[圣经译本] 更新按钮状态失败: {ex.Message}");
+                #else
+                _ = ex;
                 #endif
             }
         }
@@ -2168,6 +2170,8 @@ namespace ImageColorChanger.UI
             {
                 #if DEBUG
                 Debug.WriteLine($"[圣经译本] 切换失败: {ex.Message}");
+                #else
+                _ = ex;
                 #endif
                 ShowStatus($"❌ 切换译本失败");
             }
