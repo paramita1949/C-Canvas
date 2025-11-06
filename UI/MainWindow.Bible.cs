@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
@@ -38,6 +40,26 @@ namespace ImageColorChanger.UI
         private int _currentVerse = 1;      // 当前节号
         private bool _isBibleMode = false;  // 是否处于圣经模式
         private ObservableCollection<BibleHistoryItem> _historySlots = new ObservableCollection<BibleHistoryItem>(); // 20个历史槽位
+        
+        // 拼音快速定位功能
+        private ImageColorChanger.Services.BiblePinyinService _pinyinService;
+        private ImageColorChanger.Services.BiblePinyinInputManager _pinyinInputManager;
+        
+        /// <summary>
+        /// 拼音输入是否激活（供主窗口ESC键判断使用）
+        /// </summary>
+        public bool IsPinyinInputActive => _pinyinInputManager?.IsActive ?? false;
+        
+        /// <summary>
+        /// 处理拼音输入的ESC键（供全局热键调用）
+        /// </summary>
+        public async System.Threading.Tasks.Task ProcessPinyinEscapeKeyAsync()
+        {
+            if (_pinyinInputManager != null && _pinyinInputManager.IsActive)
+            {
+                await _pinyinInputManager.ProcessKeyAsync(Key.Escape);
+            }
+        }
 
         #endregion
 
@@ -228,12 +250,15 @@ namespace ImageColorChanger.UI
 
             // 加载圣经数据
             await LoadBibleNavigationDataAsync();
+            
+            // 初始化拼音快速定位服务
+            InitializePinyinService();
 
             // 显示圣经视图区域，隐藏其他区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
             TextEditorPanel.Visibility = Visibility.Collapsed;
-            BibleVerseScrollViewer.Visibility = Visibility.Visible;
+            BibleDisplayContainer.Visibility = Visibility.Visible;
 
             //#if DEBUG
             //Debug.WriteLine($"[圣经] 圣经视图已显示, ImageScroll={ImageScrollViewer.Visibility}, BibleVerse={BibleVerseScrollViewer.Visibility}");
@@ -2061,7 +2086,278 @@ namespace ImageColorChanger.UI
         }
 
         #endregion
+
+        #region 拼音快速定位功能
+
+        // IME控制代码已暂时移除，专注功能实现
+        /*
+        // Windows API for IME control
+        [DllImport("imm32.dll")]
+        private static extern IntPtr ImmGetContext(IntPtr hWnd);
+
+        [DllImport("imm32.dll")]
+        private static extern bool ImmReleaseContext(IntPtr hWnd, IntPtr hIMC);
+
+        [DllImport("imm32.dll")]
+        private static extern bool ImmSetOpenStatus(IntPtr hIMC, bool fOpen);
+
+        [DllImport("imm32.dll")]
+        private static extern bool ImmGetOpenStatus(IntPtr hIMC);
+
+        [DllImport("imm32.dll")]
+        private static extern IntPtr ImmAssociateContext(IntPtr hWnd, IntPtr hIMC);
+
+        [DllImport("imm32.dll")]
+        private static extern IntPtr ImmAssociateContextEx(IntPtr hWnd, IntPtr hIMC, uint dwFlags);
+
+        private const uint IACE_DEFAULT = 0x0010;
+        private const uint IACE_IGNORENOCONTEXT = 0x0020;
+
+        private bool _imeWasEnabled = false; // 记录激活前IME状态
+        private IntPtr _previousIMC = IntPtr.Zero; // 记录之前的IME上下文
+        */
+
+        /// <summary>
+        /// 禁用IME（暂时移除）
+        /// </summary>
+        private void DisableIME()
+        {
+            // IME控制逻辑已暂时移除，专注功能实现
+        }
+
+        /// <summary>
+        /// 恢复IME状态（暂时移除）
+        /// </summary>
+        private void RestoreIME()
+        {
+            // IME控制逻辑已暂时移除，专注功能实现
+        }
+
+        /// <summary>
+        /// 初始化拼音快速定位服务
+        /// </summary>
+        private void InitializePinyinService()
+        {
+            _pinyinService = new ImageColorChanger.Services.BiblePinyinService(_bibleService);
+            _pinyinInputManager = new ImageColorChanger.Services.BiblePinyinInputManager(
+                _pinyinService,
+                OnPinyinLocationConfirmedAsync,
+                OnPinyinHintUpdateAsync,
+                OnPinyinDeactivate
+            );
+        }
+
+        /// <summary>
+        /// 拼音输入退出回调（隐藏提示框）
+        /// </summary>
+        private void OnPinyinDeactivate()
+        {
+            //#if DEBUG
+            //Debug.WriteLine("[圣经拼音] 退出拼音输入模式");
+            //#endif
+            
+            // 隐藏提示框
+            BiblePinyinHintControl.Hide();
+            
+            // 恢复IME（已禁用）
+            RestoreIME();
+        }
+
+        /// <summary>
+        /// 经文滚动区键盘事件（激活拼音输入）
+        /// </summary>
+        private async void BibleVerseScrollViewer_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (!_isBibleMode) return;
+
+            // 如果拼音输入已激活，优先处理ESC键（取消输入框，不关闭投影）
+            if (_pinyinInputManager.IsActive && e.Key == Key.Escape)
+            {
+                //#if DEBUG
+                //Debug.WriteLine("[圣经拼音] ESC键被拦截 - 关闭输入框，不关闭投影");
+                //#endif
+                
+                await _pinyinInputManager.ProcessKeyAsync(e.Key);
+                e.Handled = true; // 完全拦截ESC键，防止关闭投影
+                return;
+            }
+
+            // 如果还未激活，字母键激活拼音输入
+            if (!_pinyinInputManager.IsActive && e.Key >= Key.A && e.Key <= Key.Z)
+            {
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经拼音] 激活拼音输入 - 按键: {e.Key}");
+                //#endif
+                
+                // 禁用IME，强制英文输入
+                DisableIME();
+                
+                _pinyinInputManager.Activate();
+            }
+
+            // 如果已激活，处理所有键盘输入
+            if (_pinyinInputManager.IsActive)
+            {
+                await _pinyinInputManager.ProcessKeyAsync(e.Key);
+                e.Handled = true; // 阻止默认行为
+            }
+        }
+
+        /// <summary>
+        /// 经文滚动区鼠标点击事件（点击空白区域退出拼音输入）
+        /// </summary>
+        private void BibleVerseScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isBibleMode) return;
+
+            // 检查点击位置是否在提示框外
+            if (_pinyinInputManager.IsActive)
+            {
+                var clickPoint = e.GetPosition(BiblePinyinHintControl);
+                var isClickOnHint = clickPoint.X >= 0 && clickPoint.X <= BiblePinyinHintControl.ActualWidth &&
+                                   clickPoint.Y >= 0 && clickPoint.Y <= BiblePinyinHintControl.ActualHeight;
+
+                if (!isClickOnHint)
+                {
+                    _pinyinInputManager.Deactivate();
+                    BiblePinyinHintControl.Hide();
+                    
+                    // 恢复IME状态
+                    RestoreIME();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 拼音定位确认回调
+        /// </summary>
+        private async System.Threading.Tasks.Task OnPinyinLocationConfirmedAsync(ImageColorChanger.Services.ParseResult result)
+        {
+            if (!result.Success) return;
+
+            try
+            {
+                // 根据定位类型执行跳转
+                if (result.Type == ImageColorChanger.Services.LocationType.Book && result.BookId.HasValue)
+                {
+                    // 跳转到书卷第一章
+                    await LoadChapterVersesAsync(result.BookId.Value, 1);
+                    
+                    // 添加到历史记录（第一章全部经文）
+                    var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, 1);
+                    AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, verseCount > 0 ? verseCount : 31);
+                }
+                else if (result.Type == ImageColorChanger.Services.LocationType.Chapter && 
+                         result.BookId.HasValue && result.Chapter.HasValue)
+                {
+                    // 跳转到指定章
+                    await LoadChapterVersesAsync(result.BookId.Value, result.Chapter.Value);
+                    
+                    // 添加到历史记录（该章全部经文）
+                    var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, result.Chapter.Value);
+                    AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, verseCount > 0 ? verseCount : 31);
+                }
+                else if (result.Type == ImageColorChanger.Services.LocationType.VerseRange && 
+                         result.BookId.HasValue && result.Chapter.HasValue && 
+                         result.StartVerse.HasValue && result.EndVerse.HasValue)
+                {
+                    // 跳转到指定节范围
+                    await LoadVerseRangeAsync(result.BookId.Value, result.Chapter.Value, 
+                                             result.StartVerse.Value, result.EndVerse.Value);
+                    
+                    // 添加到历史记录
+                    AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 
+                                result.StartVerse.Value, result.EndVerse.Value);
+                }
+
+                // 隐藏提示框
+                BiblePinyinHintControl.Hide();
+                
+                // 恢复IME状态
+                RestoreIME();
+            }
+            catch (Exception ex)
+            {
+                // 失败时也要恢复IME
+                RestoreIME();
+                
+                WpfMessageBox.Show($"定位失败：{ex.Message}", "错误", 
+                                  MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 拼音定位专用：优先添加到空槽位，满了才覆盖选中的槽位
+        /// </summary>
+        private void AddPinyinHistoryToEmptySlot(int bookId, int chapter, int startVerse, int endVerse)
+        {
+            try
+            {
+                var book = BibleBookConfig.GetBook(bookId);
+                string displayText = $"{book?.Name}{chapter}章{startVerse}-{endVerse}节";
+
+                // 1. 优先查找空槽位（DisplayText为空或BookId为0）
+                var emptySlot = _historySlots.FirstOrDefault(s => string.IsNullOrWhiteSpace(s.DisplayText) || s.BookId == 0);
+                
+                if (emptySlot != null)
+                {
+                    // 找到空槽位，直接填充
+                    emptySlot.BookId = bookId;
+                    emptySlot.Chapter = chapter;
+                    emptySlot.StartVerse = startVerse;
+                    emptySlot.EndVerse = endVerse;
+                    emptySlot.DisplayText = displayText;
+                }
+                else
+                {
+                    // 2. 所有槽位都满了，查找勾选的槽位
+                    var checkedSlots = _historySlots.Where(s => s.IsChecked).ToList();
+                    
+                    if (checkedSlots.Count > 0)
+                    {
+                        // 覆盖第一个勾选的槽位
+                        var targetSlot = checkedSlots[0];
+                        targetSlot.BookId = bookId;
+                        targetSlot.Chapter = chapter;
+                        targetSlot.StartVerse = startVerse;
+                        targetSlot.EndVerse = endVerse;
+                        targetSlot.DisplayText = displayText;
+                    }
+                    else
+                    {
+                        // 没有勾选的槽位，覆盖最后一个槽位（槽位20）
+                        var lastSlot = _historySlots.LastOrDefault();
+                        if (lastSlot != null)
+                        {
+                            lastSlot.BookId = bookId;
+                            lastSlot.Chapter = chapter;
+                            lastSlot.StartVerse = startVerse;
+                            lastSlot.EndVerse = endVerse;
+                            lastSlot.DisplayText = displayText;
+                        }
+                    }
+                }
+
+                // 刷新列表显示
+                BibleHistoryList.Items.Refresh();
+            }
+            catch
+            {
+                // 静默失败，不影响用户操作
+            }
+        }
+
+        /// <summary>
+        /// 拼音提示更新回调
+        /// </summary>
+        private System.Threading.Tasks.Task OnPinyinHintUpdateAsync(string displayText, System.Collections.Generic.List<ImageColorChanger.Services.BibleBookMatch> matches)
+        {
+            BiblePinyinHintControl.UpdateHint(displayText, matches);
+            
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        #endregion
     }
 }
-
 

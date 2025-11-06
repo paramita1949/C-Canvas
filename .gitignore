@@ -88,6 +88,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+cf-canvas/
 
 # Environments
 .env

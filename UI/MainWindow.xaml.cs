@@ -2486,12 +2486,24 @@ namespace ImageColorChanger.UI
             {
                 bool handled = false;
                 
+                // 🔧 如果拼音输入框激活，不处理ESC（让拼音输入框处理）
+                if (IsPinyinInputActive)
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine("[主窗口] ESC键 - 拼音输入激活，跳过投影关闭");
+                    //#endif
+                    return; // 不处理，让拼音输入框处理
+                }
+                
                 // 优先关闭投影（CloseProjection现在只在有投影时返回true）
                 if (_projectionManager != null)
                 {
                     bool wasClosed = _projectionManager.CloseProjection();
                     if (wasClosed)
                     {
+                        //#if DEBUG
+                        //Debug.WriteLine("[主窗口] ESC键 - 关闭投影");
+                        //#endif
                         handled = true;
                     }
                 }

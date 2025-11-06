@@ -4,6 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls"
         Title="咏慕投影"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
@@ -1314,13 +1315,16 @@
 
                 <!-- 🆕 圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
                 <!-- 注意：圣经模式下，左侧ProjectTree会被替换为圣经专用导航 -->
-                <!-- 圣经经文显示区（标题和内容都可滚动） -->
-                <ScrollViewer x:Name="BibleVerseScrollViewer" 
-                              Visibility="Collapsed"
-                              Background="#000000"
-                              VerticalScrollBarVisibility="Auto"
-                              Padding="0"
-                              ScrollChanged="BibleVerseContentScroller_ScrollChanged">
+                <Grid x:Name="BibleDisplayContainer" Visibility="Collapsed">
+                    <!-- 圣经经文显示区（标题和内容都可滚动） -->
+                    <ScrollViewer x:Name="BibleVerseScrollViewer" 
+                                  Background="#000000"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Padding="0"
+                                  Focusable="True"
+                                  PreviewKeyDown="BibleVerseScrollViewer_PreviewKeyDown"
+                                  PreviewMouseDown="BibleVerseScrollViewer_PreviewMouseDown"
+                                  ScrollChanged="BibleVerseContentScroller_ScrollChanged">
                     <StackPanel>
                         <!-- 章节标题（可滚动） -->
                         <Border x:Name="BibleChapterTitleBorder" Background="#000000" Padding="20,15">
@@ -1389,6 +1393,13 @@
                         <Border x:Name="BibleBottomExtension" Height="0" Background="Transparent"/>
                     </StackPanel>
                 </ScrollViewer>
+                
+                <!-- 拼音快速定位提示框（固定在经文区正中央） -->
+                <controls:BiblePinyinHintControl x:Name="BiblePinyinHintControl"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center"
+                                                 Panel.ZIndex="1000"/>
+            </Grid>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
                 <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0" 
