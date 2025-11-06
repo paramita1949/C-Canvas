@@ -324,7 +324,7 @@ namespace ImageColorChanger.UI
                             switch (selectedItem.FileType)
                             {
                                 case FileType.Image:
-                                    // 🆕 检查是否在文本编辑模式
+                                    // 🆕 检查是否在文本编辑模式（幻灯片分割模式）
                                     if (TextEditorPanel.Visibility == Visibility.Visible && IsInSplitMode())
                                     {
                                         // 文本编辑模式（包括单画面模式）：加载图片到选中的分割区域
@@ -348,9 +348,15 @@ namespace ImageColorChanger.UI
                                         
                                         ShowStatus($"🎤 已切换到: {selectedItem.Name} 的歌词");
                                     }
+                                    // 🔧 检查是否在幻灯片模式（不在分割编辑状态）
+                                    else if (_currentViewMode == NavigationViewMode.Projects)
+                                    {
+                                        // 幻灯片模式但不在分割编辑：只提示，不加载
+                                        ShowStatus($"💡 请先打开幻灯片进入分割模式，或切换到文件视图");
+                                    }
                                     else
                                     {
-                                        // 切换回图片模式（注意：这会清空_currentImageId）
+                                        // 文件模式：切换回图片模式（注意：这会清空_currentImageId）
                                         SwitchToImageMode();
                                         // 🔧 关键修复：在LoadImage之前设置_currentImageId
                                         // LoadImage内部需要_currentImageId来检查录制数据和更新按钮状态

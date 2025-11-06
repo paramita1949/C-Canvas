@@ -889,29 +889,37 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowFiles_Click(object sender, RoutedEventArgs e)
         {
-            #if DEBUG
-            Debug.WriteLine($"[MainWindow] 切换到文件视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[MainWindow] 切换到文件视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
+            //#endif
 
             // 如果已经在文件模式且不是从圣经模式切换过来,直接返回
             if (_currentViewMode == NavigationViewMode.Files && !_isBibleMode) return;
             
+            // 记录是否从圣经模式切换过来
+            bool wasInBibleMode = _isBibleMode;
+            
             _currentViewMode = NavigationViewMode.Files;
             _isBibleMode = false;  // 退出圣经模式
             
-            // 隐藏圣经视图，显示文件视图
+            // 隐藏圣经视图
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
-            ImageScrollViewer.Visibility = Visibility.Visible;
-            VideoContainer.Visibility = Visibility.Visible;
-            TextEditorPanel.Visibility = Visibility.Collapsed;
-            
-            // 显示ProjectTree，隐藏圣经导航
-            ProjectTree.Visibility = Visibility.Visible;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;
             
-            #if DEBUG
-            Debug.WriteLine($"[MainWindow] 文件视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
-            #endif
+            // 显示ProjectTree
+            ProjectTree.Visibility = Visibility.Visible;
+            
+            // 🔧 修复：只有从圣经模式切换过来时才需要显示图片区域
+            // 否则保持当前状态（可能是编辑器、图片或其他）
+            if (wasInBibleMode)
+            {
+                ImageScrollViewer.Visibility = Visibility.Visible;
+                VideoContainer.Visibility = Visibility.Visible;
+            }
+            
+            //#if DEBUG
+            //Debug.WriteLine($"[MainWindow] 文件视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
+            //#endif
             
             UpdateViewModeButtons();
             FilterProjectTree();
@@ -922,32 +930,38 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowProjects_Click(object sender, RoutedEventArgs e)
         {
-            #if DEBUG
-            Debug.WriteLine($"[MainWindow] 切换到幻灯片视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[MainWindow] 切换到幻灯片视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
+            //#endif
 
             // 如果已经在项目模式且不是从圣经模式切换过来,直接返回
             if (_currentViewMode == NavigationViewMode.Projects && !_isBibleMode) return;
             
+            // 记录是否从圣经模式切换过来
+            bool wasInBibleMode = _isBibleMode;
+            
             _currentViewMode = NavigationViewMode.Projects;
             _isBibleMode = false;  // 退出圣经模式
             
-            // 清空图片显示（包括合成播放按钮）
-            ClearImageDisplay();
-            
-            // 隐藏圣经视图，显示文件视图
+            // 隐藏圣经视图
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
-            ImageScrollViewer.Visibility = Visibility.Visible;
-            VideoContainer.Visibility = Visibility.Visible;
-            TextEditorPanel.Visibility = Visibility.Collapsed;
-            
-            // 显示ProjectTree，隐藏圣经导航
-            ProjectTree.Visibility = Visibility.Visible;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;
             
-            #if DEBUG
-            Debug.WriteLine($"[MainWindow] 幻灯片视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
-            #endif
+            // 显示ProjectTree
+            ProjectTree.Visibility = Visibility.Visible;
+            
+            // 🔧 修复：只有从圣经模式切换过来时才需要清空并显示图片区域
+            // 否则保持当前状态（可能是编辑器、图片或其他）
+            if (wasInBibleMode)
+            {
+                ClearImageDisplay();
+                ImageScrollViewer.Visibility = Visibility.Visible;
+                VideoContainer.Visibility = Visibility.Visible;
+            }
+            
+            //#if DEBUG
+            //Debug.WriteLine($"[MainWindow] 幻灯片视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
+            //#endif
             
             UpdateViewModeButtons();
             FilterProjectTree();
@@ -958,9 +972,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateViewModeButtons()
         {
-            #if DEBUG
-            Debug.WriteLine($"[MainWindow] 更新按钮状态, 当前模式: {_currentViewMode}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[MainWindow] 更新按钮状态, 当前模式: {_currentViewMode}");
+            //#endif
 
             // 先将所有按钮设为未激活状态
             var inactiveBackground = new SolidColorBrush(Colors.White);

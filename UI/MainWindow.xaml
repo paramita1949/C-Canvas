@@ -1326,6 +1326,45 @@
                                   PreviewMouseDown="BibleVerseScrollViewer_PreviewMouseDown"
                                   PreviewMouseWheel="BibleVerseScrollViewer_PreviewMouseWheel"
                                   ScrollChanged="BibleVerseContentScroller_ScrollChanged">
+                        <!-- 🆕 右键菜单：设置滚动节数 -->
+                        <ScrollViewer.ContextMenu>
+                            <ContextMenu Style="{StaticResource NoBorderContextMenuStyle}">
+                                <ContextMenu.Resources>
+                                    <!-- 子菜单样式：去掉打勾，选中时文字变红 -->
+                                    <Style x:Key="NoCheckMarkMenuItemStyle" TargetType="MenuItem">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="MenuItem">
+                                                    <Border x:Name="Border" Background="Transparent" BorderThickness="0" Padding="8,4">
+                                                        <ContentPresenter x:Name="Content" ContentSource="Header"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="Content" Property="TextBlock.Foreground" Value="Red"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsHighlighted" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="#3A3A3A"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ContextMenu.Resources>
+                                <MenuItem Header="滚动节数">
+                                    <MenuItem x:Name="MenuScrollCount1" Header="1节" Tag="1" Click="SetScrollVerseCount_Click" IsCheckable="True" IsChecked="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount2" Header="2节" Tag="2" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount3" Header="3节" Tag="3" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount4" Header="4节" Tag="4" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount5" Header="5节" Tag="5" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount6" Header="6节" Tag="6" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount7" Header="7节" Tag="7" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount8" Header="8节" Tag="8" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount9" Header="9节" Tag="9" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuScrollCount10" Header="10节" Tag="10" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ScrollViewer.ContextMenu>
                     <StackPanel>
                         <!-- 章节标题（可滚动） -->
                         <Border x:Name="BibleChapterTitleBorder" Background="#000000" Padding="20,15">

@@ -77,9 +77,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="V257\**" />
+    <Compile Remove="V541\**" />
     <Compile Remove="BuildTools\**" />
     <EmbeddedResource Remove="V257\**" />
+    <EmbeddedResource Remove="V541\**" />
     <None Remove="V257\**" />
+    <None Remove="V541\**" />
   </ItemGroup>
   <!-- Pack resources after build -->
   <Target Name="PackResources" AfterTargets="Build">

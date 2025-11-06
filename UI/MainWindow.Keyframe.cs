@@ -215,6 +215,13 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"");
             //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
             
+            // 🎯 模式-1：圣经模式（向上滚动经文）
+            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            {
+                BtnBiblePrevVerse_Click(sender, e);
+                return;
+            }
+            
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
@@ -315,6 +322,13 @@ namespace ImageColorChanger.UI
             var sw = System.Diagnostics.Stopwatch.StartNew();
             //System.Diagnostics.Debug.WriteLine($"");
             //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
+            
+            // 🎯 模式-1：圣经模式（向下滚动经文）
+            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            {
+                BtnBibleNextVerse_Click(sender, e);
+                return;
+            }
             
             // 🎯 模式0：文本编辑器模式（切换幻灯片）
             if (TextEditorPanel.Visibility == Visibility.Visible)
@@ -875,6 +889,7 @@ namespace ImageColorChanger.UI
             // 原图模式 → 隐藏
             // 媒体文件 → 隐藏
             // 歌词模式 → 隐藏
+            // 圣经模式 → 隐藏
             // 正常图片 → 显示
             
             if (_originalMode)
@@ -887,6 +902,13 @@ namespace ImageColorChanger.UI
             if (_isLyricsMode)
             {
                 // 歌词模式，隐藏按钮
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (_isBibleMode)
+            {
+                // 圣经模式，隐藏按钮
                 BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
                 return;
             }

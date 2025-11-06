@@ -237,6 +237,9 @@ namespace ImageColorChanger.UI
 
             // 清空图片显示（包括合成播放按钮）
             ClearImageDisplay();
+            
+            // 🆕 更新合成播放按钮显示状态（隐藏按钮）
+            UpdateFloatingCompositePlayButton();
 
             // 隐藏ProjectTree，显示圣经导航面板
             ProjectTree.Visibility = Visibility.Collapsed;
@@ -278,6 +281,9 @@ namespace ImageColorChanger.UI
             
             // 初始化拼音快速定位服务
             InitializePinyinService();
+            
+            // 💾 加载滚动节数设置
+            LoadBibleScrollVerseCountSetting();
             
             // 显示圣经视图区域，隐藏其他区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -2386,12 +2392,162 @@ namespace ImageColorChanger.UI
             }
         }
 
+        /// <summary>
+        /// 设置滚动节数的右键菜单项点击事件
+        /// </summary>
+        private void SetScrollVerseCount_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.Tag != null)
+            {
+                // 尝试将 Tag 转换为 int（可能是 int 或 string）
+                int count;
+                if (menuItem.Tag is int tagInt)
+                {
+                    count = tagInt;
+                }
+                else if (int.TryParse(menuItem.Tag.ToString(), out int tagParsed))
+                {
+                    count = tagParsed;
+                }
+                else
+                {
+#if DEBUG
+                    Debug.WriteLine($"❌ [滚动设置] Tag 转换失败: {menuItem.Tag} (类型: {menuItem.Tag.GetType()})");
+#endif
+                    return;
+                }
+                
+                _scrollVerseCount = count;
+                
+                // 更新菜单项的选中状态
+                MenuScrollCount1.IsChecked = (count == 1);
+                MenuScrollCount2.IsChecked = (count == 2);
+                MenuScrollCount3.IsChecked = (count == 3);
+                MenuScrollCount4.IsChecked = (count == 4);
+                MenuScrollCount5.IsChecked = (count == 5);
+                MenuScrollCount6.IsChecked = (count == 6);
+                MenuScrollCount7.IsChecked = (count == 7);
+                MenuScrollCount8.IsChecked = (count == 8);
+                MenuScrollCount9.IsChecked = (count == 9);
+                MenuScrollCount10.IsChecked = (count == 10);
+                
+                // 💾 保存设置到数据库
+                SaveBibleScrollVerseCountSetting();
+                
+#if DEBUG
+                Debug.WriteLine($"⚙️ [滚动设置] 已设置滚动节数: {count}节");
+#endif
+                ShowStatus($"✅ 已设置滚动节数: {count}节");
+            }
+        }
+
+        /// <summary>
+        /// 从数据库加载经文滚动节数设置
+        /// </summary>
+        private void LoadBibleScrollVerseCountSetting()
+        {
+            try
+            {
+                var dbContext = _dbManager?.GetDbContext();
+                if (dbContext == null) return;
+                
+                var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "bible_scroll_verse_count");
+                if (setting != null && int.TryParse(setting.Value, out int count) && count >= 1 && count <= 10)
+                {
+                    _scrollVerseCount = count;
+                    
+                    // 更新菜单项的选中状态
+                    MenuScrollCount1.IsChecked = (count == 1);
+                    MenuScrollCount2.IsChecked = (count == 2);
+                    MenuScrollCount3.IsChecked = (count == 3);
+                    MenuScrollCount4.IsChecked = (count == 4);
+                    MenuScrollCount5.IsChecked = (count == 5);
+                    MenuScrollCount6.IsChecked = (count == 6);
+                    MenuScrollCount7.IsChecked = (count == 7);
+                    MenuScrollCount8.IsChecked = (count == 8);
+                    MenuScrollCount9.IsChecked = (count == 9);
+                    MenuScrollCount10.IsChecked = (count == 10);
+                    
+#if DEBUG
+                    Debug.WriteLine($"✅ [滚动设置] 从数据库加载滚动节数: {count}节");
+#endif
+                }
+            }
+            catch (Exception)
+            {
+#if DEBUG
+                // 加载失败不影响功能，静默处理
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 保存经文滚动节数设置到数据库
+        /// </summary>
+        private void SaveBibleScrollVerseCountSetting()
+        {
+            try
+            {
+                var dbContext = _dbManager?.GetDbContext();
+                if (dbContext == null) return;
+                
+                var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "bible_scroll_verse_count");
+                if (setting == null)
+                {
+                    setting = new Database.Models.Setting
+                    {
+                        Key = "bible_scroll_verse_count",
+                        Value = _scrollVerseCount.ToString()
+                    };
+                    dbContext.Settings.Add(setting);
+                }
+                else
+                {
+                    setting.Value = _scrollVerseCount.ToString();
+                }
+                
+                dbContext.SaveChanges();
+                
+#if DEBUG
+                Debug.WriteLine($"💾 [滚动设置] 已保存滚动节数到数据库: {_scrollVerseCount}节");
+#endif
+            }
+            catch (Exception)
+            {
+#if DEBUG
+                // 保存失败不影响功能，静默处理
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 上帧按钮点击事件（向上滚动）
+        /// </summary>
+        private void BtnBiblePrevVerse_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                return;
+
+            HandleVerseScroll(-1, _scrollVerseCount);
+        }
+
+        /// <summary>
+        /// 下帧按钮点击事件（向下滚动）
+        /// </summary>
+        private void BtnBibleNextVerse_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                return;
+
+            HandleVerseScroll(1, _scrollVerseCount);
+        }
+
         // 滚轮对齐相关字段
         private System.Windows.Threading.DispatcherTimer _scrollAlignTimer;
-        private bool _isScrollAligning = false;
         private int _currentTargetVerseIndex = -1; // 当前目标经文索引
         private DateTime _lastScrollTime = DateTime.MinValue; // 上次滚动时间
         private const int SCROLL_THROTTLE_MS = 50; // 滚动节流时间（毫秒）
+        private int _scrollVerseCount = 1; // 每次滚动的节数（默认1节）
 
         /// <summary>
         /// 经文滚动区鼠标滚轮事件（自动对齐到经文顶部）
@@ -2404,11 +2560,15 @@ namespace ImageColorChanger.UI
             // 阻止默认滚动行为
             e.Handled = true;
 
-            // 计算滚动方向（每次滚动一节）
+            // 计算滚动方向
             int direction = e.Delta > 0 ? -1 : 1; // 向上滚轮=-1（向上滚动），向下滚轮=+1（向下滚动）
             
-            // 调用通用滚动处理逻辑
-            HandleVerseScroll(direction);
+            //#if DEBUG
+            //Debug.WriteLine($"🖱️ [滚轮事件] 方向: {(direction < 0 ? "向上" : "向下")}, _scrollVerseCount={_scrollVerseCount}");
+            //#endif
+            
+            // 调用通用滚动处理逻辑（使用用户设置的滚动节数）
+            HandleVerseScroll(direction, _scrollVerseCount);
         }
 
         /// <summary>
@@ -2416,16 +2576,23 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void HandleVerseScroll(int direction)
         {
-            // 如果正在对齐中，忽略新的滚动请求（防止过快滚动）
-            if (_isScrollAligning)
-            {
-                // Debug.WriteLine($"🖱️ [滚轮对齐] 动画进行中，忽略滚轮事件");
-                return;
-            }
+            HandleVerseScroll(direction, 1); // 默认滚动1节
+        }
 
-            // 节流：防止滚动事件触发过快
+        /// <summary>
+        /// 处理经文滚动（支持指定滚动节数）
+        /// </summary>
+        /// <param name="direction">滚动方向：-1向上，1向下</param>
+        /// <param name="count">滚动节数</param>
+        private void HandleVerseScroll(int direction, int count)
+        {
+            //#if DEBUG
+            //Debug.WriteLine($"📥 [HandleVerseScroll] 收到参数: direction={direction}, count={count}");
+            //#endif
+            
+            // 节流：防止滚动事件触发过快（无动画模式下可以适当放宽）
             var now = DateTime.Now;
-            if ((now - _lastScrollTime).TotalMilliseconds < SCROLL_THROTTLE_MS)
+            if ((now - _lastScrollTime).TotalMilliseconds < 30) // 从50ms降低到30ms，更灵敏
             {
                 // Debug.WriteLine($"🖱️ [滚轮对齐] 滚动过快，忽略 ({(now - _lastScrollTime).TotalMilliseconds:F0}ms)");
                 return;
@@ -2452,26 +2619,39 @@ namespace ImageColorChanger.UI
             
             if (isAligned)
             {
-                // 🔧 情况1：已对齐，移动到下一节/上一节
-                targetVerseIndex = Math.Max(0, Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + direction));
-                // Debug.WriteLine($"✅ [已对齐] 偏移 {offsetDiff:F1}px，方向: {(direction < 0 ? "向上" : "向下")}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
+                // 🔧 情况1：已对齐，移动指定节数
+                targetVerseIndex = Math.Max(0, Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + (direction * count)));
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [已对齐] 偏移 {offsetDiff:F1}px，方向: {(direction < 0 ? "向上" : "向下")}, count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
+                //#endif
             }
             else
             {
                 // 🔧 情况2：未对齐，智能修复
-                // 向下滚动时：直接跳到下一节（符合用户预期）
-                // 向上滚动时：回到当前节顶部
                 if (direction > 0 && offsetDiff > 0)
                 {
-                    // 向下滚动且有正偏移：跳到下一节
-                    targetVerseIndex = Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + 1);
-                    // Debug.WriteLine($"🔧 [智能修复] 偏移 {offsetDiff:F1}px，向下滚动 → 跳到下一节: {targetVerseIndex + 1}");
+                    // 向下滚动且有正偏移：跳到下一节（再加上额外的节数）
+                    targetVerseIndex = Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + count);
+                    //#if DEBUG
+                    //Debug.WriteLine($"🔧 [智能修复-向下] 偏移 {offsetDiff:F1}px，count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
+                    //#endif
+                }
+                else if (direction < 0)
+                {
+                    // 向上滚动：先对齐到当前节，然后再向上移动 (count-1) 节
+                    // 如果 count=1，就对齐到当前节；如果 count=2，就到上一节；以此类推
+                    targetVerseIndex = Math.Max(0, currentVerseIndex - (count - 1));
+                    //#if DEBUG
+                    //Debug.WriteLine($"🔧 [智能修复-向上] 偏移 {offsetDiff:F1}px，count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
+                    //#endif
                 }
                 else
                 {
-                    // 向上滚动或负偏移：对齐到当前节
+                    // 负偏移：对齐到当前节
                     targetVerseIndex = currentVerseIndex;
-                    // Debug.WriteLine($"🔧 [智能修复] 偏移 {offsetDiff:F1}px，对齐到当前节: {targetVerseIndex + 1}");
+                    //#if DEBUG
+                    //Debug.WriteLine($"🔧 [智能修复-负偏移] 偏移 {offsetDiff:F1}px，对齐到当前节: {targetVerseIndex + 1}");
+                    //#endif
                 }
             }
             
@@ -2484,9 +2664,9 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 平滑滚动到目标经文
+            // 直接跳转到目标经文（无动画，更流畅）
             _currentTargetVerseIndex = targetVerseIndex;
-            ScrollToVerseSmooth(targetVerseIndex);
+            ScrollToVerseInstant(targetVerseIndex);
         }
 
         /// <summary>
@@ -2542,8 +2722,6 @@ namespace ImageColorChanger.UI
             double targetOffset = CalculateVerseOffset(verseIndex);
 
             // 使用计时器实现平滑滚动
-            _isScrollAligning = true;
-            
             double startOffset = BibleVerseScrollViewer.VerticalOffset;
             double distance = targetOffset - startOffset;
             
@@ -2551,13 +2729,6 @@ namespace ImageColorChanger.UI
             if (Math.Abs(distance) < 5)
             {
                 BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
-                
-                // 延迟一帧再重置标志，确保滚动位置已更新
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    _isScrollAligning = false;
-                    // Debug.WriteLine($"✅ [直接跳转] 目标位置: {targetOffset:F1}px, 实际位置: {BibleVerseScrollViewer.VerticalOffset:F1}px");
-                }), System.Windows.Threading.DispatcherPriority.Render);
                 return;
             }
 
@@ -2591,13 +2762,6 @@ namespace ImageColorChanger.UI
                     BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
                     localTimer.Tick -= tickHandler;
                     localTimer.Stop();
-                    
-                    // 延迟一帧再重置标志，确保滚动位置已更新
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        _isScrollAligning = false;
-                        // Debug.WriteLine($"✅ [滚动完成] 目标位置: {targetOffset:F1}px, 实际位置: {BibleVerseScrollViewer.VerticalOffset:F1}px, 差异: {Math.Abs(targetOffset - BibleVerseScrollViewer.VerticalOffset):F1}px");
-                    }), System.Windows.Threading.DispatcherPriority.Render);
                 }
                 else
                 {
@@ -2611,6 +2775,21 @@ namespace ImageColorChanger.UI
 
             _scrollAlignTimer.Tick += tickHandler;
             _scrollAlignTimer.Start();
+        }
+
+        /// <summary>
+        /// 立即跳转到指定经文（无动画）
+        /// </summary>
+        private void ScrollToVerseInstant(int verseIndex)
+        {
+            if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
+                return;
+
+            // 计算目标滚动位置
+            double targetOffset = CalculateVerseOffset(verseIndex);
+
+            // 直接跳转，无动画
+            BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
         }
 
         /// <summary>
