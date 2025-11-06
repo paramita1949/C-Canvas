@@ -100,6 +100,13 @@
                            Foreground="#B3E5FC"
                            HorizontalAlignment="Center"
                            Margin="0,5,0,0"/>
+                <TextBlock FontSize="13" 
+                           Foreground="#B3E5FC"
+                           HorizontalAlignment="Center"
+                           Margin="0,3,0,0">
+                    <Run Text="邮箱: "/>
+                    <Run Text="irenminbi@vip.qq.com" FontWeight="Medium"/>
+                </TextBlock>
             </StackPanel>
         </Border>
 

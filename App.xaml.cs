@@ -1,4 +1,8 @@
 ﻿using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +16,11 @@ namespace ImageColorChanger
         /// 依赖注入服务提供者
         /// </summary>
         public static IServiceProvider ServiceProvider { get; private set; }
+        
+        /// <summary>
+        /// 互斥锁，用于防止同一目录下启动多个实例
+        /// </summary>
+        private static Mutex _instanceMutex;
 
         /// <summary>
         /// 应用程序启动
@@ -20,6 +29,17 @@ namespace ImageColorChanger
         {
             base.OnStartup(e);
 
+            // 🔒 检查是否已有实例在同一目录运行
+            if (!CheckSingleInstance())
+            {
+                System.Windows.MessageBox.Show(
+                    "程序已经启动,请勿重复启动！",
+                    "咏慕投影",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                Shutdown();
+                return;
+            }
 
             try
             {
@@ -63,7 +83,77 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnExit(ExitEventArgs e)
         {
+            // 释放互斥锁
+            _instanceMutex?.ReleaseMutex();
+            _instanceMutex?.Dispose();
+            
             base.OnExit(e);
+        }
+        
+        /// <summary>
+        /// 检查单实例（基于当前目录）
+        /// </summary>
+        /// <returns>如果是唯一实例返回true，否则返回false</returns>
+        private static bool CheckSingleInstance()
+        {
+            try
+            {
+                // 获取当前程序所在目录的完整路径
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                
+                // 生成基于目录路径的唯一互斥锁名称
+                string mutexName = GenerateMutexName(currentDirectory);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 当前目录: {currentDirectory}");
+                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 互斥锁名称: {mutexName}");
+                #endif
+                
+                // 尝试创建互斥锁
+                bool createdNew;
+                _instanceMutex = new Mutex(true, mutexName, out createdNew);
+                
+                if (!createdNew)
+                {
+                    // 互斥锁已存在，说明该目录下已有实例在运行
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 检测到重复实例");
+                    #endif
+                    return false;
+                }
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 首次启动，创建互斥锁成功");
+                #endif
+                
+                return true;
+            }
+            catch (Exception 
+                #if DEBUG
+                ex
+                #endif
+                )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 异常: {ex.Message}");
+                #endif
+                // 如果出现异常，允许启动（避免因检查失败而无法启动）
+                return true;
+            }
+        }
+        
+        /// <summary>
+        /// 根据目录路径生成唯一的互斥锁名称
+        /// </summary>
+        private static string GenerateMutexName(string directoryPath)
+        {
+            // 使用MD5生成目录路径的哈希值，确保互斥锁名称唯一且合法
+            using (var md5 = MD5.Create())
+            {
+                byte[] hash = md5.ComputeHash(Encoding.UTF8.GetBytes(directoryPath.ToLower()));
+                string hashString = BitConverter.ToString(hash).Replace("-", "");
+                return $"Global\\CanvasCast_{hashString}";
+            }
         }
 
         /// <summary>
