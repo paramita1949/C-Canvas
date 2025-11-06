@@ -1770,6 +1770,67 @@ namespace ImageColorChanger.UI
 
         #endregion
 
+        #region 底部译本工具栏自动显示/隐藏
+
+        /// <summary>
+        /// 鼠标进入底部区域或工具栏时显示
+        /// </summary>
+        private void BibleVersionTrigger_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (BibleVersionToolbar != null)
+            {
+                // 直接显示工具栏
+                BibleVersionToolbar.Visibility = Visibility.Visible;
+            }
+        }
+
+        /// <summary>
+        /// 鼠标离开底部区域和工具栏时隐藏
+        /// </summary>
+        private void BibleVersionTrigger_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (BibleVersionToolbar != null)
+            {
+                // 检查鼠标是否真的离开了整个区域（触发区+工具栏）
+                var triggerArea = BibleVersionTriggerArea;
+                var toolbar = BibleVersionToolbar;
+                
+                if (triggerArea != null && toolbar != null && BibleVerseScrollViewer != null)
+                {
+                    var mousePos = Mouse.GetPosition(BibleVerseScrollViewer);
+                    var triggerBounds = new Rect(
+                        triggerArea.TranslatePoint(new System.Windows.Point(0, 0), BibleVerseScrollViewer),
+                        new System.Windows.Size(triggerArea.ActualWidth, triggerArea.ActualHeight)
+                    );
+                    
+                    // 只检查触发区，因为工具栏可能是Collapsed状态
+                    if (triggerBounds.Contains(mousePos))
+                    {
+                        return;
+                    }
+                    
+                    // 如果工具栏可见，也检查工具栏区域
+                    if (toolbar.Visibility == Visibility.Visible)
+                    {
+                        var toolbarBounds = new Rect(
+                            toolbar.TranslatePoint(new System.Windows.Point(0, 0), BibleVerseScrollViewer),
+                            new System.Windows.Size(toolbar.ActualWidth, toolbar.ActualHeight)
+                        );
+                        
+                        if (toolbarBounds.Contains(mousePos))
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                // 隐藏工具栏
+                BibleVersionToolbar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        #endregion
+
         #region 圣经搜索
 
         /// <summary>

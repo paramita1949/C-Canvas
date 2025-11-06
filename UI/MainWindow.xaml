@@ -1445,10 +1445,31 @@
                                                  VerticalAlignment="Center"
                                                  Panel.ZIndex="1000"/>
                 
-                <!-- 🆕 底部工具栏：快速切换译本 -->
-                <Border Grid.Row="1" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Padding="10,8">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <TextBlock Text="译本:" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <!-- 🆕 底部工具栏：快速切换译本（鼠标悬停显示）-->
+                <!-- 鼠标触发区域（悬浮在经文区底部，不占用布局空间）-->
+                <Border Grid.Row="0" 
+                        x:Name="BibleVersionTriggerArea"
+                        Height="20"
+                        VerticalAlignment="Bottom"
+                        Background="Transparent"
+                        Panel.ZIndex="999"
+                        MouseEnter="BibleVersionTrigger_MouseEnter"
+                        MouseLeave="BibleVersionTrigger_MouseLeave"/>
+                
+                <!-- 版本切换工具栏（默认隐藏，悬浮在内容上方）-->
+                <Border Grid.Row="0"
+                        x:Name="BibleVersionToolbar"
+                        Background="#2D2D30" 
+                        BorderBrush="#3E3E42" 
+                        BorderThickness="0,1,0,0" 
+                        Padding="10,8"
+                        VerticalAlignment="Bottom"
+                        Visibility="Collapsed"
+                        Panel.ZIndex="1000"
+                        MouseEnter="BibleVersionTrigger_MouseEnter"
+                        MouseLeave="BibleVersionTrigger_MouseLeave">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                            <TextBlock Text="译本:" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         
                         <!-- 和合本 -->
                         <RadioButton x:Name="RadioBibleVersionSimplified" 
