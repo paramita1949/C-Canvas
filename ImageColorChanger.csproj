@@ -90,4 +90,5 @@
     <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
     <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
   </Target>
+  <Import Project="ImageColorChanger.dotnet_reactor.targets" Condition="Exists('ImageColorChanger.dotnet_reactor.targets')" />
 </Project>

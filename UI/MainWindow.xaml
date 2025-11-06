@@ -1324,6 +1324,7 @@
                                   Focusable="True"
                                   PreviewKeyDown="BibleVerseScrollViewer_PreviewKeyDown"
                                   PreviewMouseDown="BibleVerseScrollViewer_PreviewMouseDown"
+                                  PreviewMouseWheel="BibleVerseScrollViewer_PreviewMouseWheel"
                                   ScrollChanged="BibleVerseContentScroller_ScrollChanged">
                     <StackPanel>
                         <!-- 章节标题（可滚动） -->

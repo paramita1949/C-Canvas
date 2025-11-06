@@ -2386,6 +2386,265 @@ namespace ImageColorChanger.UI
             }
         }
 
+        // 滚轮对齐相关字段
+        private System.Windows.Threading.DispatcherTimer _scrollAlignTimer;
+        private bool _isScrollAligning = false;
+        private int _currentTargetVerseIndex = -1; // 当前目标经文索引
+        private DateTime _lastScrollTime = DateTime.MinValue; // 上次滚动时间
+        private const int SCROLL_THROTTLE_MS = 50; // 滚动节流时间（毫秒）
+
+        /// <summary>
+        /// 经文滚动区鼠标滚轮事件（自动对齐到经文顶部）
+        /// </summary>
+        private void BibleVerseScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                return;
+
+            // 阻止默认滚动行为
+            e.Handled = true;
+
+            // 计算滚动方向（每次滚动一节）
+            int direction = e.Delta > 0 ? -1 : 1; // 向上滚轮=-1（向上滚动），向下滚轮=+1（向下滚动）
+            
+            // 调用通用滚动处理逻辑
+            HandleVerseScroll(direction);
+        }
+
+        /// <summary>
+        /// 处理经文滚动（通用逻辑，供鼠标滚轮和键盘事件调用）
+        /// </summary>
+        private void HandleVerseScroll(int direction)
+        {
+            // 如果正在对齐中，忽略新的滚动请求（防止过快滚动）
+            if (_isScrollAligning)
+            {
+                // Debug.WriteLine($"🖱️ [滚轮对齐] 动画进行中，忽略滚轮事件");
+                return;
+            }
+
+            // 节流：防止滚动事件触发过快
+            var now = DateTime.Now;
+            if ((now - _lastScrollTime).TotalMilliseconds < SCROLL_THROTTLE_MS)
+            {
+                // Debug.WriteLine($"🖱️ [滚轮对齐] 滚动过快，忽略 ({(now - _lastScrollTime).TotalMilliseconds:F0}ms)");
+                return;
+            }
+            _lastScrollTime = now;
+
+            // 手动滚动
+            double currentOffset = BibleVerseScrollViewer.VerticalOffset;
+            
+            // 找到当前最接近顶部的经文索引
+            int currentVerseIndex = FindClosestVerseIndex(currentOffset);
+            
+            // 🔧 智能对齐：检查当前经文是否已经对齐
+            double currentVerseOffset = CalculateVerseOffset(currentVerseIndex);
+            double offsetDiff = currentOffset - currentVerseOffset; // 注意：不取绝对值，保留方向
+            const double ALIGNMENT_THRESHOLD = 5.0; // 对齐阈值（像素）
+            
+            // Debug.WriteLine($"📍 [位置检测] 当前滚动位置: {currentOffset:F1}px, 检测到节: {currentVerseIndex + 1}, 该节起始位置: {currentVerseOffset:F1}px, 偏移: {offsetDiff:F1}px");
+            
+            int targetVerseIndex;
+            
+            // 判断是否已对齐（在阈值范围内）
+            bool isAligned = Math.Abs(offsetDiff) <= ALIGNMENT_THRESHOLD;
+            
+            if (isAligned)
+            {
+                // 🔧 情况1：已对齐，移动到下一节/上一节
+                targetVerseIndex = Math.Max(0, Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + direction));
+                // Debug.WriteLine($"✅ [已对齐] 偏移 {offsetDiff:F1}px，方向: {(direction < 0 ? "向上" : "向下")}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
+            }
+            else
+            {
+                // 🔧 情况2：未对齐，智能修复
+                // 向下滚动时：直接跳到下一节（符合用户预期）
+                // 向上滚动时：回到当前节顶部
+                if (direction > 0 && offsetDiff > 0)
+                {
+                    // 向下滚动且有正偏移：跳到下一节
+                    targetVerseIndex = Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + 1);
+                    // Debug.WriteLine($"🔧 [智能修复] 偏移 {offsetDiff:F1}px，向下滚动 → 跳到下一节: {targetVerseIndex + 1}");
+                }
+                else
+                {
+                    // 向上滚动或负偏移：对齐到当前节
+                    targetVerseIndex = currentVerseIndex;
+                    // Debug.WriteLine($"🔧 [智能修复] 偏移 {offsetDiff:F1}px，对齐到当前节: {targetVerseIndex + 1}");
+                }
+            }
+            
+            // 如果已经在边界且已对齐，直接返回
+            if (targetVerseIndex == currentVerseIndex && isAligned &&
+                ((direction < 0 && currentOffset <= 0) || 
+                 (direction > 0 && currentOffset >= BibleVerseScrollViewer.ScrollableHeight)))
+            {
+                // Debug.WriteLine($"🖱️ [滚轮对齐] 已到达边界，忽略");
+                return;
+            }
+
+            // 平滑滚动到目标经文
+            _currentTargetVerseIndex = targetVerseIndex;
+            ScrollToVerseSmooth(targetVerseIndex);
+        }
+
+        /// <summary>
+        /// 查找当前滚动位置最接近顶部的经文索引
+        /// </summary>
+        private int FindClosestVerseIndex(double currentOffset)
+        {
+            if (BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                return 0;
+
+            // 获取标题和顶部边距的总高度
+            double headerHeight = 0;
+            if (BibleChapterTitleBorder != null)
+                headerHeight += BibleChapterTitleBorder.ActualHeight;
+            headerHeight += 20; // 顶部边距
+
+            // 如果滚动位置在标题区域，返回第一节
+            if (currentOffset < headerHeight)
+            {
+                // Debug.WriteLine($"  📍 在标题区域，返回节1");
+                return 0;
+            }
+
+            // 🔧 新策略：使用 CalculateVerseOffset 来计算每一节的精确位置
+            // 这样即使节未渲染（Container为null），也能正确判断
+            int totalVerses = BibleVerseList.Items.Count;
+            
+            // 从后往前查找，找到第一个起始位置 <= currentOffset 的节
+            for (int i = totalVerses - 1; i >= 0; i--)
+            {
+                double verseOffset = CalculateVerseOffset(i);
+                if (currentOffset >= verseOffset)
+                {
+                    // Debug.WriteLine($"  ✅ 找到节{i + 1}，起始位置: {verseOffset:F1}px，当前位置: {currentOffset:F1}px");
+                    return i;
+                }
+            }
+
+            // 理论上不应该到这里，返回第一节
+            // Debug.WriteLine($"  ⚠️ 未找到匹配，返回第一节");
+            return 0;
+        }
+
+        /// <summary>
+        /// 平滑滚动到指定经文
+        /// </summary>
+        private void ScrollToVerseSmooth(int verseIndex)
+        {
+            if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
+                return;
+
+            // 计算目标滚动位置
+            double targetOffset = CalculateVerseOffset(verseIndex);
+
+            // 使用计时器实现平滑滚动
+            _isScrollAligning = true;
+            
+            double startOffset = BibleVerseScrollViewer.VerticalOffset;
+            double distance = targetOffset - startOffset;
+            
+            // 如果距离很小，直接跳转
+            if (Math.Abs(distance) < 5)
+            {
+                BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
+                
+                // 延迟一帧再重置标志，确保滚动位置已更新
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isScrollAligning = false;
+                    // Debug.WriteLine($"✅ [直接跳转] 目标位置: {targetOffset:F1}px, 实际位置: {BibleVerseScrollViewer.VerticalOffset:F1}px");
+                }), System.Windows.Threading.DispatcherPriority.Render);
+                return;
+            }
+
+            // 平滑滚动参数
+            int steps = 6; // 滚动步数（更快的动画）
+            int currentStep = 0;
+
+            if (_scrollAlignTimer == null)
+            {
+                _scrollAlignTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(16) // 约60fps
+                };
+            }
+            else
+            {
+                _scrollAlignTimer.Stop();
+                _scrollAlignTimer.Tick -= null; // 清除旧的事件处理
+            }
+
+            System.Windows.Threading.DispatcherTimer localTimer = _scrollAlignTimer;
+            System.EventHandler tickHandler = null;
+            
+            tickHandler = (s, e) =>
+            {
+                currentStep++;
+                
+                if (currentStep >= steps)
+                {
+                    // 最后一步，精确到目标位置
+                    BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
+                    localTimer.Tick -= tickHandler;
+                    localTimer.Stop();
+                    
+                    // 延迟一帧再重置标志，确保滚动位置已更新
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        _isScrollAligning = false;
+                        // Debug.WriteLine($"✅ [滚动完成] 目标位置: {targetOffset:F1}px, 实际位置: {BibleVerseScrollViewer.VerticalOffset:F1}px, 差异: {Math.Abs(targetOffset - BibleVerseScrollViewer.VerticalOffset):F1}px");
+                    }), System.Windows.Threading.DispatcherPriority.Render);
+                }
+                else
+                {
+                    // 使用缓动函数（ease-out）
+                    double progress = (double)currentStep / steps;
+                    double easedProgress = 1 - Math.Pow(1 - progress, 3); // cubic ease-out
+                    double newOffset = startOffset + distance * easedProgress;
+                    BibleVerseScrollViewer.ScrollToVerticalOffset(newOffset);
+                }
+            };
+
+            _scrollAlignTimer.Tick += tickHandler;
+            _scrollAlignTimer.Start();
+        }
+
+        /// <summary>
+        /// 计算指定经文的滚动偏移量
+        /// </summary>
+        private double CalculateVerseOffset(int verseIndex)
+        {
+            if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
+                return 0;
+
+            // 获取标题和顶部边距的总高度
+            double headerHeight = 0;
+            if (BibleChapterTitleBorder != null)
+                headerHeight += BibleChapterTitleBorder.ActualHeight;
+            headerHeight += 20; // 顶部边距
+
+            // 如果是第一节，滚动到标题后
+            if (verseIndex == 0)
+                return headerHeight;
+
+            // 计算前面所有经文的累计高度
+            double accumulatedHeight = headerHeight;
+            for (int i = 0; i < verseIndex; i++)
+            {
+                var container = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null)
+                {
+                    accumulatedHeight += container.ActualHeight;
+                }
+            }
+
+            return accumulatedHeight;
+        }
+
         /// <summary>
         /// 拼音定位确认回调
         /// </summary>
@@ -2518,4 +2777,5 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
 

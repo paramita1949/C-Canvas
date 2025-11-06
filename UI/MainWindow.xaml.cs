@@ -2419,22 +2419,22 @@ namespace ImageColorChanger.UI
 //            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
 //#endif
             
-            // 🆕 圣经模式：PageUp/PageDown 用于切换经文
-            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
-            {
-                if (e.Key == Key.PageUp)
-                {
-                    _ = NavigateBibleVerseAsync(-1); // 上一节
-                    e.Handled = true;
-                    return;
-                }
-                else if (e.Key == Key.PageDown)
-                {
-                    _ = NavigateBibleVerseAsync(1); // 下一节
-                    e.Handled = true;
-                    return;
-                }
-            }
+            // 🆕 圣经模式：不绑定 PageUp/PageDown（已删除键盘快捷键功能）
+            // if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            // {
+            //     if (e.Key == Key.PageUp)
+            //     {
+            //         _ = NavigateBibleVerseAsync(-1); // 上一节
+            //         e.Handled = true;
+            //         return;
+            //     }
+            //     else if (e.Key == Key.PageDown)
+            //     {
+            //         _ = NavigateBibleVerseAsync(1); // 下一节
+            //         e.Handled = true;
+            //         return;
+            //     }
+            // }
             
             // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
             if (TextEditorPanel.Visibility == Visibility.Visible)
