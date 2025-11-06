@@ -785,26 +785,26 @@ namespace ImageColorChanger.Managers
 //                            System.Diagnostics.Debug.WriteLine($"🎯 [原图投影] Margin: {_projectionImageControl.Margin}");
 //#endif
                             
-                            // 设置滚动区域
+                            // 【关键修复】设置滚动区域 - 使用containerHeight（DIU）而不是screenHeight（物理像素）
                             double scrollHeight;
                             if (_isOriginalMode)
                             {
-                                scrollHeight = newHeight <= screenHeight ? screenHeight : newHeight + screenHeight;
-                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight <= screenHeight 
+                                scrollHeight = newHeight <= containerHeight ? containerHeight : newHeight + containerHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight <= containerHeight 
                                     ? System.Windows.Controls.ScrollBarVisibility.Hidden 
                                     : System.Windows.Controls.ScrollBarVisibility.Hidden;
                             }
                             else
                             {
-                                scrollHeight = newHeight >= screenHeight ? newHeight + screenHeight : screenHeight;
-                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight >= screenHeight 
+                                scrollHeight = newHeight >= containerHeight ? newHeight + containerHeight : containerHeight;
+                                _projectionScrollViewer.VerticalScrollBarVisibility = newHeight >= containerHeight 
                                     ? System.Windows.Controls.ScrollBarVisibility.Hidden 
                                     : System.Windows.Controls.ScrollBarVisibility.Hidden;
                             }
                             _projectionContainer.Height = scrollHeight;
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📏 [原图投影] 容器高度设置为: {scrollHeight:F2}");
+//                            System.Diagnostics.Debug.WriteLine($"📏 [UseSharedRendering容器] 图片高={newHeight:F0}, 容器DIU高={containerHeight:F0}, 设置容器高={scrollHeight:F0}, 原图模式={_isOriginalMode}");
 //#endif
                         }
 
@@ -1070,21 +1070,42 @@ namespace ImageColorChanger.Managers
                     int projScreenWidth = screen.Bounds.Width;
                     int projScreenHeight = screen.Bounds.Height;
 
-                    // 计算主屏幕图片的实际显示高度
+                    // 计算主屏幕图片的实际显示高度（必须与ImageProcessor.CalculateOriginalModeSize逻辑一致！）
                     double mainImgHeight;
                     if (_isOriginalMode)
                     {
                         double widthRatio = mainCanvasWidth / _currentImage.Width;
                         double heightRatio = mainCanvasHeight / _currentImage.Height;
-                        if (widthRatio < 1 || heightRatio < 1)
+                        
+                        double scaleRatio;
+                        if (_originalDisplayMode == OriginalDisplayMode.Stretch)
                         {
-                            double scale = Math.Min(widthRatio, heightRatio);
-                            mainImgHeight = _currentImage.Height * scale;
+                            // 拉伸模式：使用高度比例
+                            scaleRatio = heightRatio;
                         }
                         else
                         {
-                            mainImgHeight = _currentImage.Height;
+                            // 适中模式：使用较小的比例
+                            scaleRatio = Math.Min(widthRatio, heightRatio);
                         }
+                        
+                        // 【关键修复】应用放大限制（与ImageProcessor一致）
+                        if (scaleRatio >= 1)
+                        {
+                            double screenArea = mainCanvasWidth * mainCanvasHeight;
+                            double imageArea = _currentImage.Width * _currentImage.Height;
+                            double areaRatio = screenArea / imageArea;
+                            
+                            double maxScale;
+                            if (areaRatio > 16) maxScale = 6.0;
+                            else if (areaRatio > 9) maxScale = 4.0;
+                            else if (areaRatio > 4) maxScale = 3.0;
+                            else maxScale = 2.0;
+                            
+                            scaleRatio = Math.Min(scaleRatio, maxScale);
+                        }
+                        
+                        mainImgHeight = _currentImage.Height * scaleRatio;
                     }
                     else
                     {
@@ -1094,15 +1115,15 @@ namespace ImageColorChanger.Managers
                     }
 
                     // 计算投影屏幕图片的实际显示高度 (必须与CalculateImageSize逻辑一致!)
+                    // 获取投影ScrollViewer的实际DIU尺寸
+                    double projCanvasWidth = _projectionScrollViewer?.ActualWidth ?? projScreenWidth;
+                    double projCanvasHeight = _projectionScrollViewer?.ActualHeight ?? projScreenHeight;
+                    if (projCanvasWidth <= 0) projCanvasWidth = projScreenWidth;
+                    if (projCanvasHeight <= 0) projCanvasHeight = projScreenHeight;
+                    
                     double projImgHeight;
                     if (_isOriginalMode)
                     {
-                        // 获取投影ScrollViewer的实际DIU尺寸
-                        double projCanvasWidth = _projectionScrollViewer?.ActualWidth ?? projScreenWidth;
-                        double projCanvasHeight = _projectionScrollViewer?.ActualHeight ?? projScreenHeight;
-                        if (projCanvasWidth <= 0) projCanvasWidth = projScreenWidth;
-                        if (projCanvasHeight <= 0) projCanvasHeight = projScreenHeight;
-                        
                         double widthRatio = projCanvasWidth / _currentImage.Width;
                         double heightRatio = projCanvasHeight / _currentImage.Height;
                         
@@ -1140,11 +1161,6 @@ namespace ImageColorChanger.Managers
                     else
                     {
                         // 正常模式: 宽度填满,高度按比例,与CalculateImageSize一致
-                        double projCanvasWidth = _projectionScrollViewer?.ActualWidth ?? projScreenWidth;
-                        double projCanvasHeight = _projectionScrollViewer?.ActualHeight ?? projScreenHeight;
-                        if (projCanvasWidth <= 0) projCanvasWidth = projScreenWidth;
-                        if (projCanvasHeight <= 0) projCanvasHeight = projScreenHeight;
-                        
                         double baseRatio = projCanvasWidth / _currentImage.Width;
                         double finalRatio = baseRatio * _zoomRatio;
                         projImgHeight = _currentImage.Height * finalRatio;
@@ -1165,16 +1181,21 @@ namespace ImageColorChanger.Managers
                     // 📺 FPS监控：记录投影同步
                     (_mainWindow as UI.MainWindow)?._fpsMonitor?.RecordProjectionSync();
                     
-                    #if DEBUG
-                    // ⚡ 验证共享渲染状态（每60次滚动输出一次）
-                    _scrollVerifyCount++;
-                    if (_scrollVerifyCount % 60 == 0)
-                    {
-                        var mainBitmap = _imageProcessor?.CurrentPhoto;
-                        var projBitmap = _projectionImageControl?.Source;
-                        bool isShared = (mainBitmap != null && projBitmap != null && ReferenceEquals(mainBitmap, projBitmap));
-                    }
-                    #endif
+                    //#if DEBUG
+                    //// 调试滚动卡顿问题 - 每次滚动都输出
+                    //_scrollVerifyCount++;
+                    //if (_scrollVerifyCount % 10 == 0)  // 每10次输出一次，减少日志量
+                    //{
+                    //    double projContainerHeight = _projectionContainer?.ActualHeight ?? 0;
+                    //    double projImageControlHeight = _projectionImageControl?.ActualHeight ?? 0;
+                    //    
+                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 原始图片: {_currentImage.Width}x{_currentImage.Height}, 模式: {(_originalDisplayMode == OriginalDisplayMode.Stretch ? "拉伸" : "适中")}");
+                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 主屏: 画布={mainCanvasWidth:F0}x{mainCanvasHeight:F0}, 图高={mainImgHeight:F0}, 滚动={mainScrollTop:F0}/{_mainScrollViewer.ScrollableHeight:F0}");
+                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影: 画布={projCanvasWidth:F0}x{projCanvasHeight:F0}, 图高={projImgHeight:F0}, 滚动={projScrollTop:F0}/{_projectionScrollViewer.ScrollableHeight:F0}");
+                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影容器: 容器高={projContainerHeight:F0}, ImageControl高={projImageControlHeight:F0}");
+                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 相对位置: {originalRelativePos:P1}, 高度比: {(projImgHeight / mainImgHeight):F3}");
+                    //}
+                    //#endif
 
                     // System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
                 });
@@ -1955,18 +1976,19 @@ namespace ImageColorChanger.Managers
                     // 这样可以将图片底部内容拉到顶部显示
                     if (_projectionContainer != null)
                     {
+                        // 【关键修复】使用containerHeight（DIU）而不是screenHeight（物理像素）
                         double scrollHeight;
                         if (_isOriginalMode)
                         {
                             // 原图模式
-                            if (newHeight <= screenHeight)
+                            if (newHeight <= containerHeight)
                             {
-                                scrollHeight = screenHeight;
+                                scrollHeight = containerHeight;
                                 _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
                             }
                             else
                             {
-                                scrollHeight = newHeight + screenHeight;
+                                scrollHeight = newHeight + containerHeight;
                                 _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
                             }
                         }
@@ -1974,14 +1996,14 @@ namespace ImageColorChanger.Managers
                         {
                             // 正常模式
                             // 注意: 即使图片高度等于屏幕高度,也需要额外空间以支持滚动到底部
-                            if (newHeight >= screenHeight)
+                            if (newHeight >= containerHeight)
                             {
-                                scrollHeight = newHeight + screenHeight;
+                                scrollHeight = newHeight + containerHeight;
                                 _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
                             }
                             else
                             {
-                                scrollHeight = screenHeight;
+                                scrollHeight = containerHeight;
                                 _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
                             }
                         }
@@ -1989,7 +2011,7 @@ namespace ImageColorChanger.Managers
                         // 设置容器高度来控制滚动区域(宽度拉伸填满屏幕)
                         _projectionContainer.Height = scrollHeight;
                         
-                        //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 投影滚动区域: 图片高度={newHeight}, 屏幕高度={screenHeight}, 滚动高度={scrollHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"📏 [容器高度设置] 图片高={newHeight:F0}, 容器DIU高={containerHeight:F0}, 设置容器高={scrollHeight:F0}, 原图模式={_isOriginalMode}");
                     }
                     
                     var uiUpdateTime = sw.ElapsedMilliseconds - invokeStart;
