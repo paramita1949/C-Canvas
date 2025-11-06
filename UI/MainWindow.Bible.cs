@@ -2611,7 +2611,7 @@ namespace ImageColorChanger.UI
                 SaveBibleScrollVerseCountSetting();
                 
 #if DEBUG
-                Debug.WriteLine($"⚙️ [滚动设置] 已设置滚动节数: {count}节");
+                //Debug.WriteLine($"⚙️ [滚动设置] 已设置滚动节数: {count}节");
 #endif
                 ShowStatus($"✅ 已设置滚动节数: {count}节");
             }
@@ -2685,7 +2685,7 @@ namespace ImageColorChanger.UI
                 dbContext.SaveChanges();
                 
 #if DEBUG
-                Debug.WriteLine($"💾 [滚动设置] 已保存滚动节数到数据库: {_scrollVerseCount}节");
+                //Debug.WriteLine($"💾 [滚动设置] 已保存滚动节数到数据库: {_scrollVerseCount}节");
 #endif
             }
             catch (Exception)

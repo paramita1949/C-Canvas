@@ -2258,6 +2258,9 @@ namespace ImageColorChanger.UI
                 ScrollbarIndicatorsCanvas.Children.Clear();
 
                 // 浮动歌词按钮已删除
+                
+                // 🔧 隐藏合成播放按钮
+                UpdateFloatingCompositePlayButton();
 
                 ShowStatus("✅ 已清空图片显示");
             }
@@ -2527,6 +2530,17 @@ namespace ImageColorChanger.UI
                 {
                     SwitchToImageMode();
                     handled = true;
+                }
+                
+                // 如果没有投影也没有视频播放，且加载了图片，则清空图片
+                if (!handled && _imageProcessor.CurrentImage != null)
+                {
+                    ClearImageDisplay();
+                    handled = true;
+                    
+                    #if DEBUG
+                    Debug.WriteLine("[主窗口] ESC键 - 清空图片显示");
+                    #endif
                 }
                 
                 if (handled)

@@ -115,7 +115,7 @@ namespace ImageColorChanger.Services.Implementations
 
                 #if DEBUG
                 sw.Stop();
-                Debug.WriteLine($"[圣经服务] 查询单节耗时: {sw.ElapsedMilliseconds}ms");
+                //Debug.WriteLine($"[圣经服务] 查询单节耗时: {sw.ElapsedMilliseconds}ms");
                 #endif
 
                 if (result != null)

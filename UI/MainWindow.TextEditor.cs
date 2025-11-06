@@ -3545,10 +3545,10 @@ namespace ImageColorChanger.UI
                     #endif
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  [字体] 加载失败: {ex.Message}，使用默认字体");
+                //System.Diagnostics.Debug.WriteLine($"  [字体] 加载失败: {ex.Message}，使用默认字体");
                 #endif
                 // 加载失败，使用默认字体
                 var fontStyle = data.IsBoldBool ? SKFontStyle.Bold : SKFontStyle.Normal;

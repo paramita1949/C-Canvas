@@ -2389,7 +2389,7 @@ namespace ImageColorChanger.Managers
             _projectionStartTime = null;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已停止");
+            //System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已停止");
             #endif
         }
 

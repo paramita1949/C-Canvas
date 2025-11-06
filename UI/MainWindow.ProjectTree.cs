@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -292,22 +293,38 @@ namespace ImageColorChanger.UI
                             int newFolderId = mediaFile.FolderId.Value;
                             bool isSameFolder = (_currentFolderId == newFolderId);
                             
+                            #if DEBUG
+                            //Debug.WriteLine($"🎨 [点击图片] 文件: {selectedItem.Name}");
+                            //Debug.WriteLine($"   新文件夹ID: {newFolderId}");
+                            //Debug.WriteLine($"   当前文件夹ID: {_currentFolderId}");
+                            //Debug.WriteLine($"   是否同一文件夹: {isSameFolder}");
+                            #endif
+                            
                             if (!isSameFolder)
                             {
                                 // 切换到不同文件夹：根据标记自动调整变色状态
                                 bool hasFolderColorEffectMark = _dbManager.HasFolderAutoColorEffect(newFolderId);
                                 
+                                #if DEBUG
+                                //Debug.WriteLine($"   文件夹有变色标记: {hasFolderColorEffectMark}");
+                                //Debug.WriteLine($"   当前变色状态: {_isColorEffectEnabled}");
+                                #endif
+                                
                                 if (hasFolderColorEffectMark && !_isColorEffectEnabled)
                                 {
                                     // 文件夹有变色标记，自动启用变色效果
-                                    //System.Diagnostics.Debug.WriteLine($"🎨 切换到变色文件夹，自动启用变色效果");
+                                    #if DEBUG
+                                    //Debug.WriteLine($"🎨 [点击图片] 切换到变色文件夹，自动启用变色效果");
+                                    #endif
                                     _isColorEffectEnabled = true;
                                     BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
                                 }
                                 else if (!hasFolderColorEffectMark && _isColorEffectEnabled)
                                 {
                                     // 文件夹没有变色标记，自动关闭变色效果
-                                    //System.Diagnostics.Debug.WriteLine($"🎨 切换到非变色文件夹，自动关闭变色效果");
+                                    #if DEBUG
+                                    //Debug.WriteLine($"🎨 [点击图片] 切换到非变色文件夹，自动关闭变色效果");
+                                    #endif
                                     _isColorEffectEnabled = false;
                                     BtnColorEffect.Background = Brushes.Transparent;
                                 }
@@ -315,7 +332,41 @@ namespace ImageColorChanger.UI
                                 // 更新当前文件夹ID
                                 _currentFolderId = newFolderId;
                             }
-                            // else: 同文件夹内切换图片，保持当前变色状态不变
+                            else
+                            {
+                                // 🔧 修复：同文件夹内点击图片，但如果之前没有加载过图片，也要检查并应用变色标记
+                                // 这种情况发生在：展开文件夹 → 标记变色 → 首次点击图片
+                                if (_currentImageId == 0)
+                                {
+                                    bool hasFolderColorEffectMark = _dbManager.HasFolderAutoColorEffect(newFolderId);
+                                    
+                                    #if DEBUG
+                                    //Debug.WriteLine($"   首次加载图片，检查变色标记");
+                                    //Debug.WriteLine($"   文件夹有变色标记: {hasFolderColorEffectMark}");
+                                    //Debug.WriteLine($"   当前变色状态: {_isColorEffectEnabled}");
+                                    #endif
+                                    
+                                    if (hasFolderColorEffectMark && !_isColorEffectEnabled)
+                                    {
+                                        // 文件夹有变色标记，自动启用变色效果
+                                        #if DEBUG
+                                        //Debug.WriteLine($"🎨 [点击图片] 首次加载，启用文件夹变色效果");
+                                        #endif
+                                        _isColorEffectEnabled = true;
+                                        BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                                    }
+                                    else if (!hasFolderColorEffectMark && _isColorEffectEnabled)
+                                    {
+                                        // 文件夹没有变色标记，自动关闭变色效果
+                                        #if DEBUG
+                                        //Debug.WriteLine($"🎨 [点击图片] 首次加载，关闭变色效果");
+                                        #endif
+                                        _isColorEffectEnabled = false;
+                                        BtnColorEffect.Background = Brushes.Transparent;
+                                    }
+                                }
+                                // else: 同文件夹内切换图片，且已有图片加载，保持当前变色状态不变
+                            }
                         }
                         
                         if (System.IO.File.Exists(selectedItem.Path))
@@ -479,30 +530,34 @@ namespace ImageColorChanger.UI
             {
                 var treeViewItem = FindParent<TreeViewItem>(element);
                 
-                // 🆕 如果点击在空白区域（没有TreeViewItem），显示新建项目菜单
+                // 🆕 如果点击在空白区域（没有TreeViewItem），只在幻灯片项目模式显示新建项目菜单
                 if (treeViewItem == null)
                 {
-                    var contextMenu = new ContextMenu();
-                    
-                    // 🔑 关键：应用自定义样式（在 MainWindow.xaml 中定义）
-                    contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
-                    
-                    var newProjectItem = new MenuItem { Header = "📝 新建项目" };
-                    newProjectItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
-                    newProjectItem.Foreground = Brushes.White;
-                    newProjectItem.BorderThickness = new Thickness(0);
-                    newProjectItem.BorderBrush = Brushes.Transparent;
-                    
-                    newProjectItem.Click += async (s, args) =>
+                    // 只在幻灯片项目模式（Projects）显示新建项目菜单
+                    if (_currentViewMode == NavigationViewMode.Projects)
                     {
-                        string projectName = await GenerateDefaultProjectNameAsync();
-                        await CreateTextProjectAsync(projectName);
-                    };
-                    contextMenu.Items.Add(newProjectItem);
-                    
-                    contextMenu.IsOpen = true;
-                    contextMenu.PlacementTarget = sender as UIElement;
-                    e.Handled = true;
+                        var contextMenu = new ContextMenu();
+                        
+                        // 🔑 关键：应用自定义样式（在 MainWindow.xaml 中定义）
+                        contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+                        
+                        var newProjectItem = new MenuItem { Header = "📝 新建项目" };
+                        newProjectItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
+                        newProjectItem.Foreground = Brushes.White;
+                        newProjectItem.BorderThickness = new Thickness(0);
+                        newProjectItem.BorderBrush = Brushes.Transparent;
+                        
+                        newProjectItem.Click += async (s, args) =>
+                        {
+                            string projectName = await GenerateDefaultProjectNameAsync();
+                            await CreateTextProjectAsync(projectName);
+                        };
+                        contextMenu.Items.Add(newProjectItem);
+                        
+                        contextMenu.IsOpen = true;
+                        contextMenu.PlacementTarget = sender as UIElement;
+                        e.Handled = true;
+                    }
                     return;
                 }
                 
@@ -781,11 +836,72 @@ namespace ImageColorChanger.UI
             {
                 _dbManager.MarkFolderAutoColorEffect(item.Id);
                 LoadProjects();
-                ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色");
+                
+                #if DEBUG
+                //Debug.WriteLine($"🎨 [变色标记] 标记文件夹: {item.Name} (ID={item.Id})");
+                //Debug.WriteLine($"   当前文件夹ID: {_currentFolderId}");
+                //Debug.WriteLine($"   当前图片ID: {_currentImageId}");
+                //Debug.WriteLine($"   当前图片是否加载: {_imageProcessor.CurrentImage != null}");
+                //Debug.WriteLine($"   当前变色状态: {_isColorEffectEnabled}");
+                #endif
+                
+                // 🔧 检查当前显示的图片是否属于这个文件夹
+                bool shouldApplyEffect = false;
+                
+                if (_currentImageId > 0 && _imageProcessor.CurrentImage != null)
+                {
+                    var currentMediaFile = _dbManager.GetMediaFileById(_currentImageId);
+                    if (currentMediaFile != null && currentMediaFile.FolderId.HasValue)
+                    {
+                        shouldApplyEffect = (currentMediaFile.FolderId.Value == item.Id);
+                        
+                        #if DEBUG
+                        //Debug.WriteLine($"   当前图片所属文件夹ID: {currentMediaFile.FolderId.Value}");
+                        //Debug.WriteLine($"   是否属于标记的文件夹: {shouldApplyEffect}");
+                        #endif
+                    }
+                }
+                
+                // 如果当前显示的图片属于这个文件夹，立即启用变色效果
+                if (shouldApplyEffect)
+                {
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [变色标记] 条件满足，开始应用变色效果");
+                    #endif
+                    
+                    _isColorEffectEnabled = true;
+                    _imageProcessor.IsInverted = true;
+                    BtnColorEffect.Background = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金色
+                    
+                    // 更新当前文件夹ID
+                    _currentFolderId = item.Id;
+                    
+                    // 刷新当前图片显示
+                    _imageProcessor.UpdateImage();
+                    
+                    // 更新投影
+                    UpdateProjection();
+                    
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [变色标记] 已启用当前文件夹的变色效果: {item.Name}");
+                    #endif
+                    
+                    ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色（当前图片已应用变色效果）");
+                }
+                else
+                {
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [变色标记] 当前未显示该文件夹的图片，标记已保存");
+                    #endif
+                    
+                    ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色（点击图片时将自动应用）");
+                }
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 标记变色失败: {ex.Message}");
+                #if DEBUG
+                //Debug.WriteLine($"❌ 标记变色失败: {ex.Message}");
+                #endif
             }
         }
         
@@ -798,11 +914,69 @@ namespace ImageColorChanger.UI
             {
                 _dbManager.UnmarkFolderAutoColorEffect(item.Id);
                 LoadProjects();
-                ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记");
+                
+                #if DEBUG
+                //Debug.WriteLine($"🎨 [取消变色] 取消文件夹标记: {item.Name} (ID={item.Id})");
+                //Debug.WriteLine($"   当前文件夹ID: {_currentFolderId}");
+                //Debug.WriteLine($"   当前图片ID: {_currentImageId}");
+                //Debug.WriteLine($"   当前图片是否加载: {_imageProcessor.CurrentImage != null}");
+                //Debug.WriteLine($"   当前变色状态: {_isColorEffectEnabled}");
+                #endif
+                
+                // 🔧 检查当前显示的图片是否属于这个文件夹
+                bool shouldRemoveEffect = false;
+                
+                if (_currentImageId > 0 && _imageProcessor.CurrentImage != null)
+                {
+                    var currentMediaFile = _dbManager.GetMediaFileById(_currentImageId);
+                    if (currentMediaFile != null && currentMediaFile.FolderId.HasValue)
+                    {
+                        shouldRemoveEffect = (currentMediaFile.FolderId.Value == item.Id);
+                        
+                        #if DEBUG
+                        //Debug.WriteLine($"   当前图片所属文件夹ID: {currentMediaFile.FolderId.Value}");
+                        //Debug.WriteLine($"   是否属于取消标记的文件夹: {shouldRemoveEffect}");
+                        #endif
+                    }
+                }
+                
+                // 如果当前显示的图片属于这个文件夹，立即关闭变色效果
+                if (shouldRemoveEffect)
+                {
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [取消变色] 条件满足，开始取消变色效果");
+                    #endif
+                    
+                    _isColorEffectEnabled = false;
+                    _imageProcessor.IsInverted = false;
+                    BtnColorEffect.Background = Brushes.Transparent;
+                    
+                    // 刷新当前图片显示
+                    _imageProcessor.UpdateImage();
+                    
+                    // 更新投影
+                    UpdateProjection();
+                    
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [取消变色] 已关闭当前文件夹的变色效果: {item.Name}");
+                    #endif
+                    
+                    ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记（当前图片已恢复正常）");
+                }
+                else
+                {
+                    #if DEBUG
+                    //Debug.WriteLine($"🎨 [取消变色] 当前未显示该文件夹的图片，标记已清除");
+                    #endif
+                    
+                    ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记");
+                }
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
+                #if DEBUG
+                //Debug.WriteLine($"❌ 取消变色标记失败: {ex.Message}");
+                #endif
             }
         }
         
