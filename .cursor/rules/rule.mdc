@@ -15,6 +15,12 @@ GIT存档推送的时候，说明要求用中文，不要用英文。同时要�
 不同功能共享同一个UI控件时，每次使用都要完整初始化所有相关属性
 特别是 Stretch、HorizontalAlignment、VerticalAlignment、Margin 等布局属性
 
+经验教训
+规则：在 WPF 开发中，需要渲染 Canvas 的子元素时：
+❌ 不要直接对子元素调用 Arrange()，这会破坏 Canvas 的位置控制
+✅ 应该使用 VisualBrush 创建视觉副本，对副本进行操作
+✅ 或者把子元素临时从 Canvas 移除，渲染后再放回
+
 ## C#/WPF迁移重要注意事项
 遇到功能问题时，必须先做以下检查：
 1. 先查看Canvas文件夹中的Python参考实现，理解原始逻辑

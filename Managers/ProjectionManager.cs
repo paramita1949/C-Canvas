@@ -1220,14 +1220,51 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
-        /// 获取当前投影显示器的分辨率
+        /// 获取当前投影显示器的分辨率（WPF设备独立单位）
+        /// 🔧 修复：Screen.Bounds返回物理像素，需要转换为WPF的DIU（设备独立单位）
         /// </summary>
         public (int width, int height) GetCurrentProjectionSize()
         {
             if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
             {
                 var screen = _screens[_currentScreenIndex];
-                return (screen.Bounds.Width, screen.Bounds.Height);
+                
+                // 🔧 获取DPI缩放因子，将物理像素转换为WPF的设备独立单位（DIU）
+                // 例如：150% DPI缩放时，物理像素3072需要除以1.5得到DIU 2048
+                double dpiScaleX = 1.0;
+                double dpiScaleY = 1.0;
+                
+                if (_projectionWindow != null)
+                {
+                    try
+                    {
+                        var source = System.Windows.PresentationSource.FromVisual(_projectionWindow);
+                        if (source?.CompositionTarget != null)
+                        {
+                            dpiScaleX = source.CompositionTarget.TransformToDevice.M11;
+                            dpiScaleY = source.CompositionTarget.TransformToDevice.M22;
+                        }
+                    }
+                    catch
+                    {
+                        // 如果获取失败，使用默认值1.0（无缩放）
+                    }
+                }
+                
+                // 转换为WPF的设备独立单位
+                int width = (int)(screen.Bounds.Width / dpiScaleX);
+                int height = (int)(screen.Bounds.Height / dpiScaleY);
+                
+                #if DEBUG
+                if (dpiScaleX != 1.0 || dpiScaleY != 1.0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] 物理像素: {screen.Bounds.Width}×{screen.Bounds.Height}");
+                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] DPI缩放: {dpiScaleX:F2}×{dpiScaleY:F2}");
+                    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] WPF单位: {width}×{height}");
+                }
+                #endif
+                
+                return (width, height);
             }
             return (1920, 1080); // 默认值
         }
