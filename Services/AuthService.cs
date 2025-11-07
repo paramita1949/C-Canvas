@@ -1158,6 +1158,10 @@ namespace ImageColorChanger.Services
                 }
 
                 // 更新服务器时间和过期时间
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔍 [心跳] 服务器返回的 ServerTimeString: {authResponse.Data?.ServerTimeString ?? "null"}");
+                #endif
+                
                 if (!string.IsNullOrEmpty(authResponse.Data?.ServerTimeString))
                 {
                     if (DateTime.TryParse(authResponse.Data.ServerTimeString, out var serverTime))
@@ -1165,7 +1169,23 @@ namespace ImageColorChanger.Services
                         _lastServerTime = serverTime;
                         _lastLocalTime = DateTime.Now;
                         _lastTickCount = Environment.TickCount64; // 记录 TickCount，防篡改
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [心跳] 服务器时间已更新: {_lastServerTime}");
+                        #endif
                     }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [心跳] 服务器时间解析失败: {authResponse.Data.ServerTimeString}");
+                        #endif
+                    }
+                }
+                else
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [心跳] 服务器未返回 server_time 字段");
+                    #endif
                 }
                 
                 // 解析过期时间（Unix时间戳转DateTime）
@@ -1299,10 +1319,10 @@ namespace ImageColorChanger.Services
                 _authToken1 = Convert.ToBase64String(hash1);
             }
             
-            // 令牌2：过期时间 + 剩余天数的哈希
+            // 令牌2：用户名 + 过期时间的哈希（🔧 修复：不再依赖会变化的 _remainingDays）
             using (var sha256 = SHA256.Create())
             {
-                var bytes2 = Encoding.UTF8.GetBytes($"{_expiresAt?.Ticks}:{_remainingDays}:TOKEN2");
+                var bytes2 = Encoding.UTF8.GetBytes($"{_username}:{_expiresAt?.Ticks}:TOKEN2");
                 var hash2 = sha256.ComputeHash(bytes2);
                 _authToken2 = Convert.ToBase64String(hash2);
             }
@@ -1347,10 +1367,10 @@ namespace ImageColorChanger.Services
                 }
             }
             
-            // 重新验证令牌2
+            // 重新验证令牌2（🔧 修复：使用与生成逻辑一致的算法）
             using (var sha256 = SHA256.Create())
             {
-                var bytes2 = Encoding.UTF8.GetBytes($"{_expiresAt?.Ticks}:{_remainingDays}:TOKEN2");
+                var bytes2 = Encoding.UTF8.GetBytes($"{_username}:{_expiresAt?.Ticks}:TOKEN2");
                 var hash2 = sha256.ComputeHash(bytes2);
                 var expectedToken2 = Convert.ToBase64String(hash2);
                 if (_authToken2 != expectedToken2)
@@ -2212,6 +2232,12 @@ namespace ImageColorChanger.Services
                     {
                         _lastSuccessfulHeartbeat = DateTime.Parse(lastHeartbeat.GetString());
                     }
+                    
+                    // 🔧 修复：加载数据后立即重新生成令牌（兼容旧版本数据）
+                    // 因为令牌生成算法可能已更新，需要用新算法重新生成
+                    _isAuthenticated = true;  // 临时设置为已认证，以便生成令牌
+                    GenerateAuthTokens();
+                    _isAuthenticated = false;  // 恢复状态，后续会重新设置
                     
                     // 🔒 检查文件版本号（防止旧文件回滚）
                     long fileVersion = 0;
