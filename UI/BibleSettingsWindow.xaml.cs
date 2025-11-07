@@ -281,6 +281,12 @@ namespace ImageColorChanger.UI
                     UpdateColorPreview(BorderHighlightColor, _configManager.BibleHighlightColor);
                 }
 
+                // 保存投影记录复选框
+                if (ChkSaveBibleHistory != null)
+                {
+                    ChkSaveBibleHistory.IsChecked = _configManager.SaveBibleHistory;
+                }
+
                 //#if DEBUG
                 //Debug.WriteLine("[圣经设置] 已加载当前设置");
                 //#endif
@@ -693,6 +699,23 @@ namespace ImageColorChanger.UI
             //#if DEBUG
             //Debug.WriteLine($"[圣经设置] {comboBox.Name} 滚轮切换: 索引 {currentIndex} -> {comboBox.SelectedIndex}");
             //#endif
+        }
+
+        /// <summary>
+        /// 保存历史记录复选框状态改变事件
+        /// </summary>
+        private void SaveHistory_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoading) return; // 加载过程中不保存
+            
+            if (ChkSaveBibleHistory != null)
+            {
+                _configManager.SaveBibleHistory = ChkSaveBibleHistory.IsChecked == true;
+                
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经设置] 保存投影记录: {_configManager.SaveBibleHistory}");
+                //#endif
+            }
         }
     }
 }

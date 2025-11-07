@@ -143,12 +143,49 @@ namespace ImageColorChanger.UI
                 // 🔐 清理认证服务
                 CleanupAuthService();
                 
+                // 处理圣经历史记录
+                HandleBibleHistoryOnClosing();
+                
                 // 清理数据库连接（关闭WAL文件）
                 CleanupDatabase();
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 处理圣经历史记录（退出时根据配置保存或清空）
+        /// </summary>
+        private void HandleBibleHistoryOnClosing()
+        {
+            try
+            {
+                if (_configManager.SaveBibleHistory)
+                {
+                    // 勾选了保存投影记录，保存当前历史记录
+                    SaveBibleHistoryToConfig();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已保存圣经历史记录");
+                    #endif
+                }
+                else
+                {
+                    // 没有勾选，清空历史记录
+                    ClearAllBibleHistory();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已清空圣经历史记录");
+                    #endif
+                }
+            }
+            catch (Exception)
+            {
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[主窗口] 处理圣经历史记录失败: {ex.Message}");
+                #endif
             }
         }
         

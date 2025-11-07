@@ -627,6 +627,38 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 是否在退出程序时保存圣经投影记录（默认：false）
+        /// </summary>
+        public bool SaveBibleHistory
+        {
+            get => _config.SaveBibleHistory;
+            set
+            {
+                if (_config.SaveBibleHistory != value)
+                {
+                    _config.SaveBibleHistory = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经历史记录列表（JSON格式）
+        /// </summary>
+        public string BibleHistoryJson
+        {
+            get => _config.BibleHistoryJson;
+            set
+            {
+                if (_config.BibleHistoryJson != value)
+                {
+                    _config.BibleHistoryJson = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -942,6 +974,16 @@ namespace ImageColorChanger.Core
         /// 圣经设置窗口Y坐标（默认：null，使用自动计算位置）
         /// </summary>
         public double? BibleSettingsWindowTop { get; set; } = null;
+
+        /// <summary>
+        /// 是否在退出程序时保存圣经投影记录（默认：false）
+        /// </summary>
+        public bool SaveBibleHistory { get; set; } = false;
+
+        /// <summary>
+        /// 圣经历史记录列表（JSON格式）
+        /// </summary>
+        public string BibleHistoryJson { get; set; } = null;
     }
 
     /// <summary>

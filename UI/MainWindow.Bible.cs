@@ -410,6 +410,12 @@ namespace ImageColorChanger.UI
                     // 订阅锁定状态变化事件
                     BibleHistoryItem.OnLockedStateChanged += UpdateClearButtonStyle;
 
+                    // 从配置加载历史记录（如果启用了保存功能）
+                    if (_configManager.SaveBibleHistory)
+                    {
+                        LoadBibleHistoryFromConfig();
+                    }
+
                     // 加载第1列:分类列表(用户要求的10个准确分类)
                     var categories = new ObservableCollection<string>
                     {
@@ -3955,6 +3961,162 @@ namespace ImageColorChanger.UI
             BiblePinyinHintControl.UpdateHint(displayText, matches);
             
             return System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        #endregion
+
+        #region 历史记录持久化
+
+        /// <summary>
+        /// 保存圣经历史记录到配置
+        /// </summary>
+        public void SaveBibleHistoryToConfig()
+        {
+            try
+            {
+                if (_historySlots == null || _historySlots.Count == 0)
+                {
+                    _configManager.BibleHistoryJson = null;
+                    return;
+                }
+
+                // 创建可序列化的历史记录列表
+                var historyData = new System.Collections.Generic.List<BibleHistoryData>();
+                foreach (var slot in _historySlots)
+                {
+                    // 只保存有内容的槽位
+                    if (!string.IsNullOrWhiteSpace(slot.DisplayText) && slot.BookId > 0)
+                    {
+                        historyData.Add(new BibleHistoryData
+                        {
+                            Index = slot.Index,
+                            DisplayText = slot.DisplayText,
+                            BookId = slot.BookId,
+                            Chapter = slot.Chapter,
+                            StartVerse = slot.StartVerse,
+                            EndVerse = slot.EndVerse,
+                            IsChecked = slot.IsChecked,
+                            IsLocked = slot.IsLocked
+                        });
+                    }
+                }
+
+                // 序列化为JSON
+                var json = System.Text.Json.JsonSerializer.Serialize(historyData);
+                _configManager.BibleHistoryJson = json;
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[圣经] 已保存 {historyData.Count} 条历史记录");
+                #endif
+            }
+            catch (Exception)
+            {
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[圣经] 保存历史记录失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 从配置加载圣经历史记录
+        /// </summary>
+        public void LoadBibleHistoryFromConfig()
+        {
+            try
+            {
+                var json = _configManager.BibleHistoryJson;
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[圣经] 没有保存的历史记录");
+                    #endif
+                    return;
+                }
+
+                // 反序列化历史记录
+                var historyData = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<BibleHistoryData>>(json);
+                if (historyData == null || historyData.Count == 0)
+                {
+                    return;
+                }
+
+                // 恢复历史记录到槽位
+                foreach (var data in historyData)
+                {
+                    var slot = _historySlots.FirstOrDefault(s => s.Index == data.Index);
+                    if (slot != null)
+                    {
+                        slot.DisplayText = data.DisplayText;
+                        slot.BookId = data.BookId;
+                        slot.Chapter = data.Chapter;
+                        slot.StartVerse = data.StartVerse;
+                        slot.EndVerse = data.EndVerse;
+                        slot.IsChecked = data.IsChecked;
+                        slot.IsLocked = data.IsLocked;
+                    }
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[圣经] 已加载 {historyData.Count} 条历史记录");
+                #endif
+            }
+            catch (Exception)
+            {
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[圣经] 加载历史记录失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 清空所有历史记录
+        /// </summary>
+        public void ClearAllBibleHistory()
+        {
+            try
+            {
+                if (_historySlots != null)
+                {
+                    foreach (var slot in _historySlots)
+                    {
+                        slot.DisplayText = "";
+                        slot.BookId = 0;
+                        slot.Chapter = 0;
+                        slot.StartVerse = 0;
+                        slot.EndVerse = 0;
+                        slot.IsChecked = false;
+                        slot.IsLocked = false;
+                    }
+                }
+
+                // 清空配置
+                _configManager.BibleHistoryJson = null;
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[圣经] 已清空所有历史记录");
+                #endif
+            }
+            catch (Exception)
+            {
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[圣经] 清空历史记录失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 历史记录数据模型（用于JSON序列化）
+        /// </summary>
+        private class BibleHistoryData
+        {
+            public int Index { get; set; }
+            public string DisplayText { get; set; }
+            public int BookId { get; set; }
+            public int Chapter { get; set; }
+            public int StartVerse { get; set; }
+            public int EndVerse { get; set; }
+            public bool IsChecked { get; set; }
+            public bool IsLocked { get; set; }
         }
 
         #endregion
