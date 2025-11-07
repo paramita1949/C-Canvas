@@ -308,6 +308,73 @@ namespace ImageColorChanger.UI
             // 加载圣经数据
             await LoadBibleNavigationDataAsync();
             
+            // 🔧 如果启用了保存历史记录，且有勾选或锁定的槽位，自动加载经文
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔍 [启动加载] 检查自动加载条件:");
+            //System.Diagnostics.Debug.WriteLine($"   SaveBibleHistory: {_configManager.SaveBibleHistory}");
+            //System.Diagnostics.Debug.WriteLine($"   _historySlots != null: {_historySlots != null}");
+            //System.Diagnostics.Debug.WriteLine($"   _historySlots.Count: {_historySlots?.Count ?? 0}");
+            //#endif
+            
+            if (_configManager.SaveBibleHistory && _historySlots != null && _historySlots.Count > 0)
+            {
+                // 检查是否有锁定的记录
+                var lockedSlots = _historySlots.Where(s => s.IsLocked && s.BookId > 0).ToList();
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   锁定记录数: {lockedSlots.Count}");
+                //#endif
+                
+                if (lockedSlots.Count > 0)
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📖 [启动加载] 发现 {lockedSlots.Count} 个锁定记录，加载到主屏幕");
+                    //#endif
+                    
+                    foreach (var lockedSlot in lockedSlots)
+                    {
+                        await AddLockedRecordVerses(lockedSlot);
+                    }
+                }
+                else
+                {
+                    // 没有锁定记录，检查是否有勾选的槽位
+                    //#if DEBUG
+                    //var allCheckedSlots = _historySlots.Where(s => s.IsChecked).ToList();
+                    //System.Diagnostics.Debug.WriteLine($"   所有勾选的槽位数: {allCheckedSlots.Count}");
+                    //foreach (var cs in allCheckedSlots)
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"      - 槽位{cs.Index}: BookId={cs.BookId}, DisplayText={cs.DisplayText}");
+                    //}
+                    //#endif
+                    
+                    var checkedSlot = _historySlots.FirstOrDefault(s => s.IsChecked && s.BookId > 0);
+                    
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   勾选且有内容的槽位: {(checkedSlot != null ? $"槽位{checkedSlot.Index}" : "无")}");
+                    //if (checkedSlot != null)
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"   槽位详情: BookId={checkedSlot.BookId}, Chapter={checkedSlot.Chapter}, DisplayText={checkedSlot.DisplayText}");
+                    //}
+                    //#endif
+                    
+                    if (checkedSlot != null)
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📖 [启动加载] 自动加载勾选的槽位{checkedSlot.Index}的经文: {checkedSlot.DisplayText}");
+                        //#endif
+                        
+                        await LoadVerseRangeAsync(checkedSlot.BookId, checkedSlot.Chapter, checkedSlot.StartVerse, checkedSlot.EndVerse);
+                    }
+                }
+            }
+            else
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   ⚠️ 不满足自动加载条件，跳过");
+                //#endif
+            }
+            
             // 初始化拼音快速定位服务
             InitializePinyinService();
             
@@ -410,7 +477,12 @@ namespace ImageColorChanger.UI
                     // 订阅锁定状态变化事件
                     BibleHistoryItem.OnLockedStateChanged += UpdateClearButtonStyle;
 
-                    // 从配置加载历史记录（如果启用了保存功能）
+                    // 从数据库加载历史记录（如果启用了保存功能）
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"[圣经初始化] 检查是否需要加载历史记录");
+                    //System.Diagnostics.Debug.WriteLine($"   SaveBibleHistory配置: {_configManager.SaveBibleHistory}");
+                    //#endif
+                    
                     if (_configManager.SaveBibleHistory)
                     {
                         LoadBibleHistoryFromConfig();
@@ -1311,10 +1383,31 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"[圣经] 经文点击: {clickedVerse.Reference}");
             //#endif
 
-            // 获取所有经文
-            var verses = BibleVerseList.ItemsSource as System.Collections.Generic.List<BibleVerse>;
+            // 获取所有经文（支持List和ObservableCollection）
+            System.Collections.Generic.IEnumerable<BibleVerse> verses = null;
+            
+            if (BibleVerseList.ItemsSource is System.Collections.Generic.List<BibleVerse> list)
+            {
+                verses = list;
+            }
+            else if (BibleVerseList.ItemsSource is System.Collections.ObjectModel.ObservableCollection<BibleVerse> collection)
+            {
+                verses = collection;
+            }
+            
             if (verses == null)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [圣经点击] ItemsSource为null或类型不匹配");
+                System.Diagnostics.Debug.WriteLine($"   ItemsSource类型: {BibleVerseList.ItemsSource?.GetType().Name ?? "null"}");
+                #endif
                 return;
+            }
+
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📌 [圣经点击] 点击经文: {clickedVerse.Reference}, 当前高亮状态={clickedVerse.IsHighlighted}");
+            //System.Diagnostics.Debug.WriteLine($"   ItemsSource类型: {BibleVerseList.ItemsSource.GetType().Name}");
+            //#endif
 
             // 如果点击的是已高亮的经文，则取消高亮
             if (clickedVerse.IsHighlighted)
@@ -1322,7 +1415,7 @@ namespace ImageColorChanger.UI
                 clickedVerse.IsHighlighted = false;
                 
                 //#if DEBUG
-                //Debug.WriteLine($"[圣经] 取消高亮: {clickedVerse.Reference}");
+                //System.Diagnostics.Debug.WriteLine($"🔄 [圣经点击] 取消高亮: {clickedVerse.Reference}");
                 //#endif
                 
                 // 更新UI颜色
@@ -1338,7 +1431,7 @@ namespace ImageColorChanger.UI
                         verse.IsHighlighted = false;
                         
                         //#if DEBUG
-                        //Debug.WriteLine($"[圣经] 取消高亮: {verse.Reference}");
+                        //System.Diagnostics.Debug.WriteLine($"🔄 [圣经点击] 取消其他高亮: {verse.Reference}");
                         //#endif
                     }
                 }
@@ -1347,7 +1440,8 @@ namespace ImageColorChanger.UI
                 clickedVerse.IsHighlighted = true;
                 
                 //#if DEBUG
-                //Debug.WriteLine($"[圣经] 设置高亮: {clickedVerse.Reference}");
+                //System.Diagnostics.Debug.WriteLine($"✅ [圣经点击] 设置高亮: {clickedVerse.Reference}, IsHighlighted={clickedVerse.IsHighlighted}");
+                //System.Diagnostics.Debug.WriteLine($"🎨 [圣经点击] 当前高亮颜色配置: {_configManager.BibleHighlightColor}");
                 //#endif
 
                 // 刷新整个列表的UI
@@ -1815,22 +1909,26 @@ namespace ImageColorChanger.UI
                         VerticalAlignment = VerticalAlignment.Top
                     };
 
-                    // 根据高亮状态选择颜色
+                    // 根据高亮状态选择颜色（只影响经文内容，不影响节号）
                     WpfColor scriptureColor = textColor;
                     if (verse.IsHighlighted)
                     {
                         var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
                         scriptureColor = highlightColor;
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[圣经投影] 应用高亮颜色到经文内容: {verse.Reference}, 颜色={_configManager.BibleHighlightColor}");
+                        #endif
                     }
 
-                    // 添加节号（作为第一个 Run）
+                    // 添加节号（作为第一个 Run）- 节号始终使用独立的节号颜色
                     var verseNumberRun = new System.Windows.Documents.Run
                     {
                         Text = verse.VerseNumberText + " ",  // 🔧 使用VerseNumberText支持合并节号（如"10、11"）
                         FontFamily = fontFamily,
                         FontSize = _configManager.BibleVerseNumberFontSize,
                         FontWeight = FontWeights.Bold,
-                        Foreground = new WpfSolidColorBrush(verseNumberColor)
+                        Foreground = new WpfSolidColorBrush(verseNumberColor) // 节号始终使用独立颜色
                     };
                     verseTextBlock.Inlines.Add(verseNumberRun);
 
@@ -2320,11 +2418,16 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 槽位已勾选：保持勾选状态，不做任何操作
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[圣经] 槽位{item.Index}已勾选，保持状态");
-                    //#endif
-                    // 不需要任何操作，保持当前勾选状态
+                    // 槽位已勾选：重新加载该经文（用于从保存的配置恢复后点击）
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📖 [圣经] 槽位{item.Index}已勾选，重新加载经文");
+                    #endif
+                    
+                    // 如果有有效经文数据，则加载经文到主屏幕
+                    if (item.BookId > 0)
+                    {
+                        await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                    }
                 }
             }
         }
@@ -2753,40 +2856,67 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 创建设置窗口，传递回调函数以实现实时更新
-                var settingsWindow = new BibleSettingsWindow(_configManager, _bibleService, async () =>
-                {
-                    // 设置改变时立即应用
-                    ApplyBibleSettings();
-
-                    // 🔄 重新加载当前章节（译本切换时需要）
-                    if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
+                // 创建设置窗口，传递两个回调函数
+                // 回调1：译本切换时需要重新加载经文
+                // 回调2：样式改变时只刷新样式
+                var settingsWindow = new BibleSettingsWindow(_configManager, _bibleService, 
+                    // 译本切换回调（需要重新加载经文）
+                    async () =>
                     {
-                        await LoadChapterVersesAsync(_currentBook, _currentChapter);
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("🔄 [圣经设置] 译本切换，重新加载经文");
+                        #endif
                         
-                        //#if DEBUG
-                        //Debug.WriteLine($"[圣经设置] 重新加载经文: {BibleBookConfig.GetBook(_currentBook).Name} {_currentChapter}章");
-                        //#endif
-                    }
+                        // 应用设置
+                        ApplyBibleSettings();
 
-                    // 如果投影已开启，重新渲染投影
-                    if (_projectionManager != null && _projectionManager.IsProjecting)
+                        // 🔄 重新加载当前章节
+                        if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
+                        {
+                            await LoadChapterVersesAsync(_currentBook, _currentChapter);
+                        }
+
+                        // 如果投影已开启，重新渲染投影
+                        if (_projectionManager != null && _projectionManager.IsProjecting)
+                        {
+                            bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
+                            
+                            if (hasLockedRecords)
+                            {
+                                await UpdateProjectionFromMergedVerses();
+                            }
+                            else
+                            {
+                                // 📌 非锁定模式：更新当前章节的投影
+                                RenderBibleToProjection();
+                            }
+                        }
+                    },
+                    // 样式改变回调（只刷新样式，不重新加载经文）
+                    async () =>
                     {
-                        // 检查是否有锁定记录
-                        bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("🎨 [圣经设置] 样式改变，刷新显示");
+                        #endif
                         
-                        if (hasLockedRecords)
+                        // 应用设置
+                        ApplyBibleSettings();
+                        
+                        // 如果投影已开启，重新渲染投影（保持当前经文和高亮状态）
+                        if (_projectionManager != null && _projectionManager.IsProjecting)
                         {
-                            // 📌 锁定模式：设置改变时，更新锁定记录的投影
-                            await UpdateProjectionFromMergedVerses();
+                            bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
+                            
+                            if (hasLockedRecords)
+                            {
+                                await UpdateProjectionFromMergedVerses();
+                            }
+                            else
+                            {
+                                RenderBibleToProjection();
+                            }
                         }
-                        else
-                        {
-                            // 📌 非锁定模式：更新当前章节的投影
-                            RenderBibleToProjection();
-                        }
-                    }
-                })
+                    })
                 {
                     Owner = this,
                     WindowStartupLocation = WindowStartupLocation.Manual
@@ -3018,7 +3148,12 @@ namespace ImageColorChanger.UI
             try
             {
                 if (BibleVerseList.Items.Count == 0)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 列表为空，跳过样式应用");
+                    #endif
                     return;
+                }
 
                 // ========================================
                 // 📌 模式判断
@@ -3028,19 +3163,27 @@ namespace ImageColorChanger.UI
 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"🔍 [ApplyVerseStyles] 开始应用样式，总共 {BibleVerseList.Items.Count} 条记录，模式={isLockedMode}");
-                //for (int debugIdx = 0; debugIdx < Math.Min(3, BibleVerseList.Items.Count); debugIdx++)
+                //// 统计高亮的经文数量
+                //int highlightedCount = 0;
+                //for (int debugIdx = 0; debugIdx < BibleVerseList.Items.Count; debugIdx++)
                 //{
                 //    var debugVerse = BibleVerseList.Items[debugIdx] as BibleVerse;
-                //    if (debugVerse != null)
+                //    if (debugVerse != null && debugVerse.IsHighlighted)
                 //    {
-                //        System.Diagnostics.Debug.WriteLine($"🔍 [ApplyVerseStyles] 记录{debugIdx}: Verse={debugVerse.Verse}, Scripture={debugVerse.Scripture?.Substring(0, Math.Min(30, debugVerse.Scripture?.Length ?? 0))}");
+                //        highlightedCount++;
+                //        System.Diagnostics.Debug.WriteLine($"💡 [ApplyVerseStyles] 发现高亮经文{debugIdx}: {debugVerse.Reference}, IsHighlighted={debugVerse.IsHighlighted}");
                 //    }
                 //}
+                //System.Diagnostics.Debug.WriteLine($"📊 [ApplyVerseStyles] 高亮经文总数: {highlightedCount}");
                 //#endif
 
                 var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
                 var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
                 var fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎨 [ApplyVerseStyles] 颜色配置 - 经文:{_configManager.BibleTextColor}, 节号:{_configManager.BibleVerseNumberColor}, 高亮:{_configManager.BibleHighlightColor}");
+                //#endif
 
                 // 遍历所有已生成的容器
                 for (int i = 0; i < BibleVerseList.Items.Count; i++)
@@ -3048,15 +3191,26 @@ namespace ImageColorChanger.UI
                     var container = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
                     if (container == null)
                     {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [ApplyVerseStyles] 容器{i}未生成（null）");
-                        //#endif
+                        #if DEBUG
+                        var tempVerse = BibleVerseList.Items[i] as BibleVerse;
+                        if (tempVerse != null && tempVerse.IsHighlighted)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 容器{i}未生成（null），但该经文被高亮: {tempVerse.Reference}");
+                        }
+                        #endif
                         continue;
                     }
 
                     var verse = BibleVerseList.Items[i] as BibleVerse;
                     if (verse == null)
                         continue;
+                    
+                    #if DEBUG
+                    if (verse.IsHighlighted)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔧 [ApplyVerseStyles] 处理高亮经文{i}: {verse.Reference}");
+                    }
+                    #endif
 
                     // 🔧 查找单个 TextBlock（新布局）
                     var verseTextBlock = FindVisualChild<TextBlock>(container);
@@ -3092,22 +3246,35 @@ namespace ImageColorChanger.UI
                             verseTextBlock.FontSize = _configManager.BibleFontSize;
                             verseTextBlock.FontWeight = FontWeights.Normal;
                             
-                            // 根据高亮状态选择颜色
+                            // 根据高亮状态选择颜色（只影响经文内容，不影响节号）
                             WpfColor scriptureColor = textColor;
                             if (verse.IsHighlighted)
                             {
                                 var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
                                 scriptureColor = highlightColor;
+                                
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"✨ [圣经主屏] 应用高亮颜色到经文内容: {verse.Reference}");
+                                System.Diagnostics.Debug.WriteLine($"   - 配置高亮颜色: {_configManager.BibleHighlightColor}");
+                                System.Diagnostics.Debug.WriteLine($"   - 转换后颜色: R={highlightColor.R}, G={highlightColor.G}, B={highlightColor.B}, A={highlightColor.A}");
+                                System.Diagnostics.Debug.WriteLine($"   - 默认经文颜色: {_configManager.BibleTextColor}");
+                                #endif
                             }
+                            //#if DEBUG
+                            //else
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"📝 [圣经主屏] 经文{i}使用默认颜色: {verse.Reference}");
+                            //}
+                            //#endif
 
-                            // 添加节号（作为第一个 Run）
+                            // 添加节号（作为第一个 Run）- 节号始终使用独立的节号颜色
                             var verseNumberRun = new System.Windows.Documents.Run
                             {
                                 Text = verse.VerseNumberText + " ",
                                 FontFamily = fontFamily,
                                 FontSize = _configManager.BibleVerseNumberFontSize,
                                 FontWeight = FontWeights.Bold,
-                                Foreground = new WpfSolidColorBrush(verseNumberColor)
+                                Foreground = new WpfSolidColorBrush(verseNumberColor) // 节号始终使用独立颜色
                             };
                             verseTextBlock.Inlines.Add(verseNumberRun);
 
@@ -3968,113 +4135,117 @@ namespace ImageColorChanger.UI
         #region 历史记录持久化
 
         /// <summary>
-        /// 保存圣经历史记录到配置
+        /// 保存圣经历史记录到数据库
         /// </summary>
         public void SaveBibleHistoryToConfig()
         {
             try
             {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💾 [保存历史] 开始保存圣经历史记录到数据库");
+                //System.Diagnostics.Debug.WriteLine($"   _historySlots: {_historySlots?.Count ?? 0} 个槽位");
+                //#endif
+                
                 if (_historySlots == null || _historySlots.Count == 0)
                 {
-                    _configManager.BibleHistoryJson = null;
                     return;
                 }
 
-                // 创建可序列化的历史记录列表
-                var historyData = new System.Collections.Generic.List<BibleHistoryData>();
-                foreach (var slot in _historySlots)
+                // 使用与DatabaseManager相同的默认路径
+                string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
+                using (var db = new Database.CanvasDbContext(dbPath))
                 {
-                    // 只保存有内容的槽位
-                    if (!string.IsNullOrWhiteSpace(slot.DisplayText) && slot.BookId > 0)
+                    // 删除旧记录
+                    var oldRecords = db.BibleHistory.ToList();
+                    db.BibleHistory.RemoveRange(oldRecords);
+
+                    // 保存所有20个槽位（包括空槽位）
+                    foreach (var slot in _historySlots)
                     {
-                        historyData.Add(new BibleHistoryData
+                        var record = new Database.Models.BibleHistoryRecord
                         {
-                            Index = slot.Index,
-                            DisplayText = slot.DisplayText,
+                            SlotIndex = slot.Index,
+                            DisplayText = slot.DisplayText ?? "",
                             BookId = slot.BookId,
                             Chapter = slot.Chapter,
                             StartVerse = slot.StartVerse,
                             EndVerse = slot.EndVerse,
                             IsChecked = slot.IsChecked,
-                            IsLocked = slot.IsLocked
-                        });
+                            IsLocked = slot.IsLocked,
+                            UpdatedTime = DateTime.Now
+                        };
+                        
+                        db.BibleHistory.Add(record);
                     }
+
+                    db.SaveChanges();
                 }
-
-                // 序列化为JSON
-                var json = System.Text.Json.JsonSerializer.Serialize(historyData);
-                _configManager.BibleHistoryJson = json;
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[圣经] 已保存 {historyData.Count} 条历史记录");
-                #endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"[圣经] 保存历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [保存历史] 保存历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #endif
             }
         }
 
         /// <summary>
-        /// 从配置加载圣经历史记录
+        /// 从数据库加载圣经历史记录
         /// </summary>
         public void LoadBibleHistoryFromConfig()
         {
             try
             {
-                var json = _configManager.BibleHistoryJson;
-                if (string.IsNullOrWhiteSpace(json))
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📂 [加载历史] 开始从数据库加载圣经历史记录");
+                //#endif
+                
+                // 使用与DatabaseManager相同的默认路径
+                string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
+                using (var db = new Database.CanvasDbContext(dbPath))
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[圣经] 没有保存的历史记录");
-                    #endif
-                    return;
-                }
-
-                // 反序列化历史记录
-                var historyData = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<BibleHistoryData>>(json);
-                if (historyData == null || historyData.Count == 0)
-                {
-                    return;
-                }
-
-                // 恢复历史记录到槽位
-                foreach (var data in historyData)
-                {
-                    var slot = _historySlots.FirstOrDefault(s => s.Index == data.Index);
-                    if (slot != null)
+                    var historyRecords = db.BibleHistory.OrderBy(h => h.SlotIndex).ToList();
+                    
+                    if (historyRecords.Count == 0)
                     {
-                        slot.DisplayText = data.DisplayText;
-                        slot.BookId = data.BookId;
-                        slot.Chapter = data.Chapter;
-                        slot.StartVerse = data.StartVerse;
-                        slot.EndVerse = data.EndVerse;
-                        slot.IsChecked = data.IsChecked;
-                        slot.IsLocked = data.IsLocked;
+                        return;
+                    }
+
+                    // 恢复历史记录到槽位
+                    foreach (var record in historyRecords)
+                    {
+                        var slot = _historySlots.FirstOrDefault(s => s.Index == record.SlotIndex);
+                        if (slot != null)
+                        {
+                            slot.DisplayText = record.DisplayText;
+                            slot.BookId = record.BookId;
+                            slot.Chapter = record.Chapter;
+                            slot.StartVerse = record.StartVerse;
+                            slot.EndVerse = record.EndVerse;
+                            slot.IsChecked = record.IsChecked;
+                            slot.IsLocked = record.IsLocked;
+                        }
                     }
                 }
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[圣经] 已加载 {historyData.Count} 条历史记录");
-                #endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"[圣经] 加载历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [加载历史] 加载历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #endif
             }
         }
 
         /// <summary>
-        /// 清空所有历史记录
+        /// 清空所有历史记录（包括数据库）
         /// </summary>
         public void ClearAllBibleHistory()
         {
             try
             {
+                // 清空内存中的槽位
                 if (_historySlots != null)
                 {
                     foreach (var slot in _historySlots)
@@ -4089,34 +4260,27 @@ namespace ImageColorChanger.UI
                     }
                 }
 
-                // 清空配置
-                _configManager.BibleHistoryJson = null;
+                // 清空数据库
+                // 使用与DatabaseManager相同的默认路径
+                string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
+                using (var db = new Database.CanvasDbContext(dbPath))
+                {
+                    var allRecords = db.BibleHistory.ToList();
+                    db.BibleHistory.RemoveRange(allRecords);
+                    db.SaveChanges();
+                }
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("[圣经] 已清空所有历史记录");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine("🗑️ [清空历史] 已清空所有历史记录（内存+数据库）");
+                //#endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"[圣经] 清空历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [清空历史] 清空历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #endif
             }
-        }
-
-        /// <summary>
-        /// 历史记录数据模型（用于JSON序列化）
-        /// </summary>
-        private class BibleHistoryData
-        {
-            public int Index { get; set; }
-            public string DisplayText { get; set; }
-            public int BookId { get; set; }
-            public int Chapter { get; set; }
-            public int StartVerse { get; set; }
-            public int EndVerse { get; set; }
-            public bool IsChecked { get; set; }
-            public bool IsLocked { get; set; }
         }
 
         #endregion
