@@ -3103,9 +3103,9 @@ namespace ImageColorChanger.UI
             double scaleX = targetWidth / canvasWidth;
             double scaleY = targetHeight / canvasHeight;
             
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"  [Compose] 画布尺寸: 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"  [Compose] 画布尺寸: 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
+            //#endif
             
             // 创建SkiaSharp画布（使用目标尺寸）
             var bitmap = new SKBitmap(targetWidth, targetHeight);
@@ -3204,10 +3204,10 @@ namespace ImageColorChanger.UI
                     double width = _splitRegionBorders[regionIndex].Width;  // 使用边框宽度，不是Image的ActualWidth
                     double height = _splitRegionBorders[regionIndex].Height; // 使用边框高度，不是Image的ActualHeight
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Image控件位置: ({left}, {top}), 尺寸: {width}×{height}, Stretch: {imageControl.Stretch}");
-                    System.Diagnostics.Debug.WriteLine($"    边框信息: 位置=({Canvas.GetLeft(_splitRegionBorders[regionIndex])}, {Canvas.GetTop(_splitRegionBorders[regionIndex])}), 尺寸={_splitRegionBorders[regionIndex].Width}×{_splitRegionBorders[regionIndex].Height}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Image控件位置: ({left}, {top}), 尺寸: {width}×{height}, Stretch: {imageControl.Stretch}");
+                    //System.Diagnostics.Debug.WriteLine($"    边框信息: 位置=({Canvas.GetLeft(_splitRegionBorders[regionIndex])}, {Canvas.GetTop(_splitRegionBorders[regionIndex])}), 尺寸={_splitRegionBorders[regionIndex].Width}×{_splitRegionBorders[regionIndex].Height}");
+                    //#endif
                     
                     SKBitmap skBitmap = null;
                     
@@ -3220,9 +3220,9 @@ namespace ImageColorChanger.UI
                             string imagePath = _regionImagePaths[regionIndex];
                             skBitmap = SKBitmap.Decode(imagePath);
                             
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 原始图片尺寸: {skBitmap.Width}×{skBitmap.Height}");
-                            #endif
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 原始图片尺寸: {skBitmap.Width}×{skBitmap.Height}");
+                            //#endif
                             
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {regionIndex}: 从原始文件加载 {skBitmap.Width}×{skBitmap.Height}, 位置: ({left}, {top}), 显示: {width}×{height}");
@@ -3292,12 +3292,12 @@ namespace ImageColorChanger.UI
                             destRect = new SKRect((float)drawLeft, (float)drawTop, 
                                                    (float)(drawLeft + drawWidth), (float)(drawTop + drawHeight));
                             
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Uniform模式计算:");
-                            System.Diagnostics.Debug.WriteLine($"    图片宽高比: {imageAspect:F3}, 控件宽高比: {controlAspect:F3}");
-                            System.Diagnostics.Debug.WriteLine($"    绘制位置: ({drawLeft:F1}, {drawTop:F1}), 绘制尺寸: {drawWidth:F1}×{drawHeight:F1}");
-                            System.Diagnostics.Debug.WriteLine($"    destRect: Left={destRect.Left:F1}, Top={destRect.Top:F1}, Right={destRect.Right:F1}, Bottom={destRect.Bottom:F1}");
-                            #endif
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Uniform模式计算:");
+                            //System.Diagnostics.Debug.WriteLine($"    图片宽高比: {imageAspect:F3}, 控件宽高比: {controlAspect:F3}");
+                            //System.Diagnostics.Debug.WriteLine($"    绘制位置: ({drawLeft:F1}, {drawTop:F1}), 绘制尺寸: {drawWidth:F1}×{drawHeight:F1}");
+                            //System.Diagnostics.Debug.WriteLine($"    destRect: Left={destRect.Left:F1}, Top={destRect.Top:F1}, Right={destRect.Right:F1}, Bottom={destRect.Bottom:F1}");
+                            //#endif
                         }
                         else
                         {
@@ -3305,9 +3305,9 @@ namespace ImageColorChanger.UI
                             destRect = new SKRect((float)left, (float)top, 
                                                    (float)(left + width), (float)(top + height));
                             
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Fill模式: 直接填满控件区域");
-                            #endif
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - Fill模式: 直接填满控件区域");
+                            //#endif
                         }
                         
                         // 🎨 使用高质量过滤模式，确保投影质量
