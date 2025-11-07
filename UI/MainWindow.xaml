@@ -696,7 +696,8 @@
                                 </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#2D2D30" 
+                                        <Border x:Name="HistoryItemBorder"
+                                                Background="#2D2D30" 
                                                 BorderBrush="#4D4D4D" 
                                                 BorderThickness="0,0,0,1"
                                                 Padding="8,6"
@@ -735,6 +736,24 @@
                                                            Margin="0"/>
                                             </Grid>
                                         </Border>
+                                        
+                                        <!-- DataTemplate Triggers -->
+                                        <DataTemplate.Triggers>
+                                            <!-- 锁定状态：绿色边框（最高优先级） -->
+                                            <DataTrigger Binding="{Binding IsLocked}" Value="True">
+                                                <Setter TargetName="HistoryItemBorder" Property="BorderBrush" Value="#00FF00"/>
+                                                <Setter TargetName="HistoryItemBorder" Property="BorderThickness" Value="3"/>
+                                            </DataTrigger>
+                                            
+                                            <!-- 鼠标悬停：简单的灰色背景高亮（仅在未锁定时生效） -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsLocked}" Value="False"/>
+                                                    <Condition Binding="{Binding ElementName=HistoryItemBorder, Path=IsMouseOver}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter TargetName="HistoryItemBorder" Property="Background" Value="#3E3E42"/>
+                                            </MultiDataTrigger>
+                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
