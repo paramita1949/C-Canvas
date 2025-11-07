@@ -128,28 +128,42 @@ jobs:
         }
         
         # 检查并处理圣经数据库文件
+        echo "=== 处理圣经数据库文件 ==="
+        
+        # 处理 bible.db
         if (Test-Path "publish\data\assets\bible.db") {
-          echo "✅ 圣经数据库文件已存在"
+          echo "✅ bible.db 已存在"
           $dbInfo = Get-Item "publish\data\assets\bible.db"
-          echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+          echo "bible.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
         } else {
-          echo "⚠️ 圣经数据库不存在于publish目录，尝试复制..."
-          echo "调试信息: 检查源文件路径..."
-          echo "  - data\assets\bible.db 存在: $(Test-Path 'data\assets\bible.db')"
-          echo "  - .\data\assets\bible.db 存在: $(Test-Path '.\data\assets\bible.db')"
-          if (Test-Path "data") {
-            echo "  - data目录内容:"
-            Get-ChildItem "data" -Recurse -Name | ForEach-Object { echo "    - $_" }
-          }
+          echo "⚠️ bible.db 不存在于publish目录，尝试复制..."
           if (Test-Path "data\assets\bible.db") {
             New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
             Copy-Item "data\assets\bible.db" "publish\data\assets\bible.db"
-            echo "✅ 圣经数据库已复制到publish目录"
+            echo "✅ bible.db 已复制到publish目录"
             $dbInfo = Get-Item "publish\data\assets\bible.db"
-            echo "数据库大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+            echo "bible.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
           } else {
-            echo "❌ 错误: 源代码中也没有圣经数据库文件"
-            echo "这不应该发生,因为该文件已在代码仓库中"
+            echo "❌ 错误: 源代码中也没有 bible.db 文件"
+            exit 1
+          }
+        }
+        
+        # 处理 hehebenfanti.db
+        if (Test-Path "publish\data\assets\hehebenfanti.db") {
+          echo "✅ hehebenfanti.db 已存在"
+          $dbInfo = Get-Item "publish\data\assets\hehebenfanti.db"
+          echo "hehebenfanti.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ hehebenfanti.db 不存在于publish目录，尝试复制..."
+          if (Test-Path "data\assets\hehebenfanti.db") {
+            New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
+            Copy-Item "data\assets\hehebenfanti.db" "publish\data\assets\hehebenfanti.db"
+            echo "✅ hehebenfanti.db 已复制到publish目录"
+            $dbInfo = Get-Item "publish\data\assets\hehebenfanti.db"
+            echo "hehebenfanti.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: 源代码中也没有 hehebenfanti.db 文件"
             exit 1
           }
         }
