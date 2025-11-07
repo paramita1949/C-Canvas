@@ -220,7 +220,7 @@ namespace ImageColorChanger.Services.Implementations
                     dashVerseNumbers.Add(currentVerse.Verse);
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"[圣经服务] 发现'-'节: 第{currentVerse.Verse}节");
+                    //Debug.WriteLine($"[圣经服务-精简节] 发现'-'节: Book={currentVerse.Book}, Chapter={currentVerse.Chapter}, Verse={currentVerse.Verse}");
                     //#endif
                 }
                 else
@@ -244,7 +244,7 @@ namespace ImageColorChanger.Services.Implementations
                         previousVerse.DisplayVerseNumber = mergedVerseNumbers;
                         
                         //#if DEBUG
-                        //Debug.WriteLine($"[圣经服务] 合并节号: {mergedVerseNumbers} => {previousVerse.Scripture?.Substring(0, Math.Min(20, previousVerse.Scripture.Length))}...");
+                        //Debug.WriteLine($"[圣经服务-精简节] 合并节号: {mergedVerseNumbers} => {previousVerse.Scripture?.Substring(0, Math.Min(20, previousVerse.Scripture.Length))}...");
                         //#endif
                         
                         dashVerseNumbers.Clear();

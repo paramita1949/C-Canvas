@@ -598,16 +598,27 @@ namespace ImageColorChanger.UI
                 return;
 
             //#if DEBUG
-            //Debug.WriteLine($"[圣经] 选中章: BookId={bookId}, Chapter={chapter}");
+            //Debug.WriteLine($"[圣经-节数获取] 选中章: BookId={bookId}, Chapter={chapter}");
             //#endif
 
-            // 查询该章的节数
-            var verses = await _bibleService.GetChapterVersesAsync(bookId, chapter);
-            int verseCount = verses?.Count ?? 0;
+            // 🔧 BUG修复：获取原始节数（包含"-"节），而不是处理后的列表长度
+            // 原因：GetChapterVersesAsync会合并"-"节，导致返回的列表长度小于实际节数
+            // 例如：约书亚记3章有17节（包含"-"节），但处理后只有16个元素
+            int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
+            
+            //#if DEBUG
+            //var verses = await _bibleService.GetChapterVersesAsync(bookId, chapter);
+            //int processedCount = verses?.Count ?? 0;
+            //Debug.WriteLine($"[圣经-节数获取] 原始节数: {verseCount}, 处理后列表长度: {processedCount}");
+            //if (verseCount != processedCount)
+            //{
+            //    Debug.WriteLine($"[圣经-节数获取] ⚠️ 检测到节数差异！该章可能包含精简的'-'节");
+            //}
+            //#endif
             
             if (verseCount > 0)
             {
-                // 生成节号列表 1, 2, 3, ... verseCount
+                // 生成节号列表 1, 2, 3, ... verseCount（使用原始节数）
                 var verseNumbers = Enumerable.Range(1, verseCount).Select(v => v.ToString()).ToList();
                 
                 BibleStartVerse.ItemsSource = verseNumbers;
@@ -622,7 +633,7 @@ namespace ImageColorChanger.UI
                 BibleChapterTitle.Text = "";
 
                 //#if DEBUG
-                //Debug.WriteLine($"[圣经] 已加载节号列表 1-{verseCount}，等待用户选择节范围");
+                //Debug.WriteLine($"[圣经-节数获取] 已加载节号列表 1-{verseCount}，等待用户选择节范围");
                 //#endif
             }
         }
@@ -640,19 +651,24 @@ namespace ImageColorChanger.UI
                 return;
 
             //#if DEBUG
-            //Debug.WriteLine($"[圣经] 双击章: BookId={bookId}, Chapter={chapter}，加载整章");
+            //Debug.WriteLine($"[圣经-节数获取] 双击章: BookId={bookId}, Chapter={chapter}，加载整章");
             //#endif
 
             // 加载整章经文
             await LoadChapterVersesAsync(bookId, chapter);
 
-            // 更新起始节和结束节的下拉列表
-            var verses = BibleVerseList.ItemsSource as List<BibleVerse>;
-            int verseCount = verses?.Count ?? 0;
+            // 🔧 BUG修复：使用原始节数（包含"-"节），而不是处理后的列表长度
+            int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
+            
+            //#if DEBUG
+            //var verses = BibleVerseList.ItemsSource as List<BibleVerse>;
+            //int processedCount = verses?.Count ?? 0;
+            //Debug.WriteLine($"[圣经-节数获取] 双击加载 - 原始节数: {verseCount}, 处理后列表长度: {processedCount}");
+            //#endif
             
             if (verseCount > 0)
             {
-                // 生成节号列表 1, 2, 3, ... verseCount
+                // 生成节号列表 1, 2, 3, ... verseCount（使用原始节数）
                 var verseNumbers = Enumerable.Range(1, verseCount).Select(v => v.ToString()).ToList();
                 
                 BibleStartVerse.ItemsSource = verseNumbers;
@@ -663,7 +679,7 @@ namespace ImageColorChanger.UI
                 BibleEndVerse.SelectedIndex = verseCount - 1;
 
                 //#if DEBUG
-                //Debug.WriteLine($"[圣经] 双击加载整章，节范围: 1-{verseCount}");
+                //Debug.WriteLine($"[圣经-节数获取] 双击加载整章，节范围: 1-{verseCount}");
                 //#endif
             }
         }
