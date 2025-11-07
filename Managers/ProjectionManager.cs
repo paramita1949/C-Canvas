@@ -376,6 +376,32 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
+        /// 清空投影显示内容（将投影屏幕设置为黑屏）
+        /// </summary>
+        public void ClearProjectionDisplay()
+        {
+            if (_projectionWindow == null || _projectionImageControl == null)
+                return;
+
+            try
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    // 🔧 清空投影图像控件的Source，显示黑屏
+                    _projectionImageControl.Source = null;
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("🧹 [投影] 已清空投影显示内容");
+                    #endif
+                });
+            }
+            catch (Exception)
+            {
+                // 静默处理异常
+            }
+        }
+
+        /// <summary>
         /// 同步歌词滚动位置到投影
         /// </summary>
         public void SyncLyricsScroll(ScrollViewer lyricsScrollViewer)

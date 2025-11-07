@@ -219,9 +219,9 @@ namespace ImageColorChanger.Services.Implementations
                     // 记录这个节号，等待合并到前一节
                     dashVerseNumbers.Add(currentVerse.Verse);
                     
-                    #if DEBUG
-                    Debug.WriteLine($"[圣经服务] 发现'-'节: 第{currentVerse.Verse}节");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经服务] 发现'-'节: 第{currentVerse.Verse}节");
+                    //#endif
                 }
                 else
                 {
@@ -243,9 +243,9 @@ namespace ImageColorChanger.Services.Implementations
                         
                         previousVerse.DisplayVerseNumber = mergedVerseNumbers;
                         
-                        #if DEBUG
-                        Debug.WriteLine($"[圣经服务] 合并节号: {mergedVerseNumbers} => {previousVerse.Scripture?.Substring(0, Math.Min(20, previousVerse.Scripture.Length))}...");
-                        #endif
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经服务] 合并节号: {mergedVerseNumbers} => {previousVerse.Scripture?.Substring(0, Math.Min(20, previousVerse.Scripture.Length))}...");
+                        //#endif
                         
                         dashVerseNumbers.Clear();
                     }
@@ -263,9 +263,9 @@ namespace ImageColorChanger.Services.Implementations
                         
                         currentVerse.DisplayVerseNumber = mergedVerseNumbers;
                         
-                        #if DEBUG
-                        Debug.WriteLine($"[圣经服务] 向后合并节号: {mergedVerseNumbers} => {currentVerse.Scripture?.Substring(0, Math.Min(20, currentVerse.Scripture.Length))}...");
-                        #endif
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经服务] 向后合并节号: {mergedVerseNumbers} => {currentVerse.Scripture?.Substring(0, Math.Min(20, currentVerse.Scripture.Length))}...");
+                        //#endif
                         
                         dashVerseNumbers.Clear();
                     }
@@ -291,9 +291,9 @@ namespace ImageColorChanger.Services.Implementations
                 }
                 lastVerse.DisplayVerseNumber = mergedVerseNumbers;
                 
-                #if DEBUG
-                Debug.WriteLine($"[圣经服务] 末尾合并节号: {mergedVerseNumbers}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[圣经服务] 末尾合并节号: {mergedVerseNumbers}");
+                //#endif
             }
 
             return (result, verseMap);
@@ -338,21 +338,21 @@ namespace ImageColorChanger.Services.Implementations
                     // 找到了对应的经文（可能是"-"节映射到的实际经文）
                     versesToShow.Add(mappedVerse);
                     
-                    #if DEBUG
-                    if (verseNum != mappedVerse.Verse)
-                    {
-                        Debug.WriteLine($"[圣经服务] 节号{verseNum}映射到第{mappedVerse.Verse}节");
-                    }
-                    #endif
+                    //#if DEBUG
+                    //if (verseNum != mappedVerse.Verse)
+                    //{
+                    //    Debug.WriteLine($"[圣经服务] 节号{verseNum}映射到第{mappedVerse.Verse}节");
+                    //}
+                    //#endif
                 }
             }
             
             // 按节号排序返回
             var result = versesToShow.OrderBy(v => v.Verse).ToList();
             
-            #if DEBUG
-            Debug.WriteLine($"[圣经服务] 获取节范围 {startVerse}-{endVerse}，返回 {result.Count} 节经文");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经服务] 获取节范围 {startVerse}-{endVerse}，返回 {result.Count} 节经文");
+            //#endif
             
             return result;
         }

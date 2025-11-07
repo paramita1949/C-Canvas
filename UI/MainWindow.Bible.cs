@@ -669,34 +669,70 @@ namespace ImageColorChanger.UI
         }
 
         // 第4列:起始节选择事件
-        private async void BibleStartVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BibleStartVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (BibleStartVerse.SelectedItem == null || BibleEndVerse.SelectedItem == null)
+            if (BibleStartVerse.SelectedItem == null)
                 return;
 
             if (!int.TryParse(BibleStartVerse.SelectedItem.ToString(), out int startVerse))
                 return;
 
-            if (!int.TryParse(BibleEndVerse.SelectedItem.ToString(), out int endVerse))
+            // 🔧 优化：自动滚动结束节列表到起始节位置，并自动选中结束节为起始节
+            ScrollAndSelectEndVerse(startVerse);
+
+            // 注意：不在这里加载经文，因为会在BibleEndVerse_SelectionChanged中处理
+            // 这样可以避免重复加载
+        }
+
+        /// <summary>
+        /// 滚动结束节列表到指定节号，并自动选中该节
+        /// </summary>
+        private void ScrollAndSelectEndVerse(int verseNumber)
+        {
+            if (BibleEndVerse.Items.Count == 0 || verseNumber <= 0 || verseNumber > BibleEndVerse.Items.Count)
                 return;
 
-            if (BibleChapterList.Tag is not int bookId)
-                return;
+            // verseNumber是从1开始的，所以索引是verseNumber-1
+            int targetIndex = verseNumber - 1;
 
-            if (BibleChapterList.SelectedItem is not string chapterStr)
-                return;
-
-            if (!int.TryParse(chapterStr, out int chapter))
-                return;
-
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经] 起始节改变: {startVerse}-{endVerse}");
-            //#endif
-
-            // 重新加载指定范围的经文
-            await LoadVerseRangeAsync(bookId, chapter, startVerse, endVerse);
-
-            // 注意：不在这里添加历史记录，避免重复添加（在结束节改变时统一添加）
+            // 🔧 立即选中（触发加载经文）
+            BibleEndVerse.SelectedIndex = targetIndex;
+            
+            // 🔧 延迟滚动：使用LineUp/LineDown的方式精确滚动
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经滚动] 开始滚动：目标节号={verseNumber}, 索引={targetIndex}");
+                    //#endif
+                    
+                    var scrollViewer = FindVisualChild<ScrollViewer>(BibleEndVerse);
+                    if (scrollViewer != null)
+                    {
+                        // 🔧 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
+                        scrollViewer.ScrollToTop();
+                        
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经滚动] 已滚动到顶部，开始LineDown {targetIndex}次");
+                        //#endif
+                        
+                        // 使用LineDown滚动到目标索引（每次滚动一行）
+                        for (int i = 0; i < targetIndex; i++)
+                        {
+                            scrollViewer.LineDown();
+                        }
+                        
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经滚动] LineDown完成，最终偏移={scrollViewer.VerticalOffset:F2}");
+                        //#endif
+                    }
+                }
+                catch (Exception)
+                {
+                    // 静默处理异常
+                }
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         // 第5列:结束节选择事件
@@ -747,7 +783,9 @@ namespace ImageColorChanger.UI
                 var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
 
                 var book = BibleBookConfig.GetBook(bookId);
-                BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {startVerse}-{endVerse}节";
+                // 🔧 如果开始节和结束节相同，只显示一个节号（如"18节"），否则显示范围（如"18-25节"）
+                string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
+                BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {verseText}";
                 
                 //#if DEBUG
                 //// 检查创世记1:26是否完整
@@ -1946,14 +1984,23 @@ namespace ImageColorChanger.UI
                     // 如果有有效经文数据，则加载经文
                     if (item.BookId > 0)
                     {
-                        // 加载该槽位的经文
+                        // 🔧 加载该槽位的经文（LoadVerseRangeAsync内部会自动触发投影更新，无需重复调用）
                         await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
-
-                        // 🔧 如果投影已开启，自动投影该范围的经文
+                    }
+                    else
+                    {
+                        // 🔧 空白记录：清空主屏幕和投影屏幕
+                        BibleVerseList.ItemsSource = null;
+                        BibleChapterTitle.Text = "";
+                        
                         if (_projectionManager != null && _projectionManager.IsProjecting)
                         {
-                            await ProjectBibleVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                            _projectionManager.ClearProjectionDisplay();
                         }
+                        
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经] 选择空白槽位{item.Index}，清空经文显示（含投影）");
+                        //#endif
                     }
                 }
                 else
@@ -1970,24 +2017,12 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 历史记录列表选择事件
+        /// 注意：实际加载经文由BibleHistoryItem_Click处理，此处不重复加载
         /// </summary>
-        private async void BibleHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BibleHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (BibleHistoryList.SelectedItem is BibleHistoryItem item && item.BookId > 0)
-            {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 点击槽位{item.Index}: {item.DisplayText}");
-                //#endif
-
-                // 加载该槽位的经文
-                await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
-
-                // 🔧 如果投影已开启，自动投影该范围的经文
-                if (_projectionManager != null && _projectionManager.IsProjecting)
-                {
-                    await ProjectBibleVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
-                }
-            }
+            // 🔧 此事件暂时保留，用于未来可能的选中状态同步
+            // 实际的经文加载由BibleHistoryItem_Click事件处理，避免重复加载
         }
 
         /// <summary>
