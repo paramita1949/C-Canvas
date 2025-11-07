@@ -20,6 +20,11 @@ namespace ImageColorChanger.Services.Interfaces
         Task<List<BibleVerse>> GetChapterVersesAsync(int book, int chapter);
 
         /// <summary>
+        /// 获取指定范围的经文（智能处理"-"节）
+        /// </summary>
+        Task<List<BibleVerse>> GetVerseRangeAsync(int book, int chapter, int startVerse, int endVerse);
+
+        /// <summary>
         /// 获取章节标题
         /// </summary>
         Task<List<BibleTitle>> GetChapterTitlesAsync(int book, int chapter);

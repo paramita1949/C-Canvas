@@ -743,8 +743,8 @@ namespace ImageColorChanger.UI
                 _currentChapter = chapter;
                 _currentVerse = startVerse;
 
-                var allVerses = await _bibleService.GetChapterVersesAsync(bookId, chapter);
-                var verses = allVerses.Where(v => v.Verse >= startVerse && v.Verse <= endVerse).ToList();
+                // 🔧 使用新的智能方法，自动处理"-"节的情况
+                var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
 
                 var book = BibleBookConfig.GetBook(bookId);
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {startVerse}-{endVerse}节";
@@ -1524,24 +1524,16 @@ namespace ImageColorChanger.UI
                         Padding = new Thickness(2)
                     };
                     
-                    // 使用 Grid 布局替代 StackPanel，确保经文可以换行
-                    var verseContainer = new Grid();
-                    
-                    // 定义两列：节号列（自动宽度）和经文列（填充剩余空间）
-                    verseContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    verseContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var verseNumber = new TextBlock
+                    // 🔧 使用 TextBlock 实现节号+经文的布局
+                    // 节号作为 Inlines 的一部分，经文换行时从最左边开始
+                    var verseTextBlock = new TextBlock
                     {
-                        Text = $"{verse.Verse}",
                         FontFamily = fontFamily,
-                        FontSize = _configManager.BibleVerseNumberFontSize,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = new WpfSolidColorBrush(verseNumberColor),
-                        VerticalAlignment = VerticalAlignment.Top,
-                        Margin = new Thickness(0, 0, 10, 0)
+                        FontSize = _configManager.BibleFontSize,
+                        FontWeight = FontWeights.Normal,
+                        TextWrapping = TextWrapping.Wrap,
+                        VerticalAlignment = VerticalAlignment.Top
                     };
-                    Grid.SetColumn(verseNumber, 0);
 
                     // 根据高亮状态选择颜色
                     WpfColor scriptureColor = textColor;
@@ -1551,24 +1543,47 @@ namespace ImageColorChanger.UI
                         scriptureColor = highlightColor;
                     }
 
-                    var scriptureText = new TextBlock
+                    // 添加节号（作为第一个 Run）
+                    var verseNumberRun = new System.Windows.Documents.Run
                     {
+                        Text = verse.VerseNumberText + " ",  // 🔧 使用VerseNumberText支持合并节号（如"10、11"）
                         FontFamily = fontFamily,
-                        FontSize = _configManager.BibleFontSize,
-                        FontWeight = FontWeights.Normal,
-                        Foreground = new WpfSolidColorBrush(scriptureColor),
-                        TextWrapping = TextWrapping.Wrap,
-                        VerticalAlignment = VerticalAlignment.Top
+                        FontSize = _configManager.BibleVerseNumberFontSize,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new WpfSolidColorBrush(verseNumberColor)
                     };
-                    
-                    // 处理经文中的格式标记(如<u>下划线</u>)
-                    Utils.TextFormatHelper.SetFormattedText(scriptureText, verse.Scripture);
-                    
-                    Grid.SetColumn(scriptureText, 1);
+                    verseTextBlock.Inlines.Add(verseNumberRun);
 
-                    verseContainer.Children.Add(verseNumber);
-                    verseContainer.Children.Add(scriptureText);
-                    verseBorder.Child = verseContainer;
+                    // 添加经文内容（处理格式标记）
+                    var scripture = verse.Scripture ?? "";
+                    
+                    // 检查是否有格式标记
+                    var pattern = @"<u>(.*?)</u>";
+                    var matches = System.Text.RegularExpressions.Regex.Matches(scripture, pattern);
+                    
+                    if (matches.Count == 0)
+                    {
+                        // 没有格式标记，直接添加
+                        var scriptureRun = new System.Windows.Documents.Run
+                        {
+                            Text = scripture,
+                            Foreground = new WpfSolidColorBrush(scriptureColor)
+                        };
+                        verseTextBlock.Inlines.Add(scriptureRun);
+                    }
+                    else
+                    {
+                        // 有格式标记，移除标记后添加（简化处理）
+                        var cleanText = Utils.TextFormatHelper.StripHtmlTags(scripture);
+                        var scriptureRun = new System.Windows.Documents.Run
+                        {
+                            Text = cleanText,
+                            Foreground = new WpfSolidColorBrush(scriptureColor)
+                        };
+                        verseTextBlock.Inlines.Add(scriptureRun);
+                    }
+
+                    verseBorder.Child = verseTextBlock;
                     verseListContainer.Children.Add(verseBorder); // 🔧 添加到经文列表容器
                 }
                 
@@ -2294,37 +2309,65 @@ namespace ImageColorChanger.UI
                     if (container == null)
                         continue;
 
-                    // 查找节号和经文TextBlock
-                    var textBlocks = FindVisualChildren<TextBlock>(container).ToList();
-                    if (textBlocks.Count >= 2)
-                    {
-                        // 第一个是节号
-                        var verseNumberBlock = textBlocks[0];
-                        verseNumberBlock.FontFamily = fontFamily;
-                        verseNumberBlock.FontSize = _configManager.BibleVerseNumberFontSize;
-                        verseNumberBlock.Foreground = new WpfSolidColorBrush(verseNumberColor);
+                    var verse = BibleVerseList.Items[i] as BibleVerse;
+                    if (verse == null)
+                        continue;
 
-                        // 第二个是经文
-                        var scriptureBlock = textBlocks[1];
-                        scriptureBlock.FontFamily = fontFamily;
-                        scriptureBlock.FontSize = _configManager.BibleFontSize;
-                        
-                        // 根据高亮状态设置颜色
-                        var verse = BibleVerseList.Items[i] as BibleVerse;
-                        if (verse != null && verse.IsHighlighted)
+                    // 🔧 查找单个 TextBlock（新布局）
+                    var verseTextBlock = FindVisualChild<TextBlock>(container);
+                    if (verseTextBlock != null)
+                    {
+                        // 清空并重新构建 Inlines
+                        verseTextBlock.Inlines.Clear();
+                        verseTextBlock.FontFamily = fontFamily;
+                        verseTextBlock.FontSize = _configManager.BibleFontSize;
+
+                        // 根据高亮状态选择颜色
+                        WpfColor scriptureColor = textColor;
+                        if (verse.IsHighlighted)
                         {
                             var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
-                            scriptureBlock.Foreground = new WpfSolidColorBrush(highlightColor);
+                            scriptureColor = highlightColor;
+                        }
+
+                        // 添加节号（作为第一个 Run）
+                        var verseNumberRun = new System.Windows.Documents.Run
+                        {
+                            Text = verse.VerseNumberText + " ",
+                            FontFamily = fontFamily,
+                            FontSize = _configManager.BibleVerseNumberFontSize,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new WpfSolidColorBrush(verseNumberColor)
+                        };
+                        verseTextBlock.Inlines.Add(verseNumberRun);
+
+                        // 添加经文内容（处理格式标记）
+                        var scripture = verse.Scripture ?? "";
+                        
+                        // 检查是否有格式标记
+                        var pattern = @"<u>(.*?)</u>";
+                        var matches = System.Text.RegularExpressions.Regex.Matches(scripture, pattern);
+                        
+                        if (matches.Count == 0)
+                        {
+                            // 没有格式标记，直接添加
+                            var scriptureRun = new System.Windows.Documents.Run
+                            {
+                                Text = scripture,
+                                Foreground = new WpfSolidColorBrush(scriptureColor)
+                            };
+                            verseTextBlock.Inlines.Add(scriptureRun);
                         }
                         else
                         {
-                            scriptureBlock.Foreground = new WpfSolidColorBrush(textColor);
-                        }
-                        
-                        // 处理经文中的格式标记(如<u>下划线</u>)
-                        if (verse != null && !string.IsNullOrEmpty(verse.Scripture))
-                        {
-                            Utils.TextFormatHelper.SetFormattedText(scriptureBlock, verse.Scripture);
+                            // 有格式标记，移除标记后添加（简化处理）
+                            var cleanText = Utils.TextFormatHelper.StripHtmlTags(scripture);
+                            var scriptureRun = new System.Windows.Documents.Run
+                            {
+                                Text = cleanText,
+                                Foreground = new WpfSolidColorBrush(scriptureColor)
+                            };
+                            verseTextBlock.Inlines.Add(scriptureRun);
                         }
                     }
                     

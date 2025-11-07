@@ -1402,30 +1402,13 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            
-                                            <!-- 节号 -->
-                                            <TextBlock Grid.Column="0"
-                                                       Text="{Binding Verse}" 
-                                                       FontSize="24" 
-                                                       FontWeight="Bold" 
-                                                       Foreground="#FFC107"
-                                                       VerticalAlignment="Top"
-                                                       Margin="0,0,10,0"
-                                                       IsHitTestVisible="False"/>
-                                            <!-- 经文内容 - 字体大小、行高、颜色等由C#代码动态设置 -->
-                                            <!-- Text不再使用绑定,由C#代码通过TextFormatHelper设置,以支持格式化标记 -->
-                                            <TextBlock Grid.Column="1"
-                                                       x:Name="VerseScriptureText"
-                                                       FontSize="20" 
-                                                       Foreground="White"
-                                                       TextWrapping="Wrap"
-                                                       IsHitTestVisible="False"/>
-                                        </Grid>
+                                        <!-- 🔧 使用单个 TextBlock，节号和经文在同一行，换行时文字从最左边开始 -->
+                                        <!-- 字体大小、行高、颜色等由C#代码动态设置 -->
+                                        <TextBlock x:Name="VerseTextBlock"
+                                                   FontSize="20" 
+                                                   Foreground="White"
+                                                   TextWrapping="Wrap"
+                                                   IsHitTestVisible="False"/>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

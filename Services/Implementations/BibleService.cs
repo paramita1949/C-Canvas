@@ -167,15 +167,18 @@ namespace ImageColorChanger.Services.Implementations
                     .OrderBy(v => v.Verse)
                     .ToListAsync();
 
+                // 🔧 处理只有"-"符号的节，合并到前一节
+                var processedVerses = ProcessDashOnlyVerses(verses);
+
                 //#if DEBUG
                 //sw.Stop();
-                //Debug.WriteLine($"[圣经服务] 查询整章: {sw.ElapsedMilliseconds}ms, 结果数: {verses.Count}");
+                //Debug.WriteLine($"[圣经服务] 查询整章: {sw.ElapsedMilliseconds}ms, 结果数: {verses.Count}, 处理后: {processedVerses.Count}");
                 //#endif
 
                 // 缓存30分钟
-                _cache.Set(cacheKey, verses, TimeSpan.FromMinutes(30));
+                _cache.Set(cacheKey, processedVerses, TimeSpan.FromMinutes(30));
 
-                return verses;
+                return processedVerses;
             }
 #if DEBUG
             catch (Exception ex)
@@ -189,6 +192,169 @@ namespace ImageColorChanger.Services.Implementations
                 throw;
             }
 #endif
+        }
+
+        /// <summary>
+        /// 处理只有"-"符号的节，合并到前一节
+        /// 例如：约书亚记3章10节有经文，11节只有"-"，则合并显示为"10、11 经文内容..."
+        /// 同时构建节号映射表，用于查询用户选择的节号对应的实际经文
+        /// </summary>
+        private (List<BibleVerse> verses, Dictionary<int, BibleVerse> verseMap) ProcessDashOnlyVersesWithMap(List<BibleVerse> verses)
+        {
+            if (verses == null || verses.Count == 0)
+                return (verses, new Dictionary<int, BibleVerse>());
+
+            var result = new List<BibleVerse>();
+            var verseMap = new Dictionary<int, BibleVerse>(); // 节号 -> 实际经文的映射
+            var dashVerseNumbers = new List<int>(); // 记录需要合并的"-"节号
+            
+            for (int i = 0; i < verses.Count; i++)
+            {
+                var currentVerse = verses[i];
+                var scripture = currentVerse.Scripture?.Trim() ?? "";
+
+                // 检查当前节是否只有"-"符号
+                if (scripture == "-")
+                {
+                    // 记录这个节号，等待合并到前一节
+                    dashVerseNumbers.Add(currentVerse.Verse);
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"[圣经服务] 发现'-'节: 第{currentVerse.Verse}节");
+                    #endif
+                }
+                else
+                {
+                    // 正常经文
+                    // 如果前面有"-"节，需要合并显示
+                    if (dashVerseNumbers.Count > 0 && result.Count > 0)
+                    {
+                        // 将之前累积的"-"节号合并到上一节
+                        var previousVerse = result[result.Count - 1];
+                        
+                        // 构建合并的节号显示，如"10、11、12"
+                        var mergedVerseNumbers = previousVerse.DisplayVerseNumber ?? previousVerse.Verse.ToString();
+                        foreach (var dashVerse in dashVerseNumbers)
+                        {
+                            mergedVerseNumbers += $"、{dashVerse}";
+                            // 🔧 建立映射："-"节号 -> 前一节的经文
+                            verseMap[dashVerse] = previousVerse;
+                        }
+                        
+                        previousVerse.DisplayVerseNumber = mergedVerseNumbers;
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经服务] 合并节号: {mergedVerseNumbers} => {previousVerse.Scripture?.Substring(0, Math.Min(20, previousVerse.Scripture.Length))}...");
+                        #endif
+                        
+                        dashVerseNumbers.Clear();
+                    }
+                    else if (dashVerseNumbers.Count > 0)
+                    {
+                        // 前面有"-"节，但没有前一节（即"-"在最开头）
+                        // 这种情况下，将"-"节号归到当前节
+                        var mergedVerseNumbers = currentVerse.Verse.ToString();
+                        foreach (var dashVerse in dashVerseNumbers)
+                        {
+                            mergedVerseNumbers = $"{dashVerse}、" + mergedVerseNumbers;
+                            // 🔧 建立映射："-"节号 -> 当前节的经文
+                            verseMap[dashVerse] = currentVerse;
+                        }
+                        
+                        currentVerse.DisplayVerseNumber = mergedVerseNumbers;
+                        
+                        #if DEBUG
+                        Debug.WriteLine($"[圣经服务] 向后合并节号: {mergedVerseNumbers} => {currentVerse.Scripture?.Substring(0, Math.Min(20, currentVerse.Scripture.Length))}...");
+                        #endif
+                        
+                        dashVerseNumbers.Clear();
+                    }
+                    
+                    // 🔧 建立映射：正常节号 -> 自己
+                    verseMap[currentVerse.Verse] = currentVerse;
+                    
+                    // 添加当前正常经文
+                    result.Add(currentVerse);
+                }
+            }
+            
+            // 处理末尾的"-"节（如果最后几节都是"-"）
+            if (dashVerseNumbers.Count > 0 && result.Count > 0)
+            {
+                var lastVerse = result[result.Count - 1];
+                var mergedVerseNumbers = lastVerse.DisplayVerseNumber ?? lastVerse.Verse.ToString();
+                foreach (var dashVerse in dashVerseNumbers)
+                {
+                    mergedVerseNumbers += $"、{dashVerse}";
+                    // 🔧 建立映射：末尾"-"节号 -> 最后一节的经文
+                    verseMap[dashVerse] = lastVerse;
+                }
+                lastVerse.DisplayVerseNumber = mergedVerseNumbers;
+                
+                #if DEBUG
+                Debug.WriteLine($"[圣经服务] 末尾合并节号: {mergedVerseNumbers}");
+                #endif
+            }
+
+            return (result, verseMap);
+        }
+
+        /// <summary>
+        /// 处理只有"-"符号的节，合并到前一节（简化版本，仅返回经文列表）
+        /// </summary>
+        private List<BibleVerse> ProcessDashOnlyVerses(List<BibleVerse> verses)
+        {
+            var (result, _) = ProcessDashOnlyVersesWithMap(verses);
+            return result;
+        }
+
+        /// <summary>
+        /// 获取指定范围的经文（智能处理"-"节）
+        /// 例如：用户选择11节，但11节是"-"，则返回包含11节的实际经文（如第10节）
+        /// </summary>
+        public async Task<List<BibleVerse>> GetVerseRangeAsync(int book, int chapter, int startVerse, int endVerse)
+        {
+            // 获取整章经文（已处理"-"节合并）
+            var allVerses = await GetChapterVersesAsync(book, chapter);
+            
+            // 重新获取原始经文以构建映射
+            using var context = CreateDbContext();
+            var originalVerses = await context.Bible
+                .Where(v => v.Book == book && v.Chapter == chapter)
+                .OrderBy(v => v.Verse)
+                .ToListAsync();
+            
+            // 构建节号映射
+            var (processedVerses, verseMap) = ProcessDashOnlyVersesWithMap(originalVerses);
+            
+            // 使用HashSet来收集所有需要显示的经文（去重）
+            var versesToShow = new HashSet<BibleVerse>();
+            
+            // 遍历用户选择的节号范围
+            for (int verseNum = startVerse; verseNum <= endVerse; verseNum++)
+            {
+                if (verseMap.TryGetValue(verseNum, out var mappedVerse))
+                {
+                    // 找到了对应的经文（可能是"-"节映射到的实际经文）
+                    versesToShow.Add(mappedVerse);
+                    
+                    #if DEBUG
+                    if (verseNum != mappedVerse.Verse)
+                    {
+                        Debug.WriteLine($"[圣经服务] 节号{verseNum}映射到第{mappedVerse.Verse}节");
+                    }
+                    #endif
+                }
+            }
+            
+            // 按节号排序返回
+            var result = versesToShow.OrderBy(v => v.Verse).ToList();
+            
+            #if DEBUG
+            Debug.WriteLine($"[圣经服务] 获取节范围 {startVerse}-{endVerse}，返回 {result.Count} 节经文");
+            #endif
+            
+            return result;
         }
 
         /// <summary>

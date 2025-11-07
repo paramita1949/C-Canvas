@@ -1243,6 +1243,16 @@ namespace ImageColorChanger.UI
                     try
                     {
                         var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == imagePath);
+                        
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🔍 [LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
+                        //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
+                        //if (mediaFile != null)
+                        //{
+                        //    System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                        //}
+                        #endif
+                        
                         if (mediaFile?.FolderId != null)
                         {
                             // 检查文件夹是否有原图标记
@@ -1255,6 +1265,8 @@ namespace ImageColorChanger.UI
                             bool hasColorEffectMark = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   原图标记: {isOriginalFolder}");
+                            //System.Diagnostics.Debug.WriteLine($"   变色标记: {hasColorEffectMark}");
                             //if (isOriginalFolder)
                             //{
                             //    System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
@@ -1267,10 +1279,18 @@ namespace ImageColorChanger.UI
 
                             return (isOriginalFolder, hasColorEffectMark);
                         }
+                        
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   未找到MediaFile或FolderId为空");
+                        #endif
+                        
                         return (false, false);
                     }
                     catch
                     {
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 检查标记失败");
+                        #endif
                         return (false, false);
                     }
                 });
@@ -1295,27 +1315,54 @@ namespace ImageColorChanger.UI
                     // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
                     if (shouldApplyColorEffect)
                     {
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 开始应用变色效果...");
+                        #endif
+                        
                         try
                         {
                             using var skBitmap = SkiaSharp.SKBitmap.Decode(imagePath);
                             if (skBitmap != null)
                             {
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   SKBitmap加载成功，尺寸: {skBitmap.Width}x{skBitmap.Height}");
+                                #endif
+                                
                                 // 应用变色效果
                                 _imageProcessor.ApplyYellowTextEffect(skBitmap);
 
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   变色效果已应用");
+                                #endif
+                                
                                 // 转换为 WPF BitmapSource
                                 var result = _imageProcessor.ConvertToBitmapSource(skBitmap);
+                                
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 变色效果应用成功");
+                                #endif
+                                
                                 return result;
                             }
+                            else
+                            {
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] SKBitmap加载失败");
+                                #endif
+                            }
                         }
-                        catch (Exception ex)
+                        catch
                         {
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 应用变色效果失败: {ex.Message}");
-                            #else
-                            _ = ex; // 避免未使用变量警告
+                            //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 应用变色效果失败");
                             #endif
                         }
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📷 [LoadImageToSplitRegion] 正常加载（无变色效果）");
+                        #endif
                     }
 
                     // 正常加载（无变色效果）
@@ -1827,6 +1874,16 @@ namespace ImageColorChanger.UI
                     try
                     {
                         var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == regionData.ImagePath);
+                        
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🔍 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");
+                        //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
+                        //if (mediaFile != null)
+                        //{
+                        //    System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                        //}
+                        #endif
+                        
                         if (mediaFile?.FolderId != null)
                         {
                             shouldUseStretch = _originalManager.CheckOriginalMark(
@@ -1838,6 +1895,8 @@ namespace ImageColorChanger.UI
                             shouldApplyColorEffect = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   原图标记: {shouldUseStretch}");
+                            //System.Diagnostics.Debug.WriteLine($"   变色标记: {shouldApplyColorEffect}");
                             //if (shouldUseStretch)
                             //{
                             //    System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
@@ -1848,10 +1907,18 @@ namespace ImageColorChanger.UI
                             //}
                             #endif
                         }
+                        else
+                        {
+                            #if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   未找到MediaFile或FolderId为空");
+                            #endif
+                        }
                     }
                     catch
                     {
-                        // 检查失败时使用默认设置
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 检查标记失败");
+                        #endif
                     }
                     
                     // 获取区域边框信息
@@ -1867,19 +1934,39 @@ namespace ImageColorChanger.UI
                     // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
                     if (shouldApplyColorEffect)
                     {
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 开始应用变色效果...");
+                        #endif
+                        
                         try
                         {
                             using var skBitmap = SkiaSharp.SKBitmap.Decode(regionData.ImagePath);
                             if (skBitmap != null)
                             {
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   SKBitmap加载成功，尺寸: {skBitmap.Width}x{skBitmap.Height}");
+                                #endif
+                                
                                 // 应用变色效果
                                 _imageProcessor.ApplyYellowTextEffect(skBitmap);
 
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   变色效果已应用");
+                                #endif
+                                
                                 // 转换为 WPF BitmapSource
                                 bitmap = _imageProcessor.ConvertToBitmapSource(skBitmap);
+                                
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 变色效果应用成功");
+                                #endif
                             }
                             else
                             {
+                                #if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] SKBitmap加载失败");
+                                #endif
+                                
                                 // 加载失败，使用正常方式
                                 var bmp = new BitmapImage();
                                 bmp.BeginInit();
@@ -1890,12 +1977,10 @@ namespace ImageColorChanger.UI
                                 bitmap = bmp;
                             }
                         }
-                        catch (Exception ex)
+                        catch
                         {
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 应用变色效果失败: {ex.Message}");
-                            #else
-                            _ = ex; // 避免未使用变量警告
+                            //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 应用变色效果失败");
                             #endif
 
                             // 失败时使用正常方式
@@ -1910,6 +1995,10 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
+                        #if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📷 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 正常加载（无变色效果）");
+                        #endif
+                        
                         // 正常加载（无变色效果）
                         var bmp = new BitmapImage();
                         bmp.BeginInit();

@@ -76,6 +76,19 @@ namespace ImageColorChanger.Database.Models.Bible
                 }
             }
         }
+
+        /// <summary>
+        /// 显示用的节号文本（支持合并节号，如"10、11"）
+        /// 如果为null，则使用Verse属性的值
+        /// </summary>
+        [NotMapped]
+        public string DisplayVerseNumber { get; set; }
+
+        /// <summary>
+        /// 获取用于UI显示的节号文本
+        /// </summary>
+        [NotMapped]
+        public string VerseNumberText => DisplayVerseNumber ?? Verse.ToString();
     }
 }
 
