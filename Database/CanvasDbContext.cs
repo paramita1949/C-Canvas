@@ -124,6 +124,11 @@ namespace ImageColorChanger.Database
         public DbSet<CompositeScript> CompositeScripts { get; set; }
 
         /// <summary>
+        /// 圣经历史记录表（20个槽位）
+        /// </summary>
+        public DbSet<BibleHistoryRecord> BibleHistory { get; set; }
+
+        /// <summary>
         /// 配置数据库连接
         /// </summary>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

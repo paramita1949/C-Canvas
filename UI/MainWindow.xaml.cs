@@ -563,6 +563,7 @@ namespace ImageColorChanger.UI
                 // 执行数据库迁移
                 _dbManager.MigrateAddLoopCount();
                 _dbManager.MigrateAddHighlightColor();
+                _dbManager.MigrateAddBibleHistoryTable();
                 
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();

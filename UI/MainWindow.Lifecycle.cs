@@ -167,18 +167,18 @@ namespace ImageColorChanger.UI
                     // 勾选了保存投影记录，保存当前历史记录
                     SaveBibleHistoryToConfig();
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已保存圣经历史记录");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已保存圣经历史记录");
+                    //#endif
                 }
                 else
                 {
                     // 没有勾选，清空历史记录
                     ClearAllBibleHistory();
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已清空圣经历史记录");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine("[主窗口] 退出时已清空圣经历史记录");
+                    //#endif
                 }
             }
             catch (Exception)

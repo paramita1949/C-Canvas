@@ -974,6 +974,64 @@ namespace ImageColorChanger.Database
                 //System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// 执行数据库迁移 - 创建圣经历史记录表
+        /// </summary>
+        public void MigrateAddBibleHistoryTable()
+        {
+            try
+            {
+                // 检查表是否已存在
+                var checkSql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bible_history'";
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    
+                    if (count == 0)
+                    {
+                        // 表不存在，创建表
+                        var createTableSql = @"
+                            CREATE TABLE bible_history (
+                                slot_index INTEGER PRIMARY KEY,
+                                display_text TEXT,
+                                book_id INTEGER NOT NULL DEFAULT 0,
+                                chapter INTEGER NOT NULL DEFAULT 0,
+                                start_verse INTEGER NOT NULL DEFAULT 0,
+                                end_verse INTEGER NOT NULL DEFAULT 0,
+                                is_checked INTEGER NOT NULL DEFAULT 0,
+                                is_locked INTEGER NOT NULL DEFAULT 0,
+                                updated_time TEXT NOT NULL
+                            )";
+                        _context.Database.ExecuteSqlRaw(createTableSql);
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已创建 bible_history 表");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("ℹ️ bible_history 表已存在，跳过迁移");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #endif
+            }
+        }
         
         /// <summary>
         /// 设置文件夹高亮颜色

@@ -27,9 +27,10 @@ namespace ImageColorChanger.UI
         private Dictionary<string, CustomFont> _fontMap = new Dictionary<string, CustomFont>(); // 字体名称到字体信息的映射
         private bool _isLoading = false; // 标记是否正在加载设置，避免触发保存
         private bool _isSelectingColor = false; // 标记是否正在选择颜色，避免窗口自动关闭
-        private Action _onSettingsChanged; // 设置改变时的回调
+        private Action _onSettingsChanged; // 设置改变时的回调（需要重新加载经文，如译本切换）
+        private Action _onStyleChanged; // 样式改变时的回调（只需刷新样式，如颜色、字体等）
 
-        public BibleSettingsWindow(ConfigManager configManager, IBibleService bibleService, Action onSettingsChanged = null)
+        public BibleSettingsWindow(ConfigManager configManager, IBibleService bibleService, Action onSettingsChanged = null, Action onStyleChanged = null)
         {
             _isLoading = true; // 在 InitializeComponent 之前设置，防止初始化时触发保存
             
@@ -37,6 +38,7 @@ namespace ImageColorChanger.UI
             _configManager = configManager;
             _bibleService = bibleService;
             _onSettingsChanged = onSettingsChanged;
+            _onStyleChanged = onStyleChanged;
             _colorDialog = new System.Windows.Forms.ColorDialog
             {
                 FullOpen = true
@@ -504,6 +506,8 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine("[圣经设置] 开始保存设置...");
                 //#endif
 
+                bool versionChanged = false; // 标记是否发生译本切换
+                
                 // 保存译本和数据库文件名
                 if (CmbBibleVersion != null && CmbBibleVersion.SelectedItem is System.Windows.Controls.ComboBoxItem selectedVersionItem)
                 {
@@ -511,7 +515,7 @@ namespace ImageColorChanger.UI
                     var dbFileName = selectedVersionItem.Tag?.ToString() ?? "bible.db";
                     
                     // 检查是否发生了译本切换
-                    bool versionChanged = _configManager.BibleDatabaseFileName != dbFileName;
+                    versionChanged = _configManager.BibleDatabaseFileName != dbFileName;
                     
                     _configManager.BibleVersion = versionName;
                     _configManager.BibleDatabaseFileName = dbFileName;
@@ -626,8 +630,25 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine("[圣经设置] 设置已实时保存");
                 //#endif
 
-                // 通知主窗口设置已改变，立即应用
-                _onSettingsChanged?.Invoke();
+                // 根据改变类型调用不同的回调
+                if (versionChanged)
+                {
+                    // 译本切换：需要重新加载经文
+                    _onSettingsChanged?.Invoke();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[圣经设置] 译本切换，触发完整重新加载");
+                    #endif
+                }
+                else
+                {
+                    // 样式改变（颜色、字体、字号等）：只刷新样式
+                    _onStyleChanged?.Invoke();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[圣经设置] 样式改变，仅刷新样式");
+                    #endif
+                }
             }
             catch (Exception)
             {

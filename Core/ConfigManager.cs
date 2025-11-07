@@ -643,22 +643,6 @@ namespace ImageColorChanger.Core
             }
         }
 
-        /// <summary>
-        /// 圣经历史记录列表（JSON格式）
-        /// </summary>
-        public string BibleHistoryJson
-        {
-            get => _config.BibleHistoryJson;
-            set
-            {
-                if (_config.BibleHistoryJson != value)
-                {
-                    _config.BibleHistoryJson = value;
-                    SaveConfig();
-                }
-            }
-        }
-
         #endregion
 
         #region 颜色预设管理
@@ -979,11 +963,6 @@ namespace ImageColorChanger.Core
         /// 是否在退出程序时保存圣经投影记录（默认：false）
         /// </summary>
         public bool SaveBibleHistory { get; set; } = false;
-
-        /// <summary>
-        /// 圣经历史记录列表（JSON格式）
-        /// </summary>
-        public string BibleHistoryJson { get; set; } = null;
     }
 
     /// <summary>
