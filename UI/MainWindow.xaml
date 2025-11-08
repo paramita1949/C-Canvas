@@ -1931,10 +1931,10 @@
                             <Popup x:Name="BibleToolbar"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
-                                   Placement="Top"
+                                   Placement="Center"
                                    PlacementTarget="{Binding ElementName=EditorCanvas}"
-                                   HorizontalOffset="490"
-                                   VerticalOffset="-10"
+                                   HorizontalOffset="0"
+                                   VerticalOffset="-375"
                                    IsOpen="False">
                                 <Border Background="#F0FFFFFF"
                                         BorderBrush="#E0E0E0"
