@@ -414,6 +414,10 @@ namespace ImageColorChanger.Database
                 EnsureLyricsImageIdColumnExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
 
+                // 🆕 确保默认项目存在
+                EnsureDefaultProjectExists();
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureDefaultProjectExists() 完成");
+
                 // 执行SQLite性能优化配置
                 Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
                 Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
@@ -678,6 +682,59 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 image_id 字段失败: {ex.Message}");
+                // 不抛出异常，因为这不是致命错误
+            }
+        }
+
+        /// <summary>
+        /// 确保默认项目"项目1"存在（新数据库初始化时自动创建）
+        /// </summary>
+        private void EnsureDefaultProjectExists()
+        {
+            try
+            {
+                // 检查是否已有项目
+                if (!TextProjects.Any())
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine("📋 [数据库初始化] 没有项目，创建默认项目");
+                    #endif
+
+                    // 创建默认项目
+                    var defaultProject = new TextProject
+                    {
+                        Name = "项目1",
+                        CanvasWidth = 1920,
+                        CanvasHeight = 1080,
+                        CreatedTime = DateTime.Now,
+                        ModifiedTime = DateTime.Now
+                    };
+                    TextProjects.Add(defaultProject);
+                    SaveChanges();
+
+                    // 为默认项目创建第一张幻灯片
+                    var firstSlide = new Slide
+                    {
+                        ProjectId = defaultProject.Id,
+                        Title = "幻灯片 1",
+                        SortOrder = 1,
+                        BackgroundColor = "#000000",  // 默认黑色背景
+                        SplitMode = -1,  // 默认无分割模式
+                        SplitStretchMode = false  // 默认适中模式
+                    };
+                    Slides.Add(firstSlide);
+                    SaveChanges();
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {defaultProject.Name} (ID={defaultProject.Id})");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [数据库初始化] 创建默认项目失败: {ex.Message}");
+                #endif
                 // 不抛出异常，因为这不是致命错误
             }
         }
