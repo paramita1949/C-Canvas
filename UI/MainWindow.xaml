@@ -920,6 +920,7 @@
                                      BorderThickness="0,0,1,0"
                                      BorderBrush="#555555"
                                      SelectionChanged="BibleStartVerse_SelectionChanged"
+                                     MouseDoubleClick="BibleStartVerse_MouseDoubleClick"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">

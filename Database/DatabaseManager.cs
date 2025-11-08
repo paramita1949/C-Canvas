@@ -1024,7 +1024,11 @@ namespace ImageColorChanger.Database
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");

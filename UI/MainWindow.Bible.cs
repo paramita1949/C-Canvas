@@ -839,7 +839,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        // 第4列:起始节选择事件
+        // 第4列:起始节选择事件（单击只选中，不加载经文）
         private void BibleStartVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BibleStartVerse.SelectedItem == null)
@@ -849,14 +849,106 @@ namespace ImageColorChanger.UI
                 return;
 
             // 🔧 优化：自动滚动结束节列表到起始节位置，并自动选中结束节为起始节
-            ScrollAndSelectEndVerse(startVerse);
+            // 但是不加载经文，要等用户选择结束节（或双击开始节）才加载
+            ScrollAndSelectEndVerseWithoutLoad(startVerse);
+        }
 
-            // 注意：不在这里加载经文，因为会在BibleEndVerse_SelectionChanged中处理
-            // 这样可以避免重复加载
+        // 第4列:起始节双击事件（双击代表只要这一节，立即加载经文）
+        private async void BibleStartVerse_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (BibleStartVerse.SelectedItem == null)
+                return;
+
+            if (!int.TryParse(BibleStartVerse.SelectedItem.ToString(), out int startVerse))
+                return;
+
+            if (BibleChapterList.Tag is not int bookId)
+                return;
+
+            if (BibleChapterList.SelectedItem is not string chapterStr)
+                return;
+
+            if (!int.TryParse(chapterStr, out int chapter))
+                return;
+
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经] 双击起始节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
+            //#endif
+
+            // 🔧 双击起始节：将结束节也设置为起始节（表示只要一节）
+            // 先设置结束节选择（不触发加载，避免重复）
+            if (BibleEndVerse.Items.Count > 0 && startVerse > 0 && startVerse <= BibleEndVerse.Items.Count)
+            {
+                int targetIndex = startVerse - 1;
+                BibleEndVerse.SelectionChanged -= BibleEndVerse_SelectionChanged;
+                BibleEndVerse.SelectedIndex = targetIndex;
+                BibleEndVerse.SelectionChanged += BibleEndVerse_SelectionChanged;
+            }
+            
+            // 直接加载这一节经文
+            await LoadVerseRangeAsync(bookId, chapter, startVerse, startVerse);
+            
+            // 添加到历史记录
+            AddToHistory(bookId, chapter, startVerse, startVerse);
+
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经] 双击加载完成: {startVerse}节");
+            //#endif
         }
 
         /// <summary>
-        /// 滚动结束节列表到指定节号，并自动选中该节
+        /// 滚动结束节列表到指定节号，并自动选中该节（但不触发加载）
+        /// </summary>
+        private void ScrollAndSelectEndVerseWithoutLoad(int verseNumber)
+        {
+            if (BibleEndVerse.Items.Count == 0 || verseNumber <= 0 || verseNumber > BibleEndVerse.Items.Count)
+                return;
+
+            // verseNumber是从1开始的，所以索引是verseNumber-1
+            int targetIndex = verseNumber - 1;
+
+            // 🔧 临时取消事件处理，避免触发加载
+            BibleEndVerse.SelectionChanged -= BibleEndVerse_SelectionChanged;
+            BibleEndVerse.SelectedIndex = targetIndex;
+            BibleEndVerse.SelectionChanged += BibleEndVerse_SelectionChanged;
+            
+            // 🔧 延迟滚动：使用LineUp/LineDown的方式精确滚动
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经滚动] 开始滚动：目标节号={verseNumber}, 索引={targetIndex}（不触发加载）");
+                    //#endif
+                    
+                    var scrollViewer = FindVisualChild<ScrollViewer>(BibleEndVerse);
+                    if (scrollViewer != null)
+                    {
+                        // 🔧 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
+                        scrollViewer.ScrollToTop();
+                        
+                        // 使用LineDown滚动到目标索引（每次滚动一行）
+                        for (int i = 0; i < targetIndex; i++)
+                        {
+                            scrollViewer.LineDown();
+                        }
+                        
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经滚动] LineDown完成，最终偏移={scrollViewer.VerticalOffset:F2}");
+                        //#endif
+                    }
+                }
+                catch (Exception)
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经滚动] 异常: {ex.Message}");
+                    //#endif
+                }
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        
+        /// <summary>
+        /// 滚动结束节列表到指定节号，并自动选中该节（触发加载）
         /// </summary>
         private void ScrollAndSelectEndVerse(int verseNumber)
         {
@@ -884,10 +976,6 @@ namespace ImageColorChanger.UI
                         // 🔧 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
                         scrollViewer.ScrollToTop();
                         
-                        //#if DEBUG
-                        //Debug.WriteLine($"[圣经滚动] 已滚动到顶部，开始LineDown {targetIndex}次");
-                        //#endif
-                        
                         // 使用LineDown滚动到目标索引（每次滚动一行）
                         for (int i = 0; i < targetIndex; i++)
                         {
@@ -901,7 +989,9 @@ namespace ImageColorChanger.UI
                 }
                 catch (Exception)
                 {
-                    // 静默处理异常
+                    //#if DEBUG
+                    //Debug.WriteLine($"[圣经滚动] 异常: {ex.Message}");
+                    //#endif
                 }
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
@@ -4181,7 +4271,11 @@ namespace ImageColorChanger.UI
                     db.SaveChanges();
                 }
             }
-            catch (Exception ex)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [保存历史] 保存历史记录失败: {ex.Message}");
@@ -4229,7 +4323,11 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [加载历史] 加载历史记录失败: {ex.Message}");
@@ -4274,7 +4372,11 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine("🗑️ [清空历史] 已清空所有历史记录（内存+数据库）");
                 //#endif
             }
-            catch (Exception ex)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [清空历史] 清空历史记录失败: {ex.Message}");
