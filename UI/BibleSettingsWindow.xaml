@@ -144,7 +144,8 @@
                 
                 <TextBlock Grid.Column="0" Text="边距" Style="{StaticResource LabelStyle}"/>
                 <ComboBox x:Name="CmbMargin" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
-                          SelectionChanged="Setting_Changed">
+                          SelectionChanged="Setting_Changed"
+                          MouseWheel="ComboBox_MouseWheel">
                     <ComboBoxItem Content="5" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="10" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="15" Style="{StaticResource ComboBoxItemStyle}"/>
@@ -172,7 +173,8 @@
                 
                 <TextBlock Grid.Column="0" Text="节距" Style="{StaticResource LabelStyle}"/>
                 <ComboBox x:Name="CmbVerseSpacing" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
-                          SelectionChanged="Setting_Changed">
+                          SelectionChanged="Setting_Changed"
+                          MouseWheel="ComboBox_MouseWheel">
                     <ComboBoxItem Content="0" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="2" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="5" Style="{StaticResource ComboBoxItemStyle}"/>

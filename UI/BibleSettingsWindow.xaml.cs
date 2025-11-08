@@ -95,69 +95,29 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 使用ResourceLoader加载字体配置
-                var json = ResourceLoader.LoadTextFile("Fonts/fonts-simplified.json");
-                
-                if (string.IsNullOrEmpty(json))
+                // 🔧 使用FontService统一加载字体（简化版配置）
+                if (!FontService.Instance.Initialize(useSimplifiedConfig: true))
                 {
                     //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] 未找到 fonts-simplified.json，使用系统默认字体");
+                    //Debug.WriteLine($"[圣经设置] FontService初始化失败，使用系统默认字体");
                     //#endif
                     LoadDefaultFonts();
                     return;
                 }
 
-                // 反序列化配置文件
-                var config = JsonSerializer.Deserialize<FontConfig>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                // 使用FontService填充字体选择器（简化版，不加载字体对象）
+                _fontMap = FontService.Instance.PopulateComboBoxSimple(
+                    CmbFontFamily,
+                    showCategoryHeaders: true
+                );
 
-                if (config == null || config.FontCategories == null || config.FontCategories.Count == 0)
+                if (_fontMap.Count == 0)
                 {
                     //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] fonts-simplified.json 配置为空，使用系统默认字体");
+                    //Debug.WriteLine($"[圣经设置] 未加载到任何字体，使用系统默认字体");
                     //#endif
                     LoadDefaultFonts();
-                    return;
                 }
-
-                // 清空字体选择器
-                CmbFontFamily.Items.Clear();
-                _fontMap.Clear();
-
-                int totalFonts = 0;
-
-                // 按分类加载字体
-                foreach (var category in config.FontCategories)
-                {
-                    // 添加分类标题（不可选）
-                    var categoryHeader = new System.Windows.Controls.ComboBoxItem
-                    {
-                        Content = $"━━ {category.Name} ━━",
-                        IsEnabled = false,
-                        FontWeight = System.Windows.FontWeights.Bold,
-                        Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x8C, 0x00)) // 橙色
-                    };
-                    CmbFontFamily.Items.Add(categoryHeader);
-
-                    // 添加该分类下的字体
-                    foreach (var font in category.Fonts)
-                    {
-                        var item = new System.Windows.Controls.ComboBoxItem
-                        {
-                            Content = font.Name,
-                            Tag = font // 保存字体信息
-                        };
-                        CmbFontFamily.Items.Add(item);
-                        _fontMap[font.Name] = font;
-                        totalFonts++;
-                    }
-                }
-
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 加载了 {totalFonts} 个字体");
-                //#endif
             }
             catch (Exception)
             {

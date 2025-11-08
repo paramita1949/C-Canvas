@@ -1770,7 +1770,13 @@ namespace ImageColorChanger.UI
                 var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
                 var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
                 var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
-                var fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                // 使用FontService加载字体（支持自定义字体文件）
+                var fontFamily = Core.FontService.Instance.GetFontFamilyByFamily(_configManager.BibleFontFamily);
+                if (fontFamily == null)
+                {
+                    // 回退到系统字体
+                    fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                }
 
                 // 创建Canvas容器
                 var canvas = new Canvas
@@ -3206,8 +3212,14 @@ namespace ImageColorChanger.UI
                 // 应用标题背景色（与经文背景色一致）
                 BibleChapterTitleBorder.Background = new WpfSolidColorBrush(backgroundColor);
 
-                // 应用标题样式
-                BibleChapterTitle.FontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                // 应用标题样式 - 使用FontService加载字体（支持自定义字体文件）
+                var titleFontFamily = Core.FontService.Instance.GetFontFamilyByFamily(_configManager.BibleFontFamily);
+                if (titleFontFamily == null)
+                {
+                    // 回退到系统字体
+                    titleFontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                }
+                BibleChapterTitle.FontFamily = titleFontFamily;
                 BibleChapterTitle.FontSize = _configManager.BibleTitleFontSize;
                 var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
                 BibleChapterTitle.Foreground = new WpfSolidColorBrush(titleColor);
@@ -3269,7 +3281,14 @@ namespace ImageColorChanger.UI
 
                 var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
                 var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
-                var fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                
+                // 使用FontService加载字体（支持自定义字体文件）
+                var fontFamily = Core.FontService.Instance.GetFontFamilyByFamily(_configManager.BibleFontFamily);
+                if (fontFamily == null)
+                {
+                    // 回退到系统字体
+                    fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
+                }
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"🎨 [ApplyVerseStyles] 颜色配置 - 经文:{_configManager.BibleTextColor}, 节号:{_configManager.BibleVerseNumberColor}, 高亮:{_configManager.BibleHighlightColor}");
@@ -3295,12 +3314,12 @@ namespace ImageColorChanger.UI
                     if (verse == null)
                         continue;
                     
-                    #if DEBUG
-                    if (verse.IsHighlighted)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"🔧 [ApplyVerseStyles] 处理高亮经文{i}: {verse.Reference}");
-                    }
-                    #endif
+                    //#if DEBUG
+                    //if (verse.IsHighlighted)
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"🔧 [ApplyVerseStyles] 处理高亮经文{i}: {verse.Reference}");
+                    //}
+                    //#endif
 
                     // 🔧 查找单个 TextBlock（新布局）
                     var verseTextBlock = FindVisualChild<TextBlock>(container);
@@ -3343,12 +3362,12 @@ namespace ImageColorChanger.UI
                                 var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
                                 scriptureColor = highlightColor;
                                 
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"✨ [圣经主屏] 应用高亮颜色到经文内容: {verse.Reference}");
-                                System.Diagnostics.Debug.WriteLine($"   - 配置高亮颜色: {_configManager.BibleHighlightColor}");
-                                System.Diagnostics.Debug.WriteLine($"   - 转换后颜色: R={highlightColor.R}, G={highlightColor.G}, B={highlightColor.B}, A={highlightColor.A}");
-                                System.Diagnostics.Debug.WriteLine($"   - 默认经文颜色: {_configManager.BibleTextColor}");
-                                #endif
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"✨ [圣经主屏] 应用高亮颜色到经文内容: {verse.Reference}");
+                                //System.Diagnostics.Debug.WriteLine($"   - 配置高亮颜色: {_configManager.BibleHighlightColor}");
+                                //System.Diagnostics.Debug.WriteLine($"   - 转换后颜色: R={highlightColor.R}, G={highlightColor.G}, B={highlightColor.B}, A={highlightColor.A}");
+                                //System.Diagnostics.Debug.WriteLine($"   - 默认经文颜色: {_configManager.BibleTextColor}");
+                                //#endif
                             }
                             //#if DEBUG
                             //else

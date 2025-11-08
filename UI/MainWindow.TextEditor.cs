@@ -82,120 +82,26 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 使用ResourceLoader加载字体配置（支持PAK）
-                var json = Core.ResourceLoader.LoadTextFile("Fonts/fonts.json");
-                
-                if (string.IsNullOrEmpty(json))
+                // 🔧 使用FontService统一加载字体
+                if (!Core.FontService.Instance.Initialize())
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未找到 fonts.json，加载系统默认字体");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ FontService初始化失败，加载系统默认字体");
                     LoadSystemDefaultFonts();
                     return;
                 }
 
-                // 读取配置文件
-                var config = JsonSerializer.Deserialize<FontConfig>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                // 使用FontService填充字体选择器
+                int totalFonts = Core.FontService.Instance.PopulateComboBox(
+                    FontFamilySelector,
+                    showCategoryHeaders: true,
+                    showFavoriteIcon: true,
+                    applyFontToItem: true
+                );
 
-                if (config == null || config.FontCategories == null || config.FontCategories.Count == 0)
+                if (totalFonts == 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ fonts.json 配置为空，加载系统默认字体");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未加载到任何字体，加载系统默认字体");
                     LoadSystemDefaultFonts();
-                    return;
-                }
-
-                // 清空字体选择器
-                FontFamilySelector.Items.Clear();
-
-                int totalFonts = 0;
-
-                // 按分类加载字体
-                foreach (var category in config.FontCategories)
-                {
-                    // 添加分类标题（不可选）
-                    var categoryHeader = new ComboBoxItem
-                    {
-                        Content = $"━━ {category.Name} ━━",
-                        IsEnabled = false,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x21, 0x96, 0xF3))
-                    };
-                    FontFamilySelector.Items.Add(categoryHeader);
-
-                    // 添加该分类下的字体
-                    foreach (var font in category.Fonts)
-                    {
-                        try
-                        {
-                            System.Windows.Media.FontFamily fontFamily;
-
-                            // 判断是系统字体还是自定义字体
-                            if (font.File == "system")
-                            {
-                                // 系统字体
-                                fontFamily = new System.Windows.Media.FontFamily(font.Family);
-                            }
-                            else
-                            {
-                                // 自定义字体文件
-                                var fontRelativePath = $"Fonts/{font.File}";
-                                if (!Core.ResourceLoader.ResourceExists(fontRelativePath))
-                                {
-                                    //System.Diagnostics.Debug.WriteLine($"⚠️ 字体文件不存在: {fontRelativePath}");
-                                    continue;
-                                }
-
-                                // 🔧 使用ResourceLoader加载字体（支持PAK）
-                                try
-                                {
-                                    fontFamily = Core.ResourceLoader.LoadFont(fontRelativePath, font.Family);
-                                    
-                                    if (fontFamily == null)
-                                    {
-                                        //System.Diagnostics.Debug.WriteLine($"❌ 字体加载失败: {font.Name}");
-                                        continue;
-                                    }
-                                }
-                                catch (Exception)
-                                {
-                                    //System.Diagnostics.Debug.WriteLine($"❌ 字体加载失败: {font.Name}");
-                                    continue;
-                                }
-                            }
-
-                            // 创建字体项
-                            var displayName = font.IsFavorite ? $"⭐ {font.Name}" : $"   {font.Name}";
-                            var item = new ComboBoxItem
-                            {
-                                Content = displayName,
-                                FontFamily = fontFamily,
-                                Tag = new FontItemData 
-                                { 
-                                    Config = font, 
-                                    FontFamily = fontFamily 
-                                },
-                                ToolTip = font.Preview
-                            };
-
-                            FontFamilySelector.Items.Add(item);
-                            totalFonts++;
-                        }
-                        catch (Exception)
-                        {
-                            //System.Diagnostics.Debug.WriteLine($"⚠️ 加载字体失败 [{font.Name}]: {ex.Message}");
-                        }
-                    }
-                }
-
-                // 默认选择第一个可用字体
-                for (int i = 0; i < FontFamilySelector.Items.Count; i++)
-                {
-                    if (FontFamilySelector.Items[i] is ComboBoxItem item && item.IsEnabled)
-                    {
-                        FontFamilySelector.SelectedIndex = i;
-                        break;
-                    }
                 }
             }
             catch (Exception)
@@ -2292,9 +2198,9 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null || FontFamilySelector.SelectedItem == null)
                 return;
 
-            // 获取选中的字体
+            // 获取选中的字体（使用FontService的FontItemData）
             var selectedItem = FontFamilySelector.SelectedItem as ComboBoxItem;
-            if (selectedItem != null && selectedItem.Tag is FontItemData fontData)
+            if (selectedItem != null && selectedItem.Tag is Core.FontItemData fontData)
             {
                 // ⚠️ 只保存字体族名称到数据库，不保存完整路径（保证数据可移植性）
                 var fontFamilyName = fontData.Config.Family;
@@ -5121,21 +5027,6 @@ namespace ImageColorChanger.UI
 
         #endregion
     }
-
-    /// <summary>
-    /// 字体项数据，用于ComboBox的Tag
-    /// </summary>
-    internal class FontItemData
-    {
-        /// <summary>
-        /// 字体配置信息
-        /// </summary>
-        public CustomFont Config { get; set; }
-
-        /// <summary>
-        /// WPF FontFamily 对象（包含完整的字体路径和族名称）
-        /// </summary>
-        public System.Windows.Media.FontFamily FontFamily { get; set; }
-    }
+    // FontItemData 类已移至 Core.FontService，统一管理
 }
 
