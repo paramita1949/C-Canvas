@@ -277,8 +277,8 @@ namespace ImageColorChanger.Core
                             { 
                                 Config = font, 
                                 FontFamily = fontFamily 
-                            },
-                            ToolTip = font.Preview
+                            }
+                            // ToolTip = font.Preview  // 已禁用：鼠标悬停提示
                         };
 
                         comboBox.Items.Add(item);

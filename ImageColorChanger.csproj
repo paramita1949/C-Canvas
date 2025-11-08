@@ -11,9 +11,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>5.8.2</Version>
-    <FileVersion>5.8.2</FileVersion>
-    <AssemblyVersion>5.8.2</AssemblyVersion>
+    <Version>5.8.3</Version>
+    <FileVersion>5.8.3</FileVersion>
+    <AssemblyVersion>5.8.3</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
   </PropertyGroup>

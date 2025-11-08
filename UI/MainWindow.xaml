@@ -1621,46 +1621,72 @@
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                             <!-- 字体设置 -->
-                            <TextBlock Text="字体:" VerticalAlignment="Center" Margin="4,0"/>
-                            <ComboBox x:Name="FontFamilySelector" Width="120" Height="32"
+                            <ComboBox x:Name="FontFamilySelector" Width="150" Height="32"
                                       SelectedIndex="0" 
                                       SelectionChanged="FontFamily_Changed"
                                       MaxDropDownHeight="400"
                                       IsEditable="True"
                                       IsTextSearchEnabled="True"
                                       GotFocus="FontFamilySelector_GotFocus"
+                                      VerticalContentAlignment="Center"
+                                      HorizontalContentAlignment="Left"
+                                      Padding="8,0,0,0"
+                                      FontSize="13"
                                       Style="{StaticResource WhiteComboBoxPopup}"
                                       ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
                                 <!-- 字体将在代码中动态加载 -->
                             </ComboBox>
-
-                            <TextBlock Text="字号:" VerticalAlignment="Center" Margin="8,0,4,0"/>
                             
-                            <!-- 字号减小按钮 -->
-                            <Button x:Name="BtnDecreaseFontSize" Content="◀" 
-                                    Width="24" Height="32"
-                                    Style="{StaticResource MenuButtonStyle}"
-                                    Click="BtnDecreaseFontSize_Click"
-                                    ToolTip="减小字号"/>
+                            <!-- 字号选择框 -->
+                            <ComboBox x:Name="FontSizeSelector" Width="60" Height="32"
+                                      SelectedIndex="5"
+                                      SelectionChanged="FontSize_Changed"
+                                      MouseWheel="FontSizeSelector_MouseWheel"
+                                      IsEditable="True"
+                                      VerticalContentAlignment="Center"
+                                      HorizontalContentAlignment="Center"
+                                      FontSize="13"
+                                      FontWeight="Bold"
+                                      Style="{StaticResource WhiteComboBoxPopup}"
+                                      ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
+                                <ComboBoxItem Content="10"/>
+                                <ComboBoxItem Content="12"/>
+                                <ComboBoxItem Content="14"/>
+                                <ComboBoxItem Content="16"/>
+                                <ComboBoxItem Content="18"/>
+                                <ComboBoxItem Content="20"/>
+                                <ComboBoxItem Content="24"/>
+                                <ComboBoxItem Content="28"/>
+                                <ComboBoxItem Content="32"/>
+                                <ComboBoxItem Content="36"/>
+                                <ComboBoxItem Content="40"/>
+                                <ComboBoxItem Content="48"/>
+                                <ComboBoxItem Content="56"/>
+                                <ComboBoxItem Content="64"/>
+                                <ComboBoxItem Content="72"/>
+                                <ComboBoxItem Content="80"/>
+                                <ComboBoxItem Content="96"/>
+                                <ComboBoxItem Content="108"/>
+                                <ComboBoxItem Content="120"/>
+                            </ComboBox>
                             
-                            <!-- 字号输入框 -->
-                            <TextBox x:Name="FontSizeInput" 
-                                     Text="10" 
-                                     Width="50" Height="32"
-                                     FontSize="14" FontWeight="Bold"
-                                     TextAlignment="Center"
-                                     VerticalContentAlignment="Center"
-                                     PreviewTextInput="FontSizeInput_PreviewTextInput"
-                                     TextChanged="FontSizeInput_TextChanged"
-                                     MouseWheel="FontSizeInput_MouseWheel"
-                                     ToolTip="输入字号 (10-200) 或滚轮调整"/>
-                            
-                            <!-- 字号增大按钮 -->
-                            <Button x:Name="BtnIncreaseFontSize" Content="▶" 
-                                    Width="24" Height="32"
+                            <!-- 字号增大按钮 A+ -->
+                            <Button x:Name="BtnIncreaseFontSize" Content="A+" 
+                                    Width="32" Height="32"
+                                    FontWeight="Bold"
                                     Style="{StaticResource MenuButtonStyle}"
                                     Click="BtnIncreaseFontSize_Click"
                                     ToolTip="增大字号"/>
+                            
+                            <!-- 字号减小按钮 A- -->
+                            <Button x:Name="BtnDecreaseFontSize" Content="A-" 
+                                    Width="32" Height="32"
+                                    FontWeight="Bold"
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Click="BtnDecreaseFontSize_Click"
+                                    ToolTip="减小字号"/>
+
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                             <!-- 加粗按钮 -->
                             <Button x:Name="BtnBold" Content="B" 

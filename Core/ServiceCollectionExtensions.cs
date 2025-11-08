@@ -87,6 +87,10 @@ namespace ImageColorChanger.Core
             // 内存缓存（Singleton）- 圣经服务需要
             services.AddMemoryCache();
             
+            // ✅ 新增：SkiaSharp文本渲染服务（Singleton）
+            services.AddSingleton<SkiaTextRenderer>();
+            services.AddSingleton<TextLayoutEngine>();
+            
             // 播放状态机（Singleton）
             services.AddSingleton<PlaybackStateMachine>();
 

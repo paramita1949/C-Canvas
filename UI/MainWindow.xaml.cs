@@ -154,6 +154,9 @@ namespace ImageColorChanger.UI
         
         // MVVM - 新架构的PlaybackControlViewModel
         internal ViewModels.PlaybackControlViewModel _playbackViewModel;
+        
+        // ✅ SkiaSharp文本渲染器
+        private SkiaTextRenderer _skiaRenderer;
 
         #endregion
 
@@ -457,6 +460,9 @@ namespace ImageColorChanger.UI
             
             // 初始化图片处理器
             _imageProcessor = new ImageProcessor(this, ImageScrollViewer, ImageDisplay, ImageContainer);
+            
+            // ✅ 初始化SkiaSharp文本渲染器
+            _skiaRenderer = App.GetRequiredService<SkiaTextRenderer>();
             
             // 加载用户设置（必须在 _imageProcessor 创建之后）
             LoadSettings();

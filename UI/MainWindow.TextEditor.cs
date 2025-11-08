@@ -511,14 +511,22 @@ namespace ImageColorChanger.UI
                 // 🎯 固定位置创建新文本框,新文本在上层(ZIndex最大)
                 const double newX = 100;
                 const double newY = 100;
-                const double newWidth = 300;
-                const double newHeight = 100;
+                const double newWidth = 600;  // 默认宽度
+                const double newHeight = 200;  // 默认高度
                 
                 // 计算最大ZIndex,新文本始终在最上层
                 int maxZIndex = 0;
                 if (_textBoxes.Count > 0)
                 {
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+                
+                // 🔧 获取当前选中的字体（与字体选择器保持一致）
+                string defaultFontFamily = "Microsoft YaHei UI";
+                if (FontFamilySelector.SelectedItem is ComboBoxItem selectedItem && 
+                    selectedItem.Tag is Core.FontItemData fontData)
+                {
+                    defaultFontFamily = fontData.Config.Name;  // 使用字体名称
                 }
                 
                 // 创建新元素 (关联到当前幻灯片)
@@ -529,9 +537,9 @@ namespace ImageColorChanger.UI
                     Y = newY,
                     Width = newWidth,
                     Height = newHeight,
-                    Content = "双击编辑文字",
-                    FontSize = 10,  // 默认字号10（实际渲染时会放大2倍显示为20）
-                    FontFamily = "Microsoft YaHei UI",
+                    Content = "双击编辑",
+                    FontSize = 15,  // 默认字号15（实际渲染时会放大2倍显示为30）
+                    FontFamily = defaultFontFamily,  // 🔧 使用当前选中的字体
                     FontColor = "#FFFFFF",  // 默认白色字体
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
@@ -540,7 +548,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddElementAsync(newElement);
 
                 // 添加到画布
-                var textBox = new DraggableTextBox(newElement);
+                var textBox = new DraggableTextBox(newElement, _skiaRenderer);
                 AddTextBoxToCanvas(textBox);
                 
                 // 🔧 新建文本框：自动进入编辑模式，全选占位符文本
@@ -597,7 +605,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddElementAsync(newElement);
 
                 // 添加到画布
-                var textBox = new DraggableTextBox(newElement);
+                var textBox = new DraggableTextBox(newElement, _skiaRenderer);
                 AddTextBoxToCanvas(textBox);
 
                 // 选中新复制的文本框
@@ -637,10 +645,19 @@ namespace ImageColorChanger.UI
                 EditorCanvas.Children.Remove(textBox);
                 _textBoxes.Remove(textBox);
 
-                // 如果删除的是当前选中项，清除选中状态
+                // 如果删除的是当前选中项，清除选中状态并隐藏工具栏
                 if (_selectedTextBox == textBox)
                 {
                     _selectedTextBox = null;
+                    
+                    // 隐藏圣经工具栏
+                    if (BibleToolbar != null)
+                    {
+                        BibleToolbar.IsOpen = false;
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
+#endif
+                    }
                 }
 
                 // 标记已修改
@@ -2221,71 +2238,147 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 字号输入框文本改变
+        /// 字号选择改变事件
         /// </summary>
-        private void FontSizeInput_TextChanged(object sender, TextChangedEventArgs e)
+        private void FontSize_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (FontSizeInput == null || _selectedTextBox == null) return;
+            if (_selectedTextBox == null)
+                return;
 
-            if (int.TryParse(FontSizeInput.Text, out int fontSize))
+            // 获取选中的字号
+            string sizeText = null;
+            
+            if (FontSizeSelector.SelectedItem is ComboBoxItem item)
             {
-                // 限制范围 (改为从10开始)
-                fontSize = Math.Max(10, Math.Min(200, fontSize));
+                sizeText = item.Content?.ToString();
+            }
+            else
+            {
+                sizeText = FontSizeSelector.Text;
+            }
+            
+            if (!string.IsNullOrEmpty(sizeText) && int.TryParse(sizeText, out int displaySize))
+            {
+                // 限制范围（10-200）
+                displaySize = Math.Max(10, Math.Min(200, displaySize));
                 
-                // 应用到选中的文本框
-                _selectedTextBox.ApplyStyle(fontSize: fontSize);
+                // 如果超出范围，更新显示
+                if (displaySize.ToString() != sizeText)
+                {
+                    FontSizeSelector.Text = displaySize.ToString();
+                    return; // 会触发新的 Changed 事件
+                }
+                
+                // 转换为数据库值（显示值 ÷ 2）
+                double dbSize = displaySize / 2.0;
+                
+                // 应用字号
+                _selectedTextBox.ApplyStyle(fontSize: dbSize);
+                
                 MarkContentAsModified();
             }
         }
 
         /// <summary>
-        /// 字号输入框预输入验证（只允许数字）
+        /// 字号输入框文本改变（已废弃，使用 FontSize_Changed）
+        /// </summary>
+        private void FontSizeInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // 已废弃：现在使用 FontSizeSelector 下拉框
+        }
+
+        /// <summary>
+        /// 字号输入框预输入验证（已废弃）
         /// </summary>
         private void FontSizeInput_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            // 只允许数字
-            e.Handled = !int.TryParse(e.Text, out _);
+            // 已废弃：现在使用 FontSizeSelector 下拉框
         }
 
         /// <summary>
-        /// 字号输入框鼠标滚轮调整
+        /// 字号选择框鼠标滚轮调整
+        /// </summary>
+        private void FontSizeSelector_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // 只有在选中文本框时才响应
+            if (_selectedTextBox == null)
+                return;
+            
+            // 获取当前字号（显示值）
+            int currentDisplaySize = (int)Math.Round(_selectedTextBox.Data.FontSize * 2);
+            
+            // 滚轮向上增大，向下减小，步进2
+            int delta = e.Delta > 0 ? 2 : -2;
+            int newDisplaySize = Math.Max(10, Math.Min(200, currentDisplaySize + delta));
+            
+            // 转换为数据库值
+            double newDbSize = newDisplaySize / 2.0;
+            
+            // 应用新字号
+            _selectedTextBox.ApplyStyle(fontSize: newDbSize);
+            MarkContentAsModified();
+            
+            // 更新下拉框显示
+            FontSizeSelector.Text = newDisplaySize.ToString();
+            
+            // 标记事件已处理
+            e.Handled = true;
+        }
+        
+        /// <summary>
+        /// 字号输入框鼠标滚轮调整（已废弃）
         /// </summary>
         private void FontSizeInput_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (int.TryParse(FontSizeInput.Text, out int currentSize))
-            {
-                // 滚轮向上增大，向下减小，每次步进1
-                int delta = e.Delta > 0 ? 1 : -1;
-                int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
-                
-                FontSizeInput.Text = newSize.ToString();
-            }
-            
-            e.Handled = true;
+            // 已废弃：现在使用 FontSizeSelector_MouseWheel
         }
 
         /// <summary>
-        /// 减小字号按钮
+        /// 减小字号按钮 (A-)
         /// </summary>
         private void BtnDecreaseFontSize_Click(object sender, RoutedEventArgs e)
         {
-            if (int.TryParse(FontSizeInput.Text, out int currentSize))
-            {
-                int newSize = Math.Max(10, currentSize - 1);
-                FontSizeInput.Text = newSize.ToString();
-            }
+            if (_selectedTextBox == null) return;
+            
+            // 获取当前字号（显示值 = 数据库值 × 2）
+            int currentDisplaySize = (int)Math.Round(_selectedTextBox.Data.FontSize * 2);
+            
+            // 减小字号（显示值）
+            int newDisplaySize = Math.Max(10, currentDisplaySize - 2);
+            
+            // 转换为数据库值（显示值 ÷ 2）
+            double newDbSize = newDisplaySize / 2.0;
+            
+            // 应用新字号
+            _selectedTextBox.ApplyStyle(fontSize: newDbSize);
+            MarkContentAsModified();
+            
+            // 更新下拉框显示（显示值）
+            FontSizeSelector.Text = newDisplaySize.ToString();
         }
 
         /// <summary>
-        /// 增大字号按钮
+        /// 增大字号按钮 (A+)
         /// </summary>
         private void BtnIncreaseFontSize_Click(object sender, RoutedEventArgs e)
         {
-            if (int.TryParse(FontSizeInput.Text, out int currentSize))
-            {
-                int newSize = Math.Min(200, currentSize + 1);
-                FontSizeInput.Text = newSize.ToString();
-            }
+            if (_selectedTextBox == null) return;
+            
+            // 获取当前字号（显示值 = 数据库值 × 2）
+            int currentDisplaySize = (int)Math.Round(_selectedTextBox.Data.FontSize * 2);
+            
+            // 增大字号（显示值）
+            int newDisplaySize = Math.Min(200, currentDisplaySize + 2);
+            
+            // 转换为数据库值（显示值 ÷ 2）
+            double newDbSize = newDisplaySize / 2.0;
+            
+            // 应用新字号
+            _selectedTextBox.ApplyStyle(fontSize: newDbSize);
+            MarkContentAsModified();
+            
+            // 更新下拉框显示（显示值）
+            FontSizeSelector.Text = newDisplaySize.ToString();
         }
 
         /// <summary>
@@ -2385,7 +2478,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddElementAsync(mirrorElement);
 
                 // 添加到画布
-                var mirrorBox = new DraggableTextBox(mirrorElement);
+                var mirrorBox = new DraggableTextBox(mirrorElement, _skiaRenderer);
                 AddTextBoxToCanvas(mirrorBox);
 
                 // 建立联动
@@ -2433,7 +2526,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddElementAsync(mirrorElement);
 
                 // 添加到画布
-                var mirrorBox = new DraggableTextBox(mirrorElement);
+                var mirrorBox = new DraggableTextBox(mirrorElement, _skiaRenderer);
                 AddTextBoxToCanvas(mirrorBox);
 
                 // 建立联动
@@ -2568,7 +2661,10 @@ namespace ImageColorChanger.UI
                     // 清除焦点
                     Keyboard.ClearFocus();
                     EditorCanvas.Focus();
-                    //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
+                    
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
+#endif
                 }
             }
         }
@@ -2674,9 +2770,15 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 取消选中时隐藏圣经工具栏
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📍 [文本框] 取消选中，隐藏圣经工具栏");
+#endif
                     if (BibleToolbar != null)
                     {
                         BibleToolbar.IsOpen = false;
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已隐藏");
+#endif
                     }
                 }
             };
@@ -2773,8 +2875,8 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            // 更新字号输入框
-            FontSizeInput.Text = _selectedTextBox.Data.FontSize.ToString();
+            // 更新字号选择框
+            FontSizeSelector.Text = ((int)Math.Round(_selectedTextBox.Data.FontSize * 2)).ToString();
 
             // 保持用户最后一次设置的颜色
             if (string.IsNullOrEmpty(_currentTextColor))
@@ -3414,7 +3516,7 @@ namespace ImageColorChanger.UI
             if (actualWidth <= 0) actualWidth = data.Width;
             if (actualHeight <= 0) actualHeight = data.Height;
             
-            // 🔧 使用VisualBrush渲染，避免破坏Canvas上的控件布局
+            // ✅ 使用SkiaSharp渲染器直接渲染（替代VisualBrush）
             try
             {
                 int width = (int)Math.Ceiling(actualWidth);
@@ -3422,38 +3524,29 @@ namespace ImageColorChanger.UI
                 
                 if (width > 0 && height > 0)
                 {
-                    // 🔧 渲染前强制更新文本框的布局（确保样式已应用）
-                    textBox.Measure(new System.Windows.Size(actualWidth, actualHeight));
-                    textBox.Arrange(new Rect(actualLeft, actualTop, actualWidth, actualHeight));
-                    textBox.UpdateLayout();
-                    
-                    // 🔧 关键：使用VisualBrush创建文本框的视觉副本，不影响原控件
-                    var visualBrush = new System.Windows.Media.VisualBrush(textBox)
-                    {
-                        Stretch = System.Windows.Media.Stretch.None,
-                        AlignmentX = System.Windows.Media.AlignmentX.Left,
-                        AlignmentY = System.Windows.Media.AlignmentY.Top
+                   // 🔧 清理字体名称：移除 WPF 格式
+                   string cleanFontFamily = CleanFontFamilyName(data.FontFamily);
+                   
+                   // ✅ 创建文本框渲染上下文
+                   var context = new Core.TextBoxRenderContext
+                   {
+                       Text = data.Content,
+                       Size = new SKSize(width, height),
+                       Style = new Core.TextStyle
+                       {
+                           FontFamily = cleanFontFamily,
+                           FontSize = (float)data.FontSize * 2,  // 🔧 渲染时放大2倍（与编辑模式一致）
+                           TextColor = Core.TextStyle.ParseColor(data.FontColor),
+                           IsBold = data.IsBoldBool,
+                           LineSpacing = 1.2f
+                       },
+                        Alignment = Utils.SkiaWpfHelper.ToSkTextAlign(data.TextAlign),
+                        Padding = new SKRect(5f, 5f, 5f, 5f),
+                        BackgroundColor = null // 透明背景
                     };
                     
-                    // 创建临时容器来承载VisualBrush
-                    var container = new System.Windows.Shapes.Rectangle
-                    {
-                        Width = actualWidth,
-                        Height = actualHeight,
-                        Fill = visualBrush
-                    };
-                    
-                    // 布局临时容器（不影响原textBox）
-                    container.Measure(new System.Windows.Size(actualWidth, actualHeight));
-                    container.Arrange(new Rect(0, 0, actualWidth, actualHeight));
-                    container.UpdateLayout();
-                    
-                    // 🎯 渲染临时容器（使用96 DPI，让画布的缩放变换来提升质量）
-                    var renderBitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-                    renderBitmap.Render(container);
-                    
-                    // 转换为SKBitmap
-                    var skBitmap = ConvertBitmapSourceToSKBitmap(renderBitmap);
+                    // ✅ 直接使用SkiaTextRenderer渲染
+                    var skBitmap = _skiaRenderer.RenderTextBox(context);
                     
                     // 绘制到Canvas（使用实际位置和尺寸，画布的Scale变换会自动处理缩放）
                     var destRect = new SKRect(
@@ -3471,13 +3564,17 @@ namespace ImageColorChanger.UI
                     canvas.DrawBitmap(skBitmap, destRect, paint);
                     paint.Dispose();
                     
-                    skBitmap.Dispose();
+                    // 注意：不要Dispose skBitmap，因为它可能被缓存了
+                    
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [文本绘制-SkiaSharp] 位置: ({actualLeft}, {actualTop}), 尺寸: {width}×{height}");
+#endif
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [文本绘制] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [文本绘制-SkiaSharp] 失败: {ex.Message}");
                 #else
                 _ = ex;
                 #endif
@@ -4616,7 +4713,7 @@ namespace ImageColorChanger.UI
 
                 foreach (var element in elements)
                 {
-                    var textBox = new DraggableTextBox(element);
+                    var textBox = new DraggableTextBox(element, _skiaRenderer);
                     
                     // 应用字体
                     var fontFamilyToApply = FindFontFamilyByName(element.FontFamily);
@@ -5070,6 +5167,31 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
                 #endif
             }
+        }
+
+        #endregion
+
+        #region 字体名称处理
+
+        /// <summary>
+        /// 清理字体名称：从 WPF 格式转换为纯字体名称
+        /// WPF 格式：./CCanvas_Fonts/思源宋体-Regular.ttf#思源宋体
+        /// 纯字体名：思源宋体
+        /// </summary>
+        private string CleanFontFamilyName(string fontFamily)
+        {
+            if (string.IsNullOrEmpty(fontFamily))
+                return "Microsoft YaHei UI";
+            
+            // 检查是否是 WPF 格式 (包含 # 符号)
+            if (fontFamily.Contains("#"))
+            {
+                // 提取 # 后面的字体名称
+                int hashIndex = fontFamily.IndexOf('#');
+                return fontFamily.Substring(hashIndex + 1);
+            }
+            
+            return fontFamily;
         }
 
         #endregion
