@@ -47,6 +47,7 @@ namespace ImageColorChanger.UI
         private List<WpfRectangle> _splitRegionBorders = new List<WpfRectangle>(); // 区域边框
         private Dictionary<int, System.Windows.Controls.Image> _regionImages = new Dictionary<int, System.Windows.Controls.Image>(); // 区域图片控件
         private Dictionary<int, string> _regionImagePaths = new Dictionary<int, string>(); // 区域图片路径
+        private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
         private bool _splitStretchMode = false; // false = 适中显示(Uniform), true = 拉伸显示(Fill)
         
         // 🚀 Canvas渲染缓存（避免重复渲染）
@@ -1111,6 +1112,7 @@ namespace ImageColorChanger.UI
             }
             _regionImages.Clear();
             _regionImagePaths.Clear();
+            _regionImageColorEffects.Clear();
         }
         
         /// <summary>
@@ -1345,6 +1347,12 @@ namespace ImageColorChanger.UI
                 // 保存引用
                 _regionImages[_selectedRegionIndex] = imageControl;
                 _regionImagePaths[_selectedRegionIndex] = imagePath;
+                _regionImageColorEffects[_selectedRegionIndex] = shouldApplyColorEffect; // 记录是否需要变色效果
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [LoadImageToSplitRegion] 保存变色状态: 区域{_selectedRegionIndex}, 需要变色={shouldApplyColorEffect}");
+                System.Diagnostics.Debug.WriteLine($"   当前所有区域变色状态: {string.Join(", ", _regionImageColorEffects.Select(kv => $"区域{kv.Key}={kv.Value}"))}");
+                #endif
                 
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
@@ -1448,6 +1456,7 @@ namespace ImageColorChanger.UI
                 EditorCanvas.Children.Remove(imageControl);
                 _regionImages.Remove(_selectedRegionIndex);
                 _regionImagePaths.Remove(_selectedRegionIndex);
+                _regionImageColorEffects.Remove(_selectedRegionIndex); // 同时清除变色效果记录
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"✅ [ClearSelectedRegionImage] 图片控件已移除");
@@ -1504,6 +1513,7 @@ namespace ImageColorChanger.UI
                 }
                 _regionImages.Clear();
                 _regionImagePaths.Clear();
+                _regionImageColorEffects.Clear();
                 
                 // 恢复所有边框样式为灰色
                 foreach (var border in _splitRegionBorders)
@@ -1769,6 +1779,7 @@ namespace ImageColorChanger.UI
                 
                 // 清空现有数据
                 _regionImagePaths.Clear();
+                _regionImageColorEffects.Clear();
                 foreach (var image in _regionImages.Values)
                 {
                     EditorCanvas.Children.Remove(image);
@@ -1979,6 +1990,7 @@ namespace ImageColorChanger.UI
                     // 保存引用
                     _regionImages[regionData.RegionIndex] = imageControl;
                     _regionImagePaths[regionData.RegionIndex] = regionData.ImagePath;
+                    _regionImageColorEffects[regionData.RegionIndex] = shouldApplyColorEffect; // 记录是否需要变色效果
                     
                     // 更新边框样式（有图片的区域显示金色）
                     border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0));
@@ -3245,6 +3257,37 @@ namespace ImageColorChanger.UI
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 原始图片尺寸: {skBitmap.Width}×{skBitmap.Height}");
                             //#endif
+                            
+                            // 🎨 检查是否需要应用变色效果
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 检查变色状态");
+                            System.Diagnostics.Debug.WriteLine($"   _regionImageColorEffects.ContainsKey: {_regionImageColorEffects.ContainsKey(regionIndex)}");
+                            if (_regionImageColorEffects.ContainsKey(regionIndex))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"   需要变色: {_regionImageColorEffects[regionIndex]}");
+                            }
+                            #endif
+                            
+                            if (_regionImageColorEffects.ContainsKey(regionIndex) && 
+                                _regionImageColorEffects[regionIndex])
+                            {
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🎨 [Compose] 区域 {regionIndex} - 开始应用变色效果到投影");
+                                #endif
+                                
+                                // 应用变色效果
+                                _imageProcessor.ApplyYellowTextEffect(skBitmap);
+                                
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"✅ [Compose] 区域 {regionIndex} - 变色效果已应用");
+                                #endif
+                            }
+                            else
+                            {
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"⚪ [Compose] 区域 {regionIndex} - 无需变色效果");
+                                #endif
+                            }
                             
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {regionIndex}: 从原始文件加载 {skBitmap.Width}×{skBitmap.Height}, 位置: ({left}, {top}), 显示: {width}×{height}");
