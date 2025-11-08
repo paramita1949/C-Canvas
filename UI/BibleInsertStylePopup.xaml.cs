@@ -61,14 +61,12 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"⚠️ [BibleInsertStylePopup] 设置窗口属性失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -205,14 +203,12 @@ namespace ImageColorChanger.UI
                     ? new SolidColorBrush(Colors.Black) 
                     : new SolidColorBrush(Colors.White);
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"⚠️ [BibleInsertStylePopup] 设置颜色按钮失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
                 button.Background = new SolidColorBrush(Colors.Gray);
                 button.Foreground = new SolidColorBrush(Colors.White);
@@ -312,14 +308,12 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"   经文: {_config.VerseStyle.FontSize}pt, 粗体={_config.VerseStyle.IsBold}, 节距={_config.VerseStyle.VerseSpacing}px");
                 //#endif
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [BibleInsertStylePopup] 更新配置失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -349,14 +343,12 @@ namespace ImageColorChanger.UI
                     #endif
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择标题颜色失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -385,14 +377,12 @@ namespace ImageColorChanger.UI
                     #endif
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择经文颜色失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }

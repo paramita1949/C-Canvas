@@ -654,9 +654,9 @@ namespace ImageColorChanger.UI
                     if (BibleToolbar != null)
                     {
                         BibleToolbar.IsOpen = false;
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
+//#endif
                     }
                 }
 
@@ -2662,9 +2662,9 @@ namespace ImageColorChanger.UI
                     Keyboard.ClearFocus();
                     EditorCanvas.Focus();
                     
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
+//#endif
                 }
             }
         }
@@ -2770,15 +2770,15 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 取消选中时隐藏圣经工具栏
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📍 [文本框] 取消选中，隐藏圣经工具栏");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📍 [文本框] 取消选中，隐藏圣经工具栏");
+//#endif
                     if (BibleToolbar != null)
                     {
                         BibleToolbar.IsOpen = false;
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已隐藏");
-#endif
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已隐藏");
+//#endif
                     }
                 }
             };
@@ -5157,14 +5157,12 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已显示");
                 //#endif
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }

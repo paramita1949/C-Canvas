@@ -147,38 +147,38 @@ namespace ImageColorChanger.Services
         /// </summary>
         private static async Task<VersionInfo?> CheckForUpdatesInternalAsync()
         {
-#if DEBUG
-            Debug.WriteLine("[UpdateService] 开始检查更新...");
-            Debug.WriteLine($"[UpdateService] 检查地址: {LATEST_VERSION_URL}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine("[UpdateService] 开始检查更新...");
+//            Debug.WriteLine($"[UpdateService] 检查地址: {LATEST_VERSION_URL}");
+//#endif
             // 下载 latest.txt 获取最新版本号
             var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL);
             latestVersion = latestVersion.Trim();
 
-#if DEBUG
-            Debug.WriteLine($"[UpdateService] 最新版本: {latestVersion}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[UpdateService] 最新版本: {latestVersion}");
+//#endif
 
             // 验证版本号格式
             if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+$"))
             {
-#if DEBUG
-                Debug.WriteLine($"[UpdateService] 版本号格式无效: {latestVersion}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[UpdateService] 版本号格式无效: {latestVersion}");
+//#endif
                 return null;
             }
 
             // 比较版本号
             var currentVersion = GetCurrentVersion();
-#if DEBUG
-            Debug.WriteLine($"[UpdateService] 当前版本: {currentVersion}");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[UpdateService] 当前版本: {currentVersion}");
+//#endif
 
             if (CompareVersions(latestVersion, currentVersion) > 0)
             {
-#if DEBUG
-                Debug.WriteLine($"[UpdateService] 发现新版本: {latestVersion}");
-#endif
+//#if DEBUG
+//                Debug.WriteLine($"[UpdateService] 发现新版本: {latestVersion}");
+//#endif
 
                 // 获取更新文件列表
                 var files = await GetUpdateFilesListAsync(latestVersion);
@@ -195,9 +195,9 @@ namespace ImageColorChanger.Services
                 return versionInfo;
             }
 
-#if DEBUG
-            Debug.WriteLine($"[UpdateService] 已是最新版本");
-#endif
+//#if DEBUG
+//            Debug.WriteLine($"[UpdateService] 已是最新版本");
+//#endif
             
             // 没有新版本，清除缓存
             _lastCheckedVersionInfo = null;

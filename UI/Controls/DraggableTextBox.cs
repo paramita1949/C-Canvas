@@ -209,9 +209,9 @@ namespace ImageColorChanger.UI.Controls
             _editTextBox.GotFocus += (s, e) =>
             {
                 _editTextBox.Cursor = WpfCursors.IBeam;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✏️ [DraggableTextBox] 进入编辑模式");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"✏️ [DraggableTextBox] 进入编辑模式");
+//#endif
                 // 如果是占位符文字，清空内容
                 if (_isPlaceholderText)
                 {
@@ -226,9 +226,9 @@ namespace ImageColorChanger.UI.Controls
             {
                 _editTextBox.Cursor = WpfCursors.Arrow;
                 ExitEditMode();
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [DraggableTextBox] 退出编辑模式");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"💾 [DraggableTextBox] 退出编辑模式");
+//#endif
             };
             
             grid.Children.Add(_editTextBox);
@@ -371,9 +371,9 @@ namespace ImageColorChanger.UI.Controls
                 int hashIndex = fontFamily.IndexOf('#');
                 string cleanName = fontFamily.Substring(hashIndex + 1);
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔧 [DraggableTextBox] 字体名称清理: {fontFamily} -> {cleanName}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"🔧 [DraggableTextBox] 字体名称清理: {fontFamily} -> {cleanName}");
+//#endif
                 
                 return cleanName;
             }
@@ -419,9 +419,9 @@ namespace ImageColorChanger.UI.Controls
                 var bitmap = _skiaRenderer.RenderTextBox(context);
                 _renderImage.Source = SkiaWpfHelper.ConvertToWpfBitmap(bitmap);
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎨 [DraggableTextBox] 渲染完成: {ActualWidth}x{ActualHeight}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"🎨 [DraggableTextBox] 渲染完成: {ActualWidth}x{ActualHeight}");
+//#endif
             }
             catch (Exception ex)
             {

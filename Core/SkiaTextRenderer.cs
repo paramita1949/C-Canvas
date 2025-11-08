@@ -27,17 +27,17 @@ namespace ImageColorChanger.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             
-#if DEBUG
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-#endif
+//#if DEBUG
+//            var sw = System.Diagnostics.Stopwatch.StartNew();
+//#endif
 
             // 1. 检查缓存
             var cacheKey = context.GetCacheKey();
             if (_cache.TryGetValue(cacheKey, out SKBitmap cachedBitmap))
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [SkiaTextRenderer] 缓存命中: {cacheKey.Substring(0, Math.Min(50, cacheKey.Length))}...");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"✅ [SkiaTextRenderer] 缓存命中: {cacheKey.Substring(0, Math.Min(50, cacheKey.Length))}...");
+//#endif
                 return cachedBitmap;
             }
             
@@ -47,9 +47,9 @@ namespace ImageColorChanger.Core
             
             if (width <= 0 || height <= 0)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [SkiaTextRenderer] 无效尺寸: {width}x{height}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"⚠️ [SkiaTextRenderer] 无效尺寸: {width}x{height}");
+//#endif
                 return new SKBitmap(1, 1);
             }
             
@@ -105,10 +105,10 @@ namespace ImageColorChanger.Core
             // 8. 缓存结果
             _cache.Set(cacheKey, bitmap, TimeSpan.FromMinutes(5));
             
-#if DEBUG
-            sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"🎨 [SkiaTextRenderer] 渲染完成: {sw.ElapsedMilliseconds}ms, 尺寸: {width}x{height}, 行数: {layout.Lines.Count}");
-#endif
+//#if DEBUG
+//            sw.Stop();
+//            System.Diagnostics.Debug.WriteLine($"🎨 [SkiaTextRenderer] 渲染完成: {sw.ElapsedMilliseconds}ms, 尺寸: {width}x{height}, 行数: {layout.Lines.Count}");
+//#endif
             
             return bitmap;
         }
@@ -244,10 +244,10 @@ namespace ImageColorChanger.Core
                 }
             }
             
-#if DEBUG
-            sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"📖 [SkiaTextRenderer-Bible] 完成: {context.Verses.Count}节, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
-#endif
+//#if DEBUG
+//            sw.Stop();
+//            System.Diagnostics.Debug.WriteLine($"📖 [SkiaTextRenderer-Bible] 完成: {context.Verses.Count}节, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
+//#endif
             
             return bitmap;
         }
@@ -347,10 +347,10 @@ namespace ImageColorChanger.Core
                 currentY += context.Style.FontSize * context.Style.LineSpacing;
             }
             
-#if DEBUG
-            sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"🎵 [SkiaTextRenderer-Lyrics] 完成: {lines.Count}行, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
-#endif
+//#if DEBUG
+//            sw.Stop();
+//            System.Diagnostics.Debug.WriteLine($"🎵 [SkiaTextRenderer-Lyrics] 完成: {lines.Count}行, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
+//#endif
             
             return bitmap;
         }

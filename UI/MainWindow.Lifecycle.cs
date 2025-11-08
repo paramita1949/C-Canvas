@@ -56,9 +56,9 @@ namespace ImageColorChanger.UI
         {
             try
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("[MainWindow] 开始检查更新...");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine("[MainWindow] 开始检查更新...");
+//#endif
                 var versionInfo = await UpdateService.CheckForUpdatesAsync();
                 
                 if (versionInfo != null)
@@ -80,9 +80,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("[MainWindow] 检查更新失败");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine("[MainWindow] 检查更新失败");
+//#endif
                 // 静默失败，不影响用户使用
             }
         }

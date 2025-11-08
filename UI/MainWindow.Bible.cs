@@ -55,6 +55,9 @@ namespace ImageColorChanger.UI
         // 圣经样式设置 Popup（复用实例）
         private BibleInsertStylePopup _bibleStylePopup = null;
         
+        // 圣经设置窗口（复用实例）
+        private BibleSettingsWindow _bibleSettingsWindow = null;
+        
         /// <summary>
         /// 拼音输入是否激活（供主窗口ESC键判断使用）
         /// </summary>
@@ -255,18 +258,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnShowBible_Click(object sender, RoutedEventArgs e)
         {
-            #if DEBUG
-            Debug.WriteLine($"[圣经] 圣经按钮被点击");
-            Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
-            Debug.WriteLine($"   当前视图模式: {_currentViewMode}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经] 圣经按钮被点击");
+            //Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
+            //Debug.WriteLine($"   当前视图模式: {_currentViewMode}");
+            //#endif
 
             // 🆕 如果在幻灯片编辑模式下，只切换左侧导航面板
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
-                #if DEBUG
-                Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式下，切换左侧导航面板");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式下，切换左侧导航面板");
+                //#endif
                 
                 // 切换左侧导航面板：ProjectTree <-> BibleNavigationPanel
                 if (BibleNavigationPanel.Visibility == Visibility.Visible)
@@ -276,9 +279,9 @@ namespace ImageColorChanger.UI
                     ProjectTree.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Projects;
                     
-                    #if DEBUG
-                    Debug.WriteLine($"✅ [圣经] 切换到项目树");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [圣经] 切换到项目树");
+                    //#endif
                 }
                 else
                 {
@@ -293,9 +296,9 @@ namespace ImageColorChanger.UI
                         await LoadBibleNavigationDataAsync();
                     }
                     
-                    #if DEBUG
-                    Debug.WriteLine($"✅ [圣经] 切换到圣经导航");
-                    #endif
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [圣经] 切换到圣经导航");
+                    //#endif
                 }
                 
                 // 更新按钮状态
@@ -305,9 +308,9 @@ namespace ImageColorChanger.UI
             }
 
             // 否则，切换到完整的圣经页面
-            #if DEBUG
-            Debug.WriteLine($"[圣经] 切换到完整圣经页面");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经] 切换到完整圣经页面");
+            //#endif
 
             _isBibleMode = true;
             _currentViewMode = NavigationViewMode.Bible;  // 设置当前视图模式为圣经
@@ -946,9 +949,9 @@ namespace ImageColorChanger.UI
             // 🆕 如果在幻灯片编辑模式，双击起始节自动插入该节经文
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
-                #if DEBUG
-                Debug.WriteLine($"✅ [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
+                //#endif
                 
                 await CreateBibleTextElements(bookId, chapter, startVerse, startVerse);
             }
@@ -1090,26 +1093,26 @@ namespace ImageColorChanger.UI
             if (!int.TryParse(chapterStr, out int chapter))
                 return;
 
-            #if DEBUG
-            Debug.WriteLine($"[圣经] 结束节改变: {startVerse}-{endVerse}");
-            Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"[圣经] 结束节改变: {startVerse}-{endVerse}");
+            //Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
+            //#endif
 
             // 🆕 如果在幻灯片编辑模式，自动创建文本框元素
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
-                #if DEBUG
-                Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式，自动创建文本框元素");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式，自动创建文本框元素");
+                //#endif
                 
                 await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
                 return;
             }
 
             // 否则，加载到投影记录（圣经浏览模式）
-            #if DEBUG
-            Debug.WriteLine($"✅ [圣经] 在圣经浏览模式，加载到投影记录");
-            #endif
+            //#if DEBUG
+            //Debug.WriteLine($"✅ [圣经] 在圣经浏览模式，加载到投影记录");
+            //#endif
 
             // 重新加载指定范围的经文
             await LoadVerseRangeAsync(bookId, chapter, startVerse, endVerse);
@@ -2769,16 +2772,21 @@ namespace ImageColorChanger.UI
 
 
         /// <summary>
-        /// 圣经导航面板设置按钮点击事件（悬浮在按钮右侧）
+        /// 圣经导航面板设置按钮点击事件
         /// </summary>
         private void BtnBibleSettings_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // 创建设置窗口，传递两个回调函数
-                // 回调1：译本切换时需要重新加载经文
-                // 回调2：样式改变时只刷新样式
-                var settingsWindow = new BibleSettingsWindow(_configManager, _bibleService, 
+                // 如果窗口已存在且可见，则关闭它
+                if (_bibleSettingsWindow != null && _bibleSettingsWindow.IsVisible)
+                {
+                    _bibleSettingsWindow.Close();
+                    return;
+                }
+                
+                // 创建新的设置窗口
+                _bibleSettingsWindow = new BibleSettingsWindow(_configManager, _bibleService, 
                     // 译本切换回调（需要重新加载经文）
                     async () =>
                     {
@@ -2814,9 +2822,9 @@ namespace ImageColorChanger.UI
                     // 样式改变回调（只刷新样式，不重新加载经文）
                     async () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎨 [圣经设置] 样式改变，刷新显示");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎨 [圣经设置] 样式改变，刷新显示");
+                        //#endif
                         
                         // 应用设置
                         ApplyBibleSettings();
@@ -2841,81 +2849,58 @@ namespace ImageColorChanger.UI
                     WindowStartupLocation = WindowStartupLocation.Manual
                 };
 
-                // 优先使用保存的窗口位置，如果没有则自动计算
+                // 窗口关闭时清理实例
+                _bibleSettingsWindow.Closed += (s, args) => 
+                { 
+                    _bibleSettingsWindow = null;
+                    // 移除主窗口点击监听
+                    this.PreviewMouseDown -= MainWindow_SettingsClose_PreviewMouseDown;
+                };
+                
+                // 添加主窗口点击监听（点击主窗口任意位置关闭设置窗口）
+                this.PreviewMouseDown -= MainWindow_SettingsClose_PreviewMouseDown; // 先移除避免重复
+                this.PreviewMouseDown += MainWindow_SettingsClose_PreviewMouseDown;
+
+                // 计算窗口位置
                 if (_configManager.BibleSettingsWindowLeft.HasValue && _configManager.BibleSettingsWindowTop.HasValue)
                 {
-                    // 使用保存的位置
-                    settingsWindow.Left = _configManager.BibleSettingsWindowLeft.Value;
-                    settingsWindow.Top = _configManager.BibleSettingsWindowTop.Value;
-                    
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] 使用保存的位置: Left={settingsWindow.Left}, Top={settingsWindow.Top}");
-                    //#endif
+                    _bibleSettingsWindow.Left = _configManager.BibleSettingsWindowLeft.Value;
+                    _bibleSettingsWindow.Top = _configManager.BibleSettingsWindowTop.Value;
                 }
                 else if (BibleNavigationPanel != null)
                 {
-                    // 获取面板左上角和右上角的屏幕坐标
-                    var panelTopLeft = BibleNavigationPanel.PointToScreen(new System.Windows.Point(0, 0));
                     var panelTopRight = BibleNavigationPanel.PointToScreen(
                         new System.Windows.Point(BibleNavigationPanel.ActualWidth, 0));
+                    var panelTopLeft = BibleNavigationPanel.PointToScreen(new System.Windows.Point(0, 0));
                     
-                    // 获取屏幕工作区域
-                    var screen = System.Windows.Forms.Screen.FromPoint(
-                        new System.Drawing.Point((int)panelTopLeft.X, (int)panelTopLeft.Y));
-                    var workingArea = screen.WorkingArea;
-                    
-                    // 计算窗口位置：
-                    // 水平：面板右边缘内侧，留出35像素边距
-                    // 垂直：面板顶部向下7像素
-                    double windowLeft = panelTopRight.X - settingsWindow.Width - 35;
-                    double windowTop = panelTopLeft.Y + 7;
-                    
-                    // 确保窗口不超出屏幕左边界
-                    if (windowLeft < workingArea.Left)
-                    {
-                        windowLeft = workingArea.Left + 10;
-                    }
-                    
-                    // 确保窗口不超出屏幕下边界
-                    if (windowTop + settingsWindow.Height > workingArea.Bottom)
-                    {
-                        windowTop = workingArea.Bottom - settingsWindow.Height - 10;
-                    }
-                    
-                    // 确保窗口不超出屏幕上边界
-                    if (windowTop < workingArea.Top)
-                    {
-                        windowTop = workingArea.Top + 10;
-                    }
-                    
-                    settingsWindow.Left = windowLeft;
-                    settingsWindow.Top = windowTop;
-                    
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] 面板左上角: X={panelTopLeft.X}, Y={panelTopLeft.Y}");
-                    //Debug.WriteLine($"[圣经设置] 面板右边缘: X={panelTopRight.X}");
-                    //Debug.WriteLine($"[圣经设置] 面板大小: Width={BibleNavigationPanel.ActualWidth}, Height={BibleNavigationPanel.ActualHeight}");
-                    //Debug.WriteLine($"[圣经设置] 屏幕工作区: {workingArea}");
-                    //Debug.WriteLine($"[圣经设置] 窗口大小: Width={settingsWindow.Width}, Height={settingsWindow.Height}");
-                    //Debug.WriteLine($"[圣经设置] 计算位置: Left={windowLeft:F1}, Top={windowTop:F1}");
-                    //Debug.WriteLine($"[圣经设置] 最终位置: Left={settingsWindow.Left}, Top={settingsWindow.Top}");
-                    //#endif
+                    _bibleSettingsWindow.Left = panelTopRight.X - _bibleSettingsWindow.Width - 35;
+                    _bibleSettingsWindow.Top = panelTopLeft.Y + 7;
                 }
 
-                // 显示设置窗口（设置已通过回调实时应用，无需等待窗口关闭）
-                settingsWindow.ShowDialog();
+                // 显示窗口
+                _bibleSettingsWindow.Show();
             }
             catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 打开设置窗口失败: {ex.Message}");
-                //#endif
+                WpfMessageBox.Show($"打开设置失败：{ex.Message}", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
-                WpfMessageBox.Show(
-                    $"打开设置失败：{ex.Message}",
-                    "错误",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+        /// <summary>
+        /// 主窗口点击时关闭设置窗口（选择颜色时除外）
+        /// </summary>
+        private void MainWindow_SettingsClose_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_bibleSettingsWindow != null && _bibleSettingsWindow.IsVisible)
+            {
+                // 如果正在选择颜色，不关闭窗口
+                if (_bibleSettingsWindow.IsSelectingColor)
+                {
+                    return;
+                }
+                
+                _bibleSettingsWindow.Close();
             }
         }
 
@@ -3074,9 +3059,9 @@ namespace ImageColorChanger.UI
             {
                 if (BibleVerseList.Items.Count == 0)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 列表为空，跳过样式应用");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 列表为空，跳过样式应用");
+                    //#endif
                     return;
                 }
 
@@ -4113,15 +4098,13 @@ namespace ImageColorChanger.UI
                     db.SaveChanges();
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [保存历史] 保存历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -4165,15 +4148,13 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [加载历史] 加载历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -4214,15 +4195,13 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine("🗑️ [清空历史] 已清空所有历史记录（内存+数据库）");
                 //#endif
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [清空历史] 清空历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -4274,14 +4253,12 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"✅ [圣经插入] 样式设置 Popup 已打开");
                 //#endif
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [圣经插入] 切换样式设置 Popup 失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
                 
                 WpfMessageBox.Show("打开样式设置面板失败", "错误", 
@@ -4432,14 +4409,12 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [圣经创建] 创建文本框元素失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
                 
                 WpfMessageBox.Show("创建经文元素失败", "错误", 
@@ -4537,14 +4512,12 @@ namespace ImageColorChanger.UI
                     //#endif
                 });
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"❌ [圣经创建] 创建单个文本框失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
         }
@@ -4650,14 +4623,12 @@ namespace ImageColorChanger.UI
                     return new System.Windows.Point(newX, newY);
                 }
             }
-            catch (Exception
-            #if DEBUG
-            ex
-            #endif
-            )
+            catch (Exception ex)
             {
                 #if DEBUG
                 Debug.WriteLine($"⚠️ [智能插入] 计算位置失败: {ex.Message}，使用默认位置");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
             }
             

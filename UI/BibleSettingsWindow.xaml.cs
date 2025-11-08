@@ -30,6 +30,11 @@ namespace ImageColorChanger.UI
         private Action _onSettingsChanged; // 设置改变时的回调（需要重新加载经文，如译本切换）
         private Action _onStyleChanged; // 样式改变时的回调（只需刷新样式，如颜色、字体等）
 
+        /// <summary>
+        /// 是否正在选择颜色（供外部查询，避免在选择颜色时关闭窗口）
+        /// </summary>
+        public bool IsSelectingColor => _isSelectingColor;
+
         public BibleSettingsWindow(ConfigManager configManager, IBibleService bibleService, Action onSettingsChanged = null, Action onStyleChanged = null)
         {
             _isLoading = true; // 在 InitializeComponent 之前设置，防止初始化时触发保存
@@ -46,26 +51,6 @@ namespace ImageColorChanger.UI
 
             LoadFontFamilies();
             LoadSettings();
-            
-            // 窗口关闭时标记为已保存
-            this.Closing += (s, e) => { DialogResult = true; };
-        }
-
-        /// <summary>
-        /// 窗口失去焦点时自动关闭（选择颜色时除外）
-        /// </summary>
-        private void Window_Deactivated(object sender, EventArgs e)
-        {
-            // 如果正在选择颜色，不要关闭窗口
-            if (_isSelectingColor)
-            {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 窗口失去焦点，但正在选择颜色，不关闭");
-                //#endif
-                return;
-            }
-            
-            this.Close();
         }
 
         /// <summary>
@@ -119,11 +104,13 @@ namespace ImageColorChanger.UI
                     LoadDefaultFonts();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 加载字体失败: {ex.Message}");
-                //#endif
+                #if DEBUG
+                Debug.WriteLine($"[圣经设置] 加载字体失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
                 LoadDefaultFonts();
             }
         }
@@ -253,12 +240,14 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine("[圣经设置] 已加载当前设置");
                 //#endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 加载设置失败: {ex.Message}");
-                //Debug.WriteLine($"[圣经设置] 堆栈: {ex.StackTrace}");
-                //#endif
+                #if DEBUG
+                Debug.WriteLine($"[圣经设置] 加载设置失败: {ex.Message}");
+                Debug.WriteLine($"[圣经设置] 堆栈: {ex.StackTrace}");
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
             }
             finally
             {
@@ -372,11 +361,13 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"[圣经设置] 准备打开颜色对话框，当前颜色: #{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}");
                 //#endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 获取当前颜色失败: {ex.Message}");
-                //#endif
+                #if DEBUG
+                Debug.WriteLine($"[圣经设置] 获取当前颜色失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
                 _colorDialog.Color = System.Drawing.Color.White;
             }
 
@@ -412,11 +403,13 @@ namespace ImageColorChanger.UI
                 
                 owner.ReleaseHandle();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] ShowDialog() 异常: {ex.Message}");
-                //#endif
+                #if DEBUG
+                Debug.WriteLine($"[圣经设置] ShowDialog() 异常: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
                 // 如果设置 Owner 失败，尝试不带 Owner 调用
                 result = _colorDialog.ShowDialog();
             }
@@ -491,9 +484,9 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        #if DEBUG
-                        Debug.WriteLine($"[圣经设置] 保存译本: {versionName}, 数据库: {dbFileName}");
-                        #endif
+                        //#if DEBUG
+                        //Debug.WriteLine($"[圣经设置] 保存译本: {versionName}, 数据库: {dbFileName}");
+                        //#endif
                     }
                 }
 
@@ -605,22 +598,24 @@ namespace ImageColorChanger.UI
                     // 样式改变（颜色、字体、字号等）：只刷新样式
                     _onStyleChanged?.Invoke();
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[圣经设置] 样式改变，仅刷新样式");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine("[圣经设置] 样式改变，仅刷新样式");
+                    //#endif
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] ❌ 保存设置失败: {ex.Message}");
-                //Debug.WriteLine($"[圣经设置] 错误类型: {ex.GetType().Name}");
-                //Debug.WriteLine($"[圣经设置] 错误堆栈: {ex.StackTrace}");
-                //if (ex.InnerException != null)
-                //{
-                //    Debug.WriteLine($"[圣经设置] 内部异常: {ex.InnerException.Message}");
-                //}
-                //#endif
+                #if DEBUG
+                Debug.WriteLine($"[圣经设置] ❌ 保存设置失败: {ex.Message}");
+                Debug.WriteLine($"[圣经设置] 错误类型: {ex.GetType().Name}");
+                Debug.WriteLine($"[圣经设置] 错误堆栈: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Debug.WriteLine($"[圣经设置] 内部异常: {ex.InnerException.Message}");
+                }
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
             }
         }
 
