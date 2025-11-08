@@ -4645,7 +4645,7 @@ namespace ImageColorChanger.UI
             
             // 从数据库加载配置
             config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
-            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "微软雅黑");
+            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "Microsoft YaHei");
             
             config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
             // 字体大小 × 2（存储的是显示值，实际使用时需要乘以2）

@@ -19,6 +19,7 @@ namespace ImageColorChanger.UI
     {
         private BibleTextInsertConfig _config;
         private readonly Database.DatabaseManager _dbManager;
+        private Dictionary<string, string> _fontDisplayMap; // 字体显示名（中文）-> FontFamily（英文）
         
         /// <summary>
         /// 构造函数
@@ -80,7 +81,7 @@ namespace ImageColorChanger.UI
             
             // 从数据库加载配置
             _config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
-            _config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "微软雅黑");
+            _config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "Microsoft YaHei");
             
             _config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
             _config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "20"));
@@ -114,57 +115,50 @@ namespace ImageColorChanger.UI
             var fontService = FontService.Instance;
             var fontConfig = fontService.GetFontConfig();
             
-            // 提取所有字体族名称
-            var fontFamilies = new List<string>();
+            // 🆕 使用字典存储：显示名（中文） -> FontFamily（英文）
+            _fontDisplayMap = new Dictionary<string, string>();
             if (fontConfig != null && fontConfig.FontCategories != null)
             {
                 foreach (var category in fontConfig.FontCategories)
                 {
                     foreach (var font in category.Fonts)
                     {
-                        if (!string.IsNullOrEmpty(font.Family))
+                        if (!string.IsNullOrEmpty(font.Family) && !string.IsNullOrEmpty(font.Name))
                         {
-                            fontFamilies.Add(font.Family);
+                            // 使用中文名作为显示，避免重复
+                            if (!_fontDisplayMap.ContainsKey(font.Name))
+                            {
+                                _fontDisplayMap[font.Name] = font.Family;
+                            }
                         }
                     }
                 }
             }
             
-            // 统一字体下拉框
-            // 如果配置中的字体不在列表中，添加到列表
-            if (!string.IsNullOrEmpty(_config.FontFamily) && !fontFamilies.Contains(_config.FontFamily))
+            // 提取显示名称列表（中文名）
+            var fontDisplayNames = _fontDisplayMap.Keys.ToList();
+            
+            CmbFont.ItemsSource = fontDisplayNames;
+            
+            // 🆕 根据配置的 FontFamily（英文）找到对应的中文显示名
+            string selectedDisplayName = null;
+            foreach (var kvp in _fontDisplayMap)
             {
-                fontFamilies.Insert(0, _config.FontFamily); // 插入到第一个位置
-                
-                #if DEBUG
-                Debug.WriteLine($"📝 [BibleInsertStylePopup] 字体 '{_config.FontFamily}' 不在列表中，已添加到列表");
-                #endif
+                if (kvp.Value == _config.FontFamily)
+                {
+                    selectedDisplayName = kvp.Key;
+                    break;
+                }
             }
             
-            CmbFont.ItemsSource = fontFamilies;
-            
-            //#if DEBUG
-            //Debug.WriteLine($"📝 [BibleInsertStylePopup] 加载字体配置");
-            //Debug.WriteLine($"   配置中的字体: {_config.FontFamily}");
-            //Debug.WriteLine($"   字体列表数量: {fontFamilies.Count}");
-            //Debug.WriteLine($"   字体列表内容: {string.Join(", ", fontFamilies)}");
-            //#endif
-            
-            // 尝试选中配置中的字体
-            CmbFont.SelectedItem = _config.FontFamily;
-            
-            //#if DEBUG
-            //Debug.WriteLine($"📝 [BibleInsertStylePopup] 尝试选中字体");
-            //Debug.WriteLine($"   SelectedItem: {CmbFont.SelectedItem}");
-            //Debug.WriteLine($"   SelectedIndex: {CmbFont.SelectedIndex}");
-            //#endif
-            
-            if (CmbFont.SelectedItem == null && fontFamilies.Count > 0)
+            // 尝试选中配置中的字体（使用中文名）
+            if (selectedDisplayName != null)
             {
-                #if DEBUG
-                Debug.WriteLine($"⚠️ [BibleInsertStylePopup] 无法选中字体 '{_config.FontFamily}'，使用第一个: {fontFamilies[0]}");
-                #endif
-                
+                CmbFont.SelectedItem = selectedDisplayName;
+            }
+            else if (fontDisplayNames.Count > 0)
+            {
+                // 如果找不到，选中第一个
                 CmbFont.SelectedIndex = 0;
             }
             
@@ -263,14 +257,16 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("style", tag);
                 }
                 
-                // 更新统一字体
-                if (CmbFont.SelectedItem is string fontFamily)
+                // 🆕 更新统一字体（将中文显示名转换为英文 FontFamily）
+                if (CmbFont.SelectedItem is string fontDisplayName && 
+                    _fontDisplayMap != null && 
+                    _fontDisplayMap.TryGetValue(fontDisplayName, out string fontFamily))
                 {
                     _config.FontFamily = fontFamily;
                     _dbManager.SetBibleInsertConfigValue("font_family", fontFamily);
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"📝 [BibleInsertStylePopup] 更新字体配置: {fontFamily}");
+                    //Debug.WriteLine($"📝 [BibleInsertStylePopup] 更新字体配置: {fontDisplayName} -> {fontFamily}");
                     //#endif
                 }
                 
