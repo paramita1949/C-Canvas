@@ -95,8 +95,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 使用FontService统一加载字体（简化版配置）
-                if (!FontService.Instance.Initialize(useSimplifiedConfig: true))
+                // 🔧 使用FontService统一加载字体（使用完整版配置）
+                if (!FontService.Instance.Initialize())
                 {
                     //#if DEBUG
                     //Debug.WriteLine($"[圣经设置] FontService初始化失败，使用系统默认字体");

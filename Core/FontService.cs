@@ -47,17 +47,16 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 初始化字体服务
         /// </summary>
-        /// <param name="useSimplifiedConfig">是否使用简化版配置文件（默认使用完整版）</param>
         /// <returns>是否初始化成功</returns>
-        public bool Initialize(bool useSimplifiedConfig = false)
+        public bool Initialize()
         {
             if (_isInitialized)
                 return true;
 
             try
             {
-                // 选择配置文件
-                var configFile = useSimplifiedConfig ? "Fonts/fonts-simplified.json" : "Fonts/fonts.json";
+                // 使用统一的字体配置文件
+                var configFile = "Fonts/fonts.json";
                 
                 // 使用ResourceLoader加载字体配置（支持PAK）
                 var json = ResourceLoader.LoadTextFile(configFile);
@@ -93,7 +92,11 @@ namespace ImageColorChanger.Core
                 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+            ex
+#endif
+            )
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FontService] 初始化失败: {ex.Message}");
@@ -281,7 +284,11 @@ namespace ImageColorChanger.Core
                         comboBox.Items.Add(item);
                         totalFonts++;
                     }
-                    catch (Exception ex)
+                    catch (Exception
+#if DEBUG
+                    ex
+#endif
+                    )
                     {
 #if DEBUG
                         System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 加载字体失败 [{font.Name}]: {ex.Message}");
@@ -446,12 +453,12 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 重新加载字体配置
         /// </summary>
-        public bool Reload(bool useSimplifiedConfig = false)
+        public bool Reload()
         {
             _isInitialized = false;
             _fontCache.Clear();
             _fontConfig = null;
-            return Initialize(useSimplifiedConfig);
+            return Initialize();
         }
 
         #region 私有辅助方法
@@ -515,7 +522,11 @@ namespace ImageColorChanger.Core
                     return ResourceLoader.LoadFont(fontRelativePath, font.Family);
                 }
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+            ex
+#endif
+            )
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FontService] 字体加载失败 [{font.Name}]: {ex.Message}");

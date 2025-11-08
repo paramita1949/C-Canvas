@@ -31,7 +31,13 @@ namespace ImageColorChanger.UI.Controls
         private WpfPoint _dragStartPoint;
         private WpfBorder _border;
         private WpfTextBox _textBox;
-        private WpfThumb _resizeThumb;
+        private WpfThumb _resizeThumb;  // 右下角（保留兼容性）
+        private WpfThumb _resizeThumbTopLeft;     // 上左
+        private WpfThumb _resizeThumbTopCenter;   // 上中
+        private WpfThumb _resizeThumbTopRight;    // 上右
+        private WpfThumb _resizeThumbBottomLeft;  // 下左
+        private WpfThumb _resizeThumbBottomCenter; // 下中
+        private WpfThumb _resizeThumbBottomRight; // 下右（即原_resizeThumb）
         private System.Windows.Shapes.Rectangle _selectionRect;  // 虚线选中框
         private bool _isPlaceholderText = false;  // 标记是否是占位符文字
         private const string DEFAULT_PLACEHOLDER = "双击编辑文字";  // 默认占位符
@@ -57,6 +63,11 @@ namespace ImageColorChanger.UI.Controls
         /// 是否处于编辑模式（TextBox有焦点）
         /// </summary>
         public bool IsInEditMode => _textBox.IsFocused;
+        
+        /// <summary>
+        /// 获取内部TextBox控件(用于圣经经文插入等功能)
+        /// </summary>
+        public WpfTextBox InternalTextBox => _textBox;
         
         /// <summary>
         /// 标记为新创建的文本框（用于自动进入编辑模式）
@@ -291,8 +302,54 @@ namespace ImageColorChanger.UI.Controls
                 Visibility = System.Windows.Visibility.Collapsed
             };
 
-            // 调整大小手柄（右下角）
-            _resizeThumb = new WpfThumb
+            // 创建6个调整大小手柄
+            // 上左
+            _resizeThumbTopLeft = CreateResizeThumb(
+                System.Windows.HorizontalAlignment.Left,
+                System.Windows.VerticalAlignment.Top,
+                WpfCursors.SizeNWSE,
+                new System.Windows.Thickness(-6, -6, 0, 0)
+            );
+            _resizeThumbTopLeft.DragDelta += (s, e) => ResizeFromCorner(e, -1, -1, true, true);
+            
+            // 上中
+            _resizeThumbTopCenter = CreateResizeThumb(
+                System.Windows.HorizontalAlignment.Center,
+                System.Windows.VerticalAlignment.Top,
+                WpfCursors.SizeNS,
+                new System.Windows.Thickness(0, -6, 0, 0)
+            );
+            _resizeThumbTopCenter.DragDelta += (s, e) => ResizeFromEdge(e, 0, -1, false, true);
+            
+            // 上右
+            _resizeThumbTopRight = CreateResizeThumb(
+                System.Windows.HorizontalAlignment.Right,
+                System.Windows.VerticalAlignment.Top,
+                WpfCursors.SizeNESW,
+                new System.Windows.Thickness(0, -6, -6, 0)
+            );
+            _resizeThumbTopRight.DragDelta += (s, e) => ResizeFromCorner(e, 1, -1, false, true);
+            
+            // 下左
+            _resizeThumbBottomLeft = CreateResizeThumb(
+                System.Windows.HorizontalAlignment.Left,
+                System.Windows.VerticalAlignment.Bottom,
+                WpfCursors.SizeNESW,
+                new System.Windows.Thickness(-6, 0, 0, -6)
+            );
+            _resizeThumbBottomLeft.DragDelta += (s, e) => ResizeFromCorner(e, -1, 1, true, false);
+            
+            // 下中
+            _resizeThumbBottomCenter = CreateResizeThumb(
+                System.Windows.HorizontalAlignment.Center,
+                System.Windows.VerticalAlignment.Bottom,
+                WpfCursors.SizeNS,
+                new System.Windows.Thickness(0, 0, 0, -6)
+            );
+            _resizeThumbBottomCenter.DragDelta += (s, e) => ResizeFromEdge(e, 0, 1, false, false);
+            
+            // 下右（保留原_resizeThumb兼容性）
+            _resizeThumbBottomRight = new WpfThumb
             {
                 Width = 12,
                 Height = 12,
@@ -303,11 +360,17 @@ namespace ImageColorChanger.UI.Controls
                 Margin = new System.Windows.Thickness(0, 0, -6, -6),
                 Visibility = System.Windows.Visibility.Collapsed
             };
-            _resizeThumb.DragDelta += ResizeThumb_DragDelta;
+            _resizeThumbBottomRight.DragDelta += (s, e) => ResizeFromCorner(e, 1, 1, false, false);
+            _resizeThumb = _resizeThumbBottomRight; // 兼容性别名
 
             grid.Children.Add(_textBox);
             grid.Children.Add(_selectionRect);
-            grid.Children.Add(_resizeThumb);
+            grid.Children.Add(_resizeThumbTopLeft);
+            grid.Children.Add(_resizeThumbTopCenter);
+            grid.Children.Add(_resizeThumbTopRight);
+            grid.Children.Add(_resizeThumbBottomLeft);
+            grid.Children.Add(_resizeThumbBottomCenter);
+            grid.Children.Add(_resizeThumbBottomRight);
             _border.Child = grid;
 
             Content = _border;
@@ -530,6 +593,126 @@ namespace ImageColorChanger.UI.Controls
 
         #region 调整大小功能
 
+        /// <summary>
+        /// 创建调整大小手柄的辅助方法
+        /// </summary>
+        private WpfThumb CreateResizeThumb(
+            System.Windows.HorizontalAlignment hAlign,
+            System.Windows.VerticalAlignment vAlign,
+            System.Windows.Input.Cursor cursor,
+            System.Windows.Thickness margin)
+        {
+            return new WpfThumb
+            {
+                Width = 12,
+                Height = 12,
+                Background = WpfBrushes.DodgerBlue,
+                HorizontalAlignment = hAlign,
+                VerticalAlignment = vAlign,
+                Cursor = cursor,
+                Margin = margin,
+                Visibility = System.Windows.Visibility.Collapsed
+            };
+        }
+
+        /// <summary>
+        /// 从角落调整大小（同时调整宽度和高度）
+        /// </summary>
+        /// <param name="xDir">水平方向：-1=左, 1=右</param>
+        /// <param name="yDir">垂直方向：-1=上, 1=下</param>
+        /// <param name="adjustX">是否需要调整X坐标</param>
+        /// <param name="adjustY">是否需要调整Y坐标</param>
+        private void ResizeFromCorner(
+            System.Windows.Controls.Primitives.DragDeltaEventArgs e,
+            int xDir, int yDir, bool adjustX, bool adjustY)
+        {
+            double newWidth = Width + (e.HorizontalChange * xDir);
+            double newHeight = Height + (e.VerticalChange * yDir);
+
+            // 最小尺寸限制
+            if (newWidth > 50)
+            {
+                Width = newWidth;
+                Data.Width = newWidth;
+                
+                // 从左侧调整时，需要同步移动X坐标
+                if (adjustX)
+                {
+                    double newX = Data.X - (e.HorizontalChange * xDir);
+                    WpfCanvas.SetLeft(this, newX);
+                    Data.X = newX;
+                }
+            }
+
+            if (newHeight > 30)
+            {
+                Height = newHeight;
+                Data.Height = newHeight;
+                
+                // 从上侧调整时，需要同步移动Y坐标
+                if (adjustY)
+                {
+                    double newY = Data.Y - (e.VerticalChange * yDir);
+                    WpfCanvas.SetTop(this, newY);
+                    Data.Y = newY;
+                }
+            }
+
+            // 触发尺寸改变事件
+            SizeChanged?.Invoke(this, new WpfSize(Width, Height));
+        }
+
+        /// <summary>
+        /// 从边缘调整大小（只调整宽度或高度）
+        /// </summary>
+        /// <param name="xDir">水平方向：0=不调整, -1=左, 1=右</param>
+        /// <param name="yDir">垂直方向：0=不调整, -1=上, 1=下</param>
+        /// <param name="adjustX">是否需要调整X坐标</param>
+        /// <param name="adjustY">是否需要调整Y坐标</param>
+        private void ResizeFromEdge(
+            System.Windows.Controls.Primitives.DragDeltaEventArgs e,
+            int xDir, int yDir, bool adjustX, bool adjustY)
+        {
+            // 调整宽度（如果xDir != 0）
+            if (xDir != 0)
+            {
+                double newWidth = Width + (e.HorizontalChange * xDir);
+                if (newWidth > 50)
+                {
+                    Width = newWidth;
+                    Data.Width = newWidth;
+                    
+                    if (adjustX)
+                    {
+                        double newX = Data.X - (e.HorizontalChange * xDir);
+                        WpfCanvas.SetLeft(this, newX);
+                        Data.X = newX;
+                    }
+                }
+            }
+
+            // 调整高度（如果yDir != 0）
+            if (yDir != 0)
+            {
+                double newHeight = Height + (e.VerticalChange * yDir);
+                if (newHeight > 30)
+                {
+                    Height = newHeight;
+                    Data.Height = newHeight;
+                    
+                    if (adjustY)
+                    {
+                        double newY = Data.Y - (e.VerticalChange * yDir);
+                        WpfCanvas.SetTop(this, newY);
+                        Data.Y = newY;
+                    }
+                }
+            }
+
+            // 触发尺寸改变事件
+            SizeChanged?.Invoke(this, new WpfSize(Width, Height));
+        }
+
         private void ResizeThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
         {
             double newWidth = Width + e.HorizontalChange;
@@ -587,7 +770,14 @@ namespace ImageColorChanger.UI.Controls
                 // 选中时：显示虚线边框和淡蓝色半透明背景
                 _selectionRect.Visibility = System.Windows.Visibility.Visible;
                 _border.Background = new WpfSolidColorBrush(WpfColor.FromArgb(20, 33, 150, 243));
-                _resizeThumb.Visibility = System.Windows.Visibility.Visible;
+                
+                // 显示所有6个调整点
+                _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Visible;
+                _resizeThumbTopCenter.Visibility = System.Windows.Visibility.Visible;
+                _resizeThumbTopRight.Visibility = System.Windows.Visibility.Visible;
+                _resizeThumbBottomLeft.Visibility = System.Windows.Visibility.Visible;
+                _resizeThumbBottomCenter.Visibility = System.Windows.Visibility.Visible;
+                _resizeThumbBottomRight.Visibility = System.Windows.Visibility.Visible;
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"✅ [TextBox] 已设置选中背景: {_border.Background}");
@@ -598,7 +788,14 @@ namespace ImageColorChanger.UI.Controls
                 // 未选中时：完全隐藏所有编辑元素
                 _selectionRect.Visibility = System.Windows.Visibility.Collapsed;
                 _border.Background = WpfBrushes.Transparent;
-                _resizeThumb.Visibility = System.Windows.Visibility.Collapsed;
+                
+                // 隐藏所有6个调整点
+                _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Collapsed;
+                _resizeThumbTopCenter.Visibility = System.Windows.Visibility.Collapsed;
+                _resizeThumbTopRight.Visibility = System.Windows.Visibility.Collapsed;
+                _resizeThumbBottomLeft.Visibility = System.Windows.Visibility.Collapsed;
+                _resizeThumbBottomCenter.Visibility = System.Windows.Visibility.Collapsed;
+                _resizeThumbBottomRight.Visibility = System.Windows.Visibility.Collapsed;
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"🔄 [TextBox] 已设置透明背景: {_border.Background}");

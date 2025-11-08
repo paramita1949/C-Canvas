@@ -13,6 +13,30 @@ namespace ImageColorChanger.Core
     /// </summary>
     public class ConfigManager
     {
+        private static ConfigManager _instance;
+        private static readonly object _lock = new object();
+        
+        /// <summary>
+        /// 单例实例
+        /// </summary>
+        public static ConfigManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_instance == null)
+                        {
+                            _instance = new ConfigManager();
+                        }
+                    }
+                }
+                return _instance;
+            }
+        }
+        
         private readonly string _configFilePath;
         private AppConfig _config;
         
@@ -85,21 +109,29 @@ namespace ImageColorChanger.Core
                 {
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
-                    // Debug.WriteLine($"✅ 配置文件已加载: {_configFilePath}");
-                    // Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
-                    // Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
+                    
+                    //#if DEBUG
+                    //Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
+                    //#endif
                 }
                 else
                 {
-                    // Debug.WriteLine($"⚠️ 配置文件不存在，使用默认配置");
+                    #if DEBUG
+                    Debug.WriteLine($"⚠️ [ConfigManager] 配置文件不存在，使用默认配置");
+                    #endif
                     _config = new AppConfig();
                     SaveConfig();
                 }
             }
-            catch (Exception)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
-                // Debug.WriteLine($"❌ 加载配置文件失败: {ex.Message}");
-                // Debug.WriteLine($"   错误详情: {ex}");
+                #if DEBUG
+                Debug.WriteLine($"❌ [ConfigManager] 加载配置文件失败: {ex.Message}");
+                #endif
                 _config = new AppConfig();
             }
         }
@@ -119,13 +151,20 @@ namespace ImageColorChanger.Core
 
                 string json = JsonSerializer.Serialize(_config, options);
                 File.WriteAllText(_configFilePath, json);
-                // Debug.WriteLine($"✅ 配置文件已保存: {_configFilePath}");
-                // Debug.WriteLine($"   原图显示模式: {_config.OriginalDisplayMode} ({(int)_config.OriginalDisplayMode})");
-                // Debug.WriteLine($"   缩放比例: {_config.ZoomRatio}");
+                
+                //#if DEBUG
+                //Debug.WriteLine($"💾 [ConfigManager] 配置文件已保存: {_configFilePath}");
+                //#endif
             }
-            catch (Exception)
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
             {
-                // Debug.WriteLine($"❌ 保存配置文件失败: {ex.Message}");
+                #if DEBUG
+                Debug.WriteLine($"❌ [ConfigManager] 保存配置文件失败: {ex.Message}");
+                #endif
             }
         }
 

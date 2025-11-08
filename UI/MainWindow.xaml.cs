@@ -197,6 +197,11 @@ namespace ImageColorChanger.UI
             // 初始化FPS监控器
             InitializeFpsMonitor();
             
+            // 🆕 监听主窗口失去焦点和状态变化，自动关闭圣经样式 Popup
+            this.Deactivated += MainWindow_Deactivated;
+            this.StateChanged += MainWindow_StateChanged;
+            this.LocationChanged += MainWindow_LocationChanged;
+            
             // 🔐 初始化认证服务
             InitializeAuthService();
         }
@@ -564,6 +569,7 @@ namespace ImageColorChanger.UI
                 _dbManager.MigrateAddLoopCount();
                 _dbManager.MigrateAddHighlightColor();
                 _dbManager.MigrateAddBibleHistoryTable();
+                _dbManager.MigrateAddBibleInsertConfigTable();
                 
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();

@@ -1578,6 +1578,7 @@
                       Panel.ZIndex="100">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
+                        <RowDefinition Height="Auto"/>  <!-- 🆕 圣经经文工具栏 -->
                         <RowDefinition Height="*"/>     <!-- 主内容区 -->
                     </Grid.RowDefinitions>
 
@@ -1699,8 +1700,11 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- 🆕 圣经导航面板（在幻灯片编辑模式下显示，与主界面共享同一个面板） -->
+                    <!-- 通过代码动态移动 BibleNavigationPanel 到这里 -->
+
                     <!-- 主内容区：左侧幻灯片列表 + 右侧编辑区 -->
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="190"/>  <!-- 左侧幻灯片列表 -->
                             <ColumnDefinition Width="Auto"/> <!-- 分隔线 -->
@@ -1896,6 +1900,63 @@
 
                                 <!-- 文本框将动态添加到这里 -->
                             </Canvas>
+                            
+                            <!-- 🆕 圣经经文工具栏（悬浮在画布上方中央） -->
+                            <Popup x:Name="BibleToolbar"
+                                   AllowsTransparency="True"
+                                   StaysOpen="True"
+                                   Placement="Top"
+                                   PlacementTarget="{Binding ElementName=EditorCanvas}"
+                                   HorizontalOffset="490"
+                                   VerticalOffset="-10"
+                                   IsOpen="False">
+                                <Border Background="#F0FFFFFF"
+                                        BorderBrush="#E0E0E0"
+                                        BorderThickness="1"
+                                        CornerRadius="20"
+                                        Padding="4">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.15" Color="#000000"/>
+                                    </Border.Effect>
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- 经文样式设置按钮 -->
+                                        <Button x:Name="BtnBibleStyleIcon" 
+                                                Width="28" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="经文样式设置"
+                                                Click="BtnBibleInsertStyleSettings_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="✝️" FontSize="14"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
                             
                             <!-- 辅助线（叠加在Canvas上方）-->
                             <Canvas x:Name="AlignmentGuidesCanvas" 

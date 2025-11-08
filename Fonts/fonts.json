@@ -117,7 +117,7 @@
       ]
     },
     {
-      "name": "💻 系统中文字体",
+      "name": "💻 系统简体中文字体",
       "fonts": [
         {
           "name": "微软雅黑",
@@ -125,6 +125,14 @@
           "family": "Microsoft YaHei",
           "weight": "Regular",
           "preview": "微软雅黑 ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "微软雅黑 Light",
+          "file": "system",
+          "family": "Microsoft YaHei Light",
+          "weight": "Light",
+          "preview": "微软雅黑 Light ABCabc 123",
           "isFavorite": false
         },
         {
@@ -162,14 +170,67 @@
       ]
     },
     {
-      "name": "🔤 英文字体",
+      "name": "🇹🇼 系统繁体中文字体",
       "fonts": [
+        {
+          "name": "微軟正黑體",
+          "file": "system",
+          "family": "Microsoft JhengHei",
+          "weight": "Regular",
+          "preview": "微軟正黑體 繁體中文 台灣",
+          "isFavorite": false
+        },
+        {
+          "name": "微軟正黑體 Light",
+          "file": "system",
+          "family": "Microsoft JhengHei Light",
+          "weight": "Light",
+          "preview": "微軟正黑體 Light 繁體",
+          "isFavorite": false
+        },
+        {
+          "name": "新細明體",
+          "file": "system",
+          "family": "MingLiU",
+          "weight": "Regular",
+          "preview": "新細明體 繁體中文",
+          "isFavorite": false
+        },
+        {
+          "name": "標楷體",
+          "file": "system",
+          "family": "DFKai-SB",
+          "weight": "Regular",
+          "preview": "標楷體 繁體書法",
+          "isFavorite": false
+        },
+        {
+          "name": "新細明體-ExtB",
+          "file": "system",
+          "family": "MingLiU-ExtB",
+          "weight": "Regular",
+          "preview": "新細明體-ExtB 擴展字集",
+          "isFavorite": false
+        }
+      ]
+    },
+    {
+      "name": "🔤 常用英文字体",
+      "fonts": [
+        {
+          "name": "Calibri",
+          "file": "system",
+          "family": "Calibri",
+          "weight": "Regular",
+          "preview": "Calibri - Office 默认字体",
+          "isFavorite": true
+        },
         {
           "name": "Arial",
           "file": "system",
           "family": "Arial",
           "weight": "Regular",
-          "preview": "Arial ABCabc 123",
+          "preview": "Arial - 通用无衬线字体",
           "isFavorite": false
         },
         {
@@ -177,15 +238,39 @@
           "file": "system",
           "family": "Times New Roman",
           "weight": "Regular",
-          "preview": "Times New Roman ABCabc 123",
+          "preview": "Times New Roman - 经典衬线",
           "isFavorite": false
         },
         {
-          "name": "Calibri",
+          "name": "Cambria",
           "file": "system",
-          "family": "Calibri",
+          "family": "Cambria",
           "weight": "Regular",
-          "preview": "Calibri ABCabc 123",
+          "preview": "Cambria - Office 标题字体",
+          "isFavorite": false
+        },
+        {
+          "name": "Verdana",
+          "file": "system",
+          "family": "Verdana",
+          "weight": "Regular",
+          "preview": "Verdana - 屏幕优化字体",
+          "isFavorite": false
+        },
+        {
+          "name": "Georgia",
+          "file": "system",
+          "family": "Georgia",
+          "weight": "Regular",
+          "preview": "Georgia - 优雅衬线字体",
+          "isFavorite": false
+        },
+        {
+          "name": "Tahoma",
+          "file": "system",
+          "family": "Tahoma",
+          "weight": "Regular",
+          "preview": "Tahoma - 紧凑无衬线",
           "isFavorite": false
         },
         {
@@ -193,7 +278,7 @@
           "file": "system",
           "family": "Impact",
           "weight": "Regular",
-          "preview": "Impact 0123456789",
+          "preview": "Impact - 粗体标题",
           "isFavorite": false
         },
         {
@@ -201,11 +286,19 @@
           "file": "system",
           "family": "Consolas",
           "weight": "Regular",
-          "preview": "Consolas 0123456789",
+          "preview": "Consolas - 等宽编程",
+          "isFavorite": false
+        },
+        {
+          "name": "Courier New",
+          "file": "system",
+          "family": "Courier New",
+          "weight": "Regular",
+          "preview": "Courier New - 打字机风格",
           "isFavorite": false
         }
       ]
     }
   ],
-  "defaultFont": "阿里巴巴普惠体"
+  "defaultFont": "微软雅黑"
 }

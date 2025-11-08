@@ -603,6 +603,9 @@ namespace ImageColorChanger.UI
                 // 选中新复制的文本框
                 textBox.SetSelected(true);
                 _selectedTextBox = textBox;
+                
+                // 显示浮动工具栏
+                ShowTextBoxFloatingToolbar(textBox);
 
                 // 标记已修改
                 MarkContentAsModified();
@@ -2664,6 +2667,17 @@ namespace ImageColorChanger.UI
 
                     // 更新工具栏状态
                     UpdateToolbarFromSelection();
+                    
+                    // 显示浮动工具栏
+                    ShowTextBoxFloatingToolbar(textBox);
+                }
+                else
+                {
+                    // 取消选中时隐藏圣经工具栏
+                    if (BibleToolbar != null)
+                    {
+                        BibleToolbar.IsOpen = false;
+                    }
                 }
             };
 
@@ -5022,6 +5036,39 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 保存缩略图失败: {ex.Message}");
                 return null;
+            }
+        }
+
+        #endregion
+
+        #region 浮动工具栏
+
+        /// <summary>
+        /// 显示圣经经文工具栏
+        /// </summary>
+        private void ShowTextBoxFloatingToolbar(DraggableTextBox textBox)
+        {
+            if (textBox == null || BibleToolbar == null)
+                return;
+            
+            try
+            {
+                // 显示工具栏（悬浮在画布上方固定位置）
+                BibleToolbar.IsOpen = true;
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已显示");
+                //#endif
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
+                #endif
             }
         }
 

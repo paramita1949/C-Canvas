@@ -1057,6 +1057,162 @@ namespace ImageColorChanger.Database
         {
             return _context.Folders.Find(folderId)?.HighlightColor;
         }
+        
+        /// <summary>
+        /// 执行数据库迁移 - 创建圣经插入配置表
+        /// </summary>
+        public void MigrateAddBibleInsertConfigTable()
+        {
+            try
+            {
+                // 检查表是否已存在
+                var checkSql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bible_insert_config'";
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    
+                    if (count == 0)
+                    {
+                        // 表不存在，创建表（键值对存储）
+                        var createTableSql = @"
+                            CREATE TABLE bible_insert_config (
+                                key TEXT PRIMARY KEY,
+                                value TEXT NOT NULL
+                            )";
+                        _context.Database.ExecuteSqlRaw(createTableSql);
+                        
+                        // 插入默认配置（字体大小为显示值，实际使用时×2）
+                        var insertDefaultSql = @"
+                            INSERT INTO bible_insert_config (key, value) VALUES
+                            ('style', '0'),
+                            ('font_family', '微软雅黑'),
+                            ('title_color', '#FF0000'),
+                            ('title_size', '20'),
+                            ('title_bold', '1'),
+                            ('verse_color', '#D2691E'),
+                            ('verse_size', '15'),
+                            ('verse_bold', '0'),
+                            ('verse_spacing', '10'),
+                            ('auto_hide_navigation', '1')";
+                        _context.Database.ExecuteSqlRaw(insertDefaultSql);
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已创建 bible_insert_config 表");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("ℹ️ bible_insert_config 表已存在，跳过迁移");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 获取圣经插入配置值
+        /// </summary>
+        public string GetBibleInsertConfigValue(string key, string defaultValue = "")
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SELECT value FROM bible_insert_config WHERE key = @key";
+                    var param = command.CreateParameter();
+                    param.ParameterName = "@key";
+                    param.Value = key;
+                    command.Parameters.Add(param);
+                    
+                    var result = command.ExecuteScalar();
+                    return result?.ToString() ?? defaultValue;
+                }
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 读取配置失败 [{key}]: {ex.Message}");
+                #endif
+                return defaultValue;
+            }
+        }
+        
+        /// <summary>
+        /// 设置圣经插入配置值
+        /// </summary>
+        public void SetBibleInsertConfigValue(string key, string value)
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+                
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = @"
+                        INSERT OR REPLACE INTO bible_insert_config (key, value) 
+                        VALUES (@key, @value)";
+                    
+                    var keyParam = command.CreateParameter();
+                    keyParam.ParameterName = "@key";
+                    keyParam.Value = key;
+                    command.Parameters.Add(keyParam);
+                    
+                    var valueParam = command.CreateParameter();
+                    valueParam.ParameterName = "@value";
+                    valueParam.Value = value;
+                    command.Parameters.Add(valueParam);
+                    
+                    command.ExecuteNonQuery();
+                }
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💾 [DB] 配置已保存: {key} = {value}");
+                //#endif
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 保存配置失败 [{key}]: {ex.Message}");
+                #endif
+            }
+        }
 
         #endregion
     }

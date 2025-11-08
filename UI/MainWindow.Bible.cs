@@ -52,6 +52,9 @@ namespace ImageColorChanger.UI
         private ImageColorChanger.Services.BiblePinyinService _pinyinService;
         private ImageColorChanger.Services.BiblePinyinInputManager _pinyinInputManager;
         
+        // 圣经样式设置 Popup（复用实例）
+        private BibleInsertStylePopup _bibleStylePopup = null;
+        
         /// <summary>
         /// 拼音输入是否激活（供主窗口ESC键判断使用）
         /// </summary>
@@ -252,17 +255,62 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnShowBible_Click(object sender, RoutedEventArgs e)
         {
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经] 切换到圣经视图, 当前模式: {_currentViewMode}, 圣经模式: {_isBibleMode}");
-            //Debug.WriteLine($"[圣经] 导航已初始化: {_bibleNavigationInitialized}");
-            //#endif
+            #if DEBUG
+            Debug.WriteLine($"[圣经] 圣经按钮被点击");
+            Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
+            Debug.WriteLine($"   当前视图模式: {_currentViewMode}");
+            #endif
+
+            // 🆕 如果在幻灯片编辑模式下，只切换左侧导航面板
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                #if DEBUG
+                Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式下，切换左侧导航面板");
+                #endif
+                
+                // 切换左侧导航面板：ProjectTree <-> BibleNavigationPanel
+                if (BibleNavigationPanel.Visibility == Visibility.Visible)
+                {
+                    // 当前显示圣经，切换回项目树
+                    BibleNavigationPanel.Visibility = Visibility.Collapsed;
+                    ProjectTree.Visibility = Visibility.Visible;
+                    _currentViewMode = NavigationViewMode.Projects;
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"✅ [圣经] 切换到项目树");
+                    #endif
+                }
+                else
+                {
+                    // 当前显示项目树，切换到圣经
+                    ProjectTree.Visibility = Visibility.Collapsed;
+                    BibleNavigationPanel.Visibility = Visibility.Visible;
+                    _currentViewMode = NavigationViewMode.Bible;
+                    
+                    // 如果还未初始化，则初始化
+                    if (!_bibleNavigationInitialized)
+                    {
+                        await LoadBibleNavigationDataAsync();
+                    }
+                    
+                    #if DEBUG
+                    Debug.WriteLine($"✅ [圣经] 切换到圣经导航");
+                    #endif
+                }
+                
+                // 更新按钮状态
+                UpdateViewModeButtons();
+                
+                return;
+            }
+
+            // 否则，切换到完整的圣经页面
+            #if DEBUG
+            Debug.WriteLine($"[圣经] 切换到完整圣经页面");
+            #endif
 
             _isBibleMode = true;
             _currentViewMode = NavigationViewMode.Bible;  // 设置当前视图模式为圣经
-
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经] 开始切换UI, ProjectTree当前可见性: {ProjectTree.Visibility}");
-            //#endif
 
             // 清空图片显示（包括合成播放按钮）
             ClearImageDisplay();
@@ -836,6 +884,16 @@ namespace ImageColorChanger.UI
                 //#if DEBUG
                 //Debug.WriteLine($"[圣经-节数获取] 双击加载整章，节范围: 1-{verseCount}");
                 //#endif
+                
+                // 🆕 如果在幻灯片编辑模式，双击章节自动插入整章经文
+                if (TextEditorPanel.Visibility == Visibility.Visible)
+                {
+                    #if DEBUG
+                    Debug.WriteLine($"✅ [圣经双击] 双击章节，自动插入整章: BookId={bookId}, Chapter={chapter}, 节范围: 1-{verseCount}");
+                    #endif
+                    
+                    await CreateBibleTextElements(bookId, chapter, 1, verseCount);
+                }
             }
         }
 
@@ -885,8 +943,20 @@ namespace ImageColorChanger.UI
                 BibleEndVerse.SelectionChanged += BibleEndVerse_SelectionChanged;
             }
             
-            // 直接加载这一节经文
-            await LoadVerseRangeAsync(bookId, chapter, startVerse, startVerse);
+            // 🆕 如果在幻灯片编辑模式，双击起始节自动插入该节经文
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                #if DEBUG
+                Debug.WriteLine($"✅ [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
+                #endif
+                
+                await CreateBibleTextElements(bookId, chapter, startVerse, startVerse);
+            }
+            else
+            {
+                // 非编辑模式：直接加载这一节经文到投影区
+                await LoadVerseRangeAsync(bookId, chapter, startVerse, startVerse);
+            }
             
             // 添加到历史记录
             AddToHistory(bookId, chapter, startVerse, startVerse);
@@ -997,6 +1067,9 @@ namespace ImageColorChanger.UI
         }
 
         // 第5列:结束节选择事件
+        /// <summary>
+        /// 结束节选择改变事件（重构版 - 自动创建文本框）
+        /// </summary>
         private async void BibleEndVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BibleStartVerse.SelectedItem == null || BibleEndVerse.SelectedItem == null)
@@ -1017,9 +1090,26 @@ namespace ImageColorChanger.UI
             if (!int.TryParse(chapterStr, out int chapter))
                 return;
 
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经] 结束节改变: {startVerse}-{endVerse}");
-            //#endif
+            #if DEBUG
+            Debug.WriteLine($"[圣经] 结束节改变: {startVerse}-{endVerse}");
+            Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
+            #endif
+
+            // 🆕 如果在幻灯片编辑模式，自动创建文本框元素
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                #if DEBUG
+                Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式，自动创建文本框元素");
+                #endif
+                
+                await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
+                return;
+            }
+
+            // 否则，加载到投影记录（圣经浏览模式）
+            #if DEBUG
+            Debug.WriteLine($"✅ [圣经] 在圣经浏览模式，加载到投影记录");
+            #endif
 
             // 重新加载指定范围的经文
             await LoadVerseRangeAsync(bookId, chapter, startVerse, endVerse);
@@ -4402,6 +4492,478 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #endif
             }
+        }
+
+        #endregion
+
+        #region 圣经经文插入功能
+
+        /// <summary>
+        /// 圣经样式设置按钮点击事件（切换显示/隐藏）
+        /// </summary>
+        private void BtnBibleInsertStyleSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 如果 Popup 已存在且打开，则关闭
+                if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
+                {
+                    _bibleStylePopup.IsOpen = false;
+                    
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [圣经插入] 样式设置 Popup 已关闭");
+                    //#endif
+                    return;
+                }
+                
+                // 如果 Popup 不存在，创建新的
+                if (_bibleStylePopup == null)
+                {
+                    _bibleStylePopup = new BibleInsertStylePopup(_dbManager);
+                    
+                    // 设置 Popup 的位置目标为工具栏按钮
+                    _bibleStylePopup.PlacementTarget = sender as UIElement;
+                    _bibleStylePopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                    
+                    // 监听 Popup 关闭事件
+                    _bibleStylePopup.Closed += (s, args) =>
+                    {
+                        //#if DEBUG
+                        //Debug.WriteLine($"🔄 [圣经插入] Popup 已关闭");
+                        //#endif
+                    };
+                }
+                
+                // 打开 Popup
+                _bibleStylePopup.IsOpen = true;
+                
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [圣经插入] 样式设置 Popup 已打开");
+                //#endif
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经插入] 切换样式设置 Popup 失败: {ex.Message}");
+                #endif
+                
+                WpfMessageBox.Show("打开样式设置面板失败", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 将选中的经文填充到目标文本框
+        /// </summary>
+        /// <summary>
+        /// 创建圣经文本框元素（重构版 - 自动化流程）
+        /// </summary>
+        private async Task CreateBibleTextElements(int bookId, int chapter, int startVerse, int endVerse)
+        {
+            try
+            {
+                // 1. 获取经文内容
+                var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
+                
+                // 2. 生成引用
+                var book = BibleBookConfig.GetBook(bookId);
+                string reference = (startVerse == endVerse) 
+                    ? $"{book.Name}{chapter}章{startVerse}节" 
+                    : $"{book.Name}{chapter}章{startVerse}-{endVerse}节";
+                
+                // 3. 格式化经文（带节号）
+                string verseContent = FormatVerseWithNumbers(verses);
+                
+                // 4. 加载样式配置（从数据库）
+                var config = LoadBibleInsertConfigFromDatabase();
+                
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [圣经创建] 开始创建文本框元素");
+                //Debug.WriteLine($"   引用: {reference}");
+                //Debug.WriteLine($"   经文数: {verses.Count}");
+                //Debug.WriteLine($"   样式布局: {config.Style}");
+                //Debug.WriteLine($"   统一字体: {config.FontFamily}");
+                //#endif
+                
+                // 5. 智能计算插入位置
+                var insertPosition = GetSmartInsertPosition();
+                double startX = insertPosition.X;
+                double startY = insertPosition.Y;
+                
+                switch (config.Style)
+                {
+                    case BibleTextInsertStyle.TitleOnTop:
+                        // 标题在上，经文在下
+                        await CreateSingleTextElement(
+                            content: $"[{reference}]",
+                            x: startX,
+                            y: startY,
+                            fontFamily: config.FontFamily,
+                            fontSize: config.TitleStyle.FontSize,
+                            color: config.TitleStyle.ColorHex,
+                            isBold: config.TitleStyle.IsBold
+                        );
+                        
+                        await CreateSingleTextElement(
+                            content: verseContent,
+                            x: startX,
+                            y: startY + config.TitleStyle.FontSize * 1.5f + 20, // 标题高度 + 间距
+                            fontFamily: config.FontFamily,
+                            fontSize: config.VerseStyle.FontSize,
+                            color: config.VerseStyle.ColorHex,
+                            isBold: config.VerseStyle.IsBold
+                        );
+                        break;
+                        
+                    case BibleTextInsertStyle.TitleAtBottom:
+                        // 经文在上，标题在下
+                        int verseLineCount = verseContent.Split('\n').Length;
+                        // 计算经文高度：每节的字体大小 × 2（显示放大） + 节距
+                        double verseHeight = verseLineCount * (config.VerseStyle.FontSize * 2) + (verseLineCount - 1) * config.VerseStyle.VerseSpacing;
+                        
+                        await CreateSingleTextElement(
+                            content: verseContent,
+                            x: startX,
+                            y: startY,
+                            fontFamily: config.FontFamily,
+                            fontSize: config.VerseStyle.FontSize,
+                            color: config.VerseStyle.ColorHex,
+                            isBold: config.VerseStyle.IsBold
+                        );
+                        
+                        await CreateSingleTextElement(
+                            content: $"[{reference}]",
+                            x: startX,
+                            y: startY + verseHeight + 20, // 经文高度 + 间距
+                            fontFamily: config.FontFamily,
+                            fontSize: config.TitleStyle.FontSize,
+                            color: config.TitleStyle.ColorHex,
+                            isBold: config.TitleStyle.IsBold
+                        );
+                        break;
+                        
+                    case BibleTextInsertStyle.InlineAtEnd:
+                        // 标注在末尾（单个文本框，使用经文样式）
+                        await CreateSingleTextElement(
+                            content: $"{verseContent} [{reference}]",
+                            x: startX,
+                            y: startY,
+                            fontFamily: config.FontFamily,
+                            fontSize: config.VerseStyle.FontSize,
+                            color: config.VerseStyle.ColorHex,
+                            isBold: config.VerseStyle.IsBold
+                        );
+                        break;
+                        
+                    default:
+                        // 默认：标题在上
+                        await CreateSingleTextElement(
+                            content: $"[{reference}]",
+                            x: startX,
+                            y: startY,
+                            fontFamily: config.FontFamily,
+                            fontSize: config.TitleStyle.FontSize,
+                            color: config.TitleStyle.ColorHex,
+                            isBold: config.TitleStyle.IsBold
+                        );
+                        
+                        await CreateSingleTextElement(
+                            content: verseContent,
+                            x: startX,
+                            y: startY + config.TitleStyle.FontSize * 1.5f + 20,
+                            fontFamily: config.FontFamily,
+                            fontSize: config.VerseStyle.FontSize,
+                            color: config.VerseStyle.ColorHex,
+                            isBold: config.VerseStyle.IsBold
+                        );
+                        break;
+                }
+                
+                // 6. 自动隐藏圣经导航栏
+                if (config.AutoHideNavigationAfterInsert && 
+                    BibleNavigationPanel.Visibility == Visibility.Visible)
+                {
+                    BibleNavigationPanel.Visibility = Visibility.Collapsed;
+                    ProjectTree.Visibility = Visibility.Visible;
+                    
+                    // 更新视图模式为幻灯片模式，并更新按钮高亮状态
+                    _currentViewMode = NavigationViewMode.Projects;
+                    UpdateViewModeButtons();
+                    
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [圣经创建] 已自动隐藏圣经导航栏，切换到幻灯片模式");
+                    //#endif
+                }
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 创建文本框元素失败: {ex.Message}");
+                #endif
+                
+                WpfMessageBox.Show("创建经文元素失败", "错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// 格式化经文（带节号）
+        /// </summary>
+        private string FormatVerseWithNumbers(List<BibleVerse> verses)
+        {
+            var lines = new List<string>();
+            foreach (var verse in verses)
+            {
+                lines.Add($"{verse.Verse} {verse.Scripture}");
+            }
+            return string.Join("\n", lines);
+        }
+        
+        
+        /// <summary>
+        /// 创建单个文本框元素（核心方法）
+        /// </summary>
+        private async Task CreateSingleTextElement(
+            string content, 
+            double x, 
+            double y, 
+            string fontFamily, 
+            float fontSize, 
+            string color, 
+            bool isBold)
+        {
+            if (_currentSlide == null)
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 当前没有选中的幻灯片");
+                #endif
+                return;
+            }
+            
+            try
+            {
+                // 计算最大ZIndex，新文本在最上层
+                int maxZIndex = 0;
+                if (_textBoxes.Count > 0)
+                {
+                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+                
+                // 创建新元素
+                // 注意：FontSize 需要除以2，因为渲染时会放大2倍
+                // 计算合理的高度：行数 * 行高
+                int lineCount = content.Split('\n').Length;
+                float estimatedHeight = lineCount * fontSize * 1.5f; // 行高 = 字号 * 3
+                
+                var textElement = new Database.Models.TextElement
+                {
+                    SlideId = _currentSlide.Id,
+                    Content = content,
+                    X = x,
+                    Y = y,
+                    Width = EditorCanvas.ActualWidth * 0.9, // 画布宽度的90%
+                    Height = estimatedHeight, // 根据内容估算高度
+                    FontFamily = fontFamily,
+                    FontSize = fontSize / 2, // 数据库存储实际大小的一半
+                    FontColor = color,
+                    IsBold = isBold ? 1 : 0,
+                    ZIndex = maxZIndex + 1
+                };
+                
+                // 保存到数据库
+                await _textProjectManager.AddElementAsync(textElement);
+                
+                // 在 UI 线程上创建 DraggableTextBox 并添加到画布
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var textBox = new UI.Controls.DraggableTextBox(textElement);
+                    AddTextBoxToCanvas(textBox);
+                    
+                    // 标记内容已修改
+                    MarkContentAsModified();
+                    
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [圣经创建] 文本框已添加到画布");
+                    //Debug.WriteLine($"   内容: {content}");
+                    //Debug.WriteLine($"   位置: ({x}, {y})");
+                    //Debug.WriteLine($"   尺寸: {textBox.Width} x {textBox.Height}");
+                    //Debug.WriteLine($"   字体: {fontFamily} {fontSize / 2}pt (数据库) -> {fontSize}pt (显示)");
+                    //Debug.WriteLine($"   颜色: {color}");
+                    //Debug.WriteLine($"   粗体: {isBold}");
+                    //Debug.WriteLine($"   ZIndex: {textElement.ZIndex}");
+                    //Debug.WriteLine($"   EditorCanvas.Children.Count: {EditorCanvas.Children.Count}");
+                    //Debug.WriteLine($"   _textBoxes.Count: {_textBoxes.Count}");
+                    //#endif
+                });
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 创建单个文本框失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 主窗口失去焦点时，关闭圣经样式 Popup
+        /// </summary>
+        private void MainWindow_Deactivated(object sender, EventArgs e)
+        {
+            if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
+            {
+                _bibleStylePopup.IsOpen = false;
+                
+                #if DEBUG
+                Debug.WriteLine($"🔄 [圣经插入] 主窗口失去焦点，自动关闭样式 Popup");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 主窗口状态变化时（最小化、最大化等），关闭圣经样式 Popup
+        /// </summary>
+        private void MainWindow_StateChanged(object sender, EventArgs e)
+        {
+            if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
+            {
+                _bibleStylePopup.IsOpen = false;
+                
+                #if DEBUG
+                Debug.WriteLine($"🔄 [圣经插入] 主窗口状态变化，自动关闭样式 Popup (State={((System.Windows.Window)sender).WindowState})");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 主窗口位置变化时，关闭圣经样式 Popup
+        /// </summary>
+        private void MainWindow_LocationChanged(object sender, EventArgs e)
+        {
+            if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
+            {
+                _bibleStylePopup.IsOpen = false;
+                
+                #if DEBUG
+                Debug.WriteLine($"🔄 [圣经插入] 主窗口位置变化，自动关闭样式 Popup");
+                #endif
+            }
+        }
+
+    /// <summary>
+    /// 智能计算经文插入位置
+    /// </summary>
+    private System.Windows.Point GetSmartInsertPosition()
+    {
+        const double margin = 20;  // 边距
+        const double spacing = 30; // 元素间距
+        
+        try
+        {
+            // 如果Canvas为空，返回左上角位置
+            if (_textBoxes.Count == 0)
+            {
+                //#if DEBUG
+                //Debug.WriteLine($"📍 [智能插入] Canvas为空，插入到左上角: ({margin}, {margin})");
+                //#endif
+                
+                return new System.Windows.Point(margin, margin);
+            }
+                
+                // 找到最后一个文本框（ZIndex最大的）
+                var lastTextBox = _textBoxes.OrderByDescending(tb => Canvas.GetZIndex(tb)).FirstOrDefault();
+                
+                if (lastTextBox != null)
+                {
+                    double lastX = Canvas.GetLeft(lastTextBox);
+                    double lastY = Canvas.GetTop(lastTextBox);
+                    double lastHeight = lastTextBox.ActualHeight > 0 ? lastTextBox.ActualHeight : 100;
+                    
+                    // 在最后一个元素下方插入
+                    double newX = lastX;
+                    double newY = lastY + lastHeight + spacing;
+                    
+                    // 如果超出Canvas底部，则重新开始一列
+                    if (newY + 200 > EditorCanvas.ActualHeight && EditorCanvas.ActualHeight > 0)
+                    {
+                        double lastWidth = lastTextBox.ActualWidth > 0 ? lastTextBox.ActualWidth : 300;
+                        newX = lastX + lastWidth + spacing;
+                        newY = margin;
+                        
+                        // 如果右侧也超出，则回到左上角
+                        if (newX + 300 > EditorCanvas.ActualWidth && EditorCanvas.ActualWidth > 0)
+                        {
+                            newX = margin;
+                            newY = margin;
+                        }
+                    }
+                    
+                    //#if DEBUG
+                    //Debug.WriteLine($"📍 [智能插入] 在最后元素下方: ({newX:F0}, {newY:F0})");
+                    //Debug.WriteLine($"   最后元素位置: ({lastX:F0}, {lastY:F0}), 高度: {lastHeight:F0}");
+                    //#endif
+                    
+                    return new System.Windows.Point(newX, newY);
+                }
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                Debug.WriteLine($"⚠️ [智能插入] 计算位置失败: {ex.Message}，使用默认位置");
+                #endif
+            }
+            
+            // 默认位置
+            return new System.Windows.Point(margin, margin);
+        }
+        
+        /// <summary>
+        /// 从数据库加载圣经插入配置（字体大小 × 2）
+        /// </summary>
+        private BibleTextInsertConfig LoadBibleInsertConfigFromDatabase()
+        {
+            var config = new BibleTextInsertConfig();
+            
+            // 从数据库加载配置
+            config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
+            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "微软雅黑");
+            
+            config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
+            // 字体大小 × 2（存储的是显示值，实际使用时需要乘以2）
+            config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "20")) * 2;
+            config.TitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
+            
+            config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#D2691E");
+            // 字体大小 × 2（存储的是显示值，实际使用时需要乘以2）
+            config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "15")) * 2;
+            config.VerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
+            config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "10"));
+            
+            config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
+            
+            //#if DEBUG
+            //Debug.WriteLine($"📝 [圣经插入] 从数据库加载配置");
+            //Debug.WriteLine($"   字体: {config.FontFamily}");
+            //Debug.WriteLine($"   标题字体大小（实际值 = 显示值×2）: {config.TitleStyle.FontSize}");
+            //Debug.WriteLine($"   经文字体大小（实际值 = 显示值×2）: {config.VerseStyle.FontSize}");
+            //#endif
+            
+            return config;
         }
 
         #endregion
