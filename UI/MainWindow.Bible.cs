@@ -2110,6 +2110,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleVersionTrigger_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            // 🔧 只在圣经模式下才显示工具栏
+            if (!_isBibleMode)
+            {
+                return;
+            }
+            
             if (BibleVersionToolbar != null)
             {
                 // 直接显示工具栏
@@ -2122,6 +2128,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleVersionTrigger_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            // 🔧 只在圣经模式下才处理隐藏逻辑
+            if (!_isBibleMode)
+            {
+                return;
+            }
+            
             if (BibleVersionToolbar != null)
             {
                 // 检查鼠标是否真的离开了整个区域（触发区+工具栏）
