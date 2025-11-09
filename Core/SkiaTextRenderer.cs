@@ -141,12 +141,31 @@ namespace ImageColorChanger.Core
             float currentY = context.Padding.Top;
             var verseLayouts = new List<VerseLayout>();
             
-            foreach (var verse in context.Verses)
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"📏 [投影节距] VerseSpacing配置: {context.VerseSpacing}");
+            #endif
+            
+            // 用于跟踪是否是第一个标题
+            bool isFirstTitle = true;
+            
+            for (int i = 0; i < context.Verses.Count; i++)
             {
+                var verse = context.Verses[i];
                 float verseStartY = currentY;
                 
                 if (verse.IsTitle)
                 {
+                    // 如果不是第一个标题，添加额外的记录分隔间距（固定60像素）
+                    if (!isFirstTitle)
+                    {
+                        currentY += 60;
+                        verseStartY = currentY;
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📌 [记录分隔] 添加固定间距60，currentY: {currentY - 60} -> {currentY}");
+                        #endif
+                    }
+                    isFirstTitle = false;
+                    
                     // 计算标题行高度
                     using var titlePaint = CreatePaint(context.TitleStyle);
                     var titleLayout = _layoutEngine.CalculateLayout(verse.Text, context.TitleStyle, contentWidth);
@@ -161,7 +180,11 @@ namespace ImageColorChanger.Core
                         NumberWidth = 0
                     });
                     
-                    currentY += titleHeight + context.VerseSpacing;
+                    // 标题后的间距固定为15像素
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
+                    #endif
+                    currentY += titleHeight + 15;
                 }
                 else
                 {
@@ -187,7 +210,21 @@ namespace ImageColorChanger.Core
                         NumberWidth = numberWidth
                     });
                     
-                    currentY += verseHeight + context.VerseSpacing / 2;
+                    // 经文后的间距：如果不是最后一节，使用配置的节距
+                    if (i < context.Verses.Count - 1)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📌 [经文间距] 第{verse.VerseNumber}节, 高度: {verseHeight}, 节距: {context.VerseSpacing}, currentY变化: {currentY} -> {currentY + verseHeight + context.VerseSpacing}");
+                        #endif
+                        currentY += verseHeight + context.VerseSpacing;
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📌 [最后一节] 第{verse.VerseNumber}节, 高度: {verseHeight}, 无额外间距");
+                        #endif
+                        currentY += verseHeight;
+                    }
                 }
             }
             
@@ -219,13 +256,17 @@ namespace ImageColorChanger.Core
                 }
                 else
                 {
-                    // 渲染经文行
+                    // 渲染经文行（🔧 高亮时使用高亮颜色）
                     var verseColor = layout.Verse.IsHighlighted 
-                        ? context.VerseStyle.TextColor 
+                        ? context.HighlightColor 
                         : context.VerseStyle.TextColor;
                     
-                    // 节号
+                    // 节号（🔧 高亮时也使用高亮颜色）
                     using var numberPaint = CreatePaint(context.VerseNumberStyle);
+                    if (layout.Verse.IsHighlighted)
+                    {
+                        numberPaint.Color = context.HighlightColor;
+                    }
                     string verseNumberText = $"{layout.Verse.VerseNumber} ";
                     canvas.DrawText(verseNumberText, context.Padding.Left, layout.StartY + context.VerseStyle.FontSize, numberPaint);
                     

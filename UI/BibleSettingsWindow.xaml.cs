@@ -210,10 +210,11 @@ namespace ImageColorChanger.UI
                     SelectComboBoxItem(CmbMargin, _configManager.BibleMargin.ToString("0"));
                 }
 
-                // 节间距
+                // 节间距（实际值 ÷ 10 = 显示值）
                 if (CmbVerseSpacing != null)
                 {
-                    SelectComboBoxItem(CmbVerseSpacing, _configManager.BibleVerseSpacing.ToString("0"));
+                    double displayValue = _configManager.BibleVerseSpacing / 10;
+                    SelectComboBoxItem(CmbVerseSpacing, displayValue.ToString("0"));
                 }
 
                 // 更新颜色预览
@@ -530,12 +531,13 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
 
-                // 保存节间距
+                // 保存节间距（显示值 × 10）
                 if (CmbVerseSpacing != null && CmbVerseSpacing.SelectedItem is System.Windows.Controls.ComboBoxItem spacingItem)
                 {
-                    _configManager.BibleVerseSpacing = double.Parse(spacingItem.Content.ToString());
+                    double displayValue = double.Parse(spacingItem.Content.ToString());
+                    _configManager.BibleVerseSpacing = displayValue * 10; // 实际值 = 显示值 × 10
                     //#if DEBUG
-                    //Debug.WriteLine($"[圣经设置] 保存节间距: {spacingItem.Content}");
+                    //Debug.WriteLine($"[圣经设置] 保存节间距: 显示值={displayValue}, 实际值={displayValue * 10}");
                     //#endif
                 }
 

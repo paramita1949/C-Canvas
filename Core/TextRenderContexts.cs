@@ -92,6 +92,11 @@ namespace ImageColorChanger.Core
         /// 节间距（像素）
         /// </summary>
         public float VerseSpacing { get; set; } = 8f;
+        
+        /// <summary>
+        /// 高亮颜色
+        /// </summary>
+        public SKColor HighlightColor { get; set; } = SKColors.Yellow;
     }
     
     /// <summary>

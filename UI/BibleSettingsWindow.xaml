@@ -210,15 +210,16 @@
                 <ComboBox x:Name="CmbVerseSpacing" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
                           SelectionChanged="Setting_Changed"
                           MouseWheel="ComboBox_MouseWheel">
-                    <ComboBoxItem Content="0" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="1" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="2" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="3" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="4" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="5" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="8" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="6" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="7" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="8" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="9" Style="{StaticResource ComboBoxItemStyle}"/>
                     <ComboBoxItem Content="10" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="15" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="20" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="25" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="30" Style="{StaticResource ComboBoxItemStyle}"/>
                 </ComboBox>
             </Grid>
 

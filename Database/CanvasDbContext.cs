@@ -734,6 +734,8 @@ namespace ImageColorChanger.Database
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [数据库初始化] 创建默认项目失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
                 #endif
                 // 不抛出异常，因为这不是致命错误
             }
