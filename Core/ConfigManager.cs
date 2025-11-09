@@ -929,9 +929,9 @@ namespace ImageColorChanger.Core
         public string BibleDatabaseFileName { get; set; } = "bible.db";
 
         /// <summary>
-        /// 圣经字体（默认：微软雅黑）
+        /// 圣经字体（默认：等线）
         /// </summary>
-        public string BibleFontFamily { get; set; } = "Microsoft YaHei UI";
+        public string BibleFontFamily { get; set; } = "DengXian";
 
         /// <summary>
         /// 圣经字体大小（经文和节号，默认：46）

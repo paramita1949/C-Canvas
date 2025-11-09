@@ -195,7 +195,27 @@ namespace ImageColorChanger.UI
                 if (CmbFontFamily != null && !string.IsNullOrEmpty(_configManager.BibleFontFamily))
                 {
                     string fontName = FindFontNameByFamily(_configManager.BibleFontFamily);
-                    SelectComboBoxItemByContent(CmbFontFamily, fontName);
+                    if (!string.IsNullOrEmpty(fontName))
+                    {
+                        // 找到了字体名称，选择对应的项
+                        SelectComboBoxItemByContent(CmbFontFamily, fontName);
+                    }
+                    else
+                    {
+                        // 🔧 如果找不到字体名称，尝试直接使用family名称查找ComboBox项
+                        // 因为等线等系统字体可能直接用family名称显示
+                        bool found = SelectComboBoxItemByContent(CmbFontFamily, _configManager.BibleFontFamily);
+                        
+                        // 如果还是找不到，尝试查找字体名称（等线的显示名称）
+                        if (!found)
+                        {
+                            // 等线的显示名称可能是"等线"
+                            if (_configManager.BibleFontFamily.Equals("DengXian", StringComparison.OrdinalIgnoreCase))
+                            {
+                                SelectComboBoxItemByContent(CmbFontFamily, "等线");
+                            }
+                        }
+                    }
                 }
 
                 // 字号（统一使用经文字号）
@@ -269,6 +289,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private string FindFontNameByFamily(string family)
         {
+            if (string.IsNullOrEmpty(family))
+                return null;
+            
             // 查找匹配的字体
             var font = _fontMap.Values.FirstOrDefault(f => 
                 f.Family.Equals(family, StringComparison.OrdinalIgnoreCase) ||
@@ -277,24 +300,30 @@ namespace ImageColorChanger.UI
             if (font != null)
                 return font.Name;
             
-            // 默认返回微软雅黑
-            return _fontMap.ContainsKey("微软雅黑") ? "微软雅黑" : _fontMap.Keys.FirstOrDefault() ?? "微软雅黑";
+            // 🔧 如果找不到，尝试直接使用family作为系统字体，不强制返回第一个字体
+            // 这样即使字体服务中没有配置，也能使用系统字体
+            return null; // 返回null，让调用者决定如何处理
         }
 
         /// <summary>
         /// 选中ComboBox中的项（按内容）
         /// </summary>
-        private void SelectComboBoxItemByContent(System.Windows.Controls.ComboBox comboBox, string content)
+        /// <returns>是否找到并选中了项</returns>
+        private bool SelectComboBoxItemByContent(System.Windows.Controls.ComboBox comboBox, string content)
         {
+            if (comboBox == null || string.IsNullOrEmpty(content))
+                return false;
+                
             foreach (var item in comboBox.Items)
             {
                 if (item is System.Windows.Controls.ComboBoxItem comboItem && 
                     comboItem.Content?.ToString() == content)
                 {
                     comboItem.IsSelected = true;
-                    return;
+                    return true;
                 }
             }
+            return false;
         }
 
         /// <summary>

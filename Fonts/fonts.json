@@ -50,6 +50,14 @@
           "weight": "Regular",
           "preview": "仿宋 ABCabc 123",
           "isFavorite": false
+        },
+        {
+          "name": "等线",
+          "file": "system",
+          "family": "DengXian",
+          "weight": "Regular",
+          "preview": "等线 ABCabc 123",
+          "isFavorite": true
         }
       ]
     },
