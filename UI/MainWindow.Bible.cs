@@ -2871,20 +2871,22 @@ namespace ImageColorChanger.UI
                 this.PreviewMouseDown -= MainWindow_SettingsClose_PreviewMouseDown; // 先移除避免重复
                 this.PreviewMouseDown += MainWindow_SettingsClose_PreviewMouseDown;
 
-                // 计算窗口位置
+                // 🔧 计算窗口位置：统一定位在设置按钮的右边
                 if (_configManager.BibleSettingsWindowLeft.HasValue && _configManager.BibleSettingsWindowTop.HasValue)
                 {
                     _bibleSettingsWindow.Left = _configManager.BibleSettingsWindowLeft.Value;
                     _bibleSettingsWindow.Top = _configManager.BibleSettingsWindowTop.Value;
                 }
-                else if (BibleNavigationPanel != null)
+                else if (BtnBibleSettings != null)
                 {
-                    var panelTopRight = BibleNavigationPanel.PointToScreen(
-                        new System.Windows.Point(BibleNavigationPanel.ActualWidth, 0));
-                    var panelTopLeft = BibleNavigationPanel.PointToScreen(new System.Windows.Point(0, 0));
+                    // 🔧 相对于主窗口定位，避免屏幕坐标转换问题
+                    // 获取按钮相对于主窗口的位置
+                    var buttonPos = BtnBibleSettings.TransformToAncestor(this)
+                        .Transform(new System.Windows.Point(0, 0));
                     
-                    _bibleSettingsWindow.Left = panelTopRight.X - _bibleSettingsWindow.Width - 35;
-                    _bibleSettingsWindow.Top = panelTopLeft.Y + 7;
+                    // 🔧 简单定位：窗口位置 = 主窗口位置 + 按钮相对位置 + 偏移
+                    _bibleSettingsWindow.Left = this.Left + buttonPos.X + BtnBibleSettings.ActualWidth + 20;
+                    _bibleSettingsWindow.Top = this.Top + buttonPos.Y + 30;
                 }
 
                 // 显示窗口
