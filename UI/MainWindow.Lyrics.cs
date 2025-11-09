@@ -759,18 +759,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenderLyricsToProjection()
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📝 [歌词渲染-SkiaSharp] 开始渲染, 内容长度: {LyricsTextBox.Text?.Length ?? 0}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"📝 [歌词渲染-SkiaSharp] 开始渲染, 内容长度: {LyricsTextBox.Text?.Length ?? 0}");
+//#endif
 
             try
             {
                 // 获取投影屏幕的实际尺寸
                 var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📐 [歌词渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"📐 [歌词渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}");
+//#endif
 
                 // ========================================
                 // ✅ 使用SkiaSharp渲染（替代WPF的Canvas+TextBlock+RenderTargetBitmap）
@@ -811,9 +811,9 @@ namespace ImageColorChanger.UI
                 // ✅ 使用SkiaSharp渲染
                 var skBitmap = _skiaRenderer.RenderLyrics(context);
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [歌词渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"✅ [歌词渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
+//#endif
                 
                 // 更新投影
                 if (skBitmap != null)
