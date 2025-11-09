@@ -141,9 +141,9 @@ namespace ImageColorChanger.Core
             float currentY = context.Padding.Top;
             var verseLayouts = new List<VerseLayout>();
             
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📏 [投影节距] VerseSpacing配置: {context.VerseSpacing}");
-            #endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📏 [投影节距] VerseSpacing配置: {context.VerseSpacing}");
+            //#endif
             
             // 用于跟踪是否是第一个标题
             bool isFirstTitle = true;
@@ -160,9 +160,9 @@ namespace ImageColorChanger.Core
                     {
                         currentY += 60;
                         verseStartY = currentY;
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📌 [记录分隔] 添加固定间距60，currentY: {currentY - 60} -> {currentY}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📌 [记录分隔] 添加固定间距60，currentY: {currentY - 60} -> {currentY}");
+                        //#endif
                     }
                     isFirstTitle = false;
                     
@@ -181,9 +181,9 @@ namespace ImageColorChanger.Core
                     });
                     
                     // 标题后的间距固定为15像素
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
+                    //#endif
                     currentY += titleHeight + 15;
                 }
                 else
@@ -213,16 +213,16 @@ namespace ImageColorChanger.Core
                     // 经文后的间距：如果不是最后一节，使用配置的节距
                     if (i < context.Verses.Count - 1)
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📌 [经文间距] 第{verse.VerseNumber}节, 高度: {verseHeight}, 节距: {context.VerseSpacing}, currentY变化: {currentY} -> {currentY + verseHeight + context.VerseSpacing}");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📌 [经文间距] 第{verse.VerseNumber}节, 高度: {verseHeight}, 节距: {context.VerseSpacing}, currentY变化: {currentY} -> {currentY + verseHeight + context.VerseSpacing}");
+                        //#endif
                         currentY += verseHeight + context.VerseSpacing;
                     }
                     else
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📌 [最后一节] 第{verse.VerseNumber}节, 高度: {verseHeight}, 无额外间距");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📌 [最后一节] 第{verse.VerseNumber}节, 高度: {verseHeight}, 无额外间距");
+                        //#endif
                         currentY += verseHeight;
                     }
                 }

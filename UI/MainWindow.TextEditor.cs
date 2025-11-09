@@ -48,6 +48,16 @@ namespace ImageColorChanger.UI
         private const double REGION_LABEL_PADDING_Y = 6;       // 角标上下内边距
         private const double REGION_LABEL_CORNER_RADIUS = 12;  // 角标圆角半径
         
+        // 分割线相关（统一参数，主屏幕和投影屏幕共用）
+        private const double SPLIT_LINE_THICKNESS_MAIN = 3;    // 主屏幕分割线宽度
+        private const double SPLIT_LINE_THICKNESS_PROJECTION = 1; // 投影屏幕分割线宽度（细线）
+        private const double SPLIT_LINE_DASH_LENGTH = 5;       // 虚线段长度
+        private const double SPLIT_LINE_DASH_GAP = 3;          // 虚线间隔
+        // 分割线颜色（红色 RGB(255, 0, 0)）
+        private const byte SPLIT_LINE_COLOR_R = 255;
+        private const byte SPLIT_LINE_COLOR_G = 0;
+        private const byte SPLIT_LINE_COLOR_B = 0;
+        
         // 分割区域相关
         private int _selectedRegionIndex = 0; // 当前选中的区域索引（0-3）
         private List<WpfRectangle> _splitRegionBorders = new List<WpfRectangle>(); // 区域边框
@@ -985,9 +995,9 @@ namespace ImageColorChanger.UI
                 Y1 = y1,
                 X2 = x,
                 Y2 = y2,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 0, 0)), // 红色
-                StrokeThickness = 3,
-                StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(SPLIT_LINE_COLOR_R, SPLIT_LINE_COLOR_G, SPLIT_LINE_COLOR_B)), // 🔧 使用统一常量
+                StrokeThickness = SPLIT_LINE_THICKNESS_MAIN,
+                StrokeDashArray = new DoubleCollection { SPLIT_LINE_DASH_LENGTH, SPLIT_LINE_DASH_GAP }, // 🔧 使用统一常量
                 Tag = "SplitLine",
                 IsHitTestVisible = false // 不响应鼠标事件
             };
@@ -1007,9 +1017,9 @@ namespace ImageColorChanger.UI
                 Y1 = y,
                 X2 = x2,
                 Y2 = y,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 0, 0)), // 红色
-                StrokeThickness = 3,
-                StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(SPLIT_LINE_COLOR_R, SPLIT_LINE_COLOR_G, SPLIT_LINE_COLOR_B)), // 🔧 使用统一常量
+                StrokeThickness = SPLIT_LINE_THICKNESS_MAIN,
+                StrokeDashArray = new DoubleCollection { SPLIT_LINE_DASH_LENGTH, SPLIT_LINE_DASH_GAP }, // 🔧 使用统一常量
                 Tag = "SplitLine",
                 IsHitTestVisible = false // 不响应鼠标事件
             };
@@ -1624,7 +1634,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 将所有分割线改为细线（1px实线）
+                // 将所有分割线改为细线（投影样式：细实线）
                 foreach (var child in EditorCanvas.Children.OfType<Line>())
                 {
                     if (child.Tag != null && child.Tag.ToString() == "SplitLine")
@@ -1636,8 +1646,8 @@ namespace ImageColorChanger.UI
                             OriginalDashArray = child.StrokeDashArray
                         };
                         
-                        // 改为细实线
-                        child.StrokeThickness = 1;
+                        // 🔧 改为投影样式：细实线（使用统一常量）
+                        child.StrokeThickness = SPLIT_LINE_THICKNESS_PROJECTION;
                         child.StrokeDashArray = null; // 实线
                     }
                 }
@@ -3459,14 +3469,14 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void DrawSplitLinesToCanvas(SKCanvas canvas, Database.Models.Enums.ViewSplitMode mode, double canvasWidth, double canvasHeight)
         {
-            // 分割线画笔（橙色细实线，1像素 - 匹配投影前的调整）
+            // 分割线画笔（使用统一常量，投影屏幕使用细实线）
             var linePaint = new SKPaint
             {
-                Color = new SKColor(255, 165, 0), // 橙色 RGB(255, 165, 0)
-                StrokeWidth = 1,                   // 细线1px（投影样式）
+                Color = new SKColor(SPLIT_LINE_COLOR_R, SPLIT_LINE_COLOR_G, SPLIT_LINE_COLOR_B), // 🔧 使用统一常量（红色）
+                StrokeWidth = (float)SPLIT_LINE_THICKNESS_PROJECTION, // 🔧 投影屏幕使用细线
                 Style = SKPaintStyle.Stroke,
                 IsAntialias = true
-                // 不使用虚线，投影时用实线
+                // 投影屏幕使用实线（不使用虚线）
             };
             
             // 角标背景画笔（半透明橙色）

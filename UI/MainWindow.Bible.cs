@@ -1850,9 +1850,9 @@ namespace ImageColorChanger.UI
                 }
 
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📐 [圣经渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}, 经文数量: {verses.Count}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"📐 [圣经渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}, 经文数量: {verses.Count}");
+//#endif
 
                 // ========================================
                 // ✅ 使用SkiaSharp渲染（替代WPF的Canvas+RenderTargetBitmap）
@@ -1874,9 +1874,9 @@ namespace ImageColorChanger.UI
                 // 添加章节标题（非锁定模式）
                 if (!isLockedMode && !string.IsNullOrEmpty(chapterTitle))
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 添加章节标题: {chapterTitle}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 添加章节标题: {chapterTitle}");
+                    //#endif
                     verseItems.Add(new Core.BibleVerseItem
                     {
                         IsTitle = true,
@@ -1885,9 +1885,9 @@ namespace ImageColorChanger.UI
                     });
                 }
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 总共 {verseItems.Count} 项（包含标题）");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 总共 {verseItems.Count} 项（包含标题）");
+                //#endif
                 
                 // 添加所有经文
                 foreach (var verse in verses)
@@ -1970,9 +1970,9 @@ namespace ImageColorChanger.UI
                 // ✅ 使用SkiaSharp渲染
                 var skBitmap = _skiaRenderer.RenderBibleText(context);
                 
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [圣经渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"✅ [圣经渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
+//#endif
                 
                 return skBitmap;
             }
@@ -3393,9 +3393,9 @@ namespace ImageColorChanger.UI
                             // 标题底部间距固定为15，不随节距变化
                             border.Margin = new Thickness(0, topMargin, 0, 15);
                             
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔍 [主屏标题Margin] i={i}, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}(固定), 底部固定=15, 实际Margin={border.Margin}");
-                            #endif
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [主屏标题Margin] i={i}, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}(固定), 底部固定=15, 实际Margin={border.Margin}");
+                            //#endif
                         }
                         else
                         {
@@ -3406,12 +3406,12 @@ namespace ImageColorChanger.UI
                             
                             border.Margin = new Thickness(0, topMargin, 0, _configManager.BibleVerseSpacing / 2);
                             
-                            #if DEBUG
-                            if (i <= 1) // 输出前两个经文的调试信息
-                            {
-                                System.Diagnostics.Debug.WriteLine($"🔍 [主屏经文Margin] i={i}, 第{verse.Verse}节, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}, 实际Margin={border.Margin}");
-                            }
-                            #endif
+                            //#if DEBUG
+                            //if (i <= 1) // 输出前两个经文的调试信息
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"🔍 [主屏经文Margin] i={i}, 第{verse.Verse}节, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}, 实际Margin={border.Margin}");
+                            //}
+                            //#endif
                         }
                         
                         //#if DEBUG
