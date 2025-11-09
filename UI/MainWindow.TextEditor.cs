@@ -1059,8 +1059,8 @@ namespace ImageColorChanger.UI
                 var label = new System.Windows.Controls.Border
                 {
                     Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
-                    CornerRadius = new System.Windows.CornerRadius(0, 0, 8, 0), // 右下圆角
-                    Padding = new System.Windows.Thickness(8, 4, 8, 4),
+                    CornerRadius = new System.Windows.CornerRadius(0, 0, 12, 0), // 右下圆角
+                    Padding = new System.Windows.Thickness(12, 6, 12, 6),
                     Tag = $"RegionLabel_{regionIndex}",
                     IsHitTestVisible = false // 不响应鼠标事件
                 };
@@ -1068,7 +1068,7 @@ namespace ImageColorChanger.UI
                 var labelText = new System.Windows.Controls.TextBlock
                 {
                     Text = (regionIndex + 1).ToString(),
-                    FontSize = 18,
+                    FontSize = 24,
                     FontWeight = System.Windows.FontWeights.Bold,
                     Foreground = System.Windows.Media.Brushes.White
                 };
@@ -2045,9 +2045,20 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📷 [背景图] 选择文件: {dialog.FileName}");
+                    //System.Diagnostics.Debug.WriteLine($"   文件存在: {System.IO.File.Exists(dialog.FileName)}");
+                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage 控件: {BackgroundImage != null}");
+                    //#endif
+                    
                     BackgroundImage.Source = new BitmapImage(new Uri(dialog.FileName));
                     BackgroundImage.Visibility = Visibility.Visible;
-                    EditorCanvas.Background = new SolidColorBrush(Colors.White); // 重置Canvas背景
+                    EditorCanvas.Background = System.Windows.Media.Brushes.Transparent; // 🔧 设为透明，显示背景图
+                    
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage.Source: {BackgroundImage.Source != null}");
+                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage.Visibility: {BackgroundImage.Visibility}");
+                    //#endif
                     
                     // 🔧 保存背景图路径到当前幻灯片
                     var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
@@ -2061,15 +2072,34 @@ namespace ImageColorChanger.UI
                         // 更新本地缓存
                         _currentSlide.BackgroundImagePath = dialog.FileName;
                         _currentSlide.BackgroundColor = null;
+                        
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"✅ [背景图] 已保存到数据库: SlideId={slideToUpdate.Id}");
+                        //#endif
                     }
                     
                     // 更新项目的背景图片路径（兼容旧数据）
                     await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
                     
+                    // 🔧 如果投影已开启，更新投影
+                    if (_projectionManager != null && _projectionManager.IsProjectionActive)
+                    {
+                        UpdateProjectionFromCanvas();
+                    }
+                    
                     MarkContentAsModified();
+                    
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [背景图] 导入完成");
+                    //#endif
                 }
                 catch (Exception ex)
                 {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"❌ [背景图] 导入失败: {ex.Message}");
+                    //System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+                    //#endif
+                    
                     WpfMessageBox.Show($"加载背景图失败: {ex.Message}", "错误", 
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -4732,11 +4762,17 @@ namespace ImageColorChanger.UI
                 if (!string.IsNullOrEmpty(slide.BackgroundImagePath) &&
                     System.IO.File.Exists(slide.BackgroundImagePath))
                 {
+                    // 🔧 有背景图：显示图片，Canvas设为透明
                     BackgroundImage.Source = new BitmapImage(new Uri(slide.BackgroundImagePath));
+                    BackgroundImage.Visibility = Visibility.Visible;
+                    EditorCanvas.Background = System.Windows.Media.Brushes.Transparent;
                 }
                 else
                 {
+                    // 🔧 无背景图：隐藏图片，设置Canvas背景色
                     BackgroundImage.Source = null;
+                    BackgroundImage.Visibility = Visibility.Collapsed;
+                    
                     // 设置背景颜色
                     if (!string.IsNullOrEmpty(slide.BackgroundColor))
                     {

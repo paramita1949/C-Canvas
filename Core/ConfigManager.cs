@@ -949,14 +949,14 @@ namespace ImageColorChanger.Core
         public string BibleBackgroundColor { get; set; } = "#000000";
 
         /// <summary>
-        /// 圣经经文文字颜色（默认：#FF8040 橙色 RGB(255, 128, 64)）
+        /// 圣经经文文字颜色（默认：#FF9A35 橙色 RGB(255, 154, 53)）
         /// </summary>
-        public string BibleTextColor { get; set; } = "#FF8040";
+        public string BibleTextColor { get; set; } = "#FF9A35";
 
         /// <summary>
-        /// 圣经标题颜色（默认：#FFFF00 黄色）
+        /// 圣经标题颜色（默认：#FF0000 红色）
         /// </summary>
-        public string BibleTitleColor { get; set; } = "#FFFF00";
+        public string BibleTitleColor { get; set; } = "#FF0000";
 
         /// <summary>
         /// 圣经节号颜色（默认：#FFFF00 黄色）
@@ -979,14 +979,14 @@ namespace ImageColorChanger.Core
         public double BibleVerseNumberFontSize { get; set; } = 46.0;
 
         /// <summary>
-        /// 圣经左右边距（默认：50）
+        /// 圣经左右边距（默认：15）
         /// </summary>
-        public double BibleMargin { get; set; } = 50.0;
+        public double BibleMargin { get; set; } = 15.0;
 
         /// <summary>
-        /// 圣经节间距（节与节之间的间距，默认：8）
+        /// 圣经节间距（节与节之间的间距，默认：15）
         /// </summary>
-        public double BibleVerseSpacing { get; set; } = 8.0;
+        public double BibleVerseSpacing { get; set; } = 15.0;
 
         /// <summary>
         /// 圣经设置窗口X坐标（默认：null，使用自动计算位置）
