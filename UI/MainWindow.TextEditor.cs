@@ -979,7 +979,7 @@ namespace ImageColorChanger.UI
                 Y1 = y1,
                 X2 = x,
                 Y2 = y2,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 165, 0)), // 橙色
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 0, 0)), // 红色
                 StrokeThickness = 3,
                 StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
                 Tag = "SplitLine",
@@ -1001,7 +1001,7 @@ namespace ImageColorChanger.UI
                 Y1 = y,
                 X2 = x2,
                 Y2 = y,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 165, 0)), // 橙色
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 0, 0)), // 红色
                 StrokeThickness = 3,
                 StrokeDashArray = new DoubleCollection { 5, 3 }, // 虚线
                 Tag = "SplitLine",

@@ -58,15 +58,51 @@
 
     <Grid>
         <!-- 标题栏（可拖动） -->
-        <Border Background="#2D2D30" 
+        <Border Background="#808080" 
                 Height="30" 
                 VerticalAlignment="Top"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <TextBlock Text="圣经设置" 
-                       Foreground="White" 
-                       FontSize="13" 
-                       VerticalAlignment="Center" 
-                       HorizontalAlignment="Center"/>
+            <Grid>
+                <TextBlock Text="圣经设置" 
+                           Foreground="White" 
+                           FontSize="13" 
+                           VerticalAlignment="Center" 
+                           HorizontalAlignment="Center"/>
+                
+                <!-- 关闭按钮 -->
+                <Button Content="✕" 
+                        Width="30" 
+                        Height="30" 
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Cursor="Hand"
+                        Click="CloseButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#A0A0A0"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
         </Border>
         
         <!-- 主内容区域 -->

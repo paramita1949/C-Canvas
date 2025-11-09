@@ -74,6 +74,14 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 关闭按钮点击事件
+        /// </summary>
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        /// <summary>
         /// 加载字体列表（使用程序自带字体配置）
         /// </summary>
         private void LoadFontFamilies()
