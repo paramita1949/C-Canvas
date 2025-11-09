@@ -71,8 +71,6 @@ namespace ImageColorChanger.Managers
         // VisualBrush投影相关（圣经经文）
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
         private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
-        private double _lastKnownMainExtentHeight = 0;  // 上次已知的主窗口ExtentHeight（投影更新时保存）
-        private double _lastKnownProjExtentHeight = 0;  // 上次已知的投影窗口ExtentHeight
 
         // 屏幕管理（WPF 原生）
         private List<WpfScreenInfo> _screens;
@@ -500,10 +498,10 @@ namespace ImageColorChanger.Managers
                     if (_projectionScrollViewer == null)
                         return;
                     
-                    // 🔧 圣经滚动同步：使用缓存的高度值
+                    // 🔧 圣经滚动同步
                     double mainScrollTop = bibleScrollViewer.VerticalOffset;
-                    double mainExtentHeight = _lastKnownMainExtentHeight > 0 ? _lastKnownMainExtentHeight : bibleScrollViewer.ExtentHeight;
-                    double projExtentHeight = _lastKnownProjExtentHeight > 0 ? _lastKnownProjExtentHeight : _projectionScrollViewer.ExtentHeight;
+                    double mainExtentHeight = bibleScrollViewer.ExtentHeight;
+                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
                     
                     if (mainExtentHeight <= 0 || projExtentHeight <= 0)
                         return;
@@ -780,17 +778,12 @@ namespace ImageColorChanger.Managers
                             // 🔧 强制立即更新布局，确保ExtentHeight等属性准确
                             _projectionScrollViewer.UpdateLayout();
                             
-                            // 🔧 同步滚动位置并保存高度值
+                            // 🔧 同步滚动位置
                             if (_projectionScrollViewer != null && _projectionContainer != null && bibleScrollViewer.ExtentHeight > 0)
                             {
-                                // 同步滚动位置
                                 double scrollRatio = bibleScrollViewer.VerticalOffset / bibleScrollViewer.ExtentHeight;
                                 double projScrollOffset = scrollRatio * _projectionScrollViewer.ExtentHeight;
                                 _projectionScrollViewer.ScrollToVerticalOffset(projScrollOffset);
-                                
-                                // 🔧 保存正确的高度值，供实时滚动同步使用
-                                _lastKnownMainExtentHeight = bibleScrollViewer.ExtentHeight;
-                                _lastKnownProjExtentHeight = _projectionScrollViewer.ExtentHeight;
                             }
                         }
                     }
