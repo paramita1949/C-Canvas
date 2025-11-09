@@ -66,6 +66,10 @@ namespace ImageColorChanger.Managers
         // 圣经投影相关
         private Border _projectionBibleTitleBorder;  // 圣经标题容器（固定在顶部）
         private TextBlock _projectionBibleTitleText;  // 圣经标题文本
+        
+        // VisualBrush投影相关（圣经经文）
+        private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
+        private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
 
         // 屏幕管理
         private List<Screen> _screens;
@@ -390,6 +394,14 @@ namespace ImageColorChanger.Managers
                     // 🔧 清空投影图像控件的Source，显示黑屏
                     _projectionImageControl.Source = null;
                     
+                    // 🆕 同时禁用 VisualBrush 投影
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        _projectionVisualBrushRect.Fill = null;
+                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
+                    }
+                    _currentBibleScrollViewer = null;
+                    
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine("🧹 [投影] 已清空投影显示内容");
                     #endif
@@ -641,6 +653,150 @@ namespace ImageColorChanger.Managers
 //#if DEBUG
 //                System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
 //#endif
+            }
+        }
+        
+        /// <summary>
+        /// 🆕 使用 VisualBrush 投影圣经经文（100%像素级一致）
+        /// </summary>
+        /// <param name="bibleScrollViewer">主屏幕的圣经 ScrollViewer</param>
+        public void UpdateBibleProjectionWithVisualBrush(ScrollViewer bibleScrollViewer)
+        {
+            if (_projectionWindow == null || bibleScrollViewer == null)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [VisualBrush投影] 投影窗口或ScrollViewer为空，跳过");
+                #endif
+                return;
+            }
+
+            try
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    // 保存当前圣经ScrollViewer引用
+                    _currentBibleScrollViewer = bibleScrollViewer;
+                    
+                    // 隐藏图片投影控件，显示VisualBrush矩形
+                    if (_projectionImageControl != null)
+                        _projectionImageControl.Visibility = Visibility.Collapsed;
+                    
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        // 🔧 获取 ScrollViewer 的内容（StackPanel）
+                        var scrollContent = bibleScrollViewer.Content as UIElement;
+                        
+                        if (scrollContent == null)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [VisualBrush投影] ScrollViewer.Content 为空");
+                            #endif
+                            return;
+                        }
+                        
+                        // 🔧 获取投影屏幕尺寸
+                        var screen = _screens[_currentScreenIndex];
+                        double projectionWidth = screen.Bounds.Width;
+                        double projectionHeight = screen.Bounds.Height;
+                        
+                        // 🔧 计算缩放比例（水平拉伸填满）
+                        double scaleRatio = projectionWidth / scrollContent.RenderSize.Width;
+                        double scaledHeight = scrollContent.RenderSize.Height * scaleRatio;
+                        
+                        // 🔧 创建 VisualBrush 复制 ScrollViewer 的内容
+                        var visualBrush = new VisualBrush(scrollContent)
+                        {
+                            Stretch = System.Windows.Media.Stretch.Fill,  // 🔧 填充拉伸
+                            AlignmentX = AlignmentX.Left,
+                            AlignmentY = AlignmentY.Top,
+                            ViewboxUnits = BrushMappingMode.Absolute,  // 🔧 绝对坐标
+                            Viewbox = new System.Windows.Rect(0, 0, scrollContent.RenderSize.Width, scrollContent.RenderSize.Height)
+                        };
+                        
+                        _projectionVisualBrushRect.Fill = visualBrush;
+                        _projectionVisualBrushRect.Visibility = Visibility.Visible;
+                        
+                        // 🔧 设置矩形尺寸：宽度填满投影屏幕，高度按比例缩放
+                        _projectionVisualBrushRect.Width = projectionWidth;
+                        _projectionVisualBrushRect.Height = scaledHeight;
+                        
+                        // 🔧 强制左对齐
+                        _projectionVisualBrushRect.HorizontalAlignment = WpfHorizontalAlignment.Left;
+                        _projectionVisualBrushRect.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                        
+                        // 🔧 设置容器高度和对齐
+                        if (_projectionContainer != null)
+                        {
+                            _projectionContainer.Height = scaledHeight;
+                            _projectionContainer.HorizontalAlignment = WpfHorizontalAlignment.Left;  // 容器左对齐
+                        }
+                        
+                        // 🔧 配置滚动条（支持滚动）
+                        if (_projectionScrollViewer != null)
+                        {
+                            _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+                            _projectionScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden;
+                        }
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已启用 - 水平拉伸填满");
+                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 源内容尺寸: {scrollContent.RenderSize.Width:F1}x{scrollContent.RenderSize.Height:F1}");
+                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 投影屏幕尺寸: {projectionWidth}x{projectionHeight}");
+                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 缩放比例: {scaleRatio:F3}x ({scrollContent.RenderSize.Width:F0}→{projectionWidth})");
+                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 拉伸后尺寸: {_projectionVisualBrushRect.Width}x{_projectionVisualBrushRect.Height:F1}");
+                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] Stretch: Fill (水平填满)");
+                        #endif
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [VisualBrush投影] 渲染失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 🆕 禁用 VisualBrush 投影，恢复图片投影模式
+        /// </summary>
+        public void DisableBibleVisualBrushProjection()
+        {
+            if (_projectionWindow == null)
+                return;
+
+            try
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    // 清除 VisualBrush
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        _projectionVisualBrushRect.Fill = null;
+                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
+                    }
+                    
+                    // 显示图片投影控件
+                    if (_projectionImageControl != null)
+                        _projectionImageControl.Visibility = Visibility.Visible;
+                    
+                    // 清除引用
+                    _currentBibleScrollViewer = null;
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已禁用，恢复图片投影模式");
+                    #endif
+                });
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [VisualBrush投影] 禁用失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
             }
         }
 
@@ -1610,8 +1766,18 @@ namespace ImageColorChanger.Managers
                         HorizontalAlignment = WpfHorizontalAlignment.Left,  // 🔧 左对齐
                         VerticalAlignment = System.Windows.VerticalAlignment.Top  // 顶部对齐
                     };
+                    
+                    // 🆕 创建 VisualBrush 矩形控件（用于圣经经文投影）
+                    _projectionVisualBrushRect = new System.Windows.Shapes.Rectangle
+                    {
+                        Stretch = System.Windows.Media.Stretch.Fill,  // 🔧 填充整个区域
+                        HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                        VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                        Visibility = Visibility.Collapsed  // 默认隐藏，使用图片投影
+                    };
 
                     projectionContainer.Children.Add(_projectionImageControl);
+                    projectionContainer.Children.Add(_projectionVisualBrushRect);  // 添加VisualBrush矩形
                     _projectionScrollViewer.Content = projectionContainer;
                     
                     // 创建视频容器（叠加在图片容器上方，默认隐藏）

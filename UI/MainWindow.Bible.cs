@@ -1707,7 +1707,7 @@ namespace ImageColorChanger.UI
         #region 圣经投影
 
         /// <summary>
-        /// 投影当前经文
+        /// 投影当前经文（🆕 使用 VisualBrush 100%一致投影）
         /// </summary>
         private async Task ProjectBibleVerseAsync(BibleVerse verse)
         {
@@ -1716,30 +1716,25 @@ namespace ImageColorChanger.UI
 
             try
             {
-                //#if DEBUG
-                //var sw = Stopwatch.StartNew();
-                //#endif
-
-                // 渲染经文到投影屏幕
-                var skBitmap = RenderVerseToProjection(verse);
-                if (skBitmap != null)
+                // 🆕 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
+                if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
-                    _projectionManager?.UpdateProjectionText(skBitmap);
-                    skBitmap.Dispose();
-
-                    //#if DEBUG
-                    //sw.Stop();
-                    //Debug.WriteLine($"[圣经] 投影经文成功: {verse.Reference}, 耗时: {sw.ElapsedMilliseconds}ms");
-                    //#endif
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
+                    #endif
                 }
 
                 await Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 投影失败: {ex.Message}");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [圣经投影-VisualBrush] 投影失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
 
                 WpfMessageBox.Show(
                     $"投影失败：{ex.Message}",
@@ -1750,56 +1745,31 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 投影经文范围（多节）
+        /// 投影经文范围（多节）（🆕 使用 VisualBrush 100%一致投影）
         /// </summary>
         private async Task ProjectBibleVerseRangeAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
             try
             {
-                //#if DEBUG
-                //var sw = Stopwatch.StartNew();
-                //Debug.WriteLine($"[圣经] 开始投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
-                //#endif
-
-                // 加载经文范围
-                var verses = new List<BibleVerse>();
-                for (int verse = startVerse; verse <= endVerse; verse++)
+                // 🆕 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
+                if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
-                    var verseData = await _bibleService.GetVerseAsync(bookId, chapter, verse);
-                    if (verseData != null)
-                    {
-                        verses.Add(verseData);
-                    }
-                }
-
-                if (verses.Count == 0)
-                {
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经] 没有加载到任何经文");
-                    //#endif
-                    return;
-                }
-
-                // 渲染多节经文到投影
-                var skBitmap = RenderVersesToProjection(verses);
-                if (skBitmap != null)
-                {
-                    _projectionManager?.UpdateProjectionText(skBitmap);
-                    skBitmap.Dispose();
-
-                    //#if DEBUG
-                    //sw.Stop();
-                    //Debug.WriteLine($"[圣经] 投影范围成功: {verses.Count}节, 耗时: {sw.ElapsedMilliseconds}ms");
-                    //#endif
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
+                    #endif
                 }
 
                 await Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 投影范围失败: {ex.Message}");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [圣经投影-VisualBrush] 投影范围失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
 
                 WpfMessageBox.Show(
                     $"投影失败：{ex.Message}",
@@ -2034,16 +2004,14 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🔧 使用统一的渲染方法
-                var skBitmap = RenderVersesToProjection(versesList);
-                if (skBitmap != null)
+                // 🆕 使用 VisualBrush 投影（100%像素级一致）
+                if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
-                    _projectionManager?.UpdateProjectionText(skBitmap);
-                    skBitmap.Dispose();
-
-//#if DEBUG
-//                    Debug.WriteLine($"[圣经] 投影渲染完成，共{versesList.Count}节");
-//#endif
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影完成，共{versesList.Count}节");
+                    #endif
                 }
             }
 //#if DEBUG
@@ -2580,15 +2548,10 @@ namespace ImageColorChanger.UI
                     ApplyVerseStyles();
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
                 
-                // 更新投影
-                if (_projectionManager != null && _projectionManager.IsProjecting)
+                // 更新投影（🆕 使用 VisualBrush）
+                if (_projectionManager != null && _projectionManager.IsProjecting && BibleVerseScrollViewer != null)
                 {
-                    var skBitmap = RenderVersesToProjection(newVerses);
-                    if (skBitmap != null)
-                    {
-                        _projectionManager?.UpdateProjectionText(skBitmap);
-                        skBitmap.Dispose();
-                    }
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                 }
             }
             catch (Exception)
@@ -2877,14 +2840,10 @@ namespace ImageColorChanger.UI
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
                 var verseList = _mergedVerses.ToList();
-                if (verseList.Count > 0)
+                if (verseList.Count > 0 && BibleVerseScrollViewer != null)
                 {
-                    var skBitmap = RenderVersesToProjection(verseList);
-                    if (skBitmap != null)
-                    {
-                        _projectionManager?.UpdateProjectionText(skBitmap);
-                        skBitmap.Dispose();
-                    }
+                    // 🆕 使用 VisualBrush 投影（100%像素级一致）
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                 }
                 else
                 {
