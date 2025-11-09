@@ -627,14 +627,14 @@ namespace ImageColorChanger.Services
                     try
                     {
                         // 启动独立的 EXE 文件
-                        var processInfo = new ProcessStartInfo
+                        var exeProcessInfo = new ProcessStartInfo
                         {
                             FileName = exeToRun,
                             UseShellExecute = true,
                             WorkingDirectory = Path.GetDirectoryName(exeToRun)
                         };
 
-                        Process.Start(processInfo);
+                        Process.Start(exeProcessInfo);
                         
 #if DEBUG
                         Debug.WriteLine($"[UpdateService] 已启动独立程序: {Path.GetFileName(exeToRun)}");
