@@ -696,14 +696,20 @@ namespace ImageColorChanger.Managers
                             return;
                         }
                         
-                        // 🔧 获取投影屏幕尺寸
-                        var screen = _screens[_currentScreenIndex];
-                        double projectionWidth = screen.Bounds.Width;
-                        double projectionHeight = screen.Bounds.Height;
+                        // 🔧 获取投影屏幕尺寸（转换为WPF设备独立单位，考虑DPI缩放）
+                        var projectionSize = GetCurrentProjectionSize();
+                        double projectionWidth = projectionSize.width;
+                        double projectionHeight = projectionSize.height;
                         
                         // 🔧 计算缩放比例（水平拉伸填满）
                         double scaleRatio = projectionWidth / scrollContent.RenderSize.Width;
                         double scaledHeight = scrollContent.RenderSize.Height * scaleRatio;
+                        
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 投影屏幕WPF单位: {projectionWidth}×{projectionHeight}");
+                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 源内容尺寸: {scrollContent.RenderSize.Width:F1}×{scrollContent.RenderSize.Height:F1}");
+                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 缩放比例: {scaleRatio:F3}");
+#endif
                         
                         // 🔧 创建 VisualBrush 复制 ScrollViewer 的内容
                         var visualBrush = new VisualBrush(scrollContent)
