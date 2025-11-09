@@ -23,6 +23,7 @@ namespace ImageColorChanger.UI
     {
         private readonly ConfigManager _configManager;
         private readonly IBibleService _bibleService;
+        // 🔧 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
         private System.Windows.Forms.ColorDialog _colorDialog;
         private Dictionary<string, CustomFont> _fontMap = new Dictionary<string, CustomFont>(); // 字体名称到字体信息的映射
         private bool _isLoading = false; // 标记是否正在加载设置，避免触发保存
@@ -44,9 +45,11 @@ namespace ImageColorChanger.UI
             _bibleService = bibleService;
             _onSettingsChanged = onSettingsChanged;
             _onStyleChanged = onStyleChanged;
+            // 🔧 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
             _colorDialog = new System.Windows.Forms.ColorDialog
             {
-                FullOpen = true
+                FullOpen = true,
+                AnyColor = true
             };
 
             LoadFontFamilies();
@@ -386,34 +389,24 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"[圣经设置] Border 名称: {border.Name}, 当前颜色: {border.Background}");
             //#endif
 
-            // 获取当前颜色
-            WpfColor currentColor;
+            // 设置 ColorDialog 的初始颜色
             try
             {
                 var brush = border.Background as System.Windows.Media.SolidColorBrush;
-                currentColor = brush?.Color ?? System.Windows.Media.Colors.White;
+                var currentColor = brush?.Color ?? System.Windows.Media.Colors.White;
                 _colorDialog.Color = System.Drawing.Color.FromArgb(
                     currentColor.A, currentColor.R, currentColor.G, currentColor.B);
-                
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 准备打开颜色对话框，当前颜色: #{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}");
-                //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"[圣经设置] 获取当前颜色失败: {ex.Message}");
+                Debug.WriteLine($"[圣经设置] 设置初始颜色失败: {ex.Message}");
                 #else
-                _ = ex;  // 防止未使用变量警告
+                _ = ex;
                 #endif
                 _colorDialog.Color = System.Drawing.Color.White;
             }
 
-            // 打开颜色选择器（需要设置 Owner 为当前 WPF 窗口）
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经设置] 准备打开颜色对话框");
-            //#endif
-            
             // 设置标志，防止窗口在选择颜色时自动关闭
             _isSelectingColor = true;
             
@@ -433,10 +426,6 @@ namespace ImageColorChanger.UI
                 var owner = new System.Windows.Forms.NativeWindow();
                 owner.AssignHandle(hwnd);
                 
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 开始调用 ColorDialog.ShowDialog(owner)");
-                //#endif
-                
                 result = _colorDialog.ShowDialog(owner);
                 
                 owner.ReleaseHandle();
@@ -446,32 +435,20 @@ namespace ImageColorChanger.UI
                 #if DEBUG
                 Debug.WriteLine($"[圣经设置] ShowDialog() 异常: {ex.Message}");
                 #else
-                _ = ex;  // 防止未使用变量警告
+                _ = ex;
                 #endif
-                // 如果设置 Owner 失败，尝试不带 Owner 调用
                 result = _colorDialog.ShowDialog();
             }
             finally
             {
-                // 恢复标志
                 _isSelectingColor = false;
             }
-            
-            //#if DEBUG
-            //Debug.WriteLine($"[圣经设置] ShowDialog() 返回: {result}");
-            //#endif
             
             if (result == System.Windows.Forms.DialogResult.OK)
             {
                 var color = _colorDialog.Color;
                 var wpfColor = WpfColor.FromArgb(color.A, color.R, color.G, color.B);
                 border.Background = new System.Windows.Media.SolidColorBrush(wpfColor);
-
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经设置] 选择颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
-                //#endif
-
-                // 实时保存颜色设置
                 SaveSettings();
             }
         }

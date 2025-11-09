@@ -4,6 +4,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>disable</Nullable>
     <UseWPF>true</UseWPF>
+    <!-- 🔧 保留 Windows Forms 用于 ColorDialog 等工具，但屏幕管理已改用 WPF 原生 API -->
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CanvasCast</AssemblyName>

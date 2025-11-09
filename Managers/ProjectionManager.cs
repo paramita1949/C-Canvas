@@ -16,7 +16,8 @@ using WpfMessageBoxImage = System.Windows.MessageBoxImage;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfResizeMode = System.Windows.ResizeMode;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
-using Screen = System.Windows.Forms.Screen;
+// 🔧 已移除 Windows Forms 依赖，使用 WPF 原生 API
+// using Screen = System.Windows.Forms.Screen;
 using LibVLCSharp.WPF;
 using Microsoft.Extensions.Caching.Memory;
 using ImageColorChanger.Services;
@@ -71,8 +72,8 @@ namespace ImageColorChanger.Managers
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
         private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
 
-        // 屏幕管理
-        private List<Screen> _screens;
+        // 屏幕管理（WPF 原生）
+        private List<WpfScreenInfo> _screens;
         private int _currentScreenIndex;
 
         // 状态管理
@@ -146,7 +147,7 @@ namespace ImageColorChanger.Managers
             {
                 // 返回屏幕的物理尺寸
                 var screen = _screens[_currentScreenIndex];
-                return (screen.Bounds.Width, screen.Bounds.Height);
+                return (screen.PhysicalWidth, screen.PhysicalHeight);
             }
             
             // 默认返回1920x1080
@@ -166,7 +167,7 @@ namespace ImageColorChanger.Managers
             _imageProcessor = imageProcessor;
             _screenComboBox = screenComboBox;
 
-            _screens = new List<Screen>();
+            _screens = new List<WpfScreenInfo>();
             _currentScreenIndex = 0;
             
             // ⚡ 初始化投影图片缓存
@@ -206,12 +207,13 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                _screens = Screen.AllScreens.ToList();
+                // 🔧 使用 WPF 原生 API 获取所有屏幕
+                _screens = WpfScreenHelper.GetAllScreens();
                 
                 if (_screens.Count == 0)
                 {
                     // 回退到主屏幕
-                    _screens.Add(Screen.PrimaryScreen);
+                    _screens.Add(WpfScreenHelper.GetPrimaryScreen());
                 }
 
                 UpdateScreenComboBox();
@@ -219,7 +221,7 @@ namespace ImageColorChanger.Managers
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
-                _screens.Add(Screen.PrimaryScreen);
+                _screens.Add(WpfScreenHelper.GetPrimaryScreen());
             }
         }
 
@@ -237,7 +239,7 @@ namespace ImageColorChanger.Managers
                 for (int i = 0; i < _screens.Count; i++)
                 {
                     var screen = _screens[i];
-                    string name = screen.Primary ? "主显示器" : $"显示器{i + 1}";
+                    string name = screen.IsPrimary ? "主显示器" : $"显示器{i + 1}";
                     _screenComboBox.Items.Add(name);
                 }
 
@@ -245,7 +247,7 @@ namespace ImageColorChanger.Managers
                 int defaultIndex = 0;
                 for (int i = 0; i < _screens.Count; i++)
                 {
-                    if (!_screens[i].Primary)
+                    if (!_screens[i].IsPrimary)
                     {
                         defaultIndex = i;
                         break;
@@ -580,8 +582,8 @@ namespace ImageColorChanger.Managers
                         _projectionImageControl.Height = renderedTextImage.Height;
                         
                         var screen = _screens[_currentScreenIndex];
-                        double screenWidth = screen.Bounds.Width;
-                        double screenHeight = screen.Bounds.Height;
+                        double screenWidth = screen.PhysicalBounds.Width;
+                        double screenHeight = screen.PhysicalBounds.Height;
                         
                         // 🔧 像素级对齐：与图片投影保持一致（左上角对齐+Margin）
                         _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Left;
@@ -705,11 +707,11 @@ namespace ImageColorChanger.Managers
                         double scaleRatio = projectionWidth / scrollContent.RenderSize.Width;
                         double scaledHeight = scrollContent.RenderSize.Height * scaleRatio;
                         
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 投影屏幕WPF单位: {projectionWidth}×{projectionHeight}");
-                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 源内容尺寸: {scrollContent.RenderSize.Width:F1}×{scrollContent.RenderSize.Height:F1}");
-                        System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 缩放比例: {scaleRatio:F3}");
-#endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 投影屏幕WPF单位: {projectionWidth}×{projectionHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 源内容尺寸: {scrollContent.RenderSize.Width:F1}×{scrollContent.RenderSize.Height:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 缩放比例: {scaleRatio:F3}");
+                        //#endif
                         
                         // 🔧 创建 VisualBrush 复制 ScrollViewer 的内容
                         var visualBrush = new VisualBrush(scrollContent)
@@ -906,8 +908,8 @@ namespace ImageColorChanger.Managers
                     //#endif
                     
                     var screen = _screens[_currentScreenIndex];
-                    int screenWidth = screen.Bounds.Width;
-                    int screenHeight = screen.Bounds.Height;
+                    int screenWidth = screen.PhysicalWidth;
+                    int screenHeight = screen.PhysicalHeight;
 
 //#if DEBUG
 //                    System.Diagnostics.Debug.WriteLine($"\n========== [原图投影调试] 开始渲染 ==========");
@@ -1061,8 +1063,8 @@ namespace ImageColorChanger.Managers
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     
                     var screen = _screens[_currentScreenIndex];
-                    int screenWidth = screen.Bounds.Width;
-                    int screenHeight = screen.Bounds.Height;
+                    int screenWidth = screen.PhysicalWidth;
+                    int screenHeight = screen.PhysicalHeight;
 
                     // 计算缩放后的尺寸
                     var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
@@ -1267,8 +1269,8 @@ namespace ImageColorChanger.Managers
                     double mainCanvasHeight = _mainScrollViewer.ActualHeight;
                     
                     var screen = _screens[_currentScreenIndex];
-                    int projScreenWidth = screen.Bounds.Width;
-                    int projScreenHeight = screen.Bounds.Height;
+                    int projScreenWidth = screen.PhysicalWidth;
+                    int projScreenHeight = screen.PhysicalHeight;
 
                     // 计算主屏幕图片的实际显示高度（必须与ImageProcessor.CalculateOriginalModeSize逻辑一致！）
                     double mainImgHeight;
@@ -1416,8 +1418,8 @@ namespace ImageColorChanger.Managers
             for (int i = 0; i < _screens.Count; i++)
             {
                 var screen = _screens[i];
-                string name = screen.Primary ? "主显示器" : $"显示器{i + 1}";
-                monitors.Add((name, screen.Primary, screen.Bounds.Width, screen.Bounds.Height));
+                string name = screen.IsPrimary ? "主显示器" : $"显示器{i + 1}";
+                monitors.Add((name, screen.IsPrimary, screen.PhysicalWidth, screen.PhysicalHeight));
             }
 
             return monitors;
@@ -1431,14 +1433,14 @@ namespace ImageColorChanger.Managers
             if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
             {
                 var screen = _screens[_currentScreenIndex];
-                return (screen.Bounds.Width, screen.Bounds.Height);
+                return (screen.PhysicalWidth, screen.PhysicalHeight);
             }
             return (1920, 1080);
         }
         
         /// <summary>
         /// 获取当前投影显示器的分辨率（WPF设备独立单位）
-        /// 🔧 修复：Screen.Bounds返回物理像素，需要转换为WPF的DIU（设备独立单位）
+        /// 🔧 使用 WPF 原生 API，自动处理 DPI 缩放
         /// </summary>
         public (int width, int height) GetCurrentProjectionSize()
         {
@@ -1446,31 +1448,15 @@ namespace ImageColorChanger.Managers
             {
                 var screen = _screens[_currentScreenIndex];
                 
-                // 🔧 获取DPI缩放因子，将物理像素转换为WPF的设备独立单位（DIU）
-                // 例如：150% DPI缩放时，物理像素3072需要除以1.5得到DIU 2048
-                double dpiScaleX = 1.0;
-                double dpiScaleY = 1.0;
-                
+                // 🔧 更新屏幕的 DPI 信息（从投影窗口获取最新的 DPI）
                 if (_projectionWindow != null)
                 {
-                    try
-                    {
-                        var source = System.Windows.PresentationSource.FromVisual(_projectionWindow);
-                        if (source?.CompositionTarget != null)
-                        {
-                            dpiScaleX = source.CompositionTarget.TransformToDevice.M11;
-                            dpiScaleY = source.CompositionTarget.TransformToDevice.M22;
-                        }
-                    }
-                    catch
-                    {
-                        // 如果获取失败，使用默认值1.0（无缩放）
-                    }
+                    screen.UpdateDpiScale(_projectionWindow);
                 }
                 
-                // 转换为WPF的设备独立单位
-                int width = (int)(screen.Bounds.Width / dpiScaleX);
-                int height = (int)(screen.Bounds.Height / dpiScaleY);
+                // 🔧 直接使用屏幕的 WPF 单位（已在 WpfScreenInfo 中计算）
+                int width = screen.WpfWidth;
+                int height = screen.WpfHeight;
                 
                 //#if DEBUG
                 //if (dpiScaleX != 1.0 || dpiScaleY != 1.0)
@@ -1739,14 +1725,14 @@ namespace ImageColorChanger.Managers
                 _currentScreenIndex = selectedIndex;
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 选择的屏幕: 索引={selectedIndex}, 是否主屏={screen.Primary}");
+//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 选择的屏幕: 索引={selectedIndex}, 是否主屏={screen.IsPrimary}");
 //                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕分辨率: {screen.Bounds.Width}x{screen.Bounds.Height}");
 //                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
 //                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 工作区域: {screen.WorkingArea.Width}x{screen.WorkingArea.Height}");
 //#endif
 
                 // 检查是否是主显示器
-                if (screen.Primary)
+                if (screen.IsPrimary)
                 {
                     // System.Diagnostics.Debug.WriteLine("❌ 选择的是主显示器");
                     WpfMessageBox.Show("不能投影到主显示器！", "警告", WpfMessageBoxButton.OK, WpfMessageBoxImage.Warning);
@@ -1921,10 +1907,10 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Closed += (s, e) => CloseProjection();
                     
                     // 重要：设置窗口位置和大小（必须在Show之前）
-                    _projectionWindow.Left = screen.Bounds.Left;
-                    _projectionWindow.Top = screen.Bounds.Top;
-                    _projectionWindow.Width = screen.Bounds.Width;
-                    _projectionWindow.Height = screen.Bounds.Height;
+                    _projectionWindow.Left = screen.PhysicalBounds.Left;
+                    _projectionWindow.Top = screen.PhysicalBounds.Top;
+                    _projectionWindow.Width = screen.PhysicalBounds.Width;
+                    _projectionWindow.Height = screen.PhysicalBounds.Height;
                     
                     // System.Diagnostics.Debug.WriteLine($"窗口位置已设置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
 
@@ -1932,8 +1918,8 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Show();
                     
                     // 再次确认窗口位置（WPF有时会自动调整）
-                    _projectionWindow.Left = screen.Bounds.Left;
-                    _projectionWindow.Top = screen.Bounds.Top;
+                    _projectionWindow.Left = screen.PhysicalBounds.Left;
+                    _projectionWindow.Top = screen.PhysicalBounds.Top;
                     
 //#if DEBUG
 //                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
@@ -2109,8 +2095,8 @@ namespace ImageColorChanger.Managers
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
                     var screen = _screens[_currentScreenIndex];
-                    int screenWidth = screen.Bounds.Width;
-                    int screenHeight = screen.Bounds.Height;
+                    int screenWidth = screen.PhysicalWidth;
+                    int screenHeight = screen.PhysicalHeight;
 
                     //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 原图尺寸: {_currentImage.Width}x{_currentImage.Height}");
                     //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] 屏幕尺寸: {screenWidth}x{screenHeight}");
