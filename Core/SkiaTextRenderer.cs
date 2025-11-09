@@ -180,11 +180,11 @@ namespace ImageColorChanger.Core
                         NumberWidth = 0
                     });
                     
-                    // 标题后的间距固定为15像素
+                    // 标题后的间距固定为35像素（与主屏幕一致：标题Border底部Padding 15px + 固定Border高度 20px = 35px）
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
+                    //System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 35, currentY变化: {currentY} -> {currentY + titleHeight + 35}");
                     //#endif
-                    currentY += titleHeight + 15;
+                    currentY += titleHeight - 35;
                 }
                 else
                 {

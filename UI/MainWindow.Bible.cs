@@ -1828,26 +1828,9 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🔧 使用主屏幕的实际宽度来渲染，确保与主屏幕显示一致
-                double screenWidth = 0;
-                double screenHeight = 0;
-                
-                Dispatcher.Invoke(() =>
-                {
-                    if (BibleVerseScrollViewer != null)
-                    {
-                        screenWidth = BibleVerseScrollViewer.ActualWidth;
-                        screenHeight = BibleVerseScrollViewer.ActualHeight;
-                    }
-                });
-                
-                // 如果获取失败，使用投影屏幕尺寸作为后备
-                if (screenWidth <= 0 || screenHeight <= 0)
-                {
-                    var (projWidth, projHeight) = _projectionManager.GetProjectionScreenSize();
-                    screenWidth = projWidth;
-                    screenHeight = projHeight;
-                }
+                // 🔧 使用投影屏幕的实际尺寸来渲染（与歌词投影完全一致）
+                // 这样投影时不需要拉伸，内容显示更一致
+                var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
 
                 
 //#if DEBUG
