@@ -1721,9 +1721,9 @@ namespace ImageColorChanger.UI
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
+                    //#endif
                 }
 
                 await Task.CompletedTask;
@@ -1756,9 +1756,9 @@ namespace ImageColorChanger.UI
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
+                    //#endif
                 }
 
                 await Task.CompletedTask;
@@ -2009,9 +2009,9 @@ namespace ImageColorChanger.UI
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影完成，共{versesList.Count}节");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影完成，共{versesList.Count}节");
+                    //#endif
                 }
             }
 //#if DEBUG

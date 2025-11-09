@@ -391,16 +391,12 @@ namespace ImageColorChanger.Managers
             {
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
-                    // 🔧 清空投影图像控件的Source，显示黑屏
-                    _projectionImageControl.Source = null;
+                    // 🆕 禁用 VisualBrush 投影并重置
+                    ResetVisualBrushProjection();
                     
-                    // 🆕 同时禁用 VisualBrush 投影
-                    if (_projectionVisualBrushRect != null)
-                    {
-                        _projectionVisualBrushRect.Fill = null;
-                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
-                    }
-                    _currentBibleScrollViewer = null;
+                    // 🔧 清空投影图像控件的Source，显示黑屏
+                    if (_projectionImageControl != null)
+                        _projectionImageControl.Source = null;
                     
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine("🧹 [投影] 已清空投影显示内容");
@@ -567,6 +563,12 @@ namespace ImageColorChanger.Managers
             {
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
+                    // 🔧 禁用 VisualBrush 投影并重置（切换到文字/歌词投影）
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 切换到文字投影模式");
+                    //#endif
+                    ResetVisualBrushProjection();
+                    
                     // 直接转换并显示，无需缓存、变色、缩放等复杂逻辑
                     var bitmapSource = ConvertToBitmapSource(renderedTextImage);
                     
@@ -738,14 +740,14 @@ namespace ImageColorChanger.Managers
                             _projectionScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden;
                         }
                         
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已启用 - 水平拉伸填满");
-                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 源内容尺寸: {scrollContent.RenderSize.Width:F1}x{scrollContent.RenderSize.Height:F1}");
-                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 投影屏幕尺寸: {projectionWidth}x{projectionHeight}");
-                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 缩放比例: {scaleRatio:F3}x ({scrollContent.RenderSize.Width:F0}→{projectionWidth})");
-                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 拉伸后尺寸: {_projectionVisualBrushRect.Width}x{_projectionVisualBrushRect.Height:F1}");
-                        System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] Stretch: Fill (水平填满)");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已启用 - 水平拉伸填满");
+                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 源内容尺寸: {scrollContent.RenderSize.Width:F1}x{scrollContent.RenderSize.Height:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 投影屏幕尺寸: {projectionWidth}x{projectionHeight}");
+                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 缩放比例: {scaleRatio:F3}x ({scrollContent.RenderSize.Width:F0}→{projectionWidth})");
+                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 拉伸后尺寸: {_projectionVisualBrushRect.Width}x{_projectionVisualBrushRect.Height:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] Stretch: Fill (水平填满)");
+                        //#endif
                     }
                 });
             }
@@ -760,44 +762,46 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
-        /// 🆕 禁用 VisualBrush 投影，恢复图片投影模式
+        /// 🆕 禁用 VisualBrush 投影，恢复图片投影模式（内部方法，需在 Dispatcher 中调用）
         /// </summary>
-        public void DisableBibleVisualBrushProjection()
+        private void ResetVisualBrushProjection()
         {
-            if (_projectionWindow == null)
-                return;
-
-            try
+            // 清除 VisualBrush
+            if (_projectionVisualBrushRect != null)
             {
-                _mainWindow.Dispatcher.Invoke(() =>
-                {
-                    // 清除 VisualBrush
-                    if (_projectionVisualBrushRect != null)
-                    {
-                        _projectionVisualBrushRect.Fill = null;
-                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
-                    }
-                    
-                    // 显示图片投影控件
-                    if (_projectionImageControl != null)
-                        _projectionImageControl.Visibility = Visibility.Visible;
-                    
-                    // 清除引用
-                    _currentBibleScrollViewer = null;
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已禁用，恢复图片投影模式");
-                    #endif
-                });
+                _projectionVisualBrushRect.Fill = null;
+                _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
             }
-            catch (Exception ex)
+            
+            // 🔧 重置容器属性
+            if (_projectionContainer != null)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [VisualBrush投影] 禁用失败: {ex.Message}");
-                #else
-                _ = ex;
-                #endif
+                _projectionContainer.Height = double.NaN;  // 恢复自动高度
+                _projectionContainer.HorizontalAlignment = WpfHorizontalAlignment.Stretch;
             }
+            
+            // 🔧 重置 ScrollViewer 滚动条和位置
+            if (_projectionScrollViewer != null)
+            {
+                _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
+                _projectionScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden;
+                _projectionScrollViewer.ScrollToTop();
+                _projectionScrollViewer.ScrollToLeftEnd();
+            }
+            
+            // 显示图片投影控件
+            if (_projectionImageControl != null)
+            {
+                _projectionImageControl.Visibility = Visibility.Visible;
+                _projectionImageControl.Source = null;  // 清空旧内容
+            }
+            
+            // 清除引用
+            _currentBibleScrollViewer = null;
+            
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已禁用并重置");
+            //#endif
         }
 
         /// <summary>
@@ -815,6 +819,18 @@ namespace ImageColorChanger.Managers
 //            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 显示模式: {originalDisplayMode}");
 //            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 绕过缓存: {bypassCache}");
 //#endif
+            
+            // 🔧 禁用 VisualBrush 投影并重置（切换到图片/幻灯片投影）
+            if (_projectionWindow != null)
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 切换到图片投影模式");
+                    //#endif
+                    ResetVisualBrushProjection();
+                });
+            }
             
             // 🔍 检查缩放参数是否变化
             bool zoomChanged = Math.Abs(_zoomRatio - zoomRatio) > 0.001;
@@ -1601,6 +1617,12 @@ namespace ImageColorChanger.Managers
             
             _mainWindow.Dispatcher.Invoke(() =>
             {
+                // 🔧 禁用 VisualBrush 投影并重置（切换到视频投影）
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 切换到视频投影模式");
+                //#endif
+                ResetVisualBrushProjection();
+                
                 // 隐藏图片ScrollViewer
                 if (_projectionScrollViewer != null)
                 {
@@ -1630,6 +1652,12 @@ namespace ImageColorChanger.Managers
             
             _mainWindow.Dispatcher.Invoke(() =>
             {
+                // 🔧 禁用 VisualBrush 投影并重置（切换到图片投影）
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 切换到图片投影模式");
+                //#endif
+                ResetVisualBrushProjection();
+                
                 // 隐藏视频容器
                 if (_projectionVideoContainer != null)
                 {
