@@ -1552,44 +1552,29 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"   ItemsSource类型: {BibleVerseList.ItemsSource.GetType().Name}");
             //#endif
 
-            // 如果点击的是已高亮的经文，则取消高亮
+            // 🔧 优化：点击切换高亮状态
             if (clickedVerse.IsHighlighted)
             {
+                // 再次点击已高亮的经文，取消高亮
                 clickedVerse.IsHighlighted = false;
-                
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔄 [圣经点击] 取消高亮: {clickedVerse.Reference}");
-                //#endif
-                
-                // 更新UI颜色
-                UpdateVerseHighlight(border, clickedVerse);
             }
             else
             {
-                // 先取消所有经文的高亮
+                // 点击未高亮的经文，先取消其他经文的高亮
                 foreach (var verse in verses)
                 {
                     if (verse.IsHighlighted)
                     {
                         verse.IsHighlighted = false;
-                        
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔄 [圣经点击] 取消其他高亮: {verse.Reference}");
-                        //#endif
                     }
                 }
 
                 // 高亮当前点击的经文
                 clickedVerse.IsHighlighted = true;
-                
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [圣经点击] 设置高亮: {clickedVerse.Reference}, IsHighlighted={clickedVerse.IsHighlighted}");
-                //System.Diagnostics.Debug.WriteLine($"🎨 [圣经点击] 当前高亮颜色配置: {_configManager.BibleHighlightColor}");
-                //#endif
-
-                // 刷新整个列表的UI
-                ApplyVerseStyles();
             }
+            
+            // 统一刷新整个列表的UI（确保所有经文颜色正确）
+            ApplyVerseStyles();
 
             // ========================================
             // 📌 重新渲染投影（区分锁定模式和非锁定模式）
@@ -1613,52 +1598,6 @@ namespace ImageColorChanger.UI
                     // 📌 非锁定模式：点击经文更新投影
                     RenderBibleToProjection();
                 }
-            }
-        }
-
-        /// <summary>
-        /// 更新经文的高亮颜色显示
-        /// </summary>
-        private void UpdateVerseHighlight(Border border, BibleVerse verse)
-        {
-            try
-            {
-                var grid = border.Child as Grid;
-                if (grid == null || grid.Children.Count < 2)
-                    return;
-
-                // 获取经文文本块（第二列）
-                var textBlock = grid.Children[1] as TextBlock;
-                if (textBlock == null)
-                    return;
-
-                // 根据高亮状态设置颜色
-                if (verse.IsHighlighted)
-                {
-                    // 使用高亮颜色
-                    var highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
-                    textBlock.Foreground = new WpfSolidColorBrush(highlightColor);
-
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经] 应用高亮颜色: {_configManager.BibleHighlightColor} 到 {verse.Reference}");
-                    //#endif
-                }
-                else
-                {
-                    // 使用默认经文颜色
-                    var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
-                    textBlock.Foreground = new WpfSolidColorBrush(textColor);
-
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经] 恢复默认颜色: {_configManager.BibleTextColor} 到 {verse.Reference}");
-                    //#endif
-                }
-            }
-            catch (Exception)
-            {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 更新高亮颜色失败: {ex.Message}");
-                //#endif
             }
         }
 
