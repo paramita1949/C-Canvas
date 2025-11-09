@@ -42,6 +42,12 @@ namespace ImageColorChanger.UI
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
         
+        // 分割模式角标相关（统一参数，主屏幕和投影屏幕共用）
+        private const double REGION_LABEL_FONT_SIZE = 24;      // 角标字体大小
+        private const double REGION_LABEL_PADDING_X = 12;      // 角标左右内边距
+        private const double REGION_LABEL_PADDING_Y = 6;       // 角标上下内边距
+        private const double REGION_LABEL_CORNER_RADIUS = 12;  // 角标圆角半径
+        
         // 分割区域相关
         private int _selectedRegionIndex = 0; // 当前选中的区域索引（0-3）
         private List<WpfRectangle> _splitRegionBorders = new List<WpfRectangle>(); // 区域边框
@@ -1059,8 +1065,8 @@ namespace ImageColorChanger.UI
                 var label = new System.Windows.Controls.Border
                 {
                     Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)), // 半透明橙色
-                    CornerRadius = new System.Windows.CornerRadius(0, 0, 12, 0), // 右下圆角
-                    Padding = new System.Windows.Thickness(12, 6, 12, 6),
+                    CornerRadius = new System.Windows.CornerRadius(0, 0, REGION_LABEL_CORNER_RADIUS, 0), // 右下圆角
+                    Padding = new System.Windows.Thickness(REGION_LABEL_PADDING_X, REGION_LABEL_PADDING_Y, REGION_LABEL_PADDING_X, REGION_LABEL_PADDING_Y),
                     Tag = $"RegionLabel_{regionIndex}",
                     IsHitTestVisible = false // 不响应鼠标事件
                 };
@@ -1068,7 +1074,7 @@ namespace ImageColorChanger.UI
                 var labelText = new System.Windows.Controls.TextBlock
                 {
                     Text = (regionIndex + 1).ToString(),
-                    FontSize = 24,
+                    FontSize = REGION_LABEL_FONT_SIZE,
                     FontWeight = System.Windows.FontWeights.Bold,
                     Foreground = System.Windows.Media.Brushes.White
                 };
@@ -3472,11 +3478,11 @@ namespace ImageColorChanger.UI
             };
             
             // 角标文字画笔（白色粗体）
-            // 🔧 与主屏幕保持一致：FontSize = 24
+            // 🔧 使用统一常量，与主屏幕保持一致
             var labelTextPaint = new SKPaint
             {
                 Color = SKColors.White,
-                TextSize = 24,  // 🔧 与主屏幕角标大小一致
+                TextSize = (float)REGION_LABEL_FONT_SIZE,
                 IsAntialias = true,
                 Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
             };
@@ -3539,16 +3545,16 @@ namespace ImageColorChanger.UI
             var textBounds = new SKRect();
             textPaint.MeasureText(text, ref textBounds);
             
-            // 🔧 标签尺寸（padding: 12, 6, 12, 6 - 与主屏幕保持一致）
-            float paddingX = 12;  // 左右padding
-            float paddingY = 6;   // 上下padding
+            // 🔧 使用统一常量，与主屏幕保持一致
+            float paddingX = (float)REGION_LABEL_PADDING_X;  // 左右padding
+            float paddingY = (float)REGION_LABEL_PADDING_Y;  // 上下padding
             float labelWidth = textBounds.Width + paddingX * 2;
             float labelHeight = textBounds.Height + paddingY * 2;
             
             // 绘制圆角矩形背景（右下圆角）
             var path = new SKPath();
             var rect = new SKRect(x, y, x + labelWidth, y + labelHeight);
-            float cornerRadius = 8;
+            float cornerRadius = (float)REGION_LABEL_CORNER_RADIUS;
             
             // 创建右下圆角的路径
             path.MoveTo(rect.Left, rect.Top);
