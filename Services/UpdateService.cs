@@ -553,7 +553,8 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 应用更新（需要重启程序）
+        /// 应用更新（可能重启程序或启动独立程序）
+        /// 如果更新包含独立的 EXE 文件，则启动该文件；否则正常更新并重启
         /// </summary>
         public static bool ApplyUpdate(string updateDir)
         {
@@ -591,6 +592,68 @@ namespace ImageColorChanger.Services
                     Debug.WriteLine($"  - {Path.GetFileName(file)}");
                 }
 #endif
+
+                // 🔧 检查是否有独立的 EXE 文件（特殊处理）
+                var standaloneExeFiles = updateFiles
+                    .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    .Where(f => !Path.GetFileName(f).Equals("CanvasCast.exe", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+#if DEBUG
+                if (standaloneExeFiles.Count > 0)
+                {
+                    Debug.WriteLine($"[UpdateService] 检测到 {standaloneExeFiles.Count} 个独立 EXE 文件:");
+                    foreach (var exe in standaloneExeFiles)
+                    {
+                        Debug.WriteLine($"  - {Path.GetFileName(exe)}");
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"[UpdateService] 未检测到独立 EXE 文件，将执行正常更新流程");
+                }
+#endif
+                
+                if (standaloneExeFiles.Count > 0)
+                {
+                    // 有独立的 EXE 文件，直接启动它
+                    var exeToRun = standaloneExeFiles[0]; // 取第一个 EXE 文件
+                    
+#if DEBUG
+                    Debug.WriteLine($"[UpdateService] 检测到独立 EXE 文件: {Path.GetFileName(exeToRun)}");
+                    Debug.WriteLine($"[UpdateService] 将启动独立程序而不是重启软件");
+#endif
+
+                    try
+                    {
+                        // 启动独立的 EXE 文件
+                        var processInfo = new ProcessStartInfo
+                        {
+                            FileName = exeToRun,
+                            UseShellExecute = true,
+                            WorkingDirectory = Path.GetDirectoryName(exeToRun)
+                        };
+
+                        Process.Start(processInfo);
+                        
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] 已启动独立程序: {Path.GetFileName(exeToRun)}");
+#endif
+
+                        // 退出当前程序
+                        System.Windows.Application.Current.Shutdown();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] 启动独立程序失败: {ex.Message}");
+#else
+                        _ = ex; // 避免Release模式下的未使用警告
+#endif
+                        return false;
+                    }
+                }
 
                 // 构建备份命令
                 var backupCommands = new System.Text.StringBuilder();
