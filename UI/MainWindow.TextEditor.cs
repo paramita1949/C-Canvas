@@ -3305,34 +3305,34 @@ namespace ImageColorChanger.UI
                             //#endif
                             
                             // 🎨 检查是否需要应用变色效果
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 检查变色状态");
-                            System.Diagnostics.Debug.WriteLine($"   _regionImageColorEffects.ContainsKey: {_regionImageColorEffects.ContainsKey(regionIndex)}");
-                            if (_regionImageColorEffects.ContainsKey(regionIndex))
-                            {
-                                System.Diagnostics.Debug.WriteLine($"   需要变色: {_regionImageColorEffects[regionIndex]}");
-                            }
-                            #endif
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [Compose] 区域 {regionIndex} - 检查变色状态");
+                            //System.Diagnostics.Debug.WriteLine($"   _regionImageColorEffects.ContainsKey: {_regionImageColorEffects.ContainsKey(regionIndex)}");
+                            //if (_regionImageColorEffects.ContainsKey(regionIndex))
+                            //{
+                            //    System.Diagnostics.Debug.WriteLine($"   需要变色: {_regionImageColorEffects[regionIndex]}");
+                            //}
+                            //#endif
                             
                             if (_regionImageColorEffects.ContainsKey(regionIndex) && 
                                 _regionImageColorEffects[regionIndex])
                             {
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"🎨 [Compose] 区域 {regionIndex} - 开始应用变色效果到投影");
-                                #endif
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"🎨 [Compose] 区域 {regionIndex} - 开始应用变色效果到投影");
+                                //#endif
                                 
                                 // 应用变色效果
                                 _imageProcessor.ApplyYellowTextEffect(skBitmap);
                                 
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"✅ [Compose] 区域 {regionIndex} - 变色效果已应用");
-                                #endif
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"✅ [Compose] 区域 {regionIndex} - 变色效果已应用");
+                                //#endif
                             }
                             else
                             {
-                                #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"⚪ [Compose] 区域 {regionIndex} - 无需变色效果");
-                                #endif
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"⚪ [Compose] 区域 {regionIndex} - 无需变色效果");
+                                //#endif
                             }
                             
                             //#if DEBUG

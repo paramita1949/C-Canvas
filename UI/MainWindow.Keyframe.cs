@@ -920,6 +920,14 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            // 🔧 幻灯片状态且非分割模式：隐藏按钮
+            if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null && !IsInSplitMode())
+            {
+                // 幻灯片状态但非分割模式（正常文本编辑），隐藏按钮
+                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
             // 正常文件夹的图片，显示按钮
             BtnFloatingCompositePlay.Visibility = Visibility.Visible;
             
