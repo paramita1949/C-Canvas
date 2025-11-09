@@ -3472,10 +3472,11 @@ namespace ImageColorChanger.UI
             };
             
             // 角标文字画笔（白色粗体）
+            // 🔧 与主屏幕保持一致：FontSize = 24
             var labelTextPaint = new SKPaint
             {
                 Color = SKColors.White,
-                TextSize = 18,
+                TextSize = 24,  // 🔧 与主屏幕角标大小一致
                 IsAntialias = true,
                 Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
             };
@@ -3538,10 +3539,11 @@ namespace ImageColorChanger.UI
             var textBounds = new SKRect();
             textPaint.MeasureText(text, ref textBounds);
             
-            // 标签尺寸（padding: 8, 4, 8, 4）
-            float padding = 8;
-            float labelWidth = textBounds.Width + padding * 2;
-            float labelHeight = textBounds.Height + 8; // 上下padding各4
+            // 🔧 标签尺寸（padding: 12, 6, 12, 6 - 与主屏幕保持一致）
+            float paddingX = 12;  // 左右padding
+            float paddingY = 6;   // 上下padding
+            float labelWidth = textBounds.Width + paddingX * 2;
+            float labelHeight = textBounds.Height + paddingY * 2;
             
             // 绘制圆角矩形背景（右下圆角）
             var path = new SKPath();
@@ -3560,8 +3562,8 @@ namespace ImageColorChanger.UI
             path.Dispose();
             
             // 绘制文本（居中）
-            float textX = x + padding;
-            float textY = y + labelHeight - 4 - textBounds.Bottom; // 垂直居中
+            float textX = x + paddingX;
+            float textY = y + labelHeight - paddingY - textBounds.Bottom; // 垂直居中
             canvas.DrawText(text, textX, textY, textPaint);
         }
         

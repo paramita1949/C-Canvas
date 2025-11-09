@@ -4241,6 +4241,7 @@ namespace ImageColorChanger.UI
                     db.BibleHistory.RemoveRange(oldRecords);
 
                     // 保存所有20个槽位（包括空槽位）
+                    // 🔧 不保存锁定状态，退出时锁定状态会被清除
                     foreach (var slot in _historySlots)
                     {
                         var record = new Database.Models.BibleHistoryRecord
@@ -4252,7 +4253,7 @@ namespace ImageColorChanger.UI
                             StartVerse = slot.StartVerse,
                             EndVerse = slot.EndVerse,
                             IsChecked = slot.IsChecked,
-                            IsLocked = slot.IsLocked,
+                            IsLocked = false,  // 🔧 不保存锁定状态
                             UpdatedTime = DateTime.Now
                         };
                         
@@ -4296,7 +4297,7 @@ namespace ImageColorChanger.UI
                     }
 
                     // 恢复历史记录到槽位
-                    bool hasLockedRecords = false;
+                    // 🔧 不恢复锁定状态，退出时锁定状态会被清除
                     
                     // 🔧 临时取消订阅事件，避免触发增量更新
                     BibleHistoryItem.OnLockedStateChanged -= UpdateClearButtonStyle;
@@ -4312,31 +4313,14 @@ namespace ImageColorChanger.UI
                             slot.StartVerse = record.StartVerse;
                             slot.EndVerse = record.EndVerse;
                             slot.IsChecked = record.IsChecked;
-                            slot.IsLocked = record.IsLocked;
-                            
-                            if (record.IsLocked)
-                            {
-                                hasLockedRecords = true;
-                            }
+                            slot.IsLocked = false;  // 🔧 不恢复锁定状态
                         }
                     }
                     
                     // 🔧 重新订阅事件
                     BibleHistoryItem.OnLockedStateChanged += UpdateClearButtonStyle;
                     
-                    // 🔧 如果有锁定记录，使用全量加载方法
-                    if (hasLockedRecords)
-                    {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📂 [加载历史] 检测到锁定记录，启动全量加载");
-                        #endif
-                        
-                        // 使用Dispatcher异步调用，确保UI已初始化
-                        Dispatcher.BeginInvoke(new Action(async () =>
-                        {
-                            await LoadAndDisplayLockedRecords();
-                        }), System.Windows.Threading.DispatcherPriority.Loaded);
-                    }
+                    // 🔧 不再检查锁定记录，因为锁定状态不会被保存和恢复
                 }
             }
             catch (Exception ex)
