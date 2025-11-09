@@ -81,7 +81,7 @@ namespace ImageColorChanger.UI
 
                 // 显示提示信息
                 System.Windows.MessageBox.Show(
-                    "更新完成后，会自动重启程序。\n\n请稍候...",
+                    "更新完成后，程序将自动处理。\n\n请稍候...",
                     "更新提示",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Information);
