@@ -134,15 +134,15 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ImportFolder()
         {
-            var folderDialog = new System.Windows.Forms.FolderBrowserDialog
-            {
-                Description = "选择要导入的文件夹",
-                ShowNewFolderButton = false
-            };
+            // 使用 WPF 文件夹选择器
+            string selectedPath = WpfFolderBrowserHelper.SelectFolder(
+                title: "选择要导入的文件夹",
+                owner: this
+            );
 
-            if (folderDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            if (!string.IsNullOrEmpty(selectedPath))
             {
-                var (folder, newFiles, existingFiles) = _importManager.ImportFolder(folderDialog.SelectedPath);
+                var (folder, newFiles, existingFiles) = _importManager.ImportFolder(selectedPath);
                 
                 if (folder != null)
                 {
