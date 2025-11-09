@@ -184,6 +184,13 @@ namespace ImageColorChanger.Services
                     !int.TryParse(remainingParts[2], out endVerse))
                     return new ParseResult { Success = false };
             }
+            else if (remainingParts.Length == 2)
+            {
+                // 格式3: 单节号 "2 1" → 章=2, 起始节=1, 结束节=1
+                if (!int.TryParse(remainingParts[1], out startVerse))
+                    return new ParseResult { Success = false };
+                endVerse = startVerse; // 单节号时，起始节和结束节相同
+            }
             else
             {
                 return new ParseResult { Success = false };

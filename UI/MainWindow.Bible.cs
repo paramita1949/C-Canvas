@@ -4150,6 +4150,8 @@ namespace ImageColorChanger.UI
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
                 string displayText = $"{book?.Name}{chapter}章{verseText}";
 
+                BibleHistoryItem targetSlot = null;
+                
                 // 1. 优先查找空槽位（DisplayText为空或BookId为0）
                 var emptySlot = _historySlots.FirstOrDefault(s => string.IsNullOrWhiteSpace(s.DisplayText) || s.BookId == 0);
                 
@@ -4161,6 +4163,7 @@ namespace ImageColorChanger.UI
                     emptySlot.StartVerse = startVerse;
                     emptySlot.EndVerse = endVerse;
                     emptySlot.DisplayText = displayText;
+                    targetSlot = emptySlot;
                 }
                 else
                 {
@@ -4170,7 +4173,7 @@ namespace ImageColorChanger.UI
                     if (checkedSlots.Count > 0)
                     {
                         // 覆盖第一个勾选的槽位
-                        var targetSlot = checkedSlots[0];
+                        targetSlot = checkedSlots[0];
                         targetSlot.BookId = bookId;
                         targetSlot.Chapter = chapter;
                         targetSlot.StartVerse = startVerse;
@@ -4188,8 +4191,22 @@ namespace ImageColorChanger.UI
                             lastSlot.StartVerse = startVerse;
                             lastSlot.EndVerse = endVerse;
                             lastSlot.DisplayText = displayText;
+                            targetSlot = lastSlot;
                         }
                     }
+                }
+
+                // 🆕 取消其他槽位的勾选，勾选新填充的槽位
+                if (targetSlot != null)
+                {
+                    foreach (var slot in _historySlots)
+                    {
+                        slot.IsChecked = (slot == targetSlot);
+                    }
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
+                    #endif
                 }
 
                 // 刷新列表显示
