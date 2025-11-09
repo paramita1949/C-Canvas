@@ -71,6 +71,8 @@ namespace ImageColorChanger.Managers
         // VisualBrush投影相关（圣经经文）
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
         private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
+        private double _lastKnownMainExtentHeight = 0;  // 上次已知的主窗口ExtentHeight（投影更新时保存）
+        private double _lastKnownProjExtentHeight = 0;  // 上次已知的投影窗口ExtentHeight
 
         // 屏幕管理（WPF 原生）
         private List<WpfScreenInfo> _screens;
@@ -497,26 +499,18 @@ namespace ImageColorChanger.Managers
                 {
                     if (_projectionScrollViewer == null)
                         return;
-
-                    // 🔧 圣经滚动同步：按比例同步（因为投影屏幕做了拉伸）
+                    
+                    // 🔧 圣经滚动同步：使用缓存的高度值
                     double mainScrollTop = bibleScrollViewer.VerticalOffset;
+                    double mainExtentHeight = _lastKnownMainExtentHeight > 0 ? _lastKnownMainExtentHeight : bibleScrollViewer.ExtentHeight;
+                    double projExtentHeight = _lastKnownProjExtentHeight > 0 ? _lastKnownProjExtentHeight : _projectionScrollViewer.ExtentHeight;
                     
-                    // 🔧 关键：投影屏幕拉伸后，需要按高度比例同步滚动
-                    double mainExtentHeight = bibleScrollViewer.ExtentHeight;
-                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
+                    if (mainExtentHeight <= 0 || projExtentHeight <= 0)
+                        return;
                     
-                    double projScrollTop;
-                    if (mainExtentHeight > 0 && projExtentHeight > 0)
-                    {
-                        // 按比例计算投影屏幕的滚动位置
-                        double scrollRatio = mainScrollTop / mainExtentHeight;
-                        projScrollTop = scrollRatio * projExtentHeight;
-                    }
-                    else
-                    {
-                        // 后备方案：直接使用相同的滚动位置
-                        projScrollTop = mainScrollTop;
-                    }
+                    // 按比例计算投影屏幕的滚动位置
+                    double scrollRatio = mainScrollTop / mainExtentHeight;
+                    double projScrollTop = scrollRatio * projExtentHeight;
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
@@ -676,27 +670,63 @@ namespace ImageColorChanger.Managers
 
             try
             {
+                // 🔧 第一步：先清空旧的投影内容
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
                     // 保存当前圣经ScrollViewer引用
                     _currentBibleScrollViewer = bibleScrollViewer;
                     
-                    // 隐藏图片投影控件，显示VisualBrush矩形
-                    if (_projectionImageControl != null)
-                        _projectionImageControl.Visibility = Visibility.Collapsed;
+                    // 🔧 清空投影窗口，重置状态
+                    if (_projectionScrollViewer != null)
+                    {
+                        _projectionScrollViewer.ScrollToTop();
+                    }
                     
                     if (_projectionVisualBrushRect != null)
                     {
-                        // 🔧 获取 ScrollViewer 的内容（StackPanel）
-                        var scrollContent = bibleScrollViewer.Content as UIElement;
-                        
-                        if (scrollContent == null)
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [VisualBrush投影] ScrollViewer.Content 为空");
-                            #endif
+                        // 清空旧的 VisualBrush，断开绑定
+                        _projectionVisualBrushRect.Fill = null;
+                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
+                        _projectionVisualBrushRect.Width = double.NaN;
+                        _projectionVisualBrushRect.Height = double.NaN;
+                    }
+                    
+                    if (_projectionContainer != null)
+                    {
+                        // 重置容器高度
+                        _projectionContainer.Height = double.NaN;
+                    }
+                    
+                    // 强制投影窗口更新布局，清除缓存
+                    if (_projectionScrollViewer != null)
+                    {
+                        _projectionScrollViewer.UpdateLayout();
+                    }
+                    
+                    // 隐藏图片投影控件
+                    if (_projectionImageControl != null)
+                        _projectionImageControl.Visibility = Visibility.Collapsed;
+                });
+                
+                // 🔧 第二步：同步创建新的 VisualBrush
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    // 🔧 强制更新主屏幕布局
+                    bibleScrollViewer.UpdateLayout();
+                    
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        // 🔧 获取 ScrollViewer 的内容（StackPanel），不包含滚动条
+                        var mainContent = bibleScrollViewer.Content as UIElement;
+                        if (mainContent == null)
                             return;
-                        }
+                        
+                        // 🔧 再次强制更新，确保内容已完全渲染
+                        mainContent.UpdateLayout();
+                        
+                        // 🔧 验证内容尺寸是否有效（避免使用未渲染完成的尺寸）
+                        if (mainContent.RenderSize.Width < 10 || mainContent.RenderSize.Height < 10)
+                            return;
                         
                         // 🔧 获取投影屏幕尺寸（转换为WPF设备独立单位，考虑DPI缩放）
                         var projectionSize = GetCurrentProjectionSize();
@@ -704,23 +734,23 @@ namespace ImageColorChanger.Managers
                         double projectionHeight = projectionSize.height;
                         
                         // 🔧 计算缩放比例（水平拉伸填满）
-                        double scaleRatio = projectionWidth / scrollContent.RenderSize.Width;
-                        double scaledHeight = scrollContent.RenderSize.Height * scaleRatio;
+                        double scaleRatio = projectionWidth / mainContent.RenderSize.Width;
+                        double scaledHeight = mainContent.RenderSize.Height * scaleRatio;
                         
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 投影屏幕WPF单位: {projectionWidth}×{projectionHeight}");
-                        //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 源内容尺寸: {scrollContent.RenderSize.Width:F1}×{scrollContent.RenderSize.Height:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 源内容尺寸: {mainContent.RenderSize.Width:F1}×{mainContent.RenderSize.Height:F1}");
                         //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 缩放比例: {scaleRatio:F3}");
                         //#endif
                         
                         // 🔧 创建 VisualBrush 复制 ScrollViewer 的内容
-                        var visualBrush = new VisualBrush(scrollContent)
+                        var visualBrush = new VisualBrush(mainContent)
                         {
                             Stretch = System.Windows.Media.Stretch.Fill,  // 🔧 填充拉伸
                             AlignmentX = AlignmentX.Left,
                             AlignmentY = AlignmentY.Top,
                             ViewboxUnits = BrushMappingMode.Absolute,  // 🔧 绝对坐标
-                            Viewbox = new System.Windows.Rect(0, 0, scrollContent.RenderSize.Width, scrollContent.RenderSize.Height)
+                            Viewbox = new System.Windows.Rect(0, 0, mainContent.RenderSize.Width, mainContent.RenderSize.Height)
                         };
                         
                         _projectionVisualBrushRect.Fill = visualBrush;
@@ -741,31 +771,34 @@ namespace ImageColorChanger.Managers
                             _projectionContainer.HorizontalAlignment = WpfHorizontalAlignment.Left;  // 容器左对齐
                         }
                         
-                        // 🔧 配置滚动条（支持滚动）
+                        // 🔧 配置投影窗口滚动条（隐藏滚动条）
                         if (_projectionScrollViewer != null)
                         {
-                            _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+                            _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
                             _projectionScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden;
+                            
+                            // 🔧 强制立即更新布局，确保ExtentHeight等属性准确
+                            _projectionScrollViewer.UpdateLayout();
+                            
+                            // 🔧 同步滚动位置并保存高度值
+                            if (_projectionScrollViewer != null && _projectionContainer != null && bibleScrollViewer.ExtentHeight > 0)
+                            {
+                                // 同步滚动位置
+                                double scrollRatio = bibleScrollViewer.VerticalOffset / bibleScrollViewer.ExtentHeight;
+                                double projScrollOffset = scrollRatio * _projectionScrollViewer.ExtentHeight;
+                                _projectionScrollViewer.ScrollToVerticalOffset(projScrollOffset);
+                                
+                                // 🔧 保存正确的高度值，供实时滚动同步使用
+                                _lastKnownMainExtentHeight = bibleScrollViewer.ExtentHeight;
+                                _lastKnownProjExtentHeight = _projectionScrollViewer.ExtentHeight;
+                            }
                         }
-                        
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"✅ [VisualBrush投影] 已启用 - 水平拉伸填满");
-                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 源内容尺寸: {scrollContent.RenderSize.Width:F1}x{scrollContent.RenderSize.Height:F1}");
-                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 投影屏幕尺寸: {projectionWidth}x{projectionHeight}");
-                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 缩放比例: {scaleRatio:F3}x ({scrollContent.RenderSize.Width:F0}→{projectionWidth})");
-                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] 拉伸后尺寸: {_projectionVisualBrushRect.Width}x{_projectionVisualBrushRect.Height:F1}");
-                        //System.Diagnostics.Debug.WriteLine($"   [VisualBrush投影] Stretch: Fill (水平填满)");
-                        //#endif
                     }
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [VisualBrush投影] 渲染失败: {ex.Message}");
-                #else
-                _ = ex;
-                #endif
+                // 静默处理异常
             }
         }
         
@@ -774,6 +807,12 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void ResetVisualBrushProjection()
         {
+            // 🔧 恢复主窗口ScrollViewer的滚动条显示
+            if (_currentBibleScrollViewer != null)
+            {
+                _currentBibleScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            }
+            
             // 清除 VisualBrush
             if (_projectionVisualBrushRect != null)
             {

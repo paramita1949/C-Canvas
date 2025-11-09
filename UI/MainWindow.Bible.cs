@@ -1194,69 +1194,29 @@ namespace ImageColorChanger.UI
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
 
-                // 延迟应用样式
-                _ = Dispatcher.InvokeAsync(() =>
-                {
-                    ApplyBibleSettings();
-                }, System.Windows.Threading.DispatcherPriority.Loaded);
-
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 加载经文范围: {book?.Name} {chapter}:{startVerse}-{endVerse}, 共 {verses.Count} 节");
-                //
-                ////// 🔍 输出主屏幕的字体参数（等待UI渲染完成后）
-                ////_ = Dispatcher.BeginInvoke(new Action(() =>
-                ////{
-                ////    if (BibleVerseList.Items.Count > 0)
-                ////    {
-                ////        Debug.WriteLine($"🔍 [主屏幕] 标题字体: FontSize={BibleChapterTitle.FontSize}, Padding={(BibleChapterTitle.Parent as Border)?.Padding}");
-                ////        
-                ////        var firstItem = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(0) as FrameworkElement;
-                ////        if (firstItem != null)
-                ////        {
-                ////            // 查找Border的Padding
-                ////            var border = FindVisualChild<Border>(firstItem);
-                ////            if (border != null)
-                ////            {
-                ////                Debug.WriteLine($"🔍 [主屏幕] 经文Border: Padding={border.Padding}");
-                ////            }
-                ////            
-                ////            // 查找经文TextBlock
-                ////            var verseTexts = FindVisualChildren<TextBlock>(firstItem).ToList();
-                ////            if (verseTexts.Count >= 2)
-                ////            {
-                ////                var numberText = verseTexts[0]; // 节号
-                ////                var scriptureText = verseTexts[1]; // 经文
-                ////                Debug.WriteLine($"🔍 [主屏幕] 节号字体: FontSize={numberText.FontSize}, FontWeight={numberText.FontWeight}, Margin={numberText.Margin}");
-                ////                Debug.WriteLine($"🔍 [主屏幕] 经文字体: FontSize={scriptureText.FontSize}, LineHeight={scriptureText.LineHeight}, TextWrapping={scriptureText.TextWrapping}");
-                ////            }
-                ////        }
-                ////    }
-                ////}), System.Windows.Threading.DispatcherPriority.Loaded);
-                ////#endif
-                
                 // 🔧 设置主屏幕底部扩展空间（等于视口高度,支持底部内容向上拉）
                 UpdateMainScreenBottomExtension();
                 
-                // 🆕 如果投影已开启，自动更新投影
-                if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+                // 🔧 应用样式后再更新投影（确保高度计算完成）
+                _ = Dispatcher.InvokeAsync(() =>
                 {
-                    // 检查是否有锁定记录
-                    if (_historySlots.Any(x => x.IsLocked))
+                    ApplyBibleSettings();
+                    
+                    // 🆕 样式应用完成后，更新投影
+                    if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
                     {
-                        // 📌 锁定模式：加载新章节时，不更新投影（保持锁定记录投影）
-                        //#if DEBUG
-                        //Debug.WriteLine("[圣经] 锁定模式：加载新章节不更新投影");
-                        //#endif
+                        // 检查是否有锁定记录
+                        if (_historySlots.Any(x => x.IsLocked))
+                        {
+                            // 📌 锁定模式：加载新章节时，不更新投影（保持锁定记录投影）
+                        }
+                        else
+                        {
+                            // 📌 非锁定模式：样式应用后更新投影
+                            RenderBibleToProjection();
+                        }
                     }
-                    else
-                    {
-                        // 📌 非锁定模式：更新当前章节的投影
-                        //#if DEBUG
-                        //Debug.WriteLine("[圣经] 非锁定模式：检测到投影开启，自动更新投影内容");
-                        //#endif
-                        RenderBibleToProjection();
-                    }
-                }
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
             }
 //#if DEBUG
 //            catch (Exception ex)
@@ -3825,8 +3785,6 @@ namespace ImageColorChanger.UI
             double offsetDiff = currentOffset - currentVerseOffset; // 注意：不取绝对值，保留方向
             const double ALIGNMENT_THRESHOLD = 5.0; // 对齐阈值（像素）
             
-            // Debug.WriteLine($"📍 [位置检测] 当前滚动位置: {currentOffset:F1}px, 检测到节: {currentVerseIndex + 1}, 该节起始位置: {currentVerseOffset:F1}px, 偏移: {offsetDiff:F1}px");
-            
             int targetVerseIndex;
             
             // 判断是否已对齐（在阈值范围内）
@@ -3836,9 +3794,6 @@ namespace ImageColorChanger.UI
             {
                 // 🔧 情况1：已对齐，移动指定节数
                 targetVerseIndex = Math.Max(0, Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + (direction * count)));
-                //#if DEBUG
-                //Debug.WriteLine($"✅ [已对齐] 偏移 {offsetDiff:F1}px，方向: {(direction < 0 ? "向上" : "向下")}, count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
-                //#endif
             }
             else
             {
@@ -3847,26 +3802,26 @@ namespace ImageColorChanger.UI
                 {
                     // 向下滚动且有正偏移：跳到下一节（再加上额外的节数）
                     targetVerseIndex = Math.Min(BibleVerseList.Items.Count - 1, currentVerseIndex + count);
-                    //#if DEBUG
-                    //Debug.WriteLine($"🔧 [智能修复-向下] 偏移 {offsetDiff:F1}px，count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
-                    //#endif
+//#if DEBUG
+//                    Debug.WriteLine($"⚠️ [未对齐] 当前{currentOffset:F1}px，节{currentVerseIndex + 1}应在{currentVerseOffset:F1}px，偏移{offsetDiff:F1}px");
+//#endif
                 }
                 else if (direction < 0)
                 {
                     // 向上滚动：先对齐到当前节，然后再向上移动 (count-1) 节
                     // 如果 count=1，就对齐到当前节；如果 count=2，就到上一节；以此类推
                     targetVerseIndex = Math.Max(0, currentVerseIndex - (count - 1));
-                    //#if DEBUG
-                    //Debug.WriteLine($"🔧 [智能修复-向上] 偏移 {offsetDiff:F1}px，count={count}, 从节 {currentVerseIndex + 1} → 节 {targetVerseIndex + 1}");
-                    //#endif
+//#if DEBUG
+//                    Debug.WriteLine($"⚠️ [未对齐] 当前{currentOffset:F1}px，节{currentVerseIndex + 1}应在{currentVerseOffset:F1}px，偏移{offsetDiff:F1}px");
+//#endif
                 }
                 else
                 {
                     // 负偏移：对齐到当前节
                     targetVerseIndex = currentVerseIndex;
-                    //#if DEBUG
-                    //Debug.WriteLine($"🔧 [智能修复-负偏移] 偏移 {offsetDiff:F1}px，对齐到当前节: {targetVerseIndex + 1}");
-                    //#endif
+//#if DEBUG
+//                    Debug.WriteLine($"⚠️ [未对齐] 当前{currentOffset:F1}px，节{currentVerseIndex + 1}应在{currentVerseOffset:F1}px，偏移{offsetDiff:F1}px");
+//#endif
                 }
             }
             
@@ -4027,6 +3982,8 @@ namespace ImageColorChanger.UI
 
             // 计算前面所有经文的累计高度
             double accumulatedHeight = headerHeight;
+            int nullCount = 0;
+            
             for (int i = 0; i < verseIndex; i++)
             {
                 var container = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
@@ -4034,7 +3991,18 @@ namespace ImageColorChanger.UI
                 {
                     accumulatedHeight += container.ActualHeight;
                 }
+                else
+                {
+                    nullCount++;
+                }
             }
+
+#if DEBUG
+            if (nullCount > 0)
+            {
+                Debug.WriteLine($"⚠️ [经文对齐] 节{verseIndex + 1} 前有{nullCount}个节未渲染，位置可能不准: {accumulatedHeight:F1}px");
+            }
+#endif
 
             return accumulatedHeight;
         }

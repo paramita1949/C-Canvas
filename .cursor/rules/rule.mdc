@@ -35,3 +35,5 @@ GIT存档推送的时候，说明要求用中文，不要用英文。同时要�
    - Console.WriteLine输出的位置和System.Diagnostics.Debug.WriteLine不同
 5. 遇到动画、滚动等涉及UI的问题，优先检查属性是否被动画占用
 
+根本原因
+WPF 虚拟化机制 + 事件执行顺序导致的竞态条件：
