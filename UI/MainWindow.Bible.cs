@@ -631,9 +631,13 @@ namespace ImageColorChanger.UI
                     return; // 锁定模式下，不允许通过导航加载新内容
                 }
                 
-                // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
                 // 🔧 获取该章总节数，显示完整范围（如"创世记3章1-24节"）
                 int verseCount = await _bibleService.GetVerseCountAsync(book, chapter);
+                
+                // 🆕 非锁定模式：同步导航栏状态
+                SyncNavigationToRecord(book, chapter, 1, verseCount > 0 ? verseCount : 1);
+                
+                // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
                 string verseText = (verseCount > 1) ? $"1-{verseCount}节" : "1节";
                 BibleChapterTitle.Text = $"{bookInfo?.Name}{chapter}章{verseText}";
                 BibleChapterTitleBorder.Visibility = Visibility.Visible;
@@ -1161,6 +1165,9 @@ namespace ImageColorChanger.UI
                     return; // 锁定模式下，不允许通过导航加载新内容
                 }
                 
+                // 🆕 非锁定模式：同步导航栏状态
+                SyncNavigationToRecord(bookId, chapter, startVerse, endVerse);
+                
                 // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {verseText}";
                 BibleChapterTitleBorder.Visibility = Visibility.Visible;
@@ -1292,6 +1299,135 @@ namespace ImageColorChanger.UI
             {
             }
 //#endif
+        }
+
+        /// <summary>
+        /// 🆕 同步导航栏状态到投影记录（非锁定模式）
+        /// 功能：根据投影记录自动选择对应的书卷、章节、起始节和结束节，并将书卷滚动到第一位
+        /// </summary>
+        private void SyncNavigationToRecord(int bookId, int chapter, int startVerse, int endVerse)
+        {
+            try
+            {
+                var book = BibleBookConfig.GetBook(bookId);
+                if (book == null) return;
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 开始同步: {book.Name}{chapter}章{startVerse}-{endVerse}节");
+                //#endif
+
+                // 第1步：选择对应的分类（根据书卷所属分类）
+                string targetCategory = book.Category;
+                
+                // 特殊处理：福音使徒和普通书信
+                if (book.Category == "福音书" || book.Name == "使徒行传")
+                {
+                    targetCategory = "福音使徒";
+                }
+                else if (book.Category == "普通书信" || book.Name == "启示录")
+                {
+                    targetCategory = "普通书信";
+                }
+
+                // 查找并选择对应的分类
+                if (BibleCategoryList.ItemsSource is System.Collections.ObjectModel.ObservableCollection<string> categories)
+                {
+                    var targetCategoryItem = categories.FirstOrDefault(c => c == targetCategory);
+                    if (targetCategoryItem != null && BibleCategoryList.SelectedItem?.ToString() != targetCategory)
+                    {
+                        BibleCategoryList.SelectedItem = targetCategoryItem;
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择分类: {targetCategory}");
+                        //#endif
+                    }
+                }
+
+                // 第2步：选择书卷（需要等待分类加载完成）
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (BibleBookList.ItemsSource is System.Collections.Generic.List<BibleBook> bookList)
+                    {
+                        var targetBook = bookList.FirstOrDefault(b => b.BookId == bookId);
+                        if (targetBook != null)
+                        {
+                            BibleBookList.SelectedItem = targetBook;
+                            
+                            // 🆕 将选中的书卷滚动到第一位（顶部）
+                            BibleBookList.ScrollIntoView(targetBook);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择书卷: {targetBook.Name}，并滚动到顶部");
+                            //#endif
+                        }
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+                // 第3步：选择章节（需要等待书卷加载完成）
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (BibleChapterList.ItemsSource is System.Collections.Generic.List<string> chapterList)
+                    {
+                        var targetChapter = chapterList.FirstOrDefault(c => c == chapter.ToString());
+                        if (targetChapter != null)
+                        {
+                            BibleChapterList.SelectedItem = targetChapter;
+                            
+                            // 🆕 将选中的章节滚动到第一位（顶部）
+                            BibleChapterList.ScrollIntoView(targetChapter);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择章节: {chapter}章，并滚动到顶部");
+                            //#endif
+                        }
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+                // 第4步：选择起始节和结束节（需要等待章节加载完成）
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (BibleStartVerse.ItemsSource is System.Collections.Generic.List<string> verseList)
+                    {
+                        var targetStartVerse = verseList.FirstOrDefault(v => v == startVerse.ToString());
+                        if (targetStartVerse != null)
+                        {
+                            BibleStartVerse.SelectedItem = targetStartVerse;
+                            
+                            // 🆕 将选中的起始节滚动到第一位（顶部）
+                            BibleStartVerse.ScrollIntoView(targetStartVerse);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择起始节: {startVerse}节，并滚动到顶部");
+                            //#endif
+                        }
+                    }
+
+                    if (BibleEndVerse.ItemsSource is System.Collections.Generic.List<string> endVerseList)
+                    {
+                        var targetEndVerse = endVerseList.FirstOrDefault(v => v == endVerse.ToString());
+                        if (targetEndVerse != null)
+                        {
+                            BibleEndVerse.SelectedItem = targetEndVerse;
+                            
+                            // 🆕 将选中的结束节滚动到第一位（顶部）
+                            BibleEndVerse.ScrollIntoView(targetEndVerse);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择结束节: {endVerse}节，并滚动到顶部");
+                            //#endif
+                        }
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [圣经导航同步] 同步完成: {book.Name}{chapter}章{startVerse}-{endVerse}节");
+                //#endif
+            }
+            catch (Exception)
+            {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [圣经导航同步] 同步失败");
+                //#endif
+            }
         }
 
 
