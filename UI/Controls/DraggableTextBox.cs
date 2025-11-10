@@ -179,7 +179,7 @@ namespace ImageColorChanger.UI.Controls
                 BorderBrush = WpfBrushes.Transparent,
                 Background = WpfBrushes.Transparent,
                 Foreground = WpfBrushes.Transparent,  // 🔧 透明文字（只显示光标）
-                Padding = new System.Windows.Thickness(5),
+                Padding = new System.Windows.Thickness(5, 15, 5, 5),  // 边距 (左, 上, 右, 下) - 顶部增加偏移
                 VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
                 HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
                 FocusVisualStyle = null,
@@ -412,7 +412,7 @@ namespace ImageColorChanger.UI.Controls
                         LineSpacing = 1.2f
                     },
                     Alignment = SkiaWpfHelper.ToSkTextAlign(Data.TextAlign),
-                    Padding = new SKRect(5f, 5f, 5f, 5f), // 小边距
+                    Padding = new SKRect(15f, 15f, 5f, 5f), // 边距 (左, 上, 右, 下) - 顶部增加偏移
                     BackgroundColor = null // 透明背景
                 };
                 
