@@ -757,10 +757,100 @@ namespace ImageColorChanger.UI
 
             if (result == MessageBoxResult.Yes)
             {
-                _dbManager.DeleteFolder(item.Id);
+                TryDeleteFolder(item, forceDelete: false);
+            }
+        }
+
+        /// <summary>
+        /// 尝试删除文件夹（支持强制删除）
+        /// </summary>
+        private void TryDeleteFolder(ProjectTreeItem item, bool forceDelete)
+        {
+            try
+            {
+                _dbManager.DeleteFolder(item.Id, forceDelete);
                 LoadProjects();           // 刷新项目树
                 LoadSearchScopes();       // 刷新搜索范围
-                ShowStatus($"🗑️ 已删除文件夹: {item.Name}");
+                
+                if (forceDelete)
+                {
+                    ShowStatus($"🔥 已强制删除文件夹: {item.Name}");
+                }
+                else
+                {
+                    ShowStatus($"🗑️ 已删除文件夹: {item.Name}");
+                }
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 数据库异常: {dbEx.Message}");
+                if (dbEx.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 内部异常: {dbEx.InnerException.Message}");
+                }
+                #else
+                _ = dbEx;
+                #endif
+
+                if (!forceDelete)
+                {
+                    // 普通删除失败，询问是否强制删除
+                    var forceResult = MessageBox.Show(
+                        $"删除文件夹失败：数据库约束冲突\n\n" +
+                        $"可能原因：\n" +
+                        $"1. 文件夹中存在其他电脑导入的文件\n" +
+                        $"2. 数据库状态不同步\n\n" +
+                        $"是否强制删除？\n" +
+                        $"⚠️ 警告：强制删除会忽略所有约束，直接清除数据库记录",
+                        "删除失败 - 是否强制删除？",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning
+                    );
+
+                    if (forceResult == MessageBoxResult.Yes)
+                    {
+                        // 用户选择强制删除
+                        TryDeleteFolder(item, forceDelete: true);
+                    }
+                    else
+                    {
+                        ShowStatus($"❌ 取消删除文件夹: {item.Name}");
+                    }
+                }
+                else
+                {
+                    // 强制删除也失败了
+                    MessageBox.Show(
+                        $"强制删除失败！\n\n{dbEx.Message}\n\n" +
+                        $"建议：\n" +
+                        $"- 关闭所有使用该数据库的程序\n" +
+                        $"- 重启应用程序后再试",
+                        "强制删除失败",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error
+                    );
+                    
+                    ShowStatus($"❌ 强制删除失败: {item.Name}");
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 未知异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 堆栈: {ex.StackTrace}");
+                #else
+                _ = ex;
+                #endif
+
+                MessageBox.Show(
+                    $"删除文件夹时发生错误：\n{ex.Message}",
+                    "错误",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+                
+                ShowStatus($"❌ 删除文件夹失败: {item.Name}");
             }
         }
 

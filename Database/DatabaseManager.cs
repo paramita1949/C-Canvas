@@ -79,20 +79,210 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
-        /// 删除文件夹（级联删除所有文件）
+        /// 删除文件夹（级联删除所有文件及关联数据）
         /// </summary>
-        public void DeleteFolder(int folderId)
+        public void DeleteFolder(int folderId, bool forceDelete = false)
         {
             var folder = _context.Folders.Find(folderId);
-            if (folder != null)
+            if (folder == null) return;
+
+            if (forceDelete)
             {
-                // 先删除文件夹下的所有文件
-                var files = _context.MediaFiles.Where(f => f.FolderId == folderId).ToList();
-                _context.MediaFiles.RemoveRange(files);
-                
-                // 再删除文件夹
-                _context.Folders.Remove(folder);
-                _context.SaveChanges();
+                // 🔥 强制删除模式：禁用外键约束，使用原生SQL
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 使用强制删除模式");
+                #endif
+
+                try
+                {
+                    // 获取文件夹下的所有文件ID
+                    var fileIds = _context.MediaFiles
+                        .Where(f => f.FolderId == folderId)
+                        .Select(f => f.Id)
+                        .ToList();
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 找到 {fileIds.Count} 个文件");
+                    #endif
+
+                    // 先禁用外键约束（必须在任何操作之前）
+                    _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+
+                    using var transaction = _context.Database.BeginTransaction();
+                    try
+                    {
+                        // 使用原生SQL删除所有关联数据（按任意顺序）
+                        if (fileIds.Count > 0)
+                        {
+                            string fileIdList = string.Join(",", fileIds);
+                            
+                            _context.Database.ExecuteSqlRaw($"DELETE FROM keyframe_timings WHERE image_id IN ({fileIdList})");
+                            _context.Database.ExecuteSqlRaw($"DELETE FROM keyframes WHERE image_id IN ({fileIdList})");
+                            _context.Database.ExecuteSqlRaw($"DELETE FROM image_display_locations WHERE image_id IN ({fileIdList})");
+                            _context.Database.ExecuteSqlRaw($"DELETE FROM composite_scripts WHERE image_id IN ({fileIdList})");
+                            _context.Database.ExecuteSqlRaw($"DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN ({fileIdList})");
+                            
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 已删除所有关联数据");
+                            #endif
+                        }
+
+                        // 删除媒体文件
+                        _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
+
+                        // 删除文件夹
+                        _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
+
+                        transaction.Commit();
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[删除文件夹] 强制删除成功");
+                        #endif
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                    finally
+                    {
+                        // 恢复外键约束
+                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 强制删除失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 堆栈: {ex.StackTrace}");
+                    #else
+                    _ = ex;
+                    #endif
+                    
+                    // 确保恢复外键约束
+                    try
+                    {
+                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
+                    }
+                    catch
+                    {
+                        // 忽略恢复失败
+                    }
+                    
+                    throw;
+                }
+            }
+            else
+            {
+                // 常规删除模式：使用事务和EF Core
+                using var transaction = _context.Database.BeginTransaction();
+                try
+                {
+                    // 获取文件夹下的所有文件ID
+                    var fileIds = _context.MediaFiles
+                        .Where(f => f.FolderId == folderId)
+                        .Select(f => f.Id)
+                        .ToList();
+
+                    if (fileIds.Count > 0)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[删除文件夹] 找到 {fileIds.Count} 个文件");
+                        #endif
+
+                        // 按依赖顺序删除
+                        // 1. 删除关键帧时间记录
+                        var timings = _context.KeyframeTimings
+                            .Where(t => fileIds.Contains(t.ImageId))
+                            .ToList();
+                        if (timings.Count > 0)
+                        {
+                            _context.KeyframeTimings.RemoveRange(timings);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {timings.Count} 条关键帧时间记录");
+                            #endif
+                        }
+
+                        // 2. 删除关键帧
+                        var keyframes = _context.Keyframes
+                            .Where(k => fileIds.Contains(k.ImageId))
+                            .ToList();
+                        if (keyframes.Count > 0)
+                        {
+                            _context.Keyframes.RemoveRange(keyframes);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {keyframes.Count} 个关键帧");
+                            #endif
+                        }
+
+                        // 3. 删除显示位置记录
+                        var displayLocations = _context.ImageDisplayLocations
+                            .Where(l => fileIds.Contains(l.ImageId))
+                            .ToList();
+                        if (displayLocations.Count > 0)
+                        {
+                            _context.ImageDisplayLocations.RemoveRange(displayLocations);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {displayLocations.Count} 条显示位置记录");
+                            #endif
+                        }
+
+                        // 4. 删除合成脚本
+                        var compositeScripts = _context.CompositeScripts
+                            .Where(s => fileIds.Contains(s.ImageId))
+                            .ToList();
+                        if (compositeScripts.Count > 0)
+                        {
+                            _context.CompositeScripts.RemoveRange(compositeScripts);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {compositeScripts.Count} 个合成脚本");
+                            #endif
+                        }
+
+                        // 5. 删除原图标记
+                        var originalMarks = _context.OriginalMarks
+                            .Where(m => m.ItemTypeString == "image" && fileIds.Contains(m.ItemId))
+                            .ToList();
+                        if (originalMarks.Count > 0)
+                        {
+                            _context.OriginalMarks.RemoveRange(originalMarks);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {originalMarks.Count} 个原图标记");
+                            #endif
+                        }
+
+                        // 6. 删除媒体文件
+                        var files = _context.MediaFiles
+                            .Where(f => fileIds.Contains(f.Id))
+                            .ToList();
+                        _context.MediaFiles.RemoveRange(files);
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[删除文件夹] 删除 {files.Count} 个媒体文件");
+                        #endif
+                    }
+
+                    // 7. 删除文件夹本身
+                    _context.Folders.Remove(folder);
+
+                    // 提交所有更改
+                    _context.SaveChanges();
+                    transaction.Commit();
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 成功删除文件夹 ID={folderId}");
+                    #endif
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 堆栈: {ex.StackTrace}");
+                    #else
+                    _ = ex;
+                    #endif
+                    throw;
+                }
             }
         }
 
