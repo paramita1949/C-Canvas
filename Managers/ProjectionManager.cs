@@ -660,9 +660,9 @@ namespace ImageColorChanger.Managers
         {
             if (_projectionWindow == null || bibleScrollViewer == null)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [VisualBrush投影] 投影窗口或ScrollViewer为空，跳过");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [VisualBrush投影] 投影窗口或ScrollViewer为空，跳过");
+                //#endif
                 return;
             }
 
@@ -741,32 +741,48 @@ namespace ImageColorChanger.Managers
                         //System.Diagnostics.Debug.WriteLine($"📺 [经文投影-DPI] 缩放比例: {scaleRatio:F3}");
                         //#endif
                         
-                        // 🔧 创建 VisualBrush 复制 ScrollViewer 的内容
-                        var visualBrush = new VisualBrush(mainContent)
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📸 [RenderTargetBitmap] 开始独立渲染");
+                        //#endif
+                        
+                        // 🔧 使用 RenderTargetBitmap "拍照"主屏幕内容（独立渲染，不受缩放插值影响）
+                        int renderWidth = (int)mainContent.RenderSize.Width;
+                        int renderHeight = (int)mainContent.RenderSize.Height;
+                        
+                        var renderBitmap = new RenderTargetBitmap(
+                            renderWidth,
+                            renderHeight,
+                            96, // DPI X
+                            96, // DPI Y
+                            PixelFormats.Pbgra32);
+                        
+                        renderBitmap.Render(mainContent);
+                        
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"📸 [RenderTargetBitmap] 拍照完成: {renderWidth}×{renderHeight}");
+                        //#endif
+                        
+                        // 🔧 使用 Image 控件显示位图（替代 VisualBrush）
+                        if (_projectionImageControl != null)
                         {
-                            Stretch = System.Windows.Media.Stretch.Fill,  // 🔧 填充拉伸
-                            AlignmentX = AlignmentX.Left,
-                            AlignmentY = AlignmentY.Top,
-                            ViewboxUnits = BrushMappingMode.Absolute,  // 🔧 绝对坐标
-                            Viewbox = new System.Windows.Rect(0, 0, mainContent.RenderSize.Width, mainContent.RenderSize.Height)
-                        };
+                            _projectionImageControl.Source = renderBitmap;
+                            _projectionImageControl.Stretch = System.Windows.Media.Stretch.Fill;
+                            _projectionImageControl.Width = projectionWidth;
+                            _projectionImageControl.Height = scaledHeight;
+                            _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Left;
+                            _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                            _projectionImageControl.Visibility = Visibility.Visible;
+                            
+                            // 🔧 设置高质量缩放
+                            RenderOptions.SetBitmapScalingMode(_projectionImageControl, BitmapScalingMode.HighQuality);
+                            RenderOptions.SetEdgeMode(_projectionImageControl, EdgeMode.Aliased);
+                        }
                         
-                        _projectionVisualBrushRect.Fill = visualBrush;
-                        _projectionVisualBrushRect.Visibility = Visibility.Visible;
-                        
-                        // 🔧 设置矩形尺寸：宽度填满投影屏幕，高度按比例缩放
-                        _projectionVisualBrushRect.Width = projectionWidth;
-                        _projectionVisualBrushRect.Height = scaledHeight;
-                        
-                        // 🔧 强制左对齐
-                        _projectionVisualBrushRect.HorizontalAlignment = WpfHorizontalAlignment.Left;
-                        _projectionVisualBrushRect.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-                        
-                        // 🔧 设置容器高度和对齐
-                        if (_projectionContainer != null)
+                        // 🔧 隐藏 VisualBrush 矩形
+                        if (_projectionVisualBrushRect != null)
                         {
-                            _projectionContainer.Height = scaledHeight;
-                            _projectionContainer.HorizontalAlignment = WpfHorizontalAlignment.Left;  // 容器左对齐
+                            _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
+                            _projectionVisualBrushRect.Fill = null; // 清除旧的 VisualBrush 绑定
                         }
                         
                         // 🔧 配置投影窗口滚动条（隐藏滚动条）
@@ -1820,13 +1836,13 @@ namespace ImageColorChanger.Managers
                         VerticalAlignment = System.Windows.VerticalAlignment.Top  // 顶部对齐
                     };
                     
-                    // 🆕 创建 VisualBrush 矩形控件（用于圣经经文投影）
+                    // 🆕 创建 VisualBrush 矩形控件（保留用于兼容，但默认使用 RenderTargetBitmap）
                     _projectionVisualBrushRect = new System.Windows.Shapes.Rectangle
                     {
-                        Stretch = System.Windows.Media.Stretch.Fill,  // 🔧 填充整个区域
+                        Stretch = System.Windows.Media.Stretch.Fill,
                         HorizontalAlignment = WpfHorizontalAlignment.Stretch,
                         VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
-                        Visibility = Visibility.Collapsed  // 默认隐藏，使用图片投影
+                        Visibility = Visibility.Collapsed  // 默认隐藏，使用独立渲染
                     };
 
                     projectionContainer.Children.Add(_projectionImageControl);

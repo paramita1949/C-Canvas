@@ -2152,13 +2152,13 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🆕 使用 VisualBrush 投影（100%像素级一致）
+                // 🆕 使用 RenderTargetBitmap 独立渲染投影（解决高亮变色波浪问题）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影完成，共{versesList.Count}节");
+                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-RenderTargetBitmap] 投影完成，共{versesList.Count}节");
                     //#endif
                 }
             }

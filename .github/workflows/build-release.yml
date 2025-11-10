@@ -189,7 +189,7 @@ jobs:
       run: |
         $fullVersion = "${{ steps.get_version.outputs.full_version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $fullZipName = "Canvas-Full.zip"
+        $fullZipName = "cast.zip"
         $updateZipName = "Canvas-Update.zip"
         
         # ========== 创建完整包 ==========
@@ -358,7 +358,7 @@ jobs:
           本次发布提供三种文件，请根据需要选择：
 
           #### 🆕 新用户 - 完整安装包
-          - 📥 下载 `Canvas-Full.zip`
+          - 📥 下载 `cast.zip`
           - 📂 解压到任意目录
           - ▶️ 运行 `CanvasCast.exe`
 
