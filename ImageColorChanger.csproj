@@ -17,6 +17,8 @@
     <AssemblyVersion>5.8.6.3</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
+    <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
+    <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
   </PropertyGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -39,19 +41,57 @@
     <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
     <PackageReference Include="MaterialDesignColors" Version="3.1.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <!-- 🔧 Design包只在开发时需要，不包含在输出中 -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="EFCore.BulkExtensions" Version="8.1.1" />
+    <!-- 🔧 只使用Sqlite，排除其他数据库提供程序 -->
+    <PackageReference Include="EFCore.BulkExtensions" Version="8.1.1">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="EFCore.BulkExtensions.Sqlite" Version="8.1.1" />
     <PackageReference Include="LibVLCSharp" Version="3.8.5" />
     <PackageReference Include="LibVLCSharp.WPF" Version="3.8.5" />
     <PackageReference Include="System.Management" Version="9.0.10" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.20" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+  </ItemGroup>
+  
+  <!-- 🔧 排除不需要的依赖项 -->
+  <ItemGroup>
+    <!-- 排除不使用的数据库驱动 -->
+    <PackageReference Update="MySqlConnector" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Npgsql" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Npgsql.EntityFrameworkCore.PostgreSQL" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Pomelo.EntityFrameworkCore.MySql" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Data.SqlClient" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.SqlServer" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="EFCore.BulkExtensions.MySql" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="EFCore.BulkExtensions.PostgreSql" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="EFCore.BulkExtensions.SqlServer" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- 排除地理信息库 -->
+    <PackageReference Update="NetTopologySuite" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="NetTopologySuite.IO.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- 排除Azure和Identity库 -->
+    <PackageReference Update="Azure.Core" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Azure.Identity" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Identity.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.IdentityModel.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- 排除Roslyn编译器 -->
+    <PackageReference Update="Microsoft.CodeAnalysis.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Mono.TextTemplating" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- 排除不使用的Microsoft.Extensions系列 -->
+    <PackageReference Update="Microsoft.Extensions.Logging" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.Logging.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.Configuration" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.Configuration.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.Hosting" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.Hosting.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.FileProviders.*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Update="Microsoft.Extensions.FileSystemGlobbing" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="baodian.ico" />
@@ -81,6 +121,89 @@
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  
+  <!-- 🔧 清理运行时输出 -->
+  <Target Name="CleanupRuntimeOutput" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
+    <Message Text="[清理] 移除不需要的运行时文件..." Importance="high" />
+    <!-- 删除不需要的数据库DLL -->
+    <Delete Files="$(OutDir)EFCore.BulkExtensions.MySql.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)EFCore.BulkExtensions.PostgreSql.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)EFCore.BulkExtensions.SqlServer.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)MySqlConnector.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Npgsql.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Npgsql.EntityFrameworkCore.PostgreSQL.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Pomelo.EntityFrameworkCore.MySql.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Data.SqlClient.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.EntityFrameworkCore.SqlServer.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.EntityFrameworkCore.SqlServer.Abstractions.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.EntityFrameworkCore.SqlServer.HierarchyId.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.SqlServer.Server.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.SqlServer.Types.dll" ContinueOnError="true" />
+    <!-- ⚠️ 保留 NetTopologySuite - EFCore.Sqlite空间数据依赖 -->
+    <!-- <Delete Files="$(OutDir)NetTopologySuite.dll" ContinueOnError="true" /> -->
+    <!-- <Delete Files="$(OutDir)NetTopologySuite.IO.SpatiaLite.dll" ContinueOnError="true" /> -->
+    <Delete Files="$(OutDir)NetTopologySuite.IO.SqlServerBytes.dll" ContinueOnError="true" />
+    <!-- 删除Azure和Identity库 -->
+    <Delete Files="$(OutDir)Azure.Core.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Azure.Identity.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Identity*.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.IdentityModel*.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.IdentityModel*.dll" ContinueOnError="true" />
+    <!-- 删除设计时工具 -->
+    <Delete Files="$(OutDir)Microsoft.EntityFrameworkCore.Design.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.CodeAnalysis.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.CodeAnalysis.CSharp.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.CodeAnalysis.CSharp.Workspaces.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.CodeAnalysis.Workspaces.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Mono.TextTemplating.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.CodeDom.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.Composition.AttributedModel.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.Composition.Convention.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.Composition.Hosting.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.Composition.Runtime.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)System.Composition.TypedParts.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Humanizer.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)MedallionTopologicalSort.dll" ContinueOnError="true" />
+    <!-- ⚠️ 保留 EFCore.BulkExtensions.Core.dll - BulkExtensions.Sqlite依赖 -->
+    <!-- <Delete Files="$(OutDir)EFCore.BulkExtensions.Core.dll" ContinueOnError="true" /> -->
+    <!-- 删除不使用的Microsoft.Extensions库 -->
+    <!-- ⚠️ 保留 Microsoft.Extensions.Logging.dll - EntityFrameworkCore内部依赖 -->
+    <!-- <Delete Files="$(OutDir)Microsoft.Extensions.Logging.dll" ContinueOnError="true" /> -->
+    <!-- ⚠️ 保留 Microsoft.Extensions.Logging.Abstractions.dll - EntityFrameworkCore内部依赖 -->
+    <!-- <Delete Files="$(OutDir)Microsoft.Extensions.Logging.Abstractions.dll" ContinueOnError="true" /> -->
+    <Delete Files="$(OutDir)Microsoft.Extensions.Logging.Console.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Logging.Debug.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Logging.EventLog.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Logging.EventSource.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Logging.Configuration.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.dll" ContinueOnError="true" />
+    <!-- ⚠️ 保留 Microsoft.Extensions.Configuration.Abstractions.dll - Options等依赖 -->
+    <!-- <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.Abstractions.dll" ContinueOnError="true" /> -->
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.Binder.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.CommandLine.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.EnvironmentVariables.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.FileExtensions.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.Json.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Configuration.UserSecrets.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Options.ConfigurationExtensions.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Hosting.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Hosting.Abstractions.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.FileProviders.Abstractions.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.FileProviders.Physical.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.FileSystemGlobbing.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.DependencyModel.dll" ContinueOnError="true" />
+    <!-- ⚠️ 保留 Microsoft.Extensions.Options.dll - DependencyInjection内部依赖 -->
+    <!-- <Delete Files="$(OutDir)Microsoft.Extensions.Options.dll" ContinueOnError="true" /> -->
+    <Delete Files="$(OutDir)Microsoft.Extensions.Diagnostics.dll" ContinueOnError="true" />
+    <Delete Files="$(OutDir)Microsoft.Extensions.Diagnostics.Abstractions.dll" ContinueOnError="true" />
+    <!-- 删除所有语言资源包（不需要） -->
+    <RemoveDir Directories="$(OutDir)cs;$(OutDir)de;$(OutDir)es;$(OutDir)fr;$(OutDir)it;$(OutDir)ja;$(OutDir)ko;$(OutDir)pl;$(OutDir)pt-BR;$(OutDir)ru;$(OutDir)tr;$(OutDir)zh-Hans;$(OutDir)zh-Hant" ContinueOnError="true" />
+    <!-- 删除不需要的运行时平台 -->
+    <RemoveDir Directories="$(OutDir)runtimes\linux-arm;$(OutDir)runtimes\linux-arm64;$(OutDir)runtimes\linux-armel;$(OutDir)runtimes\linux-mips64;$(OutDir)runtimes\linux-musl-arm;$(OutDir)runtimes\linux-musl-arm64;$(OutDir)runtimes\linux-musl-x64;$(OutDir)runtimes\linux-ppc64le;$(OutDir)runtimes\linux-s390x;$(OutDir)runtimes\linux-x64;$(OutDir)runtimes\linux-x86;$(OutDir)runtimes\osx;$(OutDir)runtimes\osx-arm64;$(OutDir)runtimes\osx-x64;$(OutDir)runtimes\maccatalyst-arm64;$(OutDir)runtimes\maccatalyst-x64;$(OutDir)runtimes\browser-wasm;$(OutDir)runtimes\win-arm;$(OutDir)runtimes\win-arm64;$(OutDir)runtimes\win-x86" ContinueOnError="true" />
+    <!-- 删除32位libvlc（64位程序不需要） -->
+    <RemoveDir Directories="$(OutDir)libvlc\win-x86" ContinueOnError="true" />
+    <Message Text="[清理] 清理完成" Importance="high" />
+  </Target>
   <ItemGroup>
     <Compile Remove="BuildTools\**" />
   </ItemGroup>

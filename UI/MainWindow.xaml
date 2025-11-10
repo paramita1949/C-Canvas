@@ -2198,8 +2198,9 @@
                                      TextChanged="LyricsTextBox_TextChanged"
                                      PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
                                      PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel">
-                                <!-- 水印提示 -->
+                                <!-- 🔧 水印提示 -->
                                 <TextBox.Resources>
+                                    <!-- ✅ 不设置行高，使用WPF默认（投影也用WPF TextBlock渲染，自动对齐） -->
                                     <VisualBrush x:Key="HintBrush" 
                                                  TileMode="None" 
                                                  Opacity="0.3" 

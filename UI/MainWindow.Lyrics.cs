@@ -759,63 +759,69 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenderLyricsToProjection()
         {
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📝 [歌词渲染-SkiaSharp] 开始渲染, 内容长度: {LyricsTextBox.Text?.Length ?? 0}");
-//#endif
-
             try
             {
-                // 获取投影屏幕的实际尺寸
+                // 🔧 获取投影屏幕的实际尺寸
                 var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
-                
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"📐 [歌词渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}");
-//#endif
 
                 // ========================================
-                // ✅ 使用SkiaSharp渲染（替代WPF的Canvas+TextBlock+RenderTargetBitmap）
+                // ✅ 恢复使用 WPF TextBlock 渲染（确保与主屏 TextBox 行高完全一致）
                 // ========================================
                 
-                // 获取文本对齐方式
-                SKTextAlign alignment = LyricsTextBox.TextAlignment switch
+                // 创建一个与投影窗口同尺寸的Canvas
+                var canvas = new Canvas
                 {
-                    System.Windows.TextAlignment.Center => SKTextAlign.Center,
-                    System.Windows.TextAlignment.Right => SKTextAlign.Right,
-                    _ => SKTextAlign.Left
+                    Width = screenWidth,
+                    Height = screenHeight,
+                    Background = WpfBrushes.Black
                 };
-                
-                // 获取文本颜色
-                var foregroundBrush = LyricsTextBox.Foreground as SolidColorBrush;
-                var textColor = foregroundBrush != null 
-                    ? new SKColor(foregroundBrush.Color.R, foregroundBrush.Color.G, foregroundBrush.Color.B, foregroundBrush.Color.A)
-                    : SKColors.White;
-                
-                // 创建歌词渲染上下文
-                var context = new Core.LyricsRenderContext
+
+                double actualHeight = screenHeight;
+
+                // 🔧 使用 WPF TextBlock，与主屏幕 TextBox 共享同一渲染引擎
+                var textBlock = new TextBlock
                 {
-                    Text = LyricsTextBox.Text ?? string.Empty,
-                    Size = new SKSize((float)screenWidth, (float)screenHeight),
-                    Style = new Core.TextStyle
-                    {
-                        FontFamily = "Microsoft YaHei UI",
-                        FontSize = (float)LyricsTextBox.FontSize,
-                        TextColor = textColor,
-                        IsBold = false,
-                        LineSpacing = 1.2f
-                    },
-                    Alignment = alignment,
-                    Padding = new SKRect(60f, 40f, 60f, 40f), // 与主屏幕ScrollViewer的Padding一致
-                    BackgroundColor = SKColors.Black
+                    Text = LyricsTextBox.Text,
+                    FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                    FontSize = LyricsTextBox.FontSize,
+                    Foreground = LyricsTextBox.Foreground,
+                    TextAlignment = LyricsTextBox.TextAlignment,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = screenWidth,
+                    Padding = new Thickness(60, 40, 60, 40), // 与主屏幕ScrollViewer的Padding一致
+                    VerticalAlignment = VerticalAlignment.Top,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left
                 };
+
+                // 🔧 测量TextBlock的实际高度
+                textBlock.Measure(new WpfSize(screenWidth, double.PositiveInfinity));
+                double textBlockHeight = textBlock.DesiredSize.Height;
+
+                // 如果内容超过屏幕高度，调整Canvas高度
+                if (textBlockHeight > screenHeight)
+                {
+                    actualHeight = textBlockHeight;
+                    canvas.Height = actualHeight;
+                }
+
+                Canvas.SetLeft(textBlock, 0);
+                Canvas.SetTop(textBlock, 0);
+                canvas.Children.Add(textBlock);
+
+                // 渲染到图片（固定使用96 DPI）
+                canvas.Measure(new WpfSize(screenWidth, actualHeight));
+                canvas.Arrange(new Rect(0, 0, screenWidth, actualHeight));
+                canvas.UpdateLayout();
+
+                // 🔧 使用96 DPI渲染，确保像素对齐
+                var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    (int)screenWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                renderBitmap.Render(canvas);
+                renderBitmap.Freeze();
+
+                // 转换为SKBitmap并更新投影
+                var skBitmap = ConvertToSKBitmap(renderBitmap);
                 
-                // ✅ 使用SkiaSharp渲染
-                var skBitmap = _skiaRenderer.RenderLyrics(context);
-                
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ [歌词渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
-//#endif
-                
-                // 更新投影
                 if (skBitmap != null)
                 {
                     _projectionManager?.UpdateProjectionText(skBitmap);
@@ -825,7 +831,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [歌词渲染-SkiaSharp] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [歌词渲染-WPF] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif

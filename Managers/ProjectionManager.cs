@@ -139,15 +139,15 @@ namespace ImageColorChanger.Managers
         {
             if (_projectionScrollViewer != null && _projectionScrollViewer.ActualWidth > 0)
             {
-                // 返回ScrollViewer的实际尺寸（已考虑DPI缩放）
+                // 返回ScrollViewer的实际尺寸（已考虑DPI缩放，WPF单位）
                 return (_projectionScrollViewer.ActualWidth, _projectionScrollViewer.ActualHeight);
             }
             
             if (_screens != null && _currentScreenIndex >= 0 && _currentScreenIndex < _screens.Count)
             {
-                // 返回屏幕的物理尺寸
+                // ✅ 返回屏幕的WPF单位（而不是物理像素）
                 var screen = _screens[_currentScreenIndex];
-                return (screen.PhysicalWidth, screen.PhysicalHeight);
+                return (screen.WpfWidth, screen.WpfHeight);
             }
             
             // 默认返回1920x1080
@@ -432,18 +432,16 @@ namespace ImageColorChanger.Managers
                     if (_projectionScrollViewer == null)
                         return;
 
-                    // 🔧 歌词滚动同步：直接使用主屏滚动位置（两者内容高度相同）
+                    // 🔧 歌词滚动同步：直接使用主屏滚动位置（窗口尺寸和行高已统一）
                     double mainScrollTop = lyricsScrollViewer.VerticalOffset;
                     
-                    // 🔧 关键：直接使用相同的滚动位置（因为两者渲染的是相同内容）
-                    // 不需要比例计算，因为主屏和投影的内容高度是一样的
+                    // ✅ 关键：窗口尺寸使用WpfBounds + 主屏行高57.6 + 投影LineSpacing 1.2
+                    // 确保两者内容高度完全一致，可以直接同步位置
                     double projScrollTop = mainScrollTop;
                     
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
 
 //#if DEBUG
-//                    double mainScrollableHeight = lyricsScrollViewer.ScrollableHeight;
-//                    double projScrollableHeight = _projectionScrollViewer.ScrollableHeight;
 //                    double mainViewportHeight = lyricsScrollViewer.ViewportHeight;
 //                    double projViewportHeight = _projectionScrollViewer.ViewportHeight;
 //                    double mainExtentHeight = lyricsScrollViewer.ExtentHeight;
@@ -1955,11 +1953,12 @@ namespace ImageColorChanger.Managers
                     // 绑定关闭事件
                     _projectionWindow.Closed += (s, e) => CloseProjection();
                     
-                    // 重要：设置窗口位置和大小（必须在Show之前）
+                    // 🔧 重要：设置窗口位置和大小（必须在Show之前）
+                    // 位置使用物理像素，尺寸使用WPF单位
                     _projectionWindow.Left = screen.PhysicalBounds.Left;
                     _projectionWindow.Top = screen.PhysicalBounds.Top;
-                    _projectionWindow.Width = screen.PhysicalBounds.Width;
-                    _projectionWindow.Height = screen.PhysicalBounds.Height;
+                    _projectionWindow.Width = screen.WpfBounds.Width;   // ✅ 使用WPF单位
+                    _projectionWindow.Height = screen.WpfBounds.Height; // ✅ 使用WPF单位
                     
                     // System.Diagnostics.Debug.WriteLine($"窗口位置已设置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
 
