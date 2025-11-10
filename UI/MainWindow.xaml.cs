@@ -517,8 +517,11 @@ namespace ImageColorChanger.UI
             // 加载项目（文件夹在前，Project节点在后）
             LoadProjects(); // 加载文件夹、文件和项目节点
             
-            // 初始化全局热键
+            // 初始化全局热键（投影模式）
             InitializeGlobalHotKeys();
+            
+            // 初始化快捷键管理器（非投影模式）
+            InitializeShortcutManagers();
             
             // 🔧 确保主窗口获得焦点以接收键盘事件
             this.Loaded += (s, e) => 
@@ -530,12 +533,27 @@ namespace ImageColorChanger.UI
             };
         }
         
+        // 🛡️ 标志：是否禁用自动投影滚动同步（用于关键帧跳转时避免中间状态同步）
+        private volatile bool _disableAutoProjectionSync = false;
+        
+        /// <summary>
+        /// 设置是否禁用自动投影滚动同步
+        /// </summary>
+        public void SetAutoProjectionSyncEnabled(bool enabled)
+        {
+            _disableAutoProjectionSync = !enabled;
+        }
+        
         /// <summary>
         /// 滚动事件处理 - 同步投影和更新预览线
         /// </summary>
         private void ImageScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            _projectionManager?.SyncProjectionScroll();
+            // 🛡️ 如果正在执行关键帧跳转，跳过自动同步（避免中间状态导致投影位置错误）
+            if (!_disableAutoProjectionSync)
+            {
+                _projectionManager?.SyncProjectionScroll();
+            }
             
             // 更新关键帧预览线和指示块
             _keyframeManager?.UpdatePreviewLines();
@@ -2135,11 +2153,22 @@ namespace ImageColorChanger.UI
 
         private void LoadImage(string path)
         {
+            // 🔧 确保在UI线程上执行（防止async方法中调用导致的跨线程异常）
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => LoadImage(path));
+                return;
+            }
+
             // ⏱️ 性能调试：测量图片加载总耗时
             var sw = System.Diagnostics.Stopwatch.StartNew();
             
             try
             {
+                // 🛑 切换图片时，停止正在进行的滚动动画和合成播放（重要！防止切换后动画继续滚动）
+                _keyframeManager?.StopScrollAnimation();
+                _ = StopCompositePlaybackAsync();
+                
                 _imagePath = path;
                 
                 // 🔄 重置缩放状态（切换图片时恢复默认缩放）
@@ -2252,10 +2281,13 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 清空图片显示
         /// </summary>
-        private void ClearImageDisplay()
+        public void ClearImageDisplay()
         {
             try
             {
+                // 🛑 清空图片时，停止合成播放和动画（重要！防止倒计时继续执行）
+                _ = StopCompositePlaybackAsync();
+                
                 // 清空图片路径
                 _imagePath = null;
                 _currentImageId = 0;
@@ -2441,233 +2473,26 @@ namespace ImageColorChanger.UI
         #region 键盘事件处理
 
         /// <summary>
-        /// 主窗口键盘事件处理
+        /// 主窗口键盘事件处理（新架构 V5.8.4.9）
+        /// 统一由KeyboardShortcutManager处理，投影模式由全局热键处理
         /// </summary>
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private async void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"⌨️ [DEBUG] Window_PreviewKeyDown 触发: Key={e.Key}");
-//#endif
-            
-            // 🆕 圣经模式：不绑定 PageUp/PageDown（已删除键盘快捷键功能）
-            // if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
-            // {
-            //     if (e.Key == Key.PageUp)
-            //     {
-            //         _ = NavigateBibleVerseAsync(-1); // 上一节
-            //         e.Handled = true;
-            //         return;
-            //     }
-            //     else if (e.Key == Key.PageDown)
-            //     {
-            //         _ = NavigateBibleVerseAsync(1); // 下一节
-            //         e.Handled = true;
-            //         return;
-            //     }
-            // }
-            
-            // 🆕 文本编辑器模式：PageUp/PageDown 用于切换幻灯片
-            if (TextEditorPanel.Visibility == Visibility.Visible)
+            #if DEBUG
+            // System.Diagnostics.Debug.WriteLine($"⌨️ [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
+            #endif
+
+            // 文本编辑器模式：PageUp/PageDown 由 TextEditorPanel 处理
+            if (_keyboardShortcutManager != null && _keyboardShortcutManager.ShouldTextEditorHandle(e.Key))
             {
-                if (e.Key == Key.PageUp || e.Key == Key.PageDown)
-                {
-                    // 让 TextEditorPanel 的 PreviewKeyDown 事件处理
-                    // 这里不做处理，直接返回
-                    return;
-                }
+                // 让 TextEditorPanel 的 PreviewKeyDown 事件处理
+                return;
             }
 
-            // 🆕 空格键: 停止播放（脚本录制播放或合成播放）
-            if (e.Key == Key.Space)
+            // 使用KeyboardShortcutManager统一处理所有快捷键
+            if (_keyboardShortcutManager != null)
             {
-                bool handled = false;
-                
-                // 检查是否正在合成播放
-                var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
-                if (compositeService != null && compositeService.IsPlaying)
-                {
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 停止合成播放");
-                    //#endif
-                    // 触发合成播放按钮点击事件（停止播放）
-                    BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-                    handled = true;
-                }
-                // 检查是否正在脚本播放（关键帧模式或原图模式）
-                else if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
-                {
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine("⌨️ 空格键: 停止脚本播放");
-                    //#endif
-                    // 停止播放
-                    BtnPlay_Click(null, null);
-                    handled = true;
-                }
-                
-                if (handled)
-                {
-                    e.Handled = true;
-                    return;
-                }
-            }
-
-            // ESC键: 关闭投影(优先级最高,不论是否原图模式)
-            if (e.Key == Key.Escape)
-            {
-                bool handled = false;
-                
-                // 🔧 如果拼音输入框激活，不处理ESC（让拼音输入框处理）
-                if (IsPinyinInputActive)
-                {
-                    //#if DEBUG
-                    //Debug.WriteLine("[主窗口] ESC键 - 拼音输入激活，跳过投影关闭");
-                    //#endif
-                    return; // 不处理，让拼音输入框处理
-                }
-                
-                // 优先关闭投影（CloseProjection现在只在有投影时返回true）
-                if (_projectionManager != null)
-                {
-                    bool wasClosed = _projectionManager.CloseProjection();
-                    if (wasClosed)
-                    {
-                        //#if DEBUG
-                        //Debug.WriteLine("[主窗口] ESC键 - 关闭投影");
-                        //#endif
-                        handled = true;
-                    }
-                }
-                
-                // 如果没有投影需要关闭，且正在播放视频，则停止播放并重置界面
-                if (!handled && _videoPlayerManager != null && _videoPlayerManager.IsPlaying)
-                {
-                    SwitchToImageMode();
-                    handled = true;
-                }
-                
-                // 如果没有投影也没有视频播放，且加载了图片，则清空图片
-                if (!handled && _imageProcessor.CurrentImage != null)
-                {
-                    ClearImageDisplay();
-                    handled = true;
-                    
-                    #if DEBUG
-                    Debug.WriteLine("[主窗口] ESC键 - 清空图片显示");
-                    #endif
-                }
-                
-                if (handled)
-                {
-                    e.Handled = true;
-                    return;
-                }
-            }
-            
-            // 在投影模式下，让全局热键处理这些按键，前台不处理
-            if (_projectionManager != null && _projectionManager.IsProjectionActive)
-            {
-                // 检查是否是全局热键相关的按键
-                bool isGlobalHotKey = (e.Key == Key.Left || e.Key == Key.Right || e.Key == Key.F2 || 
-                                     e.Key == Key.PageUp || e.Key == Key.PageDown || e.Key == Key.Escape ||
-                                     e.Key == Key.Space);  // 🆕 空格键也由全局热键处理
-                
-                if (isGlobalHotKey)
-                {
-                    // 在投影模式下，让全局热键处理这些按键
-                    //System.Diagnostics.Debug.WriteLine($"⌨️ 投影模式下，让全局热键处理: {e.Key}");
-                    return; // 不处理，让全局热键处理
-                }
-            }
-            
-            // 视频播放控制快捷键
-            if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
-            {
-                bool handled = false;
-                
-                switch (e.Key)
-                {
-                    case Key.F2:
-                        // F2键：播放/暂停
-                        if (_videoPlayerManager.IsPaused)
-                        {
-                            _videoPlayerManager.Play();
-                            //System.Diagnostics.Debug.WriteLine("⌨️ F2键: 继续播放");
-                        }
-                        else
-                        {
-                            _videoPlayerManager.Pause();
-                            //System.Diagnostics.Debug.WriteLine("⌨️ F2键: 暂停播放");
-                        }
-                        handled = true;
-                        break;
-                        
-                    case Key.Left:
-                        // 左方向键：上一首
-                        _videoPlayerManager.PlayPrevious();
-                        //System.Diagnostics.Debug.WriteLine("⌨️ 左方向键: 上一首");
-                        handled = true;
-                        break;
-                        
-                    case Key.Right:
-                        // 右方向键：下一首
-                        _videoPlayerManager.PlayNext();
-                        //System.Diagnostics.Debug.WriteLine("⌨️ 右方向键: 下一首");
-                        handled = true;
-                        break;
-                }
-                
-                if (handled)
-                {
-                    e.Handled = true;
-                    return;
-                }
-            }
-            
-            // 原图模式下的相似图片切换
-            if (_originalMode && _currentImageId > 0)
-            {
-                bool handled = false;
-                
-                switch (e.Key)
-                {
-                    case Key.PageUp:
-                        // 切换到上一张相似图片
-                        handled = SwitchSimilarImage(false);
-                        break;
-                        
-                    case Key.PageDown:
-                        // 切换到下一张相似图片
-                        handled = SwitchSimilarImage(true);
-                        break;
-                }
-                
-                if (handled)
-                {
-                    e.Handled = true;
-                }
-            }
-            // 关键帧模式下的关键帧切换
-            else if (!_originalMode && _currentImageId > 0)
-            {
-                bool handled = false;
-                
-                switch (e.Key)
-                {
-                    case Key.PageUp:
-                        // 上一个关键帧
-                        BtnPrevKeyframe_Click(null, null);
-                        //System.Diagnostics.Debug.WriteLine("⌨️ PageUp: 上一个关键帧");
-                        handled = true;
-                        break;
-                        
-                    case Key.PageDown:
-                        // 下一个关键帧
-                        BtnNextKeyframe_Click(null, null);
-                        //System.Diagnostics.Debug.WriteLine("⌨️ PageDown: 下一个关键帧");
-                        handled = true;
-                        break;
-                }
-                
+                bool handled = await _keyboardShortcutManager.HandleKeyAsync(e.Key, Keyboard.Modifiers);
                 if (handled)
                 {
                     e.Handled = true;
@@ -3311,7 +3136,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换回图片显示模式
         /// </summary>
-        private void SwitchToImageMode()
+        internal void SwitchToImageMode()
         {
             // 停止视频播放
             if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)

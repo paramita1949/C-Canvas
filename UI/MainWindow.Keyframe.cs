@@ -205,112 +205,132 @@ namespace ImageColorChanger.UI
             }
         }
 
+        // 🛡️ 防重入标志：防止快速点击导致并发执行
+        private volatile bool _isNavigatingKeyframe = false;
+
         /// <summary>
         /// 上一个关键帧/上一张图/上一个媒体按钮点击事件（四模式支持）
         /// </summary>
         private async void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
         {
-            // ⏱️ 性能调试：测量关键帧切换总耗时
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            //System.Diagnostics.Debug.WriteLine($"");
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
-            
-            // 🎯 模式-1：圣经模式（向上滚动经文）
-            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            // 🛡️ 防重入：如果上一次操作还没完成，直接返回
+            if (_isNavigatingKeyframe)
             {
-                BtnBiblePrevVerse_Click(sender, e);
-                return;
-            }
-            
-            // 🎯 模式0：文本编辑器模式（切换幻灯片）
-            if (TextEditorPanel.Visibility == Visibility.Visible)
-            {
-                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
-                NavigateToPreviousSlide();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
-            
-            if (_currentImageId == 0)
-            {
-                ShowStatus("请先选择一张图片");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [防重入] 上一帧操作正在执行中，忽略本次点击");
+                #endif
                 return;
             }
 
-            // 🎯 模式1：媒体播放模式（视频/音频）
-            if (IsMediaPlaybackMode())
+            _isNavigatingKeyframe = true;
+            try
             {
-                await SwitchToPreviousMediaFile();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
-
-            // 🎯 模式2：原图标记模式（切换相似图片）
-            if (IsOriginalMarkMode())
-            {
-                SwitchToPreviousSimilarImage();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
-
-            // 🎯 模式3：关键帧模式（默认）
-            if (_keyframeManager == null)
-            {
-                ShowStatus("关键帧系统未初始化");
-                return;
-            }
-            
-            //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
-
-            // 如果正在录制，先记录当前帧的时间（跳转前）
-            if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
-            {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                // ⏱️ 性能调试：测量关键帧切换总耗时
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                //System.Diagnostics.Debug.WriteLine($"");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
+                
+                // 🎯 模式-1：圣经模式（向上滚动经文）
+                if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
                 {
-                    var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                    _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
-                    //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
+                    BtnBiblePrevVerse_Click(sender, e);
+                    return;
                 }
-            }
-            
-            // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
-            if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
-            {
-                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                
+                // 🎯 模式0：文本编辑器模式（切换幻灯片）
+                if (TextEditorPanel.Visibility == Visibility.Visible)
                 {
-                    var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                    var currentIndex = _keyframeManager.CurrentKeyframeIndex;
-                    
-                    // 调用播放服务的手动修正方法
-                    var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                        .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
-                    if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
+                    //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                    NavigateToPreviousSlide();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
+                
+                if (_currentImageId == 0)
+                {
+                    ShowStatus("请先选择一张图片");
+                    return;
+                }
+
+                // 🎯 模式1：媒体播放模式（视频/音频）
+                if (IsMediaPlaybackMode())
+                {
+                    await SwitchToPreviousMediaFile();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
+
+                // 🎯 模式2：原图标记模式（切换相似图片）
+                if (IsOriginalMarkMode())
+                {
+                    SwitchToPreviousSimilarImage();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
+
+                // 🎯 模式3：关键帧模式（默认）
+                if (_keyframeManager == null)
+                {
+                    ShowStatus("关键帧系统未初始化");
+                    return;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
+
+                // 如果正在录制，先记录当前帧的时间（跳转前）
+                if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                {
+                    var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                    if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
                     {
-                        _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndex + 1}");
-                        
-                        // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
-                        // 注意：上一帧总是回跳，会被Navigator强制直接跳转，所以这里跳过等待是安全的
-                        kfService.SkipCurrentWaitAndPlayNext();
-                        //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 点击上一帧，跳过当前等待");
+                        var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                        _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
+                        //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
                     }
                 }
+                
+                // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
+                if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                {
+                    var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                    if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                    {
+                        var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                        var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                        
+                        // 调用播放服务的手动修正方法
+                        var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
+                            .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                        if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
+                        {
+                            _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
+                            //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndex + 1}");
+                            
+                            // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
+                            // 注意：上一帧总是回跳，会被Navigator强制直接跳转，所以这里跳过等待是安全的
+                            kfService.SkipCurrentWaitAndPlayNext();
+                            //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 点击上一帧，跳过当前等待");
+                        }
+                    }
+                }
+                
+                // 然后执行跳转
+                var navStart = sw.ElapsedMilliseconds;
+                _keyframeManager.Navigator.StepToPrevKeyframe();
+                var navTime = sw.ElapsedMilliseconds - navStart;
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToPrevKeyframe: {navTime}ms");
+                
+                sw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"");
             }
-            
-            // 然后执行跳转
-            var navStart = sw.ElapsedMilliseconds;
-            _keyframeManager.Navigator.StepToPrevKeyframe();
-            var navTime = sw.ElapsedMilliseconds - navStart;
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToPrevKeyframe: {navTime}ms");
-            
-            sw.Stop();
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-            //System.Diagnostics.Debug.WriteLine($"");
+            finally
+            {
+                _isNavigatingKeyframe = false;
+            }
         }
 
         /// <summary>
@@ -318,63 +338,75 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
         {
-            // ⏱️ 性能调试：测量关键帧切换总耗时
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            //System.Diagnostics.Debug.WriteLine($"");
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
-            
-            // 🎯 模式-1：圣经模式（向下滚动经文）
-            if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+            // 🛡️ 防重入：如果上一次操作还没完成，直接返回
+            if (_isNavigatingKeyframe)
             {
-                BtnBibleNextVerse_Click(sender, e);
-                return;
-            }
-            
-            // 🎯 模式0：文本编辑器模式（切换幻灯片）
-            if (TextEditorPanel.Visibility == Visibility.Visible)
-            {
-                //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
-                NavigateToNextSlide();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
-            
-            if (_currentImageId == 0)
-            {
-                ShowStatus("请先选择一张图片");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [防重入] 下一帧操作正在执行中，忽略本次点击");
+                #endif
                 return;
             }
 
-            // 🎯 模式1：媒体播放模式（视频/音频）
-            if (IsMediaPlaybackMode())
+            _isNavigatingKeyframe = true;
+            try
             {
-                await SwitchToNextMediaFile();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
+                // ⏱️ 性能调试：测量关键帧切换总耗时
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                //System.Diagnostics.Debug.WriteLine($"");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
+                
+                // 🎯 模式-1：圣经模式（向下滚动经文）
+                if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
+                {
+                    BtnBibleNextVerse_Click(sender, e);
+                    return;
+                }
+                
+                // 🎯 模式0：文本编辑器模式（切换幻灯片）
+                if (TextEditorPanel.Visibility == Visibility.Visible)
+                {
+                    //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                    NavigateToNextSlide();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
+                
+                if (_currentImageId == 0)
+                {
+                    ShowStatus("请先选择一张图片");
+                    return;
+                }
 
-            // 🎯 模式2：原图标记模式（切换相似图片）
-            if (IsOriginalMarkMode())
-            {
-                SwitchToNextSimilarImage();
-                sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-                return;
-            }
+                // 🎯 模式1：媒体播放模式（视频/音频）
+                if (IsMediaPlaybackMode())
+                {
+                    await SwitchToNextMediaFile();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
 
-            // 🎯 模式3：关键帧模式（默认）
-            if (_keyframeManager == null)
-            {
-                ShowStatus("关键帧系统未初始化");
-                return;
-            }
-            
-            //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
+                // 🎯 模式2：原图标记模式（切换相似图片）
+                if (IsOriginalMarkMode())
+                {
+                    SwitchToNextSimilarImage();
+                    sw.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    return;
+                }
 
-            // 如果正在录制，先记录当前帧的时间（跳转前）
-            if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                // 🎯 模式3：关键帧模式（默认）
+                if (_keyframeManager == null)
+                {
+                    ShowStatus("关键帧系统未初始化");
+                    return;
+                }
+                
+                //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
+
+                // 如果正在录制，先记录当前帧的时间（跳转前）
+                if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
             {
                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                 if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
@@ -423,17 +455,22 @@ namespace ImageColorChanger.UI
                 }
             }
             
-            // 然后执行跳转
-            var navStart = sw.ElapsedMilliseconds;
-            bool shouldRecordTime = _keyframeManager.Navigator.StepToNextKeyframe().Result; // 同步等待结果
-            var navTime = sw.ElapsedMilliseconds - navStart;
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
-            
-            sw.Stop();
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
-            //System.Diagnostics.Debug.WriteLine($"");
-            
-            // shouldRecordTime 用于控制循环停止录制后是否继续记录（通常是false）
+                // 然后执行跳转
+                var navStart = sw.ElapsedMilliseconds;
+                bool shouldRecordTime = _keyframeManager.Navigator.StepToNextKeyframe().Result; // 同步等待结果
+                var navTime = sw.ElapsedMilliseconds - navStart;
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
+                
+                sw.Stop();
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"");
+                
+                // shouldRecordTime 用于控制循环停止录制后是否继续记录（通常是false）
+            }
+            finally
+            {
+                _isNavigatingKeyframe = false;
+            }
         }
 
         #endregion
@@ -983,6 +1020,59 @@ namespace ImageColorChanger.UI
                         System.Windows.Media.Color.FromRgb(25, 118, 210)); // #1976D2 深蓝色
                 }
             });
+        }
+
+        /// <summary>
+        /// 停止合成播放（用于切换图片或清空图片时重置状态）
+        /// </summary>
+        internal async Task StopCompositePlaybackAsync()
+        {
+            try
+            {
+                var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+                var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                    as Services.Implementations.CompositePlaybackService;
+
+                if (compositeService != null && compositeService.IsPlaying)
+                {
+                    await compositeService.StopPlaybackAsync();
+                    
+                    // 更新UI（必须在UI线程）
+                    if (Dispatcher.CheckAccess())
+                    {
+                        BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                        
+                        // 停止滚动动画
+                        _keyframeManager?.StopScrollAnimation();
+                        StopCompositeScrollAnimation();
+                        
+                        // 重置倒计时显示
+                        CountdownText.Text = "倒: --";
+                        var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                        countdownService?.Stop();
+                    }
+                    else
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                            
+                            // 停止滚动动画
+                            _keyframeManager?.StopScrollAnimation();
+                            StopCompositeScrollAnimation();
+                            
+                            // 重置倒计时显示
+                            CountdownText.Text = "倒: --";
+                            var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                            countdownService?.Stop();
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ 停止合成播放失败: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1908,7 +1998,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 判断是否处于媒体播放模式（视频/音频正在播放）
         /// </summary>
-        private bool IsMediaPlaybackMode()
+        internal bool IsMediaPlaybackMode()
         {
             // 检查是否有媒体播放器且正在播放
             return _videoPlayerManager?.IsPlaying == true;
@@ -1963,7 +2053,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换到上一个媒体文件
         /// </summary>
-        private Task SwitchToPreviousMediaFile()
+        internal Task SwitchToPreviousMediaFile()
         {
             try
             {
@@ -1988,7 +2078,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换到下一个媒体文件
         /// </summary>
-        private Task SwitchToNextMediaFile()
+        internal Task SwitchToNextMediaFile()
         {
             try
             {

@@ -861,12 +861,13 @@ namespace ImageColorChanger.Managers
 //#endif
             
             // 🔧 禁用 VisualBrush 投影并重置（切换到图片/幻灯片投影）
-            if (_projectionWindow != null)
+            // ⚠️ 只有在实际使用VisualBrush时才重置（避免每次都ScrollToTop导致投影回到顶部）
+            if (_projectionWindow != null && _currentBibleScrollViewer != null)
             {
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 切换到图片投影模式");
+                    //System.Diagnostics.Debug.WriteLine($"🔄 [投影切换] 从VisualBrush模式切换到图片投影模式");
                     //#endif
                     ResetVisualBrushProjection();
                 });

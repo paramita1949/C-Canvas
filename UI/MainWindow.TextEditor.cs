@@ -4735,7 +4735,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换到上一张幻灯片
         /// </summary>
-        private void NavigateToPreviousSlide()
+        internal void NavigateToPreviousSlide()
         {
             if (SlideListBox.Items.Count == 0)
                 return;
@@ -4751,7 +4751,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换到下一张幻灯片
         /// </summary>
-        private void NavigateToNextSlide()
+        internal void NavigateToNextSlide()
         {
             if (SlideListBox.Items.Count == 0)
                 return;
