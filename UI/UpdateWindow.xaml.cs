@@ -79,12 +79,12 @@ namespace ImageColorChanger.UI
                 DownloadProgress.Value = 100;
                 await Task.Delay(800);
 
-                // 显示提示信息
-                System.Windows.MessageBox.Show(
-                    "更新完成后，程序将自动处理。\n\n请稍候...",
-                    "更新提示",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                // 倒计时5秒后自动安装
+                for (int i = 5; i > 0; i--)
+                {
+                    ProgressText.Text = $"✅ 下载完成！{i}秒后自动安装...";
+                    await Task.Delay(1000);
+                }
 
                 // 应用更新（自动重启）
                 if (UpdateService.ApplyUpdate(_downloadedFilePath))
