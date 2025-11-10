@@ -756,7 +756,7 @@ namespace ImageColorChanger.UI
                         {
                             // 滚动完成回调
                             _compositeScrollStoryboard = null; // 清除引用
-                            System.Diagnostics.Debug.WriteLine($"✅ [合成播放] 滚动完成");
+                            //System.Diagnostics.Debug.WriteLine($"✅ [合成播放] 滚动完成");
                             
                             // 更新投影
                             if (IsProjectionEnabled)

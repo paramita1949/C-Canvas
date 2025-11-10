@@ -88,15 +88,20 @@ namespace ImageColorChanger.Managers.Keyframes
                     // 直接跳转
                     //System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
                     
-                    // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                    _mainWindow.SetAutoProjectionSyncEnabled(false);
-                    
-                    var scrollViewer = _mainWindow.ImageScrollViewer;
-                    var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
-                    scrollViewer.ScrollToVerticalOffset(targetOffset);
-                    
-                    // 🛡️ 重新启用自动投影同步
-                    _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    try
+                    {
+                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        
+                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
+                        scrollViewer.ScrollToVerticalOffset(targetOffset);
+                    }
+                    finally
+                    {
+                        // 🛡️ 确保必定重新启用自动投影同步
+                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_mainWindow.IsProjectionEnabled)
@@ -240,15 +245,20 @@ namespace ImageColorChanger.Managers.Keyframes
                     // 直接跳转
                     //System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (首次:{isFirstExecution}, 循环:{isLoopingBack}, 回跳:{isBackwardJump})");
                     
-                    // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                    _mainWindow.SetAutoProjectionSyncEnabled(false);
-                    
-                    var scrollViewer = _mainWindow.ImageScrollViewer;
-                    var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
-                    scrollViewer.ScrollToVerticalOffset(targetOffset);
-                    
-                    // 🛡️ 重新启用自动投影同步
-                    _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    try
+                    {
+                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        
+                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
+                        scrollViewer.ScrollToVerticalOffset(targetOffset);
+                    }
+                    finally
+                    {
+                        // 🛡️ 确保必定重新启用自动投影同步
+                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_mainWindow.IsProjectionEnabled)
@@ -309,15 +319,20 @@ namespace ImageColorChanger.Managers.Keyframes
                 {
                     // 直接跳转
                     
-                    // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                    _mainWindow.SetAutoProjectionSyncEnabled(false);
-                    
-                    var scrollViewer = _mainWindow.ImageScrollViewer;
-                    var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
-                    scrollViewer.ScrollToVerticalOffset(targetOffset);
-                    
-                    // 🛡️ 重新启用自动投影同步
-                    _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    try
+                    {
+                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        
+                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
+                        scrollViewer.ScrollToVerticalOffset(targetOffset);
+                    }
+                    finally
+                    {
+                        // 🛡️ 确保必定重新启用自动投影同步
+                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                    }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_mainWindow.IsProjectionEnabled)
@@ -347,6 +362,9 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             try
             {
+                // 🔧 确保投影同步状态已恢复（修复投影卡住BUG）
+                _mainWindow.SetAutoProjectionSyncEnabled(true);
+                
                 // 检查是否有录制的时间数据
                 var keyframes = await _keyframeManager.GetKeyframesAsync(imageId);
                 if (keyframes == null || keyframes.Count == 0)

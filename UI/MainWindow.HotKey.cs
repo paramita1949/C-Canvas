@@ -42,9 +42,9 @@ namespace ImageColorChanger.UI
 
             try
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("🔧 [全局热键] 开始注册全局热键...");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine("🔧 [全局热键] 开始注册全局热键...");
+                //#endif
 
                 // Left键: 上一个（文本编辑器/视频/关键帧）
                 _globalHotKeyManager.RegisterHotKey(
@@ -52,9 +52,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Left键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Left键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
                             await _shortcutActionHandler.HandleLeftKeyAsync();
@@ -67,9 +67,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Right键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Right键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
                             await _shortcutActionHandler.HandleRightKeyAsync();
@@ -82,9 +82,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageUp键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageUp键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(() =>
                         {
                             _shortcutActionHandler.HandlePageUpKey();
@@ -97,9 +97,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageDown键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageDown键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(() =>
                         {
                             _shortcutActionHandler.HandlePageDownKey();
@@ -112,9 +112,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F2键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F2键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(() =>
                         {
                             _shortcutActionHandler.HandleF2Key();
@@ -127,9 +127,9 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F3键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F3键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(() =>
                         {
                             _shortcutActionHandler.HandleF3Key();
@@ -142,18 +142,18 @@ namespace ImageColorChanger.UI
                     ModifierKeys.None,
                     () =>
                     {
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🎯 [全局热键] ESC键触发");
-                        #endif
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] ESC键触发");
+                        //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
                             await _shortcutActionHandler.HandleEscapeAsync();
                         });
                     });
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键注册完成（投影模式）");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键注册完成（投影模式）");
+                //#endif
             }
             catch (Exception)
             {
@@ -171,9 +171,9 @@ namespace ImageColorChanger.UI
             try
             {
                 _globalHotKeyManager.UnregisterAllHotKeys();
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键已注销");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键已注销");
+                //#endif
             }
             catch (Exception)
             {

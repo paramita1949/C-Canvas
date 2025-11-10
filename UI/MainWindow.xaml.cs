@@ -542,6 +542,10 @@ namespace ImageColorChanger.UI
         public void SetAutoProjectionSyncEnabled(bool enabled)
         {
             _disableAutoProjectionSync = !enabled;
+            
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔧 [投影同步状态] {(enabled ? "✅ 已启用" : "🚫 已禁用")} (调用位置: {new System.Diagnostics.StackTrace().GetFrame(1)?.GetMethod()?.Name})");
+            #endif
         }
         
         /// <summary>
@@ -554,6 +558,13 @@ namespace ImageColorChanger.UI
             {
                 _projectionManager?.SyncProjectionScroll();
             }
+            #if DEBUG
+            else
+            {
+                // 调试：记录被跳过的同步
+                //System.Diagnostics.Debug.WriteLine($"⏭️ [滚动事件] 投影同步已被禁用，跳过同步 (偏移: {e.VerticalOffset:F2})");
+            }
+            #endif
             
             // 更新关键帧预览线和指示块
             _keyframeManager?.UpdatePreviewLines();
@@ -2285,8 +2296,47 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🛑 清空图片时，停止合成播放和动画（重要！防止倒计时继续执行）
-                _ = StopCompositePlaybackAsync();
+                // 🛑 清空图片时，停止所有播放（重要！防止倒计时继续执行）
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // 停止合成播放
+                        await StopCompositePlaybackAsync();
+                        
+                        // 停止关键帧播放
+                        if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
+                        {
+                            await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine("🛑 [清空图片] 已停止关键帧播放");
+                            //#endif
+                        }
+                        
+                        // 停止原图播放
+                        await StopOriginalModePlaybackAsync();
+                        
+                        // 停止滚动动画和倒计时
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            _keyframeManager?.StopScrollAnimation();
+                            StopCompositeScrollAnimation();
+                            
+                            CountdownText.Text = "倒: --";
+                            var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                            countdownService?.Stop();
+                            
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine("🛑 [清空图片] 已停止所有播放和倒计时");
+                            //#endif
+                        });
+                    }
+                    catch (Exception)
+                    {
+                        // 忽略停止播放时的异常
+                    }
+                });
                 
                 // 清空图片路径
                 _imagePath = null;
