@@ -3490,19 +3490,28 @@ namespace ImageColorChanger.UI
         */
 
         /// <summary>
-        /// 禁用IME（暂时移除）
+        /// 禁用IME（已通过XAML实现）
         /// </summary>
         private void DisableIME()
         {
-            // IME控制逻辑已暂时移除，专注功能实现
+            // IME控制已通过XAML的InputMethod属性实现：
+            // BibleVerseScrollViewer 设置了 InputMethod.PreferredImeState="Off" 和 InputMethod.IsInputMethodEnabled="False"
+            // 这样当焦点在圣经区域时，会自动禁用中文输入法，强制英文输入
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("[圣经拼音] IME已通过XAML禁用（InputMethod.PreferredImeState=Off）");
+#endif
         }
 
         /// <summary>
-        /// 恢复IME状态（暂时移除）
+        /// 恢复IME状态（已通过XAML实现）
         /// </summary>
         private void RestoreIME()
         {
-            // IME控制逻辑已暂时移除，专注功能实现
+            // IME控制已通过XAML的InputMethod属性实现，无需手动恢复
+            // 当焦点离开BibleVerseScrollViewer时，输入法会自动恢复正常状态
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("[圣经拼音] IME会在焦点离开时自动恢复");
+#endif
         }
 
         /// <summary>

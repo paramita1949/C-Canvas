@@ -1347,6 +1347,8 @@
                                   VerticalScrollBarVisibility="Auto"
                                   Padding="0"
                                   Focusable="True"
+                                  InputMethod.PreferredImeState="Off"
+                                  InputMethod.IsInputMethodEnabled="False"
                                   PreviewKeyDown="BibleVerseScrollViewer_PreviewKeyDown"
                                   PreviewMouseDown="BibleVerseScrollViewer_PreviewMouseDown"
                                   PreviewMouseWheel="BibleVerseScrollViewer_PreviewMouseWheel"
