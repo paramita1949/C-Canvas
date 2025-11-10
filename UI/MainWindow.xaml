@@ -436,7 +436,7 @@
                     <Button x:Name="BtnImport" Content="文件" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
 
-                    <Button x:Name="BtnProjection" Content="投影" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnProjection" Content="🖥 投影" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="开启/关闭投影" Click="BtnProjection_Click"/>
 
                     <Button x:Name="BtnSync" Content="同步" Style="{StaticResource MenuButtonStyle}"
@@ -802,7 +802,7 @@
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="70"/>   <!-- 第1列:分类(4个字宽度) -->
-                                <ColumnDefinition Width="120"/>  <!-- 第2列:书卷 -->
+                                <ColumnDefinition Width="125"/>  <!-- 第2列:书卷 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第3列:章 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第5列:结束节 -->
