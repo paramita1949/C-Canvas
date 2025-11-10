@@ -87,12 +87,19 @@ namespace ImageColorChanger.Services
                 paint.Color = _config.TitleStyle.GetSKColor();
                 paint.TextSize = _config.TitleStyle.FontSize;
                 paint.IsAntialias = true;
-                paint.Typeface = SKTypeface.FromFamilyName(
+                
+                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                paint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
-                    _config.TitleStyle.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                    SKFontStyleWidth.Normal,
-                    SKFontStyleSlant.Upright
+                    _config.TitleStyle.IsBold,
+                    false
                 );
+                
+                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                if (_config.TitleStyle.IsBold)
+                {
+                    paint.FakeBoldText = true;
+                }
                 
                 canvas.DrawText(text, x, y + paint.TextSize, paint);
                 
@@ -116,12 +123,19 @@ namespace ImageColorChanger.Services
                 paint.Color = _config.VerseStyle.GetSKColor();
                 paint.TextSize = _config.VerseStyle.FontSize;
                 paint.IsAntialias = true;
-                paint.Typeface = SKTypeface.FromFamilyName(
+                
+                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                paint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
-                    _config.VerseStyle.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                    SKFontStyleWidth.Normal,
-                    SKFontStyleSlant.Upright
+                    _config.VerseStyle.IsBold,
+                    false
                 );
+                
+                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                if (_config.VerseStyle.IsBold)
+                {
+                    paint.FakeBoldText = true;
+                }
                 
                 // 分行处理（每行是一节）
                 string[] lines = text.Split('\n');
@@ -162,23 +176,37 @@ namespace ImageColorChanger.Services
                 versePaint.Color = _config.VerseStyle.GetSKColor();
                 versePaint.TextSize = _config.VerseStyle.FontSize;
                 versePaint.IsAntialias = true;
-                versePaint.Typeface = SKTypeface.FromFamilyName(
+                
+                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                versePaint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
-                    _config.VerseStyle.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                    SKFontStyleWidth.Normal,
-                    SKFontStyleSlant.Upright
+                    _config.VerseStyle.IsBold,
+                    false
                 );
+                
+                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                if (_config.VerseStyle.IsBold)
+                {
+                    versePaint.FakeBoldText = true;
+                }
                 
                 // 设置标题画笔
                 titlePaint.Color = _config.TitleStyle.GetSKColor();
                 titlePaint.TextSize = _config.TitleStyle.FontSize;
                 titlePaint.IsAntialias = true;
-                titlePaint.Typeface = SKTypeface.FromFamilyName(
+                
+                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                titlePaint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
-                    _config.TitleStyle.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                    SKFontStyleWidth.Normal,
-                    SKFontStyleSlant.Upright
+                    _config.TitleStyle.IsBold,
+                    false
                 );
+                
+                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                if (_config.TitleStyle.IsBold)
+                {
+                    titlePaint.FakeBoldText = true;
+                }
                 
                 // 计算最后一行的位置（每行是一节）
                 string[] lines = verseText.Split('\n');

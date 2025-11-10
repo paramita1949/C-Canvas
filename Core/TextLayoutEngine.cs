@@ -270,16 +270,24 @@ namespace ImageColorChanger.Core
         /// </summary>
         private SKPaint CreatePaint(TextStyle style)
         {
-            var fontStyle = GetFontStyle(style.IsBold, style.IsItalic);
-            var typeface = SKTypeface.FromFamilyName(style.FontFamily, fontStyle);
+            // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+            var typeface = SkiaFontService.Instance.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
-            return new SKPaint
+            var paint = new SKPaint
             {
                 Typeface = typeface,
                 TextSize = style.FontSize,
                 IsAntialias = true,
                 SubpixelText = true
             };
+            
+            // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+            if (style.IsBold)
+            {
+                paint.FakeBoldText = true;
+            }
+            
+            return paint;
         }
         
         /// <summary>
