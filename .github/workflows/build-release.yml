@@ -37,7 +37,33 @@ jobs:
       run: dotnet build ImageColorChanger.csproj --configuration Release --no-restore
     
     - name: 发布项目
-      run: dotnet publish ImageColorChanger.csproj -c Release -o publish --self-contained false
+      run: dotnet publish ImageColorChanger.csproj -c Release -r win-x64 -o publish --self-contained false
+    
+    - name: 验证libvlc平台
+      shell: pwsh
+      run: |
+        echo "=== 验证libvlc平台 ==="
+        if (Test-Path "publish\libvlc") {
+          echo "libvlc目录存在，检查子目录："
+          Get-ChildItem "publish\libvlc" -Directory | ForEach-Object { 
+            echo "  - $($_.Name)"
+          }
+          
+          if (Test-Path "publish\libvlc\win-x86") {
+            echo "❌ 错误: win-x86目录仍然存在！"
+            exit 1
+          } else {
+            echo "✅ win-x86目录已正确删除"
+          }
+          
+          if (Test-Path "publish\libvlc\win-x64") {
+            echo "✅ win-x64目录存在（正确）"
+          } else {
+            echo "⚠️ 警告: win-x64目录不存在"
+          }
+        } else {
+          echo "⚠️ 警告: libvlc目录不存在"
+        }
     
     - name: 获取版本号
       id: get_version

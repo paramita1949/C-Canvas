@@ -204,6 +204,14 @@
     <RemoveDir Directories="$(OutDir)libvlc\win-x86" ContinueOnError="true" />
     <Message Text="[清理] 清理完成" Importance="high" />
   </Target>
+  
+  <!-- 🔧 发布后清理：确保删除win-x86的libvlc -->
+  <Target Name="CleanupPublishOutput" AfterTargets="Publish" Condition="'$(Configuration)'=='Release'">
+    <Message Text="[清理发布] 移除win-x86的libvlc..." Importance="high" />
+    <!-- 删除32位libvlc（64位程序不需要） -->
+    <RemoveDir Directories="$(PublishDir)libvlc\win-x86" ContinueOnError="true" />
+    <Message Text="[清理发布] 清理完成" Importance="high" />
+  </Target>
   <ItemGroup>
     <Compile Remove="BuildTools\**" />
   </ItemGroup>
