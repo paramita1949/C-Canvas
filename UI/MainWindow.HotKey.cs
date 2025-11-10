@@ -155,11 +155,8 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键注册完成（投影模式）");
                 #endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [全局热键] 启用全局热键失败: {ex.Message}");
-                #endif
             }
         }
 
@@ -178,11 +175,8 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键已注销");
                 #endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [全局热键] 禁用全局热键失败: {ex.Message}");
-                #endif
             }
         }
 

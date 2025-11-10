@@ -28,9 +28,6 @@ namespace ImageColorChanger.Utils
         {
             if (_mainWindow.IsPinyinInputActive)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] ESC键 - 关闭拼音输入框");
-                #endif
                 await _mainWindow.ProcessPinyinEscapeKeyAsync();
                 return true;
             }
@@ -54,10 +51,6 @@ namespace ImageColorChanger.Utils
                 return true;
             }
 
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] ESC键 - 通用处理");
-            #endif
-
             // 尝试关闭投影
             var projectionManager = _mainWindow.GetProjectionManager();
             if (projectionManager != null)
@@ -65,9 +58,6 @@ namespace ImageColorChanger.Utils
                 bool wasClosed = projectionManager.CloseProjection();
                 if (wasClosed)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] ESC键 - 已关闭投影");
-                    #endif
                     return true;
                 }
             }
@@ -76,9 +66,6 @@ namespace ImageColorChanger.Utils
             var videoManager = _mainWindow.GetVideoPlayerManager();
             if (videoManager != null && videoManager.IsPlaying)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] ESC键 - 停止视频播放");
-                #endif
                 _mainWindow.SwitchToImageMode();
                 return true;
             }
@@ -87,9 +74,6 @@ namespace ImageColorChanger.Utils
             var imageProcessor = _mainWindow.GetImageProcessor();
             if (imageProcessor != null && imageProcessor.CurrentImage != null)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] ESC键 - 清空图片显示");
-                #endif
                 _mainWindow.ClearImageDisplay();
                 return true;
             }
@@ -106,10 +90,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public async Task HandleLeftKeyAsync()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] Left键 - 上一个");
-            #endif
-
             // 文本编辑器模式
             if (_mainWindow.IsTextEditorActive())
             {
@@ -133,10 +113,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public async Task HandleRightKeyAsync()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] Right键 - 下一个");
-            #endif
-
             // 文本编辑器模式
             if (_mainWindow.IsTextEditorActive())
             {
@@ -160,10 +136,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public void HandlePageUpKey()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] PageUp键 - 上一页");
-            #endif
-
             // 文本编辑器模式
             if (_mainWindow.IsTextEditorActive())
             {
@@ -187,10 +159,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public void HandlePageDownKey()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] PageDown键 - 下一页");
-            #endif
-
             // 文本编辑器模式
             if (_mainWindow.IsTextEditorActive())
             {
@@ -214,10 +182,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public void HandleF2Key()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] F2键 - 播放/暂停");
-            #endif
-
             // 视频播放模式
             if (_mainWindow.IsMediaPlaybackMode())
             {
@@ -245,10 +209,6 @@ namespace ImageColorChanger.Utils
         /// </summary>
         public void HandleF3Key()
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⌨️ [ActionHandler] F3键 - 合成播放");
-            #endif
-
             // 检查是否正在合成播放
             var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
             if (compositeService != null && compositeService.IsPlaying)

@@ -45,9 +45,6 @@ namespace ImageColorChanger.Utils
                 
                 if (isGlobalHotKey)
                 {
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⌨️ [KeyboardShortcut] 投影模式下，跳过按键: {key}");
-                    #endif
                     return false;
                 }
             }
