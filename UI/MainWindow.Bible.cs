@@ -52,6 +52,9 @@ namespace ImageColorChanger.UI
         private ImageColorChanger.Services.BiblePinyinService _pinyinService;
         private ImageColorChanger.Services.BiblePinyinInputManager _pinyinInputManager;
         
+        // 🆕 导航栏同步标志（防止同步时触发不必要的事件）
+        private bool _isNavigationSyncing = false;
+        
         // 圣经样式设置 Popup（复用实例）
         private BibleInsertStylePopup _bibleStylePopup = null;
         
@@ -778,6 +781,9 @@ namespace ImageColorChanger.UI
         // 第3列:章选择事件（单击只加载节号列表，不显示经文）
         private async void BibleChapter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // 🔧 如果正在同步导航栏，跳过事件处理
+            if (_isNavigationSyncing) return;
+            
             if (BibleChapterList.SelectedItem is not string chapterStr)
                 return;
 
@@ -1312,6 +1318,9 @@ namespace ImageColorChanger.UI
                 var book = BibleBookConfig.GetBook(bookId);
                 if (book == null) return;
 
+                // 🔧 设置同步标志，防止触发选择事件
+                _isNavigationSyncing = true;
+
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 开始同步: {book.Name}{chapter}章{startVerse}-{endVerse}节");
                 //#endif
@@ -1363,7 +1372,7 @@ namespace ImageColorChanger.UI
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 // 第3步：选择章节（需要等待书卷加载完成）
-                Dispatcher.InvokeAsync(() =>
+                Dispatcher.InvokeAsync(async () =>
                 {
                     if (BibleChapterList.ItemsSource is System.Collections.Generic.List<string> chapterList)
                     {
@@ -1378,42 +1387,45 @@ namespace ImageColorChanger.UI
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择章节: {chapter}章，并滚动到顶部");
                             //#endif
-                        }
-                    }
-                }, System.Windows.Threading.DispatcherPriority.Loaded);
+                            
+                            // 🔧 手动加载节号列表（因为选择事件被标志阻止了）
+                            int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
+                            if (verseCount > 0)
+                            {
+                                var verseNumbers = Enumerable.Range(1, verseCount).Select(v => v.ToString()).ToList();
+                                BibleStartVerse.ItemsSource = verseNumbers;
+                                BibleEndVerse.ItemsSource = verseNumbers;
+                                
+                                // 🔧 等待UI更新完成
+                                await System.Threading.Tasks.Task.Delay(10);
+                                
+                                // 第4步：选择起始节和结束节（确保节号列表已加载）
+                                var targetStartVerse = verseNumbers.FirstOrDefault(v => v == startVerse.ToString());
+                                if (targetStartVerse != null)
+                                {
+                                    BibleStartVerse.SelectedItem = targetStartVerse;
+                                    
+                                    // 🆕 将选中的起始节滚动到第一位（顶部）
+                                    BibleStartVerse.ScrollIntoView(targetStartVerse);
+                                    
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择起始节: {startVerse}节，并滚动到顶部");
+                                    //#endif
+                                }
 
-                // 第4步：选择起始节和结束节（需要等待章节加载完成）
-                Dispatcher.InvokeAsync(() =>
-                {
-                    if (BibleStartVerse.ItemsSource is System.Collections.Generic.List<string> verseList)
-                    {
-                        var targetStartVerse = verseList.FirstOrDefault(v => v == startVerse.ToString());
-                        if (targetStartVerse != null)
-                        {
-                            BibleStartVerse.SelectedItem = targetStartVerse;
-                            
-                            // 🆕 将选中的起始节滚动到第一位（顶部）
-                            BibleStartVerse.ScrollIntoView(targetStartVerse);
-                            
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择起始节: {startVerse}节，并滚动到顶部");
-                            //#endif
-                        }
-                    }
-
-                    if (BibleEndVerse.ItemsSource is System.Collections.Generic.List<string> endVerseList)
-                    {
-                        var targetEndVerse = endVerseList.FirstOrDefault(v => v == endVerse.ToString());
-                        if (targetEndVerse != null)
-                        {
-                            BibleEndVerse.SelectedItem = targetEndVerse;
-                            
-                            // 🆕 将选中的结束节滚动到第一位（顶部）
-                            BibleEndVerse.ScrollIntoView(targetEndVerse);
-                            
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择结束节: {endVerse}节，并滚动到顶部");
-                            //#endif
+                                var targetEndVerse = verseNumbers.FirstOrDefault(v => v == endVerse.ToString());
+                                if (targetEndVerse != null)
+                                {
+                                    BibleEndVerse.SelectedItem = targetEndVerse;
+                                    
+                                    // 🆕 将选中的结束节滚动到第一位（顶部）
+                                    BibleEndVerse.ScrollIntoView(targetEndVerse);
+                                    
+                                    //#if DEBUG
+                                    //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择结束节: {endVerse}节，并滚动到顶部");
+                                    //#endif
+                                }
+                            }
                         }
                     }
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
@@ -1427,6 +1439,15 @@ namespace ImageColorChanger.UI
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [圣经导航同步] 同步失败");
                 //#endif
+            }
+            finally
+            {
+                // 🔧 延迟重置同步标志，确保所有异步操作完成
+                _ = Dispatcher.InvokeAsync(async () =>
+                {
+                    await System.Threading.Tasks.Task.Delay(10);
+                    _isNavigationSyncing = false;
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 
