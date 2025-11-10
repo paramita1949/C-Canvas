@@ -95,9 +95,9 @@ namespace ImageColorChanger.Core
         {
             try
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"    📂 [SkiaFontService] LoadTypeface 开始: {fontFamilyName}, 加粗:{isBold}, 斜体:{isItalic}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"    📂 [SkiaFontService] LoadTypeface 开始: {fontFamilyName}, 加粗:{isBold}, 斜体:{isItalic}");
+//#endif
                 
                 // 1. 尝试从FontService获取字体配置
                 var fontService = FontService.Instance;
@@ -113,24 +113,24 @@ namespace ImageColorChanger.Core
                             if (font.Family.Equals(fontFamilyName, StringComparison.OrdinalIgnoreCase) ||
                                 font.Name.Equals(fontFamilyName, StringComparison.OrdinalIgnoreCase))
                             {
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"    ✅ [SkiaFontService] 找到字体配置: {font.Name} (Family:{font.Family}, File:{font.File})");
-#endif
+//#if DEBUG
+//                                System.Diagnostics.Debug.WriteLine($"    ✅ [SkiaFontService] 找到字体配置: {font.Name} (Family:{font.Family}, File:{font.File})");
+//#endif
                                 // 找到字体配置
                                 if (font.File == "system")
                                 {
                                     // 系统字体
-#if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"    🎯 [SkiaFontService] 系统字体，将应用加粗样式: {isBold}");
-#endif
+//#if DEBUG
+//                                    System.Diagnostics.Debug.WriteLine($"    🎯 [SkiaFontService] 系统字体，将应用加粗样式: {isBold}");
+//#endif
                                     return GetDefaultTypeface(isBold, isItalic, fontFamilyName);
                                 }
                                 else
                                 {
                                     // 自定义字体文件
-#if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"    ⚠️ [SkiaFontService] 自定义字体，加载字体文件（注意：加粗参数isBold={isBold}未传递到LoadTypefaceFromFile）");
-#endif
+//#if DEBUG
+//                                    System.Diagnostics.Debug.WriteLine($"    ⚠️ [SkiaFontService] 自定义字体，加载字体文件（注意：加粗参数isBold={isBold}未传递到LoadTypefaceFromFile）");
+//#endif
                                     return LoadTypefaceFromFile(font.File, fontFamilyName);
                                 }
                             }

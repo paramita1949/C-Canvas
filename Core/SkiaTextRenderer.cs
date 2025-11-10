@@ -416,9 +416,9 @@ namespace ImageColorChanger.Core
             // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
             if (style.IsBold)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"    🎨 [CreatePaint] 启用加粗: 字体={style.FontFamily}, FakeBoldText=true");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"    🎨 [CreatePaint] 启用加粗: 字体={style.FontFamily}, FakeBoldText=true");
+//#endif
                 paint.FakeBoldText = true;
             }
             
