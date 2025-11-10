@@ -110,8 +110,15 @@ namespace ImageColorChanger.Services
                 
                 if (version != null)
                 {
-                    // 返回 Major.Minor.Build 格式（例如：5.3.5）
-                    return $"{version.Major}.{version.Minor}.{version.Build}";
+                    // 支持3位或4位版本号（例如：5.3.5 或 5.8.6.3）
+                    if (version.Revision > 0)
+                    {
+                        return $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+                    }
+                    else
+                    {
+                        return $"{version.Major}.{version.Minor}.{version.Build}";
+                    }
                 }
 
                 // 备用方案：尝试从 AssemblyInformationalVersion 获取
@@ -159,8 +166,8 @@ namespace ImageColorChanger.Services
 //            Debug.WriteLine($"[UpdateService] 最新版本: {latestVersion}");
 //#endif
 
-            // 验证版本号格式
-            if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+$"))
+            // 验证版本号格式（支持3位或4位版本号，如 5.3.5 或 5.8.6.3）
+            if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+(\.\d+)?$"))
             {
 //#if DEBUG
 //                Debug.WriteLine($"[UpdateService] 版本号格式无效: {latestVersion}");
