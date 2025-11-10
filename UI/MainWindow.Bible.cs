@@ -2540,17 +2540,24 @@ namespace ImageColorChanger.UI
             
             if (hasLocked)
             {
-                // 清空所有锁定状态
+                // 清空所有锁定状态和勾选状态
                 foreach (var item in _historySlots)
                 {
                     item.IsLocked = false;
+                    item.IsChecked = false;  // 🆕 同时清空勾选状态，防止误覆盖
                 }
                 
                 await LoadAndDisplayLockedRecords(); // 会清空显示
                 
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine("[圣经] 已清空所有锁定");
-                //#endif
+                // 🆕 更新清空按钮样式（从绿色恢复成白色）
+                UpdateClearButtonStyle();
+                
+                // 🆕 刷新列表显示，确保界面更新
+                BibleHistoryList.Items.Refresh();
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[圣经] 已清空所有锁定和勾选");
+                #endif
             }
             else
             {
@@ -2571,9 +2578,9 @@ namespace ImageColorChanger.UI
                 // 刷新列表显示
                 BibleHistoryList.Items.Refresh();
 
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经] 清除了 {checkedItems.Count} 个勾选的槽位");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[圣经] 清除了 {checkedItems.Count} 个勾选的槽位");
+                #endif
             }
         }
         
@@ -3019,9 +3026,9 @@ namespace ImageColorChanger.UI
             }
             else
             {
-                // 无锁定记录：原始颜色
+                // 无锁定记录：恢复白色（MenuButtonStyle的默认颜色）
                 BtnHistoryClearSelected.Background = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(128, 128, 128));
+                    System.Windows.Media.Color.FromRgb(255, 255, 255));
             }
         }
 
