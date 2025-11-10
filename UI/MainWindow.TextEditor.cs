@@ -395,18 +395,43 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 隐藏文本编辑器（返回图片模式）
+        /// 隐藏文本编辑器（根据当前模式恢复相应的显示区域）
         /// </summary>
         private void HideTextEditor()
         {
+            // 1. 隐藏幻灯片面板
             TextEditorPanel.Visibility = Visibility.Collapsed;
-            ImageScrollViewer.Visibility = Visibility.Visible;
             
-            // 🔧 如果投影已开启，恢复图片投影
-            if (_projectionManager != null && _projectionManager.IsProjectionActive)
+            // 2. 根据当前模式恢复相应的显示区域
+            if (_isBibleMode)
             {
-                //System.Diagnostics.Debug.WriteLine("🔄 退出文本编辑器，恢复图片投影");
-                UpdateProjection();
+                // 🔧 圣经模式：确保圣经区域可见
+                BibleDisplayContainer.Visibility = Visibility.Visible;
+                BibleVerseScrollViewer.Visibility = Visibility.Visible;
+                
+                // 隐藏其他区域
+                ImageScrollViewer.Visibility = Visibility.Collapsed;
+                VideoContainer.Visibility = Visibility.Collapsed;
+                
+                //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复圣经显示");
+            }
+            else
+            {
+                // 🔧 文件/项目模式：确保图片/视频区域可见
+                ImageScrollViewer.Visibility = Visibility.Visible;
+                VideoContainer.Visibility = Visibility.Visible;
+                
+                // 隐藏圣经区域
+                BibleDisplayContainer.Visibility = Visibility.Collapsed;
+                
+                // 如果投影已开启，恢复图片投影
+                if (_projectionManager != null && _projectionManager.IsProjectionActive)
+                {
+                    //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片投影");
+                    UpdateProjection();
+                }
+                
+                //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片/视频显示");
             }
         }
 
@@ -4733,7 +4758,7 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 切换到上一张幻灯片
+        /// 切换到上一张幻灯片（循环：第一张时跳到最后一张）
         /// </summary>
         internal void NavigateToPreviousSlide()
         {
@@ -4743,13 +4768,20 @@ namespace ImageColorChanger.UI
             int currentIndex = SlideListBox.SelectedIndex;
             if (currentIndex > 0)
             {
+                // 不是第一张，切换到上一张
                 SlideListBox.SelectedIndex = currentIndex - 1;
                 //System.Diagnostics.Debug.WriteLine($"⬆️ 切换到上一张幻灯片: Index={currentIndex - 1}");
+            }
+            else
+            {
+                // 第一张，循环到最后一张
+                SlideListBox.SelectedIndex = SlideListBox.Items.Count - 1;
+                //System.Diagnostics.Debug.WriteLine($"🔄 循环到最后一张幻灯片: Index={SlideListBox.Items.Count - 1}");
             }
         }
 
         /// <summary>
-        /// 切换到下一张幻灯片
+        /// 切换到下一张幻灯片（循环：最后一张时回到第一张）
         /// </summary>
         internal void NavigateToNextSlide()
         {
@@ -4759,8 +4791,15 @@ namespace ImageColorChanger.UI
             int currentIndex = SlideListBox.SelectedIndex;
             if (currentIndex < SlideListBox.Items.Count - 1)
             {
+                // 不是最后一张，切换到下一张
                 SlideListBox.SelectedIndex = currentIndex + 1;
                 //System.Diagnostics.Debug.WriteLine($"⬇️ 切换到下一张幻灯片: Index={currentIndex + 1}");
+            }
+            else
+            {
+                // 最后一张，循环回到第一张
+                SlideListBox.SelectedIndex = 0;
+                //System.Diagnostics.Debug.WriteLine($"🔄 循环回到第一张幻灯片: Index=0");
             }
         }
 
