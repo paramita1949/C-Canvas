@@ -696,7 +696,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 保存歌词项目
         /// </summary>
-        private void SaveLyricsProject()
+        internal void SaveLyricsProject()
         {
             if (_currentLyricsProject == null)
                 return;

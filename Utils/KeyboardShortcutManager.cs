@@ -27,6 +27,13 @@ namespace ImageColorChanger.Utils
         /// <returns>是否处理了该按键</returns>
         public async Task<bool> HandleKeyAsync(Key key, ModifierKeys modifiers)
         {
+            // Ctrl+S: 保存（歌词/幻灯片）
+            if (key == Key.S && modifiers == ModifierKeys.Control)
+            {
+                _actionHandler.HandleSaveKey();
+                return true;
+            }
+
             // 只处理没有修饰键的按键（Ctrl、Alt、Shift等）
             if (modifiers != ModifierKeys.None)
             {

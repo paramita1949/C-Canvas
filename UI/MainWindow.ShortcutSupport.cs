@@ -71,6 +71,14 @@ namespace ImageColorChanger.UI
             return _isBibleMode;
         }
 
+        /// <summary>
+        /// 是否处于歌词模式
+        /// </summary>
+        public bool IsLyricsMode()
+        {
+            return _isLyricsMode;
+        }
+
         // 注意：IsPinyinInputActive 已在 MainWindow.Bible.cs 中定义
         // 注意：NavigateHighlightedVerse() 已在 MainWindow.Bible.cs 中定义为internal方法
 
@@ -148,6 +156,34 @@ namespace ImageColorChanger.UI
             Dispatcher.InvokeAsync(() =>
             {
                 BtnFloatingCompositePlay.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            });
+        }
+
+        /// <summary>
+        /// 保存歌词项目（供快捷键调用）
+        /// 注意：实际保存逻辑在 MainWindow.Lyrics.cs 的 SaveLyricsProject() 方法中
+        /// </summary>
+        public void InvokeSaveLyrics()
+        {
+            SaveLyricsProject();
+            ShowToast("歌词已保存");
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"💾 [Ctrl+S] 歌词已保存");
+#endif
+        }
+
+        /// <summary>
+        /// 保存幻灯片项目（供快捷键调用）
+        /// </summary>
+        public void InvokeSaveTextProject()
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                BtnSaveTextProject_Click(null, null);
+                ShowToast("幻灯片已保存");
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [Ctrl+S] 幻灯片已保存");
+#endif
             });
         }
 

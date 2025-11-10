@@ -254,6 +254,26 @@ namespace ImageColorChanger.Utils
             }
         }
 
+        /// <summary>
+        /// 处理Ctrl+S键 - 保存（歌词/幻灯片）
+        /// </summary>
+        public void HandleSaveKey()
+        {
+            // 歌词模式
+            if (_mainWindow.IsLyricsMode())
+            {
+                _mainWindow.InvokeSaveLyrics();
+                return;
+            }
+
+            // 幻灯片模式
+            if (_mainWindow.IsTextEditorActive())
+            {
+                _mainWindow.InvokeSaveTextProject();
+                return;
+            }
+        }
+
         #endregion
     }
 }
