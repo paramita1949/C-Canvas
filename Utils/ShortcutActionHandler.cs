@@ -230,6 +230,30 @@ namespace ImageColorChanger.Utils
             _mainWindow.InvokeCompositePlayClick();
         }
 
+        /// <summary>
+        /// 处理Up键 - 圣经经文上一节（变色高亮）
+        /// </summary>
+        public void HandleUpKey()
+        {
+            // 只在圣经模式下生效
+            if (_mainWindow.IsBibleMode())
+            {
+                _mainWindow.NavigateHighlightedVerse(-1);
+            }
+        }
+
+        /// <summary>
+        /// 处理Down键 - 圣经经文下一节（变色高亮）
+        /// </summary>
+        public void HandleDownKey()
+        {
+            // 只在圣经模式下生效
+            if (_mainWindow.IsBibleMode())
+            {
+                _mainWindow.NavigateHighlightedVerse(1);
+            }
+        }
+
         #endregion
     }
 }

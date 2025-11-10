@@ -63,7 +63,16 @@ namespace ImageColorChanger.UI
             return _playbackViewModel != null && _playbackViewModel.IsPlaying;
         }
 
+        /// <summary>
+        /// 是否处于圣经模式
+        /// </summary>
+        public bool IsBibleMode()
+        {
+            return _isBibleMode;
+        }
+
         // 注意：IsPinyinInputActive 已在 MainWindow.Bible.cs 中定义
+        // 注意：NavigateHighlightedVerse() 已在 MainWindow.Bible.cs 中定义为internal方法
 
         #endregion
 

@@ -1603,6 +1603,96 @@ namespace ImageColorChanger.UI
             }
         }
 
+        /// <summary>
+        /// 上下键导航高亮经文
+        /// </summary>
+        /// <param name="direction">方向：-1=上一节，1=下一节</param>
+        internal void NavigateHighlightedVerse(int direction)
+        {
+            // 获取所有经文
+            System.Collections.Generic.IEnumerable<BibleVerse> verses = null;
+            
+            if (BibleVerseList.ItemsSource is System.Collections.Generic.List<BibleVerse> list)
+            {
+                verses = list;
+            }
+            else if (BibleVerseList.ItemsSource is System.Collections.ObjectModel.ObservableCollection<BibleVerse> collection)
+            {
+                verses = collection;
+            }
+            
+            if (verses == null || !verses.Any())
+            {
+                return;
+            }
+
+            var versesList = verses.ToList();
+            
+            // 查找当前高亮的经文
+            var currentIndex = -1;
+            for (int i = 0; i < versesList.Count; i++)
+            {
+                if (versesList[i].IsHighlighted)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            // 如果没有高亮的经文，从第一节开始
+            if (currentIndex == -1)
+            {
+                if (versesList.Count > 0)
+                {
+                    versesList[0].IsHighlighted = true;
+                    
+                    // 刷新UI和投影
+                    ApplyVerseStyles();
+                    if (_projectionManager != null && _projectionManager.IsProjecting)
+                    {
+                        RenderBibleToProjection();
+                    }
+                }
+                return;
+            }
+
+            // 计算目标索引
+            var targetIndex = currentIndex + direction;
+            
+            // 边界检查
+            if (targetIndex < 0 || targetIndex >= versesList.Count)
+            {
+                return; // 超出范围，不操作
+            }
+
+            // 取消当前高亮
+            versesList[currentIndex].IsHighlighted = false;
+            
+            // 高亮目标经文
+            versesList[targetIndex].IsHighlighted = true;
+
+            // 刷新UI和投影
+            ApplyVerseStyles();
+            if (_projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderBibleToProjection();
+            }
+            
+            // 滚动到可见区域
+            ScrollToVerseAtIndex(targetIndex);
+        }
+
+        /// <summary>
+        /// 滚动到指定索引的经文
+        /// </summary>
+        private void ScrollToVerseAtIndex(int index)
+        {
+            // ItemsControl 不支持 ScrollIntoView，使用其他方式实现滚动
+            // 可以通过查找子元素并计算位置来滚动
+            // 暂时简化实现：不自动滚动（用户可以手动滚动查看）
+            // 如果需要自动滚动，可以后续使用 VisualTreeHelper 查找元素位置实现
+        }
+
         #endregion
 
         #region 圣经投影

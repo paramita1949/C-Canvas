@@ -77,6 +77,14 @@ namespace ImageColorChanger.Utils
                 case Key.F3:
                     _actionHandler.HandleF3Key();
                     return true;
+
+                case Key.Up:
+                    _actionHandler.HandleUpKey();
+                    return true;
+
+                case Key.Down:
+                    _actionHandler.HandleDownKey();
+                    return true;
             }
 
             return false;
