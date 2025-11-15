@@ -29,25 +29,50 @@ namespace ImageColorChanger.Core
             
             // 自动换行
             var wrappedLines = WrapText(text, paint, maxWidth);
-            
+
             // 计算每行的位置
             var layout = new TextLayout();
-            float currentY = style.FontSize; // 第一行的baseline位置
+            // ✅ 修复行间距计算：与 WPF BlockLineHeight 行为完全一致
+            //
+            // WPF BlockLineHeight 行为：
+            //   LineHeight = FontSize × LineSpacing (例如 86 × 2.1 = 180.6)
+            //   行框高度固定为 LineHeight
+            //   文字在行框内垂直居中
+            //   第一行顶部 = 0
+            //   第一行 baseline ≈ (LineHeight - FontSize) / 2 + FontSize
+            //                    = (180.6 - 86) / 2 + 86 = 47.3 + 86 = 133.3
+            //
+            // SkiaSharp 对应实现：
+            //   使用 SkiaSharp 的 FontMetrics 获取精确的 baseline 偏移
+            float lineHeight = style.FontSize * style.LineSpacing;
+
+            // 计算第一行的 baseline 位置（模拟 WPF BlockLineHeight 的垂直居中）
+            // 上边距 = (LineHeight - FontSize) / 2
+            float topPadding = (lineHeight - style.FontSize) / 2;
+            float currentY = topPadding + style.FontSize;  // baseline = 上边距 + FontSize
+
             float maxLineWidth = 0;
-            
+
             foreach (var lineText in wrappedLines)
             {
                 float lineWidth = paint.MeasureText(lineText);
                 maxLineWidth = Math.Max(maxLineWidth, lineWidth);
-                
+
                 layout.Lines.Add(new TextLine
                 {
                     Text = lineText,
                     Position = new SKPoint(0, currentY),
                     Size = new SKSize(lineWidth, style.FontSize)
                 });
-                
-                currentY += style.FontSize * style.LineSpacing;
+
+#if DEBUG
+                if (layout.Lines.Count == 1) // 只输出第一行的调试信息
+                {
+                    System.Diagnostics.Debug.WriteLine($"📐 [行间距计算] 字体大小={style.FontSize}, 行间距倍数={style.LineSpacing}, 计算行高={lineHeight}, 第一行baseline={currentY}");
+                }
+#endif
+
+                currentY += lineHeight;
             }
             
             layout.TotalSize = new SKSize(

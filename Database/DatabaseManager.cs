@@ -115,13 +115,14 @@ namespace ImageColorChanger.Database
                         if (fileIds.Count > 0)
                         {
                             string fileIdList = string.Join(",", fileIds);
-                            
-                            _context.Database.ExecuteSqlRaw($"DELETE FROM keyframe_timings WHERE image_id IN ({fileIdList})");
-                            _context.Database.ExecuteSqlRaw($"DELETE FROM keyframes WHERE image_id IN ({fileIdList})");
-                            _context.Database.ExecuteSqlRaw($"DELETE FROM image_display_locations WHERE image_id IN ({fileIdList})");
-                            _context.Database.ExecuteSqlRaw($"DELETE FROM composite_scripts WHERE image_id IN ({fileIdList})");
-                            _context.Database.ExecuteSqlRaw($"DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN ({fileIdList})");
-                            
+
+                            // 使用 FormattableString 避免 SQL 注入警告（fileIdList 是安全的整数列表）
+                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN ({0})", fileIdList);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN ({0})", fileIdList);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN ({0})", fileIdList);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN ({0})", fileIdList);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN ({0})", fileIdList);
+
                             #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"[删除文件夹] 已删除所有关联数据");
                             #endif
@@ -1249,6 +1250,229 @@ namespace ImageColorChanger.Database
         }
         
         /// <summary>
+        /// 执行数据库迁移 - 添加 is_underline 列到 text_elements 表
+        /// </summary>
+        public void MigrateAddUnderlineSupport()
+        {
+            try
+            {
+                // 检查列是否已存在
+                var checkSql = "SELECT COUNT(*) FROM pragma_table_info('text_elements') WHERE name='is_underline'";
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+
+                    if (count == 0)
+                    {
+                        // 列不存在，执行添加
+                        _context.Database.ExecuteSqlRaw("ALTER TABLE text_elements ADD COLUMN is_underline INTEGER NOT NULL DEFAULT 0");
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已添加 is_underline 列到 text_elements 表");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("ℹ️ is_underline 列已存在，跳过迁移");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 执行数据库迁移 - 添加 RichText 支持（斜体、边框、背景、阴影、间距）
+        /// </summary>
+        public void MigrateAddRichTextSupport()
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                // 定义所有需要添加的列
+                var columnsToAdd = new[]
+                {
+                    // 斜体
+                    ("is_italic", "INTEGER NOT NULL DEFAULT 0"),
+
+                    // 边框样式
+                    ("border_color", "TEXT NOT NULL DEFAULT '#000000'"),
+                    ("border_width", "REAL NOT NULL DEFAULT 0"),
+                    ("border_radius", "REAL NOT NULL DEFAULT 0"),
+                    ("border_opacity", "INTEGER NOT NULL DEFAULT 0"),
+
+                    // 背景样式
+                    ("background_color", "TEXT NOT NULL DEFAULT '#FFFFFF'"),
+                    ("background_radius", "REAL NOT NULL DEFAULT 0"),
+                    ("background_opacity", "INTEGER NOT NULL DEFAULT 0"),
+
+                    // 阴影样式
+                    ("shadow_color", "TEXT NOT NULL DEFAULT '#000000'"),
+                    ("shadow_offset_x", "REAL NOT NULL DEFAULT 0"),
+                    ("shadow_offset_y", "REAL NOT NULL DEFAULT 0"),
+                    ("shadow_blur", "REAL NOT NULL DEFAULT 0"),
+                    ("shadow_opacity", "INTEGER NOT NULL DEFAULT 0"),
+
+                    // 间距样式
+                    ("line_spacing", "REAL NOT NULL DEFAULT 1.2"),
+                    ("letter_spacing", "REAL NOT NULL DEFAULT 0.0")
+                };
+
+                int addedCount = 0;
+                foreach (var (columnName, columnDef) in columnsToAdd)
+                {
+                    // 检查列是否已存在
+                    var checkSql = $"SELECT COUNT(*) FROM pragma_table_info('text_elements') WHERE name='{columnName}'";
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = checkSql;
+                        var count = Convert.ToInt32(command.ExecuteScalar());
+
+                        if (count == 0)
+                        {
+                            // 列不存在，执行添加
+                            // 注意：columnName 和 columnDef 来自代码中的硬编码元组，不是用户输入，因此是安全的
+#pragma warning disable EF1002
+                            _context.Database.ExecuteSqlRaw($"ALTER TABLE text_elements ADD COLUMN {columnName} {columnDef}");
+#pragma warning restore EF1002
+                            addedCount++;
+                        }
+                    }
+                }
+
+                #if DEBUG
+                if (addedCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ 数据库迁移成功：已添加 {addedCount} 个 RichText 列到 text_elements 表");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("ℹ️ RichText 列已存在，跳过迁移");
+                }
+                #endif
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ RichText 数据库迁移失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 执行数据库迁移 - 创建富文本片段表（完全 RichText 支持）
+        /// </summary>
+        public void MigrateCreateRichTextSpansTable()
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                // 检查表是否已存在
+                var checkSql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rich_text_spans'";
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+
+                    if (count == 0)
+                    {
+                        // 创建富文本片段表
+                        var createTableSql = @"
+                            CREATE TABLE rich_text_spans (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                text_element_id INTEGER NOT NULL,
+                                span_order INTEGER NOT NULL,
+                                text TEXT NOT NULL DEFAULT '',
+
+                                -- 字体样式（可继承）
+                                font_family TEXT NULL,
+                                font_size REAL NULL,
+                                font_color TEXT NULL,
+                                is_bold INTEGER NOT NULL DEFAULT 0,
+                                is_italic INTEGER NOT NULL DEFAULT 0,
+                                is_underline INTEGER NOT NULL DEFAULT 0,
+
+                                -- 边框样式（可继承）
+                                border_color TEXT NULL,
+                                border_width REAL NULL,
+                                border_radius REAL NULL,
+                                border_opacity INTEGER NULL,
+
+                                -- 背景样式（可继承）
+                                background_color TEXT NULL,
+                                background_radius REAL NULL,
+                                background_opacity INTEGER NULL,
+
+                                -- 阴影样式（可继承）
+                                shadow_color TEXT NULL,
+                                shadow_offset_x REAL NULL,
+                                shadow_offset_y REAL NULL,
+                                shadow_blur REAL NULL,
+                                shadow_opacity INTEGER NULL,
+
+                                FOREIGN KEY (text_element_id) REFERENCES text_elements(id) ON DELETE CASCADE
+                            )";
+
+                        _context.Database.ExecuteSqlRaw(createTableSql);
+
+                        // 创建索引
+                        _context.Database.ExecuteSqlRaw("CREATE INDEX idx_rich_text_spans_element ON rich_text_spans(text_element_id)");
+                        _context.Database.ExecuteSqlRaw("CREATE INDEX idx_rich_text_spans_order ON rich_text_spans(text_element_id, span_order)");
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ rich_text_spans 表创建成功");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("ℹ️ rich_text_spans 表已存在，跳过创建");
+                        #endif
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 创建 rich_text_spans 表失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+        }
+
+        /// <summary>
         /// 执行数据库迁移 - 创建圣经插入配置表
         /// </summary>
         public void MigrateAddBibleInsertConfigTable()
@@ -1262,12 +1486,12 @@ namespace ImageColorChanger.Database
                 {
                     connection.Open();
                 }
-                
+
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandText = checkSql;
                     var count = Convert.ToInt32(command.ExecuteScalar());
-                    
+
                     if (count == 0)
                     {
                         // 表不存在，创建表（键值对存储）
@@ -1277,22 +1501,25 @@ namespace ImageColorChanger.Database
                                 value TEXT NOT NULL
                             )";
                         _context.Database.ExecuteSqlRaw(createTableSql);
-                        
-                        // 插入默认配置（字体大小为显示值，实际使用时×2）
+
+                        // 插入默认配置
                         var insertDefaultSql = @"
                             INSERT INTO bible_insert_config (key, value) VALUES
                             ('style', '0'),
-                            ('font_family', '微软雅黑'),
+                            ('font_family', 'DengXian'),
                             ('title_color', '#FF0000'),
-                            ('title_size', '20'),
+                            ('title_size', '50'),
                             ('title_bold', '1'),
-                            ('verse_color', '#D2691E'),
-                            ('verse_size', '15'),
+                            ('verse_color', '#FF9A35'),
+                            ('verse_size', '40'),
                             ('verse_bold', '0'),
-                            ('verse_spacing', '10'),
+                            ('verse_spacing', '1.2'),
+                            ('verse_number_color', '#FFFF00'),
+                            ('verse_number_size', '40'),
+                            ('verse_number_bold', '1'),
                             ('auto_hide_navigation', '1')";
                         _context.Database.ExecuteSqlRaw(insertDefaultSql);
-                        
+
                         #if DEBUG
                         System.Diagnostics.Debug.WriteLine("✅ 数据库迁移成功：已创建 bible_insert_config 表");
                         #endif

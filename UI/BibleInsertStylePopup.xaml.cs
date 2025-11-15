@@ -78,20 +78,24 @@ namespace ImageColorChanger.UI
         private void LoadConfig()
         {
             _config = new BibleTextInsertConfig();
-            
+
             // 从数据库加载配置
             _config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
-            _config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "Microsoft YaHei");
-            
+            _config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
+
             _config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
-            _config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "20"));
+            _config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "50"));
             _config.TitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
-            
-            _config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#D2691E");
-            _config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "15"));
+
+            _config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#FF9A35");
+            _config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "40"));
             _config.VerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
-            _config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "10"));
-            
+            _config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "1.2"));
+
+            _config.VerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_number_color", "#FFFF00");
+            _config.VerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_number_size", "40"));
+            _config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
+
             _config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
             
             //#if DEBUG
@@ -177,8 +181,23 @@ namespace ImageColorChanger.UI
             CmbVerseSize.ItemsSource = verseSizes;
             CmbVerseSize.SelectedItem = (int)_config.VerseStyle.FontSize;
             ChkVerseBold.IsChecked = _config.VerseStyle.IsBold;
-            CmbVerseSpacing.ItemsSource = new[] { 0, 5, 10, 15, 20, 30, 40, 50 };
-            CmbVerseSpacing.SelectedItem = (int)_config.VerseStyle.VerseSpacing;
+
+            // 节距（行间距）选项：1.0-2.5，步长0.1
+            var verseSpacingOptions = new List<double>();
+            for (double i = 1.0; i <= 2.5; i += 0.1)
+            {
+                verseSpacingOptions.Add(Math.Round(i, 1));
+            }
+            CmbVerseSpacing.ItemsSource = verseSpacingOptions;
+            CmbVerseSpacing.SelectedItem = Math.Round(_config.VerseStyle.VerseSpacing, 1);
+
+            // 节号样式
+            SetColorButton(BtnVerseNumberColor, _config.VerseNumberStyle.GetSKColor());
+            // 生成字体大小选项：10-200（与幻灯片一致）
+            var verseNumberSizes = Enumerable.Range(10, 191).ToList(); // 10 到 200
+            CmbVerseNumberSize.ItemsSource = verseNumberSizes;
+            CmbVerseNumberSize.SelectedItem = (int)_config.VerseNumberStyle.FontSize;
+            ChkVerseNumberBold.IsChecked = _config.VerseNumberStyle.IsBold;
         }
         
         /// <summary>
@@ -289,19 +308,24 @@ namespace ImageColorChanger.UI
                 
                 _config.VerseStyle.IsBold = ChkVerseBold.IsChecked ?? false;
                 _dbManager.SetBibleInsertConfigValue("verse_bold", _config.VerseStyle.IsBold ? "1" : "0");
-                
+
                 if (CmbVerseSpacing.SelectedItem != null)
                 {
-                    _config.VerseStyle.VerseSpacing = (float)(int)CmbVerseSpacing.SelectedItem;
-                    _dbManager.SetBibleInsertConfigValue("verse_spacing", _config.VerseStyle.VerseSpacing.ToString());
+                    _config.VerseStyle.VerseSpacing = (float)(double)CmbVerseSpacing.SelectedItem;
+                    _dbManager.SetBibleInsertConfigValue("verse_spacing", _config.VerseStyle.VerseSpacing.ToString("F1"));
                 }
-                
+
+                // 更新节号样式
+                _config.VerseNumberStyle.IsBold = ChkVerseNumberBold.IsChecked ?? true;
+                _dbManager.SetBibleInsertConfigValue("verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0");
+
                 //#if DEBUG
                 //Debug.WriteLine($"✅ [BibleInsertStylePopup] 配置已保存到数据库");
                 //Debug.WriteLine($"   样式布局: {_config.Style}");
                 //Debug.WriteLine($"   统一字体: {_config.FontFamily}");
                 //Debug.WriteLine($"   标题: {_config.TitleStyle.FontSize}pt, 粗体={_config.TitleStyle.IsBold}");
                 //Debug.WriteLine($"   经文: {_config.VerseStyle.FontSize}pt, 粗体={_config.VerseStyle.IsBold}, 节距={_config.VerseStyle.VerseSpacing}px");
+                //Debug.WriteLine($"   节号: 粗体={_config.VerseNumberStyle.IsBold}");
                 //#endif
             }
             catch (Exception ex)
@@ -360,14 +384,14 @@ namespace ImageColorChanger.UI
                 var currentColor = _config.VerseStyle.GetSKColor();
                 colorDialog.Color = System.Drawing.Color.FromArgb(
                     currentColor.Alpha, currentColor.Red, currentColor.Green, currentColor.Blue);
-                
+
                 if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     var color = colorDialog.Color;
                     _config.VerseStyle.SetSKColor(new SKColor(color.R, color.G, color.B, color.A));
                     SetColorButton(BtnVerseColor, _config.VerseStyle.GetSKColor());
                     _dbManager.SetBibleInsertConfigValue("verse_color", _config.VerseStyle.ColorHex);
-                    
+
                     #if DEBUG
                     Debug.WriteLine($"✅ [BibleInsertStylePopup] 经文颜色已更改: {_config.VerseStyle.ColorHex}");
                     #endif
@@ -380,6 +404,52 @@ namespace ImageColorChanger.UI
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
+            }
+        }
+
+        /// <summary>
+        /// 节号颜色选择按钮点击事件
+        /// </summary>
+        private void BtnVerseNumberColor_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var colorDialog = new System.Windows.Forms.ColorDialog();
+                var currentColor = _config.VerseNumberStyle.GetSKColor();
+                colorDialog.Color = System.Drawing.Color.FromArgb(
+                    currentColor.Alpha, currentColor.Red, currentColor.Green, currentColor.Blue);
+
+                if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    var color = colorDialog.Color;
+                    _config.VerseNumberStyle.SetSKColor(new SKColor(color.R, color.G, color.B, color.A));
+                    SetColorButton(BtnVerseNumberColor, _config.VerseNumberStyle.GetSKColor());
+                    _dbManager.SetBibleInsertConfigValue("verse_number_color", _config.VerseNumberStyle.ColorHex);
+
+                    #if DEBUG
+                    Debug.WriteLine($"✅ [BibleInsertStylePopup] 节号颜色已更改: {_config.VerseNumberStyle.ColorHex}");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择节号颜色失败: {ex.Message}");
+                #else
+                _ = ex;  // 防止未使用变量警告
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 节号大小变更事件
+        /// </summary>
+        private void VerseNumberSizeChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CmbVerseNumberSize.SelectedItem != null)
+            {
+                _config.VerseNumberStyle.FontSize = (int)CmbVerseNumberSize.SelectedItem;
+                _dbManager.SetBibleInsertConfigValue("verse_number_size", _config.VerseNumberStyle.FontSize.ToString());
             }
         }
     }

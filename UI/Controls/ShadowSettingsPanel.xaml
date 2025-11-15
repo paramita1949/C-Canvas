@@ -1,0 +1,162 @@
+<UserControl x:Class="ImageColorChanger.UI.Controls.ShadowSettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="220" Background="#2D2D30">
+
+    <Border BorderBrush="#3F3F46" BorderThickness="1,0,0,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="15,15,15,15">
+                
+                <!-- 标题 -->
+                <TextBlock Text="文字阴影" 
+                           Foreground="White" 
+                           FontSize="14" 
+                           FontWeight="Bold"
+                           Margin="0,0,0,15"/>
+                
+                <!-- 阴影颜色 -->
+                <TextBlock Text="阴影颜色" 
+                           Foreground="#CCCCCC" 
+                           FontSize="12"
+                           Margin="0,0,0,8"/>
+                
+                <!-- 色板网格 9x6 -->
+                <UniformGrid x:Name="ColorGrid" 
+                             Columns="9" 
+                             Rows="6"
+                             Margin="0,0,0,12">
+                </UniformGrid>
+                
+                <!-- RGB输入框 -->
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="60"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBox x:Name="TxtRgbInput" 
+                             Grid.Column="0"
+                             Height="28"
+                             Background="#3F3F46"
+                             Foreground="White"
+                             BorderBrush="#555555"
+                             Padding="8,0"
+                             VerticalContentAlignment="Center"
+                             Text="#000000"/>
+                    
+                    <Button Grid.Column="2"
+                            Content="使用"
+                            Height="28"
+                            Background="#007ACC"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="BtnUseRgb_Click"/>
+                </Grid>
+                
+                <!-- 最近使用 -->
+                <TextBlock Text="最近使用" 
+                           Foreground="#CCCCCC" 
+                           FontSize="12"
+                           Margin="0,0,0,8"/>
+                
+                <UniformGrid x:Name="RecentColorsGrid" 
+                             Columns="9" 
+                             Rows="1"
+                             Margin="0,0,0,15">
+                </UniformGrid>
+                
+                <!-- 阴影偏移 -->
+                <TextBlock Text="阴影偏移" 
+                           Foreground="#CCCCCC" 
+                           FontSize="12"
+                           Margin="0,0,0,8"/>
+                
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="X轴:" Foreground="White" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="BtnDecreaseOffsetX" Content="-" Width="40" Height="28"
+                                Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                                FontSize="16" Cursor="Hand" Click="BtnDecreaseOffsetX_Click"/>
+                        <TextBlock x:Name="TxtOffsetX" Text="0 px" Foreground="White" FontSize="12"
+                                   VerticalAlignment="Center" Margin="15,0"/>
+                        <Button x:Name="BtnIncreaseOffsetX" Content="+" Width="40" Height="28"
+                                Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                                FontSize="16" Cursor="Hand" Click="BtnIncreaseOffsetX_Click"/>
+                    </StackPanel>
+                </Grid>
+                
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="Y轴:" Foreground="White" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="BtnDecreaseOffsetY" Content="-" Width="40" Height="28"
+                                Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                                FontSize="16" Cursor="Hand" Click="BtnDecreaseOffsetY_Click"/>
+                        <TextBlock x:Name="TxtOffsetY" Text="0 px" Foreground="White" FontSize="12"
+                                   VerticalAlignment="Center" Margin="15,0"/>
+                        <Button x:Name="BtnIncreaseOffsetY" Content="+" Width="40" Height="28"
+                                Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                                FontSize="16" Cursor="Hand" Click="BtnIncreaseOffsetY_Click"/>
+                    </StackPanel>
+                </Grid>
+                
+                <!-- 模糊半径 -->
+                <TextBlock Text="模糊半径" 
+                           Foreground="#CCCCCC" 
+                           FontSize="12"
+                           Margin="0,0,0,8"/>
+                
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                    <Button x:Name="BtnDecreaseBlur" Content="-" Width="40" Height="28"
+                            Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                            FontSize="16" Cursor="Hand" Click="BtnDecreaseBlur_Click"/>
+                    <TextBlock x:Name="TxtBlur" Text="0 px" Foreground="White" FontSize="12"
+                               VerticalAlignment="Center" Margin="15,0"/>
+                    <Button x:Name="BtnIncreaseBlur" Content="+" Width="40" Height="28"
+                            Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                            FontSize="16" Cursor="Hand" Click="BtnIncreaseBlur_Click"/>
+                </StackPanel>
+                
+                <!-- 透明度 -->
+                <TextBlock x:Name="TxtOpacityLabel" Text="透明度  50%" 
+                           Foreground="#CCCCCC" FontSize="12" Margin="0,0,0,8"/>
+                
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Button Grid.Column="0" Content="-" Width="40" Height="28"
+                            Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                            FontSize="16" Cursor="Hand" Click="BtnDecreaseOpacity_Click"/>
+                    
+                    <Slider x:Name="OpacitySlider" Grid.Column="1"
+                            Minimum="0" Maximum="100" Value="50"
+                            VerticalAlignment="Center" Margin="10,0"
+                            ValueChanged="OpacitySlider_ValueChanged"/>
+                    
+                    <Button Grid.Column="2" Content="+" Width="40" Height="28"
+                            Background="#3F3F46" Foreground="White" BorderBrush="#555555"
+                            FontSize="16" Cursor="Hand" Click="BtnIncreaseOpacity_Click"/>
+                </Grid>
+                
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>
+

@@ -78,17 +78,44 @@ namespace ImageColorChanger.Core
             
             // 5. 计算文本布局
             var layout = _layoutEngine.CalculateLayout(context.Text, context.Style, contentWidth);
-            
-            // 6. 创建Paint
+
+            // 6. 计算文本区域边界（用于背景和边框）
+            var textBounds = CalculateTextBounds(layout, context);
+
+            // 7. 绘制阴影（如果启用）
+            if (context.Style.ShadowOpacity > 0 && context.Style.ShadowBlur > 0)
+            {
+                DrawShadow(canvas, textBounds, context.Style);
+            }
+
+            // 8. 绘制背景（如果启用）
+            if (context.Style.BackgroundOpacity > 0)
+            {
+                DrawBackground(canvas, textBounds, context.Style);
+            }
+
+            // 9. 绘制边框（如果启用）
+            if (context.Style.BorderOpacity > 0 && context.Style.BorderWidth > 0)
+            {
+                DrawBorder(canvas, textBounds, context.Style);
+            }
+
+            // 10. 创建Paint
             using var paint = CreatePaint(context.Style);
             paint.TextAlign = context.Alignment;
-            
-            // 7. 逐行绘制
+
+            // 11. 绘制选择区域（编辑模式下，在文本之前绘制）
+            if (context.IsEditing && context.SelectionStart.HasValue && context.SelectionEnd.HasValue)
+            {
+                DrawSelection(canvas, layout, context, paint);
+            }
+
+            // 12. 逐行绘制文本
             foreach (var line in layout.Lines)
             {
                 float x = context.Padding.Left;
                 float y = context.Padding.Top + line.Position.Y;
-                
+
                 // 根据对齐方式调整X坐标
                 if (context.Alignment == SKTextAlign.Center)
                 {
@@ -98,18 +125,28 @@ namespace ImageColorChanger.Core
                 {
                     x = context.Padding.Left + contentWidth;
                 }
-                
+
                 canvas.DrawText(line.Text, x, y, paint);
+
+                // 🆕 绘制下划线
+                if (context.Style.IsUnderline)
+                {
+                    DrawUnderline(canvas, line.Text, x, y, paint, context.Alignment);
+                }
             }
-            
-            // 8. 缓存结果
-            _cache.Set(cacheKey, bitmap, TimeSpan.FromMinutes(5));
-            
-//#if DEBUG
-//            sw.Stop();
-//            System.Diagnostics.Debug.WriteLine($"🎨 [SkiaTextRenderer] 渲染完成: {sw.ElapsedMilliseconds}ms, 尺寸: {width}x{height}, 行数: {layout.Lines.Count}");
-//#endif
-            
+
+            // 13. 绘制光标（编辑模式下，在文本之后绘制）
+            if (context.IsEditing && context.CursorVisible)
+            {
+                DrawCursor(canvas, layout, context, paint);
+            }
+
+            // 14. 缓存结果（编辑模式下不缓存）
+            if (!context.IsEditing)
+            {
+                _cache.Set(cacheKey, bitmap, TimeSpan.FromMinutes(5));
+            }
+
             return bitmap;
         }
         
@@ -421,10 +458,353 @@ namespace ImageColorChanger.Core
 //#endif
                 paint.FakeBoldText = true;
             }
-            
+
+            // ✅ 应用字间距（使用 TextScaleX 实现水平拉伸）
+            if (style.LetterSpacing > 0)
+            {
+                paint.TextScaleX = 1.0f + style.LetterSpacing;
+            }
+
             return paint;
         }
-        
+
+        /// <summary>
+        /// 绘制下划线
+        /// </summary>
+        /// <param name="canvas">画布</param>
+        /// <param name="text">文本内容</param>
+        /// <param name="x">文本X坐标</param>
+        /// <param name="y">文本Y坐标（基线位置）</param>
+        /// <param name="textPaint">文本Paint对象（用于测量和获取颜色）</param>
+        /// <param name="alignment">文本对齐方式</param>
+        private void DrawUnderline(SKCanvas canvas, string text, float x, float y, SKPaint textPaint, SKTextAlign alignment)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            // 1. 测量文本宽度
+            float textWidth = textPaint.MeasureText(text);
+
+            // 2. 计算下划线起点X坐标（根据对齐方式）
+            float underlineStartX;
+            switch (alignment)
+            {
+                case SKTextAlign.Center:
+                    underlineStartX = x - textWidth / 2;
+                    break;
+                case SKTextAlign.Right:
+                    underlineStartX = x - textWidth;
+                    break;
+                default: // Left
+                    underlineStartX = x;
+                    break;
+            }
+
+            // 3. 计算下划线Y坐标（基线下方，距离约为字体大小的10%）
+            float underlineY = y + textPaint.TextSize * 0.1f;
+
+            // 4. 创建下划线Paint
+            using var underlinePaint = new SKPaint
+            {
+                Color = textPaint.Color,
+                StrokeWidth = Math.Max(1f, textPaint.TextSize * 0.05f), // 粗细为字体大小的5%，最小1像素
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+
+            // 5. 绘制下划线
+            canvas.DrawLine(underlineStartX, underlineY, underlineStartX + textWidth, underlineY, underlinePaint);
+        }
+
+        /// <summary>
+        /// 计算文本区域边界（用于背景和边框）
+        /// </summary>
+        private SKRect CalculateTextBounds(TextLayout layout, TextBoxRenderContext context)
+        {
+            if (layout.Lines.Count == 0)
+            {
+                return SKRect.Empty;
+            }
+
+            // 计算文本实际占用的矩形区域
+            float left = context.Padding.Left;
+            float top = context.Padding.Top;
+            float right = context.Padding.Left + layout.TotalSize.Width;
+            float bottom = context.Padding.Top + layout.TotalSize.Height;
+
+            // 添加一些内边距（让背景和边框不要紧贴文字）
+            float padding = context.Style.FontSize * 0.1f;
+            return new SKRect(
+                left - padding,
+                top - padding,
+                right + padding,
+                bottom + padding
+            );
+        }
+
+        /// <summary>
+        /// 绘制阴影
+        /// </summary>
+        private void DrawShadow(SKCanvas canvas, SKRect bounds, TextStyle style)
+        {
+            if (style.ShadowOpacity <= 0 || style.ShadowBlur <= 0)
+                return;
+
+            // 计算阴影颜色（应用不透明度）
+            byte alpha = (byte)(style.ShadowColor.Alpha * style.ShadowOpacity / 100f);
+            var shadowColor = new SKColor(
+                style.ShadowColor.Red,
+                style.ShadowColor.Green,
+                style.ShadowColor.Blue,
+                alpha
+            );
+
+            // 创建阴影Paint（带模糊效果）
+            using var shadowPaint = new SKPaint
+            {
+                Color = shadowColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, style.ShadowBlur)
+            };
+
+            // 计算阴影矩形位置（偏移）
+            var shadowBounds = new SKRect(
+                bounds.Left + style.ShadowOffsetX,
+                bounds.Top + style.ShadowOffsetY,
+                bounds.Right + style.ShadowOffsetX,
+                bounds.Bottom + style.ShadowOffsetY
+            );
+
+            // 绘制圆角矩形阴影
+            if (style.BackgroundRadius > 0)
+            {
+                canvas.DrawRoundRect(shadowBounds, style.BackgroundRadius, style.BackgroundRadius, shadowPaint);
+            }
+            else
+            {
+                canvas.DrawRect(shadowBounds, shadowPaint);
+            }
+        }
+
+        /// <summary>
+        /// 绘制背景
+        /// </summary>
+        private void DrawBackground(SKCanvas canvas, SKRect bounds, TextStyle style)
+        {
+            if (style.BackgroundOpacity >= 100)
+                return;
+
+            // ✅ 计算背景颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
+            byte alpha = (byte)(255 * (100 - style.BackgroundOpacity) / 100f);
+            var backgroundColor = new SKColor(
+                style.BackgroundColor.Red,
+                style.BackgroundColor.Green,
+                style.BackgroundColor.Blue,
+                alpha
+            );
+
+            // 创建背景Paint
+            using var backgroundPaint = new SKPaint
+            {
+                Color = backgroundColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
+
+            // 绘制圆角矩形背景
+            if (style.BackgroundRadius > 0)
+            {
+                canvas.DrawRoundRect(bounds, style.BackgroundRadius, style.BackgroundRadius, backgroundPaint);
+            }
+            else
+            {
+                canvas.DrawRect(bounds, backgroundPaint);
+            }
+        }
+
+        /// <summary>
+        /// 绘制边框
+        /// </summary>
+        private void DrawBorder(SKCanvas canvas, SKRect bounds, TextStyle style)
+        {
+            if (style.BorderOpacity >= 100 || style.BorderWidth <= 0)
+                return;
+
+            // ✅ 计算边框颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
+            byte alpha = (byte)(255 * (100 - style.BorderOpacity) / 100f);
+            var borderColor = new SKColor(
+                style.BorderColor.Red,
+                style.BorderColor.Green,
+                style.BorderColor.Blue,
+                alpha
+            );
+
+            // 创建边框Paint
+            using var borderPaint = new SKPaint
+            {
+                Color = borderColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = style.BorderWidth
+            };
+
+            // 绘制圆角矩形边框
+            if (style.BorderRadius > 0)
+            {
+                canvas.DrawRoundRect(bounds, style.BorderRadius, style.BorderRadius, borderPaint);
+            }
+            else
+            {
+                canvas.DrawRect(bounds, borderPaint);
+            }
+        }
+
+        /// <summary>
+        /// 绘制光标（垂直线）
+        /// </summary>
+        private void DrawCursor(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKPaint textPaint)
+        {
+            if (layout.Lines.Count == 0)
+                return;
+
+            // 计算光标在文本中的位置
+            int currentPos = 0;
+            float cursorX = context.Padding.Left;
+            float cursorY = context.Padding.Top;
+            float cursorHeight = context.Style.FontSize;
+
+            // 遍历每一行，找到光标所在位置
+            foreach (var line in layout.Lines)
+            {
+                int lineLength = line.Text.Length;
+                int lineEnd = currentPos + lineLength;
+
+                if (context.CursorPosition >= currentPos && context.CursorPosition <= lineEnd)
+                {
+                    // 光标在当前行
+                    int posInLine = context.CursorPosition - currentPos;
+                    string textBeforeCursor = line.Text.Substring(0, Math.Min(posInLine, line.Text.Length));
+
+                    // 计算光标X坐标
+                    float textWidth = textPaint.MeasureText(textBeforeCursor);
+                    cursorX = context.Padding.Left;
+
+                    // 根据对齐方式调整X坐标
+                    float contentWidth = context.Size.Width - context.Padding.Left - context.Padding.Right;
+                    if (context.Alignment == SKTextAlign.Center)
+                    {
+                        float lineWidth = textPaint.MeasureText(line.Text);
+                        cursorX = context.Padding.Left + (contentWidth - lineWidth) / 2 + textWidth;
+                    }
+                    else if (context.Alignment == SKTextAlign.Right)
+                    {
+                        float lineWidth = textPaint.MeasureText(line.Text);
+                        cursorX = context.Padding.Left + contentWidth - lineWidth + textWidth;
+                    }
+                    else
+                    {
+                        cursorX += textWidth;
+                    }
+
+                    cursorY = context.Padding.Top + line.Position.Y - context.Style.FontSize * 0.8f;
+                    cursorHeight = context.Style.FontSize;
+                    break;
+                }
+
+                currentPos = lineEnd;
+            }
+
+            // 绘制光标（亮蓝色垂直线）
+            using var cursorPaint = new SKPaint
+            {
+                Color = new SKColor(0, 150, 255), // 亮蓝色 #0096FF
+                StrokeWidth = 2f,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+
+            canvas.DrawLine(cursorX, cursorY, cursorX, cursorY + cursorHeight, cursorPaint);
+        }
+
+        /// <summary>
+        /// 绘制选择区域（蓝色高亮背景）
+        /// </summary>
+        private void DrawSelection(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKPaint textPaint)
+        {
+            if (!context.SelectionStart.HasValue || !context.SelectionEnd.HasValue)
+                return;
+
+            int selStart = Math.Min(context.SelectionStart.Value, context.SelectionEnd.Value);
+            int selEnd = Math.Max(context.SelectionStart.Value, context.SelectionEnd.Value);
+
+            if (selStart == selEnd || layout.Lines.Count == 0)
+                return;
+
+            // 创建选择区域Paint（半透明蓝色）
+            using var selectionPaint = new SKPaint
+            {
+                Color = new SKColor(0, 120, 215, 80), // 半透明蓝色 #0078D7 with 30% opacity
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
+
+            int currentPos = 0;
+            float contentWidth = context.Size.Width - context.Padding.Left - context.Padding.Right;
+
+            // 遍历每一行，绘制选择区域
+            foreach (var line in layout.Lines)
+            {
+                int lineLength = line.Text.Length;
+                int lineEnd = currentPos + lineLength;
+
+                // 检查当前行是否包含选择区域
+                if (lineEnd > selStart && currentPos < selEnd)
+                {
+                    // 计算选择区域在当前行的起始和结束位置
+                    int selStartInLine = Math.Max(0, selStart - currentPos);
+                    int selEndInLine = Math.Min(lineLength, selEnd - currentPos);
+
+                    string textBeforeSelection = line.Text.Substring(0, selStartInLine);
+                    string selectedText = line.Text.Substring(selStartInLine, selEndInLine - selStartInLine);
+
+                    float selectionStartX = context.Padding.Left;
+                    float selectionWidth = textPaint.MeasureText(selectedText);
+                    float textBeforeWidth = textPaint.MeasureText(textBeforeSelection);
+
+                    // 根据对齐方式调整X坐标
+                    if (context.Alignment == SKTextAlign.Center)
+                    {
+                        float lineWidth = textPaint.MeasureText(line.Text);
+                        selectionStartX = context.Padding.Left + (contentWidth - lineWidth) / 2 + textBeforeWidth;
+                    }
+                    else if (context.Alignment == SKTextAlign.Right)
+                    {
+                        float lineWidth = textPaint.MeasureText(line.Text);
+                        selectionStartX = context.Padding.Left + contentWidth - lineWidth + textBeforeWidth;
+                    }
+                    else
+                    {
+                        selectionStartX += textBeforeWidth;
+                    }
+
+                    float selectionY = context.Padding.Top + line.Position.Y - context.Style.FontSize * 0.8f;
+                    float selectionHeight = context.Style.FontSize;
+
+                    // 绘制选择区域矩形
+                    var selectionRect = new SKRect(
+                        selectionStartX,
+                        selectionY,
+                        selectionStartX + selectionWidth,
+                        selectionY + selectionHeight
+                    );
+                    canvas.DrawRect(selectionRect, selectionPaint);
+                }
+
+                currentPos = lineEnd;
+            }
+        }
+
     }
 }
 

@@ -38,13 +38,44 @@ namespace ImageColorChanger.Core
         /// 文本对齐方式
         /// </summary>
         public SKTextAlign Alignment { get; set; } = SKTextAlign.Left;
-        
+
+        /// <summary>
+        /// 是否处于编辑模式
+        /// </summary>
+        public bool IsEditing { get; set; } = false;
+
+        /// <summary>
+        /// 光标位置（字符索引）
+        /// </summary>
+        public int CursorPosition { get; set; } = 0;
+
+        /// <summary>
+        /// 光标是否可见（用于闪烁动画）
+        /// </summary>
+        public bool CursorVisible { get; set; } = true;
+
+        /// <summary>
+        /// 选择起始位置（null 表示无选择）
+        /// </summary>
+        public int? SelectionStart { get; set; } = null;
+
+        /// <summary>
+        /// 选择结束位置（null 表示无选择）
+        /// </summary>
+        public int? SelectionEnd { get; set; } = null;
+
         /// <summary>
         /// 生成缓存键（用于渲染缓存）
         /// </summary>
         public string GetCacheKey()
         {
-            return $"TB_{Text}_{Size.Width}_{Size.Height}_{Style.FontSize}_{Style.TextColor}_{Style.FontFamily}_{Style.IsBold}";
+            // 编辑模式下禁用缓存（光标和选择需要实时渲染）
+            if (IsEditing)
+            {
+                return $"TB_EDIT_{Text}_{Size.Width}_{Size.Height}_{CursorPosition}_{SelectionStart}_{SelectionEnd}_{CursorVisible}_{DateTime.Now.Ticks}";
+            }
+
+            return $"TB_{Text}_{Size.Width}_{Size.Height}_{Style.FontSize}_{Style.TextColor}_{Style.FontFamily}_{Style.IsBold}_{Style.LineSpacing}_{Style.LetterSpacing}";
         }
     }
     
@@ -185,17 +216,93 @@ namespace ImageColorChanger.Core
         /// 是否粗体
         /// </summary>
         public bool IsBold { get; set; } = false;
-        
+
         /// <summary>
         /// 是否斜体
         /// </summary>
         public bool IsItalic { get; set; } = false;
-        
+
+        /// <summary>
+        /// 是否下划线
+        /// </summary>
+        public bool IsUnderline { get; set; } = false;
+
         /// <summary>
         /// 行距倍数（1.0 = 紧凑，1.5 = 1.5倍行距）
         /// </summary>
         public float LineSpacing { get; set; } = 1.2f;
-        
+
+        /// <summary>
+        /// 字间距（字符间额外间距，单位：em）
+        /// </summary>
+        public float LetterSpacing { get; set; } = 0.0f;
+
+        // ========== 边框样式 ==========
+
+        /// <summary>
+        /// 边框颜色
+        /// </summary>
+        public SKColor BorderColor { get; set; } = SKColors.Black;
+
+        /// <summary>
+        /// 边框宽度（0 = 无边框）
+        /// </summary>
+        public float BorderWidth { get; set; } = 0f;
+
+        /// <summary>
+        /// 边框圆角半径
+        /// </summary>
+        public float BorderRadius { get; set; } = 0f;
+
+        /// <summary>
+        /// 边框不透明度（0-100）
+        /// </summary>
+        public int BorderOpacity { get; set; } = 0;
+
+        // ========== 背景样式 ==========
+
+        /// <summary>
+        /// 背景颜色
+        /// </summary>
+        public SKColor BackgroundColor { get; set; } = SKColors.White;
+
+        /// <summary>
+        /// 背景圆角半径
+        /// </summary>
+        public float BackgroundRadius { get; set; } = 0f;
+
+        /// <summary>
+        /// 背景不透明度（0-100）
+        /// </summary>
+        public int BackgroundOpacity { get; set; } = 0;
+
+        // ========== 阴影样式 ==========
+
+        /// <summary>
+        /// 阴影颜色
+        /// </summary>
+        public SKColor ShadowColor { get; set; } = SKColors.Black;
+
+        /// <summary>
+        /// 阴影X偏移
+        /// </summary>
+        public float ShadowOffsetX { get; set; } = 0f;
+
+        /// <summary>
+        /// 阴影Y偏移
+        /// </summary>
+        public float ShadowOffsetY { get; set; } = 0f;
+
+        /// <summary>
+        /// 阴影模糊半径
+        /// </summary>
+        public float ShadowBlur { get; set; } = 0f;
+
+        /// <summary>
+        /// 阴影不透明度（0-100）
+        /// </summary>
+        public int ShadowOpacity { get; set; } = 0;
+
         /// <summary>
         /// 文本特效（可选）
         /// </summary>

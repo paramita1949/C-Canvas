@@ -4601,8 +4601,27 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [圣经插入] 开始创建圣经文本元素: BookId={bookId}, Chapter={chapter}, StartVerse={startVerse}, EndVerse={endVerse}");
+                //#endif
+
                 // 1. 获取经文内容
                 var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
+
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [圣经插入] 获取到经文数量: {verses?.Count ?? 0}");
+                //if (verses != null && verses.Count > 0)
+                //{
+                //    foreach (var v in verses)
+                //    {
+                //        Debug.WriteLine($"🔍 [圣经插入] Verse={v.Verse}, DisplayVerseNumber={v.DisplayVerseNumber}, Scripture={v.Scripture?.Substring(0, Math.Min(20, v.Scripture?.Length ?? 0))}...");
+                //    }
+                //}
+                //else
+                //{
+                //    Debug.WriteLine($"❌ [圣经插入] 经文列表为空或null");
+                //}
+                //#endif
                 
                 // 2. 生成引用
                 var book = BibleBookConfig.GetBook(bookId);
@@ -4642,34 +4661,30 @@ namespace ImageColorChanger.UI
                             color: config.TitleStyle.ColorHex,
                             isBold: config.TitleStyle.IsBold
                         );
-                        
-                        await CreateSingleTextElement(
-                            content: verseContent,
+
+                        // 使用富文本方式创建经文（节号+经文内容）
+                        await CreateRichTextVerseElement(
+                            verses: verses,
                             x: startX,
                             y: startY + config.TitleStyle.FontSize * 1.5f + 20, // 标题高度 + 间距
-                            fontFamily: config.FontFamily,
-                            fontSize: config.VerseStyle.FontSize,
-                            color: config.VerseStyle.ColorHex,
-                            isBold: config.VerseStyle.IsBold
+                            config: config
                         );
                         break;
                         
                     case BibleTextInsertStyle.TitleAtBottom:
                         // 经文在上，标题在下
-                        int verseLineCount = verseContent.Split('\n').Length;
-                        // 计算经文高度：每节的字体大小 × 2（显示放大） + 节距
-                        double verseHeight = verseLineCount * (config.VerseStyle.FontSize * 2) + (verseLineCount - 1) * config.VerseStyle.VerseSpacing;
-                        
-                        await CreateSingleTextElement(
-                            content: verseContent,
+                        int verseLineCount = verses.Count;
+                        // 计算经文高度：行数 × 字体大小 × 行间距倍数
+                        double verseHeight = verseLineCount * config.VerseStyle.FontSize * config.VerseStyle.VerseSpacing;
+
+                        // 使用富文本方式创建经文（节号+经文内容）
+                        await CreateRichTextVerseElement(
+                            verses: verses,
                             x: startX,
                             y: startY,
-                            fontFamily: config.FontFamily,
-                            fontSize: config.VerseStyle.FontSize,
-                            color: config.VerseStyle.ColorHex,
-                            isBold: config.VerseStyle.IsBold
+                            config: config
                         );
-                        
+
                         await CreateSingleTextElement(
                             content: $"[{reference}]",
                             x: startX,
@@ -4680,17 +4695,15 @@ namespace ImageColorChanger.UI
                             isBold: config.TitleStyle.IsBold
                         );
                         break;
-                        
+
                     case BibleTextInsertStyle.InlineAtEnd:
-                        // 标注在末尾（单个文本框，使用经文样式）
-                        await CreateSingleTextElement(
-                            content: $"{verseContent} [{reference}]",
+                        // 标注在末尾（使用富文本：节号+经文+标题）
+                        await CreateRichTextVerseWithTitleElement(
+                            verses: verses,
+                            reference: reference,
                             x: startX,
                             y: startY,
-                            fontFamily: config.FontFamily,
-                            fontSize: config.VerseStyle.FontSize,
-                            color: config.VerseStyle.ColorHex,
-                            isBold: config.VerseStyle.IsBold
+                            config: config
                         );
                         break;
                         
@@ -4749,13 +4762,23 @@ namespace ImageColorChanger.UI
         
         /// <summary>
         /// 格式化经文（带节号）
+        /// 🔧 支持"-"节的合并显示（使用DisplayVerseNumber）
         /// </summary>
         private string FormatVerseWithNumbers(List<BibleVerse> verses)
         {
             var lines = new List<string>();
             foreach (var verse in verses)
             {
-                lines.Add($"{verse.Verse} {verse.Scripture}");
+                // 🔧 优先使用DisplayVerseNumber（处理"-"节合并后的节号，如"10、11"）
+                // 注意：需要检查空字符串，不仅仅是null
+                var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
+                    ? verse.Verse.ToString()
+                    : verse.DisplayVerseNumber;
+                lines.Add($"{verseNumber} {verse.Scripture}");
+
+                #if DEBUG
+                Debug.WriteLine($"[格式化经文] Verse={verse.Verse}, DisplayVerseNumber={verse.DisplayVerseNumber}, 使用节号={verseNumber}");
+                #endif
             }
             return string.Join("\n", lines);
         }
@@ -4791,11 +4814,10 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 创建新元素
-                // 注意：FontSize 需要除以2，因为渲染时会放大2倍
                 // 计算合理的高度：行数 * 行高
                 int lineCount = content.Split('\n').Length;
-                float estimatedHeight = lineCount * fontSize * 1.5f; // 行高 = 字号 * 3
-                
+                float estimatedHeight = lineCount * fontSize * 1.5f; // 行高 = 字号 * 1.5
+
                 var textElement = new Database.Models.TextElement
                 {
                     SlideId = _currentSlide.Id,
@@ -4805,7 +4827,7 @@ namespace ImageColorChanger.UI
                     Width = EditorCanvas.ActualWidth * 0.9, // 画布宽度的90%
                     Height = estimatedHeight, // 根据内容估算高度
                     FontFamily = fontFamily,
-                    FontSize = fontSize / 2, // 数据库存储实际大小的一半
+                    FontSize = fontSize,
                     FontColor = color,
                     IsBold = isBold ? 1 : 0,
                     ZIndex = maxZIndex + 1
@@ -4817,7 +4839,7 @@ namespace ImageColorChanger.UI
                 // 在 UI 线程上创建 DraggableTextBox 并添加到画布
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    var textBox = new UI.Controls.DraggableTextBox(textElement, _skiaRenderer);
+                    var textBox = new UI.Controls.DraggableTextBox(textElement);
                     AddTextBoxToCanvas(textBox);
                     
                     // 标记内容已修改
@@ -4843,6 +4865,352 @@ namespace ImageColorChanger.UI
                 Debug.WriteLine($"❌ [圣经创建] 创建单个文本框失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 创建富文本经文元素（节号+经文内容，使用 RichTextSpan）
+        /// </summary>
+        private async Task CreateRichTextVerseElement(
+            List<BibleVerse> verses,
+            double x,
+            double y,
+            BibleTextInsertConfig config)
+        {
+            //#if DEBUG
+            //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 开始创建富文本经文元素");
+            //Debug.WriteLine($"   参数: verses.Count={verses?.Count ?? 0}, x={x}, y={y}");
+            //Debug.WriteLine($"   配置: FontFamily={config?.FontFamily}, VerseSize={config?.VerseStyle?.FontSize}, VerseColor={config?.VerseStyle?.ColorHex}");
+            //Debug.WriteLine($"   配置: NumberSize={config?.VerseNumberStyle?.FontSize}, NumberColor={config?.VerseNumberStyle?.ColorHex}");
+            //Debug.WriteLine($"   当前幻灯片: {(_currentSlide != null ? $"ID={_currentSlide.Id}" : "null")}");
+            //#endif
+
+            if (_currentSlide == null || verses == null || verses.Count == 0)
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 当前没有选中的幻灯片或经文为空");
+                Debug.WriteLine($"   _currentSlide == null: {_currentSlide == null}");
+                Debug.WriteLine($"   verses == null: {verses == null}");
+                Debug.WriteLine($"   verses.Count: {verses?.Count ?? 0}");
+                #endif
+                return;
+            }
+
+            try
+            {
+                // 计算最大ZIndex，新文本在最上层
+                int maxZIndex = 0;
+                if (_textBoxes.Count > 0)
+                {
+                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+
+                // 构建完整文本内容（用于显示）
+                var contentBuilder = new System.Text.StringBuilder();
+                foreach (var verse in verses)
+                {
+                    if (contentBuilder.Length > 0)
+                        contentBuilder.AppendLine();
+                    contentBuilder.Append($"{verse.Verse} {verse.Scripture}");
+                }
+                string fullContent = contentBuilder.ToString();
+
+                // 节距直接使用行间距倍数（1.0-2.5）
+                double lineSpacing = config.VerseStyle.VerseSpacing;
+
+                // 计算高度：行数 × 字体大小 × 行间距倍数
+                int lineCount = verses.Count;
+                float estimatedHeight = lineCount * config.VerseStyle.FontSize * (float)lineSpacing;
+
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 行间距={lineSpacing:F1}");
+                //#endif
+
+                // 创建文本元素
+                var textElement = new Database.Models.TextElement
+                {
+                    SlideId = _currentSlide.Id,
+                    Content = fullContent,
+                    X = x,
+                    Y = y,
+                    Width = EditorCanvas.ActualWidth * 0.9,
+                    Height = estimatedHeight,
+                    FontFamily = config.FontFamily,
+                    FontSize = config.VerseStyle.FontSize,
+                    FontColor = config.VerseStyle.ColorHex,
+                    IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                    LineSpacing = lineSpacing,  // 应用行间距
+                    ZIndex = maxZIndex + 1
+                };
+
+                // 保存到数据库
+                await _textProjectManager.AddElementAsync(textElement);
+
+                // 创建富文本片段（RichTextSpan）
+                var richTextSpans = new List<Database.Models.RichTextSpan>();
+                int spanOrder = 0;
+
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 开始创建富文本片段，经文数量: {verses.Count}");
+                //#endif
+
+                foreach (var verse in verses)
+                {
+                    //#if DEBUG
+                    //Debug.WriteLine($"   处理第 {verse.Verse} 节: {verse.Scripture?.Substring(0, Math.Min(20, verse.Scripture?.Length ?? 0))}...");
+                    //#endif
+
+                    // 🔧 节号片段（优先使用DisplayVerseNumber，支持"-"节合并显示）
+                    var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
+                        ? verse.Verse.ToString()
+                        : verse.DisplayVerseNumber;
+
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = verseNumber,
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseNumberStyle.FontSize,
+                        FontColor = config.VerseNumberStyle.ColorHex,
+                        IsBold = config.VerseNumberStyle.IsBold ? 1 : 0
+                    });
+
+                    // 空格片段
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = " ",
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseStyle.FontSize,
+                        FontColor = config.VerseStyle.ColorHex,
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                    });
+
+                    // 经文内容片段
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = verse.Scripture,
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseStyle.FontSize,
+                        FontColor = config.VerseStyle.ColorHex,
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                    });
+
+                    // 换行片段（除了最后一节）
+                    if (verse != verses.Last())
+                    {
+                        richTextSpans.Add(new Database.Models.RichTextSpan
+                        {
+                            TextElementId = textElement.Id,
+                            SpanOrder = spanOrder++,
+                            Text = "\n",
+                            FontFamily = config.FontFamily,
+                            FontSize = config.VerseStyle.FontSize,
+                            FontColor = config.VerseStyle.ColorHex,
+                            IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        });
+                    }
+                }
+
+                // 保存富文本片段到数据库
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 保存 {richTextSpans.Count} 个富文本片段到数据库");
+                //#endif
+
+                foreach (var span in richTextSpans)
+                {
+                    await _textProjectManager.AddRichTextSpanAsync(span);
+                }
+
+                //#if DEBUG
+                //Debug.WriteLine($"✅ [CreateRichTextVerseElement] 富文本片段保存完成");
+                //#endif
+
+                // 将富文本片段关联到文本元素
+                textElement.RichTextSpans = richTextSpans;
+
+                //#if DEBUG
+                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 创建 DraggableTextBox 并添加到画布");
+                //Debug.WriteLine($"   TextElement.Id={textElement.Id}, Content长度={textElement.Content?.Length ?? 0}");
+                //Debug.WriteLine($"   RichTextSpans数量={textElement.RichTextSpans?.Count ?? 0}");
+                //#endif
+
+                // 在 UI 线程上创建 DraggableTextBox 并添加到画布
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var textBox = new UI.Controls.DraggableTextBox(textElement);
+                    AddTextBoxToCanvas(textBox);
+                    MarkContentAsModified();
+
+                    //#if DEBUG
+                    //Debug.WriteLine($"✅ [CreateRichTextVerseElement] 文本框已添加到画布");
+                    //#endif
+                });
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 创建富文本经文元素失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 创建富文本经文+标题元素（节号+经文内容+标题，使用 RichTextSpan）
+        /// </summary>
+        private async Task CreateRichTextVerseWithTitleElement(
+            List<BibleVerse> verses,
+            string reference,
+            double x,
+            double y,
+            BibleTextInsertConfig config)
+        {
+            if (_currentSlide == null || verses == null || verses.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                int maxZIndex = 0;
+                if (_textBoxes.Count > 0)
+                {
+                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
+                }
+
+                // 构建完整文本内容
+                var contentBuilder = new System.Text.StringBuilder();
+                foreach (var verse in verses)
+                {
+                    if (contentBuilder.Length > 0)
+                        contentBuilder.Append(" ");
+                    contentBuilder.Append($"{verse.Verse} {verse.Scripture}");
+                }
+                contentBuilder.Append($" [{reference}]");
+                string fullContent = contentBuilder.ToString();
+
+                // 计算高度
+                float estimatedHeight = config.VerseStyle.FontSize * 1.5f;
+
+                var textElement = new Database.Models.TextElement
+                {
+                    SlideId = _currentSlide.Id,
+                    Content = fullContent,
+                    X = x,
+                    Y = y,
+                    Width = EditorCanvas.ActualWidth * 0.9,
+                    Height = estimatedHeight,
+                    FontFamily = config.FontFamily,
+                    FontSize = config.VerseStyle.FontSize,
+                    FontColor = config.VerseStyle.ColorHex,
+                    IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                    ZIndex = maxZIndex + 1
+                };
+
+                await _textProjectManager.AddElementAsync(textElement);
+
+                // 创建富文本片段
+                var richTextSpans = new List<Database.Models.RichTextSpan>();
+                int spanOrder = 0;
+
+                foreach (var verse in verses)
+                {
+                    // 🔧 节号（优先使用DisplayVerseNumber，支持"-"节合并显示）
+                    var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
+                        ? verse.Verse.ToString()
+                        : verse.DisplayVerseNumber;
+
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = verseNumber,
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseNumberStyle.FontSize,
+                        FontColor = config.VerseNumberStyle.ColorHex,
+                        IsBold = 1
+                    });
+
+                    // 空格
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = " ",
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseStyle.FontSize,
+                        FontColor = config.VerseStyle.ColorHex,
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                    });
+
+                    // 经文内容
+                    richTextSpans.Add(new Database.Models.RichTextSpan
+                    {
+                        TextElementId = textElement.Id,
+                        SpanOrder = spanOrder++,
+                        Text = verse.Scripture,
+                        FontFamily = config.FontFamily,
+                        FontSize = config.VerseStyle.FontSize,
+                        FontColor = config.VerseStyle.ColorHex,
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                    });
+
+                    // 空格（除了最后一节）
+                    if (verse != verses.Last())
+                    {
+                        richTextSpans.Add(new Database.Models.RichTextSpan
+                        {
+                            TextElementId = textElement.Id,
+                            SpanOrder = spanOrder++,
+                            Text = " ",
+                            FontFamily = config.FontFamily,
+                            FontSize = config.VerseStyle.FontSize,
+                            FontColor = config.VerseStyle.ColorHex,
+                            IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        });
+                    }
+                }
+
+                // 标题片段
+                richTextSpans.Add(new Database.Models.RichTextSpan
+                {
+                    TextElementId = textElement.Id,
+                    SpanOrder = spanOrder++,
+                    Text = $" [{reference}]",
+                    FontFamily = config.FontFamily,
+                    FontSize = config.TitleStyle.FontSize,
+                    FontColor = config.TitleStyle.ColorHex,
+                    IsBold = config.TitleStyle.IsBold ? 1 : 0
+                });
+
+                // 保存富文本片段
+                foreach (var span in richTextSpans)
+                {
+                    await _textProjectManager.AddRichTextSpanAsync(span);
+                }
+
+                textElement.RichTextSpans = richTextSpans;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var textBox = new UI.Controls.DraggableTextBox(textElement);
+                    AddTextBoxToCanvas(textBox);
+                    MarkContentAsModified();
+                });
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                Debug.WriteLine($"❌ [圣经创建] 创建富文本经文+标题元素失败: {ex.Message}");
+                #else
+                _ = ex;
                 #endif
             }
         }
@@ -4962,27 +5330,29 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 从数据库加载圣经插入配置（字体大小 × 2）
+        /// 从数据库加载圣经插入配置
         /// </summary>
         private BibleTextInsertConfig LoadBibleInsertConfigFromDatabase()
         {
             var config = new BibleTextInsertConfig();
-            
+
             // 从数据库加载配置
             config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
-            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "Microsoft YaHei");
-            
+            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
+
             config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
-            // 字体大小 × 2（存储的是显示值，实际使用时需要乘以2）
-            config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "20")) * 2;
+            config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "50"));
             config.TitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
-            
-            config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#D2691E");
-            // 字体大小 × 2（存储的是显示值，实际使用时需要乘以2）
-            config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "15")) * 2;
+
+            config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#FF9A35");
+            config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "40"));
             config.VerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
-            config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "10"));
-            
+            config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "1.2"));
+
+            config.VerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_number_color", "#FFFF00");
+            config.VerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_number_size", "40"));
+            config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
+
             config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
             
             //#if DEBUG

@@ -170,14 +170,21 @@ namespace ImageColorChanger.Core
             if (string.IsNullOrEmpty(familyName))
                 return null;
 
+            // 🔧 提取字体族名称（处理完整路径格式：./CCanvas_Fonts/xxx.ttf#字体名）
+            string extractedFamily = familyName;
+            if (familyName.Contains("#"))
+            {
+                extractedFamily = familyName.Substring(familyName.IndexOf('#') + 1);
+            }
+
             // 查找字体配置
-            var fontConfig = FindFontByFamily(familyName);
+            var fontConfig = FindFontByFamily(extractedFamily);
             if (fontConfig == null)
             {
                 // 如果找不到，可能是系统字体，直接尝试创建
                 try
                 {
-                    return new System.Windows.Media.FontFamily(familyName);
+                    return new System.Windows.Media.FontFamily(extractedFamily);
                 }
                 catch
                 {

@@ -12,14 +12,22 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>5.8.7.3</Version>
-    <FileVersion>5.8.7.3</FileVersion>
-    <AssemblyVersion>5.8.7.3</AssemblyVersion>
+    <Version>5.9.4.1</Version>
+    <FileVersion>5.9.4.1</FileVersion>
+    <AssemblyVersion>5.9.4.1</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
+  <ItemGroup>
+    <Compile Remove="Canvas111\**" />
+    <EmbeddedResource Remove="Canvas111\**" />
+    <None Remove="Canvas111\**" />
+    <Page Remove="Canvas111\**" />
+  </ItemGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <DebugType>full</DebugType>

@@ -30,6 +30,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
                 <!-- 标题 -->
@@ -149,13 +151,13 @@
                 </Border>
                 
                 <!-- 经文样式（横向排列：颜色 大小 粗体 节距） -->
-                <Border Grid.Row="6" 
+                <Border Grid.Row="6"
                         Background="#3E3E42"
                         CornerRadius="4"
                         Padding="10">
                     <StackPanel>
-                        <TextBlock Text="📖 经文样式" 
-                                   FontSize="12" 
+                        <TextBlock Text="📖 经文样式"
+                                   FontSize="12"
                                    Foreground="#CCCCCC"
                                    FontWeight="Bold"
                                    Margin="0,0,0,5"/>
@@ -175,10 +177,10 @@
                                 <ColumnDefinition Width="5"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            
+
                             <!-- 颜色 -->
-                            <TextBlock Grid.Column="0" 
-                                       Text="颜色:" 
+                            <TextBlock Grid.Column="0"
+                                       Text="颜色:"
                                        Foreground="White"
                                        FontSize="11"
                                        VerticalAlignment="Center"/>
@@ -188,10 +190,10 @@
                                     Content="选择颜色"
                                     FontSize="11"
                                     Click="BtnVerseColor_Click"/>
-                            
+
                             <!-- 大小 -->
-                            <TextBlock Grid.Column="4" 
-                                       Text="大小:" 
+                            <TextBlock Grid.Column="4"
+                                       Text="大小:"
                                        Foreground="White"
                                        FontSize="11"
                                        VerticalAlignment="Center"/>
@@ -200,7 +202,7 @@
                                       Height="26"
                                       FontSize="11"
                                       SelectionChanged="VerseSizeChanged"/>
-                            
+
                             <!-- 粗体 -->
                             <CheckBox Grid.Column="8"
                                       x:Name="ChkVerseBold"
@@ -210,10 +212,10 @@
                                       VerticalAlignment="Center"
                                       Checked="StyleChanged"
                                       Unchecked="StyleChanged"/>
-                            
+
                             <!-- 节距 -->
-                            <TextBlock Grid.Column="10" 
-                                       Text="节距:" 
+                            <TextBlock Grid.Column="10"
+                                       Text="节距:"
                                        Foreground="White"
                                        FontSize="11"
                                        VerticalAlignment="Center"/>
@@ -222,6 +224,68 @@
                                       Height="26"
                                       FontSize="11"
                                       SelectionChanged="StyleChanged"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 节号样式（横向排列：颜色 大小 粗体） -->
+                <Border Grid.Row="8"
+                        Background="#3E3E42"
+                        CornerRadius="4"
+                        Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="🔢 节号样式"
+                                   FontSize="12"
+                                   Foreground="#CCCCCC"
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="5"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="15"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="5"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="15"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 颜色 -->
+                            <TextBlock Grid.Column="0"
+                                       Text="颜色:"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="2"
+                                    x:Name="BtnVerseNumberColor"
+                                    Height="26"
+                                    Content="选择颜色"
+                                    FontSize="11"
+                                    Click="BtnVerseNumberColor_Click"/>
+
+                            <!-- 大小 -->
+                            <TextBlock Grid.Column="4"
+                                       Text="大小:"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="6"
+                                      x:Name="CmbVerseNumberSize"
+                                      Height="26"
+                                      FontSize="11"
+                                      SelectionChanged="VerseNumberSizeChanged"/>
+
+                            <!-- 粗体 -->
+                            <CheckBox Grid.Column="8"
+                                      x:Name="ChkVerseNumberBold"
+                                      Content="粗体"
+                                      Foreground="White"
+                                      FontSize="11"
+                                      VerticalAlignment="Center"
+                                      Checked="StyleChanged"
+                                      Unchecked="StyleChanged"/>
                         </Grid>
                     </StackPanel>
                 </Border>

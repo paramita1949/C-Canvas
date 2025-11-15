@@ -605,7 +605,10 @@ namespace ImageColorChanger.UI
                 _dbManager.MigrateAddHighlightColor();
                 _dbManager.MigrateAddBibleHistoryTable();
                 _dbManager.MigrateAddBibleInsertConfigTable();
-                
+                _dbManager.MigrateAddUnderlineSupport();  // 🆕 下划线支持
+                _dbManager.MigrateAddRichTextSupport();   // 🆕 RichText 支持（斜体、边框、背景、阴影、间距）
+                _dbManager.MigrateCreateRichTextSpansTable();  // 🆕 富文本片段表（完全 RichText）
+
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();
                 _searchManager = new SearchManager(_dbManager, _configManager);
@@ -1060,8 +1063,8 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine("⚠️ [LoadTextProjectsToTree] _dbManager 未初始化，跳过加载文本项目");
                         return;
                     }
-                    
-                    _textProjectManager = new TextProjectManager(_dbManager.GetDbContext());
+
+                    _textProjectManager = new TextProjectManager(_dbManager);
                 }
 
                 var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();

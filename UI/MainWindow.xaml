@@ -543,8 +543,8 @@
                     <!-- 搜索区域 -->
                     <StackPanel Grid.Row="0" Background="White" Margin="8">
                         <!-- 搜索框 -->
-                        <TextBox x:Name="SearchBox" 
-                                 Height="40" 
+                        <TextBox x:Name="SearchBox"
+                                 Height="40"
                                  Margin="0,4,0,8"
                                  Padding="12,8"
                                  materialDesign:HintAssist.Hint="搜索..."
@@ -1640,7 +1640,7 @@
                             </ComboBox>
                             
                             <!-- 字号选择框 -->
-                            <ComboBox x:Name="FontSizeSelector" Width="60" Height="32"
+                            <ComboBox x:Name="FontSizeSelector" Width="80" Height="32"
                                       SelectedIndex="5"
                                       SelectionChanged="FontSize_Changed"
                                       MouseWheel="FontSizeSelector_MouseWheel"
@@ -1691,14 +1691,16 @@
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                             <!-- 加粗按钮 -->
-                            <Button x:Name="BtnBold" Content="B" 
+                            <Button x:Name="BtnBold" Content="B"
                                     Width="40" Height="40"
                                     FontFamily="Segoe UI"
-                                    FontWeight="Bold" FontSize="20" 
+                                    FontWeight="Bold" FontSize="20"
                                     Margin="8,0,0,0"
                                     Padding="0"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="加粗 (B)" Click="BtnBold_Click"/>
+
+
 
                             <!-- 文字颜色按钮 -->
                             <Button x:Name="BtnTextColor" Content="A"
@@ -1948,7 +1950,7 @@
                                     </Border.Effect>
                                     <StackPanel Orientation="Horizontal">
                                         <!-- 经文样式设置按钮 -->
-                                        <Button x:Name="BtnBibleStyleIcon" 
+                                        <Button x:Name="BtnBibleStyleIcon"
                                                 Width="28" Height="28"
                                                 Margin="2"
                                                 Background="Transparent"
@@ -1982,10 +1984,381 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
+
+                                        <!-- 分隔线 -->
+                                        <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
+
+                                        <!-- 边框按钮 -->
+                                        <Button x:Name="BtnFloatingBorder" Content="□"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
+                                                ToolTip="边框" Cursor="Hand"
+                                                Click="BtnFloatingBorder_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 背景按钮 -->
+                                        <Button x:Name="BtnFloatingBackground" Content="■"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
+                                                ToolTip="背景" Cursor="Hand"
+                                                Click="BtnFloatingBackground_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 阴影按钮 -->
+                                        <Button x:Name="BtnFloatingShadow" Content="◐"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
+                                                ToolTip="阴影" Cursor="Hand"
+                                                Click="BtnFloatingShadow_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 间距按钮 -->
+                                        <Button x:Name="BtnFloatingSpacing" Content="↔"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
+                                                ToolTip="间距" Cursor="Hand"
+                                                Click="BtnFloatingSpacing_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 分隔线 -->
+                                        <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
+
+                                        <!-- 斜体按钮 -->
+                                        <Button x:Name="BtnFloatingItalic" Content="/"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
+                                                ToolTip="斜体" Cursor="Hand"
+                                                Click="BtnFloatingItalic_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 下划线按钮 -->
+                                        <Button x:Name="BtnFloatingUnderline" Content="U"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
+                                                ToolTip="下划线" Cursor="Hand"
+                                                Click="BtnUnderline_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 左对齐按钮 -->
+                                        <Button x:Name="BtnFloatingAlignLeft"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="左对齐" Cursor="Hand"
+                                                Click="BtnAlignLeft_Click">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left" Width="16">
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="16"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="12"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="14"/>
+                                            </StackPanel>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 居中对齐按钮 -->
+                                        <Button x:Name="BtnFloatingAlignCenter"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="居中" Cursor="Hand"
+                                                Click="BtnAlignCenter_Click">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="16">
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="16"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="10"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="13"/>
+                                            </StackPanel>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- 右对齐按钮 -->
+                                        <Button x:Name="BtnFloatingAlignRight"
+                                                Width="28" Height="28" Margin="2"
+                                                Background="Transparent" Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="右对齐" Cursor="Hand"
+                                                Click="BtnAlignRight_Click">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" Width="16">
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="16"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="12"/>
+                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="14"/>
+                                            </StackPanel>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
                             </Popup>
-                            
+
+                            <!-- 🆕 边框设置侧边面板 -->
+                            <Popup x:Name="BorderSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="190"
+                                   VerticalOffset="0"
+                                   IsOpen="False"
+                                   Closed="SidePanel_Closed">
+                                <Border Background="#2D2D30"
+                                        BorderBrush="#3F3F46"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:BorderSettingsPanel x:Name="BorderSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
+                            <!-- 🆕 背景设置侧边面板 -->
+                            <Popup x:Name="BackgroundSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="190"
+                                   VerticalOffset="0"
+                                   IsOpen="False"
+                                   Closed="SidePanel_Closed">
+                                <Border Background="#2D2D30"
+                                        BorderBrush="#3F3F46"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:BackgroundSettingsPanel x:Name="BackgroundSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
+                            <!-- 🆕 阴影设置侧边面板 -->
+                            <Popup x:Name="ShadowSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="190"
+                                   VerticalOffset="0"
+                                   IsOpen="False"
+                                   Closed="SidePanel_Closed">
+                                <Border Background="#2D2D30"
+                                        BorderBrush="#3F3F46"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:ShadowSettingsPanel x:Name="ShadowSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
+                            <!-- 🆕 间距设置侧边面板 -->
+                            <Popup x:Name="SpacingSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="190"
+                                   VerticalOffset="0"
+                                   IsOpen="False"
+                                   Closed="SidePanel_Closed">
+                                <Border Background="#2D2D30"
+                                        BorderBrush="#3F3F46"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:SpacingSettingsPanel x:Name="SpacingSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
                             <!-- 辅助线（叠加在Canvas上方）-->
                             <Canvas x:Name="AlignmentGuidesCanvas" 
                                     Width="1080" Height="700"

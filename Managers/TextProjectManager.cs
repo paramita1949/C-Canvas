@@ -14,11 +14,19 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class TextProjectManager
     {
-        private readonly CanvasDbContext _dbContext;
+        private readonly DatabaseManager _dbManager;
 
-        public TextProjectManager(CanvasDbContext dbContext)
+        public TextProjectManager(DatabaseManager dbManager)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
+        }
+
+        /// <summary>
+        /// 获取 DbContext（每次操作时动态获取，避免使用已释放的上下文）
+        /// </summary>
+        private CanvasDbContext GetDbContext()
+        {
+            return _dbManager.GetDbContext();
         }
 
         #region 项目管理
@@ -44,8 +52,9 @@ namespace ImageColorChanger.Managers
                 ModifiedTime = DateTime.Now
             };
 
-            _dbContext.TextProjects.Add(project);
-            await _dbContext.SaveChangesAsync();
+            var dbContext = GetDbContext();
+            dbContext.TextProjects.Add(project);
+            await dbContext.SaveChangesAsync();
 
             //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: ID={project.Id}, Name={project.Name}");
             return project;
@@ -58,7 +67,8 @@ namespace ImageColorChanger.Managers
         /// <returns>项目实体（包含元素）</returns>
         public async Task<TextProject> LoadProjectAsync(int projectId)
         {
-            var project = await _dbContext.TextProjects
+            var dbContext = GetDbContext();
+            var project = await dbContext.TextProjects
                 .Include(p => p.Elements.OrderBy(e => e.ZIndex))
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
@@ -75,7 +85,8 @@ namespace ImageColorChanger.Managers
         /// <returns>项目列表</returns>
         public async Task<List<TextProject>> GetAllProjectsAsync()
         {
-            return await _dbContext.TextProjects
+            var dbContext = GetDbContext();
+            return await dbContext.TextProjects
                 .OrderByDescending(p => p.ModifiedTime ?? p.CreatedTime)
                 .ToListAsync();
         }
@@ -90,8 +101,9 @@ namespace ImageColorChanger.Managers
                 throw new ArgumentNullException(nameof(project));
 
             project.ModifiedTime = DateTime.Now;
-            _dbContext.TextProjects.Update(project);
-            await _dbContext.SaveChangesAsync();
+            var dbContext = GetDbContext();
+            dbContext.TextProjects.Update(project);
+            await dbContext.SaveChangesAsync();
 
             //System.Diagnostics.Debug.WriteLine($"✅ 保存文本项目成功: ID={project.Id}, Name={project.Name}");
         }
@@ -102,12 +114,13 @@ namespace ImageColorChanger.Managers
         /// <param name="projectId">项目ID</param>
         public async Task DeleteProjectAsync(int projectId)
         {
-            var project = await _dbContext.TextProjects.FindAsync(projectId);
+            var dbContext = GetDbContext();
+            var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
 
-            _dbContext.TextProjects.Remove(project);
-            await _dbContext.SaveChangesAsync();
+            dbContext.TextProjects.Remove(project);
+            await dbContext.SaveChangesAsync();
 
             //System.Diagnostics.Debug.WriteLine($"✅ 删除文本项目成功: ID={projectId}");
         }
@@ -119,13 +132,14 @@ namespace ImageColorChanger.Managers
         /// <param name="imagePath">背景图路径</param>
         public async Task UpdateBackgroundImageAsync(int projectId, string imagePath)
         {
-            var project = await _dbContext.TextProjects.FindAsync(projectId);
+            var dbContext = GetDbContext();
+            var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
 
             project.BackgroundImagePath = imagePath;
             project.ModifiedTime = DateTime.Now;
-            await _dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
 
             //System.Diagnostics.Debug.WriteLine($"✅ 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
         }
@@ -144,16 +158,18 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
+            var dbContext = GetDbContext();
+
             // 检查关联是否存在（ProjectId 或 SlideId 至少有一个）
             if (element.ProjectId.HasValue)
             {
-                var projectExists = await _dbContext.TextProjects.AnyAsync(p => p.Id == element.ProjectId);
+                var projectExists = await dbContext.TextProjects.AnyAsync(p => p.Id == element.ProjectId);
                 if (!projectExists)
                     throw new InvalidOperationException($"项目不存在: ID={element.ProjectId}");
             }
             else if (element.SlideId.HasValue)
             {
-                var slideExists = await _dbContext.Slides.AnyAsync(s => s.Id == element.SlideId);
+                var slideExists = await dbContext.Slides.AnyAsync(s => s.Id == element.SlideId);
                 if (!slideExists)
                     throw new InvalidOperationException($"幻灯片不存在: ID={element.SlideId}");
             }
@@ -162,15 +178,15 @@ namespace ImageColorChanger.Managers
                 throw new InvalidOperationException("文本元素必须关联到项目或幻灯片");
             }
 
-            _dbContext.TextElements.Add(element);
-            await _dbContext.SaveChangesAsync();
+            dbContext.TextElements.Add(element);
+            await dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
             if (element.ProjectId.HasValue)
                 await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
             if (element.SlideId.HasValue)
             {
-                var slide = await _dbContext.Slides.FindAsync(element.SlideId.Value);
+                var slide = await dbContext.Slides.FindAsync(element.SlideId.Value);
                 if (slide != null && slide.ProjectId > 0)
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
@@ -188,15 +204,16 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
-            _dbContext.TextElements.Update(element);
-            await _dbContext.SaveChangesAsync();
+            var dbContext = GetDbContext();
+            dbContext.TextElements.Update(element);
+            await dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
             if (element.ProjectId.HasValue)
                 await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
             if (element.SlideId.HasValue)
             {
-                var slide = await _dbContext.Slides.FindAsync(element.SlideId.Value);
+                var slide = await dbContext.Slides.FindAsync(element.SlideId.Value);
                 if (slide != null && slide.ProjectId > 0)
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
@@ -213,8 +230,9 @@ namespace ImageColorChanger.Managers
             if (elements == null || !elements.Any())
                 return;
 
-            _dbContext.TextElements.UpdateRange(elements);
-            await _dbContext.SaveChangesAsync();
+            var dbContext = GetDbContext();
+            dbContext.TextElements.UpdateRange(elements);
+            await dbContext.SaveChangesAsync();
 
             // 更新所有涉及项目的修改时间
             var projectIds = elements.Where(e => e.ProjectId.HasValue).Select(e => e.ProjectId.Value).Distinct();
@@ -222,17 +240,32 @@ namespace ImageColorChanger.Managers
             {
                 await UpdateProjectModifiedTimeAsync(projectId);
             }
-            
+
             // 更新涉及幻灯片的项目修改时间
             var slideIds = elements.Where(e => e.SlideId.HasValue).Select(e => e.SlideId.Value).Distinct();
             foreach (var slideId in slideIds)
             {
-                var slide = await _dbContext.Slides.FindAsync(slideId);
+                var slide = await dbContext.Slides.FindAsync(slideId);
                 if (slide != null && slide.ProjectId > 0)
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
+        }
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 批量更新文本元素成功: Count={elements.Count()}");
+        /// <summary>
+        /// 添加富文本片段
+        /// </summary>
+        /// <param name="span">富文本片段实体</param>
+        /// <returns>添加后的片段（包含ID）</returns>
+        public async Task<RichTextSpan> AddRichTextSpanAsync(RichTextSpan span)
+        {
+            if (span == null)
+                throw new ArgumentNullException(nameof(span));
+
+            var dbContext = GetDbContext();
+            dbContext.RichTextSpans.Add(span);
+            await dbContext.SaveChangesAsync();
+
+            return span;
         }
 
         /// <summary>
@@ -241,22 +274,23 @@ namespace ImageColorChanger.Managers
         /// <param name="elementId">元素ID</param>
         public async Task DeleteElementAsync(int elementId)
         {
-            var element = await _dbContext.TextElements.FindAsync(elementId);
+            var dbContext = GetDbContext();
+            var element = await dbContext.TextElements.FindAsync(elementId);
             if (element == null)
                 throw new InvalidOperationException($"元素不存在: ID={elementId}");
 
             int? projectId = element.ProjectId;
             int? slideId = element.SlideId;
 
-            _dbContext.TextElements.Remove(element);
-            await _dbContext.SaveChangesAsync();
+            dbContext.TextElements.Remove(element);
+            await dbContext.SaveChangesAsync();
 
             // 更新项目修改时间
             if (projectId.HasValue)
                 await UpdateProjectModifiedTimeAsync(projectId.Value);
             if (slideId.HasValue)
             {
-                var slide = await _dbContext.Slides.FindAsync(slideId.Value);
+                var slide = await dbContext.Slides.FindAsync(slideId.Value);
                 if (slide != null && slide.ProjectId > 0)
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
@@ -270,14 +304,15 @@ namespace ImageColorChanger.Managers
         /// <param name="projectId">项目ID</param>
         public async Task DeleteAllElementsAsync(int projectId)
         {
-            var elements = await _dbContext.TextElements
+            var dbContext = GetDbContext();
+            var elements = await dbContext.TextElements
                 .Where(e => e.ProjectId == projectId)
                 .ToListAsync();
 
             if (elements.Any())
             {
-                _dbContext.TextElements.RemoveRange(elements);
-                await _dbContext.SaveChangesAsync();
+                dbContext.TextElements.RemoveRange(elements);
+                await dbContext.SaveChangesAsync();
 
                 //System.Diagnostics.Debug.WriteLine($"✅ 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
             }
@@ -290,7 +325,8 @@ namespace ImageColorChanger.Managers
         /// <returns>元素列表</returns>
         public async Task<List<TextElement>> GetElementsByProjectAsync(int projectId)
         {
-            return await _dbContext.TextElements
+            var dbContext = GetDbContext();
+            return await dbContext.TextElements
                 .Where(e => e.ProjectId == projectId)
                 .OrderBy(e => e.ZIndex)
                 .ToListAsync();
@@ -305,11 +341,12 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private async Task UpdateProjectModifiedTimeAsync(int projectId)
         {
-            var project = await _dbContext.TextProjects.FindAsync(projectId);
+            var dbContext = GetDbContext();
+            var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project != null)
             {
                 project.ModifiedTime = DateTime.Now;
-                await _dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync();
             }
         }
 

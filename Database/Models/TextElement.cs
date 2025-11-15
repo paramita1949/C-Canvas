@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -97,6 +98,110 @@ namespace ImageColorChanger.Database.Models
         public string TextAlign { get; set; } = "Left";
 
         /// <summary>
+        /// 是否下划线（0=否，1=是）
+        /// </summary>
+        [Column("is_underline")]
+        public int IsUnderline { get; set; } = 0;
+
+        /// <summary>
+        /// 是否斜体（0=否，1=是）
+        /// </summary>
+        [Column("is_italic")]
+        public int IsItalic { get; set; } = 0;
+
+        // ========== 边框样式 ==========
+
+        /// <summary>
+        /// 边框颜色（#RRGGBB格式）
+        /// </summary>
+        [Column("border_color")]
+        public string BorderColor { get; set; } = "#000000";
+
+        /// <summary>
+        /// 边框宽度（0-20px）
+        /// </summary>
+        [Column("border_width")]
+        public double BorderWidth { get; set; } = 2;  // ✅ 默认 2px
+
+        /// <summary>
+        /// 边框圆角（0-100px）
+        /// </summary>
+        [Column("border_radius")]
+        public double BorderRadius { get; set; } = 0;
+
+        /// <summary>
+        /// 边框透明度（0-100，0%=完全不透明，100%=完全透明）
+        /// </summary>
+        [Column("border_opacity")]
+        public int BorderOpacity { get; set; } = 100;  // ✅ 默认完全透明（无边框）
+
+        // ========== 背景样式 ==========
+
+        /// <summary>
+        /// 背景颜色（#RRGGBB格式）
+        /// </summary>
+        [Column("background_color")]
+        public string BackgroundColor { get; set; } = "Transparent";  // ✅ 默认透明
+
+        /// <summary>
+        /// 背景圆角（0-100px）
+        /// </summary>
+        [Column("background_radius")]
+        public double BackgroundRadius { get; set; } = 0;
+
+        /// <summary>
+        /// 背景透明度（0-100，0%=完全不透明，100%=完全透明）
+        /// </summary>
+        [Column("background_opacity")]
+        public int BackgroundOpacity { get; set; } = 100;  // ✅ 默认完全透明（无背景）
+
+        // ========== 阴影样式 ==========
+
+        /// <summary>
+        /// 阴影颜色（#RRGGBB格式）
+        /// </summary>
+        [Column("shadow_color")]
+        public string ShadowColor { get; set; } = "#000000";
+
+        /// <summary>
+        /// 阴影X偏移（px）
+        /// </summary>
+        [Column("shadow_offset_x")]
+        public double ShadowOffsetX { get; set; } = 0;
+
+        /// <summary>
+        /// 阴影Y偏移（px）
+        /// </summary>
+        [Column("shadow_offset_y")]
+        public double ShadowOffsetY { get; set; } = 0;
+
+        /// <summary>
+        /// 阴影模糊半径（px）
+        /// </summary>
+        [Column("shadow_blur")]
+        public double ShadowBlur { get; set; } = 0;
+
+        /// <summary>
+        /// 阴影不透明度（0-100）
+        /// </summary>
+        [Column("shadow_opacity")]
+        public int ShadowOpacity { get; set; } = 0;
+
+        // ========== 间距样式 ==========
+
+        /// <summary>
+        /// 行间距（1.0-2.5）
+        /// </summary>
+        [Column("line_spacing")]
+        public double LineSpacing { get; set; } = 1.2;
+
+        /// <summary>
+        /// 字间距（0.00-0.36）
+        /// </summary>
+        [Column("letter_spacing")]
+        public double LetterSpacing { get; set; } = 0.0;
+
+        /// <summary>
         /// 是否有对称伙伴（0=否，1=是）
         /// </summary>
         [Column("is_symmetric")]
@@ -137,6 +242,26 @@ namespace ImageColorChanger.Database.Models
         }
 
         /// <summary>
+        /// 辅助属性：是否下划线（布尔类型）
+        /// </summary>
+        [NotMapped]
+        public bool IsUnderlineBool
+        {
+            get => IsUnderline == 1;
+            set => IsUnderline = value ? 1 : 0;
+        }
+
+        /// <summary>
+        /// 辅助属性：是否斜体（布尔类型）
+        /// </summary>
+        [NotMapped]
+        public bool IsItalicBool
+        {
+            get => IsItalic == 1;
+            set => IsItalic = value ? 1 : 0;
+        }
+
+        /// <summary>
         /// 辅助属性：是否有对称伙伴（布尔类型）
         /// </summary>
         [NotMapped]
@@ -145,6 +270,23 @@ namespace ImageColorChanger.Database.Models
             get => IsSymmetric == 1;
             set => IsSymmetric = value ? 1 : 0;
         }
+
+        #region 富文本片段（RichText）
+
+        /// <summary>
+        /// 富文本片段列表（导航属性）
+        /// 如果为空或null，则使用 Content 字段作为纯文本
+        /// </summary>
+        [NotMapped]
+        public List<RichTextSpan> RichTextSpans { get; set; } = new List<RichTextSpan>();
+
+        /// <summary>
+        /// 是否启用富文本模式
+        /// </summary>
+        [NotMapped]
+        public bool IsRichTextMode => RichTextSpans != null && RichTextSpans.Count > 0;
+
+        #endregion
     }
 }
 

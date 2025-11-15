@@ -114,6 +114,11 @@ namespace ImageColorChanger.Database
         public DbSet<TextElement> TextElements { get; set; }
 
         /// <summary>
+        /// 富文本片段表
+        /// </summary>
+        public DbSet<RichTextSpan> RichTextSpans { get; set; }
+
+        /// <summary>
         /// 幻灯片表
         /// </summary>
         public DbSet<Slide> Slides { get; set; }
@@ -315,10 +320,10 @@ namespace ImageColorChanger.Database
             {
                 // 项目ID索引
                 entity.HasIndex(e => e.ProjectId).HasDatabaseName("idx_text_elements_project");
-                
+
                 // 幻灯片ID索引
                 entity.HasIndex(e => e.SlideId).HasDatabaseName("idx_text_elements_slide");
-                
+
                 // 项目ID+Z-Index复合索引（用于按层级排序）
                 entity.HasIndex(e => new { e.ProjectId, e.ZIndex }).HasDatabaseName("idx_text_elements_zindex");
 
@@ -333,6 +338,16 @@ namespace ImageColorChanger.Database
                     .WithMany(s => s.Elements)
                     .HasForeignKey(e => e.SlideId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ========== 富文本片段表配置 ==========
+            modelBuilder.Entity<RichTextSpan>(entity =>
+            {
+                // 文本框ID索引
+                entity.HasIndex(e => e.TextElementId).HasDatabaseName("idx_rich_text_spans_element");
+
+                // 文本框ID+片段顺序复合索引（用于按顺序查询）
+                entity.HasIndex(e => new { e.TextElementId, e.SpanOrder }).HasDatabaseName("idx_rich_text_spans_order");
             });
 
             // ========== 幻灯片表配置 ==========

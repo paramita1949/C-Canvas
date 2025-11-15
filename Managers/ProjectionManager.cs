@@ -1770,18 +1770,19 @@ namespace ImageColorChanger.Managers
 
                 var screen = _screens[selectedIndex];
                 _currentScreenIndex = selectedIndex;
-                
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 选择的屏幕: 索引={selectedIndex}, 是否主屏={screen.IsPrimary}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕分辨率: {screen.Bounds.Width}x{screen.Bounds.Height}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 屏幕位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕] 工作区域: {screen.WorkingArea.Width}x{screen.WorkingArea.Height}");
-//#endif
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 屏幕数量={_screens.Count}");
+                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] ComboBox选择索引={selectedIndex}");
+                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 是否主屏={screen.IsPrimary}");
+                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 物理边界: Left={screen.PhysicalBounds.Left}, Top={screen.PhysicalBounds.Top}, Width={screen.PhysicalBounds.Width}, Height={screen.PhysicalBounds.Height}");
+                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] WPF边界: Left={screen.WpfBounds.Left}, Top={screen.WpfBounds.Top}, Width={screen.WpfBounds.Width}, Height={screen.WpfBounds.Height}");
+#endif
 
                 // 检查是否是主显示器
                 if (screen.IsPrimary)
                 {
-                    // System.Diagnostics.Debug.WriteLine("❌ 选择的是主显示器");
+                    System.Diagnostics.Debug.WriteLine("❌ [投影屏幕选择] 选择的是主显示器，拒绝投影");
                     WpfMessageBox.Show("不能投影到主显示器！", "警告", WpfMessageBoxButton.OK, WpfMessageBoxImage.Warning);
                     return false;
                 }
@@ -1954,20 +1955,26 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Closed += (s, e) => CloseProjection();
                     
                     // 🔧 重要：设置窗口位置和大小（必须在Show之前）
-                    // 位置使用物理像素，尺寸使用WPF单位
-                    _projectionWindow.Left = screen.PhysicalBounds.Left;
-                    _projectionWindow.Top = screen.PhysicalBounds.Top;
-                    _projectionWindow.Width = screen.WpfBounds.Width;   // ✅ 使用WPF单位
-                    _projectionWindow.Height = screen.WpfBounds.Height; // ✅ 使用WPF单位
-                    
-                    // System.Diagnostics.Debug.WriteLine($"窗口位置已设置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
+                    // ✅ 位置和尺寸都使用 WPF 单位（设备独立单位）
+                    _projectionWindow.Left = screen.WpfBounds.Left;
+                    _projectionWindow.Top = screen.WpfBounds.Top;
+                    _projectionWindow.Width = screen.WpfBounds.Width;
+                    _projectionWindow.Height = screen.WpfBounds.Height;
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 设置前: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
+#endif
 
                     // 显示窗口
                     _projectionWindow.Show();
-                    
+
                     // 再次确认窗口位置（WPF有时会自动调整）
-                    _projectionWindow.Left = screen.PhysicalBounds.Left;
-                    _projectionWindow.Top = screen.PhysicalBounds.Top;
+                    _projectionWindow.Left = screen.WpfBounds.Left;
+                    _projectionWindow.Top = screen.WpfBounds.Top;
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 显示后: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, ActualSize={_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+#endif
                     
 //#if DEBUG
 //                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
