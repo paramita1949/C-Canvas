@@ -61,21 +61,38 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
-        /// 加载文本项目（包含所有元素）
+        /// 加载文本项目（包含所有元素和富文本片段）
         /// </summary>
         /// <param name="projectId">项目ID</param>
-        /// <returns>项目实体（包含元素）</returns>
+        /// <returns>项目实体（包含元素和富文本片段）</returns>
         public async Task<TextProject> LoadProjectAsync(int projectId)
         {
             var dbContext = GetDbContext();
             var project = await dbContext.TextProjects
-                .Include(p => p.Elements.OrderBy(e => e.ZIndex))
+                .Include(p => p.Elements)
+                    .ThenInclude(e => e.RichTextSpans)  // 🔧 加载富文本片段
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}");
+            // 🔧 手动排序（EF Core 不支持在 Include 中使用 OrderBy）
+            if (project.Elements != null)
+            {
+                project.Elements = project.Elements.OrderBy(e => e.ZIndex).ToList();
+                foreach (var element in project.Elements)
+                {
+                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
+                    {
+                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
+                    }
+                }
+            }
+
+//#if DEBUG
+//            int totalSpans = project.Elements.Sum(e => e.RichTextSpans?.Count ?? 0);
+//            System.Diagnostics.Debug.WriteLine($"✅ [加载项目] ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}, RichTextSpans={totalSpans}");
+//#endif
             return project;
         }
 
@@ -266,6 +283,55 @@ namespace ImageColorChanger.Managers
             await dbContext.SaveChangesAsync();
 
             return span;
+        }
+
+        /// <summary>
+        /// 删除文本元素的所有富文本片段
+        /// </summary>
+        /// <param name="textElementId">文本元素ID</param>
+        public async Task DeleteRichTextSpansByElementIdAsync(int textElementId)
+        {
+            var dbContext = GetDbContext();
+            var spans = await dbContext.RichTextSpans
+                .Where(s => s.TextElementId == textElementId)
+                .ToListAsync();
+
+            if (spans.Any())
+            {
+                dbContext.RichTextSpans.RemoveRange(spans);
+                await dbContext.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// 批量保存富文本片段（先删除旧的，再添加新的）
+        /// </summary>
+        /// <param name="textElementId">文本元素ID</param>
+        /// <param name="spans">新的富文本片段列表</param>
+        public async Task SaveRichTextSpansAsync(int textElementId, List<RichTextSpan> spans)
+        {
+            if (spans == null)
+                throw new ArgumentNullException(nameof(spans));
+
+            var dbContext = GetDbContext();
+
+            // 删除旧的片段
+            var oldSpans = await dbContext.RichTextSpans
+                .Where(s => s.TextElementId == textElementId)
+                .ToListAsync();
+
+            if (oldSpans.Any())
+            {
+                dbContext.RichTextSpans.RemoveRange(oldSpans);
+            }
+
+            // 添加新的片段
+            if (spans.Any())
+            {
+                dbContext.RichTextSpans.AddRange(spans);
+            }
+
+            await dbContext.SaveChangesAsync();
         }
 
         /// <summary>

@@ -1520,25 +1520,25 @@ namespace ImageColorChanger.Services
                 
                 // 组合5项硬件信息
                 var combined = $"{cpuId}|{boardSerial}|{diskSerial}|{biosUuid}|{windowsInstallId}";
-                
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] CPU: {cpuId}");
-                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 主板: {boardSerial}");
-                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 硬盘: {diskSerial}");
-                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] BIOS UUID: {biosUuid}");
-                System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] Windows安装ID: {windowsInstallId}");
-                #endif
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] CPU: {cpuId}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 主板: {boardSerial}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 硬盘: {diskSerial}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] BIOS UUID: {biosUuid}");
+                //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] Windows安装ID: {windowsInstallId}");
+                //#endif
                 
                 // 生成SHA256哈希
                 using (var sha256 = SHA256.Create())
                 {
                     var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
                     var hardwareId = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
-                    
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 最终哈希: {hardwareId}");
-                    #endif
-                    
+
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔐 [硬件ID] 最终哈希: {hardwareId}");
+                    //#endif
+
                     return hardwareId;
                 }
             }
@@ -1579,11 +1579,11 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取CPU ID失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取CPU ID失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
             return "CPU_UNKNOWN";
         }
@@ -1609,11 +1609,11 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取主板序列号失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取主板序列号失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
             return "BOARD_UNKNOWN";
         }
@@ -1690,11 +1690,11 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取内存序列号失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取内存序列号失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
             return "MEMORY_UNKNOWN";
         }
@@ -1720,11 +1720,11 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取BIOS UUID失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [硬件ID] 获取BIOS UUID失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
             return null;
         }

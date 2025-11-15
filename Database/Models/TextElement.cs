@@ -274,11 +274,10 @@ namespace ImageColorChanger.Database.Models
         #region 富文本片段（RichText）
 
         /// <summary>
-        /// 富文本片段列表（导航属性）
+        /// 富文本片段列表（EF Core 导航属性）
         /// 如果为空或null，则使用 Content 字段作为纯文本
         /// </summary>
-        [NotMapped]
-        public List<RichTextSpan> RichTextSpans { get; set; } = new List<RichTextSpan>();
+        public virtual ICollection<RichTextSpan> RichTextSpans { get; set; } = new List<RichTextSpan>();
 
         /// <summary>
         /// 是否启用富文本模式

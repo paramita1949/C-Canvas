@@ -63,9 +63,9 @@ namespace ImageColorChanger.Core
                 
                 if (string.IsNullOrEmpty(json))
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 未找到 {configFile}");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 未找到 {configFile}");
+//#endif
                     return false;
                 }
 
@@ -77,19 +77,19 @@ namespace ImageColorChanger.Core
 
                 if (_fontConfig == null || _fontConfig.FontCategories == null || _fontConfig.FontCategories.Count == 0)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] {configFile} 配置为空");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] {configFile} 配置为空");
+//#endif
                     return false;
                 }
 
                 _isInitialized = true;
-                
-#if DEBUG
-                int totalFonts = _fontConfig.FontCategories.Sum(c => c.Fonts.Count);
-                System.Diagnostics.Debug.WriteLine($"✅ [FontService] 初始化成功，加载了 {totalFonts} 个字体配置");
-#endif
-                
+
+//#if DEBUG
+//                int totalFonts = _fontConfig.FontCategories.Sum(c => c.Fonts.Count);
+//                System.Diagnostics.Debug.WriteLine($"✅ [FontService] 初始化成功，加载了 {totalFonts} 个字体配置");
+//#endif
+
                 return true;
             }
             catch (Exception
@@ -314,9 +314,9 @@ namespace ImageColorChanger.Core
                 }
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [FontService] ComboBox已填充 {totalFonts} 个字体");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"✅ [FontService] ComboBox已填充 {totalFonts} 个字体");
+//#endif
 
             return totalFonts;
         }

@@ -918,11 +918,11 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
-#else
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+//#else
                 _ = ex; // 避免未使用警告
-#endif
+//#endif
             }
         }
 
@@ -1392,10 +1392,10 @@ namespace ImageColorChanger.UI
                 _regionImagePaths[_selectedRegionIndex] = imagePath;
                 _regionImageColorEffects[_selectedRegionIndex] = shouldApplyColorEffect; // 记录是否需要变色效果
                 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [LoadImageToSplitRegion] 保存变色状态: 区域{_selectedRegionIndex}, 需要变色={shouldApplyColorEffect}");
-                System.Diagnostics.Debug.WriteLine($"   当前所有区域变色状态: {string.Join(", ", _regionImageColorEffects.Select(kv => $"区域{kv.Key}={kv.Value}"))}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"💾 [LoadImageToSplitRegion] 保存变色状态: 区域{_selectedRegionIndex}, 需要变色={shouldApplyColorEffect}");
+                //System.Diagnostics.Debug.WriteLine($"   当前所有区域变色状态: {string.Join(", ", _regionImageColorEffects.Select(kv => $"区域{kv.Key}={kv.Value}"))}");
+                //#endif
                 
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
@@ -2291,7 +2291,6 @@ namespace ImageColorChanger.UI
             if (comboBox != null && !comboBox.IsDropDownOpen)
             {
                 comboBox.IsDropDownOpen = true;
-                //System.Diagnostics.Debug.WriteLine($"📖 [字体选择] 自动展开下拉列表");
             }
         }
 
@@ -2850,17 +2849,56 @@ namespace ImageColorChanger.UI
 
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-                
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+//
+//                // 打印每个文本框的样式信息
+//                foreach (var tb in _textBoxes)
+//                {
+//                    System.Diagnostics.Debug.WriteLine($"  📦 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
+//                }
+//#endif
+
                 // 批量更新所有元素
                 await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
+//#endif
+
+                // 🔧 同步 FlowDocument 到 RichTextSpans 表（支持局部样式持久化）
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始同步 FlowDocument 到 RichTextSpans");
+//#endif
+                foreach (var tb in _textBoxes)
+                {
+                    var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
+                    if (richTextSpans != null && richTextSpans.Count > 0)
+                    {
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 提取了 {richTextSpans.Count} 个片段，准备保存到数据库");
+//#endif
+                        await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 已保存到数据库");
+//#endif
+                    }
+                    else
+                    {
+                        // 如果没有富文本片段，清除旧的片段（用户可能删除了所有局部样式）
+                        await _textProjectManager.DeleteRichTextSpansByElementIdAsync(tb.Data.Id);
+//#if DEBUG
+//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 清除了富文本片段（无局部样式）");
+//#endif
+                    }
+                }
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] FlowDocument 同步完成");
+//#endif
 
                 // 🆕 保存分割区域配置（单画面/分割模式的图片）
                 await SaveSplitConfigAsync();
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已保存分割区域配置");
 
                 // 🆕 生成当前幻灯片的缩略图
                 if (_currentSlide != null)
@@ -2869,41 +2907,45 @@ namespace ImageColorChanger.UI
                     if (!string.IsNullOrEmpty(thumbnailPath))
                     {
                         _currentSlide.ThumbnailPath = thumbnailPath;
-                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已生成缩略图: {thumbnailPath}");
                     }
                 }
 
                 // 🆕 保存成功后，恢复按钮为白色
                 BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
-                
+
                 // 🆕 刷新幻灯片列表，更新缩略图显示
                 RefreshSlideList();
-                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已刷新幻灯片列表");
-                
+
                 // 🔧 如果投影开启且未锁定，自动更新投影
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
-                    // 延迟确保UI完全渲染
-                    await Task.Delay(100);
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
+//#endif
                     UpdateProjectionFromCanvas();
-                    //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 已自动更新投影");
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 已调用 UpdateProjectionFromCanvas");
+//#endif
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新");
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新 (IsProjectionActive={_projectionManager.IsProjectionActive}, IsLocked={_isProjectionLocked})");
+//#endif
                 }
-                
-                //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
+
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
+//#endif
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 保存项目失败: {ex.Message}");
-                #endif
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 堆栈: {ex.StackTrace}");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 保存项目失败: {ex.Message}");
+                //#endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 堆栈: {ex.StackTrace}");
+                //#endif
                 WpfMessageBox.Show($"保存项目失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -3300,15 +3342,20 @@ namespace ImageColorChanger.UI
         {
             // 图片路径部分
             var imagePart = string.Join("|", _regionImagePaths.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"));
-            
+
             // 文本框内容部分（包括内容、位置、尺寸、样式等所有影响渲染的属性）
-            var textPart = string.Join("|", _textBoxes.Select(tb => 
-                $"{tb.Data.Content}_{tb.Data.X}_{tb.Data.Y}_{tb.Data.Width}_{tb.Data.Height}_{tb.Data.FontSize}_{tb.Data.FontFamily}_{tb.Data.FontColor}_{tb.Data.IsBold}_{tb.Data.TextAlign}_{tb.Data.ZIndex}"));
-            
+            var textPart = string.Join("|", _textBoxes.Select(tb =>
+                $"{tb.Data.Content}_{tb.Data.X}_{tb.Data.Y}_{tb.Data.Width}_{tb.Data.Height}" +
+                $"_{tb.Data.FontSize}_{tb.Data.FontFamily}_{tb.Data.FontColor}_{tb.Data.IsBold}_{tb.Data.IsItalic}_{tb.Data.IsUnderline}" +
+                $"_{tb.Data.TextAlign}_{tb.Data.ZIndex}" +
+                $"_{tb.Data.BorderColor}_{tb.Data.BorderWidth}_{tb.Data.BorderRadius}_{tb.Data.BorderOpacity}" +
+                $"_{tb.Data.BackgroundColor}_{tb.Data.BackgroundRadius}_{tb.Data.BackgroundOpacity}" +
+                $"_{tb.Data.LineSpacing}_{tb.Data.LetterSpacing}"));
+
             // 🎨 背景色和背景图部分（确保背景变化时缓存失效）
             var bgColor = _currentSlide?.BackgroundColor ?? "";
             var bgImage = _currentSlide?.BackgroundImagePath ?? "";
-            
+
             return $"{imagePart}#{textPart}#{_currentSlide?.SplitMode}#{_splitStretchMode}#{bgColor}#{bgImage}";
         }
         
@@ -3332,12 +3379,23 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateProjectionFromCanvas()
         {
-            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 开始更新投影 =====");
-            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-            
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 开始更新投影 =====");
+//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 文本框数量: {_textBoxes.Count}");
+//
+//            // 打印每个文本框的样式信息
+//            foreach (var tb in _textBoxes)
+//            {
+//                System.Diagnostics.Debug.WriteLine($"  📦 [更新投影] 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
+//            }
+//#endif
+
             if (!_projectionManager.IsProjectionActive)
             {
-                //System.Diagnostics.Debug.WriteLine("⚠️ [更新投影] 投影未开启，无法更新投影内容");
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("⚠️ [更新投影] 投影未开启，无法更新投影内容");
+#endif
                 WpfMessageBox.Show("请先开启投影！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -3355,19 +3413,24 @@ namespace ImageColorChanger.UI
             
             // 🚀 优化2：缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
             string cacheKey = GenerateCanvasCacheKey();
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 当前缓存键: {cacheKey.Substring(0, Math.Min(200, cacheKey.Length))}...");
+//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 上次缓存键: {(_lastCanvasCacheKey ?? "null").Substring(0, Math.Min(200, (_lastCanvasCacheKey ?? "null").Length))}...");
+//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 缓存键相同: {cacheKey == _lastCanvasCacheKey}, 缓存存在: {_lastCanvasRenderCache != null}");
+//#endif
             if (cacheKey == _lastCanvasCacheKey && _lastCanvasRenderCache != null)
             {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 缓存命中，直接复用");
-                //#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 缓存命中，直接复用旧渲染结果");
+//#endif
                 _projectionManager.UpdateProjectionText(_lastCanvasRenderCache);
                 return;
             }
-            
-            //#if DEBUG
-            //var totalSw = System.Diagnostics.Stopwatch.StartNew();
-            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缓存未命中，开始完整渲染");
-            //#endif
+
+//#if DEBUG
+//            var totalSw = System.Diagnostics.Stopwatch.StartNew();
+//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缓存未命中，开始完整渲染");
+//#endif
 
             // 🔧 保存辅助线的可见性状态
             var guidesVisibility = AlignmentGuidesCanvas.Visibility;
@@ -3963,11 +4026,11 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [文本绘制-WPF] 失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [文本绘制-WPF] 失败: {ex.Message}");
+                //#else
                 _ = ex;
-                #endif
+                //#endif
             }
         }
         
@@ -5115,11 +5178,26 @@ namespace ImageColorChanger.UI
                     }
                 }
 
-                // 加载文本元素
+                // 加载文本元素（包含富文本片段）
                 var elements = _dbContext.TextElements
+                    .Include(e => e.RichTextSpans)  // 🔧 加载富文本片段
                     .Where(e => e.SlideId == slide.Id)
                     .OrderBy(e => e.ZIndex)
                     .ToList();
+
+                // 🔧 手动排序 RichTextSpans（EF Core 不支持在 Include 中使用 OrderBy）
+                foreach (var element in elements)
+                {
+                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
+                    {
+                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
+                    }
+                }
+
+//#if DEBUG
+//                int totalSpans = elements.Sum(e => e.RichTextSpans?.Count ?? 0);
+//                System.Diagnostics.Debug.WriteLine($"📥 [加载幻灯片] ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}, RichTextSpans={totalSpans}");
+//#endif
 
                 foreach (var element in elements)
                 {
@@ -5131,7 +5209,7 @@ namespace ImageColorChanger.UI
                     {
                         textBox.ApplyFontFamily(fontFamilyToApply);
                     }
-                    
+
                     AddTextBoxToCanvas(textBox);
                 }
 
@@ -5571,11 +5649,11 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
-                #else
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
+                //#else
                 _ = ex;  // 防止未使用变量警告
-                #endif
+                //#endif
             }
         }
 

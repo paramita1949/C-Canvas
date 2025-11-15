@@ -938,11 +938,33 @@ namespace ImageColorChanger.UI.Controls
             if (color != null)
             {
                 Data.FontColor = color;
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 应用全局颜色: {color}, 当前 RichTextSpans 数量: {Data.RichTextSpans?.Count ?? 0}");
+//#endif
+                // 🔧 应用全局颜色时，清除局部样式，重新渲染
+                if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
+                {
+                    Data.RichTextSpans.Clear();
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局颜色，清除局部样式");
+//#endif
+                }
+                // 🔧 无论是否有 RichTextSpans，都需要重新渲染以应用颜色到 Run 对象
+                needsRichTextResync = true;
             }
 
             if (isBold.HasValue)
             {
                 Data.IsBoldBool = isBold.Value;
+                // 🔧 应用全局加粗时，清除局部样式，重新渲染
+                if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
+                {
+                    Data.RichTextSpans.Clear();
+                    needsRichTextResync = true;
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局加粗，清除局部样式");
+//#endif
+                }
             }
 
             if (textAlign != null)
@@ -953,11 +975,29 @@ namespace ImageColorChanger.UI.Controls
             if (isUnderline.HasValue)
             {
                 Data.IsUnderlineBool = isUnderline.Value;
+                // 🔧 应用全局下划线时，清除局部样式，重新渲染
+                if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
+                {
+                    Data.RichTextSpans.Clear();
+                    needsRichTextResync = true;
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局下划线，清除局部样式");
+//#endif
+                }
             }
 
             if (isItalic.HasValue)
             {
                 Data.IsItalicBool = isItalic.Value;
+                // 🔧 应用全局斜体时，清除局部样式，重新渲染
+                if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
+                {
+                    Data.RichTextSpans.Clear();
+                    needsRichTextResync = true;
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局斜体，清除局部样式");
+//#endif
+                }
             }
 
             // 边框样式
@@ -1037,9 +1077,9 @@ namespace ImageColorChanger.UI.Controls
             // 🔧 如果更新了 RichTextSpans，需要重新渲染
             if (needsRichTextResync)
             {
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 重新渲染富文本内容");
-//#endif
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 重新渲染富文本内容");
+#endif
                 SyncTextToRichTextBox();
             }
             else
@@ -1047,6 +1087,13 @@ namespace ImageColorChanger.UI.Controls
                 // 应用样式到 RichTextBox
                 ApplyStylesToRichTextBox();
             }
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
+#endif
+
+            // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
+            ContentChanged?.Invoke(this, Data.Content);
         }
 
         /// <summary>
@@ -1095,8 +1142,10 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.TextElement.FontWeightProperty,
                     isBold.Value ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal);
+                // 🔧 同时更新 Data 对象，确保保存到数据库
+                Data.IsBoldBool = isBold.Value;
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用加粗: {isBold.Value}");
+                System.Diagnostics.Debug.WriteLine($"  ✅ 应用加粗: {isBold.Value}, Data.IsBold={Data.IsBold}");
 #endif
             }
 
@@ -1106,8 +1155,10 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.TextElement.FontStyleProperty,
                     isItalic.Value ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal);
+                // 🔧 同时更新 Data 对象，确保保存到数据库
+                Data.IsItalicBool = isItalic.Value;
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用斜体: {isItalic.Value}");
+                System.Diagnostics.Debug.WriteLine($"  ✅ 应用斜体: {isItalic.Value}, Data.IsItalic={Data.IsItalic}");
 #endif
             }
 
@@ -1117,9 +1168,11 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.Inline.TextDecorationsProperty,
                     isUnderline.Value ? System.Windows.TextDecorations.Underline : null);
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"  ✅ 应用下划线: {isUnderline.Value}");
-// #endif
+                // 🔧 同时更新 Data 对象，确保保存到数据库
+                Data.IsUnderlineBool = isUnderline.Value;
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"  ✅ 应用下划线: {isUnderline.Value}, Data.IsUnderline={Data.IsUnderline}");
+#endif
             }
 
             // ✅ 应用文字颜色（WPF 原生 API）
@@ -1169,18 +1222,49 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.TextElement.FontSizeProperty,
                     fontSize.Value);
+                // 🔧 同时更新 Data 对象
+                Data.FontSize = fontSize.Value;
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"  ✅ 应用字号: {fontSize.Value}");
 #endif
             }
 
+            // 🔧 更新 Data 对象的边框样式（确保保存到数据库）
+            if (borderColor != null)
+                Data.BorderColor = borderColor;
+            if (borderWidth.HasValue)
+                Data.BorderWidth = borderWidth.Value;
+            if (borderRadius.HasValue)
+                Data.BorderRadius = borderRadius.Value;
+            if (borderOpacity.HasValue)
+                Data.BorderOpacity = borderOpacity.Value;
+
+            // 🔧 更新 Data 对象的背景样式（确保保存到数据库）
+            if (backgroundColor != null)
+                Data.BackgroundColor = backgroundColor;
+            if (backgroundRadius.HasValue)
+                Data.BackgroundRadius = backgroundRadius.Value;
+            if (backgroundOpacity.HasValue)
+                Data.BackgroundOpacity = backgroundOpacity.Value;
+
+            // 🔧 更新 Data 对象的文字颜色（确保保存到数据库）
+            if (color != null)
+                Data.FontColor = color;
+
+            // 🔧 应用边框和背景样式到 UI
+            ApplyBorderStyle();
+            ApplyBackgroundStyle();
+
 #if DEBUG
             System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 完成 - 使用 WPF 原生 API");
+            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
 #endif
 
-            // ✅ WPF 原生 API 会自动管理 FlowDocument 状态
-            // 不需要手动设置 IsRichTextMode 或调用 MarkContentAsModified
-            // 这些操作会通过 ContentChanged 事件自动触发
+            // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
+            ContentChanged?.Invoke(this, Data.Content);
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"📢 [ApplyStyleToSelection] 已触发 ContentChanged 事件");
+#endif
         }
 
         /// <summary>
@@ -1349,19 +1433,32 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         public void HideDecorations()
         {
-            if (_border != null)
-            {
-                _border.BorderBrush = WpfBrushes.Transparent;
-                // ✅ 不覆盖用户设置的背景色
-            }
+            // 🔧 不隐藏边框，保留用户设置的边框样式（用于投影显示）
+            // 只隐藏选择框和拖拽手柄等编辑装饰元素
+
             if (_selectionRect != null)
             {
                 _selectionRect.Visibility = System.Windows.Visibility.Collapsed;
             }
-            if (_resizeThumb != null)
-            {
-                _resizeThumb.Visibility = System.Windows.Visibility.Collapsed;
-            }
+
+            // 🔧 隐藏所有8个拖拽手柄
+            if (_resizeThumbTopLeft != null)
+                _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbTopCenter != null)
+                _resizeThumbTopCenter.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbTopRight != null)
+                _resizeThumbTopRight.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbLeftCenter != null)
+                _resizeThumbLeftCenter.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbRightCenter != null)
+                _resizeThumbRightCenter.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbBottomLeft != null)
+                _resizeThumbBottomLeft.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbBottomCenter != null)
+                _resizeThumbBottomCenter.Visibility = System.Windows.Visibility.Collapsed;
+            if (_resizeThumbBottomRight != null)
+                _resizeThumbBottomRight.Visibility = System.Windows.Visibility.Collapsed;
+
             if (IsInEditMode)
             {
                 ExitEditMode();
@@ -1380,21 +1477,22 @@ namespace ImageColorChanger.UI.Controls
         }
         
         /// <summary>
-        /// 获取用于投影的渲染结果（WPF RichTextBox 版本）
+        /// 获取用于投影的渲染结果（包含边框和背景）
         /// </summary>
         public System.Windows.Media.Imaging.BitmapSource GetRenderedBitmap()
         {
-            if (_richTextBox == null)
+            if (_border == null)
                 return null;
 
-            // 渲染 RichTextBox 到 Bitmap
+            // 🔧 渲染整个 Border 容器（包含边框、背景和 RichTextBox）
             var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
                 (int)ActualWidth,
                 (int)ActualHeight,
                 96, 96,
                 System.Windows.Media.PixelFormats.Pbgra32);
 
-            renderTarget.Render(_richTextBox);
+            // 🔧 渲染 _border 而不是 _richTextBox，以包含边框和背景样式
+            renderTarget.Render(_border);
             return renderTarget;
         }
 
@@ -1444,6 +1542,9 @@ namespace ImageColorChanger.UI.Controls
                 // 🔧 如果有 RichTextSpans，渲染富文本片段
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
                 {
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📥 [加载RichTextSpans] 文本框 ID={Data.Id} 开始加载 {Data.RichTextSpans.Count} 个片段");
+//#endif
                     var paragraph = new System.Windows.Documents.Paragraph();
                     paragraph.Margin = new System.Windows.Thickness(0);
 
@@ -1473,8 +1574,23 @@ namespace ImageColorChanger.UI.Controls
                             {
                                 var color = (WpfColor)WpfColorConverter.ConvertFromString(span.FontColor);
                                 run.Foreground = new WpfSolidColorBrush(color);
+//#if DEBUG
+//                                System.Diagnostics.Debug.WriteLine($"  📦 片段 {span.SpanOrder}: 文本='{span.Text}', 字体={span.FontFamily}, 字号={span.FontSize}, 颜色={span.FontColor}, 加粗={span.IsBold}, 斜体={span.IsItalic}");
+//#endif
                             }
-                            catch { }
+                            catch (Exception ex)
+                            {
+//#if DEBUG
+//                                System.Diagnostics.Debug.WriteLine($"  ❌ 片段 {span.SpanOrder} 颜色解析失败: {span.FontColor}, 错误: {ex.Message}");
+//#endif
+                                _ = ex;
+                            }
+                        }
+                        else
+                        {
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine($"  📦 片段 {span.SpanOrder}: 文本='{span.Text}', 字体={span.FontFamily}, 字号={span.FontSize}, 颜色=null, 加粗={span.IsBold}, 斜体={span.IsItalic}");
+//#endif
                         }
 
                         // 应用粗体
@@ -1495,12 +1611,35 @@ namespace ImageColorChanger.UI.Controls
                     }
 
                     _richTextBox.Document.Blocks.Add(paragraph);
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"📥 [加载RichTextSpans] 文本框 ID={Data.Id} 加载完成");
+//#endif
                 }
                 else
                 {
-                    // 否则使用 Data.Content 创建简单文本
+                    // 🔧 普通文本：创建 Run 并应用全局样式
                     var paragraph = new System.Windows.Documents.Paragraph();
                     var run = new System.Windows.Documents.Run(Data.Content ?? "");
+
+                    // 应用全局样式到 Run
+                    if (Data.IsBold == 1)
+                        run.FontWeight = System.Windows.FontWeights.Bold;
+                    if (Data.IsItalic == 1)
+                        run.FontStyle = System.Windows.FontStyles.Italic;
+                    if (Data.IsUnderline == 1)
+                        run.TextDecorations = System.Windows.TextDecorations.Underline;
+
+                    // 应用颜色
+                    if (!string.IsNullOrEmpty(Data.FontColor))
+                    {
+                        try
+                        {
+                            var color = (WpfColor)WpfColorConverter.ConvertFromString(Data.FontColor);
+                            run.Foreground = new WpfSolidColorBrush(color);
+                        }
+                        catch { }
+                    }
+
                     paragraph.Inlines.Add(run);
                     _richTextBox.Document.Blocks.Add(paragraph);
                 }
@@ -1519,6 +1658,97 @@ namespace ImageColorChanger.UI.Controls
                 // 🔧 清除同步标志
                 _isSyncing = false;
             }
+        }
+
+        /// <summary>
+        /// 提取 FlowDocument 的内容和样式到 RichTextSpan 列表
+        /// </summary>
+        public List<Database.Models.RichTextSpan> ExtractRichTextSpansFromFlowDocument()
+        {
+            var spans = new List<Database.Models.RichTextSpan>();
+
+            if (_richTextBox == null || _richTextBox.Document == null)
+                return spans;
+
+            int spanOrder = 0;
+
+            try
+            {
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"📤 [提取RichTextSpans] 文本框 ID={Data.Id} 开始提取");
+//#endif
+                // 遍历所有段落
+                foreach (var block in _richTextBox.Document.Blocks)
+                {
+                    if (block is System.Windows.Documents.Paragraph paragraph)
+                    {
+                        // 遍历段落中的所有 Inline 元素
+                        foreach (var inline in paragraph.Inlines)
+                        {
+                            if (inline is System.Windows.Documents.Run run)
+                            {
+                                // 提取文本
+                                string text = run.Text;
+                                if (string.IsNullOrEmpty(text))
+                                    continue;
+
+                                // 提取样式
+                                var span = new Database.Models.RichTextSpan
+                                {
+                                    TextElementId = Data.Id,
+                                    SpanOrder = spanOrder++,
+                                    Text = text
+                                };
+
+                                // 字体
+                                if (run.FontFamily != null)
+                                {
+                                    span.FontFamily = run.FontFamily.Source;
+                                }
+
+                                // 字号
+                                if (!double.IsNaN(run.FontSize) && run.FontSize > 0)
+                                {
+                                    span.FontSize = run.FontSize;
+                                }
+
+                                // 颜色
+                                if (run.Foreground is WpfSolidColorBrush brush)
+                                {
+                                    var color = brush.Color;
+                                    span.FontColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                                }
+
+                                // 加粗
+                                span.IsBold = (run.FontWeight == System.Windows.FontWeights.Bold) ? 1 : 0;
+
+                                // 斜体
+                                span.IsItalic = (run.FontStyle == System.Windows.FontStyles.Italic) ? 1 : 0;
+
+                                // 下划线
+                                span.IsUnderline = (run.TextDecorations == System.Windows.TextDecorations.Underline) ? 1 : 0;
+
+//#if DEBUG
+//                                System.Diagnostics.Debug.WriteLine($"  📦 片段 {spanOrder - 1}: 文本='{text}', 字体={span.FontFamily}, 字号={span.FontSize}, 颜色={span.FontColor}, 加粗={span.IsBold}, 斜体={span.IsItalic}");
+//#endif
+                                spans.Add(span);
+                            }
+                        }
+                    }
+                }
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"📤 [提取RichTextSpans] 文本框 ID={Data.Id} 提取完成，共 {spans.Count} 个片段");
+//#endif
+            }
+            catch (Exception ex)
+            {
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"❌ [ExtractRichTextSpans] 提取失败: {ex.Message}");
+//#endif
+                _ = ex;
+            }
+
+            return spans;
         }
 
         /// <summary>

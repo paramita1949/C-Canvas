@@ -338,6 +338,12 @@ namespace ImageColorChanger.Database
                     .WithMany(s => s.Elements)
                     .HasForeignKey(e => e.SlideId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                // 🔧 外键关系：文本元素 -> 富文本片段（一对多）
+                entity.HasMany(e => e.RichTextSpans)
+                    .WithOne()
+                    .HasForeignKey(s => s.TextElementId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ========== 富文本片段表配置 ==========
