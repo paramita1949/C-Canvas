@@ -153,6 +153,8 @@ namespace ImageColorChanger.Managers
                                         BorderWidth = elementData.BorderWidth,
                                         BorderRadius = elementData.BorderRadius,
                                         BorderOpacity = elementData.BorderOpacity,
+                                        ShadowType = elementData.ShadowType,
+                                        ShadowPreset = elementData.ShadowPreset,
                                         ShadowColor = elementData.ShadowColor,
                                         ShadowOffsetX = elementData.ShadowOffsetX,
                                         ShadowOffsetY = elementData.ShadowOffsetY,

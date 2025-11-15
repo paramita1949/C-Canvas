@@ -158,6 +158,18 @@ namespace ImageColorChanger.Database.Models
         // ========== 阴影样式 ==========
 
         /// <summary>
+        /// 阴影类型（0=无，1=外部，2=内部，3=透视）
+        /// </summary>
+        [Column("shadow_type")]
+        public int ShadowType { get; set; } = 0;
+
+        /// <summary>
+        /// 阴影预设方案（0=自定义，1-3=外部阴影，11-13=内部阴影，21-23=透视阴影）
+        /// </summary>
+        [Column("shadow_preset")]
+        public int ShadowPreset { get; set; } = 0;
+
+        /// <summary>
         /// 阴影颜色（#RRGGBB格式）
         /// </summary>
         [Column("shadow_color")]

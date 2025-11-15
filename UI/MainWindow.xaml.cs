@@ -610,6 +610,7 @@ namespace ImageColorChanger.UI
                 _dbManager.MigrateAddUnderlineSupport();  // 🆕 下划线支持
                 _dbManager.MigrateAddRichTextSupport();   // 🆕 RichText 支持（斜体、边框、背景、阴影、间距）
                 _dbManager.MigrateCreateRichTextSpansTable();  // 🆕 富文本片段表（完全 RichText）
+                _dbManager.MigrateAddShadowTypeAndPreset();  // 🆕 阴影类型和预设字段
 
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();

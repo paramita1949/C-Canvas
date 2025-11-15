@@ -234,6 +234,8 @@ namespace ImageColorChanger.Managers
                         BorderWidth = e.BorderWidth,
                         BorderRadius = e.BorderRadius,
                         BorderOpacity = e.BorderOpacity,
+                        ShadowType = e.ShadowType,
+                        ShadowPreset = e.ShadowPreset,
                         ShadowColor = e.ShadowColor,
                         ShadowOffsetX = e.ShadowOffsetX,
                         ShadowOffsetY = e.ShadowOffsetY,
@@ -342,6 +344,8 @@ namespace ImageColorChanger.Managers
         public double BorderWidth { get; set; }
         public double BorderRadius { get; set; }
         public int BorderOpacity { get; set; }
+        public int ShadowType { get; set; }
+        public int ShadowPreset { get; set; }
         public string ShadowColor { get; set; }
         public double ShadowOffsetX { get; set; }
         public double ShadowOffsetY { get; set; }

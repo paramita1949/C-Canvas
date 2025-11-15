@@ -83,8 +83,11 @@ namespace ImageColorChanger.Core
             var textBounds = CalculateTextBounds(layout, context);
 
             // 7. 绘制阴影（如果启用）
-            if (context.Style.ShadowOpacity > 0 && context.Style.ShadowBlur > 0)
+            if (context.Style.ShadowOpacity > 0 && (context.Style.ShadowBlur > 0 || Math.Abs(context.Style.ShadowOffsetX) > 0.1 || Math.Abs(context.Style.ShadowOffsetY) > 0.1))
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🎨 绘制阴影: Opacity={context.Style.ShadowOpacity}, Blur={context.Style.ShadowBlur}, OffsetX={context.Style.ShadowOffsetX}, OffsetY={context.Style.ShadowOffsetY}, Color={context.Style.ShadowColor}");
+                #endif
                 DrawShadow(canvas, textBounds, context.Style);
             }
 
@@ -543,11 +546,12 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
-        /// 绘制阴影
+        /// 绘制阴影（支持外部阴影、内部阴影、透视阴影）
         /// </summary>
         private void DrawShadow(SKCanvas canvas, SKRect bounds, TextStyle style)
         {
-            if (style.ShadowOpacity <= 0 || style.ShadowBlur <= 0)
+            // ✅ 只要透明度大于0且有偏移或模糊，就绘制阴影
+            if (style.ShadowOpacity <= 0)
                 return;
 
             // 计算阴影颜色（应用不透明度）
@@ -559,6 +563,49 @@ namespace ImageColorChanger.Core
                 alpha
             );
 
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🎨 DrawShadow 执行: Color={shadowColor}, Blur={style.ShadowBlur}, OffsetX={style.ShadowOffsetX}, OffsetY={style.ShadowOffsetY}");
+            #endif
+
+            // 根据阴影类型选择渲染方法
+            var shadowType = GetShadowType(style.ShadowOffsetX, style.ShadowOffsetY);
+
+            switch (shadowType)
+            {
+                case ShadowType.InnerShadow:
+                    DrawInnerShadow(canvas, bounds, style, shadowColor);
+                    break;
+
+                case ShadowType.DropShadow:
+                case ShadowType.PerspectiveShadow:
+                default:
+                    DrawDropShadow(canvas, bounds, style, shadowColor);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 判断阴影类型（基于偏移值）
+        /// </summary>
+        private ShadowType GetShadowType(float offsetX, float offsetY)
+        {
+            // 负偏移表示内阴影
+            if (offsetX < 0 && offsetY < 0)
+                return ShadowType.InnerShadow;
+
+            // 透视阴影：X偏移明显大于Y偏移
+            if (Math.Abs(offsetX) > Math.Abs(offsetY) * 2)
+                return ShadowType.PerspectiveShadow;
+
+            // 默认为外部阴影
+            return ShadowType.DropShadow;
+        }
+
+        /// <summary>
+        /// 绘制外部阴影（Drop Shadow）
+        /// </summary>
+        private void DrawDropShadow(SKCanvas canvas, SKRect bounds, TextStyle style, SKColor shadowColor)
+        {
             // 创建阴影Paint（带模糊效果）
             using var shadowPaint = new SKPaint
             {
@@ -585,6 +632,58 @@ namespace ImageColorChanger.Core
             {
                 canvas.DrawRect(shadowBounds, shadowPaint);
             }
+        }
+
+        /// <summary>
+        /// 绘制内部阴影（Inner Shadow）
+        /// </summary>
+        private void DrawInnerShadow(SKCanvas canvas, SKRect bounds, TextStyle style, SKColor shadowColor)
+        {
+            // 内阴影需要使用图层和混合模式实现
+            canvas.Save();
+
+            // 创建裁剪路径（文本区域）
+            using var clipPath = new SKPath();
+            if (style.BackgroundRadius > 0)
+            {
+                clipPath.AddRoundRect(bounds, style.BackgroundRadius, style.BackgroundRadius);
+            }
+            else
+            {
+                clipPath.AddRect(bounds);
+            }
+
+            // 裁剪到文本区域
+            canvas.ClipPath(clipPath);
+
+            // 创建内阴影Paint
+            using var innerShadowPaint = new SKPaint
+            {
+                Color = shadowColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, Math.Abs(style.ShadowBlur))
+            };
+
+            // 内阴影使用反向偏移（从内部向外扩展）
+            var innerShadowBounds = new SKRect(
+                bounds.Left - style.ShadowOffsetX,
+                bounds.Top - style.ShadowOffsetY,
+                bounds.Right - style.ShadowOffsetX,
+                bounds.Bottom - style.ShadowOffsetY
+            );
+
+            // 绘制内阴影
+            if (style.BackgroundRadius > 0)
+            {
+                canvas.DrawRoundRect(innerShadowBounds, style.BackgroundRadius, style.BackgroundRadius, innerShadowPaint);
+            }
+            else
+            {
+                canvas.DrawRect(innerShadowBounds, innerShadowPaint);
+            }
+
+            canvas.Restore();
         }
 
         /// <summary>

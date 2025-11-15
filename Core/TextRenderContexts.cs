@@ -347,31 +347,191 @@ namespace ImageColorChanger.Core
         /// 描边颜色（null表示不使用描边）
         /// </summary>
         public SKColor? StrokeColor { get; set; }
-        
+
         /// <summary>
         /// 描边宽度（像素）
         /// </summary>
         public float StrokeWidth { get; set; } = 2f;
-        
+
         /// <summary>
         /// 阴影颜色（null表示不使用阴影）
         /// </summary>
         public SKColor? ShadowColor { get; set; }
-        
+
         /// <summary>
         /// 阴影偏移量
         /// </summary>
         public SKPoint ShadowOffset { get; set; } = new SKPoint(2, 2);
-        
+
         /// <summary>
         /// 阴影模糊半径
         /// </summary>
         public float ShadowBlur { get; set; } = 2f;
-        
+
         /// <summary>
         /// 渐变着色器（TODO: 扩展功能）
         /// </summary>
         public SKShader GradientShader { get; set; }
+    }
+
+    /// <summary>
+    /// 阴影类型枚举
+    /// </summary>
+    public enum ShadowType
+    {
+        /// <summary>
+        /// 无阴影
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// 外部阴影（Drop Shadow）
+        /// </summary>
+        DropShadow = 1,
+
+        /// <summary>
+        /// 内部阴影（Inner Shadow）
+        /// </summary>
+        InnerShadow = 2,
+
+        /// <summary>
+        /// 透视阴影（Perspective Shadow）
+        /// </summary>
+        PerspectiveShadow = 3
+    }
+
+    /// <summary>
+    /// 阴影预设方案枚举
+    /// </summary>
+    public enum ShadowPreset
+    {
+        /// <summary>
+        /// 自定义（用户手动调整参数）
+        /// </summary>
+        Custom = 0,
+
+        // ========== 外部阴影预设 ==========
+
+        /// <summary>
+        /// 柔和阴影 - 距离4px，模糊8px
+        /// </summary>
+        DropSoft = 1,
+
+        /// <summary>
+        /// 标准阴影 - 距离8px，模糊12px
+        /// </summary>
+        DropStandard = 2,
+
+        /// <summary>
+        /// 强烈阴影 - 距离12px，模糊20px
+        /// </summary>
+        DropStrong = 3,
+
+        // ========== 内部阴影预设 ==========
+
+        /// <summary>
+        /// 细腻内阴影 - 距离2px，模糊4px
+        /// </summary>
+        InnerSubtle = 11,
+
+        /// <summary>
+        /// 标准内阴影 - 距离4px，模糊8px
+        /// </summary>
+        InnerStandard = 12,
+
+        /// <summary>
+        /// 深度内阴影 - 距离6px，模糊12px
+        /// </summary>
+        InnerDeep = 13,
+
+        // ========== 透视阴影预设 ==========
+
+        /// <summary>
+        /// 近距透视 - X6px/Y2px，模糊6px
+        /// </summary>
+        PerspectiveNear = 21,
+
+        /// <summary>
+        /// 中距透视 - X12px/Y4px，模糊10px
+        /// </summary>
+        PerspectiveMedium = 22,
+
+        /// <summary>
+        /// 远距透视 - X20px/Y6px，模糊16px
+        /// </summary>
+        PerspectiveFar = 23
+    }
+
+    /// <summary>
+    /// 阴影预设参数配置
+    /// </summary>
+    public static class ShadowPresetConfig
+    {
+        /// <summary>
+        /// 获取预设的阴影参数
+        /// </summary>
+        public static (float offsetX, float offsetY, float blur) GetPresetParams(ShadowPreset preset)
+        {
+            return preset switch
+            {
+                // 外部阴影
+                ShadowPreset.DropSoft => (4f, 4f, 8f),
+                ShadowPreset.DropStandard => (8f, 8f, 12f),
+                ShadowPreset.DropStrong => (12f, 12f, 20f),
+
+                // 内部阴影（使用负偏移模拟内阴影效果）
+                ShadowPreset.InnerSubtle => (-2f, -2f, 4f),
+                ShadowPreset.InnerStandard => (-4f, -4f, 8f),
+                ShadowPreset.InnerDeep => (-6f, -6f, 12f),
+
+                // 透视阴影
+                ShadowPreset.PerspectiveNear => (6f, 2f, 6f),
+                ShadowPreset.PerspectiveMedium => (12f, 4f, 10f),
+                ShadowPreset.PerspectiveFar => (20f, 6f, 16f),
+
+                _ => (0f, 0f, 0f)
+            };
+        }
+
+        /// <summary>
+        /// 获取预设的阴影类型
+        /// </summary>
+        public static ShadowType GetPresetType(ShadowPreset preset)
+        {
+            return preset switch
+            {
+                ShadowPreset.DropSoft or ShadowPreset.DropStandard or ShadowPreset.DropStrong
+                    => ShadowType.DropShadow,
+
+                ShadowPreset.InnerSubtle or ShadowPreset.InnerStandard or ShadowPreset.InnerDeep
+                    => ShadowType.InnerShadow,
+
+                ShadowPreset.PerspectiveNear or ShadowPreset.PerspectiveMedium or ShadowPreset.PerspectiveFar
+                    => ShadowType.PerspectiveShadow,
+
+                _ => ShadowType.None
+            };
+        }
+
+        /// <summary>
+        /// 获取预设的显示名称
+        /// </summary>
+        public static string GetPresetName(ShadowPreset preset)
+        {
+            return preset switch
+            {
+                ShadowPreset.DropSoft => "柔和阴影",
+                ShadowPreset.DropStandard => "标准阴影",
+                ShadowPreset.DropStrong => "强烈阴影",
+                ShadowPreset.InnerSubtle => "细腻内阴影",
+                ShadowPreset.InnerStandard => "标准内阴影",
+                ShadowPreset.InnerDeep => "深度内阴影",
+                ShadowPreset.PerspectiveNear => "近距透视",
+                ShadowPreset.PerspectiveMedium => "中距透视",
+                ShadowPreset.PerspectiveFar => "远距透视",
+                _ => "自定义"
+            };
+        }
     }
     
     /// <summary>

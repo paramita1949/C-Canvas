@@ -2285,7 +2285,7 @@
                                    StaysOpen="False"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
-                                   HorizontalOffset="190"
+                                   HorizontalOffset="-160"
                                    VerticalOffset="0"
                                    IsOpen="False"
                                    Closed="SidePanel_Closed">
@@ -2305,12 +2305,12 @@
                                    StaysOpen="False"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
-                                   HorizontalOffset="190"
+                                   HorizontalOffset="-160"
                                    VerticalOffset="0"
                                    IsOpen="False"
                                    Closed="SidePanel_Closed">
-                                <Border Background="#2D2D30"
-                                        BorderBrush="#3F3F46"
+                                <Border Background="White"
+                                        BorderBrush="#E0E0E0"
                                         BorderThickness="1,0,0,0">
                                     <Border.Effect>
                                         <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
@@ -2325,12 +2325,12 @@
                                    StaysOpen="False"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
-                                   HorizontalOffset="190"
+                                   HorizontalOffset="-160"
                                    VerticalOffset="0"
                                    IsOpen="False"
                                    Closed="SidePanel_Closed">
-                                <Border Background="#2D2D30"
-                                        BorderBrush="#3F3F46"
+                                <Border Background="White"
+                                        BorderBrush="#E0E0E0"
                                         BorderThickness="1,0,0,0">
                                     <Border.Effect>
                                         <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>

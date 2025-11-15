@@ -1386,6 +1386,67 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
+        /// 执行数据库迁移 - 添加阴影类型和预设字段
+        /// </summary>
+        public void MigrateAddShadowTypeAndPreset()
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                // 定义需要添加的列
+                var columnsToAdd = new[]
+                {
+                    ("shadow_type", "INTEGER NOT NULL DEFAULT 0"),
+                    ("shadow_preset", "INTEGER NOT NULL DEFAULT 0")
+                };
+
+                foreach (var (columnName, columnDef) in columnsToAdd)
+                {
+                    // 检查列是否已存在
+                    var checkSql = $"SELECT COUNT(*) FROM pragma_table_info('text_elements') WHERE name='{columnName}'";
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = checkSql;
+                        var count = Convert.ToInt32(command.ExecuteScalar());
+
+                        if (count == 0)
+                        {
+                            // 列不存在，执行添加
+                            var alterSql = $"ALTER TABLE text_elements ADD COLUMN {columnName} {columnDef}";
+                            _context.Database.ExecuteSqlRaw(alterSql);
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ 数据库迁移成功：已添加 {columnName} 列");
+                            #endif
+                        }
+                        else
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"ℹ️ {columnName} 列已存在，跳过迁移");
+                            #endif
+                        }
+                    }
+                }
+
+                if (connection.State == System.Data.ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败 (shadow_type/shadow_preset): {ex.Message}");
+                #endif
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 执行数据库迁移 - 创建富文本片段表（完全 RichText 支持）
         /// </summary>
         public void MigrateCreateRichTextSpansTable()

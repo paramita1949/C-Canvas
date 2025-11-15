@@ -1843,6 +1843,9 @@ namespace ImageColorChanger.UI.Controls
 
                 // ✅ 应用背景样式到 RichTextBox
                 ApplyBackgroundStyle();
+
+                // ✅ 应用阴影样式到 RichTextBox
+                ApplyShadowStyle();
             }
             catch (Exception)
             {
@@ -1968,6 +1971,53 @@ namespace ImageColorChanger.UI.Controls
             }
             catch (Exception)
             {
+            }
+        }
+
+        /// <summary>
+        /// ✅ 应用阴影样式到 RichTextBox
+        /// </summary>
+        private void ApplyShadowStyle()
+        {
+            if (_richTextBox == null)
+                return;
+
+            try
+            {
+                // 阴影透明度为 0 或偏移/模糊都为 0 时，移除阴影效果
+                if (Data.ShadowOpacity <= 0 ||
+                    (Math.Abs(Data.ShadowOffsetX) < 0.1 && Math.Abs(Data.ShadowOffsetY) < 0.1 && Data.ShadowBlur < 0.1))
+                {
+                    _richTextBox.Effect = null;
+                    return;
+                }
+
+                // 解析阴影颜色
+                var shadowColor = (WpfColor)WpfColorConverter.ConvertFromString(Data.ShadowColor);
+
+                // 创建 DropShadowEffect
+                var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = shadowColor,
+                    BlurRadius = Data.ShadowBlur,
+                    ShadowDepth = Math.Sqrt(Data.ShadowOffsetX * Data.ShadowOffsetX + Data.ShadowOffsetY * Data.ShadowOffsetY),
+                    Direction = Math.Atan2(Data.ShadowOffsetY, Data.ShadowOffsetX) * 180 / Math.PI,
+                    Opacity = Data.ShadowOpacity / 100.0  // ✅ 直接使用透明度百分比（0-100 → 0.0-1.0）
+                };
+
+                _richTextBox.Effect = shadowEffect;
+
+// #if DEBUG
+//                 System.Diagnostics.Debug.WriteLine($"✅ [ApplyShadowStyle] 颜色={Data.ShadowColor}, 偏移=({Data.ShadowOffsetX:F2}, {Data.ShadowOffsetY:F2}), 模糊={Data.ShadowBlur}, 透明度={Data.ShadowOpacity}%");
+// #endif
+            }
+            catch (Exception ex)
+            {
+// #if DEBUG
+//                 System.Diagnostics.Debug.WriteLine($"❌ [ApplyShadowStyle] 失败: {ex.Message}");
+// #else
+                _ = ex;  // 防止未使用变量警告
+// #endif
             }
         }
 
