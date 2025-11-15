@@ -1989,18 +1989,24 @@
                                         <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
 
                                         <!-- 边框按钮 -->
-                                        <Button x:Name="BtnFloatingBorder" Content="□"
-                                                Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
-                                                ToolTip="边框" Cursor="Hand"
-                                                Click="BtnFloatingBorder_Click">
+                                        <Button x:Name="BtnFloatingBorder"
+                                                Width="48" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="边框"
+                                                Click="BtnFloatingBorder_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="边框" FontSize="16" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2019,18 +2025,24 @@
                                         </Button>
 
                                         <!-- 背景按钮 -->
-                                        <Button x:Name="BtnFloatingBackground" Content="■"
-                                                Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
-                                                ToolTip="背景" Cursor="Hand"
-                                                Click="BtnFloatingBackground_Click">
+                                        <Button x:Name="BtnFloatingBackground"
+                                                Width="48" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="背景"
+                                                Click="BtnFloatingBackground_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="文字" FontSize="16" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2049,18 +2061,24 @@
                                         </Button>
 
                                         <!-- 阴影按钮 -->
-                                        <Button x:Name="BtnFloatingShadow" Content="◐"
-                                                Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
-                                                ToolTip="阴影" Cursor="Hand"
-                                                Click="BtnFloatingShadow_Click">
+                                        <Button x:Name="BtnFloatingShadow"
+                                                Width="48" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="阴影"
+                                                Click="BtnFloatingShadow_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="阴影" FontSize="16" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2079,18 +2097,24 @@
                                         </Button>
 
                                         <!-- 间距按钮 -->
-                                        <Button x:Name="BtnFloatingSpacing" Content="↔"
-                                                Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="22" FontWeight="Bold"
-                                                ToolTip="间距" Cursor="Hand"
-                                                Click="BtnFloatingSpacing_Click">
+                                        <Button x:Name="BtnFloatingSpacing"
+                                                Width="48" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="间距"
+                                                Click="BtnFloatingSpacing_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="间距" FontSize="16" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="14">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2345,7 +2369,7 @@
                                    StaysOpen="False"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
-                                   HorizontalOffset="190"
+                                   HorizontalOffset="-160"
                                    VerticalOffset="0"
                                    IsOpen="False"
                                    Closed="SidePanel_Closed">
