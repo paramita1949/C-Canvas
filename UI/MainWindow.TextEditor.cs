@@ -2672,6 +2672,14 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 侧边面板打开事件
+        /// </summary>
+        private void SidePanel_Opened(object sender, EventArgs e)
+        {
+            // 面板打开时的初始化逻辑（如果需要）
+        }
+
+        /// <summary>
         /// 侧边面板关闭事件
         /// </summary>
         private void SidePanel_Closed(object sender, EventArgs e)

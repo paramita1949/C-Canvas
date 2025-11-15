@@ -2311,8 +2311,7 @@
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
                                    VerticalOffset="0"
-                                   IsOpen="False"
-                                   Closed="SidePanel_Closed">
+                                   IsOpen="False">
                                 <Border Background="#2D2D30"
                                         BorderBrush="#3F3F46"
                                         BorderThickness="1,0,0,0">
@@ -2331,8 +2330,7 @@
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
                                    VerticalOffset="0"
-                                   IsOpen="False"
-                                   Closed="SidePanel_Closed">
+                                   IsOpen="False">
                                 <Border Background="White"
                                         BorderBrush="#E0E0E0"
                                         BorderThickness="1,0,0,0">
@@ -2351,8 +2349,7 @@
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
                                    VerticalOffset="0"
-                                   IsOpen="False"
-                                   Closed="SidePanel_Closed">
+                                   IsOpen="False">
                                 <Border Background="White"
                                         BorderBrush="#E0E0E0"
                                         BorderThickness="1,0,0,0">
@@ -2371,8 +2368,7 @@
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
                                    VerticalOffset="0"
-                                   IsOpen="False"
-                                   Closed="SidePanel_Closed">
+                                   IsOpen="False">
                                 <Border Background="#2D2D30"
                                         BorderBrush="#3F3F46"
                                         BorderThickness="1,0,0,0">

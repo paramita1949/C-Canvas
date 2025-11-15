@@ -5216,47 +5216,68 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 主窗口失去焦点时，关闭圣经样式 Popup
+        /// 主窗口失去焦点时，关闭圣经样式 Popup 和所有侧边面板
         /// </summary>
         private void MainWindow_Deactivated(object sender, EventArgs e)
         {
+            // 关闭圣经样式 Popup
             if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
             {
                 _bibleStylePopup.IsOpen = false;
-                
-                #if DEBUG
-                Debug.WriteLine($"🔄 [圣经插入] 主窗口失去焦点，自动关闭样式 Popup");
-                #endif
+            }
+
+            // 关闭所有侧边面板（边框、背景、阴影、间距）
+            CloseAllSidePanels();
+
+            // 取消选中编辑框，触发工具栏自动隐藏
+            if (_selectedTextBox != null)
+            {
+                _selectedTextBox.SetSelected(false);
+                _selectedTextBox = null;
             }
         }
         
         /// <summary>
-        /// 主窗口状态变化时（最小化、最大化等），关闭圣经样式 Popup
+        /// 主窗口状态变化时（最小化、最大化等），关闭圣经样式 Popup 和所有侧边面板
         /// </summary>
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
+            // 关闭圣经样式 Popup
             if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
             {
                 _bibleStylePopup.IsOpen = false;
-                
-                #if DEBUG
-                Debug.WriteLine($"🔄 [圣经插入] 主窗口状态变化，自动关闭样式 Popup (State={((System.Windows.Window)sender).WindowState})");
-                #endif
+            }
+
+            // 关闭所有侧边面板（边框、背景、阴影、间距）
+            CloseAllSidePanels();
+
+            // 取消选中编辑框，触发工具栏自动隐藏
+            if (_selectedTextBox != null)
+            {
+                _selectedTextBox.SetSelected(false);
+                _selectedTextBox = null;
             }
         }
         
         /// <summary>
-        /// 主窗口位置变化时，关闭圣经样式 Popup
+        /// 主窗口位置变化时，关闭圣经样式 Popup 和所有侧边面板
         /// </summary>
         private void MainWindow_LocationChanged(object sender, EventArgs e)
         {
+            // 关闭圣经样式 Popup
             if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
             {
                 _bibleStylePopup.IsOpen = false;
-                
-                #if DEBUG
-                Debug.WriteLine($"🔄 [圣经插入] 主窗口位置变化，自动关闭样式 Popup");
-                #endif
+            }
+
+            // 关闭所有侧边面板（边框、背景、阴影、间距）
+            CloseAllSidePanels();
+
+            // 取消选中编辑框，触发工具栏自动隐藏
+            if (_selectedTextBox != null)
+            {
+                _selectedTextBox.SetSelected(false);
+                _selectedTextBox = null;
             }
         }
 
