@@ -4474,6 +4474,50 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 导出文本项目
+        /// </summary>
+        private async Task ExportTextProjectAsync(ProjectTreeItem item)
+        {
+            try
+            {
+                if (_slideExportManager != null)
+                {
+                    bool success = await _slideExportManager.ExportProjectAsync(item.Id);
+                    if (success)
+                    {
+                        ShowStatus($"✅ 已导出项目: {item.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导出项目失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 导出所有项目
+        /// </summary>
+        private async Task ExportAllProjectsAsync()
+        {
+            try
+            {
+                if (_slideExportManager != null)
+                {
+                    bool success = await _slideExportManager.ExportAllProjectsAsync();
+                    if (success)
+                    {
+                        ShowStatus($"✅ 已导出所有项目");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导出所有项目失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 删除文本项目
         /// </summary>
         private async Task DeleteTextProjectAsync(ProjectTreeItem item)
@@ -4490,16 +4534,16 @@ namespace ImageColorChanger.UI
                 if (result == MessageBoxResult.Yes)
                 {
                     await _textProjectManager.DeleteProjectAsync(item.Id);
-                    
+
                     // 如果删除的是当前项目，关闭编辑器
                     if (_currentTextProject != null && _currentTextProject.Id == item.Id)
                     {
                         CloseTextEditor();
                     }
-                    
+
                     // 刷新项目树
                     LoadProjects();
-                    
+
                     ShowStatus($"✅ 已删除项目: {item.Name}");
                     //System.Diagnostics.Debug.WriteLine($"✅ 已删除项目: ID={item.Id}, Name={item.Name}");
                 }

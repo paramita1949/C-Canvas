@@ -133,6 +133,8 @@ namespace ImageColorChanger.UI
         public ProjectionManager _projectionManager;  // ⚡ public for AnimationHelper access
         private OriginalManager _originalManager;
         private PreloadCacheManager _preloadCacheManager; // 智能预缓存管理器
+        private SlideExportManager _slideExportManager; // 幻灯片导出管理器
+        private SlideImportManager _slideImportManager; // 幻灯片导入管理器
         
         // 视频播放相关
         private VideoPlayerManager _videoPlayerManager;
@@ -612,10 +614,14 @@ namespace ImageColorChanger.UI
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();
                 _searchManager = new SearchManager(_dbManager, _configManager);
-                
+
             // 创建导入管理器
             _importManager = new ImportManager(_dbManager, _sortManager);
-            
+
+            // 创建幻灯片导入导出管理器
+            _slideExportManager = new SlideExportManager(_dbManager);
+            _slideImportManager = new SlideImportManager(_dbManager);
+
             // 加载搜索范围选项
             LoadSearchScopes();
             }

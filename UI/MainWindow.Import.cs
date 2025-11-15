@@ -18,7 +18,7 @@ namespace ImageColorChanger.UI
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 导入单个文件
-            var importFileItem = new MenuItem { Header = "导入单个文件" };
+            var importFileItem = new MenuItem { Header = "导入文件" };
             importFileItem.Click += (s, args) => ImportSingleFile();
             contextMenu.Items.Add(importFileItem);
 
@@ -26,6 +26,13 @@ namespace ImageColorChanger.UI
             var importFolderItem = new MenuItem { Header = "导入文件夹" };
             importFolderItem.Click += (s, args) => ImportFolder();
             contextMenu.Items.Add(importFolderItem);
+
+            contextMenu.Items.Add(new Separator());
+
+            // 导入幻灯片
+            var importSlideItem = new MenuItem { Header = "导入幻灯片" };
+            importSlideItem.Click += async (s, args) => await ImportSlideProjectsAsync();
+            contextMenu.Items.Add(importSlideItem);
 
             contextMenu.Items.Add(new Separator());
 
@@ -173,6 +180,22 @@ namespace ImageColorChanger.UI
             if (_imageSaveManager != null)
             {
                 _imageSaveManager.SaveEffectImage(_imagePath);
+            }
+        }
+
+        /// <summary>
+        /// 导入幻灯片项目
+        /// </summary>
+        private async System.Threading.Tasks.Task ImportSlideProjectsAsync()
+        {
+            if (_slideImportManager != null)
+            {
+                int count = await _slideImportManager.ImportProjectsAsync();
+                if (count > 0)
+                {
+                    LoadProjects(); // 刷新项目树
+                    ShowStatus($"✅ 已导入 {count} 个幻灯片项目");
+                }
             }
         }
 

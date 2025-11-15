@@ -553,7 +553,18 @@ namespace ImageColorChanger.UI
                             await CreateTextProjectAsync(projectName);
                         };
                         contextMenu.Items.Add(newProjectItem);
-                        
+
+                        contextMenu.Items.Add(new Separator());
+
+                        var exportAllItem = new MenuItem { Header = "📦 导出所有项目" };
+                        exportAllItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
+                        exportAllItem.Foreground = Brushes.White;
+                        exportAllItem.BorderThickness = new Thickness(0);
+                        exportAllItem.BorderBrush = Brushes.Transparent;
+
+                        exportAllItem.Click += async (s, args) => await ExportAllProjectsAsync();
+                        contextMenu.Items.Add(exportAllItem);
+
                         contextMenu.IsOpen = true;
                         contextMenu.PlacementTarget = sender as UIElement;
                         e.Handled = true;
@@ -730,9 +741,15 @@ namespace ImageColorChanger.UI
                         var renameItem = new MenuItem { Header = "✏️ 重命名" };
                         renameItem.Click += (s, args) => RenameTextProjectAsync(item);
                         contextMenu.Items.Add(renameItem);
-                        
+
                         contextMenu.Items.Add(new Separator());
-                        
+
+                        var exportItem = new MenuItem { Header = "📤 导出" };
+                        exportItem.Click += async (s, args) => await ExportTextProjectAsync(item);
+                        contextMenu.Items.Add(exportItem);
+
+                        contextMenu.Items.Add(new Separator());
+
                         var deleteItem = new MenuItem { Header = "🗑️ 删除项目" };
                         deleteItem.Click += async (s, args) => await DeleteTextProjectAsync(item);
                         contextMenu.Items.Add(deleteItem);

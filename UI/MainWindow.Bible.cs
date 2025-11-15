@@ -4776,9 +4776,9 @@ namespace ImageColorChanger.UI
                     : verse.DisplayVerseNumber;
                 lines.Add($"{verseNumber} {verse.Scripture}");
 
-                #if DEBUG
-                Debug.WriteLine($"[格式化经文] Verse={verse.Verse}, DisplayVerseNumber={verse.DisplayVerseNumber}, 使用节号={verseNumber}");
-                #endif
+                //#if DEBUG
+                //Debug.WriteLine($"[格式化经文] Verse={verse.Verse}, DisplayVerseNumber={verse.DisplayVerseNumber}, 使用节号={verseNumber}");
+                //#endif
             }
             return string.Join("\n", lines);
         }

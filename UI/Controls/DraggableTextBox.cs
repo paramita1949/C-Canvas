@@ -1077,9 +1077,9 @@ namespace ImageColorChanger.UI.Controls
             // 🔧 如果更新了 RichTextSpans，需要重新渲染
             if (needsRichTextResync)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 重新渲染富文本内容");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 重新渲染富文本内容");
+//#endif
                 SyncTextToRichTextBox();
             }
             else
@@ -1088,9 +1088,9 @@ namespace ImageColorChanger.UI.Controls
                 ApplyStylesToRichTextBox();
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
+//#endif
 
             // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
             ContentChanged?.Invoke(this, Data.Content);
@@ -1132,9 +1132,9 @@ namespace ImageColorChanger.UI.Controls
             // ✅ 使用 WPF 原生 TextRange API
             var selection = _richTextBox.Selection;
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📍 [ApplyStyleToSelection] 选中文本: '{selection.Text}'");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"📍 [ApplyStyleToSelection] 选中文本: '{selection.Text}'");
+//#endif
 
             // ✅ 应用加粗样式（WPF 原生 API）
             if (isBold.HasValue)
@@ -1144,9 +1144,9 @@ namespace ImageColorChanger.UI.Controls
                     isBold.Value ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal);
                 // 🔧 同时更新 Data 对象，确保保存到数据库
                 Data.IsBoldBool = isBold.Value;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用加粗: {isBold.Value}, Data.IsBold={Data.IsBold}");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"  ✅ 应用加粗: {isBold.Value}, Data.IsBold={Data.IsBold}");
+//#endif
             }
 
             // ✅ 应用斜体样式（WPF 原生 API）
@@ -1255,16 +1255,16 @@ namespace ImageColorChanger.UI.Controls
             ApplyBorderStyle();
             ApplyBackgroundStyle();
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 完成 - 使用 WPF 原生 API");
-            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 完成 - 使用 WPF 原生 API");
+//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
+//#endif
 
             // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
             ContentChanged?.Invoke(this, Data.Content);
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📢 [ApplyStyleToSelection] 已触发 ContentChanged 事件");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"📢 [ApplyStyleToSelection] 已触发 ContentChanged 事件");
+//#endif
         }
 
         /// <summary>
