@@ -544,10 +544,10 @@ namespace ImageColorChanger.UI
         public void SetAutoProjectionSyncEnabled(bool enabled)
         {
             _disableAutoProjectionSync = !enabled;
-            
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔧 [投影同步状态] {(enabled ? "✅ 已启用" : "🚫 已禁用")} (调用位置: {new System.Diagnostics.StackTrace().GetFrame(1)?.GetMethod()?.Name})");
-            #endif
+
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔧 [投影同步状态] {(enabled ? "✅ 已启用" : "🚫 已禁用")} (调用位置: {new System.Diagnostics.StackTrace().GetFrame(1)?.GetMethod()?.Name})");
+            //#endif
         }
         
         /// <summary>

@@ -52,6 +52,11 @@ namespace ImageColorChanger.Utils
             if (d is ScrollViewer scrollViewer)
             {
                 scrollViewer.ScrollToVerticalOffset((double)e.NewValue);
+
+                // 🎬 每一帧记录FPS + 投影共享渲染（跟投影屏幕逻辑一样，直接调用方法）
+                var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
+                mainWindow?._fpsMonitor?.RecordMainFrame();
+                mainWindow?._projectionManager?.SyncSharedRendering();
             }
         }
 
@@ -104,27 +109,11 @@ namespace ImageColorChanger.Utils
             Storyboard.SetTarget(animation, scrollViewer);
             Storyboard.SetTargetProperty(animation, new PropertyPath(AnimatedVerticalOffsetProperty));
 
-            // 🎬 FPS监控 + 投影共享渲染
-            EventHandler renderHandler = null;
-            renderHandler = (s, e) =>
-            {
-                var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
-                
-                // 每一帧渲染时记录FPS
-                mainWindow?._fpsMonitor?.RecordMainFrame();
-                
-                // 🚀 每一帧触发投影共享渲染更新（如果投影窗口开启）
-                mainWindow?._projectionManager?.SyncSharedRendering();
-            };
-            CompositionTarget.Rendering += renderHandler;
-
             // 动画完成事件
-            storyboard.Completed += (s, e) =>
+            if (onCompleted != null)
             {
-                // 停止FPS监控
-                CompositionTarget.Rendering -= renderHandler;
-                onCompleted?.Invoke();
-            };
+                storyboard.Completed += (s, e) => onCompleted?.Invoke();
+            }
 
             // 开始动画
             storyboard.Begin();

@@ -124,9 +124,9 @@ namespace ImageColorChanger.Services.Implementations
             if (hasKeyframes && hasTimings)
             {
                 // 模式1：有关键帧和时间序列 - 使用关键帧模式播放
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📊 合成播放模式1：有关键帧和时间序列");
-                #endif
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式1：有关键帧和时间序列");
+                //#endif
 
                 // 计算总时长（从时间序列累计）
                 _totalDuration = timingSequence.Sum(t => t.Duration);
@@ -149,9 +149,9 @@ namespace ImageColorChanger.Services.Implementations
                 if (hasMultipleKeyframes)
                 {
                     // 模式2a：有多个关键帧 - 从第一帧滚动到最后一帧
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
+                    //#endif
 
                     // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
                     _totalDuration = compositeScript?.TotalDuration ?? 120.0;
@@ -188,9 +188,9 @@ namespace ImageColorChanger.Services.Implementations
                 else
                 {
                     // 模式2b：只有一个关键帧 - 从该关键帧滚动到底部
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
+                    //#endif
 
                     // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
                     _totalDuration = compositeScript?.TotalDuration ?? 120.0;
