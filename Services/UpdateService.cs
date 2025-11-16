@@ -378,7 +378,7 @@ namespace ImageColorChanger.Services
                         files.Add(new UpdateFileInfo
                         {
                             FileName = trimmedName,
-                            DownloadUrl = $"{R2_BASE_URL}/v{version}/{trimmedName}",
+                            DownloadUrl = $"{_currentBaseUrl}/v{version}/{trimmedName}",
                             FileSize = 0
                         });
                     }
@@ -402,7 +402,7 @@ namespace ImageColorChanger.Services
         private static async Task<List<UpdateFileInfo>> DiscoverFilesAsync(string version)
         {
             var files = new List<UpdateFileInfo>();
-            var baseUrl = $"{R2_BASE_URL}/v{version}/";
+            var baseUrl = $"{_currentBaseUrl}/v{version}/";
             
             // 尝试发现常见文件
             foreach (var fileName in COMMON_UPDATE_FILES)
