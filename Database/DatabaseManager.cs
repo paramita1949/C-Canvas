@@ -1437,10 +1437,10 @@ namespace ImageColorChanger.Database
                     connection.Close();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败 (shadow_type/shadow_preset): {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 数据库迁移失败 (shadow_type/shadow_preset)");
                 #endif
                 throw;
             }

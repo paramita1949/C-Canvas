@@ -227,9 +227,9 @@ namespace ImageColorChanger.UI
                 var saveDialog = new Microsoft.Win32.SaveFileDialog
                 {
                     Title = "导出数据库",
-                    Filter = "数据库文件 (*.db)|*.db|所有文件 (*.*)|*.*",
-                    FileName = $"pyimages_backup_{DateTime.Now:yyyyMMdd_HHmmss}.db",
-                    DefaultExt = ".db"
+                    Filter = "数据库压缩包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
+                    FileName = $"pyimages_backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip",
+                    DefaultExt = ".zip"
                 };
 
                 if (saveDialog.ShowDialog() == true)
@@ -240,7 +240,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"导出数据库时发生错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"导出数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 导出数据库异常: {ex}");
             }
         }
@@ -256,20 +256,20 @@ namespace ImageColorChanger.UI
                 var openDialog = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "导入数据库",
-                    Filter = "数据库文件 (*.db)|*.db|所有文件 (*.*)|*.*",
-                    DefaultExt = ".db"
+                    Filter = "数据库压缩包 (*.zip)|*.zip|数据库文件 (*.db)|*.db|所有文件 (*.*)|*.*",
+                    DefaultExt = ".zip"
                 };
 
                 if (openDialog.ShowDialog() == true)
                 {
                     // 确认导入操作
-                    var confirmResult = MessageBox.Show(
-                        "导入数据库将覆盖当前数据库（会自动备份当前数据库）。\n\n确定要继续吗？",
+                    var confirmResult = System.Windows.MessageBox.Show(
+                        "导入数据库将覆盖当前数据库（会自动备份当前数据库和缩略图）。\n\n确定要继续吗？",
                         "确认导入",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning);
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Warning);
 
-                    if (confirmResult == MessageBoxResult.Yes)
+                    if (confirmResult == System.Windows.MessageBoxResult.Yes)
                     {
                         var migrationService = new Services.DatabaseMigrationService();
                         await migrationService.ImportDatabaseAsync(openDialog.FileName);
@@ -278,7 +278,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
             }
         }

@@ -5226,6 +5226,12 @@ namespace ImageColorChanger.UI
                 _bibleStylePopup.IsOpen = false;
             }
 
+            // 隐藏圣经译本选择工具栏
+            if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
+            {
+                BibleVersionToolbar.Visibility = Visibility.Collapsed;
+            }
+
             // 关闭所有侧边面板（边框、背景、阴影、间距）
             CloseAllSidePanels();
 
@@ -5248,6 +5254,12 @@ namespace ImageColorChanger.UI
                 _bibleStylePopup.IsOpen = false;
             }
 
+            // 隐藏圣经译本选择工具栏
+            if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
+            {
+                BibleVersionToolbar.Visibility = Visibility.Collapsed;
+            }
+
             // 关闭所有侧边面板（边框、背景、阴影、间距）
             CloseAllSidePanels();
 
@@ -5268,6 +5280,12 @@ namespace ImageColorChanger.UI
             if (_bibleStylePopup != null && _bibleStylePopup.IsOpen)
             {
                 _bibleStylePopup.IsOpen = false;
+            }
+
+            // 隐藏圣经译本选择工具栏
+            if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
+            {
+                BibleVersionToolbar.Visibility = Visibility.Collapsed;
             }
 
             // 关闭所有侧边面板（边框、背景、阴影、间距）

@@ -1188,10 +1188,10 @@ namespace ImageColorChanger.UI.Controls
                     System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
 #endif
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ❌ 颜色转换失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"  ❌ 颜色转换失败");
 #endif
                 }
             }
@@ -1516,10 +1516,10 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.Content = textRange.Text;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextFromRichTextBox] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextFromRichTextBox] 失败");
 #endif
             }
         }
@@ -1647,10 +1647,10 @@ namespace ImageColorChanger.UI.Controls
                 // 应用样式（包括 RichTextSpans）
                 ApplyStylesToRichTextBox();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextToRichTextBox] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextToRichTextBox] 失败");
 #endif
             }
             finally
