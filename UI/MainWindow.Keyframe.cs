@@ -627,8 +627,8 @@ namespace ImageColorChanger.UI
                 contextMenu.Items.Add(titleItem);
                 contextMenu.Items.Add(new Separator());
 
-                // 预设时长选项：60、80、100、120秒
-                var durations = new[] { 60, 80, 100, 120 };
+                // 预设时长选项：60、70、80、90、100、110、120秒
+                var durations = new[] { 60, 70, 80, 90, 100, 110, 120 };
                 
                 foreach (var duration in durations)
                 {
