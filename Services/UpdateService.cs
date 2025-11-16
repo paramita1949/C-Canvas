@@ -48,10 +48,19 @@ namespace ImageColorChanger.Services
     /// </summary>
     public class UpdateService
     {
-        // Cloudflare R2 地址
-        private const string R2_BASE_URL = "https://canvas.019890311.xyz";
-        private const string LATEST_VERSION_URL = R2_BASE_URL + "/latest.txt";
-        private const string FILES_LIST_URL_TEMPLATE = R2_BASE_URL + "/v{version}/files.txt";
+        // 多个下载地址（按优先级排序）
+        private static readonly string[] DOWNLOAD_BASE_URLS = new[]
+        {
+            "https://pan.019890311.xyz/raw",  // 优先1（特殊：文件在/raw路径下）
+            "https://canvas.019890311.xyz",   // 优先2
+            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先3
+        };
+
+        // 当前使用的基础URL（动态选择）
+        private static string _currentBaseUrl = DOWNLOAD_BASE_URLS[0];
+
+        private static string LATEST_VERSION_URL => _currentBaseUrl + "/latest.txt";
+        private static string FILES_LIST_URL_TEMPLATE => _currentBaseUrl + "/v{version}/files.txt";
         
         // 尝试自动发现的文件名列表（如果 files.txt 不存在时使用）
         // 优先级：压缩包 > DLL > 资源文件 > 配置文件
@@ -142,11 +151,45 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 检查是否有新版本（带重试机制）
+        /// 检查是否有新版本（带重试机制和多地址切换）
         /// </summary>
         public static async Task<VersionInfo?> CheckForUpdatesAsync()
         {
-            return await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 3, retryDelayMs: 2000);
+            // 尝试所有下载地址
+            Exception? lastException = null;
+
+            foreach (var baseUrl in DOWNLOAD_BASE_URLS)
+            {
+                try
+                {
+                    _currentBaseUrl = baseUrl;
+#if DEBUG
+                    Debug.WriteLine($"[UpdateService] 尝试下载地址: {_currentBaseUrl}");
+#endif
+                    var result = await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 2, retryDelayMs: 1000);
+
+                    if (result != null)
+                    {
+#if DEBUG
+                        Debug.WriteLine($"[UpdateService] ✅ 成功使用地址: {_currentBaseUrl}");
+#endif
+                        return result;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+#if DEBUG
+                    Debug.WriteLine($"[UpdateService] ❌ 地址失败: {_currentBaseUrl}, 错误: {ex.Message}");
+#endif
+                }
+            }
+
+            // 所有地址都失败
+#if DEBUG
+            Debug.WriteLine($"[UpdateService] ❌ 所有下载地址均失败");
+#endif
+            return null;
         }
 
         /// <summary>
