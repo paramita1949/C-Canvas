@@ -88,9 +88,20 @@ namespace ImageColorChanger.Services
     public class AuthService
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        
-        // TODO: 替换为实际的Cloudflare Workers API地址
-        private const string API_BASE_URL = "https://wx.019890311.xyz";
+
+        // 多个验证API地址（按优先级排序 - 优先使用未开启CDN）
+        private static readonly string[] API_BASE_URLS = new[]
+        {
+            "https://wx.019890311.xyz",          // 优先1（未开启CDN，直连源站）
+            "https://xian.edu.kg",        // 优先2（开启CDN）
+            "https://jiucai.org.cn",       // 优先3（未开启CDN，直连源站）
+            "https://www.xian.edu.kg",       // 优先4（未开启CDN，直连源站）
+            "https://ym.jiucai.org.cn"             // 优先5（开启CDN）
+        };
+
+        // 当前使用的API地址（动态选择）
+        private static string _currentApiBaseUrl = API_BASE_URLS[0];
+
         private const string VERIFY_ENDPOINT = "/api/auth/verify";
         private const string HEARTBEAT_ENDPOINT = "/api/auth/heartbeat";
         
@@ -315,6 +326,137 @@ namespace ImageColorChanger.Services
         public event EventHandler<AuthenticationChangedEventArgs> AuthenticationChanged;
 
         /// <summary>
+        /// 事件：服务器切换状态通知
+        /// </summary>
+        public event EventHandler<ServerSwitchEventArgs> ServerSwitching;
+
+        /// <summary>
+        /// 服务器切换事件参数
+        /// </summary>
+        public class ServerSwitchEventArgs : EventArgs
+        {
+            public string ServerUrl { get; set; }
+            public int AttemptNumber { get; set; }
+            public int TotalServers { get; set; }
+            public string Message { get; set; }
+        }
+
+        /// <summary>
+        /// 多地址请求辅助方法（自动切换备用地址）
+        /// </summary>
+        private async Task<HttpResponseMessage> TryMultipleApiUrlsAsync(
+            Func<string, Task<HttpResponseMessage>> requestFunc,
+            int timeoutSeconds = 10)
+        {
+            Exception lastException = null;
+            int attemptNumber = 0;
+            int totalServers = API_BASE_URLS.Length;
+
+            foreach (var apiUrl in API_BASE_URLS)
+            {
+                attemptNumber++;
+
+                try
+                {
+                    _currentApiBaseUrl = apiUrl;
+
+                    // 通知前端：正在尝试连接服务器
+                    ServerSwitching?.Invoke(this, new ServerSwitchEventArgs
+                    {
+                        ServerUrl = apiUrl,
+                        AttemptNumber = attemptNumber,
+                        TotalServers = totalServers,
+                        Message = $"正在连接服务器 ({attemptNumber}/{totalServers})..."
+                    });
+
+                    using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds)))
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🌐 [AuthService] 尝试API地址: {apiUrl} ({attemptNumber}/{totalServers})");
+                        #endif
+
+                        var response = await requestFunc(apiUrl);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 成功使用地址: {apiUrl}");
+                            #endif
+
+                            // 通知前端：连接成功
+                            ServerSwitching?.Invoke(this, new ServerSwitchEventArgs
+                            {
+                                ServerUrl = apiUrl,
+                                AttemptNumber = attemptNumber,
+                                TotalServers = totalServers,
+                                Message = "连接成功"
+                            });
+
+                            return response;
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⏱️ [AuthService] 地址超时({timeoutSeconds}秒): {apiUrl}");
+                    #endif
+                    lastException = new TimeoutException($"请求超时({timeoutSeconds}秒)");
+
+                    // 通知前端：当前服务器超时，尝试下一个
+                    if (attemptNumber < totalServers)
+                    {
+                        ServerSwitching?.Invoke(this, new ServerSwitchEventArgs
+                        {
+                            ServerUrl = apiUrl,
+                            AttemptNumber = attemptNumber,
+                            TotalServers = totalServers,
+                            Message = $"服务器超时，切换到备用服务器..."
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 地址失败: {apiUrl}, 错误: {ex.Message}");
+                    #endif
+
+                    // 通知前端：当前服务器失败，尝试下一个
+                    if (attemptNumber < totalServers)
+                    {
+                        ServerSwitching?.Invoke(this, new ServerSwitchEventArgs
+                        {
+                            ServerUrl = apiUrl,
+                            AttemptNumber = attemptNumber,
+                            TotalServers = totalServers,
+                            Message = $"服务器连接失败，切换到备用服务器..."
+                        });
+                    }
+                }
+            }
+
+            // 所有地址都失败
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 所有API地址均失败");
+            #endif
+
+            // 通知前端：所有服务器都失败
+            ServerSwitching?.Invoke(this, new ServerSwitchEventArgs
+            {
+                ServerUrl = "",
+                AttemptNumber = totalServers,
+                TotalServers = totalServers,
+                Message = "所有验证服务器均无法访问"
+            });
+
+            if (lastException != null)
+                throw lastException;
+
+            return null;
+        }
+
+        /// <summary>
         /// 登录验证
         /// </summary>
         public async Task<(bool success, string message)> LoginAsync(string username, string password)
@@ -341,7 +483,18 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(API_BASE_URL + VERIFY_ENDPOINT, content);
+                // 使用多地址自动切换
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + VERIFY_ENDPOINT, requestContent);
+                }, timeoutSeconds: 10);
+
+                if (response == null)
+                {
+                    return (false, "网络连接失败，所有验证服务器均无法访问");
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 #if DEBUG
@@ -488,7 +641,18 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/send-verification-code", content);
+                // 使用多地址自动切换
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + "/api/user/send-verification-code", requestContent);
+                }, timeoutSeconds: 10);
+
+                if (response == null)
+                {
+                    return (false, "网络连接失败，所有验证服务器均无法访问");
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 #if DEBUG
@@ -555,7 +719,17 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/reset-password", content);
+                // 使用多地址自动切换
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + "/api/user/reset-password", requestContent);
+                }, timeoutSeconds: 10);
+
+                if (response == null)
+                {
+                    return (false, "网络连接失败，所有验证服务器均无法访问");
+                }
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 #if DEBUG
@@ -635,7 +809,18 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(API_BASE_URL + "/api/user/register", content);
+                // 使用多地址自动切换
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + "/api/user/register", requestContent);
+                }, timeoutSeconds: 10);
+
+                if (response == null)
+                {
+                    return (false, "网络连接失败，所有验证服务器均无法访问");
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 #if DEBUG
@@ -768,26 +953,30 @@ namespace ImageColorChanger.Services
             {
                 try
                 {
-                    using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3)))
+                    // 使用多地址自动切换
+                    var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
                     {
-                        var response = await _httpClient.GetAsync(API_BASE_URL + "/api/auth/verify", cts.Token);
-                        
-                        if (response.IsSuccessStatusCode)
+                        using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10)))
                         {
-                            // 服务器正常，但用户未登录
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器正常但未登录，试用投影");
-                            #endif
-                            return (false, "检测到网络连接，请先登录后使用投影功能");
+                            return await _httpClient.GetAsync(apiUrl + "/api/auth/verify", cts.Token);
                         }
-                        else
-                        {
-                            // 服务器返回错误状态码（如500），视为服务器故障
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器故障（{response.StatusCode}），允许试用模式");
-                            #endif
-                            return (true, "试用模式（服务器异常）");
-                        }
+                    }, timeoutSeconds: 10);
+
+                    if (response != null && response.IsSuccessStatusCode)
+                    {
+                        // 服务器正常，但用户未登录
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器正常但未登录，试用投影");
+                        #endif
+                        return (false, "检测到网络连接，请先登录后使用投影功能");
+                    }
+                    else
+                    {
+                        // 服务器返回错误状态码（如500），视为服务器故障
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [投影权限] 服务器故障（{response?.StatusCode}），允许试用模式");
+                        #endif
+                        return (true, "试用模式（服务器异常）");
                     }
                 }
                 catch (System.Threading.Tasks.TaskCanceledException)
@@ -842,18 +1031,32 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // 设置较短的超时时间（8秒），快速失败
-                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8)))
+                // 使用多地址自动切换（8秒超时）
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
                 {
-                    var response = await _httpClient.PostAsync(API_BASE_URL + HEARTBEAT_ENDPOINT, content, cts.Token);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-
-                    var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8)))
                     {
-                        PropertyNameCaseInsensitive = true
-                    });
+                        return await _httpClient.PostAsync(apiUrl + HEARTBEAT_ENDPOINT, requestContent, cts.Token);
+                    }
+                }, timeoutSeconds: 8);
 
-                    if (authResponse == null || !authResponse.Success || !authResponse.Valid)
+                if (response == null)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [刷新] 网络连接失败，使用本地缓存");
+                    #endif
+                    return false;
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (authResponse == null || !authResponse.Success || !authResponse.Valid)
                     {
                         // 检查失效原因
                         string failureReason = authResponse?.Message ?? "账号验证失败";
@@ -985,16 +1188,15 @@ namespace ImageColorChanger.Services
                     // 更新本地缓存
                     _ = SaveAuthDataAsync();
 
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
-                    if (_deviceInfo != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"✅ [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
-                    }
-                    #endif
-
-                    return true;
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                if (_deviceInfo != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
                 }
+                #endif
+
+                return true;
             }
             catch (System.Threading.Tasks.TaskCanceledException)
             {
@@ -1043,7 +1245,21 @@ namespace ImageColorChanger.Services
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(API_BASE_URL + HEARTBEAT_ENDPOINT, content);
+                // 使用多地址自动切换
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + HEARTBEAT_ENDPOINT, requestContent);
+                }, timeoutSeconds: 10);
+
+                if (response == null)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [心跳] 所有API地址均失败，网络连接失败");
+                    #endif
+                    return;
+                }
+
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
@@ -1834,7 +2050,7 @@ namespace ImageColorChanger.Services
                         System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 开始重置设备: {_username}");
                     }
                     System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 当前解绑次数: {_resetDeviceCount}");
-                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {API_BASE_URL}/api/user/reset-devices");
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 请求URL: {_currentApiBaseUrl}/api/user/reset-devices");
                     #endif
 
                     // 获取当前设备的硬件ID
@@ -1859,75 +2075,87 @@ namespace ImageColorChanger.Services
                     System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 正在发送HTTP POST请求...");
                     #endif
                     
-                    // 创建专用的HttpClient，设置30秒超时
-                    using (var unbindClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) })
+                    // 使用多地址自动切换（30秒超时）
+                    var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
                     {
-                        var response = await unbindClient.PostAsync(API_BASE_URL + "/api/user/reset-devices", content);
-                        
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] HTTP状态码: {response.StatusCode}");
-                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应头: {response.Headers}");
-                        #endif
-                        
-                        var responseContent = await response.Content.ReadAsStringAsync();
-
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 服务器响应内容: {responseContent}");
-                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应长度: {responseContent.Length} 字节");
-                        #endif
-
-                        var resetResponse = JsonSerializer.Deserialize<ResetDeviceResponse>(responseContent, new JsonSerializerOptions
+                        var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                        using (var unbindClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) })
                         {
-                            PropertyNameCaseInsensitive = true
-                        });
-
-                        if (resetResponse == null)
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON 反序列化失败，返回 null");
-                            #endif
-                            
-                            // 如果是最后一次尝试，返回失败
-                            if (attempt == maxRetries)
-                            {
-                                return (false, "服务器响应解析失败", 0);
-                            }
-                            
-                            // 否则继续重试
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
-                            #endif
-                            await Task.Delay(retryDelayMs);
-                            continue;
+                            return await unbindClient.PostAsync(apiUrl + "/api/user/reset-devices", requestContent);
                         }
+                    }, timeoutSeconds: 30);
 
+                    if (response == null)
+                    {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 解析结果:");
-                        System.Diagnostics.Debug.WriteLine($"   Success: {resetResponse.Success}");
-                        System.Diagnostics.Debug.WriteLine($"   Message: {resetResponse.Message}");
-                        System.Diagnostics.Debug.WriteLine($"   ResetCount: {resetResponse.ResetCount}");
-                        System.Diagnostics.Debug.WriteLine($"   ResetRemaining: {resetResponse.ResetRemaining}");
+                        System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 所有API地址均失败");
                         #endif
-
-                        if (!resetResponse.Success)
-                        {
-                            #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 服务器返回失败: {resetResponse.Message}");
-                            #endif
-                            // 服务器明确返回失败（如密码错误），不重试
-                            return (false, resetResponse.Message, resetResponse.ResetCount);
-                        }
-
-                        // 更新本地重置次数
-                        _resetDeviceCount = resetResponse.ResetRemaining;
-
-                        #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 设备重置成功，剩余{_resetDeviceCount}次");
-                        System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 本地_resetDeviceCount已更新为: {_resetDeviceCount}");
-                        #endif
-
-                        return (true, resetResponse.Message, _resetDeviceCount);
+                        return (false, "网络连接失败，无法连接到验证服务器", 0);
                     }
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] HTTP状态码: {response.StatusCode}");
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应头: {response.Headers}");
+                    #endif
+
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 服务器响应内容: {responseContent}");
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 响应长度: {responseContent.Length} 字节");
+                    #endif
+
+                    var resetResponse = JsonSerializer.Deserialize<ResetDeviceResponse>(responseContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (resetResponse == null)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] JSON 反序列化失败，返回 null");
+                        #endif
+
+                        // 如果是最后一次尝试，返回失败
+                        if (attempt == maxRetries)
+                        {
+                            return (false, "服务器响应解析失败", 0);
+                        }
+
+                        // 否则继续重试
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 等待 {retryDelayMs}ms 后重试...");
+                        #endif
+                        await Task.Delay(retryDelayMs);
+                        continue;
+                    }
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [解绑设备] 解析结果:");
+                    System.Diagnostics.Debug.WriteLine($"   Success: {resetResponse.Success}");
+                    System.Diagnostics.Debug.WriteLine($"   Message: {resetResponse.Message}");
+                    System.Diagnostics.Debug.WriteLine($"   ResetCount: {resetResponse.ResetCount}");
+                    System.Diagnostics.Debug.WriteLine($"   ResetRemaining: {resetResponse.ResetRemaining}");
+                    #endif
+
+                    if (!resetResponse.Success)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"❌ [解绑设备] 服务器返回失败: {resetResponse.Message}");
+                        #endif
+                        // 服务器明确返回失败（如密码错误），不重试
+                        return (false, resetResponse.Message, resetResponse.ResetCount);
+                    }
+
+                    // 更新本地重置次数
+                    _resetDeviceCount = resetResponse.ResetRemaining;
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 设备重置成功，剩余{_resetDeviceCount}次");
+                    System.Diagnostics.Debug.WriteLine($"✅ [解绑设备] 本地_resetDeviceCount已更新为: {_resetDeviceCount}");
+                    #endif
+
+                    return (true, resetResponse.Message, _resetDeviceCount);
                 }
                 catch (TaskCanceledException ex)
                 {

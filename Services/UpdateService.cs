@@ -51,9 +51,13 @@ namespace ImageColorChanger.Services
         // 多个下载地址（按优先级排序）
         private static readonly string[] DOWNLOAD_BASE_URLS = new[]
         {
-            "https://pan.019890311.xyz/raw",  // 优先1（特殊：文件在/raw路径下）
-            "https://canvas.019890311.xyz",   // 优先2
-            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先3
+            "https://pan.019890311.xyz/raw",      // 优先1（特殊：文件在/raw路径下）
+            "https://pan.jiucai.org.cn/raw",      // 优先2（特殊：文件在/raw路径下）
+            "https://pan.xian.edu.kg/raw",        // 优先3（特殊：文件在/raw路径下）
+            "https://updata.jiucai.org.cn",       // 优先4
+            "https://updata.pan.xian.edu.kg",     // 优先5
+            "https://canvas.019890311.xyz",       // 优先6
+            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先7
         };
 
         // 当前使用的基础URL（动态选择）
@@ -97,6 +101,11 @@ namespace ImageColorChanger.Services
 
         static UpdateService()
         {
+            // 强制启用 TLS 1.2 和 TLS 1.3（兼容 Cloudflare SSL）
+            System.Net.ServicePointManager.SecurityProtocol =
+                System.Net.SecurityProtocolType.Tls12 |
+                System.Net.SecurityProtocolType.Tls13;
+
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Canvas-Cast-Updater");
             _httpClient.Timeout = TimeSpan.FromMinutes(5);
         }
@@ -155,33 +164,62 @@ namespace ImageColorChanger.Services
         /// </summary>
         public static async Task<VersionInfo?> CheckForUpdatesAsync()
         {
-            // 尝试所有下载地址
+            // 尝试所有下载地址（境外服务器，采用渐进式超时策略）
             Exception? lastException = null;
 
-            foreach (var baseUrl in DOWNLOAD_BASE_URLS)
-            {
-                try
-                {
-                    _currentBaseUrl = baseUrl;
-#if DEBUG
-                    Debug.WriteLine($"[UpdateService] 尝试下载地址: {_currentBaseUrl}");
-#endif
-                    var result = await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 3, retryDelayMs: 15000);
+            // 每个地址的超时时间（秒）- 考虑境外网络延迟
+            var timeouts = new[] { 30, 20, 20 };
 
-                    if (result != null)
+            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            {
+                var baseUrl = DOWNLOAD_BASE_URLS[i];
+                var timeout = timeouts[i];
+
+                // 每个地址重试2次
+                for (int retry = 0; retry < 2; retry++)
+                {
+                    try
+                    {
+                        _currentBaseUrl = baseUrl;
+#if DEBUG
+                        var retryInfo = retry > 0 ? $" (重试 {retry}/1)" : "";
+                        Debug.WriteLine($"[UpdateService] 尝试下载地址: {_currentBaseUrl}{retryInfo}");
+#endif
+                        // 为每个地址设置独立超时
+                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
+                        {
+                            var result = await CheckForUpdatesInternalAsync(cts.Token);
+
+                            // 成功获取到结果（无论是有新版本还是已是最新版本）
+#if DEBUG
+                            Debug.WriteLine($"[UpdateService] ✅ 成功使用地址: {_currentBaseUrl}");
+#endif
+                            return result;
+                        }
+                    }
+                    catch (OperationCanceledException)
                     {
 #if DEBUG
-                        Debug.WriteLine($"[UpdateService] ✅ 成功使用地址: {_currentBaseUrl}");
+                        Debug.WriteLine($"[UpdateService] ⏱️ 地址超时({timeout}秒): {_currentBaseUrl}");
 #endif
-                        return result;
+                        lastException = new TimeoutException($"请求超时({timeout}秒)");
+
+                        // 如果是最后一次重试，跳出重试循环，尝试下一个地址
+                        if (retry == 1)
+                            break;
+
+                        // 否则等待2秒后重试当前地址
+                        await Task.Delay(2000);
                     }
-                }
-                catch (Exception ex)
-                {
-                    lastException = ex;
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
 #if DEBUG
-                    Debug.WriteLine($"[UpdateService] ❌ 地址失败: {_currentBaseUrl}, 错误: {ex.Message}");
+                        Debug.WriteLine($"[UpdateService] ❌ 地址失败: {_currentBaseUrl}, 错误: {ex.Message}");
 #endif
+                        // 网络错误，跳出重试循环，尝试下一个地址
+                        break;
+                    }
                 }
             }
 
@@ -195,14 +233,14 @@ namespace ImageColorChanger.Services
         /// <summary>
         /// 检查是否有新版本（内部实现）
         /// </summary>
-        private static async Task<VersionInfo?> CheckForUpdatesInternalAsync()
+        private static async Task<VersionInfo?> CheckForUpdatesInternalAsync(CancellationToken cancellationToken = default)
         {
 //#if DEBUG
 //            Debug.WriteLine("[UpdateService] 开始检查更新...");
 //            Debug.WriteLine($"[UpdateService] 检查地址: {LATEST_VERSION_URL}");
 //#endif
             // 下载 latest.txt 获取最新版本号
-            var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL);
+            var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL, cancellationToken);
             latestVersion = latestVersion.Trim();
 
 //#if DEBUG

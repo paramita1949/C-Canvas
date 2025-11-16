@@ -13,12 +13,42 @@ namespace ImageColorChanger.UI
         public ResetPasswordWindow()
         {
             InitializeComponent();
+
+            // 订阅服务器切换事件
+            AuthService.Instance.ServerSwitching += OnServerSwitching;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // 聚焦到用户名输入框
             UsernameTextBox.Focus();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // 取消订阅事件
+            AuthService.Instance.ServerSwitching -= OnServerSwitching;
+
+            // 清理定时器
+            if (_countdownTimer != null)
+            {
+                _countdownTimer.Stop();
+                _countdownTimer = null;
+            }
+
+            base.OnClosed(e);
+        }
+
+        /// <summary>
+        /// 服务器切换事件处理
+        /// </summary>
+        private void OnServerSwitching(object sender, AuthService.ServerSwitchEventArgs e)
+        {
+            // 在UI线程上更新状态
+            Dispatcher.Invoke(() =>
+            {
+                ShowStatus(e.Message, isError: false);
+            });
         }
 
         private async void SendCodeButton_Click(object sender, RoutedEventArgs e)
@@ -216,22 +246,10 @@ namespace ImageColorChanger.UI
         private void ShowStatus(string message, bool isError)
         {
             StatusText.Text = message;
-            StatusText.Foreground = isError 
+            StatusText.Foreground = isError
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red)
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
             StatusText.Visibility = Visibility.Visible;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            base.OnClosed(e);
-            
-            // 清理定时器
-            if (_countdownTimer != null)
-            {
-                _countdownTimer.Stop();
-                _countdownTimer = null;
-            }
         }
     }
 }

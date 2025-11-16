@@ -15,15 +15,37 @@ namespace ImageColorChanger.UI
         {
             InitializeComponent();
             LoginSuccess = false;
+
+            // 订阅服务器切换事件
+            AuthService.Instance.ServerSwitching += OnServerSwitching;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // 聚焦到用户名输入框
             UsernameTextBox.Focus();
-            
+
             // 检查是否有新版本
             CheckForUpdateNotification();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // 取消订阅事件
+            AuthService.Instance.ServerSwitching -= OnServerSwitching;
+            base.OnClosed(e);
+        }
+
+        /// <summary>
+        /// 服务器切换事件处理
+        /// </summary>
+        private void OnServerSwitching(object sender, AuthService.ServerSwitchEventArgs e)
+        {
+            // 在UI线程上更新状态
+            Dispatcher.Invoke(() =>
+            {
+                ShowStatus(e.Message, isError: false);
+            });
         }
         
         /// <summary>
