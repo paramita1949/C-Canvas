@@ -2123,13 +2123,13 @@ namespace ImageColorChanger.UI
                     
                     // 更新项目的背景图片路径（兼容旧数据）
                     await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
-                    
-                    // 🔧 如果投影已开启，更新投影
-                    if (_projectionManager != null && _projectionManager.IsProjectionActive)
+
+                    // 🔧 如果投影已开启且未锁定，更新投影
+                    if (_projectionManager != null && _projectionManager.IsProjectionActive && !_isProjectionLocked)
                     {
                         UpdateProjectionFromCanvas();
                     }
-                    
+
                     MarkContentAsModified();
                     
                     //#if DEBUG
