@@ -62,51 +62,6 @@
       ]
     },
     {
-      "name": "系统繁体",
-      "fonts": [
-        {
-          "name": "微軟正黑體",
-          "file": "system",
-          "family": "Microsoft JhengHei",
-          "weight": "Regular",
-          "preview": "微軟正黑體 繁體中文 台灣",
-          "isFavorite": false
-        },
-        {
-          "name": "微軟正黑體 Light",
-          "file": "system",
-          "family": "Microsoft JhengHei Light",
-          "weight": "Light",
-          "preview": "微軟正黑體 Light 繁體",
-          "isFavorite": false
-        },
-        {
-          "name": "新細明體",
-          "file": "system",
-          "family": "MingLiU",
-          "weight": "Regular",
-          "preview": "新細明體 繁體中文",
-          "isFavorite": false
-        },
-        {
-          "name": "標楷體",
-          "file": "system",
-          "family": "DFKai-SB",
-          "weight": "Regular",
-          "preview": "標楷體 繁體書法",
-          "isFavorite": false
-        },
-        {
-          "name": "新細明體-ExtB",
-          "file": "system",
-          "family": "MingLiU-ExtB",
-          "weight": "Regular",
-          "preview": "新細明體-ExtB 擴展字集",
-          "isFavorite": false
-        }
-      ]
-    },
-    {
       "name": "系统英文",
       "fonts": [
         {

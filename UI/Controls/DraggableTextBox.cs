@@ -264,7 +264,7 @@ namespace ImageColorChanger.UI.Controls
                 BorderThickness = new System.Windows.Thickness(2),
                 Background = WpfBrushes.Transparent,  // 完全透明
                 CornerRadius = new System.Windows.CornerRadius(3),
-                ClipToBounds = true  // ✅ 裁剪内容到圆角边界
+                ClipToBounds = false  // 🔧 不裁剪内容，防止字体顶部/底部被遮挡
             };
 
             var grid = new WpfGrid
@@ -280,7 +280,7 @@ namespace ImageColorChanger.UI.Controls
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 Background = WpfBrushes.Transparent,
                 BorderThickness = new System.Windows.Thickness(0),
-                Padding = new System.Windows.Thickness(5),
+                Padding = new System.Windows.Thickness(5, 5, 5, 5),  // 🔧 增加顶部padding，防止字体顶部被裁剪
 
                 // 编辑属性
                 AcceptsReturn = true,
@@ -1269,11 +1269,15 @@ namespace ImageColorChanger.UI.Controls
             double lineSpacingMultiplier = Data.LineSpacing > 0 ? Data.LineSpacing : 1.2;
             double lineHeight = Data.FontSize * lineSpacingMultiplier;
 
+            // 🔧 设置 Document 的 PagePadding，防止字体顶部被裁剪
+            _richTextBox.Document.PagePadding = new System.Windows.Thickness(0, 10, 0, 0);
+
             foreach (var block in _richTextBox.Document.Blocks)
             {
                 if (block is System.Windows.Documents.Paragraph paragraph)
                 {
-                    paragraph.Margin = new System.Windows.Thickness(0);
+                    // 🔧 给段落添加顶部边距，防止字体被裁剪（特别是斜体和艺术字体）
+                    paragraph.Margin = new System.Windows.Thickness(0, 5, 0, 0);
                     paragraph.LineHeight = lineHeight;
                     paragraph.LineStackingStrategy = System.Windows.LineStackingStrategy.BlockLineHeight;
                 }
