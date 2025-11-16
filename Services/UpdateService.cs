@@ -166,7 +166,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
                     Debug.WriteLine($"[UpdateService] 尝试下载地址: {_currentBaseUrl}");
 #endif
-                    var result = await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 2, retryDelayMs: 1000);
+                    var result = await RetryAsync(async () => await CheckForUpdatesInternalAsync(), maxRetries: 3, retryDelayMs: 15000);
 
                     if (result != null)
                     {
