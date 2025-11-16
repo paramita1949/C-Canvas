@@ -2695,6 +2695,9 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
+            // 保存当前选中的文本框引用（对话框可能导致 _selectedTextBox 被清空）
+            var targetTextBox = _selectedTextBox;
+
             // 简化版颜色选择器（使用对话框）
             var dialog = new System.Windows.Forms.ColorDialog
             {
@@ -2706,15 +2709,15 @@ namespace ImageColorChanger.UI
                 _currentTextColor = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
 
                 // 🆕 智能样式应用：检测是否有选中文本
-                if (_selectedTextBox.HasTextSelection())
+                if (targetTextBox.HasTextSelection())
                 {
                     // 有选中文本 → 局部生效
-                    _selectedTextBox.ApplyStyleToSelection(color: _currentTextColor);
+                    targetTextBox.ApplyStyleToSelection(color: _currentTextColor);
                 }
                 else
                 {
                     // 无选中文本 → 全局生效
-                    _selectedTextBox.ApplyStyle(color: _currentTextColor);
+                    targetTextBox.ApplyStyle(color: _currentTextColor);
                 }
 
                 MarkContentAsModified();

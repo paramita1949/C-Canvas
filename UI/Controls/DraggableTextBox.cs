@@ -1184,15 +1184,15 @@ namespace ImageColorChanger.UI.Controls
                     selection.ApplyPropertyValue(
                         System.Windows.Documents.TextElement.ForegroundProperty,
                         new WpfSolidColorBrush(wpfColor));
-// #if DEBUG
-//                     System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
-// #endif
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
+#endif
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-// #if DEBUG
-//                     System.Diagnostics.Debug.WriteLine($"  ❌ 颜色转换失败: {ex.Message}");
-// #endif
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"  ❌ 颜色转换失败: {ex.Message}");
+#endif
                 }
             }
 
