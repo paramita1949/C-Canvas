@@ -43,6 +43,23 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
+            // 迁移数据库
+            var migrationItem = new MenuItem { Header = "迁移数据库" };
+
+            // 导出数据库子菜单
+            var exportDbItem = new MenuItem { Header = "导出数据库" };
+            exportDbItem.Click += async (s, args) => await ExportDatabaseAsync();
+            migrationItem.Items.Add(exportDbItem);
+
+            // 导入数据库子菜单
+            var importDbItem = new MenuItem { Header = "导入数据库" };
+            importDbItem.Click += async (s, args) => await ImportDatabaseAsync();
+            migrationItem.Items.Add(importDbItem);
+
+            contextMenu.Items.Add(migrationItem);
+
+            contextMenu.Items.Add(new Separator());
+
             // 字号设置
             var fontSizeItem = new MenuItem { Header = "字号设置" };
             
@@ -196,6 +213,73 @@ namespace ImageColorChanger.UI
                     LoadProjects(); // 刷新项目树
                     ShowStatus($"✅ 已导入 {count} 个幻灯片项目");
                 }
+            }
+        }
+
+        /// <summary>
+        /// 导出数据库
+        /// </summary>
+        private async System.Threading.Tasks.Task ExportDatabaseAsync()
+        {
+            try
+            {
+                // 创建保存文件对话框
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "导出数据库",
+                    Filter = "数据库文件 (*.db)|*.db|所有文件 (*.*)|*.*",
+                    FileName = $"pyimages_backup_{DateTime.Now:yyyyMMdd_HHmmss}.db",
+                    DefaultExt = ".db"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    var migrationService = new Services.DatabaseMigrationService();
+                    await migrationService.ExportDatabaseAsync(saveDialog.FileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"导出数据库时发生错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ 导出数据库异常: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 导入数据库
+        /// </summary>
+        private async System.Threading.Tasks.Task ImportDatabaseAsync()
+        {
+            try
+            {
+                // 创建打开文件对话框
+                var openDialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "导入数据库",
+                    Filter = "数据库文件 (*.db)|*.db|所有文件 (*.*)|*.*",
+                    DefaultExt = ".db"
+                };
+
+                if (openDialog.ShowDialog() == true)
+                {
+                    // 确认导入操作
+                    var confirmResult = MessageBox.Show(
+                        "导入数据库将覆盖当前数据库（会自动备份当前数据库）。\n\n确定要继续吗？",
+                        "确认导入",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (confirmResult == MessageBoxResult.Yes)
+                    {
+                        var migrationService = new Services.DatabaseMigrationService();
+                        await migrationService.ImportDatabaseAsync(openDialog.FileName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
             }
         }
 
