@@ -27,12 +27,12 @@ namespace ImageColorChanger.Database.Models
 
         /// <summary>
         /// 总时长（秒）
-        /// - 当没有关键帧时，这是用户手动设定的默认值（默认为100秒）
+        /// - 当没有关键帧时，这是用户手动设定的默认值（默认为120秒）
         /// - 当有关键帧时，这是关键帧时间的累计值（自动计算）
         /// </summary>
         [Required]
         [Column("total_duration")]
-        public double TotalDuration { get; set; } = 100.0;
+        public double TotalDuration { get; set; } = 120.0;
 
         /// <summary>
         /// 是否自动计算总时长（有关键帧时为true，无关键帧时为false）

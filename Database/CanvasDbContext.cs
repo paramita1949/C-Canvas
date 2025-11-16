@@ -626,12 +626,12 @@ namespace ImageColorChanger.Database
 
                     if (result == null)
                     {
-                        // 创建合成播放脚本表（默认TOTAL时长为100秒）
+                        // 创建合成播放脚本表（默认TOTAL时长为120秒）
                         Database.ExecuteSqlRaw(@"
                             CREATE TABLE composite_scripts (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 image_id INTEGER NOT NULL UNIQUE,
-                                total_duration REAL NOT NULL DEFAULT 100.0,
+                                total_duration REAL NOT NULL DEFAULT 120.0,
                                 auto_calculate INTEGER NOT NULL DEFAULT 0,
                                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,

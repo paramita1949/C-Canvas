@@ -76,14 +76,14 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 无关键帧时，从CompositeScript读取或使用默认值100秒
-                    double totalDuration = compositeScript?.TotalDuration ?? 100.0;
+                    // 无关键帧时，从CompositeScript读取或使用默认值120秒
+                    double totalDuration = compositeScript?.TotalDuration ?? 120.0;
                     TotalDurationTextBox.Text = totalDuration.ToString("F1");
                     TotalDurationTextBox.IsReadOnly = false;
                     TotalDurationTextBox.Background = System.Windows.Media.Brushes.White;
                     TotalInfoTextBlock.Text = "无关键帧数据，只能设置总时长";
                     TotalInfoTextBlock.Foreground = System.Windows.Media.Brushes.Blue;
-                    
+
                     // 隐藏关键帧脚本编辑区域
                     ScriptTextBox.Visibility = Visibility.Collapsed;
                     ScriptTextBox.Height = 0;
@@ -92,7 +92,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 加载总时间失败: {ex.Message}");
-                TotalDurationTextBox.Text = "100";
+                TotalDurationTextBox.Text = "120";
             }
         }
 
@@ -502,7 +502,7 @@ namespace ImageColorChanger.UI
                 // 解析TOTAL时间
                 if (!double.TryParse(TotalDurationTextBox.Text, out double totalDuration) || totalDuration < 0)
                 {
-                    totalDuration = 100.0; // 默认值
+                    totalDuration = 120.0; // 默认值
                 }
                 
                 var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();

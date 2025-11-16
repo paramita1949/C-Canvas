@@ -205,28 +205,28 @@ namespace ImageColorChanger.Utils
         }
 
         /// <summary>
-        /// 处理F3键 - 合成播放（开始/停止）
+        /// 处理F3键 - 合成播放（直接重置播放）
         /// </summary>
-        public void HandleF3Key()
+        public async void HandleF3Key()
         {
-            // 检查是否正在合成播放
+            // 获取合成播放服务
             var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
+
+            // 如果正在播放，先停止
             if (compositeService != null && compositeService.IsPlaying)
             {
-                // 停止合成播放
-                _mainWindow.InvokeCompositePlayClick();
-                return;
+                await compositeService.StopPlaybackAsync();
+                await System.Threading.Tasks.Task.Delay(100); // 短暂延迟确保停止完成
             }
 
-            // 检查是否正在脚本播放
+            // 如果正在脚本播放，停止脚本播放
             if (_mainWindow.IsScriptPlaying())
             {
-                // 停止脚本播放
                 _mainWindow.InvokePlayClick();
-                return;
+                await System.Threading.Tasks.Task.Delay(100); // 短暂延迟确保停止完成
             }
 
-            // 开始合成播放
+            // 直接开始合成播放（重置播放）
             _mainWindow.InvokeCompositePlayClick();
         }
 

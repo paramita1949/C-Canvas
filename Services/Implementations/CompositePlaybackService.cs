@@ -153,8 +153,8 @@ namespace ImageColorChanger.Services.Implementations
                     System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
                     #endif
 
-                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认100秒
-                    _totalDuration = compositeScript?.TotalDuration ?? 100.0;
+                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
+                    _totalDuration = compositeScript?.TotalDuration ?? 120.0;
                     
                     // 如果CompositeScript不存在，创建默认的
                     if (compositeScript == null)
@@ -192,8 +192,8 @@ namespace ImageColorChanger.Services.Implementations
                     System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
                     #endif
 
-                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认100秒
-                    _totalDuration = compositeScript?.TotalDuration ?? 100.0;
+                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
+                    _totalDuration = compositeScript?.TotalDuration ?? 120.0;
                     
                     // 如果CompositeScript不存在，创建默认的
                     if (compositeScript == null)
@@ -236,13 +236,13 @@ namespace ImageColorChanger.Services.Implementations
             }
             else if (!hasKeyframes)
             {
-                // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（默认100秒）
+                // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（默认120秒）
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式3：无关键帧，从顶部滚动");
                 //#endif
 
-                // 从CompositeScript获取TOTAL时间，如果没有则使用默认100秒
-                _totalDuration = compositeScript?.TotalDuration ?? 100.0;
+                // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
+                _totalDuration = compositeScript?.TotalDuration ?? 120.0;
                 
                 // 如果CompositeScript不存在，创建默认的
                 if (compositeScript == null)

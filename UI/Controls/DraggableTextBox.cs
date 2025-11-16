@@ -1761,26 +1761,6 @@ namespace ImageColorChanger.UI.Controls
 
             try
             {
-                // 🔧 使用 FontService 加载字体（支持自定义字体文件）
-                // 优先使用 GetFontFamilyByFamily（支持字体族名称和完整路径）
-                var fontFamily = FontService.Instance.GetFontFamilyByFamily(Data.FontFamily);
-
-                // 如果失败，尝试使用 GetFontFamily（支持字体显示名称）
-                if (fontFamily == null)
-                {
-                    fontFamily = FontService.Instance.GetFontFamily(Data.FontFamily);
-                }
-
-                if (fontFamily != null)
-                {
-                    _richTextBox.FontFamily = fontFamily;
-                }
-                else
-                {
-                    // 降级：直接使用字体名称（可能是系统字体）
-                    _richTextBox.FontFamily = new WpfFontFamily(Data.FontFamily);
-                }
-
                 // 🔧 如果有 RichTextSpans，不应用全局字体样式（保持每个片段的独立样式）
                 bool hasRichTextSpans = Data.RichTextSpans != null && Data.RichTextSpans.Count > 0;
 
@@ -1789,6 +1769,26 @@ namespace ImageColorChanger.UI.Controls
 
                 if (!hasRichTextSpans)
                 {
+                    // 🔧 使用 FontService 加载字体（支持自定义字体文件）
+                    // 优先使用 GetFontFamilyByFamily（支持字体族名称和完整路径）
+                    var fontFamily = FontService.Instance.GetFontFamilyByFamily(Data.FontFamily);
+
+                    // 如果失败，尝试使用 GetFontFamily（支持字体显示名称）
+                    if (fontFamily == null)
+                    {
+                        fontFamily = FontService.Instance.GetFontFamily(Data.FontFamily);
+                    }
+
+                    if (fontFamily != null)
+                    {
+                        _richTextBox.FontFamily = fontFamily;
+                    }
+                    else
+                    {
+                        // 降级：直接使用字体名称（可能是系统字体）
+                        _richTextBox.FontFamily = new WpfFontFamily(Data.FontFamily);
+                    }
+
                     _richTextBox.FontSize = Data.FontSize;
 
                     // 🔧 设置加粗
