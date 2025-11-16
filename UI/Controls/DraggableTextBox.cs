@@ -540,6 +540,20 @@ namespace ImageColorChanger.UI.Controls
             if (!IsInEditMode)
                 return;
 
+            // 🔧 退出编辑前，提取并保存富文本样式到 Data.RichTextSpans
+            // 这样可以保留用户修改的局部字体、颜色等样式
+            if (_richTextBox != null && !_isPlaceholderText)
+            {
+                var richTextSpans = ExtractRichTextSpansFromFlowDocument();
+                if (richTextSpans != null && richTextSpans.Count > 0)
+                {
+                    Data.RichTextSpans = richTextSpans;
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"💾 [ExitEditMode] 提取了 {richTextSpans.Count} 个富文本片段");
+//#endif
+                }
+            }
+
             // 设置 RichTextBox 为只读
             if (_richTextBox != null)
             {
@@ -929,25 +943,16 @@ namespace ImageColorChanger.UI.Controls
                         }
                     }
                     needsRichTextResync = true;
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"🔍 [ApplyStyle] 更新 {Data.RichTextSpans.Count} 个富文本片段的字体大小，缩放比例={scaleFactor:F2}");
-//#endif
                 }
             }
 
             if (color != null)
             {
                 Data.FontColor = color;
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 应用全局颜色: {color}, 当前 RichTextSpans 数量: {Data.RichTextSpans?.Count ?? 0}");
-//#endif
                 // 🔧 应用全局颜色时，清除局部样式，重新渲染
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
                 {
                     Data.RichTextSpans.Clear();
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局颜色，清除局部样式");
-//#endif
                 }
                 // 🔧 无论是否有 RichTextSpans，都需要重新渲染以应用颜色到 Run 对象
                 needsRichTextResync = true;
@@ -1077,9 +1082,6 @@ namespace ImageColorChanger.UI.Controls
             // 🔧 如果更新了 RichTextSpans，需要重新渲染
             if (needsRichTextResync)
             {
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 重新渲染富文本内容");
-//#endif
                 SyncTextToRichTextBox();
             }
             else
@@ -1088,16 +1090,14 @@ namespace ImageColorChanger.UI.Controls
                 ApplyStylesToRichTextBox();
             }
 
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyle] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
-//#endif
-
             // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
             ContentChanged?.Invoke(this, Data.Content);
         }
 
         /// <summary>
         /// 应用样式到选中文本（使用 WPF 原生 API）
+        /// ✅ 字体样式（字体、字号、加粗、斜体、下划线、颜色）：只允许选中文字后修改
+        /// ✅ 容器样式（边框、背景、阴影）：无选中时应用到整个文本框
         /// </summary>
         public void ApplyStyleToSelection(System.Windows.Media.FontFamily fontFamilyObj = null,
                                           string fontFamily = null, double? fontSize = null,
@@ -1111,30 +1111,38 @@ namespace ImageColorChanger.UI.Controls
                                           double? shadowOffsetY = null, double? shadowBlur = null,
                                           int? shadowOpacity = null)
         {
-// #if DEBUG
-//             System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 使用 WPF 原生 API - isBold:{isBold}, isItalic:{isItalic}, isUnderline:{isUnderline}");
-// #endif
+            // 检查是否有字体样式参数（字体、字号、加粗、斜体、下划线、颜色）
+            bool hasFontStyleParams = fontFamilyObj != null || fontFamily != null || fontSize.HasValue ||
+                                      color != null || isBold.HasValue || isUnderline.HasValue || isItalic.HasValue;
 
-            // 检查是否有选中文本
+            // 检查是否有容器样式参数（边框、背景、阴影）
+            bool hasContainerStyleParams = borderColor != null || borderWidth.HasValue || borderRadius.HasValue || borderOpacity.HasValue ||
+                                           backgroundColor != null || backgroundRadius.HasValue || backgroundOpacity.HasValue ||
+                                           shadowColor != null || shadowOffsetX.HasValue || shadowOffsetY.HasValue ||
+                                           shadowBlur.HasValue || shadowOpacity.HasValue;
+
+            // 如果没有选中文本
             if (_richTextBox == null || _richTextBox.Selection.IsEmpty)
             {
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyStyleToSelection] 无选中文本，回退到全局样式");
-// #endif
-                // 无选择时，应用到整个文本框
-                ApplyStyle(fontFamily, fontSize, color, isBold, null, isUnderline, isItalic,
-                          borderColor, borderWidth, borderRadius, borderOpacity,
-                          backgroundColor, backgroundRadius, backgroundOpacity,
-                          shadowColor, shadowOffsetX, shadowOffsetY, shadowBlur, shadowOpacity);
-                return;
+                // 字体样式：必须选中文字才能修改
+                if (hasFontStyleParams && !hasContainerStyleParams)
+                {
+                    return;
+                }
+
+                // 容器样式：无选中时应用到整个文本框
+                if (hasContainerStyleParams)
+                {
+                    ApplyStyle(null, null, null, null, null, null, null,
+                              borderColor, borderWidth, borderRadius, borderOpacity,
+                              backgroundColor, backgroundRadius, backgroundOpacity,
+                              shadowColor, shadowOffsetX, shadowOffsetY, shadowBlur, shadowOpacity);
+                    return;
+                }
             }
 
             // ✅ 使用 WPF 原生 TextRange API
             var selection = _richTextBox.Selection;
-
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📍 [ApplyStyleToSelection] 选中文本: '{selection.Text}'");
-//#endif
 
             // ✅ 应用加粗样式（WPF 原生 API）
             if (isBold.HasValue)
@@ -1144,9 +1152,6 @@ namespace ImageColorChanger.UI.Controls
                     isBold.Value ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal);
                 // 🔧 同时更新 Data 对象，确保保存到数据库
                 Data.IsBoldBool = isBold.Value;
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  ✅ 应用加粗: {isBold.Value}, Data.IsBold={Data.IsBold}");
-//#endif
             }
 
             // ✅ 应用斜体样式（WPF 原生 API）
@@ -1211,9 +1216,6 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.TextElement.FontFamilyProperty,
                     new System.Windows.Media.FontFamily(fontFamily));
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用字体字符串: {fontFamily}");
-#endif
             }
 
             // ✅ 应用字号（WPF 原生 API）
@@ -1224,9 +1226,6 @@ namespace ImageColorChanger.UI.Controls
                     fontSize.Value);
                 // 🔧 同时更新 Data 对象
                 Data.FontSize = fontSize.Value;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用字号: {fontSize.Value}");
-#endif
             }
 
             // 🔧 更新 Data 对象的边框样式（确保保存到数据库）
@@ -1255,16 +1254,8 @@ namespace ImageColorChanger.UI.Controls
             ApplyBorderStyle();
             ApplyBackgroundStyle();
 
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 完成 - 使用 WPF 原生 API");
-//            System.Diagnostics.Debug.WriteLine($"🎨 [ApplyStyleToSelection] 样式已应用 - 边框:{Data.BorderColor}/{Data.BorderWidth}px/透明度{Data.BorderOpacity}%, 背景:{Data.BackgroundColor}/透明度{Data.BackgroundOpacity}%, 加粗:{Data.IsBold}, 斜体:{Data.IsItalic}");
-//#endif
-
             // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
             ContentChanged?.Invoke(this, Data.Content);
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📢 [ApplyStyleToSelection] 已触发 ContentChanged 事件");
-//#endif
         }
 
         /// <summary>
@@ -1806,9 +1797,6 @@ namespace ImageColorChanger.UI.Controls
                 }
                 else
                 {
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"🔍 [ApplyStylesToRichTextBox] 检测到 {Data.RichTextSpans.Count} 个富文本片段，跳过全局字体样式应用");
-//#endif
                 }
 
                 // 🔧 设置光标颜色为文本颜色（确保可见）
@@ -1884,16 +1872,9 @@ namespace ImageColorChanger.UI.Controls
                 _border.BorderBrush = new WpfSolidColorBrush(borderColorWithAlpha);
                 _border.BorderThickness = new System.Windows.Thickness(Data.BorderWidth);
                 _border.CornerRadius = new System.Windows.CornerRadius(Data.BorderRadius);
-
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"✅ [ApplyBorderStyle] 颜色={Data.BorderColor}, 宽度={Data.BorderWidth}, 圆角={Data.BorderRadius}, 透明度={Data.BorderOpacity}%");
-// #endif
             }
             catch (Exception)
             {
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"❌ [ApplyBorderStyle] 失败: {ex.Message}");
-// #endif
             }
         }
 
@@ -1942,16 +1923,9 @@ namespace ImageColorChanger.UI.Controls
 
                 // ✅ 应用背景圆角到 Border 容器
                 ApplyBackgroundCornerRadius();
-
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"✅ [ApplyBackgroundStyle] 颜色={Data.BackgroundColor}, 透明度={Data.BackgroundOpacity}%, 圆角={Data.BackgroundRadius}");
-// #endif
             }
             catch (Exception)
             {
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"❌ [ApplyBackgroundStyle] 失败: {ex.Message}");
-// #endif
             }
         }
 

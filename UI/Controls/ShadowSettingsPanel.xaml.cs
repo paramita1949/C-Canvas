@@ -408,15 +408,6 @@ namespace ImageColorChanger.UI.Controls
                 offsetY = _distance / Math.Sqrt(2);
             }
 
-// #if DEBUG
-//             System.Diagnostics.Debug.WriteLine($"✅ ApplyShadow 调用:");
-//             System.Diagnostics.Debug.WriteLine($"   - 阴影类型: {_currentShadowType}");
-//             System.Diagnostics.Debug.WriteLine($"   - 颜色: {_currentColor}");
-//             System.Diagnostics.Debug.WriteLine($"   - 距离: {_distance} → OffsetX={offsetX:F2}, OffsetY={offsetY:F2}");
-//             System.Diagnostics.Debug.WriteLine($"   - 模糊: {_blur}");
-//             System.Diagnostics.Debug.WriteLine($"   - 透明度: {_opacity}%");
-// #endif
-
             // 应用阴影样式
             _targetTextBox.ApplyStyleToSelection(
                 shadowColor: _currentColor,

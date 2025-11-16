@@ -2306,27 +2306,20 @@ namespace ImageColorChanger.UI
             var selectedItem = FontFamilySelector.SelectedItem as ComboBoxItem;
             if (selectedItem != null && selectedItem.Tag is Core.FontItemData fontData)
             {
-                // ⚠️ 只保存字体族名称到数据库，不保存完整路径（保证数据可移植性）
-                var fontFamilyName = fontData.Config.Family;
-
-                // ✅ 智能样式应用：检测是否有选中文本
+                // ✅ 简化逻辑：只允许选中文字后修改字体
                 if (_selectedTextBox.HasTextSelection())
                 {
                     // 有选中文本 → 局部生效（使用 WPF 原生 API，传递 FontFamily 对象）
                     _selectedTextBox.ApplyStyleToSelection(fontFamilyObj: fontData.FontFamily);
+                    MarkContentAsModified();
+
+                    //System.Diagnostics.Debug.WriteLine($"✅ 字体已更改: {fontData.Config.Name}");
                 }
                 else
                 {
-                    // 无选中文本 → 全局生效
-                    _selectedTextBox.Data.FontFamily = fontFamilyName;
-                    _selectedTextBox.ApplyFontFamily(fontData.FontFamily);
+                    // 无选中文本 → 不执行任何操作
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效");
                 }
-
-                MarkContentAsModified();
-
-                //System.Diagnostics.Debug.WriteLine($"✅ 字体已更改: {fontData.Config.Name}");
-                //System.Diagnostics.Debug.WriteLine($"   保存到数据库: {fontFamilyName}");
-                //System.Diagnostics.Debug.WriteLine($"   应用的FontFamily: {fontData.FontFamily.Source}");
             }
         }
 
@@ -2362,19 +2355,12 @@ namespace ImageColorChanger.UI
                     return; // 会触发新的 Changed 事件
                 }
 
-                // 🆕 智能样式应用：检测是否有选中文本
+                // ✅ 简化逻辑：只允许选中文字后修改字号
                 if (_selectedTextBox.HasTextSelection())
                 {
-                    // 有选中文本 → 局部生效
                     _selectedTextBox.ApplyStyleToSelection(fontSize: fontSize);
+                    MarkContentAsModified();
                 }
-                else
-                {
-                    // 无选中文本 → 全局生效
-                    _selectedTextBox.ApplyStyle(fontSize: fontSize);
-                }
-
-                MarkContentAsModified();
             }
         }
 
@@ -2403,28 +2389,25 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 获取当前字号
-            int currentSize = (int)Math.Round(_selectedTextBox.Data.FontSize);
-
-            // 滚轮向上增大，向下减小，步进2
-            int delta = e.Delta > 0 ? 2 : -2;
-            int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改字号
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
-                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
-            }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(fontSize: newSize);
-            }
-            MarkContentAsModified();
+                // 获取当前选中文字的字号（从选中文本获取，而不是全局属性）
+                var fontSizeValue = _selectedTextBox.RichTextBox.Selection.GetPropertyValue(System.Windows.Documents.TextElement.FontSizeProperty);
+                int currentSize = fontSizeValue != System.Windows.DependencyProperty.UnsetValue
+                    ? (int)Math.Round((double)fontSizeValue)
+                    : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-            // 更新下拉框显示
-            FontSizeSelector.Text = newSize.ToString();
+                // 滚轮向上增大，向下减小，步进2
+                int delta = e.Delta > 0 ? 2 : -2;
+                int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
+
+                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
+                MarkContentAsModified();
+
+                // 更新下拉框显示
+                FontSizeSelector.Text = newSize.ToString();
+            }
 
             // 标记事件已处理
             e.Handled = true;
@@ -2445,27 +2428,24 @@ namespace ImageColorChanger.UI
         {
             if (_selectedTextBox == null) return;
 
-            // 获取当前字号
-            int currentSize = (int)Math.Round(_selectedTextBox.Data.FontSize);
-
-            // 减小字号
-            int newSize = Math.Max(10, currentSize - 2);
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改字号
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
-                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
-            }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(fontSize: newSize);
-            }
-            MarkContentAsModified();
+                // 获取当前选中文字的字号
+                var fontSizeValue = _selectedTextBox.RichTextBox.Selection.GetPropertyValue(System.Windows.Documents.TextElement.FontSizeProperty);
+                int currentSize = fontSizeValue != System.Windows.DependencyProperty.UnsetValue
+                    ? (int)Math.Round((double)fontSizeValue)
+                    : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-            // 更新下拉框显示
-            FontSizeSelector.Text = newSize.ToString();
+                // 减小字号
+                int newSize = Math.Max(10, currentSize - 2);
+
+                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
+                MarkContentAsModified();
+
+                // 更新下拉框显示
+                FontSizeSelector.Text = newSize.ToString();
+            }
         }
 
         /// <summary>
@@ -2475,27 +2455,24 @@ namespace ImageColorChanger.UI
         {
             if (_selectedTextBox == null) return;
 
-            // 获取当前字号
-            int currentSize = (int)Math.Round(_selectedTextBox.Data.FontSize);
-
-            // 增大字号
-            int newSize = Math.Min(200, currentSize + 2);
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改字号
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
-                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
-            }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(fontSize: newSize);
-            }
-            MarkContentAsModified();
+                // 获取当前选中文字的字号
+                var fontSizeValue = _selectedTextBox.RichTextBox.Selection.GetPropertyValue(System.Windows.Documents.TextElement.FontSizeProperty);
+                int currentSize = fontSizeValue != System.Windows.DependencyProperty.UnsetValue
+                    ? (int)Math.Round((double)fontSizeValue)
+                    : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-            // 更新下拉框显示
-            FontSizeSelector.Text = newSize.ToString();
+                // 增大字号
+                int newSize = Math.Min(200, currentSize + 2);
+
+                _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
+                MarkContentAsModified();
+
+                // 更新下拉框显示
+                FontSizeSelector.Text = newSize.ToString();
+            }
         }
 
         /// <summary>
@@ -2506,26 +2483,16 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // ✅ 检测选中文字的实际样式状态（而不是全局属性）
-            bool currentIsBold = _selectedTextBox.IsSelectionBold();
-            bool newIsBold = !currentIsBold;
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改加粗
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
+                bool currentIsBold = _selectedTextBox.IsSelectionBold();
+                bool newIsBold = !currentIsBold;
+
                 _selectedTextBox.ApplyStyleToSelection(isBold: newIsBold);
+                UpdateBoldButtonState(newIsBold);
+                MarkContentAsModified();
             }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(isBold: newIsBold);
-            }
-
-            // 更新加粗按钮状态
-            UpdateBoldButtonState(newIsBold);
-
-            MarkContentAsModified();
         }
 
         /// <summary>
@@ -2536,26 +2503,16 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // ✅ 检测选中文字的实际样式状态（而不是全局属性）
-            bool currentIsUnderline = _selectedTextBox.IsSelectionUnderline();
-            bool newIsUnderline = !currentIsUnderline;
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改下划线
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
+                bool currentIsUnderline = _selectedTextBox.IsSelectionUnderline();
+                bool newIsUnderline = !currentIsUnderline;
+
                 _selectedTextBox.ApplyStyleToSelection(isUnderline: newIsUnderline);
+                UpdateUnderlineButtonState(newIsUnderline);
+                MarkContentAsModified();
             }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(isUnderline: newIsUnderline);
-            }
-
-            // 更新下划线按钮状态
-            UpdateUnderlineButtonState(newIsUnderline);
-
-            MarkContentAsModified();
         }
 
         /// <summary>
@@ -2638,26 +2595,16 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // ✅ 检测选中文字的实际样式状态（而不是全局属性）
-            bool currentIsItalic = _selectedTextBox.IsSelectionItalic();
-            bool newIsItalic = !currentIsItalic;
-
-            // 🆕 智能样式应用：检测是否有选中文本
+            // ✅ 简化逻辑：只允许选中文字后修改斜体
             if (_selectedTextBox.HasTextSelection())
             {
-                // 有选中文本 → 局部生效
+                bool currentIsItalic = _selectedTextBox.IsSelectionItalic();
+                bool newIsItalic = !currentIsItalic;
+
                 _selectedTextBox.ApplyStyleToSelection(isItalic: newIsItalic);
+                UpdateItalicButtonState(newIsItalic);
+                MarkContentAsModified();
             }
-            else
-            {
-                // 无选中文本 → 全局生效
-                _selectedTextBox.ApplyStyle(isItalic: newIsItalic);
-            }
-
-            // 更新斜体按钮状态
-            UpdateItalicButtonState(newIsItalic);
-
-            MarkContentAsModified();
         }
 
         /// <summary>
@@ -2708,19 +2655,12 @@ namespace ImageColorChanger.UI
             {
                 _currentTextColor = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
 
-                // 🆕 智能样式应用：检测是否有选中文本
+                // ✅ 简化逻辑：只允许选中文字后修改颜色
                 if (targetTextBox.HasTextSelection())
                 {
-                    // 有选中文本 → 局部生效
                     targetTextBox.ApplyStyleToSelection(color: _currentTextColor);
+                    MarkContentAsModified();
                 }
-                else
-                {
-                    // 无选中文本 → 全局生效
-                    targetTextBox.ApplyStyle(color: _currentTextColor);
-                }
-
-                MarkContentAsModified();
             }
         }
 

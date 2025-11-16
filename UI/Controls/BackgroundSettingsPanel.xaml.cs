@@ -231,14 +231,8 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         private void ApplyBackgroundStyle()
         {
-// #if DEBUG
-//             System.Diagnostics.Debug.WriteLine($"🎨 [ApplyBackgroundStyle] 目标文本框={_targetTextBox != null}, 颜色={_currentColor}, 圆角={_cornerRadius}, 透明度={_opacity}");
-// #endif
             if (_targetTextBox == null)
             {
-// #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyBackgroundStyle] 目标文本框为空");
-// #endif
                 return;
             }
 
