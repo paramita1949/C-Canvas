@@ -346,7 +346,7 @@ namespace ImageColorChanger.Services
         /// </summary>
         private async Task<HttpResponseMessage> TryMultipleApiUrlsAsync(
             Func<string, Task<HttpResponseMessage>> requestFunc,
-            int timeoutSeconds = 10)
+            int timeoutSeconds = 20)
         {
             Exception lastException = null;
             int attemptNumber = 0;
@@ -488,7 +488,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + VERIFY_ENDPOINT, requestContent);
-                }, timeoutSeconds: 10);
+                }, timeoutSeconds: 20);
 
                 if (response == null)
                 {
@@ -646,7 +646,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/send-verification-code", requestContent);
-                }, timeoutSeconds: 10);
+                }, timeoutSeconds: 20);
 
                 if (response == null)
                 {
@@ -724,7 +724,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/reset-password", requestContent);
-                }, timeoutSeconds: 10);
+                }, timeoutSeconds: 20);
 
                 if (response == null)
                 {
@@ -814,7 +814,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/register", requestContent);
-                }, timeoutSeconds: 10);
+                }, timeoutSeconds: 20);
 
                 if (response == null)
                 {
@@ -956,11 +956,11 @@ namespace ImageColorChanger.Services
                     // 使用多地址自动切换
                     var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
                     {
-                        using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                        using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20)))
                         {
                             return await _httpClient.GetAsync(apiUrl + "/api/auth/verify", cts.Token);
                         }
-                    }, timeoutSeconds: 10);
+                    }, timeoutSeconds: 20);
 
                     if (response != null && response.IsSuccessStatusCode)
                     {
@@ -1250,7 +1250,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + HEARTBEAT_ENDPOINT, requestContent);
-                }, timeoutSeconds: 10);
+                }, timeoutSeconds: 20);
 
                 if (response == null)
                 {
