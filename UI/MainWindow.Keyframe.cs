@@ -563,14 +563,27 @@ namespace ImageColorChanger.UI
                 // 🔧 在开始播放前，根据情况跳转到起始位置
                 if (keyframes != null && keyframes.Count >= 2)
                 {
-                    // 有关键帧：跳转到第一帧位置
+                    // 有关键帧：检查是否已经在第一帧位置，避免不必要的刷新
                     var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
-                    ImageScrollViewer.ScrollToVerticalOffset(firstKeyframe.YPosition);
+                    var currentOffset = ImageScrollViewer.VerticalOffset;
+                    var targetOffset = firstKeyframe.YPosition;
+
+                    // 只有当前位置与目标位置不同时才跳转（容差1像素）
+                    if (Math.Abs(currentOffset - targetOffset) > 1)
+                    {
+                        ImageScrollViewer.ScrollToVerticalOffset(targetOffset);
+                    }
                 }
                 else
                 {
-                    // 无关键帧：跳转到顶部
-                    ImageScrollViewer.ScrollToVerticalOffset(0);
+                    // 无关键帧：检查是否已经在顶部，避免不必要的刷新
+                    var currentOffset = ImageScrollViewer.VerticalOffset;
+
+                    // 只有当前不在顶部时才跳转（容差1像素）
+                    if (currentOffset > 1)
+                    {
+                        ImageScrollViewer.ScrollToVerticalOffset(0);
+                    }
                 }
 
                 // 开始播放
