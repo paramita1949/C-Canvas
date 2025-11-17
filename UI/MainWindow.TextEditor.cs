@@ -379,23 +379,30 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ShowTextEditor()
         {
+            //System.Diagnostics.Debug.WriteLine("🔄 [ShowTextEditor] 开始显示文本编辑器");
+
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
             TextEditorPanel.Visibility = Visibility.Visible;
-            
+
+            //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.Visibility: {TextEditorPanel.Visibility}");
+            //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.IsVisible: {TextEditorPanel.IsVisible}");
+
             // 🆕 重置投影状态：清空之前的图片投影状态
             if (_projectionManager.IsProjectionActive)
             {
                 //System.Diagnostics.Debug.WriteLine("🔄 切换到文本编辑器模式，清空图片状态");
-                
+
                 // 重置投影滚动位置
                 _projectionManager.ResetProjectionScroll();
-                
+
                 // 清空图片投影状态（文本编辑器不使用图片）
                 _projectionManager.ClearImageState();
-                
+
                 //System.Diagnostics.Debug.WriteLine("✅ 图片状态已清空");
             }
+
+            //System.Diagnostics.Debug.WriteLine("✅ [ShowTextEditor] 文本编辑器已显示");
         }
 
         /// <summary>
@@ -403,20 +410,24 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void HideTextEditor()
         {
+            //System.Diagnostics.Debug.WriteLine("🔄 [HideTextEditor] 开始隐藏文本编辑器");
+
             // 1. 隐藏幻灯片面板
             TextEditorPanel.Visibility = Visibility.Collapsed;
-            
+
+            //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.Visibility: {TextEditorPanel.Visibility}");
+
             // 2. 根据当前模式恢复相应的显示区域
             if (_isBibleMode)
             {
                 // 🔧 圣经模式：确保圣经区域可见
                 BibleDisplayContainer.Visibility = Visibility.Visible;
                 BibleVerseScrollViewer.Visibility = Visibility.Visible;
-                
+
                 // 隐藏其他区域
                 ImageScrollViewer.Visibility = Visibility.Collapsed;
                 VideoContainer.Visibility = Visibility.Collapsed;
-                
+
                 //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复圣经显示");
             }
             else
@@ -424,19 +435,21 @@ namespace ImageColorChanger.UI
                 // 🔧 文件/项目模式：确保图片/视频区域可见
                 ImageScrollViewer.Visibility = Visibility.Visible;
                 VideoContainer.Visibility = Visibility.Visible;
-                
+
                 // 隐藏圣经区域
                 BibleDisplayContainer.Visibility = Visibility.Collapsed;
-                
+
                 // 如果投影已开启，恢复图片投影
                 if (_projectionManager != null && _projectionManager.IsProjectionActive)
                 {
                     //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片投影");
                     UpdateProjection();
                 }
-                
+
                 //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片/视频显示");
             }
+
+            //System.Diagnostics.Debug.WriteLine("✅ [HideTextEditor] 文本编辑器已隐藏");
         }
 
         /// <summary>
@@ -444,10 +457,21 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CloseTextEditor()
         {
+            //System.Diagnostics.Debug.WriteLine("🔄 [CloseTextEditor] 开始关闭文本编辑器");
+
             _currentTextProject = null;
+            _currentSlide = null;
             _textBoxes.Clear();
             EditorCanvas.Children.Clear();
-            BackgroundImage.Source = null;
+
+            // 重置 Canvas 背景为白色
+            EditorCanvas.Background = new SolidColorBrush(Colors.White);
+
+            // 清空幻灯片列表
+            SlideListBox.ItemsSource = null;
+            SlideListBox.SelectedItem = null;
+
+            //System.Diagnostics.Debug.WriteLine("✅ [CloseTextEditor] 文本编辑器已关闭并重置");
             HideTextEditor();
         }
 
@@ -718,11 +742,34 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 背景图片按钮点击（直接导入图片）
+        /// 导入按钮点击（显示单图/多图菜单）
         /// </summary>
         private void BtnBackgroundImage_Click(object sender, RoutedEventArgs e)
         {
-            BtnLoadBackgroundImage_Click(sender, e);
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先创建或选择一个文本项目", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // 创建导入菜单
+            var contextMenu = new ContextMenu();
+            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+
+            // 单图导入
+            var singleImageItem = new MenuItem { Header = "单图" };
+            singleImageItem.Click += (s, args) => ImportSingleImageAsSlide();
+            contextMenu.Items.Add(singleImageItem);
+
+            // 多图导入
+            var multiImageItem = new MenuItem { Header = "多图" };
+            multiImageItem.Click += async (s, args) => await ImportMultipleImagesAsSlidesAsync();
+            contextMenu.Items.Add(multiImageItem);
+
+            // 显示菜单
+            contextMenu.PlacementTarget = BtnBackgroundImage;
+            contextMenu.IsOpen = true;
         }
 
         /// <summary>
@@ -2071,7 +2118,138 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 导入背景图片
+        /// 导入单张图片为当前幻灯片背景
+        /// </summary>
+        private void ImportSingleImageAsSlide()
+        {
+            if (_currentSlide == null)
+            {
+                WpfMessageBox.Show("请先选择一个幻灯片", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            BtnLoadBackgroundImage_Click(null, null);
+        }
+
+        /// <summary>
+        /// 导入多张图片，每张图创建一张新幻灯片
+        /// </summary>
+        private async Task ImportMultipleImagesAsSlidesAsync()
+        {
+            try
+            {
+                // 选择多张图片
+                var dialog = new WpfOpenFileDialog
+                {
+                    Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
+                    Title = "选择图片（可多选）",
+                    Multiselect = true
+                };
+
+                if (dialog.ShowDialog() != true || dialog.FileNames == null || dialog.FileNames.Length == 0)
+                    return;
+
+                var fileNames = dialog.FileNames;
+
+                // 使用 SortManager 按数字优先排序
+                var sortManager = new SortManager();
+                var sortedFiles = fileNames
+                    .Select(f => new { Path = f, SortKey = sortManager.GetSortKey(System.IO.Path.GetFileName(f)) })
+                    .OrderBy(x => x.SortKey.prefixNumber)
+                    .ThenBy(x => x.SortKey.pinyinPart)
+                    .ThenBy(x => x.SortKey.suffixNumber)
+                    .Select(x => x.Path)
+                    .ToArray();
+
+                // 显示进度提示
+                var progressMessage = $"正在导入 {sortedFiles.Length} 张图片...";
+                ShowStatus(progressMessage);
+
+                // 获取当前最大排序号
+                var maxOrderValue = await _dbContext.Slides
+                    .Where(s => s.ProjectId == _currentTextProject.Id)
+                    .Select(s => (int?)s.SortOrder)
+                    .MaxAsync();
+
+                int currentOrder = maxOrderValue ?? 0;
+
+                // 获取当前幻灯片总数（用于生成标题序号）
+                var slideCount = await _dbContext.Slides
+                    .Where(s => s.ProjectId == _currentTextProject.Id)
+                    .CountAsync();
+
+                // 批量创建幻灯片
+                var newSlides = new List<Slide>();
+                for (int i = 0; i < sortedFiles.Length; i++)
+                {
+                    var imagePath = sortedFiles[i];
+                    var fileName = System.IO.Path.GetFileNameWithoutExtension(imagePath);
+
+                    var newSlide = new Slide
+                    {
+                        ProjectId = _currentTextProject.Id,
+                        Title = $"幻灯片 {slideCount + i + 1}",
+                        SortOrder = currentOrder + i + 1,
+                        BackgroundImagePath = imagePath,
+                        BackgroundColor = null,
+                        SplitMode = -1,
+                        SplitStretchMode = false,
+                        CreatedTime = DateTime.Now,
+                        ModifiedTime = DateTime.Now
+                    };
+
+                    _dbContext.Slides.Add(newSlide);
+                    newSlides.Add(newSlide);
+                }
+
+                // 批量保存到数据库
+                await _dbContext.SaveChangesAsync();
+
+                // 刷新幻灯片列表
+                LoadSlideList();
+
+                // 🔧 同步生成缩略图（避免异步导致的背景图覆盖问题）
+                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
+
+                foreach (var slide in newSlides)
+                {
+                    // 加载幻灯片到 EditorCanvas
+                    LoadSlide(slide);
+
+                    // 等待渲染完成
+                    await Task.Delay(150);
+
+                    // 生成缩略图
+                    var thumbnailPath = SaveSlideThumbnail(slide.Id);
+                    if (!string.IsNullOrEmpty(thumbnailPath))
+                    {
+                        slide.ThumbnailPath = thumbnailPath;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
+
+                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+
+                // 缩略图生成完成后刷新列表
+                LoadSlideList();
+                ShowStatus($"✅ 成功导入 {sortedFiles.Length} 张图片");
+
+                // 选中第一张新幻灯片
+                if (newSlides.Count > 0)
+                {
+                    SlideListBox.SelectedItem = newSlides[0];
+                }
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"批量导入失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 导入背景图片（原有方法，保持兼容）
         /// </summary>
         private async void BtnLoadBackgroundImage_Click(object sender, RoutedEventArgs e)
         {
@@ -2088,20 +2266,19 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📷 [背景图] 选择文件: {dialog.FileName}");
-                    //System.Diagnostics.Debug.WriteLine($"   文件存在: {System.IO.File.Exists(dialog.FileName)}");
-                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage 控件: {BackgroundImage != null}");
-                    //#endif
-                    
-                    BackgroundImage.Source = new BitmapImage(new Uri(dialog.FileName));
-                    BackgroundImage.Visibility = Visibility.Visible;
-                    EditorCanvas.Background = System.Windows.Media.Brushes.Transparent; // 🔧 设为透明，显示背景图
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage.Source: {BackgroundImage.Source != null}");
-                    //System.Diagnostics.Debug.WriteLine($"   BackgroundImage.Visibility: {BackgroundImage.Visibility}");
-                    //#endif
+                    // 🆕 使用 ImageBrush 设置 Canvas.Background
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(dialog.FileName);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+
+                    EditorCanvas.Background = new ImageBrush(bitmap)
+                    {
+                        Stretch = Stretch.Fill
+                    };
                     
                     // 🔧 保存背景图路径到当前幻灯片
                     var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
@@ -2187,22 +2364,7 @@ namespace ImageColorChanger.UI
                     
                     //System.Diagnostics.Debug.WriteLine($"   EditorCanvas.Background 已设置: {EditorCanvas.Background}");
                     
-                    // 检查父容器背景色
-                    var editorParent = EditorCanvas.Parent as FrameworkElement;
-                    if (editorParent != null)
-                    {
-                        //System.Diagnostics.Debug.WriteLine($"   Canvas父容器 ({editorParent.GetType().Name}): Background={editorParent.GetValue(System.Windows.Controls.Panel.BackgroundProperty)}");
-                        
-                        var grandParent = editorParent.Parent as FrameworkElement;
-                        if (grandParent != null)
-                        {
-                            //System.Diagnostics.Debug.WriteLine($"   祖父容器 ({grandParent.GetType().Name}): Background={grandParent.GetValue(System.Windows.Controls.Panel.BackgroundProperty)}");
-                        }
-                    }
-                    
-                    // 隐藏背景图片
-                    BackgroundImage.Visibility = Visibility.Collapsed;
-                    BackgroundImage.Source = null;
+                    // 🔧 背景色设置后，Canvas.Background 会被直接覆盖为纯色，无需额外清除
                     
                     // 🔧 保存背景色到当前幻灯片
                     var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
@@ -2245,10 +2407,6 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 清除背景图片
-                BackgroundImage.Source = null;
-                BackgroundImage.Visibility = Visibility.Collapsed;
-                
                 // 重置Canvas背景为白色
                 EditorCanvas.Background = new SolidColorBrush(Colors.White);
                 
@@ -2919,7 +3077,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.OriginalSource == EditorCanvas || e.OriginalSource == BackgroundImage)
+            if (e.OriginalSource == EditorCanvas)
             {
                 // 🔧 优化：先检查是否有正在编辑的文本框，如果有则退出编辑状态
                 bool hasEditingTextBox = false;
@@ -4854,8 +5012,11 @@ namespace ImageColorChanger.UI
         {
             if (SlideListBox.SelectedItem is Slide selectedSlide)
             {
-                // 切换到选中的幻灯片
-                LoadSlide(selectedSlide);
+                // 🆕 使用 Dispatcher.BeginInvoke 延迟加载，确保可视树完全构建
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    LoadSlide(selectedSlide);
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 
@@ -5110,6 +5271,9 @@ namespace ImageColorChanger.UI
                 SlideListBox.SelectedIndex = SlideListBox.Items.Count - 1;
                 //System.Diagnostics.Debug.WriteLine($"🔄 循环到最后一张幻灯片: Index={SlideListBox.Items.Count - 1}");
             }
+
+            // 自动滚动到当前幻灯片
+            ScrollToCurrentSlide();
         }
 
         /// <summary>
@@ -5133,6 +5297,49 @@ namespace ImageColorChanger.UI
                 SlideListBox.SelectedIndex = 0;
                 //System.Diagnostics.Debug.WriteLine($"🔄 循环回到第一张幻灯片: Index=0");
             }
+
+            // 自动滚动到当前幻灯片
+            ScrollToCurrentSlide();
+        }
+
+        /// <summary>
+        /// 滚动到当前选中的幻灯片
+        /// </summary>
+        private void ScrollToCurrentSlide()
+        {
+            if (SlideListBox.SelectedItem != null)
+            {
+                SlideListBox.ScrollIntoView(SlideListBox.SelectedItem);
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片列表鼠标滚动事件（支持在幻灯片区域滚动）
+        /// </summary>
+        private void SlideScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            // 获取 ScrollViewer
+            var scrollViewer = sender as ScrollViewer;
+            if (scrollViewer == null)
+                return;
+
+            // 滚动幻灯片列表
+            if (e.Delta > 0)
+            {
+                // 向上滚动
+                scrollViewer.LineUp();
+                scrollViewer.LineUp();
+                scrollViewer.LineUp();
+            }
+            else
+            {
+                // 向下滚动
+                scrollViewer.LineDown();
+                scrollViewer.LineDown();
+                scrollViewer.LineDown();
+            }
+
+            e.Handled = true;
         }
 
         /// <summary>
@@ -5142,6 +5349,27 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 🔍 [缩略图调试] 输出幻灯片信息和缩略图路径
+                //System.Diagnostics.Debug.WriteLine($"\n========== [缩略图调试] ==========");
+                //System.Diagnostics.Debug.WriteLine($"📋 幻灯片ID: {slide.Id}");
+                //System.Diagnostics.Debug.WriteLine($"📋 幻灯片标题: {slide.Title}");
+                //System.Diagnostics.Debug.WriteLine($"📋 排序顺序: {slide.SortOrder}");
+                //System.Diagnostics.Debug.WriteLine($"📋 缩略图路径: {slide.ThumbnailPath ?? "无"}");
+                //System.Diagnostics.Debug.WriteLine($"📋 主图路径: {slide.BackgroundImagePath ?? "无"}");
+                //
+                //if (!string.IsNullOrEmpty(slide.ThumbnailPath))
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📋 缩略图文件名: {System.IO.Path.GetFileName(slide.ThumbnailPath)}");
+                //    System.Diagnostics.Debug.WriteLine($"📋 缩略图存在: {System.IO.File.Exists(slide.ThumbnailPath)}");
+                //}
+                //
+                //if (!string.IsNullOrEmpty(slide.BackgroundImagePath))
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"📋 主图文件名: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //    System.Diagnostics.Debug.WriteLine($"📋 主图存在: {System.IO.File.Exists(slide.BackgroundImagePath)}");
+                //}
+                //System.Diagnostics.Debug.WriteLine($"====================================\n");
+
                 _currentSlide = slide;
 
                 // 清空画布
@@ -5151,18 +5379,23 @@ namespace ImageColorChanger.UI
                 if (!string.IsNullOrEmpty(slide.BackgroundImagePath) &&
                     System.IO.File.Exists(slide.BackgroundImagePath))
                 {
-                    // 🔧 有背景图：显示图片，Canvas设为透明
-                    BackgroundImage.Source = new BitmapImage(new Uri(slide.BackgroundImagePath));
-                    BackgroundImage.Visibility = Visibility.Visible;
-                    EditorCanvas.Background = System.Windows.Media.Brushes.Transparent;
+                    // 🆕 使用 ImageBrush 设置 Canvas.Background（性能最佳方案）
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(slide.BackgroundImagePath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+
+                    EditorCanvas.Background = new ImageBrush(bitmap)
+                    {
+                        Stretch = Stretch.Fill
+                    };
                 }
                 else
                 {
-                    // 🔧 无背景图：隐藏图片，设置Canvas背景色
-                    BackgroundImage.Source = null;
-                    BackgroundImage.Visibility = Visibility.Collapsed;
-                    
-                    // 设置背景颜色
+                    // 🔧 无背景图：设置Canvas背景色
                     if (!string.IsNullOrEmpty(slide.BackgroundColor))
                     {
                         EditorCanvas.Background = (SolidColorBrush)new BrushConverter().ConvertFrom(slide.BackgroundColor);

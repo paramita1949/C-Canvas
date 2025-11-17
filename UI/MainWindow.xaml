@@ -1596,10 +1596,10 @@
                                     Style="{StaticResource SuccessButtonStyle}"
                                     ToolTip="添加文本框" Click="BtnAddText_Click"/>
                             
-                            <!-- 背景图片按钮 -->
-                            <Button x:Name="BtnBackgroundImage" Content="🖼 背景图" 
+                            <!-- 导入按钮 -->
+                            <Button x:Name="BtnBackgroundImage" Content="📥 导入"
                                     Style="{StaticResource MenuButtonStyle}"
-                                    ToolTip="导入背景图片"
+                                    ToolTip="导入图片为幻灯片"
                                     Click="BtnBackgroundImage_Click"/>
                             
                             <!-- 背景颜色按钮 -->
@@ -1790,8 +1790,51 @@
                                 </Border>
 
                                 <!-- 幻灯片列表 -->
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox x:Name="SlideListBox" 
+                                <ScrollViewer x:Name="SlideScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              PreviewMouseWheel="SlideScrollViewer_PreviewMouseWheel">
+                                    <ScrollViewer.Resources>
+                                        <!-- 深灰色滚动条样式 -->
+                                        <Style TargetType="{x:Type ScrollBar}">
+                                            <Setter Property="Background" Value="#2C2C2C"/>
+                                            <Setter Property="Foreground" Value="#5C5C5C"/>
+                                            <Setter Property="Width" Value="12"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                                        <Grid>
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
+                                                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                                <Track.Thumb>
+                                                                    <Thumb>
+                                                                        <Thumb.Style>
+                                                                            <Style TargetType="Thumb">
+                                                                                <Setter Property="Background" Value="#5C5C5C"/>
+                                                                                <Setter Property="Template">
+                                                                                    <Setter.Value>
+                                                                                        <ControlTemplate TargetType="Thumb">
+                                                                                            <Border Background="{TemplateBinding Background}"
+                                                                                                    CornerRadius="6"
+                                                                                                    Margin="2"/>
+                                                                                        </ControlTemplate>
+                                                                                    </Setter.Value>
+                                                                                </Setter>
+                                                                                <Style.Triggers>
+                                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                                        <Setter Property="Background" Value="#7C7C7C"/>
+                                                                                    </Trigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Thumb.Style>
+                                                                    </Thumb>
+                                                                </Track.Thumb>
+                                                            </Track>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ScrollViewer.Resources>
+                                    <ListBox x:Name="SlideListBox"
                                              Background="Transparent"
                                              BorderThickness="0"
                                              Padding="0"
@@ -1912,7 +1955,7 @@
                             <Border Background="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
                                 <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
                                     <Grid x:Name="EditorCanvasContainer" Width="1080" Height="700" Background="White">
-                            <Canvas x:Name="EditorCanvas" 
+                            <Canvas x:Name="EditorCanvas"
                                     Width="1080" Height="700"
                                     Background="White"
                                     MouseLeftButtonDown="EditorCanvas_MouseDown"
@@ -1920,14 +1963,8 @@
                                     Focusable="True"
                                     AllowDrop="True"
                                     ClipToBounds="True">
-                                
-                                <!-- 背景图（最底层）-->
-                                <Image x:Name="BackgroundImage" 
-                                       Width="1080" Height="700"
-                                       Stretch="Fill"
-                                       Canvas.Left="0" Canvas.Top="0"
-                                       Panel.ZIndex="-1"/>
 
+                                <!-- 背景图通过 Canvas.Background 的 ImageBrush 设置，不再使用 Image 控件 -->
                                 <!-- 文本框将动态添加到这里 -->
                             </Canvas>
                             
