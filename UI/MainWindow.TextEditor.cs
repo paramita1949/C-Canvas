@@ -2206,10 +2206,7 @@ namespace ImageColorChanger.UI
                 // 批量保存到数据库
                 await _dbContext.SaveChangesAsync();
 
-                // 刷新幻灯片列表
-                LoadSlideList();
-
-                // 🔧 同步生成缩略图（避免异步导致的背景图覆盖问题）
+                // 🔧 先禁用事件，避免 LoadSlideList 触发自动选中干扰缩略图生成
                 SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
 
                 foreach (var slide in newSlides)
