@@ -280,7 +280,7 @@ namespace ImageColorChanger.UI.Controls
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 Background = WpfBrushes.Transparent,
                 BorderThickness = new System.Windows.Thickness(0),
-                Padding = new System.Windows.Thickness(5, 5, 5, 5),  // 🔧 增加顶部padding，防止字体顶部被裁剪
+                Padding = new System.Windows.Thickness(10, 10, 10, 10),  // 🔧 增加 Padding 防止文本被边框遮挡
 
                 // 编辑属性
                 AcceptsReturn = true,
@@ -1226,6 +1226,58 @@ namespace ImageColorChanger.UI.Controls
                     fontSize.Value);
                 // 🔧 同时更新 Data 对象
                 Data.FontSize = fontSize.Value;
+
+                // 🔧 强制刷新 RichTextBox 布局，防止文本被边框遮挡
+                _richTextBox.InvalidateVisual();
+                _richTextBox.UpdateLayout();
+
+                //// 🔍 检测文本是否被边框遮挡（调试用，已验证修复）
+                //try
+                //{
+                //    var document = _richTextBox.Document;
+                //    var contentStart = document.ContentStart;
+                //    var contentEnd = document.ContentEnd;
+                //
+                //    // 获取文本内容的实际渲染边界
+                //    var startRect = contentStart.GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
+                //    var endRect = contentEnd.GetCharacterRect(System.Windows.Documents.LogicalDirection.Backward);
+                //
+                //    // 获取 RichTextBox 的可视区域
+                //    var richTextBoxWidth = _richTextBox.ActualWidth;
+                //    var richTextBoxHeight = _richTextBox.ActualHeight;
+                //    var padding = _richTextBox.Padding;
+                //
+                //    // 计算可视区域（减去 Padding）
+                //    var visibleLeft = padding.Left;
+                //    var visibleRight = richTextBoxWidth - padding.Right;
+                //    var visibleTop = padding.Top;
+                //    var visibleBottom = richTextBoxHeight - padding.Bottom;
+                //
+                //    // 检测左右遮挡
+                //    bool leftClipped = startRect.Left < visibleLeft;
+                //    bool rightClipped = endRect.Right > visibleRight;
+                //    bool topClipped = startRect.Top < visibleTop;
+                //    bool bottomClipped = endRect.Bottom > visibleBottom;
+                //
+                //    System.Diagnostics.Debug.WriteLine($"🔍 [字号={fontSize.Value}] 文本边界检测:");
+                //    System.Diagnostics.Debug.WriteLine($"   RichTextBox: Width={richTextBoxWidth:F1}, Height={richTextBoxHeight:F1}");
+                //    System.Diagnostics.Debug.WriteLine($"   Padding: L={padding.Left}, R={padding.Right}, T={padding.Top}, B={padding.Bottom}");
+                //    System.Diagnostics.Debug.WriteLine($"   可视区域: [{visibleLeft:F1}, {visibleRight:F1}] x [{visibleTop:F1}, {visibleBottom:F1}]");
+                //    System.Diagnostics.Debug.WriteLine($"   文本边界: [{startRect.Left:F1}, {endRect.Right:F1}] x [{startRect.Top:F1}, {endRect.Bottom:F1}]");
+                //
+                //    if (leftClipped || rightClipped || topClipped || bottomClipped)
+                //    {
+                //        System.Diagnostics.Debug.WriteLine($"⚠️ 检测到遮挡: 左={leftClipped}, 右={rightClipped}, 上={topClipped}, 下={bottomClipped}");
+                //    }
+                //    else
+                //    {
+                //        System.Diagnostics.Debug.WriteLine($"✅ 文本未被遮挡");
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"❌ 边界检测失败: {ex.Message}");
+                //}
             }
 
             // 🔧 更新 Data 对象的边框样式（确保保存到数据库）
@@ -1269,8 +1321,9 @@ namespace ImageColorChanger.UI.Controls
             double lineSpacingMultiplier = Data.LineSpacing > 0 ? Data.LineSpacing : 1.2;
             double lineHeight = Data.FontSize * lineSpacingMultiplier;
 
-            // 🔧 设置 Document 的 PagePadding，防止字体顶部被裁剪
-            _richTextBox.Document.PagePadding = new System.Windows.Thickness(0, 10, 0, 0);
+            // 🔧 设置 Document 的 PagePadding，防止文本被边框遮挡
+            // 左右各增加 10 像素，上下各增加 15 像素
+            _richTextBox.Document.PagePadding = new System.Windows.Thickness(10, 15, 10, 15);
 
             foreach (var block in _richTextBox.Document.Blocks)
             {
