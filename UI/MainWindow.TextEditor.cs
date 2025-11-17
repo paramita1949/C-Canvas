@@ -644,7 +644,7 @@ namespace ImageColorChanger.UI
             try
             {
                 var sourceElement = sourceTextBox.Data;
-                
+
                 // 计算最大ZIndex,新文本框在最上层
                 int maxZIndex = 0;
                 if (_textBoxes.Count > 0)
@@ -652,25 +652,57 @@ namespace ImageColorChanger.UI
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
                 }
 
-                // 创建新元素（稍微偏移位置,避免完全重叠）
-                var newElement = new TextElement
-                {
-                    SlideId = _currentSlide.Id,
-                    X = sourceElement.X + 20,  // 向右偏移20像素
-                    Y = sourceElement.Y + 20,  // 向下偏移20像素
-                    Width = sourceElement.Width,
-                    Height = sourceElement.Height,
-                    Content = sourceElement.Content,
-                    FontSize = sourceElement.FontSize,
-                    FontFamily = sourceElement.FontFamily,
-                    FontColor = sourceElement.FontColor,
-                    IsBold = sourceElement.IsBold,
-                    TextAlign = sourceElement.TextAlign,
-                    ZIndex = maxZIndex + 1
-                };
+                // 使用 CloneElement 方法复制所有样式
+                var newElement = _textProjectManager.CloneElement(sourceElement);
+
+                // 修改位置和层级
+                newElement.SlideId = _currentSlide.Id;
+                newElement.X = sourceElement.X + 20;  // 向右偏移20像素
+                newElement.Y = sourceElement.Y + 20;  // 向下偏移20像素
+                newElement.ZIndex = maxZIndex + 1;
 
                 // 保存到数据库
                 await _textProjectManager.AddElementAsync(newElement);
+
+                // 🆕 复制富文本片段（如果有）
+                if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
+                {
+                    var newSpans = new List<Database.Models.RichTextSpan>();
+                    foreach (var sourceSpan in sourceElement.RichTextSpans.OrderBy(s => s.SpanOrder))
+                    {
+                        var newSpan = new Database.Models.RichTextSpan
+                        {
+                            TextElementId = newElement.Id,
+                            SpanOrder = sourceSpan.SpanOrder,
+                            Text = sourceSpan.Text,
+                            FontFamily = sourceSpan.FontFamily,
+                            FontSize = sourceSpan.FontSize,
+                            FontColor = sourceSpan.FontColor,
+                            IsBold = sourceSpan.IsBold,
+                            IsItalic = sourceSpan.IsItalic,
+                            IsUnderline = sourceSpan.IsUnderline,
+                            BorderColor = sourceSpan.BorderColor,
+                            BorderWidth = sourceSpan.BorderWidth,
+                            BorderRadius = sourceSpan.BorderRadius,
+                            BorderOpacity = sourceSpan.BorderOpacity,
+                            BackgroundColor = sourceSpan.BackgroundColor,
+                            BackgroundRadius = sourceSpan.BackgroundRadius,
+                            BackgroundOpacity = sourceSpan.BackgroundOpacity,
+                            ShadowColor = sourceSpan.ShadowColor,
+                            ShadowOffsetX = sourceSpan.ShadowOffsetX,
+                            ShadowOffsetY = sourceSpan.ShadowOffsetY,
+                            ShadowBlur = sourceSpan.ShadowBlur,
+                            ShadowOpacity = sourceSpan.ShadowOpacity
+                        };
+                        newSpans.Add(newSpan);
+                    }
+
+                    // 批量保存富文本片段
+                    await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, newSpans);
+
+                    // 更新新元素的 RichTextSpans 集合
+                    newElement.RichTextSpans = newSpans;
+                }
 
                 // 添加到画布
                 var textBox = new DraggableTextBox(newElement);
@@ -679,14 +711,14 @@ namespace ImageColorChanger.UI
                 // 选中新复制的文本框
                 textBox.SetSelected(true);
                 _selectedTextBox = textBox;
-                
+
                 // 显示浮动工具栏
                 ShowTextBoxFloatingToolbar(textBox);
 
                 // 标记已修改
                 MarkContentAsModified();
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 复制文本框成功");
+                //System.Diagnostics.Debug.WriteLine($"✅ 复制文本框成功（包含 {newElement.RichTextSpans?.Count ?? 0} 个富文本片段）");
             }
             catch (Exception ex)
             {
@@ -2553,9 +2585,17 @@ namespace ImageColorChanger.UI
                     ? (int)Math.Round((double)fontSizeValue)
                     : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-                // 滚轮向上增大，向下减小，步进2
-                int delta = e.Delta > 0 ? 2 : -2;
-                int newSize = Math.Max(10, Math.Min(200, currentSize + delta));
+                // 滚轮向上增大，向下减小，30以上步进1，30以下步进2
+                int delta;
+                if (currentSize >= 30)
+                {
+                    delta = e.Delta > 0 ? 1 : -1;
+                }
+                else
+                {
+                    delta = e.Delta > 0 ? 2 : -2;
+                }
+                int newSize = Math.Max(10, Math.Min(120, currentSize + delta));
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();
@@ -2592,8 +2632,9 @@ namespace ImageColorChanger.UI
                     ? (int)Math.Round((double)fontSizeValue)
                     : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-                // 减小字号
-                int newSize = Math.Max(10, currentSize - 2);
+                // 减小字号，30以上步进1，30以下步进2
+                int delta = currentSize > 30 ? -1 : -2;
+                int newSize = Math.Max(10, currentSize + delta);
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();
@@ -2619,8 +2660,9 @@ namespace ImageColorChanger.UI
                     ? (int)Math.Round((double)fontSizeValue)
                     : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
-                // 增大字号
-                int newSize = Math.Min(200, currentSize + 2);
+                // 增大字号，30以上步进1，30以下步进2
+                int delta = currentSize >= 30 ? 1 : 2;
+                int newSize = Math.Min(120, currentSize + delta);
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();

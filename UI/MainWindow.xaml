@@ -1659,6 +1659,7 @@
                                 <ComboBoxItem Content="20"/>
                                 <ComboBoxItem Content="24"/>
                                 <ComboBoxItem Content="28"/>
+                                <ComboBoxItem Content="30"/>
                                 <ComboBoxItem Content="32"/>
                                 <ComboBoxItem Content="36"/>
                                 <ComboBoxItem Content="40"/>
@@ -1667,8 +1668,10 @@
                                 <ComboBoxItem Content="64"/>
                                 <ComboBoxItem Content="72"/>
                                 <ComboBoxItem Content="80"/>
+                                <ComboBoxItem Content="88"/>
                                 <ComboBoxItem Content="96"/>
-                                <ComboBoxItem Content="108"/>
+                                <ComboBoxItem Content="104"/>
+                                <ComboBoxItem Content="112"/>
                                 <ComboBoxItem Content="120"/>
                             </ComboBox>
                             
@@ -1793,16 +1796,17 @@
                                 <ScrollViewer x:Name="SlideScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="SlideScrollViewer_PreviewMouseWheel">
                                     <ScrollViewer.Resources>
-                                        <!-- 深灰色滚动条样式 -->
-                                        <Style TargetType="{x:Type ScrollBar}">
+                                        <!-- 深灰色滚动条样式（覆盖全局样式） -->
+                                        <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
                                             <Setter Property="Background" Value="#2C2C2C"/>
                                             <Setter Property="Foreground" Value="#5C5C5C"/>
                                             <Setter Property="Width" Value="12"/>
+                                            <Setter Property="MinWidth" Value="12"/>
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                                                         <Grid>
-                                                            <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
+                                                            <Border Background="#2C2C2C" CornerRadius="6"/>
                                                             <Track x:Name="PART_Track" IsDirectionReversed="True">
                                                                 <Track.Thumb>
                                                                     <Thumb>

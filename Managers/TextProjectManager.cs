@@ -429,6 +429,7 @@ namespace ImageColorChanger.Managers
             return new TextElement
             {
                 ProjectId = source.ProjectId,
+                SlideId = source.SlideId,
                 X = source.X,
                 Y = source.Y,
                 Width = source.Width,
@@ -439,7 +440,29 @@ namespace ImageColorChanger.Managers
                 FontSize = source.FontSize,
                 FontColor = source.FontColor,
                 IsBold = source.IsBold,
-                TextAlign = source.TextAlign
+                IsUnderline = source.IsUnderline,
+                IsItalic = source.IsItalic,
+                TextAlign = source.TextAlign,
+                // 边框样式
+                BorderColor = source.BorderColor,
+                BorderWidth = source.BorderWidth,
+                BorderRadius = source.BorderRadius,
+                BorderOpacity = source.BorderOpacity,
+                // 背景样式
+                BackgroundColor = source.BackgroundColor,
+                BackgroundRadius = source.BackgroundRadius,
+                BackgroundOpacity = source.BackgroundOpacity,
+                // 阴影样式
+                ShadowType = source.ShadowType,
+                ShadowPreset = source.ShadowPreset,
+                ShadowColor = source.ShadowColor,
+                ShadowOffsetX = source.ShadowOffsetX,
+                ShadowOffsetY = source.ShadowOffsetY,
+                ShadowBlur = source.ShadowBlur,
+                ShadowOpacity = source.ShadowOpacity,
+                // 间距样式
+                LineSpacing = source.LineSpacing,
+                LetterSpacing = source.LetterSpacing
             };
         }
 
