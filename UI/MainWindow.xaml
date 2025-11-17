@@ -1624,7 +1624,7 @@
 
                             <!-- 字体设置 -->
                             <ComboBox x:Name="FontFamilySelector" Width="150" Height="32"
-                                      SelectedIndex="0" 
+                                      SelectedIndex="0"
                                       SelectionChanged="FontFamily_Changed"
                                       MaxDropDownHeight="400"
                                       IsEditable="True"
@@ -1636,9 +1636,51 @@
                                       FontSize="13"
                                       Style="{StaticResource WhiteComboBoxPopup}"
                                       ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
+                                <ComboBox.Resources>
+                                    <!-- 深灰色滚动条样式 -->
+                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
+                                        <Setter Property="Background" Value="#E0E0E0"/>
+                                        <Setter Property="Width" Value="12"/>
+                                        <Setter Property="MinWidth" Value="12"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                                    <Grid>
+                                                        <Border Background="#E0E0E0" CornerRadius="6"/>
+                                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                            <Track.Thumb>
+                                                                <Thumb>
+                                                                    <Thumb.Style>
+                                                                        <Style TargetType="Thumb">
+                                                                            <Setter Property="Background" Value="#5C5C5C"/>
+                                                                            <Setter Property="Template">
+                                                                                <Setter.Value>
+                                                                                    <ControlTemplate TargetType="Thumb">
+                                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                                CornerRadius="6"
+                                                                                                Margin="2"/>
+                                                                                    </ControlTemplate>
+                                                                                </Setter.Value>
+                                                                            </Setter>
+                                                                            <Style.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter Property="Background" Value="#7C7C7C"/>
+                                                                                </Trigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Thumb.Style>
+                                                                </Thumb>
+                                                            </Track.Thumb>
+                                                        </Track>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Resources>
                                 <!-- 字体将在代码中动态加载 -->
                             </ComboBox>
-                            
+
                             <!-- 字号选择框 -->
                             <ComboBox x:Name="FontSizeSelector" Width="80" Height="32"
                                       SelectedIndex="5"
@@ -1651,6 +1693,48 @@
                                       FontWeight="Bold"
                                       Style="{StaticResource WhiteComboBoxPopup}"
                                       ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
+                                <ComboBox.Resources>
+                                    <!-- 深灰色滚动条样式 -->
+                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
+                                        <Setter Property="Background" Value="#E0E0E0"/>
+                                        <Setter Property="Width" Value="12"/>
+                                        <Setter Property="MinWidth" Value="12"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                                    <Grid>
+                                                        <Border Background="#E0E0E0" CornerRadius="6"/>
+                                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                            <Track.Thumb>
+                                                                <Thumb>
+                                                                    <Thumb.Style>
+                                                                        <Style TargetType="Thumb">
+                                                                            <Setter Property="Background" Value="#5C5C5C"/>
+                                                                            <Setter Property="Template">
+                                                                                <Setter.Value>
+                                                                                    <ControlTemplate TargetType="Thumb">
+                                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                                CornerRadius="6"
+                                                                                                Margin="2"/>
+                                                                                    </ControlTemplate>
+                                                                                </Setter.Value>
+                                                                            </Setter>
+                                                                            <Style.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter Property="Background" Value="#7C7C7C"/>
+                                                                                </Trigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Thumb.Style>
+                                                                </Thumb>
+                                                            </Track.Thumb>
+                                                        </Track>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Resources>
                                 <ComboBoxItem Content="10"/>
                                 <ComboBoxItem Content="12"/>
                                 <ComboBoxItem Content="14"/>
