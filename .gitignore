@@ -18,6 +18,7 @@ bld/
 .vs/
 .vscode/
 .cursor/
+.claude/
 # MSBuild Binary and Structured Log
 *.binlog
 
@@ -59,7 +60,7 @@ ServiceFabricBackup/
 *.db-wal
 pyimages.db
 
-# 但是保留圣经数据库文�?用于发布)
+# 但是保留圣经数据库文�?用于发布)
 !data/assets/bible.db
 !data/assets/hehebenfanti.db
 

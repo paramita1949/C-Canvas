@@ -1492,8 +1492,8 @@ namespace ImageColorChanger.UI
                 
                 MarkContentAsModified();
                 
-                // 🆕 自动选中下一个未加载图片的区域
-                AutoSelectNextEmptyRegion();
+                // 🆕 自动切换到下一个区域（无论是否已有图片）
+                AutoSelectNextRegion();
             }
             catch
             {
@@ -1504,38 +1504,21 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 自动选中下一个未加载图片的区域
+        /// 自动切换到下一个区域（无论是否已有图片，都循环切换）
         /// </summary>
-        private void AutoSelectNextEmptyRegion()
+        private void AutoSelectNextRegion()
         {
             if (_splitRegionBorders.Count == 0)
                 return;
-                
-            // 从当前选中区域的下一个开始查找
-            int startIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
-            
-            // 循环查找第一个没有图片的区域
-            for (int i = 0; i < _splitRegionBorders.Count; i++)
-            {
-                int checkIndex = (startIndex + i) % _splitRegionBorders.Count;
-                
-                // 如果该区域没有图片，选中它
-                if (!_regionImages.ContainsKey(checkIndex))
-                {
-                    #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextEmptyRegion] 自动选中区域 {checkIndex}（未加载图片）");
-                    #endif
-                    
-                    SelectRegion(checkIndex);
-                    return;
-                }
-            }
-            
-            // 如果所有区域都有图片了，回到第一个区域
+
+            // 计算下一个区域的索引（直接循环到下一个，不检查是否有图片）
+            int nextIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
+
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"✅ [AutoSelectNextEmptyRegion] 所有区域都已加载图片，回到区域 0");
+            //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextRegion] 自动切换到区域 {nextIndex}");
             #endif
-            SelectRegion(0);
+
+            SelectRegion(nextIndex);
         }
         
         /// <summary>
