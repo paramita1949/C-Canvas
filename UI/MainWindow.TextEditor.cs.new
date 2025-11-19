@@ -1,0 +1,60 @@
+// 这是一个临时文件，用于存储简化后的代码
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+
+namespace ImageColorChanger.UI
+{
+    public partial class MainWindow
+    {
+        /// <summary>
+        /// 取消所有文本框的选中状态
+        /// </summary>
+        private void DeselectAllTextBoxes()
+        {
+            foreach (var textBox in _textBoxes)
+            {
+                textBox.SetSelected(false);
+            }
+            _selectedTextBox = null;
+
+            // 关闭所有侧边面板
+            CloseAllSidePanels();
+
+            // 清除焦点
+            Keyboard.ClearFocus();
+            EditorCanvas.Focus();
+        }
+
+        /// <summary>
+        /// 主窗口键盘事件 - 处理ESC键
+        /// </summary>
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                // 优先级：选中编辑框 > 投影状态
+                if (_selectedTextBox != null)
+                {
+                    // 取消编辑框选中状态
+                    DeselectAllTextBoxes();
+                    e.Handled = true;
+                    return;
+                }
+
+                // 检查是否在投影状态
+                if (_projectionManager != null && _projectionManager.IsProjectionActive)
+                {
+                    // 取消投影
+                    _projectionManager.StopProjection();
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            base.OnKeyDown(e);
+        }
+    }
+}

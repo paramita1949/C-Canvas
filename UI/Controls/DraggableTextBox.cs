@@ -511,6 +511,8 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         private void EnterEditMode(bool selectAll = true)
         {
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] EnterEditMode 被调用, selectAll={selectAll}, 当前IsInEditMode={IsInEditMode}");
+
             // 清除占位符文字
             if (_isPlaceholderText)
             {
@@ -525,9 +527,12 @@ namespace ImageColorChanger.UI.Controls
                 _richTextBox.IsHitTestVisible = true;  // 🔧 编辑模式下允许接收鼠标事件
                 _richTextBox.Focus();
 
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] RichTextBox已设置为可编辑并获取焦点");
+
                 if (selectAll)
                 {
                     _richTextBox.SelectAll();
+                    //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 已全选文本");
                 }
             }
         }
@@ -537,8 +542,13 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         public void ExitEditMode()
         {
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] ExitEditMode 开始调用, 当前IsInEditMode={IsInEditMode}");
+
             if (!IsInEditMode)
+            {
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 当前不在编辑模式，直接返回");
                 return;
+            }
 
             // 🔧 退出编辑前，提取并保存富文本样式到 Data.RichTextSpans
             // 这样可以保留用户修改的局部字体、颜色等样式
@@ -557,8 +567,10 @@ namespace ImageColorChanger.UI.Controls
             // 设置 RichTextBox 为只读
             if (_richTextBox != null)
             {
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 设置RichTextBox为只读模式");
                 _richTextBox.IsReadOnly = true;
                 _richTextBox.IsHitTestVisible = false;  // 🔧 只读模式下不拦截鼠标事件
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] RichTextBox状态: IsReadOnly={_richTextBox.IsReadOnly}, IsHitTestVisible={_richTextBox.IsHitTestVisible}");
             }
 
             // 检查是否为空，如果为空则恢复占位符
@@ -567,6 +579,15 @@ namespace ImageColorChanger.UI.Controls
                 Data.Content = DEFAULT_PLACEHOLDER;
                 _isPlaceholderText = true;
                 SyncTextToRichTextBox();
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] ExitEditMode 完成，最终IsInEditMode={IsInEditMode}");
+
+            // 验证状态一致性
+            if (_richTextBox != null)
+            {
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 状态验证: RichTextBox.IsReadOnly={_richTextBox.IsReadOnly}, IsHitTestVisible={_richTextBox.IsHitTestVisible}");
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 状态验证: 计算的IsInEditMode={IsInEditMode}");
             }
         }
 
@@ -583,13 +604,21 @@ namespace ImageColorChanger.UI.Controls
                 var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
                 bool isDoubleClick = timeSinceLastClick < DOUBLE_CLICK_INTERVAL;
                 _lastClickTime = now;
-                
+
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 鼠标点击: 时间间隔={timeSinceLastClick:F0}ms, 双击={isDoubleClick}, 当前编辑模式={IsInEditMode}");
+
+                if (_richTextBox != null)
+                {
+                    //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] RichTextBox状态: IsReadOnly={_richTextBox.IsReadOnly}, IsHitTestVisible={_richTextBox.IsHitTestVisible}, IsFocused={_richTextBox.IsFocused}");
+                }
+
                 // 如果是双击，进入编辑模式
                 if (isDoubleClick)
                 {
+                    //System.Diagnostics.Debug.WriteLine("[DraggableTextBox] 检测到双击，进入编辑模式");
                     Focus();
                     SetSelected(true);
-                    
+
                     // 双击时：如果是占位符或新建的框，全选
                     bool shouldSelectAll = _isPlaceholderText || _isNewlyCreated;
                     EnterEditMode(selectAll: shouldSelectAll);
@@ -601,12 +630,17 @@ namespace ImageColorChanger.UI.Controls
                 // 如果已经在编辑模式，不做处理
                 if (IsInEditMode)
                 {
+                    //System.Diagnostics.Debug.WriteLine("[DraggableTextBox] 已在编辑模式，忽略点击");
                     return;
                 }
 
-                // 单击：选中控件
-                Focus();
+                //System.Diagnostics.Debug.WriteLine("[DraggableTextBox] 检测到单击，选中并启动拖拽");
+
+                // 单击：选中控件（但不给RichTextBox焦点）
                 SetSelected(true);
+
+                // 只在选中后才给整个控件焦点（防止RichTextBox获得焦点）
+                base.Focus();
 
                 // 启动拖拽
                 _isDragging = true;
@@ -814,12 +848,21 @@ namespace ImageColorChanger.UI.Controls
 
         private void OnGotFocus(object sender, System.Windows.RoutedEventArgs e)
         {
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] OnGotFocus 触发, 当前IsSelected={IsSelected}, IsInEditMode={IsInEditMode}");
+
             SetSelected(true);
+
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] OnGotFocus: 设置选中状态完成");
         }
 
         private void OnLostFocus(object sender, System.Windows.RoutedEventArgs e)
         {
-            // 不在这里取消选中，由外部控制
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] OnLostFocus 触发, 当前IsSelected={IsSelected}, IsInEditMode={IsInEditMode}");
+
+            // 移除自动退出编辑模式的逻辑
+            // 编辑模式只通过ESC键、主窗口取消选中、或点击其他编辑框来退出
+            // 这样避免焦点事件时序冲突
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] OnLostFocus: 不自动退出编辑模式，避免时序冲突");
         }
 
         public void SetSelected(bool selected)
@@ -882,6 +925,14 @@ namespace ImageColorChanger.UI.Controls
             {
                 if (e.Key == WpfKey.Escape)
                 {
+                    //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] ESC键按下，当前编辑模式={IsInEditMode}");
+
+                    // 如果在编辑模式，先退出编辑模式
+                    if (IsInEditMode)
+                    {
+                        ExitEditMode();
+                    }
+
                     System.Windows.Input.Keyboard.ClearFocus();
                     Focus();
                     e.Handled = true;
@@ -1305,6 +1356,26 @@ namespace ImageColorChanger.UI.Controls
             // 🔧 应用边框和背景样式到 UI
             ApplyBorderStyle();
             ApplyBackgroundStyle();
+
+            // 🔧 应用阴影样式到选中文本（修复阴影在有选中文本时无效的问题）
+            if (hasContainerStyleParams && (shadowColor != null || shadowOffsetX.HasValue ||
+                shadowOffsetY.HasValue || shadowBlur.HasValue || shadowOpacity.HasValue))
+            {
+                // 更新阴影数据到 Data 对象
+                if (shadowColor != null)
+                    Data.ShadowColor = shadowColor;
+                if (shadowOffsetX.HasValue)
+                    Data.ShadowOffsetX = shadowOffsetX.Value;
+                if (shadowOffsetY.HasValue)
+                    Data.ShadowOffsetY = shadowOffsetY.Value;
+                if (shadowBlur.HasValue)
+                    Data.ShadowBlur = shadowBlur.Value;
+                if (shadowOpacity.HasValue)
+                    Data.ShadowOpacity = shadowOpacity.Value;
+
+                // 应用阴影样式到 UI
+                ApplyShadowStyle();
+            }
 
             // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
             ContentChanged?.Invoke(this, Data.Content);

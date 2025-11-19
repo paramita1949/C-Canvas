@@ -1575,8 +1575,9 @@
             </Grid>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
-                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0" 
+                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0"
                       Focusable="True" PreviewKeyDown="TextEditorPanel_KeyDown"
+                      PreviewMouseDown="TextEditorPanel_PreviewMouseDown"
                       Panel.ZIndex="100">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
@@ -2431,7 +2432,7 @@
                             <!-- 🆕 边框设置侧边面板 -->
                             <Popup x:Name="BorderSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2450,7 +2451,7 @@
                             <!-- 🆕 背景设置侧边面板 -->
                             <Popup x:Name="BackgroundSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2469,7 +2470,7 @@
                             <!-- 🆕 阴影设置侧边面板 -->
                             <Popup x:Name="ShadowSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2488,7 +2489,7 @@
                             <!-- 🆕 间距设置侧边面板 -->
                             <Popup x:Name="SpacingSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"

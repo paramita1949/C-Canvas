@@ -236,8 +236,8 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-            // 🆕 优先应用到选中文本，无选择时应用到整个文本框
-            _targetTextBox.ApplyStyleToSelection(
+            // 背景样式始终应用到整个文本框，不需要选中文字
+            _targetTextBox.ApplyStyle(
                 backgroundColor: _currentColor,
                 backgroundRadius: _cornerRadius,
                 backgroundOpacity: _opacity

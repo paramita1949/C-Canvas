@@ -790,12 +790,12 @@ namespace ImageColorChanger.UI
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 单图导入
-            var singleImageItem = new MenuItem { Header = "单图" };
+            var singleImageItem = new MenuItem { Header = "单背景图" };
             singleImageItem.Click += (s, args) => ImportSingleImageAsSlide();
             contextMenu.Items.Add(singleImageItem);
 
             // 多图导入
-            var multiImageItem = new MenuItem { Header = "多图" };
+            var multiImageItem = new MenuItem { Header = "多背景图" };
             multiImageItem.Click += async (s, args) => await ImportMultipleImagesAsSlidesAsync();
             contextMenu.Items.Add(multiImageItem);
 
@@ -2720,14 +2720,17 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("BorderSettingsPopup");
 
             // 绑定目标文本框
             BorderSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示边框设置面板
             BorderSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2738,14 +2741,17 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("BackgroundSettingsPopup");
 
             // 绑定目标文本框
             BackgroundSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示背景设置面板
             BackgroundSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2753,17 +2759,31 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnFloatingShadow_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedTextBox == null)
-                return;
+            System.Diagnostics.Debug.WriteLine($"🔘 [BtnFloatingShadow_Click] 开始处理阴影按钮点击");
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            if (_selectedTextBox == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"   - ❌ _selectedTextBox 为 null，返回");
+                return;
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"   - 🔄 关闭其他侧边面板（不包含阴影面板）");
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("ShadowSettingsPopup");
 
             // 绑定目标文本框
+            System.Diagnostics.Debug.WriteLine($"   - 🔗 绑定目标文本框");
             ShadowSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示阴影设置面板
+            //System.Diagnostics.Debug.WriteLine($"   - 📋 显示阴影设置面板");
             ShadowSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            System.Diagnostics.Debug.WriteLine($"   - 🎯 设置 e.Handled = true");
+            e.Handled = true;
+
+            System.Diagnostics.Debug.WriteLine($"🔘 [BtnFloatingShadow_Click] 处理完成");
         }
 
         /// <summary>
@@ -2774,14 +2794,17 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("SpacingSettingsPopup");
 
             // 绑定目标文本框
             SpacingSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示间距设置面板
             SpacingSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2809,12 +2832,120 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CloseAllSidePanels()
         {
+            // 添加调用栈信息来追踪调用来源
+            var stackTrace = new System.Diagnostics.StackTrace();
+            var callingMethod = stackTrace.GetFrame(1)?.GetMethod()?.Name ?? "Unknown";
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseAllSidePanels] 开始关闭所有侧边面板");
+            //System.Diagnostics.Debug.WriteLine($"   - 调用来源: {callingMethod}");
+            //System.Diagnostics.Debug.WriteLine($"   - BorderSettingsPopup.IsOpen: {BorderSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - BackgroundSettingsPopup.IsOpen: {BackgroundSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - ShadowSettingsPopup.IsOpen: {ShadowSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - SpacingSettingsPopup.IsOpen: {SpacingSettingsPopup.IsOpen}");
+
             BorderSettingsPopup.IsOpen = false;
             BackgroundSettingsPopup.IsOpen = false;
             ShadowSettingsPopup.IsOpen = false;
             SpacingSettingsPopup.IsOpen = false;
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseAllSidePanels] 所有面板已关闭");
         }
 
+        /// <summary>
+        /// 关闭其他侧边面板（保留指定的面板）
+        /// </summary>
+        private void CloseOtherSidePanels(string keepPopupName)
+        {
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseOtherSidePanels] 关闭其他面板，保留: {keepPopupName}");
+
+            if (keepPopupName != "BorderSettingsPopup")
+            {
+                BorderSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "BackgroundSettingsPopup")
+            {
+                BackgroundSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "ShadowSettingsPopup")
+            {
+                ShadowSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "SpacingSettingsPopup")
+            {
+                SpacingSettingsPopup.IsOpen = false;
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseOtherSidePanels] 其他面板已关闭");
+        }
+
+        
+        
+        /// <summary>
+        /// 取消所有文本框的选中状态
+        /// </summary>
+        public void DeselectAllTextBoxes()
+        {
+            DeselectAllTextBoxes(false);
+        }
+
+        /// <summary>
+        /// 取消所有文本框的选中状态（可选择是否关闭面板）
+        /// </summary>
+        /// <param name="closePanels">是否关闭所有侧边面板</param>
+        public void DeselectAllTextBoxes(bool closePanels)
+        {
+            foreach (var textBox in _textBoxes)
+            {
+                // 如果文本框在编辑模式，先退出编辑模式
+                if (textBox.IsInEditMode)
+                {
+                    textBox.ExitEditMode();
+                }
+                textBox.SetSelected(false);
+            }
+            _selectedTextBox = null;
+
+            // 根据参数决定是否关闭侧边面板
+            if (closePanels)
+            {
+                // 关闭所有侧边面板
+                CloseAllSidePanels();
+            }
+
+            // 清除焦点
+            Keyboard.ClearFocus();
+            EditorCanvas.Focus();
+        }
+
+        /// <summary>
+        /// 检查是否有选中的文本框
+        /// </summary>
+        /// <returns>是否有选中的文本框</returns>
+        public bool HasSelectedTextBox()
+        {
+            return _selectedTextBox != null;
+        }
+
+        /// <summary>
+        /// 主窗口键盘事件 - 处理ESC键
+        /// 注意：ESC键现在主要由全局ShortcutActionHandler统一处理
+        /// </summary>
+        protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
+        {
+            //System.Diagnostics.Debug.WriteLine($"🔑 [OnKeyDown] 按键: {e.Key}, Handled: {e.Handled}");
+
+            if (e.Key == Key.Escape)
+            {
+                //System.Diagnostics.Debug.WriteLine($"🔑 [ESC] 主窗口检测到ESC键，交由全局处理器处理");
+                // ESC键现在由全局ShortcutActionHandler统一处理，这里不再重复处理
+                // 这样确保了所有ESC键处理逻辑的一致性
+            }
+
+            base.OnKeyDown(e);
+        }
+
+        
+        
         /// <summary>
         /// 侧边面板打开事件
         /// </summary>
@@ -3112,44 +3243,41 @@ namespace ImageColorChanger.UI
         #region 画布事件
 
         /// <summary>
-        /// 画布点击（取消选中和退出编辑状态）
+        /// 画布点击（处理编辑区域内的空白点击）
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.OriginalSource == EditorCanvas)
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
+
+            // 这个事件只有在EditorCanvas区域内点击时才会触发
+            // 所以只要不是点击在文本框内，就取消选中
+            bool clickedOnTextBox = false;
+
+            // 检查是否点击在任意文本框内
+            foreach (var textBox in _textBoxes)
             {
-                // 🔧 优化：先检查是否有正在编辑的文本框，如果有则退出编辑状态
-                bool hasEditingTextBox = false;
-                foreach (var textBox in _textBoxes)
+                var position = e.GetPosition(textBox);
+                //System.Diagnostics.Debug.WriteLine($"   - 检查文本框 {textBox.Name}，位置: ({position.X:F1}, {position.Y:F1})");
+
+                if (position.X >= 0 && position.Y >= 0 &&
+                    position.X <= textBox.ActualWidth &&
+                    position.Y <= textBox.ActualHeight)
                 {
-                    if (textBox.IsSelected && textBox.IsInEditMode)
-                    {
-                        // 使用新的ExitEditMode方法退出编辑状态
-                        textBox.ExitEditMode();
-                        hasEditingTextBox = true;
-                        //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：退出文本编辑状态");
-                    }
-                }
-                
-                // 如果没有正在编辑的文本框，则取消所有选中状态
-                if (!hasEditingTextBox)
-                {
-                    // 取消所有文本框的选中状态
-                    foreach (var textBox in _textBoxes)
-                    {
-                        textBox.SetSelected(false);
-                    }
-                    _selectedTextBox = null;
-                    
-                    // 清除焦点
-                    Keyboard.ClearFocus();
-                    EditorCanvas.Focus();
-                    
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
-//#endif
+                    clickedOnTextBox = true;
+                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，保持选中状态");
+                    break;
                 }
             }
+
+            // 如果点击在编辑区域内但没有点击在文本框内，则取消所有文本框选中状态
+            if (!clickedOnTextBox)
+            {
+                //System.Diagnostics.Debug.WriteLine($"   - ❌ 点击在编辑区域空白位置，取消所有文本框选中状态");
+                DeselectAllTextBoxes(true); // 关闭侧边面板（点击空白区域时关闭）
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 处理完成");
         }
         
         /// <summary>
@@ -5263,6 +5391,60 @@ namespace ImageColorChanger.UI
         }
 
         #endregion
+
+        /// <summary>
+        /// 文本编辑器面板鼠标点击事件（只在点击编辑区域空白处时取消编辑框选中状态）
+        /// </summary>
+        private void TextEditorPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // 只在文本编辑器可见时处理
+            if (TextEditorPanel.Visibility != Visibility.Visible)
+                return;
+
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [TextEditorPanel_PreviewMouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
+
+            // 检查点击是否在 DraggableTextBox 内部
+            var clickedElement = e.OriginalSource as DependencyObject;
+            while (clickedElement != null)
+            {
+                if (clickedElement is DraggableTextBox)
+                {
+                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，不处理");
+                    // 点击在文本框内部，不处理（让文本框自己处理）
+                    return;
+                }
+
+                // 检查是否点击在工具栏、面板等控件上
+                if (clickedElement is FrameworkElement fe)
+                {
+                    if (fe.Name?.Contains("Toolbar") == true ||
+                        fe.Name?.Contains("Panel") == true ||
+                        fe.Name?.Contains("Popup") == true ||
+                        fe.Name?.Contains("Button") == true ||
+                        fe.Name?.Contains("Border") == true)
+                    {
+                        //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在工具栏/按钮上: {fe.Name}，不处理");
+                        return;
+                    }
+                }
+
+                // 🔧 修复：只对 Visual 或 Visual3D 使用 VisualTreeHelper.GetParent
+                // 对于非 Visual 元素（如 Run、Paragraph 等文档元素），使用 LogicalTreeHelper
+                if (clickedElement is Visual || clickedElement is System.Windows.Media.Media3D.Visual3D)
+                {
+                    clickedElement = VisualTreeHelper.GetParent(clickedElement);
+                }
+                else
+                {
+                    clickedElement = LogicalTreeHelper.GetParent(clickedElement);
+                }
+            }
+
+            // 只有当点击在EditorCanvas内的空白区域时才处理
+            // 这个判断通过EditorCanvas_MouseDown事件来处理，这里不再重复处理
+            //System.Diagnostics.Debug.WriteLine($"   - ⚠️ 点击在其他区域，交由EditorCanvas_MouseDown处理");
+        }
 
         /// <summary>
         /// 文本编辑器面板键盘事件（处理PageUp/PageDown切换幻灯片）

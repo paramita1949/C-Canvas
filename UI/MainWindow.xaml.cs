@@ -206,7 +206,8 @@ namespace ImageColorChanger.UI
             this.Deactivated += MainWindow_Deactivated;
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
-            
+
+                        
             // 🔐 初始化认证服务
             InitializeAuthService();
         }

@@ -381,9 +381,9 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⚠️ [KeyDown] 未处理的按键: Key={e.Key}");
-#endif
+//#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"⚠️ [KeyDown] 未处理的按键: Key={e.Key}");
+//#endif
         }
 
         /// <summary>
