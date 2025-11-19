@@ -1258,9 +1258,7 @@ namespace ImageColorChanger.UI.Controls
                 selection.ApplyPropertyValue(
                     System.Windows.Documents.TextElement.FontFamilyProperty,
                     fontFamilyObj);
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用字体对象: {fontFamilyObj.Source}");
-#endif
+              // System.Diagnostics.Debug.WriteLine($"  ✅ 应用字体对象: {fontFamilyObj.Source}");
             }
             else if (fontFamily != null)
             {

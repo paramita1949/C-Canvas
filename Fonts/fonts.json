@@ -150,11 +150,27 @@
       "name": "开源字体",
       "fonts": [
         {
-          "name": "思源宋体",
-          "file": "Chinese/思源宋体-Regular.ttf",
-          "family": "思源宋体",
+          "name": "思源宋体 CN",
+          "file": "Chinese/思源宋体 CN.otf",
+          "family": "思源宋体 CN",
           "weight": "Regular",
-          "preview": "思源宋体 ABCabc 123",
+          "preview": "思源宋体 CN ABCabc 123",
+          "isFavorite": true
+        },
+        {
+          "name": "思源宋体 CN SemiBold",
+          "file": "Chinese/思源宋体 CN SemiBold.otf",
+          "family": "思源宋体 CN",
+          "weight": "SemiBold",
+          "preview": "思源宋体 CN SemiBold ABCabc 123",
+          "isFavorite": false
+        },
+        {
+          "name": "阿里巴巴普惠体 Light",
+          "file": "Chinese/阿里巴巴普惠体 Light.ttf",
+          "family": "阿里巴巴普惠体",
+          "weight": "Light",
+          "preview": "阿里巴巴普惠体 Light ABCabc 123",
           "isFavorite": true
         }
       ]
@@ -163,44 +179,12 @@
       "name": "艺术字体",
       "fonts": [
         {
-          "name": "阿里巴巴普惠体",
-          "file": "Chinese/阿里巴巴普惠体.ttf",
-          "family": "阿里巴巴普惠体",
-          "weight": "Regular",
-          "preview": "阿里巴巴普惠体 ABCabc 123",
-          "isFavorite": true
-        },
-        {
-          "name": "站酷高端黑",
-          "file": "Chinese/站酷高端黑.ttf",
-          "family": "站酷高端黑",
-          "weight": "Regular",
-          "preview": "站酷高端黑 ABCabc 123",
-          "isFavorite": true
-        },
-        {
-          "name": "站酷小薇LOGO体",
-          "file": "Chinese/站酷小薇LOGO体.ttf",
-          "family": "站酷小薇LOGO体",
-          "weight": "Regular",
-          "preview": "站酷小薇LOGO体（圆润可爱）",
-          "isFavorite": false
-        },
-        {
-          "name": "站酷庆科黄油体",
-          "file": "Chinese/站酷庆科黄油体.ttf",
-          "family": "站酷庆科黄油体",
-          "weight": "Regular",
-          "preview": "站酷庆科黄油体（活泼）",
-          "isFavorite": false
-        },
-        {
           "name": "站酷文艺体",
           "file": "Chinese/站酷文艺体.ttf",
           "family": "站酷文艺体",
           "weight": "Regular",
           "preview": "站酷文艺体（文艺范）",
-          "isFavorite": false
+          "isFavorite": true
         },
         {
           "name": "快看世界体",
@@ -211,11 +195,35 @@
           "isFavorite": false
         },
         {
-          "name": "胡晓波真帅体",
-          "file": "Chinese/胡晓波真帅体.otf",
-          "family": "胡晓波真帅体",
+          "name": "抖音美好体",
+          "file": "Chinese/抖音美好体.otf",
+          "family": "抖音美好体",
           "weight": "Regular",
-          "preview": "胡晓波真帅体（个性）",
+          "preview": "抖音美好体（潮流时尚）",
+          "isFavorite": true
+        },
+        {
+          "name": "优设标题黑",
+          "file": "Chinese/优设标题黑.ttf",
+          "family": "优设标题黑",
+          "weight": "Regular",
+          "preview": "优设标题黑（醒目标题）",
+          "isFavorite": false
+        },
+        {
+          "name": "临海体",
+          "file": "Chinese/临海体.ttf",
+          "family": "临海体",
+          "weight": "Regular",
+          "preview": "临海体（清新文艺）",
+          "isFavorite": false
+        },
+        {
+          "name": "金山云技术体",
+          "file": "Chinese/金山云技术体.ttf",
+          "family": "金山云技术体",
+          "weight": "Regular",
+          "preview": "金山云技术体（科技感）",
           "isFavorite": false
         }
       ]
@@ -229,7 +237,7 @@
           "family": "江西拙楷",
           "weight": "Regular",
           "preview": "江西拙楷（手写楷书）",
-          "isFavorite": false
+          "isFavorite": true
         },
         {
           "name": "问藏书房",
@@ -240,24 +248,11 @@
           "isFavorite": false
         },
         {
-          "name": "卓健橄榄简体",
-          "file": "Chinese/卓健橄榄简体.ttf",
-          "family": "卓健橄榄简体",
+          "name": "方正楷体简体",
+          "file": "Chinese/方正楷体简体.ttf",
+          "family": "方正楷体简体",
           "weight": "Regular",
-          "preview": "卓健橄榄简体（流畅）",
-          "isFavorite": false
-        }
-      ]
-    },
-    {
-      "name": "特殊字体",
-      "fonts": [
-        {
-          "name": "宝宝字帖拼音音标",
-          "file": "Chinese/宝宝字帖拼音音标.ttf",
-          "family": "宝宝字帖拼音音标",
-          "weight": "Regular",
-          "preview": "宝宝字帖拼音音标（儿童教学）",
+          "preview": "方正楷体简体（传统楷体）",
           "isFavorite": false
         }
       ]
