@@ -1157,7 +1157,7 @@ namespace ImageColorChanger.UI
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [首次进入幻灯片] 加载第一个项目失败: {ex.Message}");
                 #endif
-                ShowStatus("⚠️ 加载项目失败，请手动选择");
+                ShowStatus($"⚠️ 加载项目失败: {ex.Message}");
             }
         }
 
