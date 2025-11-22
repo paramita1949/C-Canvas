@@ -1,0 +1,440 @@
+name: C#/WPF构建和发布
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: ImageColorChanger
+  OUTPUT_NAME: CanvasCast
+  DOTNET_VERSION: '8.0.x'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 编译和打包
+    runs-on: windows-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 设置 .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 还原依赖
+      run: dotnet restore
+    
+    - name: 编译项目
+      run: dotnet build ImageColorChanger.csproj --configuration Release --no-restore
+    
+    - name: 发布项目
+      run: dotnet publish ImageColorChanger.csproj -c Release -r win-x64 -o publish --self-contained false
+    
+    - name: 验证libvlc平台
+      shell: pwsh
+      run: |
+        echo "=== 验证libvlc平台 ==="
+        if (Test-Path "publish\libvlc") {
+          echo "libvlc目录存在，检查子目录："
+          Get-ChildItem "publish\libvlc" -Directory | ForEach-Object { 
+            echo "  - $($_.Name)"
+          }
+          
+          if (Test-Path "publish\libvlc\win-x86") {
+            echo "❌ 错误: win-x86目录仍然存在！"
+            exit 1
+          } else {
+            echo "✅ win-x86目录已正确删除"
+          }
+          
+          if (Test-Path "publish\libvlc\win-x64") {
+            echo "✅ win-x64目录存在（正确）"
+          } else {
+            echo "⚠️ 警告: win-x64目录不存在"
+          }
+        } else {
+          echo "⚠️ 警告: libvlc目录不存在"
+        }
+    
+    - name: 获取版本号
+      id: get_version
+      shell: pwsh
+      run: |
+        # 从 .csproj 中提取版本号
+        $csprojContent = Get-Content "ImageColorChanger.csproj" -Raw
+        if ($csprojContent -match '<Version>([\d.]+)</Version>') {
+          $version = $matches[1]
+          $appVersion = "V$version"
+          echo "从 .csproj 提取到版本号: $appVersion"
+        } else {
+          $appVersion = "V5.3.5"
+          echo "⚠️ 无法从 .csproj 提取版本号，使用默认值: $appVersion"
+        }
+        
+        # 生成或获取 tag
+        if ($env:GITHUB_REF -like 'refs/tags/*') {
+          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          echo "检测到推送 tag: $tag"
+        } else {
+          $runNumber = $env:GITHUB_RUN_NUMBER
+          $tagBase = "auto-$runNumber"
+
+          try {
+            $shortSha = (git rev-parse --short HEAD).Trim()
+          } catch {
+            $shortSha = ''
+            echo "警告: 无法获取提交哈希，tag 将不包含哈希"
+          }
+
+          if ($shortSha) {
+            $tag = "$tagBase-$shortSha"
+          } else {
+            $tag = $tagBase
+          }
+          
+          echo "未检测到外部 tag，自动生成 tag: $tag"
+        }
+        
+        # 组合完整版本号: V5.2.8-auto-104-6548a7b
+        $fullVersion = "$appVersion-$tag"
+
+        echo "app_version=$appVersion" >> $env:GITHUB_OUTPUT
+        echo "tag=$tag" >> $env:GITHUB_OUTPUT
+        echo "full_version=$fullVersion" >> $env:GITHUB_OUTPUT
+        echo ""
+        echo "=== 版本信息 ==="
+        echo "应用版本: $appVersion"
+        echo "构建标签: $tag"
+        echo "完整版本: $fullVersion"
+    
+    - name: 验证构建产物
+      shell: pwsh
+      run: |
+        echo "=== 验证构建产物 ==="
+        echo "当前工作目录: $pwd"
+        echo ""
+        
+        # 检查主程序
+        if (Test-Path "publish\CanvasCast.exe") {
+          echo "✅ 主程序验证成功"
+          $exeInfo = Get-Item "publish\CanvasCast.exe"
+          echo "主程序大小: $([math]::Round($exeInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "❌ 构建产物验证失败 - CanvasCast.exe 不存在"
+          echo "publish目录内容:"
+          Get-ChildItem "publish" -ErrorAction SilentlyContinue | ForEach-Object { echo "  - $($_.Name)" }
+          exit 1
+        }
+        
+        # 检查并处理PAK文件
+        if (Test-Path "publish\Resources.pak") {
+          echo "✅ PAK文件已存在于publish目录"
+          $pakInfo = Get-Item "publish\Resources.pak"
+          echo "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ PAK文件不存在于publish目录，尝试从bin目录复制..."
+          if (Test-Path "bin\Release\net8.0-windows\Resources.pak") {
+            Copy-Item "bin\Release\net8.0-windows\Resources.pak" "publish\Resources.pak"
+            echo "✅ PAK文件已从bin目录复制到publish根目录"
+            $pakInfo = Get-Item "publish\Resources.pak"
+            echo "PAK文件大小: $([math]::Round($pakInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: bin目录中也没有PAK文件"
+            exit 1
+          }
+        }
+        
+        # 检查并处理圣经数据库文件
+        echo "=== 处理圣经数据库文件 ==="
+        
+        # 处理 bible.db
+        if (Test-Path "publish\data\assets\bible.db") {
+          echo "✅ bible.db 已存在"
+          $dbInfo = Get-Item "publish\data\assets\bible.db"
+          echo "bible.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ bible.db 不存在于publish目录，尝试复制..."
+          if (Test-Path "data\assets\bible.db") {
+            New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
+            Copy-Item "data\assets\bible.db" "publish\data\assets\bible.db"
+            echo "✅ bible.db 已复制到publish目录"
+            $dbInfo = Get-Item "publish\data\assets\bible.db"
+            echo "bible.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: 源代码中也没有 bible.db 文件"
+            exit 1
+          }
+        }
+        
+        # 处理 hehebenfanti.db
+        if (Test-Path "publish\data\assets\hehebenfanti.db") {
+          echo "✅ hehebenfanti.db 已存在"
+          $dbInfo = Get-Item "publish\data\assets\hehebenfanti.db"
+          echo "hehebenfanti.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ hehebenfanti.db 不存在于publish目录，尝试复制..."
+          if (Test-Path "data\assets\hehebenfanti.db") {
+            New-Item -ItemType Directory -Path "publish\data\assets" -Force | Out-Null
+            Copy-Item "data\assets\hehebenfanti.db" "publish\data\assets\hehebenfanti.db"
+            echo "✅ hehebenfanti.db 已复制到publish目录"
+            $dbInfo = Get-Item "publish\data\assets\hehebenfanti.db"
+            echo "hehebenfanti.db 大小: $([math]::Round($dbInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: 源代码中也没有 hehebenfanti.db 文件"
+            exit 1
+          }
+        }
+        
+        # 删除publish目录中的bin文件夹（如果存在）
+        if (Test-Path "publish\bin") {
+          echo "⚠️ 发现publish\bin目录，正在删除..."
+          Remove-Item "publish\bin" -Recurse -Force
+          echo "✅ 已删除publish\bin目录"
+        }
+        
+        echo ""
+        echo "=== publish目录最终内容 ==="
+        Get-ChildItem "publish" -Name | ForEach-Object { echo "  - $_" }
+        if (Test-Path "publish\data") {
+          echo ""
+          echo "=== data目录内容 ==="
+          Get-ChildItem "publish\data" -Recurse -Name | ForEach-Object { echo "  - $_" }
+        }
+    
+    - name: 创建发布包
+      shell: pwsh
+      run: |
+        $fullVersion = "${{ steps.get_version.outputs.full_version }}"
+        $tag = "${{ steps.get_version.outputs.tag }}"
+        $fullZipName = "cast.zip"
+        $updateZipName = "Canvas-Update.zip"
+        
+        # ========== 创建完整包 ==========
+        echo "=== 创建完整包 ==="
+        Compress-Archive -Path publish\* -DestinationPath $fullZipName
+        
+        # 验证完整包
+        if (Test-Path $fullZipName) {
+          $size = (Get-Item $fullZipName).Length / 1MB
+          echo "✅ 完整包创建成功"
+          echo "包名称: $fullZipName"
+          echo "包大小: $([math]::Round($size, 2)) MB"
+        } else {
+          echo "❌ 完整包创建失败"
+          exit 1
+        }
+        
+        # ========== 创建增量更新包 ==========
+        echo ""
+        echo "=== 创建增量更新包 ==="
+        
+        # 创建临时目录存放更新文件
+        $updateDir = "update_temp"
+        New-Item -ItemType Directory -Path $updateDir -Force | Out-Null
+        
+        # 复制核心文件到临时目录
+        $exeFile = "publish\CanvasCast.exe"
+        $dllFile = "publish\CanvasCast.dll"
+        $pakFile = "publish\Resources.pak"
+        
+        if (Test-Path $exeFile) {
+          Copy-Item $exeFile $updateDir\
+          $exeSize = (Get-Item $exeFile).Length / 1MB
+          echo "✅ 已添加 CanvasCast.exe ($([math]::Round($exeSize, 2)) MB)"
+        } else {
+          echo "❌ 错误: CanvasCast.exe 不存在"
+          exit 1
+        }
+        
+        if (Test-Path $dllFile) {
+          Copy-Item $dllFile $updateDir\
+          $dllSize = (Get-Item $dllFile).Length / 1MB
+          echo "✅ 已添加 CanvasCast.dll ($([math]::Round($dllSize, 2)) MB)"
+        } else {
+          echo "❌ 错误: CanvasCast.dll 不存在"
+          exit 1
+        }
+        
+        if (Test-Path $pakFile) {
+          Copy-Item $pakFile $updateDir\
+          $pakSize = (Get-Item $pakFile).Length / 1MB
+          echo "✅ 已添加 Resources.pak ($([math]::Round($pakSize, 2)) MB)"
+        } else {
+          echo "⚠️ 警告: Resources.pak 不存在，继续..."
+        }
+        
+        # 压缩更新包
+        Compress-Archive -Path $updateDir\* -DestinationPath $updateZipName
+        
+        # 验证更新包
+        if (Test-Path $updateZipName) {
+          $updateSize = (Get-Item $updateZipName).Length / 1MB
+          echo "✅ 增量更新包创建成功"
+          echo "包名称: $updateZipName"
+          echo "包大小: $([math]::Round($updateSize, 2)) MB"
+        } else {
+          echo "❌ 增量更新包创建失败"
+          exit 1
+        }
+        
+        # 清理临时目录
+        Remove-Item $updateDir -Recurse -Force
+        
+        # ========== 输出统计信息 ==========
+        echo ""
+        echo "=== 打包完成统计 ==="
+        echo "完整包: $fullZipName - $([math]::Round((Get-Item $fullZipName).Length / 1MB, 2)) MB"
+        echo "更新包: $updateZipName - $([math]::Round((Get-Item $updateZipName).Length / 1MB, 2)) MB"
+        $ratio = ((Get-Item $updateZipName).Length / (Get-Item $fullZipName).Length) * 100
+        echo "更新包仅为完整包的 $([math]::Round($ratio, 1))%"
+        
+        # 输出文件名供后续步骤使用
+        echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
+        echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
+      id: create_package
+    
+    - name: 上传完整包
+      uses: actions/upload-artifact@v4
+      with:
+        name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
+        path: ${{ steps.create_package.outputs.full_zip_name }}
+        retention-days: 30
+
+    - name: 上传更新包
+      uses: actions/upload-artifact@v4
+      with:
+        name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
+        path: ${{ steps.create_package.outputs.update_zip_name }}
+        retention-days: 30
+
+    - name: 上传DLL原文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: CanvasCast-DLL-${{ steps.get_version.outputs.full_version }}
+        path: publish/CanvasCast.dll
+        retention-days: 30
+    
+    - name: 调试Release信息
+      shell: pwsh
+      run: |
+        echo "=== Release调试信息 ==="
+        echo "应用版本: ${{ steps.get_version.outputs.app_version }}"
+        echo "构建标签: ${{ steps.get_version.outputs.tag }}"
+        echo "完整版本: ${{ steps.get_version.outputs.full_version }}"
+        echo ""
+        echo "完整包: ${{ steps.create_package.outputs.full_zip_name }}"
+        echo "完整包存在: $(Test-Path '${{ steps.create_package.outputs.full_zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.full_zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.full_zip_name }}').Length / 1MB
+          echo "完整包大小: $([math]::Round($size, 2)) MB"
+        }
+        echo ""
+        echo "更新包: ${{ steps.create_package.outputs.update_zip_name }}"
+        echo "更新包存在: $(Test-Path '${{ steps.create_package.outputs.update_zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.update_zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.update_zip_name }}').Length / 1MB
+          echo "更新包大小: $([math]::Round($size, 2)) MB"
+        }
+        echo "======================"
+    
+    - name: 验证上传文件
+      shell: pwsh
+      run: |
+        echo "=== 验证即将上传的文件 ==="
+        $files = @(
+          "${{ steps.create_package.outputs.full_zip_name }}",
+          "${{ steps.create_package.outputs.update_zip_name }}",
+          "publish/CanvasCast.dll"
+        )
+        foreach ($file in $files) {
+          if (Test-Path $file) {
+            echo "✅ $file"
+          } else {
+            echo "❌ 文件不存在: $file"
+          }
+        }
+    
+    - name: 创建 GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ${{ steps.create_package.outputs.full_zip_name }}
+          ${{ steps.create_package.outputs.update_zip_name }}
+          publish/CanvasCast.dll
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        name: 咏慕投影 ${{ steps.get_version.outputs.full_version }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## 🎉 咏慕投影 ${{ steps.get_version.outputs.full_version }}
+
+          ### 📦 下载说明
+
+          本次发布提供三种文件，请根据需要选择：
+
+          #### 🆕 新用户 - 完整安装包
+          - 📥 下载 `cast.zip`
+          - 📂 解压到任意目录
+          - ▶️ 运行 `CanvasCast.exe`
+
+          #### 🔄 老用户 - 增量更新（推荐）
+          - 📥 下载 `Canvas-Update.zip`
+          - 📂 解压得到 `CanvasCast.exe`、`CanvasCast.dll` 和 `Resources.pak`
+          - 🔁 覆盖原程序目录中的同名文件
+          - ▶️ 重启程序即可
+
+          #### 🔧 开发者 - DLL原文件
+          - 📥 下载 `CanvasCast.dll` (单独文件)
+          - 🔁 直接替换原程序目录中的 `CanvasCast.dll`
+          - ▶️ 适用于仅代码逻辑更新的场景
+
+          > **提示**:
+          > - 增量更新包包含完整的核心文件（EXE、DLL、PAK）
+          > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
+          > - 如果包含资源更新，需要同时替换 `Resources.pak`
+          > - 如果主程序有更新，需要替换 `CanvasCast.exe`
+          > - DLL原文件未经过代码保护，仅供开发调试使用
+
+          ### ⚙️ 系统要求
+          - Windows 10 或更高版本
+          - .NET 8.0 Runtime (如未安装会自动提示下载)
+
+          ### 📝 更新日志
+          请查看下方自动生成的变更记录
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 构建摘要
+      shell: pwsh
+      run: |
+        echo "### ✅ 构建成功" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **完整版本**: ${{ steps.get_version.outputs.full_version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **应用版本**: ${{ steps.get_version.outputs.app_version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **构建标签**: ${{ steps.get_version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "### 📦 发布包" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+
+        $fullSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.full_zip_name }}").Length / 1MB, 2)
+        $updateSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.update_zip_name }}").Length / 1MB, 2)
+        $dllSize = [math]::Round((Get-Item "publish/CanvasCast.dll").Length / 1MB, 2)
+        $updateRatio = [math]::Round(($updateSize / $fullSize) * 100, 1)
+
+        echo "- **完整包**: ``${{ steps.create_package.outputs.full_zip_name }}`` - $fullSize MB" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **更新包**: ``${{ steps.create_package.outputs.update_zip_name }}`` - $updateSize MB (完整包的 $updateRatio%)" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **DLL原文件**: ``CanvasCast.dll`` - $dllSize MB" >> $env:GITHUB_STEP_SUMMARY
+
