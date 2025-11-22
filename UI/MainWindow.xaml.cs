@@ -229,7 +229,11 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine("✅ [资源清理] 视频背景管理器已释放");
 #endif
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [资源清理] 清理视频资源失败: {ex.Message}");

@@ -5529,11 +5529,14 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] ===== 加载完成 =====\n");
 #endif
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [视频背景] 加载失败: {ex.Message}");
-                _ = ex; // 避免未使用警告
 #endif
                 // 失败时使用纯色背景
                 EditorCanvas.Background = !string.IsNullOrEmpty(slide.BackgroundColor)
@@ -6618,12 +6621,15 @@ namespace ImageColorChanger.UI
                     #endif
                 }
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
             {
-                #if DEBUG
+#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [SaveVideoBackgroundSettings] 失败: {ex.Message}");
-                _ = ex; // 避免未使用警告
-                #endif
+#endif
             }
         }
 

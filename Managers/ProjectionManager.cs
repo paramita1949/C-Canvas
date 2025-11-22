@@ -908,11 +908,14 @@ namespace ImageColorChanger.Managers
 #endif
                 });
             }
-            catch (Exception ex)
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [PM-视频投影] 更新失败: {ex.Message}");
-                _ = ex; // 避免未使用警告
 #endif
             }
         }
