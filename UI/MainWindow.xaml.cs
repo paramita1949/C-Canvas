@@ -206,10 +206,35 @@ namespace ImageColorChanger.UI
             this.Deactivated += MainWindow_Deactivated;
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
+            
+            // 🎬 监听窗口关闭事件，清理视频资源
+            this.Closing += MainWindow_Closing;
 
                         
             // 🔐 初始化认证服务
             InitializeAuthService();
+        }
+        
+        /// <summary>
+        /// 🎬 窗口关闭事件：清理视频资源
+        /// </summary>
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            try
+            {
+                // 清理视频背景管理器
+                VideoBackgroundManager.Instance.Dispose();
+                
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("✅ [资源清理] 视频背景管理器已释放");
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [资源清理] 清理视频资源失败: {ex.Message}");
+#endif
+            }
         }
         
         /// <summary>
@@ -612,6 +637,7 @@ namespace ImageColorChanger.UI
                 _dbManager.MigrateAddRichTextSupport();   // 🆕 RichText 支持（斜体、边框、背景、阴影、间距）
                 _dbManager.MigrateCreateRichTextSpansTable();  // 🆕 富文本片段表（完全 RichText）
                 _dbManager.MigrateAddShadowTypeAndPreset();  // 🆕 阴影类型和预设字段
+                _dbManager.MigrateAddVideoBackgroundSupport();  // 🆕 视频背景支持
 
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();
@@ -2928,22 +2954,6 @@ namespace ImageColorChanger.UI
                     _isUpdatingProgress = false;
                 }
             });
-        }
-        
-        /// <summary>
-        /// 检查文件是否为视频
-        /// </summary>
-        private bool IsVideoFile(string filePath)
-        {
-            if (string.IsNullOrEmpty(filePath)) return false;
-            
-            var ext = System.IO.Path.GetExtension(filePath).ToLower();
-            var videoExtensions = new[] { 
-                ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg",
-                ".rm", ".rmvb", ".3gp", ".f4v", ".ts", ".mts", ".m2ts", ".vob", ".ogv"
-            };
-            
-            return videoExtensions.Contains(ext);
         }
         
         /// <summary>

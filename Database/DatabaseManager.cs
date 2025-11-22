@@ -1534,6 +1534,73 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
+        /// 执行数据库迁移 - 添加幻灯片视频背景支持
+        /// </summary>
+        public void MigrateAddVideoBackgroundSupport()
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                // 定义需要添加的列
+                var columnsToAdd = new[]
+                {
+                    ("video_background_enabled", "INTEGER NOT NULL DEFAULT 0"),
+                    ("video_loop_enabled", "INTEGER NOT NULL DEFAULT 1"),
+                    ("video_volume", "REAL NOT NULL DEFAULT 0.5")
+                };
+
+                int addedCount = 0;
+                foreach (var (columnName, columnDef) in columnsToAdd)
+                {
+                    // 检查列是否已存在
+                    var checkSql = $"SELECT COUNT(*) FROM pragma_table_info('slides') WHERE name='{columnName}'";
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = checkSql;
+                        var count = Convert.ToInt32(command.ExecuteScalar());
+
+                        if (count == 0)
+                        {
+                            // 列不存在，执行添加
+                            var alterSql = $"ALTER TABLE slides ADD COLUMN {columnName} {columnDef}";
+                            _context.Database.ExecuteSqlRaw(alterSql);
+                            addedCount++;
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ 数据库迁移成功：已添加 {columnName} 列到 slides 表");
+                            #endif
+                        }
+                    }
+                }
+
+                #if DEBUG
+                if (addedCount == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("ℹ️ 视频背景列已存在，跳过迁移");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ 数据库迁移完成：已添加 {addedCount} 个视频背景列");
+                }
+                #endif
+            }
+            catch (Exception
+            #if DEBUG
+            ex
+            #endif
+            )
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 视频背景数据库迁移失败: {ex.Message}");
+                #endif
+            }
+        }
+
+        /// <summary>
         /// 执行数据库迁移 - 创建圣经插入配置表
         /// </summary>
         public void MigrateAddBibleInsertConfigTable()

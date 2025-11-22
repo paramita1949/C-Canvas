@@ -72,6 +72,7 @@ namespace ImageColorChanger.Managers
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
         private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
 
+
         // 屏幕管理（WPF 原生）
         private List<WpfScreenInfo> _screens;
         private int _currentScreenIndex;
@@ -272,14 +273,14 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine("🎬 ToggleProjection 被调用");
-                // System.Diagnostics.Debug.WriteLine($"当前投影窗口状态: {(_projectionWindow != null ? "已打开" : "未打开")}");
-                // System.Diagnostics.Debug.WriteLine($"当前图片: {(_currentImage != null ? $"{_currentImage.Width}x{_currentImage.Height}" : "null")}");
-                // System.Diagnostics.Debug.WriteLine($"屏幕数量: {_screens.Count}");
+                // //System.Diagnostics.Debug.WriteLine("🎬 ToggleProjection 被调用");
+                // //System.Diagnostics.Debug.WriteLine($"当前投影窗口状态: {(_projectionWindow != null ? "已打开" : "未打开")}");
+                // //System.Diagnostics.Debug.WriteLine($"当前图片: {(_currentImage != null ? $"{_currentImage.Width}x{_currentImage.Height}" : "null")}");
+                // //System.Diagnostics.Debug.WriteLine($"屏幕数量: {_screens.Count}");
                 
                 if (_projectionWindow != null)
                 {
-                    // System.Diagnostics.Debug.WriteLine("关闭投影窗口");
+                    // //System.Diagnostics.Debug.WriteLine("关闭投影窗口");
                     return CloseProjection();
                 }
                 else
@@ -353,14 +354,14 @@ namespace ImageColorChanger.Managers
                         return false;
                     }
                     
-                    // System.Diagnostics.Debug.WriteLine("打开投影窗口");
+                    // //System.Diagnostics.Debug.WriteLine("打开投影窗口");
                     return OpenProjection();
                 }
             }
             catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 切换投影失败: {ex.Message}");
-                // System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+                // //System.Diagnostics.Debug.WriteLine($"❌ 切换投影失败: {ex.Message}");
+                // //System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
                 WpfMessageBox.Show($"投影失败: {ex.Message}", "错误", WpfMessageBoxButton.OK, WpfMessageBoxImage.Error);
                 return false;
             }
@@ -372,7 +373,7 @@ namespace ImageColorChanger.Managers
         public void ClearImageState()
         {
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine("🧹 [投影] 清空图片状态");
+//            //System.Diagnostics.Debug.WriteLine("🧹 [投影] 清空图片状态");
 //#endif
             // 清空当前图片引用，防止图片投影逻辑干扰文字投影
             _currentImage = null;
@@ -401,7 +402,7 @@ namespace ImageColorChanger.Managers
                         _projectionImageControl.Source = null;
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("🧹 [投影] 已清空投影显示内容");
+                    //System.Diagnostics.Debug.WriteLine("🧹 [投影] 已清空投影显示内容");
                     #endif
                 });
             }
@@ -447,30 +448,30 @@ namespace ImageColorChanger.Managers
 //                    double mainExtentHeight = lyricsScrollViewer.ExtentHeight;
 //                    double projExtentHeight = _projectionScrollViewer.ExtentHeight;
 //                    
-//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
-//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
-//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
-//                    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动偏移: {projScrollTop:F2} (同步自主屏 {mainScrollTop:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2} (主屏: {mainScrollableHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {projViewportHeight:F2} (主屏: {mainViewportHeight:F2})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {projExtentHeight:F2} (主屏: {mainExtentHeight:F2})");
 //                    
 //                    if (_projectionBibleTitleBorder != null)
 //                    {
-//                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题高度: {_projectionBibleTitleBorder.ActualHeight:F2}");
-//                        System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题可见: {_projectionBibleTitleBorder.Visibility}");
+//                        //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题高度: {_projectionBibleTitleBorder.ActualHeight:F2}");
+//                        //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 固定标题可见: {_projectionBibleTitleBorder.Visibility}");
 //                    }
 //                    
 //                    // 🔍 关键对比：主屏第一节经文顶部位置 vs 投影第一节经文顶部位置
 //                    // 主屏：ScrollViewer.Padding.Top (应该是20)
 //                    // 投影：渲染内容的顶部Padding (应该也是20)
-//                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
-//                    System.Diagnostics.Debug.WriteLine($"🔍 [对比] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
-//                    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 [对比] 内容高度差异: {projExtentHeight - mainExtentHeight:F2}");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 [对比] 可滚动高度差异: {projScrollableHeight - mainScrollableHeight:F2}");
+//                    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
 //#endif
                 });
             }
             catch (Exception)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
+//                //System.Diagnostics.Debug.WriteLine($"❌ [歌词滚动同步] 失败: {ex.Message}");
 //#endif
             }
         }
@@ -540,13 +541,13 @@ namespace ImageColorChanger.Managers
         public void UpdateProjectionText(SKBitmap renderedTextImage)
         {
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📝 [文字投影] 开始渲染 - 尺寸: {renderedTextImage?.Width}x{renderedTextImage?.Height}");
+//            //System.Diagnostics.Debug.WriteLine($"📝 [文字投影] 开始渲染 - 尺寸: {renderedTextImage?.Width}x{renderedTextImage?.Height}");
 //#endif
 
             if (_projectionWindow == null || renderedTextImage == null)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"⚠️ [文字投影] 投影窗口或文字图像为空，跳过");
+//                //System.Diagnostics.Debug.WriteLine($"⚠️ [文字投影] 投影窗口或文字图像为空，跳过");
 //#endif
                 return;
             }
@@ -596,17 +597,17 @@ namespace ImageColorChanger.Managers
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
 
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸后ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸比例: {containerWidth / renderedTextImage.Width:F4}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸模式: {_projectionImageControl.Stretch}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 屏幕尺寸: {screenWidth}x{screenHeight}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 容器尺寸: {containerWidth}x{containerHeight}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ScrollViewer实际尺寸: {_projectionScrollViewer?.ActualWidth ?? 0}x{_projectionScrollViewer?.ActualHeight ?? 0}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 计算偏移量 X: {x}, Y: {y}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl对齐: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] ImageControl Margin: {_projectionImageControl.Margin}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸后ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸比例: {containerWidth / renderedTextImage.Width:F4}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 拉伸模式: {_projectionImageControl.Stretch}");
 //                        
 //                        // 🔍 DPI相关调试信息
 //                        var presentationSource = PresentationSource.FromVisual(_projectionWindow);
@@ -614,12 +615,12 @@ namespace ImageColorChanger.Managers
 //                        {
 //                            double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
 //                            double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 投影窗口DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2} (1.0=96DPI, 1.25=120DPI, 1.5=144DPI)");
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 实际物理像素: {containerWidth * dpiScaleX:F0}x{containerHeight * dpiScaleY:F0}");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 投影窗口DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2} (1.0=96DPI, 1.25=120DPI, 1.5=144DPI)");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 实际物理像素: {containerWidth * dpiScaleX:F0}x{containerHeight * dpiScaleY:F0}");
 //                        }
 //                        else
 //                        {
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 无法获取DPI信息");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-DPI] 无法获取DPI信息");
 //                        }
 //#endif
                         
@@ -630,14 +631,14 @@ namespace ImageColorChanger.Managers
                             _projectionContainer.Height = _projectionImageControl.Height;
                             _projectionScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (拉伸后)");
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 原始图片高度: {renderedTextImage.Height}");
-//                            System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 高度缩放比例: {_projectionImageControl.Height / renderedTextImage.Height:F4}");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 容器高度: {_projectionContainer.Height} (拉伸后)");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 原始图片高度: {renderedTextImage.Height}");
+//                            //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-滚动] 高度缩放比例: {_projectionImageControl.Height / renderedTextImage.Height:F4}");
 //#endif
                         }
 
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"✅ [文字投影] 渲染完成 - 尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
 //#endif
                     }
                 });
@@ -645,7 +646,7 @@ namespace ImageColorChanger.Managers
             catch (Exception)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
+//                //System.Diagnostics.Debug.WriteLine($"❌ [文字投影] 渲染失败: {ex.Message}");
 //#endif
             }
         }
@@ -810,6 +811,113 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
+        /// 🎬 使用 VisualBrush 更新视频背景投影（镜像主屏视频 + 叠加文本层）
+        /// </summary>
+        /// <param name="videoVisualBrush">主屏幕视频的 VisualBrush</param>
+        /// <param name="textLayer">文本层（透明背景的 SKBitmap）</param>
+        public void UpdateProjectionWithVideo(VisualBrush videoVisualBrush, SKBitmap textLayer)
+        {
+            if (_projectionWindow == null || videoVisualBrush == null)
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [PM-视频投影] 投影窗口或 VisualBrush 为空，跳过");
+#endif
+                return;
+            }
+
+            try
+            {
+#if DEBUG
+                var totalTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [PM-视频投影] ===== ProjectionManager.UpdateProjectionWithVideo 开始 =====");
+                    var step1Time = System.Diagnostics.Stopwatch.StartNew();
+#endif
+
+                    // 🔧 步骤1：设置视频背景（使用 VisualBrush）
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        _projectionVisualBrushRect.Fill = videoVisualBrush;
+                        _projectionVisualBrushRect.Visibility = Visibility.Visible;
+                        _projectionVisualBrushRect.Width = _projectionWindow.ActualWidth;
+                        _projectionVisualBrushRect.Height = _projectionWindow.ActualHeight;
+                        
+                        // 🚀 GPU 加速优化：启用缓存并使用低质量缩放提升性能
+                        RenderOptions.SetCachingHint(_projectionVisualBrushRect, CachingHint.Cache);  // 启用GPU缓存
+                        RenderOptions.SetBitmapScalingMode(_projectionVisualBrushRect, BitmapScalingMode.LowQuality);  // 优先性能
+                        
+#if DEBUG
+                        step1Time.Stop();
+                        //System.Diagnostics.Debug.WriteLine($"✅ [PM-视频投影] 步骤1完成：设置 VisualBrush，尺寸: {_projectionVisualBrushRect.Width}x{_projectionVisualBrushRect.Height} (耗时: {step1Time.ElapsedMilliseconds} ms)");
+                        //System.Diagnostics.Debug.WriteLine($"🚀 [PM-视频投影-GPU加速] BitmapCache: {(_projectionVisualBrushRect.CacheMode != null ? "已启用" : "未启用")}");
+                        //System.Diagnostics.Debug.WriteLine($"🚀 [PM-视频投影-GPU加速] CachingHint: {RenderOptions.GetCachingHint(_projectionVisualBrushRect)}, BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(_projectionVisualBrushRect)}");
+#endif
+                    }
+
+                    // 🔧 步骤2：叠加文本层
+                    if (textLayer != null)
+                    {
+#if DEBUG
+                        var step2Time = System.Diagnostics.Stopwatch.StartNew();
+#endif
+                        var textBitmapSource = ConvertToBitmapSource(textLayer);
+                        
+                        if (textBitmapSource != null && _projectionImageControl != null)
+                        {
+                            _projectionImageControl.Source = textBitmapSource;
+                            _projectionImageControl.Width = _projectionWindow.ActualWidth;
+                            _projectionImageControl.Height = _projectionWindow.ActualHeight;
+                            _projectionImageControl.Stretch = System.Windows.Media.Stretch.Fill;
+                            _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Center;
+                            _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+                            _projectionImageControl.Visibility = Visibility.Visible;  // 🔧 确保可见
+                            
+#if DEBUG
+                            step2Time.Stop();
+                            //System.Diagnostics.Debug.WriteLine($"✅ [PM-视频投影] 步骤2完成：叠加文本层，尺寸: {textLayer.Width}x{textLayer.Height} (耗时: {step2Time.ElapsedMilliseconds} ms)");
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [PM-视频投影] 文本层可见性: {_projectionImageControl.Visibility}, ZIndex: {System.Windows.Controls.Panel.GetZIndex(_projectionImageControl)}");
+                            //System.Diagnostics.Debug.WriteLine($"🔍 [PM-视频投影] 视频层ZIndex: {System.Windows.Controls.Panel.GetZIndex(_projectionVisualBrushRect)}");
+#endif
+                        }
+                        //#if DEBUG
+                        //else
+                        //{
+                        //    if (textBitmapSource == null)
+                        //        System.Diagnostics.Debug.WriteLine($"⚠️ [PM-视频投影] 文本层位图转换失败");
+                        //    if (_projectionImageControl == null)
+                        //        System.Diagnostics.Debug.WriteLine($"⚠️ [PM-视频投影] 投影Image控件为空");
+                        //}
+                        //#endif
+                    }
+                    //#if DEBUG
+                    //else
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"⚠️ [PM-视频投影] textLayer 为空，跳过文本层叠加");
+                    //}
+                    //#endif
+
+#if DEBUG
+                    totalTime.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"✅ [PM-视频投影] 视频投影更新完成");
+                    //System.Diagnostics.Debug.WriteLine($"⏱️ [PM-视频投影] 总耗时: {totalTime.ElapsedMilliseconds} ms");
+                    //System.Diagnostics.Debug.WriteLine($"🎬 [PM-视频投影] ===== 完成 =====\n");
+#endif
+                });
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [PM-视频投影] 更新失败: {ex.Message}");
+                _ = ex; // 避免未使用警告
+#endif
+            }
+        }
+        
+        /// <summary>
         /// 🆕 禁用 VisualBrush 投影，恢复图片投影模式（内部方法，需在 Dispatcher 中调用）
         /// </summary>
         private void ResetVisualBrushProjection()
@@ -864,14 +972,14 @@ namespace ImageColorChanger.Managers
         public void UpdateProjectionImage(SKBitmap image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
         {
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"\n========== [UpdateProjectionImage] 被调用 ==========");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 图像尺寸: {image?.Width}x{image?.Height}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 投影窗口: {(_projectionWindow != null ? "存在" : "null")}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 变色效果: {applyColorEffect}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 缩放比例: {zoomRatio:F2}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 原图模式: {isOriginalMode}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 显示模式: {originalDisplayMode}");
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 绕过缓存: {bypassCache}");
+//            //System.Diagnostics.Debug.WriteLine($"\n========== [UpdateProjectionImage] 被调用 ==========");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 图像尺寸: {image?.Width}x{image?.Height}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 投影窗口: {(_projectionWindow != null ? "存在" : "null")}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 变色效果: {applyColorEffect}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 缩放比例: {zoomRatio:F2}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 原图模式: {isOriginalMode}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 显示模式: {originalDisplayMode}");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 绕过缓存: {bypassCache}");
 //#endif
             
             // 🔧 禁用 VisualBrush 投影并重置（切换到图片/幻灯片投影）
@@ -891,7 +999,7 @@ namespace ImageColorChanger.Managers
             bool zoomChanged = Math.Abs(_zoomRatio - zoomRatio) > 0.001;
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 缩放改变: {zoomChanged} (旧:{_zoomRatio:F2} -> 新:{zoomRatio:F2})");
+//            //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjectionImage] 缩放改变: {zoomChanged} (旧:{_zoomRatio:F2} -> 新:{zoomRatio:F2})");
 //#endif
             
             _currentImage = image;
@@ -915,7 +1023,7 @@ namespace ImageColorChanger.Managers
                 if (mainScreenBitmap != null && !bypassCache)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionImage] 使用共享渲染模式 (主屏BitmapSource)");
+//                    //System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionImage] 使用共享渲染模式 (主屏BitmapSource)");
 //#endif
                     // ✅ 直接复用主屏渲染结果，零GPU开销
                     _ = UseSharedRenderingAsync(mainScreenBitmap);
@@ -923,7 +1031,7 @@ namespace ImageColorChanger.Managers
                 else
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionImage] 使用独立渲染模式 (mainScreenBitmap={mainScreenBitmap != null}, bypassCache={bypassCache})");
+//                    //System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionImage] 使用独立渲染模式 (mainScreenBitmap={mainScreenBitmap != null}, bypassCache={bypassCache})");
 //#endif
                     // ⚠️ 降级：独立渲染（文本编辑器等特殊场景）
                     _ = PreRenderProjectionAsync();
@@ -932,9 +1040,9 @@ namespace ImageColorChanger.Managers
 //#if DEBUG
 //            else
 //            {
-//                System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionImage] 跳过渲染 (投影窗口={_projectionWindow != null}, 图像={image != null})");
+//                //System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionImage] 跳过渲染 (投影窗口={_projectionWindow != null}, 图像={image != null})");
 //            }
-//            System.Diagnostics.Debug.WriteLine($"========== [UpdateProjectionImage] 结束 ==========\n");
+//            //System.Diagnostics.Debug.WriteLine($"========== [UpdateProjectionImage] 结束 ==========\n");
 //#endif
         }
         
@@ -959,16 +1067,16 @@ namespace ImageColorChanger.Managers
                     int screenHeight = screen.PhysicalHeight;
 
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"\n========== [原图投影调试] 开始渲染 ==========");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 主屏BitmapSource尺寸: {mainScreenBitmap.PixelWidth}x{mainScreenBitmap.PixelHeight}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 投影屏幕尺寸: {screenWidth}x{screenHeight}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 原图模式: {_isOriginalMode}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 显示模式: {_originalDisplayMode}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 变色效果: {_isColorEffectEnabled}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 缩放比例: {_zoomRatio:F2}");
+//                    //System.Diagnostics.Debug.WriteLine($"\n========== [原图投影调试] 开始渲染 ==========");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 主屏BitmapSource尺寸: {mainScreenBitmap.PixelWidth}x{mainScreenBitmap.PixelHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 投影屏幕尺寸: {screenWidth}x{screenHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 原图模式: {_isOriginalMode}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 显示模式: {_originalDisplayMode}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 变色效果: {_isColorEffectEnabled}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 缩放比例: {_zoomRatio:F2}");
 //                    if (_currentImage != null)
 //                    {
-//                        System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 当前SKBitmap尺寸: {_currentImage.Width}x{_currentImage.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"📺 [原图投影] 当前SKBitmap尺寸: {_currentImage.Width}x{_currentImage.Height}");
 //                    }
 //#endif
 
@@ -976,7 +1084,7 @@ namespace ImageColorChanger.Managers
                     var (newWidth, newHeight) = CalculateImageSize(screenWidth, screenHeight);
 
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📐 [原图投影] 计算后的显示尺寸: {newWidth}x{newHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📐 [原图投影] 计算后的显示尺寸: {newWidth}x{newHeight}");
 //#endif
                     
                     // 🚀 核心优化：直接使用主屏的BitmapSource
@@ -986,7 +1094,7 @@ namespace ImageColorChanger.Managers
                     if (_projectionImageControl != null)
                     {
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"🎨 [原图投影] 更新前 - Stretch属性: {_projectionImageControl.Stretch}");
+//                        //System.Diagnostics.Debug.WriteLine($"🎨 [原图投影] 更新前 - Stretch属性: {_projectionImageControl.Stretch}");
 //#endif
                         _projectionImageControl.Source = _projectionImage;
                         _projectionImageControl.Width = newWidth;
@@ -1013,8 +1121,8 @@ namespace ImageColorChanger.Managers
                             if (containerHeight <= 0) containerHeight = screenHeight;
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📦 [原图投影] 容器实际尺寸: {_projectionScrollViewer.ActualWidth}x{_projectionScrollViewer.ActualHeight}");
-//                            System.Diagnostics.Debug.WriteLine($"📦 [原图投影] 容器使用尺寸: {containerWidth}x{containerHeight}");
+//                            //System.Diagnostics.Debug.WriteLine($"📦 [原图投影] 容器实际尺寸: {_projectionScrollViewer.ActualWidth}x{_projectionScrollViewer.ActualHeight}");
+//                            //System.Diagnostics.Debug.WriteLine($"📦 [原图投影] 容器使用尺寸: {containerWidth}x{containerHeight}");
 //#endif
                             
                             // 🔧 使用Stretch=Uniform时，Image控件应该居中对齐
@@ -1022,7 +1130,7 @@ namespace ImageColorChanger.Managers
                             double y = _isOriginalMode ? Math.Max(0, (containerHeight - newHeight) / 2.0) : 0;
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📍 [原图投影] 计算垂直偏移量 Y={y:F2}");
+//                            //System.Diagnostics.Debug.WriteLine($"📍 [原图投影] 计算垂直偏移量 Y={y:F2}");
 //#endif
                             
                             _projectionImageControl.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
@@ -1030,8 +1138,8 @@ namespace ImageColorChanger.Managers
                             _projectionImageControl.Margin = new System.Windows.Thickness(0, y, 0, 0);
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"🎯 [原图投影] 对齐方式: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
-//                            System.Diagnostics.Debug.WriteLine($"🎯 [原图投影] Margin: {_projectionImageControl.Margin}");
+//                            //System.Diagnostics.Debug.WriteLine($"🎯 [原图投影] 对齐方式: H={_projectionImageControl.HorizontalAlignment}, V={_projectionImageControl.VerticalAlignment}");
+//                            //System.Diagnostics.Debug.WriteLine($"🎯 [原图投影] Margin: {_projectionImageControl.Margin}");
 //#endif
                             
                             // 【关键修复】设置滚动区域 - 使用containerHeight（DIU）而不是screenHeight（物理像素）
@@ -1053,16 +1161,16 @@ namespace ImageColorChanger.Managers
                             _projectionContainer.Height = scrollHeight;
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"📏 [UseSharedRendering容器] 图片高={newHeight:F0}, 容器DIU高={containerHeight:F0}, 设置容器高={scrollHeight:F0}, 原图模式={_isOriginalMode}");
+//                            //System.Diagnostics.Debug.WriteLine($"📏 [UseSharedRendering容器] 图片高={newHeight:F0}, 容器DIU高={containerHeight:F0}, 设置容器高={scrollHeight:F0}, 原图模式={_isOriginalMode}");
 //#endif
                         }
 
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"🎨 [原图投影] 更新后 - Stretch属性: {_projectionImageControl.Stretch}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [原图投影] ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
-//                        System.Diagnostics.Debug.WriteLine($"📐 [原图投影] BitmapSource尺寸: {mainScreenBitmap.PixelWidth}x{mainScreenBitmap.PixelHeight}");
-//                        System.Diagnostics.Debug.WriteLine($"⚠️ [原图投影] 尺寸匹配: {(_projectionImageControl.Width == mainScreenBitmap.PixelWidth && _projectionImageControl.Height == mainScreenBitmap.PixelHeight ? "完全匹配" : "不匹配，Stretch=Uniform会自动缩放")}");
-//                        System.Diagnostics.Debug.WriteLine($"========== [原图投影调试] 渲染完成 ==========\n");
+//                        //System.Diagnostics.Debug.WriteLine($"🎨 [原图投影] 更新后 - Stretch属性: {_projectionImageControl.Stretch}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [原图投影] ImageControl尺寸: {_projectionImageControl.Width}x{_projectionImageControl.Height}");
+//                        //System.Diagnostics.Debug.WriteLine($"📐 [原图投影] BitmapSource尺寸: {mainScreenBitmap.PixelWidth}x{mainScreenBitmap.PixelHeight}");
+//                        //System.Diagnostics.Debug.WriteLine($"⚠️ [原图投影] 尺寸匹配: {(_projectionImageControl.Width == mainScreenBitmap.PixelWidth && _projectionImageControl.Height == mainScreenBitmap.PixelHeight ? "完全匹配" : "不匹配，Stretch=Uniform会自动缩放")}");
+//                        //System.Diagnostics.Debug.WriteLine($"========== [原图投影调试] 渲染完成 ==========\n");
 //#endif
                     }
                     
@@ -1438,15 +1546,15 @@ namespace ImageColorChanger.Managers
                     //    double projContainerHeight = _projectionContainer?.ActualHeight ?? 0;
                     //    double projImageControlHeight = _projectionImageControl?.ActualHeight ?? 0;
                     //    
-                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 原始图片: {_currentImage.Width}x{_currentImage.Height}, 模式: {(_originalDisplayMode == OriginalDisplayMode.Stretch ? "拉伸" : "适中")}");
-                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 主屏: 画布={mainCanvasWidth:F0}x{mainCanvasHeight:F0}, 图高={mainImgHeight:F0}, 滚动={mainScrollTop:F0}/{_mainScrollViewer.ScrollableHeight:F0}");
-                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影: 画布={projCanvasWidth:F0}x{projCanvasHeight:F0}, 图高={projImgHeight:F0}, 滚动={projScrollTop:F0}/{_projectionScrollViewer.ScrollableHeight:F0}");
-                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影容器: 容器高={projContainerHeight:F0}, ImageControl高={projImageControlHeight:F0}");
-                    //    System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 相对位置: {originalRelativePos:P1}, 高度比: {(projImgHeight / mainImgHeight):F3}");
+                    //    //System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 原始图片: {_currentImage.Width}x{_currentImage.Height}, 模式: {(_originalDisplayMode == OriginalDisplayMode.Stretch ? "拉伸" : "适中")}");
+                    //    //System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 主屏: 画布={mainCanvasWidth:F0}x{mainCanvasHeight:F0}, 图高={mainImgHeight:F0}, 滚动={mainScrollTop:F0}/{_mainScrollViewer.ScrollableHeight:F0}");
+                    //    //System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影: 画布={projCanvasWidth:F0}x{projCanvasHeight:F0}, 图高={projImgHeight:F0}, 滚动={projScrollTop:F0}/{_projectionScrollViewer.ScrollableHeight:F0}");
+                    //    //System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 投影容器: 容器高={projContainerHeight:F0}, ImageControl高={projImageControlHeight:F0}");
+                    //    //System.Diagnostics.Debug.WriteLine($"📜 [滚动同步] 相对位置: {originalRelativePos:P1}, 高度比: {(projImgHeight / mainImgHeight):F3}");
                     //}
                     //#endif
 
-                    // System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
+                    // //System.Diagnostics.Debug.WriteLine($"📜 同步: 主屏滚动={mainScrollTop:F0}, 主屏图高={mainImgHeight:F0}, 原图相对={originalRelativePos:P1}, 投影图高={projImgHeight:F0}, 投影滚动={projScrollTop:F0}");
                 });
             }
             catch (Exception)
@@ -1508,9 +1616,9 @@ namespace ImageColorChanger.Managers
                 //#if DEBUG
                 //if (dpiScaleX != 1.0 || dpiScaleY != 1.0)
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] 物理像素: {screen.Bounds.Width}×{screen.Bounds.Height}");
-                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] DPI缩放: {dpiScaleX:F2}×{dpiScaleY:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] WPF单位: {width}×{height}");
+                //    //System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] 物理像素: {screen.Bounds.Width}×{screen.Bounds.Height}");
+                //    //System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] DPI缩放: {dpiScaleX:F2}×{dpiScaleY:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📺 [分辨率转换] WPF单位: {width}×{height}");
                 //}
                 //#endif
                 
@@ -1597,13 +1705,13 @@ namespace ImageColorChanger.Managers
                 //// 只在主屏幕要求输出时才输出（保持同步）
                 //if (shouldDebug)
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 接收偏移: {offset:F2} (主屏传入)");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际偏移: {_projectionScrollViewer.VerticalOffset:F2} (双重设置后)");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {_projectionScrollViewer.ScrollableHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] CanContentScroll: {_projectionScrollViewer.CanContentScroll}");
-                //    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 接收偏移: {offset:F2} (主屏传入)");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际偏移: {_projectionScrollViewer.VerticalOffset:F2} (双重设置后)");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {_projectionScrollViewer.ScrollableHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] CanContentScroll: {_projectionScrollViewer.CanContentScroll}");
+                //    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
                 //}
                 //#endif
             });
@@ -1631,13 +1739,13 @@ namespace ImageColorChanger.Managers
                 //#if DEBUG
                 //if (shouldDebug)
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动比例: {scrollRatio:P2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 计算滚动偏移: {projScrollOffset:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际滚动偏移: {_projectionScrollViewer.VerticalOffset:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
-                //    System.Diagnostics.Debug.WriteLine($"🔍 ========================");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 滚动比例: {scrollRatio:P2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 可滚动高度: {projScrollableHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 计算滚动偏移: {projScrollOffset:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 实际滚动偏移: {_projectionScrollViewer.VerticalOffset:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 视口高度: {_projectionScrollViewer.ViewportHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"📊 [投影屏幕] 内容总高度: {_projectionScrollViewer.ExtentHeight:F2}");
+                //    //System.Diagnostics.Debug.WriteLine($"🔍 ========================");
                 //}
                 //#endif
             });
@@ -1650,7 +1758,7 @@ namespace ImageColorChanger.Managers
         {
             if (_projectionWindow == null)
             {
-                // System.Diagnostics.Debug.WriteLine("❌ 投影窗口未打开");
+                // //System.Diagnostics.Debug.WriteLine("❌ 投影窗口未打开");
                 return;
             }
             
@@ -1674,7 +1782,7 @@ namespace ImageColorChanger.Managers
                     _projectionVideoContainer.Visibility = Visibility.Visible;
                 }
                 
-                // System.Diagnostics.Debug.WriteLine("✅ 已切换到视频投影模式");
+                // //System.Diagnostics.Debug.WriteLine("✅ 已切换到视频投影模式");
             });
         }
         
@@ -1685,7 +1793,7 @@ namespace ImageColorChanger.Managers
         {
             if (_projectionWindow == null)
             {
-                // System.Diagnostics.Debug.WriteLine("❌ 投影窗口未打开");
+                // //System.Diagnostics.Debug.WriteLine("❌ 投影窗口未打开");
                 return;
             }
             
@@ -1709,7 +1817,7 @@ namespace ImageColorChanger.Managers
                     _projectionScrollViewer.Visibility = Visibility.Visible;
                 }
                 
-                // System.Diagnostics.Debug.WriteLine("✅ 已切换到图片投影模式");
+                // //System.Diagnostics.Debug.WriteLine("✅ 已切换到图片投影模式");
             });
         }
 
@@ -1724,7 +1832,7 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine("📂 OpenProjection 开始执行");
+                // //System.Diagnostics.Debug.WriteLine("📂 OpenProjection 开始执行");
                 
                 // 注释掉图片检查，允许在播放视频时也能开启投影
                 // 视频投影时不需要 _currentImage
@@ -1742,23 +1850,23 @@ namespace ImageColorChanger.Managers
                 
                 if (_currentImage != null)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"✅ 当前图片尺寸: {_currentImage.Width}x{_currentImage.Height}");
+                    // //System.Diagnostics.Debug.WriteLine($"✅ 当前图片尺寸: {_currentImage.Width}x{_currentImage.Height}");
                 }
                 else
                 {
-                    // System.Diagnostics.Debug.WriteLine("ℹ️ 无当前图片（可能正在播放视频）");
+                    // //System.Diagnostics.Debug.WriteLine("ℹ️ 无当前图片（可能正在播放视频）");
                 }
 
                 // 检查是否有多个屏幕
-                // System.Diagnostics.Debug.WriteLine($"屏幕数量: {_screens.Count}");
+                // //System.Diagnostics.Debug.WriteLine($"屏幕数量: {_screens.Count}");
                 if (_screens.Count < 2)
                 {
-                    // System.Diagnostics.Debug.WriteLine("❌ 只有一个屏幕");
+                    // //System.Diagnostics.Debug.WriteLine("❌ 只有一个屏幕");
                     WpfMessageBox.Show("未检测到第二个显示器！", "警告", WpfMessageBoxButton.OK, WpfMessageBoxImage.Warning);
                     return false;
                 }
                 
-                // System.Diagnostics.Debug.WriteLine($"✅ 检测到 {_screens.Count} 个屏幕");
+                // //System.Diagnostics.Debug.WriteLine($"✅ 检测到 {_screens.Count} 个屏幕");
 
                 // 获取选定的屏幕
                 int selectedIndex = _screenComboBox?.SelectedIndex ?? 0;
@@ -1772,29 +1880,29 @@ namespace ImageColorChanger.Managers
                 _currentScreenIndex = selectedIndex;
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 屏幕数量={_screens.Count}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] ComboBox选择索引={selectedIndex}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 是否主屏={screen.IsPrimary}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 物理边界: Left={screen.PhysicalBounds.Left}, Top={screen.PhysicalBounds.Top}, Width={screen.PhysicalBounds.Width}, Height={screen.PhysicalBounds.Height}");
-//                System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] WPF边界: Left={screen.WpfBounds.Left}, Top={screen.WpfBounds.Top}, Width={screen.WpfBounds.Width}, Height={screen.WpfBounds.Height}");
+//                //System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 屏幕数量={_screens.Count}");
+//                //System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] ComboBox选择索引={selectedIndex}");
+//                //System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 是否主屏={screen.IsPrimary}");
+//                //System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] 物理边界: Left={screen.PhysicalBounds.Left}, Top={screen.PhysicalBounds.Top}, Width={screen.PhysicalBounds.Width}, Height={screen.PhysicalBounds.Height}");
+//                //System.Diagnostics.Debug.WriteLine($"📺 [投影屏幕选择] WPF边界: Left={screen.WpfBounds.Left}, Top={screen.WpfBounds.Top}, Width={screen.WpfBounds.Width}, Height={screen.WpfBounds.Height}");
 //#endif
 
                 // 检查是否是主显示器
                 if (screen.IsPrimary)
                 {
-                    System.Diagnostics.Debug.WriteLine("❌ [投影屏幕选择] 选择的是主显示器，拒绝投影");
+                    //System.Diagnostics.Debug.WriteLine("❌ [投影屏幕选择] 选择的是主显示器，拒绝投影");
                     WpfMessageBox.Show("不能投影到主显示器！", "警告", WpfMessageBoxButton.OK, WpfMessageBoxImage.Warning);
                     return false;
                 }
                 
-                // System.Diagnostics.Debug.WriteLine("✅ 准备创建投影窗口...");
+                // //System.Diagnostics.Debug.WriteLine("✅ 准备创建投影窗口...");
 
                 // 创建投影窗口
                 _mainWindow.Dispatcher.Invoke(() =>
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 尺寸: {screen.Bounds.Width}x{screen.Bounds.Height}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 位置: Left={screen.Bounds.Left}, Top={screen.Bounds.Top}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口创建] 尺寸: {screen.Bounds.Width}x{screen.Bounds.Height}");
 //#endif
                     
                     _projectionWindow = new Window
@@ -1841,11 +1949,19 @@ namespace ImageColorChanger.Managers
                         Stretch = System.Windows.Media.Stretch.Fill,
                         HorizontalAlignment = WpfHorizontalAlignment.Stretch,
                         VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
-                        Visibility = Visibility.Collapsed  // 默认隐藏，使用独立渲染
+                        Visibility = Visibility.Collapsed,  // 默认隐藏，使用独立渲染
+                        // 🚀 启用 GPU 硬件加速缓存
+                        CacheMode = new BitmapCache
+                        {
+                            EnableClearType = false,      // 视频不需要ClearType
+                            RenderAtScale = 1.0,          // 1080p适配
+                            SnapsToDevicePixels = true
+                        }
                     };
 
-                    projectionContainer.Children.Add(_projectionImageControl);
-                    projectionContainer.Children.Add(_projectionVisualBrushRect);  // 添加VisualBrush矩形
+                    // 🔧 重要：先添加视频背景（Rectangle），再添加文本层（Image），确保正确的层级关系
+                    projectionContainer.Children.Add(_projectionVisualBrushRect);  // 层0：视频背景
+                    projectionContainer.Children.Add(_projectionImageControl);    // 层1：文本层（在上方）
                     _projectionScrollViewer.Content = projectionContainer;
                     
                     // 创建视频容器（叠加在图片容器上方，默认隐藏）
@@ -1962,7 +2078,7 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Height = screen.WpfBounds.Height;
 
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 设置前: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 设置前: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, Size={_projectionWindow.Width}x{_projectionWindow.Height}");
 //#endif
 
                     // 显示窗口
@@ -1973,12 +2089,12 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Top = screen.WpfBounds.Top;
 
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 显示后: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, ActualSize={_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口位置] 显示后: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}, ActualSize={_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
 //#endif
                     
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口位置: Left={_projectionWindow.Left}, Top={_projectionWindow.Top}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 显示后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
 //                    
 //                    // 检测DPI
 //                    var presentationSource = PresentationSource.FromVisual(_projectionWindow);
@@ -1986,9 +2102,9 @@ namespace ImageColorChanger.Managers
 //                    {
 //                        double dpiScaleX = presentationSource.CompositionTarget.TransformToDevice.M11;
 //                        double dpiScaleY = presentationSource.CompositionTarget.TransformToDevice.M22;
-//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2}");
-//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 逻辑DPI: X={96 * dpiScaleX:F0}, Y={96 * dpiScaleY:F0}");
-//                        System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 物理像素: {_projectionWindow.ActualWidth * dpiScaleX:F0}x{_projectionWindow.ActualHeight * dpiScaleY:F0}");
+//                        //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] DPI缩放: X={dpiScaleX:F2}, Y={dpiScaleY:F2}");
+//                        //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 逻辑DPI: X={96 * dpiScaleX:F0}, Y={96 * dpiScaleY:F0}");
+//                        //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口DPI] 物理像素: {_projectionWindow.ActualWidth * dpiScaleX:F0}x{_projectionWindow.ActualHeight * dpiScaleY:F0}");
 //                    }
 //#endif
                     
@@ -1996,8 +2112,8 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.WindowState = WindowState.Maximized;
                     
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口状态: State={_projectionWindow.WindowState}");
-//                    System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口状态: State={_projectionWindow.WindowState}");
+//                    //System.Diagnostics.Debug.WriteLine($"📺 [投影窗口显示] 最大化后窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
 //#endif
                     
                     // 确保窗口可以接收键盘焦点
@@ -2006,7 +2122,7 @@ namespace ImageColorChanger.Managers
                     _projectionWindow.Activate();
                     
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("✅ [投影窗口显示] 投影窗口已激活并获取焦点");
+//                    //System.Diagnostics.Debug.WriteLine("✅ [投影窗口显示] 投影窗口已激活并获取焦点");
 //#endif
 
                     // 🔧 从主窗口同步当前状态到投影（解决打开投影时图片为空的问题）
@@ -2040,7 +2156,7 @@ namespace ImageColorChanger.Managers
 //#if DEBUG
 //                    else if (isInLyricsMode)
 //                    {
-//                        System.Diagnostics.Debug.WriteLine("🎤 [OpenProjection] 歌词模式，跳过图片同步");
+//                        //System.Diagnostics.Debug.WriteLine("🎤 [OpenProjection] 歌词模式，跳过图片同步");
 //                    }
 //#endif
 
@@ -2133,7 +2249,7 @@ namespace ImageColorChanger.Managers
             if (_projectionWindow == null)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⚠️ [UpdateProjection] 投影窗口为null");
+                //System.Diagnostics.Debug.WriteLine("⚠️ [UpdateProjection] 投影窗口为null");
                 #endif
                 return;
             }
@@ -2210,7 +2326,7 @@ namespace ImageColorChanger.Managers
                         if (processedImage == null)
                         {
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 渲染失败");
+                            //System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjection] 渲染失败");
                             #endif
                             return;
                         }
@@ -2222,7 +2338,7 @@ namespace ImageColorChanger.Managers
                             _imageProcessor.ApplyYellowTextEffect(processedImage);
                             var effectTime = sw.ElapsedMilliseconds - effectStart;
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"    ├─ 变色效果: {effectTime}ms");
+                            //System.Diagnostics.Debug.WriteLine($"    ├─ 变色效果: {effectTime}ms");
                             #endif
                         }
 
@@ -2275,13 +2391,13 @@ namespace ImageColorChanger.Managers
                     {
                         // 原图模式: 水平和垂直都居中 (Python: x=居中, y=居中)
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
-                        // System.Diagnostics.Debug.WriteLine($"  📍 原图模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},{y:F0})");
+                        // //System.Diagnostics.Debug.WriteLine($"  📍 原图模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},{y:F0})");
                     }
                     else
                     {
                         // 正常模式: 水平居中,垂直顶部 (Python: x=居中, y=0)
                         _projectionImageControl.Margin = new System.Windows.Thickness(x, 0, 0, 0);
-                        // System.Diagnostics.Debug.WriteLine($"  📍 正常模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},0)");
+                        // //System.Diagnostics.Debug.WriteLine($"  📍 正常模式定位: 容器={containerWidth:F0}x{containerHeight:F0}, 图片={newWidth}x{newHeight}, 偏移=({x:F0},0)");
                     }
 
                     // 设置投影ScrollViewer的滚动区域 - 与主屏幕使用相同的逻辑!
@@ -2364,7 +2480,7 @@ namespace ImageColorChanger.Managers
             if (canvasWidth <= 0) canvasWidth = screenWidth;
             if (canvasHeight <= 0) canvasHeight = screenHeight;
             
-            // System.Diagnostics.Debug.WriteLine($"  📐 画布尺寸: 投影ScrollViewer={canvasWidth:F0}x{canvasHeight:F0} DIU (屏幕物理={screenWidth}x{screenHeight})");
+            // //System.Diagnostics.Debug.WriteLine($"  📐 画布尺寸: 投影ScrollViewer={canvasWidth:F0}x{canvasHeight:F0} DIU (屏幕物理={screenWidth}x{screenHeight})");
             
             if (_isOriginalMode)
             {
@@ -2375,8 +2491,8 @@ namespace ImageColorChanger.Managers
                 double scaleRatio;
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 原图模式 - 画布: {canvasWidth:F0}x{canvasHeight:F0}, 图片: {_currentImage.Width}x{_currentImage.Height}");
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 宽度比例: {widthRatio:F4}, 高度比例: {heightRatio:F4}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 原图模式 - 画布: {canvasWidth:F0}x{canvasHeight:F0}, 图片: {_currentImage.Width}x{_currentImage.Height}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 宽度比例: {widthRatio:F4}, 高度比例: {heightRatio:F4}");
 //#endif
                 
                 if (_originalDisplayMode == OriginalDisplayMode.Stretch)
@@ -2384,7 +2500,7 @@ namespace ImageColorChanger.Managers
                     // 拉伸模式：使用高度比例,宽度会被拉伸填满屏幕
                     scaleRatio = heightRatio;
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 拉伸模式: 选择高度比例={scaleRatio:F4}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 拉伸模式: 选择高度比例={scaleRatio:F4}");
 //#endif
                 }
                 else
@@ -2392,7 +2508,7 @@ namespace ImageColorChanger.Managers
                     // 适中模式：选择较小的比例确保完整显示(等比缩放)
                     scaleRatio = Math.Min(widthRatio, heightRatio);
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 适中模式: 选择较小比例={scaleRatio:F4}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 适中模式: 选择较小比例={scaleRatio:F4}");
 //#endif
                 }
 
@@ -2411,12 +2527,12 @@ namespace ImageColorChanger.Managers
                     else maxScale = 2.0;
 
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 放大限制 - 面积比: {areaRatio:F2}, 最大放大: {maxScale:F2}, 原始比例: {scaleRatio:F4}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 放大限制 - 面积比: {areaRatio:F2}, 最大放大: {maxScale:F2}, 原始比例: {scaleRatio:F4}");
 //#endif
 
                     scaleRatio = Math.Min(scaleRatio, maxScale);
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 应用放大限制后: {scaleRatio:F4}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 应用放大限制后: {scaleRatio:F4}");
 //#endif
                 }
 
@@ -2428,7 +2544,7 @@ namespace ImageColorChanger.Managers
                     newWidth = (int)canvasWidth;
                     newHeight = (int)(_currentImage.Height * scaleRatio);
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 拉伸模式计算 - 宽度=画布宽度={newWidth}, 高度={_currentImage.Height}x{scaleRatio:F4}={newHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 拉伸模式计算 - 宽度=画布宽度={newWidth}, 高度={_currentImage.Height}x{scaleRatio:F4}={newHeight}");
 //#endif
                 }
                 else
@@ -2437,12 +2553,12 @@ namespace ImageColorChanger.Managers
                     newWidth = (int)(_currentImage.Width * scaleRatio);
                     newHeight = (int)(_currentImage.Height * scaleRatio);
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 适中模式计算 - 等比缩放={newWidth}x{newHeight}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 适中模式计算 - 等比缩放={newWidth}x{newHeight}");
 //#endif
                 }
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 最终结果: {newWidth}x{newHeight}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 最终结果: {newWidth}x{newHeight}");
 //#endif
                 
                 return (newWidth, newHeight);
@@ -2454,8 +2570,8 @@ namespace ImageColorChanger.Managers
                 double finalRatio = baseRatio * _zoomRatio;
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 正常模式 - 画布: {canvasWidth:F0}x{canvasHeight:F0}, 图片: {_currentImage.Width}x{_currentImage.Height}");
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 基础比例: {baseRatio:F4}, 缩放比例: {_zoomRatio:F4}, 最终比例: {finalRatio:F4}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 正常模式 - 画布: {canvasWidth:F0}x{canvasHeight:F0}, 图片: {_currentImage.Width}x{_currentImage.Height}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 基础比例: {baseRatio:F4}, 缩放比例: {_zoomRatio:F4}, 最终比例: {finalRatio:F4}");
 //#endif
                 
                 // 等比缩放宽度和高度
@@ -2463,8 +2579,8 @@ namespace ImageColorChanger.Managers
                 int newHeight = (int)(_currentImage.Height * finalRatio);
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 正常模式计算 - 等比缩放={newWidth}x{newHeight}");
-//                System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 最终结果: {newWidth}x{newHeight}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 正常模式计算 - 等比缩放={newWidth}x{newHeight}");
+//                //System.Diagnostics.Debug.WriteLine($"  📊 [尺寸计算] 最终结果: {newWidth}x{newHeight}");
 //#endif
                 
                 return (newWidth, newHeight);
@@ -2641,7 +2757,7 @@ namespace ImageColorChanger.Managers
             int trialDuration = AuthService.Instance.GetTrialProjectionRemainingSeconds();
             if (trialDuration > 0)
             {
-                System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已启动，{trialDuration}秒后自动关闭");
+                //System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 计时器已启动，{trialDuration}秒后自动关闭");
             }
             #endif
         }
@@ -2676,7 +2792,7 @@ namespace ImageColorChanger.Managers
             if (AuthService.Instance.IsAuthenticated && AuthService.Instance.CanUseProjection())
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [投影限制] 检测到已登录，取消时间限制");
+                //System.Diagnostics.Debug.WriteLine($"✅ [投影限制] 检测到已登录，取消时间限制");
                 #endif
                 StopProjectionTimer();
                 AuthService.Instance.ResetTrialProjection();
@@ -2689,7 +2805,7 @@ namespace ImageColorChanger.Managers
             if (!checksumValid)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 本地校验和验证失败，数据可能被篡改！");
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 本地校验和验证失败，数据可能被篡改！");
                 #endif
                 
                 _mainWindow.Dispatcher.Invoke(() =>
@@ -2723,7 +2839,7 @@ namespace ImageColorChanger.Managers
             //// 检测时间异常
             //if (Math.Abs(elapsedSeconds - elapsedByDateTime) > 5)
             //{
-            //    System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 检测到时间异常（差异{Math.Abs(elapsedSeconds - elapsedByDateTime):F1}秒）");
+            //    //System.Diagnostics.Debug.WriteLine($"⚠️ [投影限制] 检测到时间异常（差异{Math.Abs(elapsedSeconds - elapsedByDateTime):F1}秒）");
             //}
             //#endif
 
@@ -2731,10 +2847,10 @@ namespace ImageColorChanger.Managers
             if (authExpired || localExpired)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 时间已到，自动关闭投影");
-                System.Diagnostics.Debug.WriteLine($"   - AuthService验证: {(authExpired ? "失败" : "通过")}");
-                System.Diagnostics.Debug.WriteLine($"   - 本地时间验证: {(localExpired ? "失败" : "通过")}");
-                System.Diagnostics.Debug.WriteLine($"   - 本地校验和: {(checksumValid ? "通过" : "失败")}");
+                //System.Diagnostics.Debug.WriteLine($"⏰ [投影限制] 时间已到，自动关闭投影");
+                //System.Diagnostics.Debug.WriteLine($"   - AuthService验证: {(authExpired ? "失败" : "通过")}");
+                //System.Diagnostics.Debug.WriteLine($"   - 本地时间验证: {(localExpired ? "失败" : "通过")}");
+                //System.Diagnostics.Debug.WriteLine($"   - 本地校验和: {(checksumValid ? "通过" : "失败")}");
                 #endif
 
                 _mainWindow.Dispatcher.Invoke(() =>
@@ -2767,7 +2883,7 @@ namespace ImageColorChanger.Managers
                     if (!AuthService.Instance.IsAuthenticated || !AuthService.Instance.CanUseProjection())
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ [投影验证] 账号已失效，关闭投影");
+                        //System.Diagnostics.Debug.WriteLine($"❌ [投影验证] 账号已失效，关闭投影");
                         #endif
 
                         _mainWindow.Dispatcher.Invoke(() =>
@@ -2789,7 +2905,7 @@ namespace ImageColorChanger.Managers
             );
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [投影验证] 已启动账号有效期监控（每20分钟检查一次）");
+            //System.Diagnostics.Debug.WriteLine($"✅ [投影验证] 已启动账号有效期监控（每20分钟检查一次）");
             #endif
         }
 
@@ -2834,6 +2950,7 @@ namespace ImageColorChanger.Managers
         }
 
         #endregion
+
 
         #region IDisposable
 
