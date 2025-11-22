@@ -307,21 +307,21 @@ jobs:
       with:
         name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.full_zip_name }}
-        retention-days: 30
+        retention-days: 7
 
     - name: 上传更新包
       uses: actions/upload-artifact@v4
       with:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
-        retention-days: 30
+        retention-days: 7
 
     - name: 上传DLL原文件
       uses: actions/upload-artifact@v4
       with:
         name: CanvasCast-DLL-${{ steps.get_version.outputs.full_version }}
         path: publish/CanvasCast.dll
-        retention-days: 30
+        retention-days: 7
     
     - name: 调试Release信息
       shell: pwsh
