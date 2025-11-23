@@ -5550,11 +5550,61 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 幻灯片列表选择改变事件
+        /// ✅ 切换幻灯片前先保存当前文本，防止文本丢失
         /// </summary>
-        private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private async void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (SlideListBox.SelectedItem is Slide selectedSlide)
             {
+                // ✅ 切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
+                // 🔧 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
+                var textBoxesCopy = _textBoxes.ToList();
+                
+                // 先同步所有文本框的内容到 Data.Content
+                foreach (var textBox in textBoxesCopy)
+                {
+                    if (textBox.IsInEditMode)
+                    {
+                        // 如果文本框正在编辑，先退出编辑模式（会触发 SyncTextFromRichTextBox）
+                        textBox.ExitEditMode();
+                    }
+                    else
+                    {
+                        // 如果不在编辑模式，手动同步一次（确保 Data.Content 是最新的）
+                        textBox.SyncTextFromRichTextBox();
+                    }
+                }
+                
+                // 保存到数据库（不等待完成，避免阻塞UI）
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // 🔧 使用副本集合，避免集合被修改
+                        await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
+                        
+                        // 同步 FlowDocument 到 RichTextSpans
+                        foreach (var tb in textBoxesCopy)
+                        {
+                            var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
+                            if (richTextSpans != null && richTextSpans.Count > 0)
+                            {
+                                await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
+                            }
+                        }
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [切换幻灯片] 文本已保存到数据库");
+#endif
+                    }
+                    catch (Exception ex)
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败: {ex.Message}");
+                        _ = ex;
+#endif
+                    }
+                });
+                
                 // 🆕 使用 Dispatcher.BeginInvoke 延迟加载，确保可视树完全构建
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
