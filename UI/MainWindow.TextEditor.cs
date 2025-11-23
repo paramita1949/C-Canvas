@@ -602,13 +602,9 @@ namespace ImageColorChanger.UI
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
                 }
                 
-                // 🔧 获取当前选中的字体（与字体选择器保持一致）
+                // ✅ 创建文本框时始终使用微软雅黑，不应用当前选择的字体
+                // 字体应用必须框选文字才能应用
                 string defaultFontFamily = "Microsoft YaHei UI";
-                if (FontFamilySelector.SelectedItem is ComboBoxItem selectedItem && 
-                    selectedItem.Tag is Core.FontItemData fontData)
-                {
-                    defaultFontFamily = fontData.Config.Name;  // 使用字体名称
-                }
                 
                 // 创建新元素 (关联到当前幻灯片)
                 var newElement = new TextElement
@@ -620,7 +616,7 @@ namespace ImageColorChanger.UI
                     Height = newHeight,
                     Content = "双击编辑",
                     FontSize = 60,  // 默认字号60
-                    FontFamily = defaultFontFamily,  // 🔧 使用当前选中的字体
+                    FontFamily = defaultFontFamily,  // ✅ 始终使用微软雅黑
                     FontColor = "#FFFFFF",  // 默认白色字体
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
@@ -2639,6 +2635,7 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 字体选择改变
+        /// ✅ 字体应用必须框选文字才能应用，创建文本框时默认都是微软雅黑
         /// </summary>
         private void FontFamily_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -2649,19 +2646,24 @@ namespace ImageColorChanger.UI
             var selectedItem = FontFamilySelector.SelectedItem as ComboBoxItem;
             if (selectedItem != null && selectedItem.Tag is Core.FontItemData fontData)
             {
-                // ✅ 简化逻辑：只允许选中文字后修改字体
+                // ✅ 字体应用必须框选文字才能应用
                 if (_selectedTextBox.HasTextSelection())
                 {
                     // 有选中文本 → 局部生效（使用 WPF 原生 API，传递 FontFamily 对象）
                     _selectedTextBox.ApplyStyleToSelection(fontFamilyObj: fontData.FontFamily);
                     MarkContentAsModified();
 
-                    //System.Diagnostics.Debug.WriteLine($"✅ 字体已更改: {fontData.Config.Name}");
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ 字体已应用到选中文字: {fontData.Config.Name}");
+#endif
                 }
                 else
                 {
                     // 无选中文本 → 不执行任何操作
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效");
+                    // 字体选择器的改变不会应用到文本框，只有框选文字后才能应用
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效。字体应用必须框选文字才能应用。");
+#endif
                 }
             }
         }
