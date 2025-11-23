@@ -5537,6 +5537,7 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [视频背景] 加载失败: {ex.Message}");
+                _ = ex;
 #endif
                 // 失败时使用纯色背景
                 EditorCanvas.Background = !string.IsNullOrEmpty(slide.BackgroundColor)
@@ -6629,6 +6630,7 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [SaveVideoBackgroundSettings] 失败: {ex.Message}");
+                _ = ex;
 #endif
             }
         }

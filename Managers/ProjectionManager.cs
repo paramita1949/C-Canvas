@@ -916,6 +916,7 @@ namespace ImageColorChanger.Managers
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"❌ [PM-视频投影] 更新失败: {ex.Message}");
+                _ = ex;
 #endif
             }
         }
