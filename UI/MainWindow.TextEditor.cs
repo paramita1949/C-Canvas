@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Microsoft.EntityFrameworkCore;
@@ -3820,6 +3821,7 @@ namespace ImageColorChanger.UI
         /// 🆕 从Canvas更新投影（核心投影功能）
         /// 🚀 优化：添加缓存机制和节流控制
         /// 🎬 新增：支持视频背景的 VisualBrush 镜像投影
+        /// 🎨 新增：添加淡入淡出过渡动画
         /// </summary>
         private void UpdateProjectionFromCanvas()
         {
@@ -3839,37 +3841,65 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            // 🎨 投影屏幕淡入淡出动画
+            FadeOutAndUpdateProjection();
+        }
+
+        /// <summary>
+        /// 投影屏幕淡出并更新（带淡入淡出动画）
+        /// </summary>
+        private void FadeOutAndUpdateProjection()
+        {
+            if (!_projectionManager.IsProjectionActive)
+                return;
+
+            // 获取投影窗口的容器（用于动画）
+            var projectionContainer = _projectionManager.GetProjectionContainer();
+            if (projectionContainer == null)
+            {
+                // 如果无法获取容器，直接更新（无动画）
+                UpdateProjectionContent();
+                return;
+            }
+
+            // 创建淡出动画
+            DoubleAnimation fadeOutAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(300),  // 淡出时间 300ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 淡出完成后更新内容并淡入
+            fadeOutAnimation.Completed += (s, e) =>
+            {
+                // 更新投影内容
+                UpdateProjectionContent();
+                
+                // 淡入新内容
+                FadeInProjection(projectionContainer);
+            };
+
+            // 开始淡出动画
+            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+        }
+
+        /// <summary>
+        /// 更新投影内容（实际更新逻辑）
+        /// </summary>
+        private void UpdateProjectionContent()
+        {
             // 🎬 检查是否有视频背景
             bool hasVideoBackground = _currentSlide?.VideoBackgroundEnabled == true 
                                      && !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath);
             
-#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] ===== 开始更新投影 =====");
-            //System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] _isProjectionLocked: {_isProjectionLocked}");
-            //System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] hasVideoBackground: {hasVideoBackground}");
-            //System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
-            //System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
-            //if (!string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath))
-            //{
-            //    System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] 文件存在: {System.IO.File.Exists(_currentSlide.BackgroundImagePath)}");
-            //    System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] IsVideoFile: {IsVideoFile(_currentSlide.BackgroundImagePath)}");
-            //}
-#endif
-            
             if (_isProjectionLocked)
             {
                 // 🔒 锁定模式：使用独立的 MediaElement
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 锁定模式：使用独立 MediaElement");
-#endif
                 if (hasVideoBackground)
                 {
                     // 主屏幕有视频：更新投影的独立 MediaElement
-#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 主屏幕有视频，更新投影的独立 MediaElement");
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 视频路径: {_currentSlide.BackgroundImagePath}");
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 循环播放: {_currentSlide.VideoLoopEnabled}");
-#endif
                     var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
                     var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
                     _projectionManager.UpdateProjectionWithLockedVideo(
@@ -3880,13 +3910,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 主屏幕没有视频：清理投影的独立 MediaElement，使用静态背景模式
-#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 主屏幕没有视频，清理独立 MediaElement，使用静态背景");
-#endif
-                    // 清理独立 MediaElement
                     _projectionManager.ClearLockedVideo();
-                    
-                    // 使用静态背景模式（和未锁定模式一样）
                     UpdateProjectionWithStaticBackground();
                 }
             }
@@ -3904,6 +3928,30 @@ namespace ImageColorChanger.UI
                     UpdateProjectionWithStaticBackground();
                 }
             }
+        }
+
+        /// <summary>
+        /// 投影屏幕淡入动画
+        /// </summary>
+        private void FadeInProjection(UIElement projectionContainer)
+        {
+            if (projectionContainer == null)
+                return;
+
+            // 设置初始透明度为 0（淡入效果）
+            projectionContainer.Opacity = 0;
+
+            // 创建淡入动画
+            DoubleAnimation fadeInAnimation = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(400),  // 淡入时间 400ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 开始动画
+            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
         }
 
         /// <summary>
@@ -5712,21 +5760,19 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
-                // 🔧 先同步加载新幻灯片，然后再异步保存旧数据
-                // 这样可以避免在保存过程中访问已经被清空的集合
-                LoadSlide(selectedSlide);
+                // 🎬 先淡出旧内容，然后加载新幻灯片
+                FadeOutAndLoadSlide(selectedSlide);
                 
-                // 保存到数据库（不等待完成，避免阻塞UI）
+                // 保存到数据库（在 UI 线程中异步执行，避免阻塞UI）
                 // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
-                // ✅ 注意：在 UI 线程中调用，确保 DbContext 在正确的线程上下文中使用
+                // ✅ 注意：必须在 UI 线程中执行，因为 DbContext 不是线程安全的
 #pragma warning disable CS4014
-                _ = Task.Run(async () =>
+                _ = Dispatcher.InvokeAsync(async () =>
                 {
                     try
                     {
                         // 🔧 使用副本集合，避免集合被修改
                         // 注意：此时 LoadSlide 已经执行，_textBoxes 已被清空，但 textBoxesCopy 仍然有效
-                        // ✅ TextProjectManager 内部会动态获取 DbContext，所以是线程安全的
                         await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
                         
                         // 同步 FlowDocument 到 RichTextSpans（使用之前提取的数据）
@@ -5745,13 +5791,20 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 已被释放，跳过保存");
 #endif
                     }
+                    catch (InvalidOperationException)
+                    {
+                        // ✅ 如果 DbContext 操作失败（可能是线程安全问题），忽略错误
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 操作失败，跳过保存");
+#endif
+                    }
                     catch
                     {
 #if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败");
 #endif
                     }
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
 #pragma warning restore CS4014
             }
         }
@@ -6290,6 +6343,9 @@ namespace ImageColorChanger.UI
                 // 🆕 恢复分割配置
                 RestoreSplitConfig(slide);
                 
+                // 🎬 淡入淡出动画：先淡出旧内容，然后淡入新内容
+                FadeInSlide();
+                
                 // 🆕 加载完成后，如果投影已开启且未锁定，自动更新投影
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
@@ -6307,6 +6363,144 @@ namespace ImageColorChanger.UI
                 WpfMessageBox.Show($"加载幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// 淡出旧内容并加载新幻灯片（带淡入淡出动画）
+        /// </summary>
+        private void FadeOutAndLoadSlide(Slide newSlide)
+        {
+            if (EditorCanvasContainer == null)
+            {
+                // 如果容器不存在，直接加载
+                LoadSlide(newSlide);
+                return;
+            }
+
+            // 🎨 创建灰色半透明背景层（透明度60% = 0.6）
+            WpfRectangle transitionOverlay = new WpfRectangle
+            {
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                Fill = new SolidColorBrush(WpfColor.FromArgb(153, 128, 128, 128)), // 60% 透明度的灰色 (255 * 0.6 = 153)
+                Opacity = 0.0,  // 初始透明
+                IsHitTestVisible = false  // 不拦截鼠标事件
+            };
+
+            // 将覆盖层添加到容器（在最上层）
+            EditorCanvasContainer.Children.Add(transitionOverlay);
+            System.Windows.Controls.Panel.SetZIndex(transitionOverlay, 9999);  // 确保在最上层
+
+            // 创建淡出动画（同时淡出内容和淡入灰色背景）
+            DoubleAnimation fadeOutAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(300),  // 淡出时间 300ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 灰色背景淡入动画
+            DoubleAnimation overlayFadeInAnimation = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(300),  // 淡入时间 300ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 淡出完成后加载新幻灯片并淡入
+            fadeOutAnimation.Completed += (s, e) =>
+            {
+                // 加载新幻灯片
+                LoadSlide(newSlide);
+                
+                // 淡入新内容（在 LoadSlide 中会调用 FadeInSlide，同时淡出灰色背景）
+                FadeInSlideWithOverlay(transitionOverlay);
+            };
+
+            // 开始淡出动画
+            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+            transitionOverlay.BeginAnimation(UIElement.OpacityProperty, overlayFadeInAnimation);
+        }
+
+        /// <summary>
+        /// 幻灯片淡入动画（带灰色背景层）
+        /// </summary>
+        private void FadeInSlideWithOverlay(WpfRectangle overlay)
+        {
+            // 如果 EditorCanvas 或其容器不存在，直接返回
+            if (EditorCanvas == null || EditorCanvasContainer == null)
+            {
+                // 清理覆盖层
+                if (overlay != null && EditorCanvasContainer != null && EditorCanvasContainer.Children.Contains(overlay))
+                {
+                    EditorCanvasContainer.Children.Remove(overlay);
+                }
+                return;
+            }
+
+            // 设置初始透明度为 0（淡入效果）
+            EditorCanvasContainer.Opacity = 0;
+
+            // 创建淡入动画
+            DoubleAnimation fadeInAnimation = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(400),  // 淡入时间 400ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 灰色背景淡出动画
+            DoubleAnimation overlayFadeOutAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(400),  // 淡出时间 400ms
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 动画完成后移除覆盖层
+            overlayFadeOutAnimation.Completed += (s, e) =>
+            {
+                if (overlay != null && EditorCanvasContainer != null && EditorCanvasContainer.Children.Contains(overlay))
+                {
+                    EditorCanvasContainer.Children.Remove(overlay);
+                }
+            };
+
+            // 开始动画
+            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
+            if (overlay != null)
+            {
+                overlay.BeginAnimation(UIElement.OpacityProperty, overlayFadeOutAnimation);
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片淡入动画（无覆盖层，用于其他场景）
+        /// </summary>
+        private void FadeInSlide()
+        {
+            // 如果 EditorCanvas 或其容器不存在，直接返回
+            if (EditorCanvas == null || EditorCanvasContainer == null)
+                return;
+
+            // 设置初始透明度为 0（淡入效果）
+            EditorCanvasContainer.Opacity = 0;
+
+            // 创建淡入动画
+            DoubleAnimation fadeInAnimation = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromSeconds(0.3),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 开始动画
+            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
         }
 
         /// <summary>

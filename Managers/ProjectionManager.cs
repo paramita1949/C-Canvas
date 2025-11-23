@@ -159,6 +159,23 @@ namespace ImageColorChanger.Managers
             return (1920, 1080);
         }
 
+        /// <summary>
+        /// 获取投影容器（用于动画）
+        /// </summary>
+        public UIElement GetProjectionContainer()
+        {
+            // 优先返回 ScrollViewer（包含所有投影内容）
+            if (_projectionScrollViewer != null)
+                return _projectionScrollViewer;
+            
+            // 如果没有 ScrollViewer，返回容器 Grid
+            if (_projectionContainer != null)
+                return _projectionContainer;
+            
+            // 最后返回窗口本身
+            return _projectionWindow;
+        }
+
         public ProjectionManager(
             Window mainWindow,
             ScrollViewer mainScrollViewer,
