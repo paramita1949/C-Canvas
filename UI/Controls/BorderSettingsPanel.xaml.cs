@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -35,6 +37,8 @@ namespace ImageColorChanger.UI.Controls
         {
             InitializeComponent();
             InitializeColorPalette();
+            // ✅ 延迟加载：在 BindTarget 时再加载（确保数据库已初始化）
+            // LoadRecentColors();
         }
 
         /// <summary>
@@ -43,6 +47,12 @@ namespace ImageColorChanger.UI.Controls
         public void BindTarget(DraggableTextBox textBox)
         {
             _targetTextBox = textBox;
+
+            // ✅ 如果最近颜色还没有加载，现在加载（延迟加载，确保数据库已初始化）
+            if (_recentColors.Count == 0)
+            {
+                LoadRecentColors();
+            }
 
             // 从文本框读取当前边框设置
             if (_targetTextBox != null && _targetTextBox.Data != null)
@@ -58,8 +68,6 @@ namespace ImageColorChanger.UI.Controls
                     _opacity = 0;
                     _targetTextBox.Data.BorderOpacity = 0;
                 }
-
-
 
                 // 更新UI控件
                 TxtRgbInput.Text = _currentColor;
@@ -145,6 +153,104 @@ namespace ImageColorChanger.UI.Controls
                 _recentColors.RemoveAt(6);
 
             UpdateRecentColorsGrid();
+            SaveRecentColors();
+        }
+
+        /// <summary>
+        /// 加载最近使用颜色（从数据库）
+        /// </summary>
+        private void LoadRecentColors()
+        {
+            try
+            {
+                var dbManager = GetDatabaseManager();
+                if (dbManager == null)
+                {
+                    //#if DEBUG
+                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，使用空列表");
+                    //#endif
+                    _recentColors = new List<string>();
+                    UpdateRecentColorsGrid();
+                    return;
+                }
+
+                var jsonValue = dbManager.GetUISetting("BorderRecentColors");
+                //#if DEBUG
+                //                System.Diagnostics.Debug.WriteLine($"🔍 [边框面板] 从数据库读取值: {(string.IsNullOrEmpty(jsonValue) ? "空" : jsonValue)}");
+                //#endif
+                if (string.IsNullOrEmpty(jsonValue))
+                {
+                    //#if DEBUG
+                    //                    System.Diagnostics.Debug.WriteLine($"📥 [边框面板] 数据库中没有最近颜色");
+                    //#endif
+                    _recentColors = new List<string>();
+                }
+                else
+                {
+                    var savedColors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonValue) ?? new List<string>();
+                    //#if DEBUG
+                    //                    System.Diagnostics.Debug.WriteLine($"📥 [边框面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
+                    //#endif
+                    _recentColors = savedColors.Take(6).ToList();
+                }
+            }
+            catch
+            {
+                //#if DEBUG
+                //                System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 加载失败: {ex.Message}");
+                //#endif
+                _recentColors = new List<string>();
+            }
+            UpdateRecentColorsGrid();
+        }
+
+        /// <summary>
+        /// 保存最近使用颜色（到数据库）
+        /// </summary>
+        private void SaveRecentColors()
+        {
+            try
+            {
+                var dbManager = GetDatabaseManager();
+                if (dbManager == null)
+                {
+                    //#if DEBUG
+                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，保存失败");
+                    //#endif
+                    return;
+                }
+
+                var colorsToSave = _recentColors.Take(6).ToList();
+                var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
+                dbManager.SaveUISetting("BorderRecentColors", jsonValue);
+                //#if DEBUG
+                //                System.Diagnostics.Debug.WriteLine($"💾 [边框面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
+                //#endif
+            }
+            catch
+            {
+                //#if DEBUG
+                //                System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 保存失败: {ex.Message}");
+                //#endif
+            }
+        }
+
+        /// <summary>
+        /// 获取数据库管理器
+        /// </summary>
+        private Database.DatabaseManager GetDatabaseManager()
+        {
+            try
+            {
+                if (System.Windows.Application.Current?.MainWindow is MainWindow mainWin)
+                {
+                    var dbManagerField = typeof(MainWindow).GetField("_dbManager", 
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    return dbManagerField?.GetValue(mainWin) as Database.DatabaseManager;
+                }
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>
@@ -279,4 +385,6 @@ namespace ImageColorChanger.UI.Controls
         }
     }
 }
+
+
 

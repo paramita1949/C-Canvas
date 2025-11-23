@@ -941,10 +941,10 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"✅ [SaveTextProjectsOrder] 已保存 {textProjectItems.Count} 个项目的排序");
                 #endif
             }
-            catch (Exception ex)
+            catch
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SaveTextProjectsOrder] 保存排序失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [SaveTextProjectsOrder] 保存排序失败");
                 #endif
             }
         }

@@ -110,9 +110,11 @@ namespace ImageColorChanger.Core
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
                     
-                    //#if DEBUG
-                    //Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
-                    //#endif
+                    // ✅ 确保最近颜色列表不为 null
+                    
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
+#endif
                 }
                 else
                 {
@@ -816,6 +818,7 @@ namespace ImageColorChanger.Core
             TargetColorName = presetName ?? customName ?? "自定义";
         }
 
+
         #endregion
 
         #region 文件夹颜色管理
@@ -903,6 +906,18 @@ namespace ImageColorChanger.Core
         /// 自定义颜色预设列表
         /// </summary>
         public List<ColorPreset> CustomColorPresets { get; set; } = new List<ColorPreset>();
+
+        /// <summary>
+        /// 边框设置面板最近使用颜色（最多6个）
+        /// </summary>
+
+        /// <summary>
+        /// 文本颜色设置面板最近使用颜色（最多6个）
+        /// </summary>
+
+        /// <summary>
+        /// 背景设置面板最近使用颜色（最多6个）
+        /// </summary>
 
         /// <summary>
         /// 文件夹字号（默认：26）

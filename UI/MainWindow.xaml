@@ -2467,6 +2467,25 @@
                                 </Border>
                             </Popup>
 
+                            <!-- 🆕 文本颜色设置侧边面板 -->
+                            <Popup x:Name="TextColorSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="True"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="-160"
+                                   VerticalOffset="0"
+                                   IsOpen="False">
+                                <Border Background="White"
+                                        BorderBrush="#E0E0E0"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:TextColorSettingsPanel x:Name="TextColorSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
                             <!-- 🆕 阴影设置侧边面板 -->
                             <Popup x:Name="ShadowSettingsPopup"
                                    AllowsTransparency="True"

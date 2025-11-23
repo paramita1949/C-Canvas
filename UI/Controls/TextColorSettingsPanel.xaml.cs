@@ -9,14 +9,12 @@ using System.Windows.Media;
 namespace ImageColorChanger.UI.Controls
 {
     /// <summary>
-    /// 背景设置侧边面板
+    /// 文字颜色设置侧边面板
     /// </summary>
-    public partial class BackgroundSettingsPanel : System.Windows.Controls.UserControl
+    public partial class TextColorSettingsPanel : System.Windows.Controls.UserControl
     {
         private DraggableTextBox _targetTextBox;
-        private int _cornerRadius = 0;
-        private int _opacity = 100;
-        private string _currentColor = "#FFFFFF";
+        private string _currentColor = "#000000";
         private List<string> _recentColors = new List<string>();
 
         // 常用颜色色板 (6x4 = 24色) - 与边框样式一致
@@ -29,10 +27,10 @@ namespace ImageColorChanger.UI.Controls
             // 第3行：蓝紫粉系
             "#1976D2", "#5C6BC0", "#9C27B0", "#BA68C8", "#F48FB1", "#CE93D8",
             // 第4行：灰度系
-            "#B0BEC5", "#757575", "#424242", "#212121", "#FFFFFF", "#FFFFFF"
+            "#B0BEC5", "#757575", "#424242", "#212121", "#FFFFFF", "#000000"
         };
 
-        public BackgroundSettingsPanel()
+        public TextColorSettingsPanel()
         {
             InitializeComponent();
             InitializeColorPalette();
@@ -40,6 +38,9 @@ namespace ImageColorChanger.UI.Controls
             // LoadRecentColors();
         }
 
+        /// <summary>
+        /// 绑定目标文本框
+        /// </summary>
         public void BindTarget(DraggableTextBox textBox)
         {
             _targetTextBox = textBox;
@@ -50,27 +51,23 @@ namespace ImageColorChanger.UI.Controls
                 LoadRecentColors();
             }
 
-            // 从文本框读取当前背景设置
+            // 从文本框读取当前文字颜色
             if (_targetTextBox != null && _targetTextBox.Data != null)
             {
-                _currentColor = _targetTextBox.Data.BackgroundColor;
-                _cornerRadius = (int)_targetTextBox.Data.BackgroundRadius;
-                _opacity = _targetTextBox.Data.BackgroundOpacity;
-
-                // ✅ 如果背景透明度为 100%（完全透明），打开面板时设置为 0%（完全不透明）
-                if (_opacity >= 100)
+                _currentColor = _targetTextBox.Data.FontColor;
+                if (string.IsNullOrEmpty(_currentColor))
                 {
-                    _opacity = 0;
-                    _targetTextBox.Data.BackgroundOpacity = 0;
+                    _currentColor = "#000000";
                 }
 
                 // 更新UI控件
                 TxtRgbInput.Text = _currentColor;
-                CornerRadiusSlider.Value = _cornerRadius;
-                OpacitySlider.Value = _opacity;
             }
         }
 
+        /// <summary>
+        /// 初始化色板
+        /// </summary>
         private void InitializeColorPalette()
         {
             ColorGrid.Children.Clear();
@@ -96,13 +93,16 @@ namespace ImageColorChanger.UI.Controls
                         _currentColor = color;
                         TxtRgbInput.Text = color;
                         AddToRecentColors(color);
-                        ApplyBackgroundColor(color);
+                        ApplyTextColor(color);
                     }
                 };
                 ColorGrid.Children.Add(border);
             }
         }
 
+        /// <summary>
+        /// 颜色按钮点击
+        /// </summary>
         private void ColorButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is System.Windows.Controls.Button btn && btn.Tag is string colorHex)
@@ -110,10 +110,13 @@ namespace ImageColorChanger.UI.Controls
                 _currentColor = colorHex;
                 TxtRgbInput.Text = colorHex;
                 AddToRecentColors(colorHex);
-                ApplyBackgroundColor(colorHex);
+                ApplyTextColor(colorHex);
             }
         }
 
+        /// <summary>
+        /// 使用RGB按钮点击
+        /// </summary>
         private void BtnUseRgb_Click(object sender, RoutedEventArgs e)
         {
             var colorHex = TxtRgbInput.Text.Trim();
@@ -121,10 +124,13 @@ namespace ImageColorChanger.UI.Controls
             {
                 _currentColor = colorHex;
                 AddToRecentColors(colorHex);
-                ApplyBackgroundColor(colorHex);
+                ApplyTextColor(colorHex);
             }
         }
 
+        /// <summary>
+        /// 添加到最近使用颜色
+        /// </summary>
         private void AddToRecentColors(string colorHex)
         {
             if (_recentColors.Contains(colorHex))
@@ -149,18 +155,18 @@ namespace ImageColorChanger.UI.Controls
                 if (dbManager == null)
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 无法访问数据库，使用空列表");
+                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 无法访问数据库，使用空列表");
                     //#endif
                     _recentColors = new List<string>();
                     UpdateRecentColorsGrid();
                     return;
                 }
 
-                var jsonValue = dbManager.GetUISetting("BackgroundRecentColors");
+                var jsonValue = dbManager.GetUISetting("TextColorRecentColors");
                 if (string.IsNullOrEmpty(jsonValue))
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"📥 [背景面板] 数据库中没有最近颜色");
+                    //                    System.Diagnostics.Debug.WriteLine($"📥 [文本颜色面板] 数据库中没有最近颜色");
                     //#endif
                     _recentColors = new List<string>();
                 }
@@ -168,7 +174,7 @@ namespace ImageColorChanger.UI.Controls
                 {
                     var savedColors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonValue) ?? new List<string>();
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"📥 [背景面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
+                    //                    System.Diagnostics.Debug.WriteLine($"📥 [文本颜色面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
                     //#endif
                     _recentColors = savedColors.Take(6).ToList();
                 }
@@ -176,7 +182,7 @@ namespace ImageColorChanger.UI.Controls
             catch
             {
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 加载失败: {ex.Message}");
+                //                System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 加载失败: {ex.Message}");
                 //#endif
                 _recentColors = new List<string>();
             }
@@ -194,22 +200,22 @@ namespace ImageColorChanger.UI.Controls
                 if (dbManager == null)
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 无法访问数据库，保存失败");
+                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 无法访问数据库，保存失败");
                     //#endif
                     return;
                 }
 
                 var colorsToSave = _recentColors.Take(6).ToList();
                 var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
-                dbManager.SaveUISetting("BackgroundRecentColors", jsonValue);
+                dbManager.SaveUISetting("TextColorRecentColors", jsonValue);
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"💾 [背景面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
+                //                System.Diagnostics.Debug.WriteLine($"💾 [文本颜色面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
                 //#endif
             }
             catch
             {
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 保存失败: {ex.Message}");
+                //                System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 保存失败: {ex.Message}");
                 //#endif
             }
         }
@@ -232,6 +238,9 @@ namespace ImageColorChanger.UI.Controls
             return null;
         }
 
+        /// <summary>
+        /// 更新最近颜色网格
+        /// </summary>
         private void UpdateRecentColorsGrid()
         {
             RecentColorsGrid.Children.Clear();
@@ -257,7 +266,7 @@ namespace ImageColorChanger.UI.Controls
                         _currentColor = color;
                         TxtRgbInput.Text = color;
                         AddToRecentColors(color);
-                        ApplyBackgroundColor(color);
+                        ApplyTextColor(color);
                     }
                 };
                 RecentColorsGrid.Children.Add(border);
@@ -265,15 +274,13 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// 无颜色按钮点击
+        /// 无颜色按钮点击（透明）
         /// </summary>
         private void BtnNoColor_Click(object sender, RoutedEventArgs e)
         {
             _currentColor = "Transparent";
-            TxtRgbInput.Text = "无颜色";
-            _opacity = 100;  // ✅ 透明度 100% = 完全透明
-            OpacitySlider.Value = 100;
-            ApplyBackgroundColor("Transparent");
+            TxtRgbInput.Text = "透明";
+            ApplyTextColor("Transparent");
         }
 
         /// <summary>
@@ -289,64 +296,63 @@ namespace ImageColorChanger.UI.Controls
                 _currentColor = colorHex;
                 TxtRgbInput.Text = colorHex;
                 AddToRecentColors(colorHex);
-                ApplyBackgroundColor(colorHex);
+                ApplyTextColor(colorHex);
             }
         }
 
         /// <summary>
-        /// 圆角滑块值变化
+        /// 应用文字颜色
         /// </summary>
-        private void CornerRadiusSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            _cornerRadius = (int)e.NewValue;
-            if (TxtCornerRadiusLabel != null)
-                TxtCornerRadiusLabel.Text = $"圆角 {_cornerRadius} px";
-
-            ApplyBackgroundStyle();
-        }
-
-        /// <summary>
-        /// 透明度滑块值变化
-        /// </summary>
-        private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            _opacity = (int)e.NewValue;
-            if (TxtOpacityLabel != null)
-            {
-                if (_opacity == 100)
-                    TxtOpacityLabel.Text = "透明度 100% （无背景）";
-                else
-                    TxtOpacityLabel.Text = $"透明度 {_opacity}%";
-            }
-
-            ApplyBackgroundStyle();
-        }
-
-        private void ApplyBackgroundColor(string colorHex)
-        {
-// #if DEBUG
-//             System.Diagnostics.Debug.WriteLine($"🎨 [ApplyBackgroundColor] 颜色={colorHex}");
-// #endif
-            _currentColor = colorHex;
-            ApplyBackgroundStyle();
-        }
-
-        /// <summary>
-        /// 应用完整背景样式到文本框（支持选中文本）
-        /// </summary>
-        private void ApplyBackgroundStyle()
+        private void ApplyTextColor(string colorHex)
         {
             if (_targetTextBox == null)
-            {
                 return;
-            }
 
-            // 背景样式始终应用到整个文本框，不需要选中文字
-            _targetTextBox.ApplyStyle(
-                backgroundColor: _currentColor,
-                backgroundRadius: _cornerRadius,
-                backgroundOpacity: _opacity
-            );
+            // ✅ 只允许选中文字后修改颜色
+            if (_targetTextBox.HasTextSelection())
+            {
+                if (colorHex == "Transparent")
+                {
+                    // 透明颜色需要特殊处理
+                    _targetTextBox.ApplyStyleToSelection(color: "#00000000");
+                }
+                else
+                {
+                    _targetTextBox.ApplyStyleToSelection(color: colorHex);
+                }
+                
+                // 主窗口会通过监听文本框的变化来标记内容已修改
+            }
+        }
+
+        /// <summary>
+        /// 关闭按钮点击
+        /// </summary>
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            // 关闭面板（通过查找父窗口的 Popup）
+            var popup = FindParentPopup(this);
+            if (popup != null)
+            {
+                popup.IsOpen = false;
+            }
+        }
+
+        /// <summary>
+        /// 查找父 Popup
+        /// </summary>
+        private System.Windows.Controls.Primitives.Popup FindParentPopup(DependencyObject element)
+        {
+            var parent = System.Windows.Media.VisualTreeHelper.GetParent(element);
+            while (parent != null)
+            {
+                if (parent is System.Windows.Controls.Primitives.Popup popup)
+                {
+                    return popup;
+                }
+                parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+            }
+            return null;
         }
     }
 }

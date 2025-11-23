@@ -1241,7 +1241,7 @@ namespace ImageColorChanger.UI.Controls
                         System.Windows.Documents.TextElement.ForegroundProperty,
                         new WpfSolidColorBrush(wpfColor));
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
+                    //System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
 #endif
                 }
                 catch (Exception)
@@ -1687,15 +1687,14 @@ namespace ImageColorChanger.UI.Controls
                 
 #if DEBUG
                 // 调试信息：显示同步后的文本内容（仅前100个字符）
-                string preview = Data.Content.Length > 100 ? Data.Content.Substring(0, 100) + "..." : Data.Content;
-                System.Diagnostics.Debug.WriteLine($"✅ [SyncTextFromRichTextBox] 同步完成，段落数={_richTextBox.Document.Blocks.Count}, 文本长度={Data.Content.Length}, 预览={preview.Replace("\r\n", "\\n")}");
+                //string preview = Data.Content.Length > 100 ? Data.Content.Substring(0, 100) + "..." : Data.Content;
+                //System.Diagnostics.Debug.WriteLine($"✅ [SyncTextFromRichTextBox] 同步完成，段落数={_richTextBox.Document.Blocks.Count}, 文本长度={Data.Content.Length}, 预览={preview.Replace("\r\n", "\\n")}");
 #endif
             }
-            catch (Exception ex)
+            catch
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextFromRichTextBox] 失败: {ex.Message}");
-                _ = ex; // 避免未使用变量警告
+                //System.Diagnostics.Debug.WriteLine($"❌ [SyncTextFromRichTextBox] 失败");
 #endif
             }
         }
@@ -1719,7 +1718,7 @@ namespace ImageColorChanger.UI.Controls
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📥 [加载RichTextSpans] 文本框 ID={Data.Id} 开始加载 {Data.RichTextSpans.Count} 个片段");
+                    //System.Diagnostics.Debug.WriteLine($"📥 [加载RichTextSpans] 文本框 ID={Data.Id} 开始加载 {Data.RichTextSpans.Count} 个片段");
 #endif
                     // ✅ 关键修复：根据 Data.Content 中的换行符来分割段落
                     // 这样可以保留段落结构，即使 RichTextSpans 中没有段落分隔信息
@@ -1814,7 +1813,7 @@ namespace ImageColorChanger.UI.Controls
                     }
                     
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [加载RichTextSpans] 加载完成，段落数={_richTextBox.Document.Blocks.Count}");
+                    //System.Diagnostics.Debug.WriteLine($"✅ [加载RichTextSpans] 加载完成，段落数={_richTextBox.Document.Blocks.Count}");
 #endif
                 }
                 else

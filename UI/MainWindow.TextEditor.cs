@@ -2522,8 +2522,20 @@ namespace ImageColorChanger.UI
                 Color = System.Drawing.Color.White
             };
 
+            // 如果当前幻灯片有背景色，设置为初始颜色
+            if (!string.IsNullOrEmpty(_currentSlide.BackgroundColor))
+            {
+                try
+                {
+                    var wpfColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_currentSlide.BackgroundColor);
+                    colorDialog.Color = System.Drawing.Color.FromArgb(wpfColor.A, wpfColor.R, wpfColor.G, wpfColor.B);
+                }
+                catch { }
+            }
+
             if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
+                
                 try
                 {
                     // 转换为WPF颜色
@@ -2998,11 +3010,13 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"   - 调用来源: {callingMethod}");
             //System.Diagnostics.Debug.WriteLine($"   - BorderSettingsPopup.IsOpen: {BorderSettingsPopup.IsOpen}");
             //System.Diagnostics.Debug.WriteLine($"   - BackgroundSettingsPopup.IsOpen: {BackgroundSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - TextColorSettingsPopup.IsOpen: {TextColorSettingsPopup.IsOpen}");
             //System.Diagnostics.Debug.WriteLine($"   - ShadowSettingsPopup.IsOpen: {ShadowSettingsPopup.IsOpen}");
             //System.Diagnostics.Debug.WriteLine($"   - SpacingSettingsPopup.IsOpen: {SpacingSettingsPopup.IsOpen}");
 
             BorderSettingsPopup.IsOpen = false;
             BackgroundSettingsPopup.IsOpen = false;
+            TextColorSettingsPopup.IsOpen = false;
             ShadowSettingsPopup.IsOpen = false;
             SpacingSettingsPopup.IsOpen = false;
 
@@ -3023,6 +3037,10 @@ namespace ImageColorChanger.UI
             if (keepPopupName != "BackgroundSettingsPopup")
             {
                 BackgroundSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "TextColorSettingsPopup")
+            {
+                TextColorSettingsPopup.IsOpen = false;
             }
             if (keepPopupName != "ShadowSettingsPopup")
             {
@@ -3121,33 +3139,24 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 文字颜色按钮
+        /// 文字颜色按钮 - 打开文本颜色设置面板
         /// </summary>
         private void BtnTextColor_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedTextBox == null)
                 return;
 
-            // 保存当前选中的文本框引用（对话框可能导致 _selectedTextBox 被清空）
-            var targetTextBox = _selectedTextBox;
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("TextColorSettingsPopup");
 
-            // 简化版颜色选择器（使用对话框）
-            var dialog = new System.Windows.Forms.ColorDialog
-            {
-                Color = System.Drawing.ColorTranslator.FromHtml(_currentTextColor)
-            };
+            // 绑定目标文本框
+            TextColorSettingsPanel.BindTarget(_selectedTextBox);
 
-            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                _currentTextColor = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+            // 显示文本颜色设置面板
+            TextColorSettingsPopup.IsOpen = true;
 
-                // ✅ 简化逻辑：只允许选中文字后修改颜色
-                if (targetTextBox.HasTextSelection())
-                {
-                    targetTextBox.ApplyStyleToSelection(color: _currentTextColor);
-                    MarkContentAsModified();
-                }
-            }
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -5575,41 +5584,72 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
+                // 🔧 先提取 RichTextSpans（在 LoadSlide 之前，此时 UI 元素仍然有效）
+                var richTextSpansDict = new Dictionary<int, List<Database.Models.RichTextSpan>>();
+                foreach (var tb in textBoxesCopy)
+                {
+                    try
+                    {
+                        if (tb != null && tb.Data != null)
+                        {
+                            var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
+                            if (richTextSpans != null && richTextSpans.Count > 0)
+                            {
+                                richTextSpansDict[tb.Data.Id] = richTextSpans;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 如果提取失败，记录但不阻止切换幻灯片
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] 提取 RichTextSpans 失败 (ID={tb?.Data?.Id}): {ex.Message}");
+                        _ = ex;
+#endif
+                    }
+                }
+                
+                // 🔧 先同步加载新幻灯片，然后再异步保存旧数据
+                // 这样可以避免在保存过程中访问已经被清空的集合
+                LoadSlide(selectedSlide);
+                
                 // 保存到数据库（不等待完成，避免阻塞UI）
+                // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
+                // ✅ 注意：在 UI 线程中调用，确保 DbContext 在正确的线程上下文中使用
+#pragma warning disable CS4014
                 _ = Task.Run(async () =>
                 {
                     try
                     {
                         // 🔧 使用副本集合，避免集合被修改
+                        // 注意：此时 LoadSlide 已经执行，_textBoxes 已被清空，但 textBoxesCopy 仍然有效
+                        // ✅ TextProjectManager 内部会动态获取 DbContext，所以是线程安全的
                         await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
                         
-                        // 同步 FlowDocument 到 RichTextSpans
-                        foreach (var tb in textBoxesCopy)
+                        // 同步 FlowDocument 到 RichTextSpans（使用之前提取的数据）
+                        foreach (var kvp in richTextSpansDict)
                         {
-                            var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
-                            if (richTextSpans != null && richTextSpans.Count > 0)
-                            {
-                                await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
-                            }
+                            await _textProjectManager.SaveRichTextSpansAsync(kvp.Key, kvp.Value);
                         }
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [切换幻灯片] 文本已保存到数据库");
+                        //System.Diagnostics.Debug.WriteLine($"✅ [切换幻灯片] 文本已保存到数据库");
 #endif
                     }
-                    catch (Exception ex)
+                    catch (ObjectDisposedException)
+                    {
+                        // ✅ 如果 DbContext 已被释放，忽略错误（程序可能正在关闭）
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 已被释放，跳过保存");
+#endif
+                    }
+                    catch
                     {
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败: {ex.Message}");
-                        _ = ex;
+                        //System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败");
 #endif
                     }
                 });
-                
-                // 🆕 使用 Dispatcher.BeginInvoke 延迟加载，确保可视树完全构建
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    LoadSlide(selectedSlide);
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
+#pragma warning restore CS4014
             }
         }
 
@@ -6717,4 +6757,5 @@ namespace ImageColorChanger.UI
     }
     // FontItemData 类已移至 Core.FontService，统一管理
 }
+
 
