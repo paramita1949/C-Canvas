@@ -5561,7 +5561,7 @@ namespace ImageColorChanger.UI
         /// 幻灯片列表选择改变事件
         /// ✅ 切换幻灯片前先保存当前文本，防止文本丢失
         /// </summary>
-        private async void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (SlideListBox.SelectedItem is Slide selectedSlide)
             {
