@@ -76,8 +76,10 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 无关键帧时，从CompositeScript读取或使用默认值120秒
-                    double totalDuration = compositeScript?.TotalDuration ?? 120.0;
+                    // 无关键帧时，从CompositeScript读取或使用JSON配置的默认值
+                    var configManager = Core.ConfigManager.Instance;
+                    double defaultDuration = configManager?.CompositePlaybackDefaultDuration ?? 105.0;
+                    double totalDuration = compositeScript?.TotalDuration ?? defaultDuration;
                     TotalDurationTextBox.Text = totalDuration.ToString("F1");
                     TotalDurationTextBox.IsReadOnly = false;
                     TotalDurationTextBox.Background = System.Windows.Media.Brushes.White;
@@ -500,9 +502,11 @@ namespace ImageColorChanger.UI
             try
             {
                 // 解析TOTAL时间
+                var configManager = Core.ConfigManager.Instance;
+                double defaultDuration = configManager?.CompositePlaybackDefaultDuration ?? 105.0;
                 if (!double.TryParse(TotalDurationTextBox.Text, out double totalDuration) || totalDuration < 0)
                 {
-                    totalDuration = 120.0; // 默认值
+                    totalDuration = defaultDuration; // 使用JSON配置的默认值
                 }
                 
                 var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();

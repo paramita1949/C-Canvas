@@ -653,6 +653,17 @@ namespace ImageColorChanger.UI
                 customItem.Click += (s, args) => OpenScriptEditWindow();
                 contextMenu.Items.Add(customItem);
 
+                contextMenu.Items.Add(new Separator());
+
+                // 🆕 全局默认时间设定
+                var currentDefaultDuration = _configManager?.CompositePlaybackDefaultDuration ?? 105.0;
+                var globalDefaultItem = new MenuItem 
+                { 
+                    Header = $"🌐 全局默认时间: {currentDefaultDuration:F0} 秒"
+                };
+                globalDefaultItem.Click += (s, args) => OpenGlobalDefaultDurationDialog();
+                contextMenu.Items.Add(globalDefaultItem);
+
                 // 显示菜单
                 contextMenu.PlacementTarget = sender as UIElement;
                 contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
@@ -687,6 +698,133 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"❌ 设置时长失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"❌ 设置总时长失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 打开全局默认时间设置对话框
+        /// </summary>
+        private void OpenGlobalDefaultDurationDialog()
+        {
+            try
+            {
+                if (_configManager == null)
+                {
+                    ShowStatus("❌ 配置管理器未初始化");
+                    return;
+                }
+
+                var currentDuration = _configManager.CompositePlaybackDefaultDuration;
+
+                // 创建输入对话框
+                var inputDialog = new Window
+                {
+                    Title = "设置全局默认时间",
+                    Width = 350,
+                    Height = 180,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    ResizeMode = ResizeMode.NoResize,
+                    ShowInTaskbar = false
+                };
+
+                var stackPanel = new System.Windows.Controls.StackPanel
+                {
+                    Margin = new Thickness(20),
+                    Orientation = System.Windows.Controls.Orientation.Vertical
+                };
+
+                // 提示文本
+                var label = new System.Windows.Controls.TextBlock
+                {
+                    Text = "请输入全局默认时间（秒）：",
+                    FontSize = 14,
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                stackPanel.Children.Add(label);
+
+                // 输入框
+                var textBox = new System.Windows.Controls.TextBox
+                {
+                    Text = currentDuration.ToString("F0"),
+                    FontSize = 14,
+                    Height = 30,
+                    Margin = new Thickness(0, 0, 0, 15),
+                    HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center
+                };
+                stackPanel.Children.Add(textBox);
+
+                // 按钮面板
+                var buttonPanel = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+                };
+
+                var okButton = new System.Windows.Controls.Button
+                {
+                    Content = "确定",
+                    Width = 80,
+                    Height = 30,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    IsDefault = true
+                };
+
+                var cancelButton = new System.Windows.Controls.Button
+                {
+                    Content = "取消",
+                    Width = 80,
+                    Height = 30,
+                    IsCancel = true
+                };
+
+                okButton.Click += (s, args) =>
+                {
+                    if (double.TryParse(textBox.Text, out double duration))
+                    {
+                        if (duration > 0 && duration <= 600) // 限制在1-600秒之间
+                        {
+                            _configManager.CompositePlaybackDefaultDuration = duration;
+                            ShowStatus($"✅ 全局默认时间已设置为 {duration:F0} 秒");
+                            inputDialog.DialogResult = true;
+                            inputDialog.Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("时间必须在 1-600 秒之间", "输入错误", 
+                                MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("请输入有效的数字", "输入错误", 
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                };
+
+                cancelButton.Click += (s, args) =>
+                {
+                    inputDialog.DialogResult = false;
+                    inputDialog.Close();
+                };
+
+                buttonPanel.Children.Add(okButton);
+                buttonPanel.Children.Add(cancelButton);
+                stackPanel.Children.Add(buttonPanel);
+
+                inputDialog.Content = stackPanel;
+                inputDialog.Loaded += (s, e) => 
+                {
+                    textBox.SelectAll();
+                    textBox.Focus();
+                };
+
+                inputDialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 打开设置对话框失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 打开全局默认时间设置对话框失败: {ex}");
             }
         }
 

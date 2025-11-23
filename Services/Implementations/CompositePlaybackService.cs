@@ -113,6 +113,22 @@ namespace ImageColorChanger.Services.Implementations
 
             // 1. 获取合成脚本（优先从CompositeScript读取时间配置）
             var compositeScript = await _compositeScriptRepository.GetByImageIdAsync(imageId);
+            
+            // 🔧 如果脚本存在但使用的是旧的默认值（105秒），且不是自动计算的，则更新为JSON配置的默认值
+            if (compositeScript != null && !compositeScript.AutoCalculate)
+            {
+                const double OLD_DEFAULT_DURATION = 105.0;
+                if (Math.Abs(compositeScript.TotalDuration - OLD_DEFAULT_DURATION) < 0.01)
+                {
+                    // 使用JSON配置的默认值更新
+                    compositeScript.TotalDuration = _configManager.CompositePlaybackDefaultDuration;
+                    compositeScript.UpdatedAt = DateTime.Now;
+                    await _compositeScriptRepository.CreateOrUpdateAsync(imageId, _configManager.CompositePlaybackDefaultDuration, autoCalculate: false);
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 更新脚本默认时间: {OLD_DEFAULT_DURATION}秒 -> {_configManager.CompositePlaybackDefaultDuration}秒");
+                    #endif
+                }
+            }
 
             // 2. 获取所有关键帧
             var keyframes = await _keyframeRepository.GetKeyframesByImageIdAsync(imageId);
