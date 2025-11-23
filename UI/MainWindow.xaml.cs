@@ -1157,16 +1157,16 @@ namespace ImageColorChanger.UI
                     _textProjectManager = new TextProjectManager(_dbManager);
                 }
 
-                // 获取所有项目（已按修改时间排序，最新的在前）
+                // 获取所有项目（已按SortOrder排序，SortOrder最小的在前）
                 var textProjects = await _textProjectManager.GetAllProjectsAsync();
 
                 if (textProjects != null && textProjects.Count > 0)
                 {
-                    // 获取序列第一位的项目（排序后的第一个项目）
+                    // 获取序列第一位的项目（SortOrder最小的项目，即排序第一位的项目）
                     var firstProject = textProjects[0];
 
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 默认加载第一个项目: {firstProject.Name} (ID={firstProject.Id})");
+                    System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 默认加载第一个项目: {firstProject.Name} (ID={firstProject.Id}, SortOrder={firstProject.SortOrder})");
                     #endif
 
                     // 加载第一个项目

@@ -803,7 +803,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="70"/>   <!-- 第1列:分类(4个字宽度) -->
                                 <ColumnDefinition Width="125"/>  <!-- 第2列:书卷 -->
-                                <ColumnDefinition Width="60"/>   <!-- 第3列:章 -->
+                                <ColumnDefinition Width="65"/>   <!-- 第3列:章 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第5列:结束节 -->
                             </Grid.ColumnDefinitions>

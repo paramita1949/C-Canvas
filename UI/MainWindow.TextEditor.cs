@@ -5710,22 +5710,30 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 🔧 通过ID查找幻灯片，避免对象引用不一致的问题
                 var slides = await _dbContext.Slides
                     .Where(s => s.ProjectId == _currentTextProject.Id)
                     .OrderBy(s => s.SortOrder)
                     .ToListAsync();
 
-                int sourceIndex = slides.IndexOf(sourceSlide);
-                int targetIndex = slides.IndexOf(targetSlide);
+                // 通过ID查找索引，而不是使用对象引用
+                int sourceIndex = slides.FindIndex(s => s.Id == sourceSlide.Id);
+                int targetIndex = slides.FindIndex(s => s.Id == targetSlide.Id);
 
                 if (sourceIndex == -1 || targetIndex == -1)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [ReorderSlides] 无法找到幻灯片: sourceIndex={sourceIndex}, targetIndex={targetIndex}");
+                    #endif
                     return;
+                }
 
                 // 移除源幻灯片
+                var sourceSlideEntity = slides[sourceIndex];
                 slides.RemoveAt(sourceIndex);
                 
                 // 插入到目标位置
-                slides.Insert(targetIndex, sourceSlide);
+                slides.Insert(targetIndex, sourceSlideEntity);
 
                 // 更新所有幻灯片的SortOrder
                 for (int i = 0; i < slides.Count; i++)
@@ -5733,16 +5741,33 @@ namespace ImageColorChanger.UI
                     slides[i].SortOrder = i;
                 }
 
+                // 🔧 显式标记所有幻灯片为已修改，确保EF Core跟踪更改
+                foreach (var slide in slides)
+                {
+                    _dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
+                }
+
                 await _dbContext.SaveChangesAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
+                #endif
 
                 // 刷新列表
                 LoadSlideList();
 
-                // 保持选中当前幻灯片
-                SlideListBox.SelectedItem = sourceSlide;
+                // 保持选中当前幻灯片（通过ID查找）
+                var updatedSourceSlide = slides.FirstOrDefault(s => s.Id == sourceSlide.Id);
+                if (updatedSourceSlide != null)
+                {
+                    SlideListBox.SelectedItem = updatedSourceSlide;
+                }
             }
             catch (Exception ex)
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [ReorderSlides] 排序失败: {ex.Message}");
+                #endif
                 WpfMessageBox.Show($"排序失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }

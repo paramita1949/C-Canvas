@@ -887,10 +887,13 @@ namespace ImageColorChanger.UI
                     
                     // 🔧 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
                     FilterProjectTree();
+                    
+                    // 🆕 保存排序到数据库（只保存TextProject类型的项目）
+                    if (sourceItem.Type == TreeItemType.TextProject && targetItem.Type == TreeItemType.TextProject)
+                    {
+                        _ = SaveTextProjectsOrderAsync();
+                    }
                 }
-                
-                // TODO: 如果需要持久化Project节点的顺序，可以在这里保存到数据库
-                // 目前Project节点的顺序在重启后会恢复到数据库中的顺序
             }
             catch (Exception ex)
             {
@@ -898,6 +901,50 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"❌ [ReorderProjects] Project排序失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
+                #endif
+            }
+        }
+
+        /// <summary>
+        /// 保存文本项目排序到数据库
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveTextProjectsOrderAsync()
+        {
+            try
+            {
+                if (_textProjectManager == null || _dbManager == null)
+                    return;
+
+                // 获取所有TextProject类型的项目节点
+                var textProjectItems = _projectTreeItems
+                    .Where(item => item.Type == TreeItemType.TextProject)
+                    .ToList();
+
+                if (textProjectItems.Count == 0)
+                    return;
+
+                var dbContext = _dbManager.GetDbContext();
+                
+                // 更新每个项目的SortOrder
+                for (int i = 0; i < textProjectItems.Count; i++)
+                {
+                    var project = await dbContext.TextProjects.FindAsync(textProjectItems[i].Id);
+                    if (project != null)
+                    {
+                        project.SortOrder = i;
+                    }
+                }
+
+                await dbContext.SaveChangesAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [SaveTextProjectsOrder] 已保存 {textProjectItems.Count} 个项目的排序");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [SaveTextProjectsOrder] 保存排序失败: {ex.Message}");
                 #endif
             }
         }

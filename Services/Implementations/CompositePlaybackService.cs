@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Repositories.Interfaces;
 using ImageColorChanger.Services.Interfaces;
@@ -19,6 +20,7 @@ namespace ImageColorChanger.Services.Implementations
         private readonly ITimingRepository _timingRepository;
         private readonly IKeyframeRepository _keyframeRepository;
         private readonly Repositories.Interfaces.ICompositeScriptRepository _compositeScriptRepository;
+        private readonly ConfigManager _configManager;
         private CancellationTokenSource _cancellationTokenSource;
 
         private int _currentImageId;
@@ -87,11 +89,13 @@ namespace ImageColorChanger.Services.Implementations
         public CompositePlaybackService(
             ITimingRepository timingRepository,
             IKeyframeRepository keyframeRepository,
-            Repositories.Interfaces.ICompositeScriptRepository compositeScriptRepository)
+            Repositories.Interfaces.ICompositeScriptRepository compositeScriptRepository,
+            ConfigManager configManager)
         {
             _timingRepository = timingRepository ?? throw new ArgumentNullException(nameof(timingRepository));
             _keyframeRepository = keyframeRepository ?? throw new ArgumentNullException(nameof(keyframeRepository));
             _compositeScriptRepository = compositeScriptRepository ?? throw new ArgumentNullException(nameof(compositeScriptRepository));
+            _configManager = configManager ?? throw new ArgumentNullException(nameof(configManager));
             _playbackStopwatch = new System.Diagnostics.Stopwatch();
         }
 
@@ -153,8 +157,8 @@ namespace ImageColorChanger.Services.Implementations
                     //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
                     //#endif
 
-                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
-                    _totalDuration = compositeScript?.TotalDuration ?? 120.0;
+                    // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
+                    _totalDuration = compositeScript?.TotalDuration ?? _configManager.CompositePlaybackDefaultDuration;
                     
                     // 如果CompositeScript不存在，创建默认的
                     if (compositeScript == null)
@@ -192,8 +196,8 @@ namespace ImageColorChanger.Services.Implementations
                     //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
                     //#endif
 
-                    // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
-                    _totalDuration = compositeScript?.TotalDuration ?? 120.0;
+                    // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
+                    _totalDuration = compositeScript?.TotalDuration ?? _configManager.CompositePlaybackDefaultDuration;
                     
                     // 如果CompositeScript不存在，创建默认的
                     if (compositeScript == null)
@@ -236,13 +240,13 @@ namespace ImageColorChanger.Services.Implementations
             }
             else if (!hasKeyframes)
             {
-                // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（默认120秒）
+                // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（从配置读取默认值）
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式3：无关键帧，从顶部滚动");
                 //#endif
 
-                // 从CompositeScript获取TOTAL时间，如果没有则使用默认120秒
-                _totalDuration = compositeScript?.TotalDuration ?? 120.0;
+                // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
+                _totalDuration = compositeScript?.TotalDuration ?? _configManager.CompositePlaybackDefaultDuration;
                 
                 // 如果CompositeScript不存在，创建默认的
                 if (compositeScript == null)

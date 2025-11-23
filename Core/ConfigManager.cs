@@ -682,6 +682,22 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 合成播放默认时长（秒）
+        /// </summary>
+        public double CompositePlaybackDefaultDuration
+        {
+            get => _config.CompositePlaybackDefaultDuration;
+            set
+            {
+                if (Math.Abs(_config.CompositePlaybackDefaultDuration - value) > 0.001)
+                {
+                    _config.CompositePlaybackDefaultDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -1002,6 +1018,11 @@ namespace ImageColorChanger.Core
         /// 是否在退出程序时保存圣经投影记录（默认：false）
         /// </summary>
         public bool SaveBibleHistory { get; set; } = false;
+
+        /// <summary>
+        /// 合成播放默认时长（秒，默认：105）
+        /// </summary>
+        public double CompositePlaybackDefaultDuration { get; set; } = 105.0;
     }
 
     /// <summary>

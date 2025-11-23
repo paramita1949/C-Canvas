@@ -57,6 +57,12 @@ namespace ImageColorChanger.Database.Models
         public DateTime? ModifiedTime { get; set; }
 
         /// <summary>
+        /// 排序顺序（用于项目列表排序，数值越小越靠前）
+        /// </summary>
+        [Column("sort_order")]
+        public int SortOrder { get; set; } = 0;
+
+        /// <summary>
         /// 导航属性：项目中的文本元素（兼容旧数据，直接关联项目的元素）
         /// </summary>
         public virtual ICollection<TextElement> Elements { get; set; } = new List<TextElement>();
