@@ -3843,15 +3843,66 @@ namespace ImageColorChanger.UI
             bool hasVideoBackground = _currentSlide?.VideoBackgroundEnabled == true 
                                      && !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath);
             
-            if (hasVideoBackground)
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] ===== 开始更新投影 =====");
+            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] _isProjectionLocked: {_isProjectionLocked}");
+            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] hasVideoBackground: {hasVideoBackground}");
+            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
+            if (!string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath))
             {
-                // 🎬 视频背景模式：使用 VisualBrush 镜像投影
-                UpdateProjectionWithVideoBackground();
+                System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] 文件存在: {System.IO.File.Exists(_currentSlide.BackgroundImagePath)}");
+                System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionFromCanvas] IsVideoFile: {IsVideoFile(_currentSlide.BackgroundImagePath)}");
+            }
+#endif
+            
+            if (_isProjectionLocked)
+            {
+                // 🔒 锁定模式：使用独立的 MediaElement
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 锁定模式：使用独立 MediaElement");
+#endif
+                if (hasVideoBackground)
+                {
+                    // 主屏幕有视频：更新投影的独立 MediaElement
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 主屏幕有视频，更新投影的独立 MediaElement");
+                    System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 视频路径: {_currentSlide.BackgroundImagePath}");
+                    System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 循环播放: {_currentSlide.VideoLoopEnabled}");
+#endif
+                    var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    _projectionManager.UpdateProjectionWithLockedVideo(
+                        _currentSlide.BackgroundImagePath,
+                        _currentSlide.VideoLoopEnabled,
+                        textLayer);
+                }
+                else
+                {
+                    // 主屏幕没有视频：清理投影的独立 MediaElement，使用静态背景模式
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionFromCanvas] 主屏幕没有视频，清理独立 MediaElement，使用静态背景");
+#endif
+                    // 清理独立 MediaElement
+                    _projectionManager.ClearLockedVideo();
+                    
+                    // 使用静态背景模式（和未锁定模式一样）
+                    UpdateProjectionWithStaticBackground();
+                }
             }
             else
             {
-                // 📷 普通模式：使用 SkiaSharp 渲染投影
-                UpdateProjectionWithStaticBackground();
+                // 🔓 未锁定模式：使用 VisualBrush（镜像主屏幕）
+                if (hasVideoBackground)
+                {
+                    // 🎬 视频背景模式：使用 VisualBrush 镜像投影
+                    UpdateProjectionWithVideoBackground();
+                }
+                else
+                {
+                    // 📷 普通模式：使用 SkiaSharp 渲染投影
+                    UpdateProjectionWithStaticBackground();
+                }
             }
         }
 
@@ -5424,6 +5475,42 @@ namespace ImageColorChanger.UI
                 BtnLockProjection.Tag = "Locked";
                 BtnLockProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 165, 0));
                 BtnLockProjection.Foreground = new SolidColorBrush(Colors.White);
+                
+                // 🔒 锁定模式：如果当前有视频背景，切换到独立 MediaElement 模式
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] ===== 锁定投影 =====");
+                System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+                System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
+                System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
+                System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+#endif
+                if (_currentSlide?.VideoBackgroundEnabled == true && 
+                    !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath) &&
+                    IsVideoFile(_currentSlide.BackgroundImagePath) &&
+                    _projectionManager.IsProjectionActive)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 切换到独立 MediaElement 模式");
+                    System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 视频路径: {_currentSlide.BackgroundImagePath}");
+                    System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 循环播放: {_currentSlide.VideoLoopEnabled}");
+#endif
+                    var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    _projectionManager.UpdateProjectionWithLockedVideo(
+                        _currentSlide.BackgroundImagePath,
+                        _currentSlide.VideoLoopEnabled,
+                        textLayer);
+                }
+#if DEBUG
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [BtnLockProjection] 条件不满足，未切换到独立 MediaElement 模式");
+                    System.Diagnostics.Debug.WriteLine($"   - VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+                    System.Diagnostics.Debug.WriteLine($"   - BackgroundImagePath为空: {string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath)}");
+                    System.Diagnostics.Debug.WriteLine($"   - IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
+                    System.Diagnostics.Debug.WriteLine($"   - IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+                }
+#endif
             }
             else
             {
@@ -5433,6 +5520,18 @@ namespace ImageColorChanger.UI
                 BtnLockProjection.Tag = null;
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.BackgroundProperty);
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.ForegroundProperty);
+                
+                // 🔓 解锁模式：清理独立 MediaElement，切换回 VisualBrush 模式
+                _projectionManager.ClearLockedVideo();
+                
+                // 如果当前有视频背景，重新使用 VisualBrush 模式更新投影
+                if (_currentSlide?.VideoBackgroundEnabled == true && 
+                    !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath) &&
+                    IsVideoFile(_currentSlide.BackgroundImagePath) &&
+                    _projectionManager.IsProjectionActive)
+                {
+                    UpdateProjectionWithVideoBackground();
+                }
             }
         }
 
@@ -5599,7 +5698,11 @@ namespace ImageColorChanger.UI
                             }
                         }
                     }
-                    catch
+                    catch (Exception
+#if DEBUG
+                        ex
+#endif
+                    )
                     {
                         // 如果提取失败，记录但不阻止切换幻灯片
 #if DEBUG
@@ -6095,9 +6198,26 @@ namespace ImageColorChanger.UI
                     // 判断是视频还是图片
                     bool isVideo = slide.VideoBackgroundEnabled && IsVideoFile(slide.BackgroundImagePath);
 
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] 背景路径: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] VideoBackgroundEnabled: {slide.VideoBackgroundEnabled}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsVideoFile: {IsVideoFile(slide.BackgroundImagePath)}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] isVideo: {isVideo}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] _isProjectionLocked: {_isProjectionLocked}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+#endif
+
                     if (isVideo)
                     {
-                        // 🎬 视频背景
+                        // 🎬 视频背景：主屏幕正常加载视频
+                        // 🔒 锁定模式下，投影使用独立的 MediaElement，主屏幕也正常显示视频
+                        // 这样主屏幕可以正常预览，投影独立播放
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🎬 [LoadSlide] 加载视频背景");
+                        System.Diagnostics.Debug.WriteLine($"   - 视频路径: {slide.BackgroundImagePath}");
+                        System.Diagnostics.Debug.WriteLine($"   - 循环播放: {slide.VideoLoopEnabled}");
+                        System.Diagnostics.Debug.WriteLine($"   - 锁定状态: {_isProjectionLocked}");
+#endif
                         LoadVideoBackground(slide);
                     }
                     else

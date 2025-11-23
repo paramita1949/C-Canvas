@@ -71,6 +71,10 @@ namespace ImageColorChanger.Managers
         // VisualBrush投影相关（圣经经文）
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形
         private ScrollViewer _currentBibleScrollViewer;  // 当前正在投影的圣经ScrollViewer
+        
+        // 🔒 锁定模式视频投影相关（独立 MediaElement）
+        private System.Windows.Controls.MediaElement _projectionMediaElement;  // 投影窗口的独立 MediaElement（锁定模式使用）
+        private string _lockedVideoPath;  // 锁定模式下的视频路径（用于保持播放）
 
 
         // 屏幕管理（WPF 原生）
@@ -918,6 +922,329 @@ namespace ImageColorChanger.Managers
                 //System.Diagnostics.Debug.WriteLine($"❌ [PM-视频投影] 更新失败: {ex.Message}");
                 _ = ex;
 #endif
+            }
+        }
+        
+        /// <summary>
+        /// 🔒 锁定模式：使用独立的 MediaElement 播放视频（应用所有 GPU 优化）
+        /// </summary>
+        /// <param name="videoPath">视频文件路径</param>
+        /// <param name="loopEnabled">是否循环播放</param>
+        /// <param name="textLayer">文本层（透明背景的 SKBitmap）</param>
+        public void UpdateProjectionWithLockedVideo(string videoPath, bool loopEnabled, SKBitmap textLayer)
+        {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] ===== 开始 =====");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] videoPath: {videoPath ?? "null"}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] loopEnabled: {loopEnabled}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] textLayer: {(textLayer != null ? $"{textLayer.Width}x{textLayer.Height}" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] _projectionWindow: {(_projectionWindow != null ? "存在" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 文件存在: {(!string.IsNullOrEmpty(videoPath) ? System.IO.File.Exists(videoPath).ToString() : "N/A")}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] _projectionMediaElement: {(_projectionMediaElement != null ? "存在" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] _lockedVideoPath: {_lockedVideoPath ?? "null"}");
+#endif
+            
+            if (_projectionWindow == null || string.IsNullOrEmpty(videoPath) || !System.IO.File.Exists(videoPath))
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionWithLockedVideo] 投影窗口或视频路径无效，跳过");
+                if (_projectionWindow == null)
+                    System.Diagnostics.Debug.WriteLine($"   - _projectionWindow 为 null");
+                if (string.IsNullOrEmpty(videoPath))
+                    System.Diagnostics.Debug.WriteLine($"   - videoPath 为空");
+                if (!string.IsNullOrEmpty(videoPath) && !System.IO.File.Exists(videoPath))
+                    System.Diagnostics.Debug.WriteLine($"   - 文件不存在: {videoPath}");
+#endif
+                return;
+            }
+
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 如果视频路径改变，创建新的 MediaElement
+                    if (_projectionMediaElement == null || _lockedVideoPath != videoPath)
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 创建新的 MediaElement");
+                        System.Diagnostics.Debug.WriteLine($"   - _projectionMediaElement: {(_projectionMediaElement == null ? "null" : "存在")}");
+                        System.Diagnostics.Debug.WriteLine($"   - _lockedVideoPath: {_lockedVideoPath ?? "null"}");
+                        System.Diagnostics.Debug.WriteLine($"   - videoPath: {videoPath}");
+                        System.Diagnostics.Debug.WriteLine($"   - 路径是否改变: {_lockedVideoPath != videoPath}");
+#endif
+                        // 释放旧的 MediaElement
+                        if (_projectionMediaElement != null)
+                        {
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 释放旧的 MediaElement");
+#endif
+                            _projectionMediaElement.Stop();
+                            _projectionMediaElement.Close();
+                            if (_projectionContainer != null && _projectionContainer.Children.Contains(_projectionMediaElement))
+                            {
+                                _projectionContainer.Children.Remove(_projectionMediaElement);
+                            }
+                        }
+
+                        // 创建新的 MediaElement（应用所有 GPU 优化）
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 创建新的 MediaElement");
+#endif
+                        _projectionMediaElement = new System.Windows.Controls.MediaElement
+                        {
+                            LoadedBehavior = System.Windows.Controls.MediaState.Manual,
+                            UnloadedBehavior = System.Windows.Controls.MediaState.Manual,
+                            Stretch = System.Windows.Media.Stretch.Uniform,  // 🔧 改为 Uniform，和主屏幕一致
+                            Volume = 0,
+                            ScrubbingEnabled = true,
+                            
+                            // 🚀 启用 GPU 硬件加速缓存（和主屏幕 MediaElement 一样）
+                            CacheMode = new BitmapCache
+                            {
+                                EnableClearType = false,  // 视频不需要ClearType
+                                RenderAtScale = 1.0,      // 1080p适配，减少GPU内存占用
+                                SnapsToDevicePixels = true
+                            }
+                        };
+                        
+                        // 🚀 设置 GPU 渲染优化（和主屏幕 MediaElement 一样）
+                        RenderOptions.SetBitmapScalingMode(_projectionMediaElement, BitmapScalingMode.LowQuality);  // 优先性能
+                        RenderOptions.SetCachingHint(_projectionMediaElement, CachingHint.Cache);  // 强制启用缓存
+                        
+                        // 设置循环播放
+                        if (loopEnabled)
+                        {
+                            _projectionMediaElement.MediaEnded += (s, e) =>
+                            {
+                                _projectionMediaElement.Position = TimeSpan.Zero;
+                                _projectionMediaElement.Play();
+                            };
+                        }
+
+                        // 添加到投影窗口（必须在设置 Source 之前添加到视觉树）
+                        if (_projectionContainer != null)
+                        {
+                            System.Windows.Controls.Canvas.SetZIndex(_projectionMediaElement, 0);
+                            
+                            // 🔧 设置 MediaElement 的布局属性（参考主屏幕的实现）
+                            // MediaElement 在 Grid 中，使用 Stretch 自动填充
+                            _projectionMediaElement.HorizontalAlignment = WpfHorizontalAlignment.Stretch;
+                            _projectionMediaElement.VerticalAlignment = System.Windows.VerticalAlignment.Stretch;
+                            _projectionMediaElement.Visibility = Visibility.Visible;
+                            
+                            // 添加到容器（Grid 会自动让子元素填充）
+                            _projectionContainer.Children.Insert(0, _projectionMediaElement);
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] MediaElement 已添加到投影窗口");
+                            System.Diagnostics.Debug.WriteLine($"   - 窗口尺寸: {_projectionWindow.ActualWidth}x{_projectionWindow.ActualHeight}");
+                            System.Diagnostics.Debug.WriteLine($"   - MediaElement 尺寸: {_projectionMediaElement.Width}x{_projectionMediaElement.Height}");
+                            System.Diagnostics.Debug.WriteLine($"   - MediaElement 实际尺寸: {_projectionMediaElement.ActualWidth}x{_projectionMediaElement.ActualHeight}");
+                            System.Diagnostics.Debug.WriteLine($"   - 可见性: {_projectionMediaElement.Visibility}");
+                            System.Diagnostics.Debug.WriteLine($"   - ZIndex: {System.Windows.Controls.Canvas.GetZIndex(_projectionMediaElement)}");
+                            System.Diagnostics.Debug.WriteLine($"   - 容器子元素数量: {_projectionContainer.Children.Count}");
+                            System.Diagnostics.Debug.WriteLine($"   - IsLoaded: {_projectionMediaElement.IsLoaded}");
+#endif
+                            
+                            // 🔧 直接设置 Source 并调用 Play()（参考主屏幕的实现）
+                            // ⚠️ 关键差异分析：
+                            // 1. 主屏幕的 MediaElement 在 Canvas 中，直接设置 Source → 添加到 Canvas → 调用 Play()
+                            // 2. 投影的 MediaElement 在 Grid 中，应该采用相同的逻辑
+                            // 3. 主屏幕没有等待 MediaOpened 事件，直接调用 Play()
+                            _projectionMediaElement.Source = new Uri(videoPath, UriKind.Absolute);
+                            
+                            // 🔧 直接调用 Play()，不等待 MediaOpened 事件（和主屏幕一致）
+                            _projectionMediaElement.Play();
+                            
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionWithLockedVideo] Source 已设置并调用 Play()");
+                            System.Diagnostics.Debug.WriteLine($"   - 视频路径: {videoPath}");
+                            System.Diagnostics.Debug.WriteLine($"   - MediaElement 实际尺寸: {_projectionMediaElement.ActualWidth}x{_projectionMediaElement.ActualHeight}");
+#endif
+                        }
+#if DEBUG
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjectionWithLockedVideo] _projectionContainer 为 null，无法添加 MediaElement");
+                        }
+#endif
+
+                        // 🔧 监听 MediaOpened 事件（用于调试和日志，但不依赖它来播放）
+                        _projectionMediaElement.MediaOpened += (s, e) =>
+                        {
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionWithLockedVideo] MediaElement MediaOpened 事件触发");
+                            System.Diagnostics.Debug.WriteLine($"   - 分辨率: {_projectionMediaElement.NaturalVideoWidth}x{_projectionMediaElement.NaturalVideoHeight}");
+                            System.Diagnostics.Debug.WriteLine($"   - 时长: {_projectionMediaElement.NaturalDuration.TimeSpan.TotalSeconds:F1}秒");
+                            System.Diagnostics.Debug.WriteLine($"   - 当前状态: {_projectionMediaElement.LoadedBehavior}");
+                            System.Diagnostics.Debug.WriteLine($"   - 可见性: {_projectionMediaElement.Visibility}");
+                            System.Diagnostics.Debug.WriteLine($"   - 尺寸: {_projectionMediaElement.ActualWidth}x{_projectionMediaElement.ActualHeight}");
+#endif
+                        };
+                        
+                        _projectionMediaElement.MediaFailed += (s, e) =>
+                        {
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjectionWithLockedVideo] MediaElement 加载失败");
+                            System.Diagnostics.Debug.WriteLine($"   - 错误: {e.ErrorException?.Message ?? "未知错误"}");
+                            System.Diagnostics.Debug.WriteLine($"   - 错误代码: {e.ErrorException?.GetType().Name ?? "N/A"}");
+                            System.Diagnostics.Debug.WriteLine($"   - Source: {_projectionMediaElement.Source}");
+                            System.Diagnostics.Debug.WriteLine($"   - 实际尺寸: {_projectionMediaElement.ActualWidth}x{_projectionMediaElement.ActualHeight}");
+                            System.Diagnostics.Debug.WriteLine($"   - 可见性: {_projectionMediaElement.Visibility}");
+                            if (e.ErrorException != null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"   - 堆栈: {e.ErrorException.StackTrace}");
+                            }
+#endif
+                        };
+                        
+                        // 添加加载状态监控
+#if DEBUG
+                        _projectionMediaElement.Loaded += (s, e) =>
+                        {
+                            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionWithLockedVideo] MediaElement Loaded 事件触发");
+                        };
+                        
+                        _projectionMediaElement.Unloaded += (s, e) =>
+                        {
+                            System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionWithLockedVideo] MediaElement Unloaded 事件触发");
+                        };
+#endif
+
+                        _lockedVideoPath = videoPath;
+
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionWithLockedVideo] 创建独立 MediaElement（已应用 GPU 优化）: {System.IO.Path.GetFileName(videoPath)}");
+                        System.Diagnostics.Debug.WriteLine($"   - 循环播放: {loopEnabled}");
+                        System.Diagnostics.Debug.WriteLine($"   - 已添加到投影窗口: {(_projectionContainer != null && _projectionContainer.Children.Contains(_projectionMediaElement))}");
+#endif
+                    }
+#if DEBUG
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] MediaElement 已存在且路径未改变，跳过创建");
+                    }
+#endif
+
+                    // 叠加文本层（如果提供）
+                    if (textLayer != null)
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 叠加文本层: {textLayer.Width}x{textLayer.Height}");
+#endif
+                        var textBitmapSource = ConvertToBitmapSource(textLayer);
+                        if (textBitmapSource != null && _projectionImageControl != null)
+                        {
+                            _projectionImageControl.Source = textBitmapSource;
+                            _projectionImageControl.Visibility = Visibility.Visible;
+                            System.Windows.Controls.Canvas.SetZIndex(_projectionImageControl, 1);
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionWithLockedVideo] 文本层已叠加");
+#endif
+                        }
+#if DEBUG
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [UpdateProjectionWithLockedVideo] 文本层叠加失败");
+                            System.Diagnostics.Debug.WriteLine($"   - textBitmapSource: {(textBitmapSource != null ? "存在" : "null")}");
+                            System.Diagnostics.Debug.WriteLine($"   - _projectionImageControl: {(_projectionImageControl != null ? "存在" : "null")}");
+                        }
+#endif
+                    }
+                    
+                    // 🔧 隐藏 VisualBrush 矩形（如果存在）
+                    if (_projectionVisualBrushRect != null)
+                    {
+                        _projectionVisualBrushRect.Visibility = Visibility.Collapsed;
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] 已隐藏 VisualBrush 矩形");
+                        System.Diagnostics.Debug.WriteLine($"   - VisualBrush 矩形可见性: {_projectionVisualBrushRect.Visibility}");
+#endif
+                    }
+                    
+                    // 🔧 确保 MediaElement 在最底层，文本层在上层
+                    if (_projectionMediaElement != null && _projectionImageControl != null)
+                    {
+                        System.Windows.Controls.Canvas.SetZIndex(_projectionMediaElement, 0);
+                        System.Windows.Controls.Canvas.SetZIndex(_projectionImageControl, 1);
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] ZIndex 设置完成");
+                        System.Diagnostics.Debug.WriteLine($"   - MediaElement ZIndex: {System.Windows.Controls.Canvas.GetZIndex(_projectionMediaElement)}");
+                        System.Diagnostics.Debug.WriteLine($"   - ImageControl ZIndex: {System.Windows.Controls.Canvas.GetZIndex(_projectionImageControl)}");
+#endif
+                    }
+                    
+#if DEBUG
+                    // 延迟检查 MediaElement 状态（等待布局完成）
+                    System.Threading.Tasks.Task.Delay(500).ContinueWith(_ =>
+                    {
+                        _mainWindow.Dispatcher.Invoke(() =>
+                        {
+                            if (_projectionMediaElement != null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"🔍 [UpdateProjectionWithLockedVideo] 延迟检查 MediaElement 状态");
+                                System.Diagnostics.Debug.WriteLine($"   - 可见性: {_projectionMediaElement.Visibility}");
+                                System.Diagnostics.Debug.WriteLine($"   - 实际尺寸: {_projectionMediaElement.ActualWidth}x{_projectionMediaElement.ActualHeight}");
+                                System.Diagnostics.Debug.WriteLine($"   - 是否在容器中: {(_projectionContainer != null && _projectionContainer.Children.Contains(_projectionMediaElement))}");
+                                System.Diagnostics.Debug.WriteLine($"   - 是否已加载: {_projectionMediaElement.IsLoaded}");
+                                System.Diagnostics.Debug.WriteLine($"   - NaturalDuration: {(_projectionMediaElement.NaturalDuration.HasTimeSpan ? _projectionMediaElement.NaturalDuration.TimeSpan.TotalSeconds.ToString("F1") + "秒" : "未就绪")}");
+                            }
+                        });
+                    });
+                    
+                    System.Diagnostics.Debug.WriteLine($"✅ [UpdateProjectionWithLockedVideo] ===== 完成 =====");
+#endif
+                }
+                catch (Exception
+#if DEBUG
+                    ex
+#endif
+                )
+                {
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"❌ [锁定视频] 更新失败: {ex.Message}");
+                    _ = ex;
+#endif
+                }
+            });
+        }
+        
+        /// <summary>
+        /// 获取锁定模式下的视频路径
+        /// </summary>
+        public string GetLockedVideoPath()
+        {
+            return _lockedVideoPath;
+        }
+        
+        /// <summary>
+        /// 清理锁定模式的视频资源
+        /// </summary>
+        public void ClearLockedVideo()
+        {
+            if (_projectionMediaElement != null)
+            {
+                _mainWindow.Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        _projectionMediaElement.Stop();
+                        _projectionMediaElement.Close();
+                        if (_projectionContainer != null && _projectionContainer.Children.Contains(_projectionMediaElement))
+                        {
+                            _projectionContainer.Children.Remove(_projectionMediaElement);
+                        }
+                        _projectionMediaElement = null;
+                        _lockedVideoPath = null;
+
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🧹 [锁定视频] 已清理独立 MediaElement");
+#endif
+                    }
+                    catch
+                    {
+                        // 静默处理异常
+                    }
+                });
             }
         }
         
