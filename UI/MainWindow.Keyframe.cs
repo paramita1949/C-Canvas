@@ -561,17 +561,48 @@ namespace ImageColorChanger.UI
                 compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
 
                 // 🔧 在开始播放前，根据情况跳转到起始位置
-                if (keyframes != null && keyframes.Count >= 2)
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== 开始播放前检查 ==========");
+                //System.Diagnostics.Debug.WriteLine($"   当前关键帧索引: {_keyframeManager.CurrentKeyframeIndex}");
+                //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {ImageScrollViewer.VerticalOffset:F1}");
+                //#endif
+                
+                if (keyframes != null && keyframes.Count >= 1)
                 {
-                    // 有关键帧：检查是否已经在第一帧位置，避免不必要的刷新
+                    // 有关键帧（包括只有1个关键帧的情况）：检查是否已经在第一帧位置，避免不必要的刷新
                     var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
                     var currentOffset = ImageScrollViewer.VerticalOffset;
                     var targetOffset = firstKeyframe.YPosition;
 
-                    // 只有当前位置与目标位置不同时才跳转（容差1像素）
-                    if (Math.Abs(currentOffset - targetOffset) > 1)
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   有关键帧数量: {keyframes.Count}");
+                    //System.Diagnostics.Debug.WriteLine($"   第一个关键帧位置: {targetOffset:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   位置差值: {Math.Abs(currentOffset - targetOffset):F1}");
+                    //#endif
+
+                    // 🔧 如果当前已经在第一个关键帧位置，且位置也一致，就不需要跳转
+                    bool isAtFirstKeyframe = _keyframeManager.CurrentKeyframeIndex == 0;
+                    bool isAtTargetPosition = Math.Abs(currentOffset - targetOffset) <= 1;
+                    
+                    if (isAtFirstKeyframe && isAtTargetPosition)
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在第一个关键帧位置，跳过跳转，直接播放");
+                        //#endif
+                        // 不执行跳转，直接开始播放
+                    }
+                    else if (Math.Abs(currentOffset - targetOffset) > 1)
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放] 执行跳转到第一帧: {currentOffset:F1} -> {targetOffset:F1}");
+                        //#endif
                         ImageScrollViewer.ScrollToVerticalOffset(targetOffset);
+                    }
+                    else
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在第一帧位置，不跳转");
+                        //#endif
                     }
                 }
                 else
@@ -579,15 +610,38 @@ namespace ImageColorChanger.UI
                     // 无关键帧：检查是否已经在顶部，避免不必要的刷新
                     var currentOffset = ImageScrollViewer.VerticalOffset;
 
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   无关键帧");
+                    //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {currentOffset:F1}");
+                    //#endif
+
                     // 只有当前不在顶部时才跳转（容差1像素）
                     if (currentOffset > 1)
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放] 执行跳转到顶部: {currentOffset:F1} -> 0");
+                        //#endif
                         ImageScrollViewer.ScrollToVerticalOffset(0);
+                    }
+                    else
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在顶部，不跳转");
+                        //#endif
                     }
                 }
 
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   跳转后滚动位置: {ImageScrollViewer.VerticalOffset:F1}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== 开始调用 StartPlaybackAsync ==========");
+                //#endif
+
                 // 开始播放
                 await compositeService.StartPlaybackAsync(_currentImageId);
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== StartPlaybackAsync 调用完成 ==========");
+                //#endif
                 BtnFloatingCompositePlay.Content = "⏹ 停止";
                 ShowStatus("▶️ 开始合成播放");
             }
@@ -878,40 +932,133 @@ namespace ImageColorChanger.UI
                     var scrollViewer = ImageScrollViewer;
                     if (scrollViewer == null) return;
 
+                    //#if DEBUG
+                    //var currentOffsetBefore = scrollViewer.VerticalOffset;
+                    //System.Diagnostics.Debug.WriteLine($"📜 [合成播放滚动] ========== 收到滚动请求 ==========");
+                    //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {currentOffsetBefore:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   起始位置: {e.StartPosition:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   结束位置: {e.EndPosition:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   时长: {e.Duration:F1}秒");
+                    //System.Diagnostics.Debug.WriteLine($"   位置差值(当前-起始): {Math.Abs(currentOffsetBefore - e.StartPosition):F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   位置差值(起始-结束): {Math.Abs(e.StartPosition - e.EndPosition):F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   当前关键帧索引: {_keyframeManager?.CurrentKeyframeIndex ?? -1}");
+                    //#endif
+                    var currentOffsetBefore = scrollViewer.VerticalOffset;
+
                     // 停止之前的合成滚动动画（如果有）
                     StopCompositeScrollAnimation();
 
                     // 🔧 如果时长为0，表示直接跳转，不滚动
                     if (e.Duration <= 0)
                     {
+                        // 🔧 如果目标位置和当前位置一致（容差1像素），就不需要跳转
+                        if (Math.Abs(currentOffsetBefore - e.EndPosition) <= 1)
+                        {
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放滚动] 已在目标位置，跳过跳转");
+                            //#endif
+                            
+                            // 更新投影
+                            if (IsProjectionEnabled)
+                            {
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                                //#endif
+                                UpdateProjection();
+                            }
+                            return;
+                        }
+                        
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放滚动] 执行直接跳转: {currentOffsetBefore:F1} -> {e.EndPosition:F1}");
+                        //#endif
                         scrollViewer.ScrollToVerticalOffset(e.EndPosition);
+                        
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   跳转后位置: {scrollViewer.VerticalOffset:F1}");
+                        //#endif
                         
                         // 更新投影
                         if (IsProjectionEnabled)
                         {
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                            //#endif
                             UpdateProjection();
                         }
                         return;
                     }
 
+                    // 🔧 检查当前位置和起始位置
+                    bool isAtStartPosition = Math.Abs(currentOffsetBefore - e.StartPosition) <= 1;
+                    bool isStartEndSame = Math.Abs(e.StartPosition - e.EndPosition) <= 1;
+                    
+                    // 🔧 如果已在起始位置且起始和结束位置相同，不需要滚动
+                    if (isAtStartPosition && isStartEndSame)
+                    {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放滚动] 已在起始位置且无需滚动，跳过滚动动画");
+                        //#endif
+                        
+                        // 更新投影
+                        if (IsProjectionEnabled)
+                        {
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                            //#endif
+                            UpdateProjection();
+                        }
+                        return;
+                    }
+                    
+                    // 🔧 如果当前位置和起始位置不同，但当前位置已经在第一个关键帧位置，调整起始位置为当前位置
+                    // 这样可以避免从当前位置跳转到起始位置再开始滚动
+                    double actualStartPosition = e.StartPosition;
+                    if (!isAtStartPosition && _keyframeManager != null && _keyframeManager.CurrentKeyframeIndex == 0)
+                    {
+                        var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                        if (keyframes != null && keyframes.Count > 0)
+                        {
+                            var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
+                            if (Math.Abs(currentOffsetBefore - firstKeyframe.YPosition) <= 1)
+                            {
+                                actualStartPosition = currentOffsetBefore;
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   🔧 [合成播放滚动] 已在第一个关键帧位置，调整起始位置为当前位置");
+                                //System.Diagnostics.Debug.WriteLine($"      原始起始位置: {e.StartPosition:F1}, 调整后: {actualStartPosition:F1}");
+                                //#endif
+                            }
+                        }
+                    }
+
                     // 开始FPS监控
                     StartFpsMonitoring();
+
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   ▶️ [合成播放滚动] 开始滚动动画");
+                    //System.Diagnostics.Debug.WriteLine($"      从 {actualStartPosition:F1} 滚动到 {e.EndPosition:F1}");
+                    //#endif
 
                     // 使用AnimationHelper执行滚动动画，并保存Storyboard引用
                     _compositeScrollStoryboard = Utils.AnimationHelper.AnimateScroll(
                         scrollViewer,
-                        e.StartPosition,
+                        actualStartPosition,
                         e.EndPosition,
                         TimeSpan.FromSeconds(e.Duration),
                         () =>
                         {
                             // 滚动完成回调
                             _compositeScrollStoryboard = null; // 清除引用
-                            //System.Diagnostics.Debug.WriteLine($"✅ [合成播放] 滚动完成");
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"✅ [合成播放滚动] 滚动完成，最终位置: {scrollViewer.VerticalOffset:F1}");
+                            //#endif
                             
                             // 更新投影
                             if (IsProjectionEnabled)
                             {
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 滚动完成后更新投影");
+                                //#endif
                                 UpdateProjection();
                             }
                             
@@ -1025,8 +1172,22 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
+                    //#if DEBUG
+                    //var currentOffset = ImageScrollViewer?.VerticalOffset ?? 0;
+                    //System.Diagnostics.Debug.WriteLine($"🎯 [合成播放关键帧变化] ========== 关键帧变化事件 ==========");
+                    //System.Diagnostics.Debug.WriteLine($"   关键帧ID: {e.KeyframeId}");
+                    //System.Diagnostics.Debug.WriteLine($"   关键帧位置: {e.YPosition:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {currentOffset:F1}");
+                    //System.Diagnostics.Debug.WriteLine($"   当前关键帧索引: {_keyframeManager?.CurrentKeyframeIndex ?? -1}");
+                    //System.Diagnostics.Debug.WriteLine($"   位置差值: {Math.Abs(currentOffset - e.YPosition):F1}");
+                    //#endif
+                    
                     // 重绘关键帧指示块，高亮当前播放的关键帧
                     UpdateCompositePlaybackIndicator(e.KeyframeId, e.YPosition);
+                    
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放关键帧变化] 指示块更新完成");
+                    //#endif
                 }
                 catch (Exception ex)
                 {
@@ -1235,8 +1396,20 @@ namespace ImageColorChanger.UI
             {
                 if (_currentImageId <= 0) return;
 
+                //#if DEBUG
+                //var childrenCountBefore = ScrollbarIndicatorsCanvas.Children.Count;
+                //System.Diagnostics.Debug.WriteLine($"🎨 [合成播放指示块] ========== 更新指示块 ==========");
+                //System.Diagnostics.Debug.WriteLine($"   当前关键帧ID: {currentKeyframeId}");
+                //System.Diagnostics.Debug.WriteLine($"   关键帧位置: {yPosition:F1}");
+                //System.Diagnostics.Debug.WriteLine($"   清除前指示块数量: {childrenCountBefore}");
+                //#endif
+
                 // 清除所有指示块
                 ScrollbarIndicatorsCanvas.Children.Clear();
+                
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放指示块] 已清除所有指示块");
+                //#endif
 
                 // 获取当前图片的所有关键帧
                 var keyframes = _keyframeManager?.GetKeyframesFromCache(_currentImageId);
@@ -1299,6 +1472,11 @@ namespace ImageColorChanger.UI
                     Canvas.SetLeft(indicatorContainer, -2);
                     ScrollbarIndicatorsCanvas.Children.Add(indicatorContainer);
                 }
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放指示块] 指示块更新完成，共绘制 {keyframes.Count} 个指示块");
+                //System.Diagnostics.Debug.WriteLine($"   最终指示块数量: {ScrollbarIndicatorsCanvas.Children.Count}");
+                //#endif
 
             }
             catch (Exception)

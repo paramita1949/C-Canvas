@@ -1696,11 +1696,11 @@ namespace ImageColorChanger.Services
             var estimatedServerTime = _lastServerTime.Value + elapsedTimeSpan;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次服务器时间: {_lastServerTime.Value}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次Tick: {_lastTickCount}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 当前Tick: {currentTick}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 真实流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 估算服务器时间: {estimatedServerTime}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次服务器时间: {_lastServerTime.Value}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次Tick: {_lastTickCount}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 当前Tick: {currentTick}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 真实流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 估算服务器时间: {estimatedServerTime}");
             
             // 额外检测：对比本地时间流逝，检测时间篡改
             if (_lastLocalTime != null)

@@ -420,14 +420,29 @@ namespace ImageColorChanger.Services.Implementations
                         
                         if (segment.Type == SegmentType.Scroll)
                         {
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"🎬 [CompositePlaybackService] ========== 触发滚动段 ==========");
+                            //System.Diagnostics.Debug.WriteLine($"   起始位置: {segment.StartPosition:F1}");
+                            //System.Diagnostics.Debug.WriteLine($"   结束位置: {segment.EndPosition:F1}");
+                            //System.Diagnostics.Debug.WriteLine($"   时长: {segment.Duration:F1}秒");
+                            //System.Diagnostics.Debug.WriteLine($"   关键帧ID: {segment.KeyframeId}");
+                            //System.Diagnostics.Debug.WriteLine($"   完成轮数: {CompletedPlayCount}");
+                            //#endif
+                            
                             // 滚动段：触发滚动请求
                             // 触发当前关键帧变化事件（滚动到目标关键帧）
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   📢 [CompositePlaybackService] 触发 CurrentKeyframeChanged 事件");
+                            //#endif
                             CurrentKeyframeChanged?.Invoke(this, new CurrentKeyframeChangedEventArgs
                             {
                                 KeyframeId = segment.KeyframeId,
                                 YPosition = segment.EndPosition
                             });
                             
+                            //#if DEBUG
+                            //System.Diagnostics.Debug.WriteLine($"   📢 [CompositePlaybackService] 触发 ScrollRequested 事件");
+                            //#endif
                             ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
                             {
                                 StartPosition = segment.StartPosition,
