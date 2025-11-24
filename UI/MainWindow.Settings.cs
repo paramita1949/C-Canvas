@@ -38,10 +38,33 @@ namespace ImageColorChanger.UI
                 
                 // 加载菜单栏字号
                 ApplyMenuFontSize(_configManager.MenuFontSize);
+                
+                // 加载投影动画设置
+                LoadProjectionAnimationSettings();
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 加载投影动画设置
+        /// </summary>
+        private void LoadProjectionAnimationSettings()
+        {
+            try
+            {
+                _projectionAnimationEnabled = _configManager.ProjectionAnimationEnabled;
+                _projectionAnimationOpacity = _configManager.ProjectionAnimationOpacity;
+                _projectionAnimationDuration = _configManager.ProjectionAnimationDuration;
+            }
+            catch (Exception)
+            {
+                // 使用默认值
+                _projectionAnimationEnabled = false;
+                _projectionAnimationOpacity = 0.0;
+                _projectionAnimationDuration = 300;
             }
         }
 

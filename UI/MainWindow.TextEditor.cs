@@ -81,6 +81,11 @@ namespace ImageColorChanger.UI
 
         // 🔍 PAK字体列表输出标记（仅输出一次）
 
+        // 🎬 投影屏幕动画设置（全局设置，不是针对单个文本框）
+        private bool _projectionAnimationEnabled = false;
+        private double _projectionAnimationOpacity = 0.0; // 透明度（0.0-1.0）
+        private int _projectionAnimationDuration = 300;
+
         #endregion
 
         #region 初始化
@@ -2979,6 +2984,79 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 动画按钮 - 显示动画设置面板
+        /// </summary>
+        private void BtnFloatingAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedTextBox == null)
+                return;
+
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("AnimationSettingsPopup");
+
+            // 绑定目标文本框（虽然动画设置是针对投影屏幕的，但需要绑定以显示面板）
+            AnimationSettingsPanel.BindTarget(_selectedTextBox);
+
+            // 订阅动画设置改变事件
+            AnimationSettingsPanel.AnimationSettingsChanged -= AnimationSettingsPanel_AnimationSettingsChanged;
+            AnimationSettingsPanel.AnimationSettingsChanged += AnimationSettingsPanel_AnimationSettingsChanged;
+
+            // 加载当前全局动画设置到面板
+            LoadAnimationSettingsToPanel();
+
+            // 显示动画设置面板
+            AnimationSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 加载当前全局动画设置到面板
+        /// </summary>
+        private void LoadAnimationSettingsToPanel()
+        {
+            // 从全局设置更新面板显示
+            AnimationSettingsPanel.SetAnimationSettings(
+                _projectionAnimationEnabled,
+                _projectionAnimationOpacity,
+                _projectionAnimationDuration
+            );
+        }
+
+        /// <summary>
+        /// 动画设置改变事件处理
+        /// </summary>
+        private void AnimationSettingsPanel_AnimationSettingsChanged(object sender, EventArgs e)
+        {
+            // 从面板获取最新设置并更新全局设置
+            var (enabled, opacity, duration) = AnimationSettingsPanel.GetAnimationSettings();
+            _projectionAnimationEnabled = enabled;
+            _projectionAnimationOpacity = opacity;
+            _projectionAnimationDuration = duration;
+            
+            // 保存到配置文件
+            SaveProjectionAnimationSettings();
+        }
+
+        /// <summary>
+        /// 保存投影动画设置
+        /// </summary>
+        private void SaveProjectionAnimationSettings()
+        {
+            try
+            {
+                _configManager.ProjectionAnimationEnabled = _projectionAnimationEnabled;
+                _configManager.ProjectionAnimationOpacity = _projectionAnimationOpacity;
+                _configManager.ProjectionAnimationDuration = _projectionAnimationDuration;
+            }
+            catch (Exception)
+            {
+                // 保存失败时静默处理
+            }
+        }
+
+        /// <summary>
         /// 斜体按钮
         /// </summary>
         private void BtnFloatingItalic_Click(object sender, RoutedEventArgs e)
@@ -3020,6 +3098,7 @@ namespace ImageColorChanger.UI
             TextColorSettingsPopup.IsOpen = false;
             ShadowSettingsPopup.IsOpen = false;
             SpacingSettingsPopup.IsOpen = false;
+            AnimationSettingsPopup.IsOpen = false;
 
             //System.Diagnostics.Debug.WriteLine($"🚪 [CloseAllSidePanels] 所有面板已关闭");
         }
@@ -3050,6 +3129,10 @@ namespace ImageColorChanger.UI
             if (keepPopupName != "SpacingSettingsPopup")
             {
                 SpacingSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "AnimationSettingsPopup")
+            {
+                AnimationSettingsPopup.IsOpen = false;
             }
 
             //System.Diagnostics.Debug.WriteLine($"🚪 [CloseOtherSidePanels] 其他面板已关闭");
@@ -3846,12 +3929,19 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 投影屏幕淡出并更新（带淡入淡出动画）
+        /// 投影屏幕淡出并更新（根据动画设置决定是否使用动画）
         /// </summary>
         private void FadeOutAndUpdateProjection()
         {
             if (!_projectionManager.IsProjectionActive)
                 return;
+
+            // 如果动画未启用，直接更新（无动画）
+            if (!_projectionAnimationEnabled)
+            {
+                UpdateProjectionContent();
+                return;
+            }
 
             // 获取投影窗口的容器（用于动画）
             var projectionContainer = _projectionManager.GetProjectionContainer();
@@ -3862,12 +3952,12 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 创建淡出动画
+            // 淡入淡出动画
             DoubleAnimation fadeOutAnimation = new DoubleAnimation
             {
                 From = 1.0,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(300),  // 淡出时间 300ms
+                To = _projectionAnimationOpacity,
+                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡出时间占一半
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
             };
 
@@ -3938,15 +4028,24 @@ namespace ImageColorChanger.UI
             if (projectionContainer == null)
                 return;
 
-            // 设置初始透明度为 0（淡入效果）
-            projectionContainer.Opacity = 0;
+            // 如果动画未启用，直接显示（无动画）
+            if (!_projectionAnimationEnabled)
+            {
+                projectionContainer.Opacity = 1.0;
+                // 清除之前的动画
+                projectionContainer.BeginAnimation(UIElement.OpacityProperty, null);
+                return;
+            }
+
+            // 设置初始透明度为设置的透明度值（淡入效果）
+            projectionContainer.Opacity = _projectionAnimationOpacity;
 
             // 创建淡入动画
             DoubleAnimation fadeInAnimation = new DoubleAnimation
             {
-                From = 0.0,
+                From = _projectionAnimationOpacity,
                 To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(400),  // 淡入时间 400ms
+                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡入时间占一半
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
             };
 
@@ -5760,8 +5859,8 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
-                // 🎬 先淡出旧内容，然后加载新幻灯片
-                FadeOutAndLoadSlide(selectedSlide);
+                // 直接加载新幻灯片
+                LoadSlide(selectedSlide);
                 
                 // 保存到数据库（在 UI 线程中异步执行，避免阻塞UI）
                 // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
@@ -6343,9 +6442,6 @@ namespace ImageColorChanger.UI
                 // 🆕 恢复分割配置
                 RestoreSplitConfig(slide);
                 
-                // 🎬 淡入淡出动画：先淡出旧内容，然后淡入新内容
-                FadeInSlide();
-                
                 // 🆕 加载完成后，如果投影已开启且未锁定，自动更新投影
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
@@ -6365,143 +6461,6 @@ namespace ImageColorChanger.UI
             }
         }
 
-        /// <summary>
-        /// 淡出旧内容并加载新幻灯片（带淡入淡出动画）
-        /// </summary>
-        private void FadeOutAndLoadSlide(Slide newSlide)
-        {
-            if (EditorCanvasContainer == null)
-            {
-                // 如果容器不存在，直接加载
-                LoadSlide(newSlide);
-                return;
-            }
-
-            // 🎨 创建灰色半透明背景层（透明度60% = 0.6）
-            WpfRectangle transitionOverlay = new WpfRectangle
-            {
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
-                Fill = new SolidColorBrush(WpfColor.FromArgb(153, 128, 128, 128)), // 60% 透明度的灰色 (255 * 0.6 = 153)
-                Opacity = 0.0,  // 初始透明
-                IsHitTestVisible = false  // 不拦截鼠标事件
-            };
-
-            // 将覆盖层添加到容器（在最上层）
-            EditorCanvasContainer.Children.Add(transitionOverlay);
-            System.Windows.Controls.Panel.SetZIndex(transitionOverlay, 9999);  // 确保在最上层
-
-            // 创建淡出动画（同时淡出内容和淡入灰色背景）
-            DoubleAnimation fadeOutAnimation = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(300),  // 淡出时间 300ms
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 灰色背景淡入动画
-            DoubleAnimation overlayFadeInAnimation = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(300),  // 淡入时间 300ms
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 淡出完成后加载新幻灯片并淡入
-            fadeOutAnimation.Completed += (s, e) =>
-            {
-                // 加载新幻灯片
-                LoadSlide(newSlide);
-                
-                // 淡入新内容（在 LoadSlide 中会调用 FadeInSlide，同时淡出灰色背景）
-                FadeInSlideWithOverlay(transitionOverlay);
-            };
-
-            // 开始淡出动画
-            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
-            transitionOverlay.BeginAnimation(UIElement.OpacityProperty, overlayFadeInAnimation);
-        }
-
-        /// <summary>
-        /// 幻灯片淡入动画（带灰色背景层）
-        /// </summary>
-        private void FadeInSlideWithOverlay(WpfRectangle overlay)
-        {
-            // 如果 EditorCanvas 或其容器不存在，直接返回
-            if (EditorCanvas == null || EditorCanvasContainer == null)
-            {
-                // 清理覆盖层
-                if (overlay != null && EditorCanvasContainer != null && EditorCanvasContainer.Children.Contains(overlay))
-                {
-                    EditorCanvasContainer.Children.Remove(overlay);
-                }
-                return;
-            }
-
-            // 设置初始透明度为 0（淡入效果）
-            EditorCanvasContainer.Opacity = 0;
-
-            // 创建淡入动画
-            DoubleAnimation fadeInAnimation = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(400),  // 淡入时间 400ms
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 灰色背景淡出动画
-            DoubleAnimation overlayFadeOutAnimation = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(400),  // 淡出时间 400ms
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 动画完成后移除覆盖层
-            overlayFadeOutAnimation.Completed += (s, e) =>
-            {
-                if (overlay != null && EditorCanvasContainer != null && EditorCanvasContainer.Children.Contains(overlay))
-                {
-                    EditorCanvasContainer.Children.Remove(overlay);
-                }
-            };
-
-            // 开始动画
-            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
-            if (overlay != null)
-            {
-                overlay.BeginAnimation(UIElement.OpacityProperty, overlayFadeOutAnimation);
-            }
-        }
-
-        /// <summary>
-        /// 幻灯片淡入动画（无覆盖层，用于其他场景）
-        /// </summary>
-        private void FadeInSlide()
-        {
-            // 如果 EditorCanvas 或其容器不存在，直接返回
-            if (EditorCanvas == null || EditorCanvasContainer == null)
-                return;
-
-            // 设置初始透明度为 0（淡入效果）
-            EditorCanvasContainer.Opacity = 0;
-
-            // 创建淡入动画
-            DoubleAnimation fadeInAnimation = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = TimeSpan.FromSeconds(0.3),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 开始动画
-            EditorCanvasContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
-        }
 
         /// <summary>
         /// 新建幻灯片按钮点击事件
