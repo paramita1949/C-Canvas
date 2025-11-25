@@ -1606,7 +1606,7 @@ namespace ImageColorChanger.Managers
                         _currentImage, 
                         newWidth, 
                         newHeight, 
-                        SKFilterQuality.High  // 保持最高质量
+                        new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)  // 保持最高质量
                     );
                     
                     //#if DEBUG
@@ -1690,6 +1690,14 @@ namespace ImageColorChanger.Managers
                         }
                     }
                 });
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher 已关闭或窗口正在关闭，静默忽略
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                // 任务被取消，静默忽略
             }
             catch (Exception ex)
             {
@@ -2662,7 +2670,7 @@ namespace ImageColorChanger.Managers
                             _currentImage, 
                             newWidth, 
                             newHeight, 
-                            SKFilterQuality.High  // 保持最高质量
+                            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)  // 保持最高质量
                         );
                         var renderTime = sw.ElapsedMilliseconds - renderStart;
                         
@@ -2803,6 +2811,16 @@ namespace ImageColorChanger.Managers
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"📺 [UpdateProjection] ===== 总耗时: {sw.ElapsedMilliseconds}ms =====\n");
                 //#endif
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher 已关闭或窗口正在关闭，静默忽略
+                sw.Stop();
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                // 任务被取消，静默忽略
+                sw.Stop();
             }
             catch (Exception ex)
             {

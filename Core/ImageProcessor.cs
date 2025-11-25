@@ -677,7 +677,7 @@ namespace ImageColorChanger.Core
             try
             {
                 // 🎮 使用GPU加速缩放（如果GPU不可用，自动降级到CPU）
-                return GPUContext.Instance.ScaleImageGpu(source, targetWidth, targetHeight, SKFilterQuality.High);
+                return GPUContext.Instance.ScaleImageGpu(source, targetWidth, targetHeight, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
             }
             catch (Exception ex)
             {

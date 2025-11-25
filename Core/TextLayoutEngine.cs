@@ -24,11 +24,11 @@ namespace ImageColorChanger.Core
                 };
             }
             
-            // 创建Paint用于测量
-            using var paint = CreatePaint(style);
+            // 创建Font用于测量
+            using var font = CreateFont(style);
             
             // 自动换行
-            var wrappedLines = WrapText(text, paint, maxWidth);
+            var wrappedLines = WrapText(text, font, maxWidth);
 
             // 计算每行的位置
             var layout = new TextLayout();
@@ -55,7 +55,7 @@ namespace ImageColorChanger.Core
 
             foreach (var lineText in wrappedLines)
             {
-                float lineWidth = paint.MeasureText(lineText);
+                float lineWidth = font.MeasureText(lineText);
                 maxLineWidth = Math.Max(maxLineWidth, lineWidth);
 
                 layout.Lines.Add(new TextLine
@@ -95,7 +95,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 自动换行（考虑中英文、标点符号）
         /// </summary>
-        public List<string> WrapText(string text, SKPaint paint, float maxWidth)
+        public List<string> WrapText(string text, SKFont font, float maxWidth)
         {
             var lines = new List<string>();
             
@@ -114,7 +114,7 @@ namespace ImageColorChanger.Core
                 }
                 
                 // 对每个段落进行换行处理
-                var paragraphLines = WrapParagraph(paragraph, paint, maxWidth);
+                var paragraphLines = WrapParagraph(paragraph, font, maxWidth);
                 lines.AddRange(paragraphLines);
             }
             
@@ -124,7 +124,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 对单个段落进行换行处理
         /// </summary>
-        private List<string> WrapParagraph(string paragraph, SKPaint paint, float maxWidth)
+        private List<string> WrapParagraph(string paragraph, SKFont font, float maxWidth)
         {
             var lines = new List<string>();
             var currentLine = string.Empty;
@@ -174,7 +174,7 @@ namespace ImageColorChanger.Core
             foreach (var word in words)
             {
                 string testLine = currentLine + word;
-                float testWidth = paint.MeasureText(testLine);
+                float testWidth = font.MeasureText(testLine);
                 
                 if (testWidth <= maxWidth)
                 {
@@ -192,10 +192,10 @@ namespace ImageColorChanger.Core
                     }
                     
                     // 检查单个单词是否超过最大宽度
-                    if (paint.MeasureText(word) > maxWidth)
+                    if (font.MeasureText(word) > maxWidth)
                     {
                         // 单词太长，强制拆分
-                        var splitWords = ForceSplitWord(word, paint, maxWidth);
+                        var splitWords = ForceSplitWord(word, font, maxWidth);
                         foreach (var splitWord in splitWords)
                         {
                             if (string.IsNullOrEmpty(currentLine))
@@ -235,7 +235,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 强制拆分过长的单词
         /// </summary>
-        private List<string> ForceSplitWord(string word, SKPaint paint, float maxWidth)
+        private List<string> ForceSplitWord(string word, SKFont font, float maxWidth)
         {
             var parts = new List<string>();
             var currentPart = string.Empty;
@@ -243,7 +243,7 @@ namespace ImageColorChanger.Core
             foreach (char c in word)
             {
                 string testPart = currentPart + c;
-                if (paint.MeasureText(testPart) <= maxWidth)
+                if (font.MeasureText(testPart) <= maxWidth)
                 {
                     currentPart = testPart;
                 }
@@ -291,28 +291,27 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
-        /// 创建Paint对象（用于测量）
+        /// 创建Font对象（用于测量）
         /// </summary>
-        private SKPaint CreatePaint(TextStyle style)
+        private SKFont CreateFont(TextStyle style)
         {
             // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
             var typeface = SkiaFontService.Instance.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
-            var paint = new SKPaint
+            var font = new SKFont
             {
                 Typeface = typeface,
-                TextSize = style.FontSize,
-                IsAntialias = true,
-                SubpixelText = true
+                Size = style.FontSize,
+                Subpixel = true
             };
             
             // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
             if (style.IsBold)
             {
-                paint.FakeBoldText = true;
+                font.Embolden = true;
             }
             
-            return paint;
+            return font;
         }
         
         /// <summary>

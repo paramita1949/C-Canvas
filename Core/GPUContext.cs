@@ -169,15 +169,21 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 使用GPU缩放图片
         /// </summary>
-        public SKBitmap ScaleImageGpu(SKBitmap source, int targetWidth, int targetHeight, SKFilterQuality quality = SKFilterQuality.High)
+        public SKBitmap ScaleImageGpu(SKBitmap source, int targetWidth, int targetHeight, SKSamplingOptions sampling = default)
         {
             if (source == null || targetWidth <= 0 || targetHeight <= 0)
                 return null;
 
+            // 如果没有指定采样选项，使用高质量默认值
+            if (sampling.Equals(default(SKSamplingOptions)))
+            {
+                sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+            }
+
             // GPU不可用，降级到CPU
             if (!_isGpuAvailable || _grContext == null)
             {
-                return ScaleImageCpu(source, targetWidth, targetHeight, quality);
+                return ScaleImageCpu(source, targetWidth, targetHeight, sampling);
             }
 
             try
@@ -193,26 +199,30 @@ namespace ImageColorChanger.Core
 #if DEBUG
                     Debug.WriteLine("⚠️ [GPUContext] GPU表面创建失败，降级到CPU");
 #endif
-                    return ScaleImageCpu(source, targetWidth, targetHeight, quality);
+                    return ScaleImageCpu(source, targetWidth, targetHeight, sampling);
                 }
 
                 var canvas = surface.Canvas;
                 canvas.Clear(SKColors.Transparent);
 
                 // 使用GPU绘制缩放后的图片
+                // 注意：DrawBitmap 不支持 SKSamplingOptions，但 DrawImage 支持
+                // 将 SKBitmap 转换为 SKImage 以使用 DrawImage 方法
+                using var sourceImage = SKImage.FromBitmap(source);
                 var paint = new SKPaint
                 {
-                    FilterQuality = quality,
                     IsAntialias = true
                 };
 
                 var destRect = new SKRect(0, 0, targetWidth, targetHeight);
-                canvas.DrawBitmap(source, destRect, paint);
+                // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                // 这是 SkiaSharp 3.0+ 推荐的方式，支持 SKSamplingOptions
+                canvas.DrawImage(sourceImage, destRect, sampling, paint);
                 canvas.Flush();
 
                 // 从GPU读取结果
-                var image = surface.Snapshot();
-                var result = SKBitmap.FromImage(image);
+                var snapshot = surface.Snapshot();
+                var result = SKBitmap.FromImage(snapshot);
 
                 sw.Stop();
 #if DEBUG
@@ -228,14 +238,14 @@ namespace ImageColorChanger.Core
 #else
                 _ = ex; // 避免未使用变量警告
 #endif
-                return ScaleImageCpu(source, targetWidth, targetHeight, quality);
+                return ScaleImageCpu(source, targetWidth, targetHeight, sampling);
             }
         }
 
         /// <summary>
         /// CPU高性能缩放（优化方案）
         /// </summary>
-        private SKBitmap ScaleImageCpu(SKBitmap source, int targetWidth, int targetHeight, SKFilterQuality quality)
+        private SKBitmap ScaleImageCpu(SKBitmap source, int targetWidth, int targetHeight, SKSamplingOptions sampling)
         {
             try
             {
@@ -248,7 +258,7 @@ namespace ImageColorChanger.Core
                 // 🚀 使用高性能缩放
                 // ScalePixels内部使用SIMD指令（SSE2/AVX）并行处理像素
                 // 这是SkiaSharp在CPU上的最优方案
-                source.ScalePixels(result, quality);
+                source.ScalePixels(result, sampling);
 
                 sw.Stop();
                 

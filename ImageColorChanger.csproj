@@ -19,6 +19,8 @@
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
+    <!-- 🔧 抑制包兼容性警告：OpenTK 和 SkiaSharp.Views.WPF 虽然是为 .NET Framework 设计的，但在 .NET 8 上也能正常工作 -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
   <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
@@ -41,11 +43,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TinyPinyin.NET" Version="1.0.2" />
-    <PackageReference Include="SkiaSharp" Version="2.88.8" />
-    <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.Views.WPF" Version="3.119.1" />
     <!-- GPU加速支持 -->
-    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.8" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
     <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
     <PackageReference Include="MaterialDesignColors" Version="3.1.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />

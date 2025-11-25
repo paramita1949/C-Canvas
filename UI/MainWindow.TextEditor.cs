@@ -4298,9 +4298,41 @@ namespace ImageColorChanger.UI
 //            //System.Diagnostics.Debug.WriteLine($"📐 [画布缩放] 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
 //#endif
 
-            // 创建SkiaSharp画布（使用目标尺寸）
-            var bitmap = new SKBitmap(targetWidth, targetHeight);
-            using (var canvas = new SKCanvas(bitmap))
+            // 🎮 优先使用GPU表面，如果GPU不可用则降级到CPU
+            SKBitmap bitmap = null;
+            SKCanvas canvas = null;
+            SKSurface surface = null;
+            
+            try
+            {
+                // 尝试创建GPU表面
+                var gpuContext = Core.GPUContext.Instance;
+                if (gpuContext.IsGpuAvailable && gpuContext.GetContext() != null)
+                {
+                    var grContext = gpuContext.GetContext();
+                    var info = new SKImageInfo(targetWidth, targetHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    surface = SKSurface.Create(grContext, false, info);
+                    
+                    if (surface != null)
+                    {
+                        canvas = surface.Canvas;
+                        // GPU表面创建成功，使用GPU渲染
+                    }
+                }
+            }
+            catch
+            {
+                // GPU表面创建失败，降级到CPU
+            }
+            
+            // 如果GPU表面创建失败，使用CPU表面
+            if (canvas == null)
+            {
+                bitmap = new SKBitmap(targetWidth, targetHeight);
+                canvas = new SKCanvas(bitmap);
+            }
+            
+            try
             {
                 // 🎨 根据参数选择背景色
                 SKColor backgroundColor = SKColors.Transparent; // 默认透明
@@ -4361,12 +4393,15 @@ namespace ImageColorChanger.UI
                         {
                             // 绘制背景图，铺满整个画布（使用原始尺寸，canvas.Scale 会自动缩放）
                             var destRect = new SKRect(0, 0, (float)canvasWidth, (float)canvasHeight);
+                            // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                            using var image = SKImage.FromBitmap(bgBitmap);
                             var paint = new SKPaint
                             {
-                                FilterQuality = SKFilterQuality.High,
                                 IsAntialias = true
                             };
-                            canvas.DrawBitmap(bgBitmap, destRect, paint);
+                            var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                            // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                            canvas.DrawImage(image, destRect, sampling, paint);
                             paint.Dispose();
                             bgBitmap.Dispose();
                             
@@ -4540,12 +4575,15 @@ namespace ImageColorChanger.UI
                         }
                         
                         // 🎨 使用高质量过滤模式，确保投影质量
+                        // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                        using var image = SKImage.FromBitmap(skBitmap);
                         var paint = new SKPaint
                         {
-                            FilterQuality = SKFilterQuality.High,
                             IsAntialias = true
                         };
-                        canvas.DrawBitmap(skBitmap, destRect, paint);
+                        var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                        // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                        canvas.DrawImage(image, destRect, sampling, paint);
                         paint.Dispose();
                         
                         //#if DEBUG
@@ -4577,6 +4615,27 @@ namespace ImageColorChanger.UI
                 {
                     DrawSplitLinesToCanvas(canvas, (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode, canvasWidth, canvasHeight);
                 }
+                
+                // 🎮 如果是GPU表面，需要刷新并获取快照
+                if (surface != null)
+                {
+                    canvas.Flush();
+                    var snapshot = surface.Snapshot();
+                    bitmap = SKBitmap.FromImage(snapshot);
+                }
+            }
+            finally
+            {
+                // 清理资源
+                if (surface != null)
+                {
+                    surface.Dispose();
+                }
+                if (canvas != null && bitmap != null && surface == null)
+                {
+                    // 只有CPU表面才需要释放canvas（GPU表面的canvas会随surface一起释放）
+                    canvas.Dispose();
+                }
             }
             
             return bitmap;
@@ -4605,14 +4664,20 @@ namespace ImageColorChanger.UI
                 IsAntialias = true
             };
             
-            // 角标文字画笔（白色粗体）
+            // 角标字体（白色粗体）
             // 🔧 使用统一常量，与主屏幕保持一致
+            using var labelFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold),
+                Size = (float)REGION_LABEL_FONT_SIZE,
+                Subpixel = true
+            };
+            
+            // 角标文字画笔（白色）
             var labelTextPaint = new SKPaint
             {
                 Color = SKColors.White,
-                TextSize = (float)REGION_LABEL_FONT_SIZE,
-                IsAntialias = true,
-                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
+                IsAntialias = true
             };
             
             switch (mode)
@@ -4625,16 +4690,16 @@ namespace ImageColorChanger.UI
                     // 左右分割：绘制竖线
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.Vertical:
                     // 上下分割：绘制横线
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.Quad:
@@ -4642,10 +4707,10 @@ namespace ImageColorChanger.UI
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(3)) DrawLabel(canvas, "4", (float)(canvasWidth / 2), (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(3)) DrawLabel(canvas, "4", (float)(canvasWidth / 2), (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.TripleSplit:
@@ -4653,9 +4718,9 @@ namespace ImageColorChanger.UI
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)(canvasWidth / 2), (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
                     break;
             }
             
@@ -4667,17 +4732,18 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 绘制角标（带圆角背景的数字标签）
         /// </summary>
-        private void DrawLabel(SKCanvas canvas, string text, float x, float y, SKPaint bgPaint, SKPaint textPaint)
+        private void DrawLabel(SKCanvas canvas, string text, float x, float y, SKPaint bgPaint, SKFont font, SKPaint textPaint)
         {
             // 测量文本尺寸
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
+            float textWidth = font.MeasureText(text);
+            var fontMetrics = font.Metrics;
+            float textHeight = fontMetrics.Descent - fontMetrics.Ascent;
             
             // 🔧 使用统一常量，与主屏幕保持一致
             float paddingX = (float)REGION_LABEL_PADDING_X;  // 左右padding
             float paddingY = (float)REGION_LABEL_PADDING_Y;  // 上下padding
-            float labelWidth = textBounds.Width + paddingX * 2;
-            float labelHeight = textBounds.Height + paddingY * 2;
+            float labelWidth = textWidth + paddingX * 2;
+            float labelHeight = textHeight + paddingY * 2;
             
             // 绘制圆角矩形背景（右下圆角）
             var path = new SKPath();
@@ -4697,8 +4763,8 @@ namespace ImageColorChanger.UI
             
             // 绘制文本（居中）
             float textX = x + paddingX;
-            float textY = y + labelHeight - paddingY - textBounds.Bottom; // 垂直居中
-            canvas.DrawText(text, textX, textY, textPaint);
+            float textY = y + labelHeight - paddingY - fontMetrics.Descent; // 垂直居中
+            canvas.DrawText(text, textX, textY, SKTextAlign.Left, font, textPaint);
         }
         
         /// <summary>
@@ -4755,12 +4821,15 @@ namespace ImageColorChanger.UI
                                 (float)(actualTop + actualHeight));
 
                             // 🎨 使用高质量过滤模式，确保投影质量
+                            // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                            using var image = SKImage.FromBitmap(skBitmap);
                             var paint = new SKPaint
                             {
-                                FilterQuality = SKFilterQuality.High,
                                 IsAntialias = true
                             };
-                            canvas.DrawBitmap(skBitmap, destRect, paint);
+                            var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                            // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                            canvas.DrawImage(image, destRect, sampling, paint);
                             paint.Dispose();
                             skBitmap.Dispose();
 
@@ -4925,17 +4994,23 @@ namespace ImageColorChanger.UI
                 typeface = SKTypeface.FromFamilyName("Arial", fontStyle);
             }
             
+            // 创建字体
+            using var font = new SKFont
+            {
+                Typeface = typeface,
+                Size = (float)data.FontSize,
+                Subpixel = true
+            };
+            
             // 创建画笔
-            var paint = new SKPaint
+            using var paint = new SKPaint
             {
                 Color = textColor,
-                TextSize = (float)data.FontSize,
-                IsAntialias = true,
-                Typeface = typeface
+                IsAntialias = true
             };
             
             // 处理文本对齐
-            paint.TextAlign = data.TextAlign switch
+            SKTextAlign textAlign = data.TextAlign switch
             {
                 "Center" => SKTextAlign.Center,
                 "Right" => SKTextAlign.Right,
@@ -4955,27 +5030,26 @@ namespace ImageColorChanger.UI
             
             // 绘制文本（支持多行）
             string[] lines = data.Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            float lineHeight = paint.FontSpacing;
+            float lineHeight = font.Spacing;
             
             // 🔧 正确计算第一行基线位置
             // 使用 FontMetrics 获取字体度量信息
-            var fontMetrics = paint.FontMetrics;
+            var fontMetrics = font.Metrics;
             float firstLineBaseline = y - fontMetrics.Ascent; // Ascent是负值，表示基线到顶部的距离
             float currentY = firstLineBaseline;
             
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"  [文本绘制] 位置: ({textX}, {currentY}), 字号: {paint.TextSize}, 行高: {lineHeight}, 对齐: {paint.TextAlign}");
+            //System.Diagnostics.Debug.WriteLine($"  [文本绘制] 位置: ({textX}, {currentY}), 字号: {font.Size}, 行高: {lineHeight}, 对齐: {textAlign}");
             //System.Diagnostics.Debug.WriteLine($"  [文本绘制] 区域: x={x}, y={y}, w={width}, h={height}");
             //System.Diagnostics.Debug.WriteLine($"  [字体度量] Ascent: {fontMetrics.Ascent}, Descent: {fontMetrics.Descent}, Leading: {fontMetrics.Leading}");
             #endif
             
             foreach (string line in lines)
             {
-                canvas.DrawText(line, textX, currentY, paint);
+                canvas.DrawText(line, textX, currentY, textAlign, font, paint);
                 currentY += lineHeight;
             }
             
-            paint.Dispose();
             typeface.Dispose();
         }
         

@@ -103,14 +103,14 @@ namespace ImageColorChanger.Core
                 DrawBorder(canvas, textBounds, context.Style);
             }
 
-            // 10. 创建Paint
+            // 10. 创建Font和Paint
+            using var font = CreateFont(context.Style);
             using var paint = CreatePaint(context.Style);
-            paint.TextAlign = context.Alignment;
 
             // 11. 绘制选择区域（编辑模式下，在文本之前绘制）
             if (context.IsEditing && context.SelectionStart.HasValue && context.SelectionEnd.HasValue)
             {
-                DrawSelection(canvas, layout, context, paint);
+                DrawSelection(canvas, layout, context, font, paint);
             }
 
             // 12. 逐行绘制文本
@@ -129,19 +129,19 @@ namespace ImageColorChanger.Core
                     x = context.Padding.Left + contentWidth;
                 }
 
-                canvas.DrawText(line.Text, x, y, paint);
+                canvas.DrawText(line.Text, x, y, context.Alignment, font, paint);
 
                 // 🆕 绘制下划线
                 if (context.Style.IsUnderline)
                 {
-                    DrawUnderline(canvas, line.Text, x, y, paint, context.Alignment);
+                    DrawUnderline(canvas, line.Text, x, y, font, paint, context.Alignment);
                 }
             }
 
             // 13. 绘制光标（编辑模式下，在文本之后绘制）
             if (context.IsEditing && context.CursorVisible)
             {
-                DrawCursor(canvas, layout, context, paint);
+                DrawCursor(canvas, layout, context, font, paint);
             }
 
             // 14. 缓存结果（编辑模式下不缓存）
@@ -229,15 +229,15 @@ namespace ImageColorChanger.Core
                 else
                 {
                     // 计算经文行高度
-                    using var numberPaint = CreatePaint(context.VerseNumberStyle);
-                    using var versePaint = CreatePaint(context.VerseStyle);
+                    using var numberFont = CreateFont(context.VerseNumberStyle);
+                    using var verseFont = CreateFont(context.VerseStyle);
                     
                     string verseNumberText = $"{verse.VerseNumber} ";
-                    float numberWidth = numberPaint.MeasureText(verseNumberText);
+                    float numberWidth = numberFont.MeasureText(verseNumberText);
                     
                     // 第一行经文紧跟节号
                     float firstLineWidth = contentWidth - numberWidth;
-                    var lines = _layoutEngine.WrapText(verse.Text, versePaint, firstLineWidth);
+                    var lines = _layoutEngine.WrapText(verse.Text, verseFont, firstLineWidth);
                     
                     float verseHeight = lines.Count * context.VerseStyle.FontSize * context.VerseStyle.LineSpacing;
                     
@@ -287,12 +287,12 @@ namespace ImageColorChanger.Core
                 if (layout.Verse.IsTitle)
                 {
                     // 渲染标题行
+                    using var titleFont = CreateFont(context.TitleStyle);
                     using var titlePaint = CreatePaint(context.TitleStyle);
-                    titlePaint.TextAlign = SKTextAlign.Left;
                     
                     float x = context.Padding.Left;
                     float y = layout.StartY + context.TitleStyle.FontSize;
-                    canvas.DrawText(layout.Verse.Text, x, y, titlePaint);
+                    canvas.DrawText(layout.Verse.Text, x, y, SKTextAlign.Left, titleFont, titlePaint);
                 }
                 else
                 {
@@ -302,15 +302,17 @@ namespace ImageColorChanger.Core
                         : context.VerseStyle.TextColor;
                     
                     // 节号（🔧 高亮时也使用高亮颜色）
+                    using var numberFont = CreateFont(context.VerseNumberStyle);
                     using var numberPaint = CreatePaint(context.VerseNumberStyle);
                     if (layout.Verse.IsHighlighted)
                     {
                         numberPaint.Color = context.HighlightColor;
                     }
                     string verseNumberText = $"{layout.Verse.VerseNumber} ";
-                    canvas.DrawText(verseNumberText, context.Padding.Left, layout.StartY + context.VerseStyle.FontSize, numberPaint);
+                    canvas.DrawText(verseNumberText, context.Padding.Left, layout.StartY + context.VerseStyle.FontSize, SKTextAlign.Left, numberFont, numberPaint);
                     
                     // 经文内容
+                    using var verseFont = CreateFont(context.VerseStyle);
                     using var versePaint = CreatePaint(context.VerseStyle);
                     versePaint.Color = verseColor;
                     
@@ -319,7 +321,7 @@ namespace ImageColorChanger.Core
                     {
                         float x = (i == 0) ? context.Padding.Left + layout.NumberWidth : context.Padding.Left;
                         float y = lineY + context.VerseStyle.FontSize;
-                        canvas.DrawText(layout.Lines[i], x, y, versePaint);
+                        canvas.DrawText(layout.Lines[i], x, y, SKTextAlign.Left, verseFont, versePaint);
                         lineY += context.VerseStyle.FontSize * context.VerseStyle.LineSpacing;
                     }
                 }
@@ -376,15 +378,15 @@ namespace ImageColorChanger.Core
             // ========================================
             // 第一步：预计算内容高度
             // ========================================
-            // 创建Paint
+            // 创建Font和Paint
+            using var font = CreateFont(context.Style);
             using var paint = CreatePaint(context.Style);
-            paint.TextAlign = context.Alignment;
             
             // 计算有效宽度
             float contentWidth = width - context.Padding.Left - context.Padding.Right;
             
             // 自动换行
-            var lines = _layoutEngine.WrapText(context.Text, paint, contentWidth);
+            var lines = _layoutEngine.WrapText(context.Text, font, contentWidth);
             
             // 计算内容实际高度
             float totalHeight = lines.Count * context.Style.FontSize * context.Style.LineSpacing;
@@ -424,7 +426,7 @@ namespace ImageColorChanger.Core
                         break;
                 }
                 
-                canvas.DrawText(line, x, currentY, paint);
+                canvas.DrawText(line, x, currentY, context.Alignment, font, paint);
                 currentY += context.Style.FontSize * context.Style.LineSpacing;
             }
             
@@ -437,36 +439,48 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
-        /// 创建Paint对象
+        /// 创建Font对象
         /// </summary>
-        private SKPaint CreatePaint(TextStyle style)
+        private SKFont CreateFont(TextStyle style)
         {
             // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
             var typeface = SkiaFontService.Instance.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
-            var paint = new SKPaint
+            var font = new SKFont
             {
                 Typeface = typeface,
-                TextSize = style.FontSize,
-                Color = style.TextColor,
-                IsAntialias = true,
-                SubpixelText = true
+                Size = style.FontSize,
+                Subpixel = true
             };
             
             // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
             if (style.IsBold)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"    🎨 [CreatePaint] 启用加粗: 字体={style.FontFamily}, FakeBoldText=true");
+//                System.Diagnostics.Debug.WriteLine($"    🎨 [CreateFont] 启用加粗: 字体={style.FontFamily}, Embolden=true");
 //#endif
-                paint.FakeBoldText = true;
+                font.Embolden = true;
             }
 
-            // ✅ 应用字间距（使用 TextScaleX 实现水平拉伸）
+            // ✅ 应用字间距（使用 ScaleX 实现水平拉伸）
             if (style.LetterSpacing > 0)
             {
-                paint.TextScaleX = 1.0f + style.LetterSpacing;
+                font.ScaleX = 1.0f + style.LetterSpacing;
             }
+
+            return font;
+        }
+
+        /// <summary>
+        /// 创建Paint对象（仅用于颜色等非文本属性）
+        /// </summary>
+        private SKPaint CreatePaint(TextStyle style)
+        {
+            var paint = new SKPaint
+            {
+                Color = style.TextColor,
+                IsAntialias = true
+            };
 
             return paint;
         }
@@ -478,15 +492,16 @@ namespace ImageColorChanger.Core
         /// <param name="text">文本内容</param>
         /// <param name="x">文本X坐标</param>
         /// <param name="y">文本Y坐标（基线位置）</param>
-        /// <param name="textPaint">文本Paint对象（用于测量和获取颜色）</param>
+        /// <param name="font">文本Font对象（用于测量）</param>
+        /// <param name="textPaint">文本Paint对象（用于获取颜色）</param>
         /// <param name="alignment">文本对齐方式</param>
-        private void DrawUnderline(SKCanvas canvas, string text, float x, float y, SKPaint textPaint, SKTextAlign alignment)
+        private void DrawUnderline(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint textPaint, SKTextAlign alignment)
         {
             if (string.IsNullOrEmpty(text))
                 return;
 
             // 1. 测量文本宽度
-            float textWidth = textPaint.MeasureText(text);
+            float textWidth = font.MeasureText(text);
 
             // 2. 计算下划线起点X坐标（根据对齐方式）
             float underlineStartX;
@@ -504,13 +519,13 @@ namespace ImageColorChanger.Core
             }
 
             // 3. 计算下划线Y坐标（基线下方，距离约为字体大小的10%）
-            float underlineY = y + textPaint.TextSize * 0.1f;
+            float underlineY = y + font.Size * 0.1f;
 
             // 4. 创建下划线Paint
             using var underlinePaint = new SKPaint
             {
                 Color = textPaint.Color,
-                StrokeWidth = Math.Max(1f, textPaint.TextSize * 0.05f), // 粗细为字体大小的5%，最小1像素
+                StrokeWidth = Math.Max(1f, font.Size * 0.05f), // 粗细为字体大小的5%，最小1像素
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke
             };
@@ -762,7 +777,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 绘制光标（垂直线）
         /// </summary>
-        private void DrawCursor(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKPaint textPaint)
+        private void DrawCursor(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKFont font, SKPaint textPaint)
         {
             if (layout.Lines.Count == 0)
                 return;
@@ -786,19 +801,19 @@ namespace ImageColorChanger.Core
                     string textBeforeCursor = line.Text.Substring(0, Math.Min(posInLine, line.Text.Length));
 
                     // 计算光标X坐标
-                    float textWidth = textPaint.MeasureText(textBeforeCursor);
+                    float textWidth = font.MeasureText(textBeforeCursor);
                     cursorX = context.Padding.Left;
 
                     // 根据对齐方式调整X坐标
                     float contentWidth = context.Size.Width - context.Padding.Left - context.Padding.Right;
                     if (context.Alignment == SKTextAlign.Center)
                     {
-                        float lineWidth = textPaint.MeasureText(line.Text);
+                        float lineWidth = font.MeasureText(line.Text);
                         cursorX = context.Padding.Left + (contentWidth - lineWidth) / 2 + textWidth;
                     }
                     else if (context.Alignment == SKTextAlign.Right)
                     {
-                        float lineWidth = textPaint.MeasureText(line.Text);
+                        float lineWidth = font.MeasureText(line.Text);
                         cursorX = context.Padding.Left + contentWidth - lineWidth + textWidth;
                     }
                     else
@@ -829,7 +844,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 绘制选择区域（蓝色高亮背景）
         /// </summary>
-        private void DrawSelection(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKPaint textPaint)
+        private void DrawSelection(SKCanvas canvas, TextLayout layout, TextBoxRenderContext context, SKFont font, SKPaint textPaint)
         {
             if (!context.SelectionStart.HasValue || !context.SelectionEnd.HasValue)
                 return;
@@ -868,18 +883,18 @@ namespace ImageColorChanger.Core
                     string selectedText = line.Text.Substring(selStartInLine, selEndInLine - selStartInLine);
 
                     float selectionStartX = context.Padding.Left;
-                    float selectionWidth = textPaint.MeasureText(selectedText);
-                    float textBeforeWidth = textPaint.MeasureText(textBeforeSelection);
+                    float selectionWidth = font.MeasureText(selectedText);
+                    float textBeforeWidth = font.MeasureText(textBeforeSelection);
 
                     // 根据对齐方式调整X坐标
                     if (context.Alignment == SKTextAlign.Center)
                     {
-                        float lineWidth = textPaint.MeasureText(line.Text);
+                        float lineWidth = font.MeasureText(line.Text);
                         selectionStartX = context.Padding.Left + (contentWidth - lineWidth) / 2 + textBeforeWidth;
                     }
                     else if (context.Alignment == SKTextAlign.Right)
                     {
-                        float lineWidth = textPaint.MeasureText(line.Text);
+                        float lineWidth = font.MeasureText(line.Text);
                         selectionStartX = context.Padding.Left + contentWidth - lineWidth + textBeforeWidth;
                     }
                     else
