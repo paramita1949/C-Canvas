@@ -21,6 +21,13 @@
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
     <!-- 🔧 抑制包兼容性警告：OpenTK 和 SkiaSharp.Views.WPF 虽然是为 .NET Framework 设计的，但在 .NET 8 上也能正常工作 -->
     <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <!-- 🔧 自包含部署：内置.NET 8运行时，客户无需单独安装.NET框架 -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- 🔧 可选：单文件发布（将所有文件打包成一个exe，但启动可能稍慢） -->
+    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <!-- 🔧 可选：启用压缩（减少发布大小，但启动时间稍长） -->
+    <!-- <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile> -->
   </PropertyGroup>
 
   <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
@@ -40,6 +47,9 @@
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
     <Optimize>true</Optimize>
+    <!-- 🔧 发布目录不包含 win-x64 标识 -->
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <PublishDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\publish\</PublishDir>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TinyPinyin.NET" Version="1.0.2" />
