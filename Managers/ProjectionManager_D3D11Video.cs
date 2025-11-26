@@ -11,18 +11,69 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public partial class ProjectionManager
     {
+        #region 字段
+
+        // ✅ 优化5：竞态条件保护
+        private bool _isD3D11Disposed = false;
+        
+        // ✅ 优化1：复用 Media 实例，避免内存泄漏
+        private LibVLCSharp.Shared.Media _currentProjectionMedia;
+
+        #endregion
+
+        #region ✅ 优化2：LibVLC 安全获取
+
         /// <summary>
-        /// 🎬 使用 VLC D3D11 渲染器更新锁定模式视频（同步版本，更稳定）
+        /// 确保 LibVLC 已初始化（线程安全）
+        /// </summary>
+        private bool EnsureLibVLCInitialized()
+        {
+            if (_projectionLibVLC != null)
+                return true;
+
+            if (_videoPlayerManager == null)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [LibVLC] VideoPlayerManager 未设置");
+#endif
+                return false;
+            }
+
+            _projectionLibVLC = _videoPlayerManager.GetLibVLC();
+            if (_projectionLibVLC == null)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [LibVLC] 初始化失败");
+#endif
+                return false;
+            }
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"✅ [LibVLC] 初始化成功");
+#endif
+            return true;
+        }
+
+        #endregion
+
+        /// <summary>
+        /// 🎬 使用 VLC D3D11 渲染器更新锁定模式视频（已优化）
         /// </summary>
         private void UpdateProjectionWithLockedVideoD3D11(string videoPath, bool loopEnabled, SKBitmap textLayer)
         {
-            if (_projectionWindow == null || _projectionContainer == null)
+            // ✅ 优化5：竞态条件保护
+            if (_isD3D11Disposed || _projectionWindow == null || _projectionContainer == null)
                 return;
 
-            _projectionWindow.Dispatcher.Invoke(() =>
+            // ✅ 优化7：使用 BeginInvoke 异步调用，避免 UI 线程死锁
+            _projectionWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
                 try
                 {
+                    // ✅ 优化5：双重检查，防止在调度期间被 Dispose
+                    if (_isD3D11Disposed)
+                        return;
+
 #if DEBUG
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo-D3D11] 开始");
@@ -59,28 +110,13 @@ namespace ImageColorChanger.Managers
                         projHeight = 1080;
                     }
 
+                    // ✅ 优化2：使用安全的 LibVLC 获取方法
+                    if (!EnsureLibVLCInitialized())
+                        return;
+
                     // 🎬 创建或重用 VLC 播放器
                     if (_projectionVlcPlayer == null)
                     {
-                        if (_videoPlayerManager == null)
-                        {
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ VideoPlayerManager 未设置");
-#endif
-                            return;
-                        }
-
-                        var libVLC = _videoPlayerManager.GetLibVLC();
-                        if (libVLC == null)
-                        {
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ LibVLC 未初始化");
-#endif
-                            return;
-                        }
-
-                        // 保存 LibVLC 引用供后续使用
-                        _projectionLibVLC = libVLC;
                         
                         _projectionVlcPlayer = new LibVLCSharp.Shared.MediaPlayer(_projectionLibVLC)
                         {
@@ -91,8 +127,32 @@ namespace ImageColorChanger.Managers
                         };
 
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ VLC 播放器已创建");
+                        System.Diagnostics.Debug.WriteLine($"✅ VLC 播放器已创建（硬件解码：{_projectionVlcPlayer.EnableHardwareDecoding}）");
+                        
+                        // ✅ 优化6：检测硬件解码是否真正启用
+                        _projectionVlcPlayer.Playing += (s, args) =>
+                        {
+                            try
+                            {
+                                var hwDecoding = _projectionVlcPlayer.EnableHardwareDecoding;
+                                System.Diagnostics.Debug.WriteLine($"🎬 [播放中] 硬件解码状态: {hwDecoding}");
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"⚠️ [硬件解码] 检查失败: {ex.Message}");
+                            }
+                        };
 #endif
+
+                        // ✅ 优化5：监听投影窗口尺寸变化
+                        if (_projectionWindow != null && !_projectionWindowSizeChangedRegistered)
+                        {
+                            _projectionWindow.SizeChanged += OnProjectionWindowSizeChanged;
+                            _projectionWindowSizeChangedRegistered = true;
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ 已注册窗口尺寸监听事件");
+#endif
+                        }
                     }
 
                     // 🎬 创建或更新 D3D11 渲染器
@@ -121,54 +181,46 @@ namespace ImageColorChanger.Managers
                     // 🎬 显示视频容器
                     _projectionVideoContainer.Visibility = Visibility.Visible;
 
-                    // 🎬 加载并播放视频
-                    // 🚀 优先使用预解析的 Media（如果有）
-                    LibVLCSharp.Shared.Media media = GetPreparsedMedia(videoPath);
-                    bool usedPreparse = (media != null);
-
-                    // 如果没有预解析，同步创建新的 Media
-                    if (media == null)
+                    // ✅ 优化1：复用 Media 实例，避免内存泄漏
+                    try
                     {
-                        if (_projectionLibVLC == null)
-                        {
+                        // ✅ 修复：使用 oldVideoPath 判断，而不是已更新的 _lockedVideoPath
+                        bool needsNewMedia = (_currentProjectionMedia == null || 
+                                             oldVideoPath != videoPath);
+
 #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"❌ LibVLC 未初始化，无法创建 Media");
+                        System.Diagnostics.Debug.WriteLine($"🔍 [Media判断] oldVideoPath: {oldVideoPath ?? "null"}");
+                        System.Diagnostics.Debug.WriteLine($"🔍 [Media判断] newVideoPath: {videoPath}");
+                        System.Diagnostics.Debug.WriteLine($"🔍 [Media判断] needsNewMedia: {needsNewMedia}");
 #endif
-                            return;
+
+                        if (needsNewMedia)
+                        {
+                            // 清理旧的 Media
+                            if (_currentProjectionMedia != null)
+                            {
+                                try
+                                {
+                                    _currentProjectionMedia.Dispose();
+#if DEBUG
+                                    System.Diagnostics.Debug.WriteLine($"🗑️ [Media] 已清理旧 Media");
+#endif
+                                }
+                                catch { }
+                                _currentProjectionMedia = null;
+                            }
+
+                            // 创建新的 Media
+                            _currentProjectionMedia = new LibVLCSharp.Shared.Media(_projectionLibVLC, videoPath, LibVLCSharp.Shared.FromType.FromPath);
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ [播放] 创建新 Media: {System.IO.Path.GetFileName(videoPath)}");
+#endif
                         }
-
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⏳ [同步加载] 创建 Media...");
-#endif
-                        // 🔧 同步创建 Media（简单可靠）
-                        media = new LibVLCSharp.Shared.Media(_projectionLibVLC, videoPath, LibVLCSharp.Shared.FromType.FromPath);
-                        // 快速解析基本信息（可选，减少延迟）
-                        // media.Parse(MediaParseOptions.ParseLocal);
-                    }
-                    else
-                    {
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🚀 [使用预解析] 视频切换加速");
-#endif
-                    }
-
-                    if (media != null)
-                    {
-                        // 🔧 如果视频路径改变，先停止当前播放（避免 Media 冲突）
-                        if (oldVideoPath != videoPath && oldVideoPath != null && _projectionVlcPlayer != null)
+                        else
                         {
-                            try
-                            {
-                                _projectionVlcPlayer.Stop();
-                                // 等待一小段时间，确保停止完成
-                                System.Threading.Thread.Sleep(10);
-                            }
-                            catch (Exception ex)
-                            {
 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"⚠️ [停止播放] 错误: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"♻️ [播放] 复用 Media: {System.IO.Path.GetFileName(videoPath)}");
 #endif
-                            }
                         }
 
                         // 设置循环播放
@@ -182,15 +234,30 @@ namespace ImageColorChanger.Managers
                             _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
                         }
 
-                        // 🔧 设置 Media 并播放（Media 由 VLC 管理，不需要手动 Dispose）
-                        _projectionVlcPlayer.Media = media;
-                        _projectionVlcPlayer.Play();
+                        // 🎬 播放视频
+                        if (needsNewMedia || _projectionVlcPlayer.State == VLCState.Ended || 
+                            _projectionVlcPlayer.State == VLCState.Stopped)
+                        {
+                            _projectionVlcPlayer.Media = _currentProjectionMedia;
+                            _projectionVlcPlayer.Play();
+                        }
+                        else
+                        {
+                            // ✅ 优化1：同一视频，直接 Stop + Play 循环
+                            _projectionVlcPlayer.Stop();
+                            _projectionVlcPlayer.Play();
+                        }
+
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [播放] 视频已启动");
+#endif
                     }
-                    else
+                    catch (Exception ex)
                     {
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ Media 创建失败");
+                        System.Diagnostics.Debug.WriteLine($"❌ [播放] 视频启动失败: {ex.Message}");
 #endif
+                        return;
                     }
 
                     // 🎨 如果有文本层，叠加显示
@@ -216,34 +283,37 @@ namespace ImageColorChanger.Managers
                     System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
 #endif
                 }
-            });
+            }));
         }
 
         /// <summary>
-        /// 视频播放结束事件 - 循环播放
+        /// 视频播放结束事件 - 循环播放（优化版）
         /// </summary>
         private void OnProjectionVideoEndReached(object sender, EventArgs e)
         {
-            _projectionWindow?.Dispatcher.BeginInvoke(new Action(() =>
+            if (_isD3D11Disposed || _projectionWindow == null)
+                return;
+
+            _projectionWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (_projectionVlcPlayer != null && !string.IsNullOrEmpty(_lockedVideoPath))
+                // ✅ 优化5：竞态条件保护
+                if (_isD3D11Disposed || _projectionVlcPlayer == null || _currentProjectionMedia == null)
+                    return;
+
+                try
+                {
+                    // ✅ 优化1：复用 Media 实例，Stop + Play 循环
+                    _projectionVlcPlayer.Stop();
+                    _projectionVlcPlayer.Play();
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔁 [循环播放] 重新播放（复用 Media）");
+#endif
+                }
+                catch (Exception ex)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔁 [循环播放] 重新播放视频");
+                    System.Diagnostics.Debug.WriteLine($"❌ [循环播放] 错误: {ex.Message}");
 #endif
-                    try
-                    {
-                        // 🔧 创建新的 Media（不使用 using，让 VLC 管理生命周期）
-                        var media = new LibVLCSharp.Shared.Media(_projectionLibVLC, _lockedVideoPath, LibVLCSharp.Shared.FromType.FromPath);
-                        _projectionVlcPlayer.Media = media;
-                        _projectionVlcPlayer.Play();
-                    }
-                    catch (Exception ex)
-                    {
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"❌ [循环播放] 错误: {ex.Message}");
-#endif
-                    }
                 }
             }));
         }
@@ -253,26 +323,19 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void UpdateProjectionTextLayer(SKBitmap textLayer)
         {
-            if (textLayer == null || _projectionVideoContainer == null)
+            // ✅ 优化5：竞态条件保护
+            if (_isD3D11Disposed || textLayer == null || _projectionVideoContainer == null)
                 return;
 
             try
             {
-                // 🚀 优化：检查文本层是否改变（使用时间戳）
-                long currentTimestamp = DateTime.Now.Ticks;
-                if (_cachedTextLayerBitmap != null && 
-                    (currentTimestamp - _cachedTextLayerTimestamp) < TimeSpan.FromMilliseconds(100).Ticks)
-                {
-                    // 100ms 内的重复更新，使用缓存
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("✅ 文本层使用缓存（100ms内）");
-#endif
-                    return;
-                }
-
+                // ✅ 优化4：简化缓存逻辑 - 依赖调用方控制频率
+                // 不使用时间戳判断，因为 SKBitmap 是引用类型，时间戳可能不可靠
+                // 如果需要防抖，应该在调用方控制
+                
                 var bitmapSource = ConvertToBitmapSource(textLayer);
                 _cachedTextLayerBitmap = bitmapSource;
-                _cachedTextLayerTimestamp = currentTimestamp;
+                _cachedTextLayerTimestamp = DateTime.Now.Ticks;
                 
                 // 🎨 在视频容器中查找或创建文本层 Image
                 var textImage = _projectionVideoContainer.Children.OfType<System.Windows.Controls.Image>()
@@ -343,118 +406,126 @@ namespace ImageColorChanger.Managers
             }
         }
 
-        #region 🚀 视频预解析优化
+        #region ❌ 已删除：视频预解析优化（简化为跟主屏幕WPF一样的逻辑）
+        
+        // 预解析功能已删除，直接播放更简单稳定
+        
+        #endregion
+
+        #region ✅ 优化5：窗口尺寸变化监听
+
+        private bool _projectionWindowSizeChangedRegistered = false;
 
         /// <summary>
-        /// 🚀 预解析视频（异步）- 提前加载下一个视频
+        /// 投影窗口尺寸变化事件处理
         /// </summary>
-        public async System.Threading.Tasks.Task PreparseVideoAsync(string videoPath)
+        private void OnProjectionWindowSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (string.IsNullOrEmpty(videoPath) || !System.IO.File.Exists(videoPath))
+            // ✅ 优化5：竞态条件保护
+            if (_isD3D11Disposed || _projectionVlcRenderer == null || _projectionWindow == null)
                 return;
 
-            if (_projectionLibVLC == null)
-                return;
-
-            await System.Threading.Tasks.Task.Run(() =>
+            try
             {
-                try
+                int newWidth = (int)e.NewSize.Width;
+                int newHeight = (int)e.NewSize.Height;
+
+                if (newWidth > 0 && newHeight > 0)
                 {
-                    lock (_preparseLock)
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [窗口尺寸变化] {(int)e.PreviousSize.Width}x{(int)e.PreviousSize.Height} → {newWidth}x{newHeight}");
+#endif
+                    // 再次检查，防止在执行期间被 Dispose
+                    if (_isD3D11Disposed || _projectionVlcRenderer == null)
+                        return;
+
+                    // 更新渲染器尺寸
+                    _projectionVlcRenderer.UpdateSize(newWidth, newHeight);
+                    
+                    // 重新绑定 WriteableBitmap
+                    if (_projectionVideoImage != null && !_isD3D11Disposed)
                     {
-                        // 如果已经预解析了这个视频，跳过
-                        if (_preparsedVideoPath == videoPath && _preparsedMedia != null)
-                        {
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"✅ [预解析] 视频已缓存: {System.IO.Path.GetFileName(videoPath)}");
-#endif
-                            return;
-                        }
-
-                        // 清理旧的预解析
-                        ClearPreparsedMediaInternal();
-
-#if DEBUG
-                        var sw = System.Diagnostics.Stopwatch.StartNew();
-                        System.Diagnostics.Debug.WriteLine($"🚀 [预解析] 开始: {System.IO.Path.GetFileName(videoPath)}");
-#endif
-
-                        // 创建并预解析 Media
-                        var media = new LibVLCSharp.Shared.Media(_projectionLibVLC, videoPath, LibVLCSharp.Shared.FromType.FromPath);
-                        
-                        // 🚀 异步解析（不阻塞）
-                        media.Parse(MediaParseOptions.ParseNetwork);
-
-                        _preparsedMedia = media;
-                        _preparsedVideoPath = videoPath;
-
-#if DEBUG
-                        sw.Stop();
-                        System.Diagnostics.Debug.WriteLine($"✅ [预解析] 完成: {sw.ElapsedMilliseconds}ms - {System.IO.Path.GetFileName(videoPath)}");
-#endif
+                        _projectionVideoImage.Source = _projectionVlcRenderer.WriteableBitmap;
                     }
                 }
-                catch (Exception ex)
-                {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [预解析] 错误: {ex.Message}");
-#endif
-                }
-            });
-        }
-
-        /// <summary>
-        /// 🚀 获取预解析的 Media（如果有）
-        /// </summary>
-        private LibVLCSharp.Shared.Media GetPreparsedMedia(string videoPath)
-        {
-            lock (_preparseLock)
+            }
+            catch (Exception ex)
             {
-                if (_preparsedVideoPath == videoPath && _preparsedMedia != null)
-                {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [命中预解析] {System.IO.Path.GetFileName(videoPath)}");
+                System.Diagnostics.Debug.WriteLine($"❌ [窗口尺寸变化] 处理错误: {ex.Message}");
 #endif
-                    var media = _preparsedMedia;
-                    _preparsedMedia = null;  // 取出后清空，避免重复使用
-                    _preparsedVideoPath = null;
-                    return media;
-                }
-#if DEBUG
-                else if (!string.IsNullOrEmpty(videoPath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ [未命中预解析] 请求: {System.IO.Path.GetFileName(videoPath)}, 缓存: {(_preparsedVideoPath != null ? System.IO.Path.GetFileName(_preparsedVideoPath) : "无")}");
-                }
-#endif
-                return null;
             }
         }
 
-        /// <summary>
-        /// 🚀 清除预解析的 Media
-        /// </summary>
-        private void ClearPreparsedMediaInternal()
-        {
-            if (_preparsedMedia != null)
-            {
-                try
-                {
-                    _preparsedMedia.Dispose();
-                }
-                catch { }
-                _preparsedMedia = null;
-                _preparsedVideoPath = null;
-            }
-        }
+        #endregion
+
+        #region ✅ 优化4：Dispose 资源清理
 
         /// <summary>
-        /// 🚀 清除预解析的 Media（公开方法）
+        /// 清理 D3D11 视频资源（在 ProjectionManager.Dispose 中调用）
         /// </summary>
-        public void ClearPreparsedMedia()
+        public void DisposeD3D11Resources()
         {
-            lock (_preparseLock)
+            // ✅ 优化5：设置 Dispose 标志，防止竞态条件
+            _isD3D11Disposed = true;
+
+            try
             {
-                ClearPreparsedMediaInternal();
+                // 注销事件
+                if (_projectionWindow != null && _projectionWindowSizeChangedRegistered)
+                {
+                    _projectionWindow.SizeChanged -= OnProjectionWindowSizeChanged;
+                    _projectionWindowSizeChangedRegistered = false;
+                }
+
+                if (_projectionVlcPlayer != null)
+                {
+                    _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
+                }
+
+                // 清理渲染器
+                if (_projectionVlcRenderer != null)
+                {
+                    _projectionVlcRenderer.Dispose();
+                    _projectionVlcRenderer = null;
+                }
+
+                // 清理播放器
+                if (_projectionVlcPlayer != null)
+                {
+                    try
+                    {
+                        _projectionVlcPlayer.Stop();
+                    }
+                    catch { }
+                    
+                    _projectionVlcPlayer.Dispose();
+                    _projectionVlcPlayer = null;
+                }
+
+                // ✅ 优化1：清理 Media 实例
+                if (_currentProjectionMedia != null)
+                {
+                    try
+                    {
+                        _currentProjectionMedia.Dispose();
+                    }
+                    catch { }
+                    _currentProjectionMedia = null;
+                }
+
+                // 清空路径
+                _lockedVideoPath = null;
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [Dispose] D3D11 视频资源已清理");
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [Dispose] D3D11 资源清理错误: {ex.Message}");
+#endif
             }
         }
 

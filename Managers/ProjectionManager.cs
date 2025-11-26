@@ -87,10 +87,7 @@ namespace ImageColorChanger.Managers
         private System.Windows.Media.Imaging.BitmapSource _cachedTextLayerBitmap;
         private long _cachedTextLayerTimestamp;
         
-        // 🚀 视频预解析缓存
-        private LibVLCSharp.Shared.Media _preparsedMedia;
-        private string _preparsedVideoPath;
-        private readonly object _preparseLock = new object();
+        // ❌ 已删除：视频预解析缓存（简化为跟主屏幕WPF一样的逻辑）
 
         // 屏幕管理（WPF 原生）
         private List<WpfScreenInfo> _screens;
@@ -3411,22 +3408,8 @@ namespace ImageColorChanger.Managers
 
         public void Dispose()
         {
-            // 清理视频预解析缓存
-            ClearPreparsedMedia();
-            
-            // 清理 VLC D3D11 资源
-            if (_projectionVlcRenderer != null)
-            {
-                _projectionVlcRenderer.Dispose();
-                _projectionVlcRenderer = null;
-            }
-
-            if (_projectionVlcPlayer != null)
-            {
-                _projectionVlcPlayer.Stop();
-                _projectionVlcPlayer.Dispose();
-                _projectionVlcPlayer = null;
-            }
+            // ✅ 优化4：统一清理 D3D11 资源
+            DisposeD3D11Resources();
             
             CloseProjection();
             
