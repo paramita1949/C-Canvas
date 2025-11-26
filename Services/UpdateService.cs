@@ -49,16 +49,18 @@ namespace ImageColorChanger.Services
     /// </summary>
     public class UpdateService
     {
-        // 多个下载地址（按优先级排序）
+        // 多个下载地址（按优先级排序 - 优先使用代理服务器）
         private static readonly string[] DOWNLOAD_BASE_URLS = new[]
         {
-            "https://pan.019890311.xyz/raw",      // 优先1（特殊：文件在/raw路径下）
-            "https://pan.jiucai.org.cn/raw",      // 优先2（特殊：文件在/raw路径下）
-            "https://pan.xian.edu.kg/raw",        // 优先3（特殊：文件在/raw路径下）
-            "https://updata.jiucai.org.cn",       // 优先4
-            "https://updata.pan.xian.edu.kg",     // 优先5
-            "https://canvas.019890311.xyz",       // 优先6
-            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先7
+            "http://106.14.145.43:23414",         // 优先2（代理服务器 - HTTP 备用）
+            "http://106.14.145.43:23413",         // 优先3（代理服务器 - HTTP 备用）
+            "https://pan.019890311.xyz/raw",      // 优先2（备用 - 特殊：文件在/raw路径下）
+            "https://pan.jiucai.org.cn/raw",      // 优先3（备用 - 特殊：文件在/raw路径下）
+            "https://pan.xian.edu.kg/raw",         // 优先4（备用 - 特殊：文件在/raw路径下）
+            "https://updata.jiucai.org.cn",       // 优先5（备用）
+            "https://updata.pan.xian.edu.kg",     // 优先6（备用）
+            "https://canvas.019890311.xyz",       // 优先7（备用）
+            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先8（备用）
         };
 
         // 当前使用的基础URL（动态选择）

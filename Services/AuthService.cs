@@ -89,14 +89,15 @@ namespace ImageColorChanger.Services
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
-        // 多个验证API地址（按优先级排序 - 优先使用未开启CDN）
+        // 多个验证API地址（按优先级排序 - 优先使用代理服务器）
         private static readonly string[] API_BASE_URLS = new[]
         {
-            "https://wx.019890311.xyz",          // 优先1（未开启CDN，直连源站）
-            "https://xian.edu.kg",        // 优先2（开启CDN）
-            "https://jiucai.org.cn",       // 优先3（未开启CDN，直连源站）
-            "https://www.xian.edu.kg",       // 优先4（未开启CDN，直连源站）
-            "https://ym.jiucai.org.cn"             // 优先5（开启CDN）
+            "http://106.14.145.43:23412",        // 优先1（代理服务器 - 通过 Nginx 转发到 Cloudflare）
+            "https://wx.019890311.xyz",          // 优先2（备用 - 未开启CDN，直连源站）
+            "https://xian.edu.kg",               // 优先3（备用 - 开启CDN）
+            "https://jiucai.org.cn",             // 优先4（备用 - 未开启CDN，直连源站）
+            "https://www.xian.edu.kg",           // 优先5（备用 - 未开启CDN，直连源站）
+            "https://ym.jiucai.org.cn"           // 优先6（备用 - 开启CDN）
         };
 
         // 当前使用的API地址（动态选择）
