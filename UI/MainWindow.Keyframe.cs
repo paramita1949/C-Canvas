@@ -280,26 +280,30 @@ namespace ImageColorChanger.UI
                 
                 //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
 
+                // 🔧 修复：在跳转前保存当前索引，避免StepToPrevKeyframe()更新索引后导致记录错误
+                int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
+
                 // 如果正在录制，先记录当前帧的时间（跳转前）
-                if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                if (_playbackViewModel?.IsRecording == true && currentIndexBeforeJump >= 0)
                 {
                     var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                    if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                    if (keyframes != null && currentIndexBeforeJump < keyframes.Count)
                     {
-                        var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                        var currentKeyframe = keyframes[currentIndexBeforeJump];
                         _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📝 [上一帧-录制] 离开关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id})，记录停留时间");
+                        #endif
                     }
                 }
                 
                 // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
-                if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                if (_playbackViewModel?.IsPlaying == true && currentIndexBeforeJump >= 0)
                 {
                     var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                    if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                    if (keyframes != null && currentIndexBeforeJump < keyframes.Count)
                     {
-                        var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                        var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                        var currentKeyframe = keyframes[currentIndexBeforeJump];
                         
                         // 调用播放服务的手动修正方法
                         var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
@@ -307,7 +311,7 @@ namespace ImageColorChanger.UI
                         if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                         {
                             _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                            //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndex + 1}");
+                            //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
                             
                             // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
                             // 注意：上一帧总是回跳，会被Navigator强制直接跳转，所以这里跳过等待是安全的
@@ -405,15 +409,33 @@ namespace ImageColorChanger.UI
                 
                 //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
 
+                // 🔧 修复：在跳转前保存当前索引，避免StepToNextKeyframe()更新索引后导致记录错误
+                int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔍 [下一帧-调试] 保存的索引: currentIndexBeforeJump={currentIndexBeforeJump}, CurrentKeyframeIndex={_keyframeManager.CurrentKeyframeIndex}");
+                #endif
+                
                 // 如果正在录制，先记录当前帧的时间（跳转前）
-                if (_playbackViewModel?.IsRecording == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+                if (_playbackViewModel?.IsRecording == true && currentIndexBeforeJump >= 0)
             {
                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                if (keyframes != null && currentIndexBeforeJump < keyframes.Count)
                 {
-                    var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
+                    var currentKeyframe = keyframes[currentIndexBeforeJump];
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📹 [下一帧-录制] 准备记录关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 的停留时间");
+                    #endif
                     _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
-                    //System.Diagnostics.Debug.WriteLine($"📝 [录制] 离开关键帧 #{_keyframeManager.CurrentKeyframeIndex + 1}，记录停留时间");
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📝 [下一帧-录制] 已调用RecordKeyframeTimeAsync，离开关键帧 #{currentIndexBeforeJump + 1}，记录停留时间");
+                    #endif
+                }
+                else
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [下一帧-录制] 无法记录：currentIndexBeforeJump={currentIndexBeforeJump}, keyframes.Count={keyframes?.Count ?? 0}");
+                    #endif
                 }
             }
             
@@ -432,20 +454,19 @@ namespace ImageColorChanger.UI
             }
             
             // 如果正在播放，记录手动操作用于实时修正（参考Python版本：keytime.py 第750-786行）
-            if (_playbackViewModel?.IsPlaying == true && _keyframeManager.CurrentKeyframeIndex >= 0)
+            if (_playbackViewModel?.IsPlaying == true && currentIndexBeforeJump >= 0)
             {
                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
-                if (keyframes != null && _keyframeManager.CurrentKeyframeIndex < keyframes.Count)
+                if (keyframes != null && currentIndexBeforeJump < keyframes.Count)
                 {
-                    var currentKeyframe = keyframes[_keyframeManager.CurrentKeyframeIndex];
-                    var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                    var currentKeyframe = keyframes[currentIndexBeforeJump];
                     
                     // 调用播放服务的手动修正方法
                     var playbackService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击下一帧，记录修正时间: 关键帧#{currentIndex + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击下一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
                         
                         // 🔧 跳过当前等待，立即结束当前帧（参考Python版本：keyframe_navigation.py 第157-167行）
                         // 播放循环会基于实际关键帧数量判断循环，不会进入错误数据
@@ -1862,10 +1883,45 @@ namespace ImageColorChanger.UI
                     }
 
                     // 左键：跳转
+                    // 🔧 修复：在跳转前保存当前索引，避免更新索引后导致记录错误
+                    int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
+                    
+                    // 🔧 修复：如果正在录制，先记录当前帧的时间（跳转前）
+                    if (_playbackViewModel?.IsRecording == true && currentIndexBeforeJump >= 0 && currentIndexBeforeJump < keyframes.Count)
+                    {
+                        var currentKeyframe = keyframes[currentIndexBeforeJump];
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📹 [点击跳转-录制] 从关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 跳转到 #{closestIndex + 1}，先记录当前帧时间");
+                        #endif
+                        _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
+                    }
+                    
+                    // 如果正在播放，记录手动操作用于实时修正
+                    if (_playbackViewModel?.IsPlaying == true && currentIndexBeforeJump >= 0 && currentIndexBeforeJump < keyframes.Count)
+                    {
+                        var currentKeyframe = keyframes[currentIndexBeforeJump];
+                        var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
+                            .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                        if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
+                        {
+                            _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
+                            kfService.SkipCurrentWaitAndPlayNext();
+                        }
+                    }
+
                     // 更新当前关键帧索引
                     _keyframeManager.UpdateKeyframeIndex(closestIndex);
 
-                    // 滚动到目标关键帧
+                    // 🔧 修复：点击跳转时，先停止任何正在进行的滚动动画，确保直接跳转
+                    if (_keyframeManager.IsScrolling)
+                    {
+                        _keyframeManager.StopScrollAnimation();
+                    }
+                    
+                    // 清除可能存在的动画属性，确保直接跳转
+                    ImageScrollViewer.BeginAnimation(Utils.AnimationHelper.GetAnimatedVerticalOffsetProperty(), null);
+
+                    // 滚动到目标关键帧（直接跳转，无动画）
                     double scrollableHeight = Math.Max(0, imageCanvasHeight - ImageScrollViewer.ViewportHeight);
                     
                     if (scrollableHeight > 0)

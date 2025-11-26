@@ -155,6 +155,18 @@ namespace ImageColorChanger.Managers.Keyframes
 
                 // 获取当前索引
                 int currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 开始：当前索引={currentIndex}, 总关键帧数={keyframes.Count}");
+                if (currentIndex >= 0 && currentIndex < keyframes.Count)
+                {
+                    System.Diagnostics.Debug.WriteLine($"   当前关键帧ID={keyframes[currentIndex].Id}, 位置={keyframes[currentIndex].Position:F4}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"   ⚠️ 当前索引无效或越界");
+                }
+                #endif
 
                 // 特殊处理：如果当前有滚动动画正在进行，立即停止并强制直接跳转
                 bool forceDirectJump = false;
@@ -167,6 +179,10 @@ namespace ImageColorChanger.Managers.Keyframes
 
                 // 计算目标索引
                 int targetIndex = currentIndex + 1;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 当前索引={currentIndex}, 目标索引={targetIndex}, 总关键帧数={keyframes.Count}");
+                #endif
 
                 // 检查是否首次执行（之前未播放过关键帧）
                 bool isFirstExecution = currentIndex == -1;
@@ -176,6 +192,9 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (targetIndex >= keyframes.Count)
                 {
                     // 循环回第一帧
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 检测到循环：从索引{currentIndex}（关键帧#{currentIndex + 1}）循环回第一帧");
+                    #endif
                     targetIndex = 0;
                     
                     // 检查录制状态（优先使用新的ViewModel系统）
@@ -184,11 +203,18 @@ namespace ImageColorChanger.Managers.Keyframes
                     // 如果正在录制，自动停止录制（参考Python版本 playback_controller.py 第50-64行）
                     if (wasRecording)
                     {
-                        
+                        // 🔧 修复：在循环检测时，currentIndex 是最后一帧的索引，应该记录这一帧的时间
+                        // 但是，这个记录是在 StepToNextKeyframe() 内部进行的，而 MainWindow.Keyframe.cs 中也会记录
+                        // 所以这里不应该重复记录，应该由 MainWindow.Keyframe.cs 中的逻辑来处理
+                        // 但是，由于循环检测是在 StepToNextKeyframe() 内部，而 MainWindow.Keyframe.cs 中的记录是在调用之前
+                        // 所以这里需要记录最后一帧的时间
                         // 1. 先记录最后一帧的时间（重要！参考Python版本第50-56行）
                         if (currentIndex >= 0 && currentIndex < keyframes.Count)
                         {
                             var lastKeyframe = keyframes[currentIndex];
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"📹 [循环-录制] 记录最后一帧 #{currentIndex + 1} (ID={lastKeyframe.Id}) 的时间");
+                            #endif
                             await _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id);
                         }
                         
@@ -226,11 +252,17 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine($"⬅️ [下一帧] 检测到回跳（从#{currentIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⬅️ [下一帧] 检测到回跳（从#{currentIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
+                    #endif
                 }
 
                 // 更新当前帧索引
                 _keyframeManager.UpdateKeyframeIndex(targetIndex);
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [下一帧] 已更新索引：{currentIndex} -> {targetIndex}，目标关键帧ID={keyframes[targetIndex].Id}");
+                #endif
 
                 // 获取目标位置
                 var targetKeyframe = keyframes[targetIndex];
@@ -305,6 +337,18 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (keyframes == null || index < 0 || index >= keyframes.Count)
                 {
                     return;
+                }
+
+                // 🔧 修复：如果正在录制，先记录当前帧的时间（跳转前）
+                // 支持跳帧录制：即使直接跳转到某个关键帧，也要记录之前帧的停留时间
+                var currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                if (_mainWindow._playbackViewModel?.IsRecording == true && currentIndex >= 0 && currentIndex < keyframes.Count)
+                {
+                    var currentKeyframe = keyframes[currentIndex];
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📹 [跳转录制] 从关键帧 #{currentIndex + 1} (ID={currentKeyframe.Id}) 跳转到 #{index + 1}，先记录当前帧时间");
+                    #endif
+                    _ = _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                 }
 
                 // 更新当前帧索引

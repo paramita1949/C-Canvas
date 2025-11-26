@@ -91,24 +91,37 @@ namespace ImageColorChanger.Services.Implementations
                 var duration = _stopwatch.Elapsed.TotalSeconds;
 
                 // 记录当前关键帧的停留时长（即时记录模式）
-                if (duration > 0)
+                // 修复：即使duration为0也要记录，确保跳帧录制时所有帧都被记录
+                // 如果duration为0，说明用户快速切换，这是合法的录制行为
+                var keyframe = await _keyframeRepository.GetByIdAsync(keyframeId);
+                if (keyframe != null)
                 {
-                    var keyframe = await _keyframeRepository.GetByIdAsync(keyframeId);
-                    if (keyframe != null)
+                    var timingDto = new TimingSequenceDto
                     {
-                        var timingDto = new TimingSequenceDto
-                        {
-                            KeyframeId = keyframeId,
-                            Duration = duration,
-                            SequenceOrder = _recordingData.Count,
-                            Position = keyframe.Position,
-                            YPosition = keyframe.YPosition,
-                            LoopCount = keyframe.LoopCount,
-                            CreatedAt = DateTime.Now
-                        };
+                        KeyframeId = keyframeId,
+                        Duration = duration, // 允许为0，表示快速切换
+                        SequenceOrder = _recordingData.Count,
+                        Position = keyframe.Position,
+                        YPosition = keyframe.YPosition,
+                        LoopCount = keyframe.LoopCount,
+                        CreatedAt = DateTime.Now
+                    };
 
-                        _recordingData.Add(timingDto);
+                    _recordingData.Add(timingDto);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📹 [录制] 记录关键帧: KeyframeId={keyframeId}, Duration={duration:F2}秒, SequenceOrder={timingDto.SequenceOrder}, 总记录数={_recordingData.Count}");
+                    if (duration <= 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   ⚠️ [录制] 注意：Duration为0或负数，可能是快速切换");
                     }
+                    #endif
+                }
+                else
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [录制] 找不到关键帧: KeyframeId={keyframeId}");
+                    #endif
                 }
 
                 // 重启计时器，为下一帧计时
@@ -134,6 +147,15 @@ namespace ImageColorChanger.Services.Implementations
             // 保存到数据库（最后一帧已经在循环检测时记录）
             if (_recordingData.Any())
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"💾 [录制完成] 准备保存 {_recordingData.Count} 条记录:");
+                for (int i = 0; i < _recordingData.Count; i++)
+                {
+                    var t = _recordingData[i];
+                    System.Diagnostics.Debug.WriteLine($"   #{i + 1}: KeyframeId={t.KeyframeId}, Duration={t.Duration:F2}秒, SequenceOrder={t.SequenceOrder}");
+                }
+                #endif
+                
                 await _timingRepository.BatchSaveTimingsAsync(_currentImageId, _recordingData);
 
                 // 🎬 自动更新合成脚本的总时长（从关键帧时间累计）

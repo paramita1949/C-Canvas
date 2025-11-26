@@ -141,12 +141,13 @@ namespace ImageColorChanger.Repositories.Implementations
                 await ClearTimingsByImageIdAsync(imageId);
 
                 // 2. 批量插入新数据
-                var entities = timings.Select((t, index) => new KeyframeTiming
+                // 修复：使用DTO中的SequenceOrder，确保跳帧录制时顺序正确
+                var entities = timings.Select(t => new KeyframeTiming
                 {
                     ImageId = imageId,
                     KeyframeId = t.KeyframeId,
                     Duration = t.Duration,
-                    SequenceOrder = index,
+                    SequenceOrder = t.SequenceOrder, // 使用录制时设置的顺序，支持跳帧录制
                     CreatedAt = DateTime.Now
                 }).ToList();
 
@@ -167,8 +168,53 @@ namespace ImageColorChanger.Repositories.Implementations
         }
 
         /// <summary>
-        /// 更新指定关键帧的持续时间
+        /// 更新指定关键帧的持续时间（通过ImageId和SequenceOrder精确定位，支持跳帧录制）
         /// </summary>
+        public async Task UpdateDurationAsync(int imageId, int sequenceOrder, double newDuration)
+        {
+            try
+            {
+                var timing = await _context.KeyframeTimings
+                    .FirstOrDefaultAsync(t => t.ImageId == imageId && t.SequenceOrder == sequenceOrder);
+
+                if (timing != null)
+                {
+                    var oldDuration = timing.Duration;
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [数据库写入前] ImageId={imageId}, SequenceOrder={sequenceOrder}, KeyframeId={timing.KeyframeId}");
+                    System.Diagnostics.Debug.WriteLine($"   旧值: {oldDuration:F2}秒 → 新值: {newDuration:F2}秒");
+                    #endif
+                    
+                    timing.Duration = newDuration;
+                    await _context.SaveChangesAsync();
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [数据库写入完成] ImageId={imageId}, SequenceOrder={sequenceOrder} 已更新为 {newDuration:F2}秒");
+                    #endif
+
+                    // 清除相关缓存
+                    _cache.Remove(imageId);
+                }
+                else
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [数据库写入失败] 找不到 ImageId={imageId}, SequenceOrder={sequenceOrder} 的Timing记录");
+                    #endif
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [数据库写入异常] ImageId={imageId}, SequenceOrder={sequenceOrder}: {ex.Message}");
+                #endif
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// 更新指定关键帧的持续时间（旧方法，仅通过KeyframeId，可能匹配到错误的记录）
+        /// </summary>
+        [Obsolete("使用 UpdateDurationAsync(int imageId, int sequenceOrder, double newDuration) 替代，以支持跳帧录制")]
         public async Task UpdateDurationAsync(int keyframeId, double newDuration)
         {
             try

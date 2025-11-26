@@ -31,8 +31,14 @@ namespace ImageColorChanger.Repositories.Interfaces
         Task BatchSaveTimingsAsync(int imageId, List<TimingSequenceDto> timings);
 
         /// <summary>
-        /// 更新指定关键帧的持续时间
+        /// 更新指定关键帧的持续时间（通过ImageId和SequenceOrder精确定位，支持跳帧录制）
         /// </summary>
+        Task UpdateDurationAsync(int imageId, int sequenceOrder, double newDuration);
+        
+        /// <summary>
+        /// 更新指定关键帧的持续时间（旧方法，仅通过KeyframeId，可能匹配到错误的记录）
+        /// </summary>
+        [Obsolete("使用 UpdateDurationAsync(int imageId, int sequenceOrder, double newDuration) 替代，以支持跳帧录制")]
         Task UpdateDurationAsync(int keyframeId, double newDuration);
 
         /// <summary>
