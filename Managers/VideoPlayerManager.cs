@@ -124,6 +124,11 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public int CurrentIndex => _currentIndex;
 
+        /// <summary>
+        /// 获取 LibVLC 实例（供自定义渲染器使用）
+        /// </summary>
+        public LibVLC GetLibVLC() => _libVLC;
+
         #endregion
 
         #region 构造函数

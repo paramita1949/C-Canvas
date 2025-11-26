@@ -28,7 +28,7 @@ namespace ImageColorChanger.Managers
     /// 投影管理器
     /// 负责管理投影窗口、多屏幕支持、同步逻辑等功能
     /// </summary>
-    public class ProjectionManager : IDisposable
+    public partial class ProjectionManager : IDisposable
     {
         #region 事件
 
@@ -76,6 +76,21 @@ namespace ImageColorChanger.Managers
         private System.Windows.Controls.MediaElement _projectionMediaElement;  // 投影窗口的独立 MediaElement（锁定模式使用）
         private string _lockedVideoPath;  // 锁定模式下的视频路径（用于保持播放）
 
+        // 🎬 VLC D3D11 渲染相关（锁定模式）
+        private LibVLCSharp.Shared.LibVLC _projectionLibVLC;  // LibVLC 实例
+        private LibVLCSharp.Shared.MediaPlayer _projectionVlcPlayer;  // VLC 播放器
+        private VlcD3D11Renderer _projectionVlcRenderer;  // D3D11 渲染器
+        private System.Windows.Controls.Image _projectionVideoImage;  // 显示视频的 Image 控件
+        private VideoPlayerManager _videoPlayerManager;  // 视频播放管理器引用
+        
+        // 🚀 文本层缓存（避免重复转换）
+        private System.Windows.Media.Imaging.BitmapSource _cachedTextLayerBitmap;
+        private long _cachedTextLayerTimestamp;
+        
+        // 🚀 视频预解析缓存
+        private LibVLCSharp.Shared.Media _preparsedMedia;
+        private string _preparsedVideoPath;
+        private readonly object _preparseLock = new object();
 
         // 屏幕管理（WPF 原生）
         private List<WpfScreenInfo> _screens;
@@ -181,13 +196,15 @@ namespace ImageColorChanger.Managers
             ScrollViewer mainScrollViewer,
             System.Windows.Controls.Image mainImageControl,
             ImageProcessor imageProcessor,
-            System.Windows.Controls.ComboBox screenComboBox)
+            System.Windows.Controls.ComboBox screenComboBox,
+            VideoPlayerManager videoPlayerManager = null)
         {
             _mainWindow = mainWindow;
             _mainScrollViewer = mainScrollViewer;
             _mainImageControl = mainImageControl;
             _imageProcessor = imageProcessor;
             _screenComboBox = screenComboBox;
+            _videoPlayerManager = videoPlayerManager;
 
             _screens = new List<WpfScreenInfo>();
             _currentScreenIndex = 0;
@@ -943,12 +960,24 @@ namespace ImageColorChanger.Managers
         }
         
         /// <summary>
-        /// 🔒 锁定模式：使用独立的 MediaElement 播放视频（应用所有 GPU 优化）
+        /// 🔒 锁定模式：使用 VLC D3D11 渲染器播放视频（解决 Airspace 问题）
         /// </summary>
         /// <param name="videoPath">视频文件路径</param>
         /// <param name="loopEnabled">是否循环播放</param>
         /// <param name="textLayer">文本层（透明背景的 SKBitmap）</param>
         public void UpdateProjectionWithLockedVideo(string videoPath, bool loopEnabled, SKBitmap textLayer)
+        {
+            // 🎬 使用 D3D11 渲染器实现（解决 Airspace 问题）
+            UpdateProjectionWithLockedVideoD3D11(videoPath, loopEnabled, textLayer);
+            
+            // 保留旧的 MediaElement 实现作为备份（如果需要可以切换回来）
+            // UpdateProjectionWithLockedVideoMediaElement(videoPath, loopEnabled, textLayer);
+        }
+        
+        /// <summary>
+        /// 🔒 旧的 MediaElement 实现（保留作为备份）
+        /// </summary>
+        private void UpdateProjectionWithLockedVideoMediaElement(string videoPath, bool loopEnabled, SKBitmap textLayer)
         {
 #if DEBUG
             //System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo] ===== 开始 =====");
@@ -1240,11 +1269,33 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public void ClearLockedVideo()
         {
-            if (_projectionMediaElement != null)
+            if (_projectionWindow == null)
+                return;
+
+            _projectionWindow.Dispatcher.Invoke(() =>
             {
-                _mainWindow.Dispatcher.Invoke(() =>
+                try
                 {
-                    try
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔒 [ClearLockedVideo] 清除锁定视频");
+#endif
+
+                    // 停止 VLC 播放器
+                    if (_projectionVlcPlayer != null)
+                    {
+                        _projectionVlcPlayer.Stop();
+                        _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
+                    }
+
+                    // 清除 D3D11 渲染器
+                    if (_projectionVlcRenderer != null)
+                    {
+                        _projectionVlcRenderer.Dispose();
+                        _projectionVlcRenderer = null;
+                    }
+
+                    // 清理旧的 MediaElement（如果存在）
+                    if (_projectionMediaElement != null)
                     {
                         _projectionMediaElement.Stop();
                         _projectionMediaElement.Close();
@@ -1253,18 +1304,33 @@ namespace ImageColorChanger.Managers
                             _projectionContainer.Children.Remove(_projectionMediaElement);
                         }
                         _projectionMediaElement = null;
-                        _lockedVideoPath = null;
+                    }
+
+                    // 隐藏视频容器
+                    if (_projectionVideoContainer != null)
+                    {
+                        _projectionVideoContainer.Visibility = Visibility.Collapsed;
+                    }
+
+                    // 清除 Image 源
+                    if (_projectionVideoImage != null)
+                    {
+                        _projectionVideoImage.Source = null;
+                    }
+
+                    _lockedVideoPath = null;
 
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🧹 [锁定视频] 已清理独立 MediaElement");
+                    System.Diagnostics.Debug.WriteLine($"✅ 锁定视频已清除");
 #endif
-                    }
-                    catch
-                    {
-                        // 静默处理异常
-                    }
-                });
-            }
+                }
+                catch (Exception ex)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ [ClearLockedVideo] 错误: {ex.Message}");
+#endif
+                }
+            });
         }
         
         /// <summary>
@@ -2331,7 +2397,28 @@ namespace ImageColorChanger.Managers
                         VerticalAlignment = System.Windows.VerticalAlignment.Stretch
                     };
                     
-                    // 创建VideoView控件
+                    // 🎬 创建 Image 控件用于显示 D3DImage（锁定模式视频）
+                    _projectionVideoImage = new System.Windows.Controls.Image
+                    {
+                        HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                        VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                        Stretch = System.Windows.Media.Stretch.Uniform,
+                        
+                        // 🚀 启用 GPU 渲染优化
+                        CacheMode = new BitmapCache
+                        {
+                            EnableClearType = false,
+                            RenderAtScale = 1.0,
+                            SnapsToDevicePixels = true
+                        }
+                    };
+                    
+                    RenderOptions.SetBitmapScalingMode(_projectionVideoImage, BitmapScalingMode.Linear);
+                    RenderOptions.SetCachingHint(_projectionVideoImage, CachingHint.Cache);
+                    
+                    _projectionVideoContainer.Children.Add(_projectionVideoImage);
+                    
+                    // 创建VideoView控件（保留用于非锁定模式）
                     _projectionVideoView = new VideoView
                     {
                         HorizontalAlignment = WpfHorizontalAlignment.Stretch,
@@ -3324,6 +3411,23 @@ namespace ImageColorChanger.Managers
 
         public void Dispose()
         {
+            // 清理视频预解析缓存
+            ClearPreparsedMedia();
+            
+            // 清理 VLC D3D11 资源
+            if (_projectionVlcRenderer != null)
+            {
+                _projectionVlcRenderer.Dispose();
+                _projectionVlcRenderer = null;
+            }
+
+            if (_projectionVlcPlayer != null)
+            {
+                _projectionVlcPlayer.Stop();
+                _projectionVlcPlayer.Dispose();
+                _projectionVlcPlayer = null;
+            }
+            
             CloseProjection();
             
             // 释放投影缓存

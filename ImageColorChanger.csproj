@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>5.9.7.6</Version>
-    <FileVersion>5.9.7.6</FileVersion>
-    <AssemblyVersion>5.9.7.6</AssemblyVersion>
+    <Version>5.9.7.7</Version>
+    <FileVersion>5.9.7.7</FileVersion>
+    <AssemblyVersion>5.9.7.7</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -68,6 +68,10 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <!-- SharpDX for D3D11 + D3DImage video rendering -->
+    <PackageReference Include="SharpDX" Version="4.2.0" />
+    <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
+    <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
   </ItemGroup>
   
   <!-- 🔧 排除不需要的依赖项 -->

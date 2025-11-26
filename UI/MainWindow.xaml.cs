@@ -505,13 +505,14 @@ namespace ImageColorChanger.UI
             // 初始化保存管理器
             _imageSaveManager = new ImageSaveManager(_imageProcessor);
             
-            // 初始化投影管理器
+            // 初始化投影管理器（注意：此时 _videoPlayerManager 还未初始化，稍后设置）
             _projectionManager = new ProjectionManager(
                 this,
                 ImageScrollViewer,
                 ImageDisplay,
                 _imageProcessor,
-                ScreenSelector
+                ScreenSelector,
+                null  // VideoPlayerManager 稍后设置
             );
             
             // 订阅投影状态改变事件
@@ -684,6 +685,14 @@ namespace ImageColorChanger.UI
             {
                 // 创建视频播放管理器（此时只初始化LibVLC，不创建MediaPlayer）
                 _videoPlayerManager = new VideoPlayerManager(this);
+                
+                // 🎬 将 VideoPlayerManager 设置到 ProjectionManager（用于 D3D11 视频渲染）
+                if (_projectionManager != null)
+                {
+                    var field = typeof(ProjectionManager).GetField("_videoPlayerManager", 
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    field?.SetValue(_projectionManager, _videoPlayerManager);
+                }
                 
                 // 订阅视频轨道检测事件
                 _videoPlayerManager.VideoTrackDetected += VideoPlayerManager_VideoTrackDetected;

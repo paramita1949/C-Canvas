@@ -5933,6 +5933,12 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
+                // 🚀 在切换前预解析相邻视频（确保切换时已准备好）
+                if (_isProjectionLocked)
+                {
+                    _ = PreparseAdjacentVideosBeforeSwitchAsync(selectedSlide);
+                }
+                
                 // 直接加载新幻灯片
                 LoadSlide(selectedSlide);
                 
@@ -6526,12 +6532,162 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine("✅ 幻灯片加载后已自动更新投影");
                     }), System.Windows.Threading.DispatcherPriority.Render);
                 }
+
+                // 🚀 预解析下一个/上一个视频（异步，不阻塞）
+                _ = PreparseAdjacentVideosAsync(slide);
             }
             catch (Exception ex)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载幻灯片失败: {ex.Message}");
                 WpfMessageBox.Show($"加载幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 🚀 切换前预解析相邻视频（在 SlideListBox_SelectionChanged 中调用）
+        /// </summary>
+        private async System.Threading.Tasks.Task PreparseAdjacentVideosBeforeSwitchAsync(Slide targetSlide)
+        {
+            try
+            {
+                if (targetSlide == null || !_isProjectionLocked)
+                    return;
+
+                // 获取所有幻灯片，按排序顺序
+                var allSlides = _dbContext.Slides
+                    .OrderBy(s => s.SortOrder)
+                    .ToList();
+
+                var targetIndex = allSlides.FindIndex(s => s.Id == targetSlide.Id);
+                if (targetIndex < 0)
+                    return;
+
+                // 🚀 预解析目标幻灯片的视频（如果它是视频）
+                if (targetSlide.VideoBackgroundEnabled && 
+                    !string.IsNullOrEmpty(targetSlide.BackgroundImagePath) &&
+                    IsVideoFile(targetSlide.BackgroundImagePath) &&
+                    System.IO.File.Exists(targetSlide.BackgroundImagePath))
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🚀 [切换前预解析] 目标视频: {System.IO.Path.GetFileName(targetSlide.BackgroundImagePath)}");
+#endif
+                    await _projectionManager.PreparseVideoAsync(targetSlide.BackgroundImagePath);
+                }
+
+                // 🚀 预解析下一个视频（优先）
+                if (targetIndex < allSlides.Count - 1)
+                {
+                    var nextSlide = allSlides[targetIndex + 1];
+                    if (nextSlide.VideoBackgroundEnabled && 
+                        !string.IsNullOrEmpty(nextSlide.BackgroundImagePath) &&
+                        IsVideoFile(nextSlide.BackgroundImagePath) &&
+                        System.IO.File.Exists(nextSlide.BackgroundImagePath) &&
+                        nextSlide.BackgroundImagePath != targetSlide.BackgroundImagePath)
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🚀 [切换前预解析] 下一个视频: {System.IO.Path.GetFileName(nextSlide.BackgroundImagePath)}");
+#endif
+                        await _projectionManager.PreparseVideoAsync(nextSlide.BackgroundImagePath);
+                    }
+                }
+
+                // 🚀 预解析上一个视频（次优先）
+                if (targetIndex > 0)
+                {
+                    var prevSlide = allSlides[targetIndex - 1];
+                    if (prevSlide.VideoBackgroundEnabled && 
+                        !string.IsNullOrEmpty(prevSlide.BackgroundImagePath) &&
+                        IsVideoFile(prevSlide.BackgroundImagePath) &&
+                        System.IO.File.Exists(prevSlide.BackgroundImagePath) &&
+                        prevSlide.BackgroundImagePath != targetSlide.BackgroundImagePath)
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🚀 [切换前预解析] 上一个视频: {System.IO.Path.GetFileName(prevSlide.BackgroundImagePath)}");
+#endif
+                        // 延迟一点，优先处理目标视频和下一个
+                        await System.Threading.Tasks.Task.Delay(50);
+                        await _projectionManager.PreparseVideoAsync(prevSlide.BackgroundImagePath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [切换前预解析] 错误: {ex.Message}");
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 🚀 预解析相邻幻灯片的视频（异步）- 在 LoadSlide 后调用，作为补充
+        /// </summary>
+        private async System.Threading.Tasks.Task PreparseAdjacentVideosAsync(Slide currentSlide)
+        {
+            try
+            {
+                if (currentSlide == null || !_isProjectionLocked)
+                    return;
+
+                // 获取当前正在播放的视频路径（避免重复预解析）
+                string currentVideoPath = null;
+                if (currentSlide.VideoBackgroundEnabled && 
+                    !string.IsNullOrEmpty(currentSlide.BackgroundImagePath) &&
+                    IsVideoFile(currentSlide.BackgroundImagePath))
+                {
+                    currentVideoPath = currentSlide.BackgroundImagePath;
+                }
+
+                // 获取所有幻灯片，按排序顺序
+                var allSlides = _dbContext.Slides
+                    .OrderBy(s => s.SortOrder)
+                    .ToList();
+
+                var currentIndex = allSlides.FindIndex(s => s.Id == currentSlide.Id);
+                if (currentIndex < 0)
+                    return;
+
+                // 🚀 预解析下一个视频（优先）
+                if (currentIndex < allSlides.Count - 1)
+                {
+                    var nextSlide = allSlides[currentIndex + 1];
+                    if (nextSlide.VideoBackgroundEnabled && 
+                        !string.IsNullOrEmpty(nextSlide.BackgroundImagePath) &&
+                        IsVideoFile(nextSlide.BackgroundImagePath) &&
+                        System.IO.File.Exists(nextSlide.BackgroundImagePath) &&
+                        nextSlide.BackgroundImagePath != currentVideoPath)  // 🔧 不预解析当前视频
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🚀 [预解析-下一个] {System.IO.Path.GetFileName(nextSlide.BackgroundImagePath)}");
+#endif
+                        await _projectionManager.PreparseVideoAsync(nextSlide.BackgroundImagePath);
+                    }
+                }
+
+                // 🚀 预解析上一个视频（次优先）
+                if (currentIndex > 0)
+                {
+                    var prevSlide = allSlides[currentIndex - 1];
+                    if (prevSlide.VideoBackgroundEnabled && 
+                        !string.IsNullOrEmpty(prevSlide.BackgroundImagePath) &&
+                        IsVideoFile(prevSlide.BackgroundImagePath) &&
+                        System.IO.File.Exists(prevSlide.BackgroundImagePath) &&
+                        prevSlide.BackgroundImagePath != currentVideoPath)  // 🔧 不预解析当前视频
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🚀 [预解析-上一个] {System.IO.Path.GetFileName(prevSlide.BackgroundImagePath)}");
+#endif
+                        // 延迟一点，优先处理下一个
+                        await System.Threading.Tasks.Task.Delay(100);
+                        await _projectionManager.PreparseVideoAsync(prevSlide.BackgroundImagePath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [预解析] 错误: {ex.Message}");
+#endif
             }
         }
 
