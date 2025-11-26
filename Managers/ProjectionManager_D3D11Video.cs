@@ -228,16 +228,31 @@ namespace ImageColorChanger.Managers
                         {
                             _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
                             _projectionVlcPlayer.EndReached += OnProjectionVideoEndReached;
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"✅ [事件注册] 已注册 EndReached 事件");
+#endif
                         }
                         else
                         {
                             _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"❌ [事件注销] 已注销 EndReached 事件");
+#endif
                         }
 
                         // 🎬 播放视频
                         if (needsNewMedia || _projectionVlcPlayer.State == VLCState.Ended || 
                             _projectionVlcPlayer.State == VLCState.Stopped)
                         {
+                            // ⚠️ 修复：切换视频时，先停止当前播放
+                            if (needsNewMedia && _projectionVlcPlayer.State != VLCState.Stopped)
+                            {
+                                _projectionVlcPlayer.Stop();
+#if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"⏹️ [播放] 先停止旧视频");
+#endif
+                            }
+                            
                             _projectionVlcPlayer.Media = _currentProjectionMedia;
                             _projectionVlcPlayer.Play();
                         }
@@ -291,14 +306,36 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnProjectionVideoEndReached(object sender, EventArgs e)
         {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔔 [EndReached] 事件被触发");
+            System.Diagnostics.Debug.WriteLine($"🔍 [EndReached] _isD3D11Disposed: {_isD3D11Disposed}");
+            System.Diagnostics.Debug.WriteLine($"🔍 [EndReached] _projectionWindow: {(_projectionWindow != null ? "存在" : "null")}");
+#endif
+
             if (_isD3D11Disposed || _projectionWindow == null)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [EndReached] 条件不满足，直接返回");
+#endif
                 return;
+            }
 
             _projectionWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _projectionVlcPlayer: {(_projectionVlcPlayer != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _currentProjectionMedia: {(_currentProjectionMedia != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _lockedVideoPath: {_lockedVideoPath ?? "null"}");
+#endif
+
                 // ✅ 优化5：竞态条件保护
                 if (_isD3D11Disposed || _projectionVlcPlayer == null || _currentProjectionMedia == null)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [EndReached-Dispatcher] 竞态条件检查失败，跳过循环播放");
+#endif
                     return;
+                }
 
                 try
                 {
