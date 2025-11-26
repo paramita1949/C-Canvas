@@ -6632,10 +6632,20 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 加载源幻灯片的所有元素
+                // 加载源幻灯片的所有元素（包含富文本片段）
                 var sourceElements = await _dbContext.TextElements
+                    .Include(e => e.RichTextSpans)  // 🔧 加载富文本片段
                     .Where(e => e.SlideId == sourceSlide.Id)
                     .ToListAsync();
+
+                // 🔧 手动排序 RichTextSpans（EF Core 不支持在 Include 中使用 OrderBy）
+                foreach (var element in sourceElements)
+                {
+                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
+                    {
+                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
+                    }
+                }
 
                 // 计算新的排序位置（在源幻灯片后面）
                 int newSortOrder = sourceSlide.SortOrder + 1;
@@ -6666,28 +6676,53 @@ namespace ImageColorChanger.UI
                 _dbContext.Slides.Add(newSlide);
                 await _dbContext.SaveChangesAsync();
 
-                // 复制所有文本元素
+                // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
                 foreach (var sourceElement in sourceElements)
                 {
-                    var newElement = new TextElement
-                    {
-                        SlideId = newSlide.Id,
-                        X = sourceElement.X,
-                        Y = sourceElement.Y,
-                        Width = sourceElement.Width,
-                        Height = sourceElement.Height,
-                        Content = sourceElement.Content,
-                        FontSize = sourceElement.FontSize,
-                        FontFamily = sourceElement.FontFamily,
-                        FontColor = sourceElement.FontColor,
-                        IsBold = sourceElement.IsBold,
-                        TextAlign = sourceElement.TextAlign,
-                        ZIndex = sourceElement.ZIndex
-                    };
+                    // ✅ 使用 CloneElement 方法复制所有样式属性
+                    var newElement = _textProjectManager.CloneElement(sourceElement);
+                    newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
+                    
                     _dbContext.TextElements.Add(newElement);
-                }
+                    await _dbContext.SaveChangesAsync();  // 先保存以获取新元素的ID
 
-                await _dbContext.SaveChangesAsync();
+                    // 🆕 复制富文本片段（如果有）
+                    if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
+                    {
+                        var newSpans = new List<Database.Models.RichTextSpan>();
+                        foreach (var sourceSpan in sourceElement.RichTextSpans.OrderBy(s => s.SpanOrder))
+                        {
+                            var newSpan = new Database.Models.RichTextSpan
+                            {
+                                TextElementId = newElement.Id,
+                                SpanOrder = sourceSpan.SpanOrder,
+                                Text = sourceSpan.Text,
+                                FontFamily = sourceSpan.FontFamily,
+                                FontSize = sourceSpan.FontSize,
+                                FontColor = sourceSpan.FontColor,
+                                IsBold = sourceSpan.IsBold,
+                                IsItalic = sourceSpan.IsItalic,
+                                IsUnderline = sourceSpan.IsUnderline,
+                                BorderColor = sourceSpan.BorderColor,
+                                BorderWidth = sourceSpan.BorderWidth,
+                                BorderRadius = sourceSpan.BorderRadius,
+                                BorderOpacity = sourceSpan.BorderOpacity,
+                                BackgroundColor = sourceSpan.BackgroundColor,
+                                BackgroundRadius = sourceSpan.BackgroundRadius,
+                                BackgroundOpacity = sourceSpan.BackgroundOpacity,
+                                ShadowColor = sourceSpan.ShadowColor,
+                                ShadowOffsetX = sourceSpan.ShadowOffsetX,
+                                ShadowOffsetY = sourceSpan.ShadowOffsetY,
+                                ShadowBlur = sourceSpan.ShadowBlur,
+                                ShadowOpacity = sourceSpan.ShadowOpacity
+                            };
+                            newSpans.Add(newSpan);
+                        }
+
+                        // 批量保存富文本片段
+                        await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, newSpans);
+                    }
+                }
 
                 // 先加载新幻灯片内容并生成缩略图,再刷新列表(避免闪烁)
                 await Dispatcher.InvokeAsync(async () =>
@@ -6738,19 +6773,91 @@ namespace ImageColorChanger.UI
             if (SlideListBox.SelectedItem is not Slide selectedSlide)
                 return;
 
+            // 🔧 保存要删除的幻灯片ID和当前选中索引
+            int slideIdToDelete = selectedSlide.Id;
+            int currentSelectedIndex = SlideListBox.SelectedIndex;
+
             try
             {
-                _dbContext.Slides.Remove(selectedSlide);
-                await _dbContext.SaveChangesAsync();
+                // ✅ 从数据库重新加载实体，确保实体是从当前 DbContext 加载的
+                // 这样可以避免乐观并发异常
+                var slideToDelete = await _dbContext.Slides.FindAsync(slideIdToDelete);
+                if (slideToDelete == null)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ 幻灯片不存在: ID={slideIdToDelete}");
+#endif
+                    // 刷新列表，可能已经被删除了
+                    LoadSlideList();
+                    return;
+                }
 
-                // 刷新幻灯片列表
-                LoadSlideList();
+                // 🔧 临时禁用 SelectionChanged 事件，避免删除后刷新列表时触发保存操作
+                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 删除幻灯片成功: ID={selectedSlide.Id}, Title={selectedSlide.Title}");
+                try
+                {
+                    // 🔧 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
+                    // 这样可以避免在删除时尝试保存已删除的文本元素
+                    var allSlides = await _dbContext.Slides
+                        .Where(s => s.ProjectId == _currentTextProject.Id)
+                        .OrderBy(s => s.SortOrder)
+                        .ToListAsync();
+                    
+                    var slideToSwitchTo = allSlides.FirstOrDefault(s => s.Id != slideIdToDelete);
+                    if (slideToSwitchTo != null)
+                    {
+                        // 先切换到其他幻灯片（不触发 SelectionChanged，因为已禁用）
+                        LoadSlide(slideToSwitchTo);
+                    }
+                    else
+                    {
+                        // 如果没有其他幻灯片，清空画布
+                        EditorCanvas.Children.Clear();
+                        _textBoxes.Clear();
+                        _selectedTextBox = null;
+                    }
+
+                    // 删除幻灯片（级联删除会自动删除关联的 TextElements 和 RichTextSpans）
+                    _dbContext.Slides.Remove(slideToDelete);
+                    await _dbContext.SaveChangesAsync();
+
+                    // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
+                    LoadSlideList();
+
+                    // 🔧 选中合适的幻灯片
+                    if (SlideListBox.Items.Count > 0)
+                    {
+                        int targetIndex = currentSelectedIndex < SlideListBox.Items.Count 
+                            ? currentSelectedIndex 
+                            : SlideListBox.Items.Count - 1;
+                        SlideListBox.SelectedIndex = targetIndex;
+                        
+                        // 手动加载选中的幻灯片（因为 SelectionChanged 被禁用了）
+                        if (SlideListBox.SelectedItem is Slide targetSlide)
+                        {
+                            LoadSlide(targetSlide);
+                        }
+                    }
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ 删除幻灯片成功: ID={slideIdToDelete}, Title={selectedSlide.Title}");
+#endif
+                }
+                finally
+                {
+                    // 恢复 SelectionChanged 事件
+                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                }
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 删除幻灯片失败: {ex.Message}");
+                // 如果出错，也要恢复事件监听
+                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 删除幻灯片失败: {ex.Message}");
+#endif
                 WpfMessageBox.Show($"删除幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
