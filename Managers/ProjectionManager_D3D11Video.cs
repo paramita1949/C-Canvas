@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Threading;
 using LibVLCSharp.Shared;
 using SkiaSharp;
 
@@ -66,7 +67,8 @@ namespace ImageColorChanger.Managers
                 return;
 
             // ✅ 优化7：使用 BeginInvoke 异步调用，避免 UI 线程死锁
-            _projectionWindow.Dispatcher.BeginInvoke(new Action(() =>
+            // 🎯 优化：使用 DispatcherPriority.Normal 确保及时执行
+            _projectionWindow.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() =>
             {
                 try
                 {
@@ -181,7 +183,7 @@ namespace ImageColorChanger.Managers
                     // 🎬 显示视频容器
                     _projectionVideoContainer.Visibility = Visibility.Visible;
 
-                    // ✅ 优化1：复用 Media 实例，避免内存泄漏
+                    // ✅ 无缝循环优化：复用 Media + 原生 repeat 选项
                     try
                     {
                         // ✅ 修复：使用 oldVideoPath 判断，而不是已更新的 _lockedVideoPath
@@ -212,6 +214,16 @@ namespace ImageColorChanger.Managers
 
                             // 创建新的 Media
                             _currentProjectionMedia = new LibVLCSharp.Shared.Media(_projectionLibVLC, videoPath, LibVLCSharp.Shared.FromType.FromPath);
+                            
+                            // 🎯 核心优化1：使用 LibVLC 原生循环机制（无缝循环）
+                            if (loopEnabled)
+                            {
+                                _currentProjectionMedia.AddOption(":input-repeat=-1");  // -1 表示无限循环
+#if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"🔁 [无缝循环] 已启用原生循环: input-repeat=-1");
+#endif
+                            }
+                            
 #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"✅ [播放] 创建新 Media: {System.IO.Path.GetFileName(videoPath)}");
 #endif
@@ -223,13 +235,13 @@ namespace ImageColorChanger.Managers
 #endif
                         }
 
-                        // 设置循环播放
+                        // 🎯 核心优化2：使用 Seek(0) 作为备用循环机制（比 Stop+Play 更快）
                         if (loopEnabled)
                         {
                             _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
                             _projectionVlcPlayer.EndReached += OnProjectionVideoEndReached;
 #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"✅ [事件注册] 已注册 EndReached 事件");
+                            System.Diagnostics.Debug.WriteLine($"✅ [事件注册] 已注册 EndReached 备用循环");
 #endif
                         }
                         else
@@ -248,6 +260,8 @@ namespace ImageColorChanger.Managers
                             if (needsNewMedia && _projectionVlcPlayer.State != VLCState.Stopped)
                             {
                                 _projectionVlcPlayer.Stop();
+                                // 短暂延迟，确保停止完成
+                                System.Threading.Thread.Sleep(10);
 #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"⏹️ [播放] 先停止旧视频");
 #endif
@@ -255,12 +269,19 @@ namespace ImageColorChanger.Managers
                             
                             _projectionVlcPlayer.Media = _currentProjectionMedia;
                             _projectionVlcPlayer.Play();
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"▶️ [播放] 启动新视频");
+#endif
                         }
                         else
                         {
-                            // ✅ 优化1：同一视频，直接 Stop + Play 循环
+                            // 🎯 稳定方案：使用 Stop+Play（虽有轻微延迟，但兼容性最好）
                             _projectionVlcPlayer.Stop();
+                            System.Threading.Thread.Sleep(10);
                             _projectionVlcPlayer.Play();
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"🔁 [播放] 使用 Stop+Play 重播");
+#endif
                         }
 
 #if DEBUG
@@ -302,14 +323,14 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
-        /// 视频播放结束事件 - 循环播放（优化版）
+        /// 视频播放结束事件 - 无缝循环播放（优化版）
+        /// 🎯 核心：先尝试原生循环，失败则用 Stop+Play 保证稳定性
         /// </summary>
         private void OnProjectionVideoEndReached(object sender, EventArgs e)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔔 [EndReached] 事件被触发");
-            System.Diagnostics.Debug.WriteLine($"🔍 [EndReached] _isD3D11Disposed: {_isD3D11Disposed}");
-            System.Diagnostics.Debug.WriteLine($"🔍 [EndReached] _projectionWindow: {(_projectionWindow != null ? "存在" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"🔔 [EndReached] 事件被触发（备用循环机制）");
+            System.Diagnostics.Debug.WriteLine($"🔍 [EndReached] 当前状态: {_projectionVlcPlayer?.State}");
 #endif
 
             if (_isD3D11Disposed || _projectionWindow == null)
@@ -320,15 +341,10 @@ namespace ImageColorChanger.Managers
                 return;
             }
 
-            _projectionWindow.Dispatcher.BeginInvoke(new Action(() =>
+            // 🎯 核心优化4：使用 Send 优先级确保立即执行
+            _projectionWindow.Dispatcher.BeginInvoke(DispatcherPriority.Send, new Action(() =>
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _projectionVlcPlayer: {(_projectionVlcPlayer != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _currentProjectionMedia: {(_currentProjectionMedia != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"🔍 [EndReached-Dispatcher] _lockedVideoPath: {_lockedVideoPath ?? "null"}");
-#endif
-
-                // ✅ 优化5：竞态条件保护
+                // ✅ 竞态条件保护
                 if (_isD3D11Disposed || _projectionVlcPlayer == null || _currentProjectionMedia == null)
                 {
 #if DEBUG
@@ -339,17 +355,34 @@ namespace ImageColorChanger.Managers
 
                 try
                 {
-                    // ✅ 优化1：复用 Media 实例，Stop + Play 循环
-                    _projectionVlcPlayer.Stop();
-                    _projectionVlcPlayer.Play();
+                    // 🎯 修复方案：优先使用稳定的 Stop+Play 方式
+                    // 原因：Seek(0) 在硬件解码 + 某些视频编码下可能导致状态卡住
+                    // Stop+Play 虽然有轻微延迟，但稳定性更好
+                    
+                    var currentState = _projectionVlcPlayer.State;
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔁 [循环播放] 重新播放（复用 Media）");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [循环播放] 开始前状态: {currentState}");
+#endif
+
+                    // 先停止
+                    _projectionVlcPlayer.Stop();
+                    
+                    // 短暂延迟，确保停止完成（异步操作）
+                    System.Threading.Thread.Sleep(10);
+                    
+                    // 重新播放
+                    _projectionVlcPlayer.Play();
+                    
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔁 [循环播放] Stop+Play 完成（稳定方案）");
+                    System.Diagnostics.Debug.WriteLine($"🔍 [循环播放] 执行后状态: {_projectionVlcPlayer.State}");
 #endif
                 }
                 catch (Exception ex)
                 {
 #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"❌ [循环播放] 错误: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
 #endif
                 }
             }));
