@@ -1273,15 +1273,14 @@ namespace ImageColorChanger.Managers
             {
                 try
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔒 [ClearLockedVideo] 清除锁定视频");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"🔒 [ClearLockedVideo] 清除锁定视频");
+//#endif
 
                     // 停止 VLC 播放器
                     if (_projectionVlcPlayer != null)
                     {
                         _projectionVlcPlayer.Stop();
-                        _projectionVlcPlayer.EndReached -= OnProjectionVideoEndReached;
                     }
 
                     // 清除 D3D11 渲染器
@@ -1317,15 +1316,17 @@ namespace ImageColorChanger.Managers
 
                     _lockedVideoPath = null;
 
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 锁定视频已清除");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"✅ 锁定视频已清除");
+//#endif
                 }
                 catch (Exception ex)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [ClearLockedVideo] 错误: {ex.Message}");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"❌ [ClearLockedVideo] 错误: {ex.Message}");
+//#else
+                    _ = ex; // 避免未使用变量警告
+//#endif
                 }
             });
         }

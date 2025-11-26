@@ -63,9 +63,9 @@ namespace ImageColorChanger.Managers
             InitializeWriteableBitmap();
             SetupVlcCallbacks();
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 初始化完成: {width}x{height}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 初始化完成: {width}x{height}");
+//#endif
         }
 
         #endregion
@@ -91,9 +91,9 @@ namespace ImageColorChanger.Managers
             // 分配视频缓冲区
             _videoBuffer = Marshal.AllocHGlobal(_pitch * _height);
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [WriteableBitmap] 初始化成功: {_width}x{_height}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"✅ [WriteableBitmap] 初始化成功: {_width}x{_height}");
+//#endif
         }
 
         /// <summary>
@@ -107,9 +107,9 @@ namespace ImageColorChanger.Managers
             // 设置视频回调
             _mediaPlayer.SetVideoCallbacks(Lock, Unlock, Display);
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [VLC] 回调设置完成");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"✅ [VLC] 回调设置完成");
+//#endif
         }
 
         #endregion
@@ -180,9 +180,11 @@ namespace ImageColorChanger.Managers
                 }
                 catch (Exception ex)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [Display] WriteableBitmap更新错误: {ex.Message}");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine($"❌ [Display] WriteableBitmap更新错误: {ex.Message}");
+//#else
+                    _ = ex; // 避免未使用变量警告
+//#endif
                 }
             }), DispatcherPriority.Render);
         }
@@ -199,9 +201,9 @@ namespace ImageColorChanger.Managers
             if (_width == width && _height == height)
                 return;
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔄 [VlcCustomRenderer] 更新尺寸: {_width}x{_height} → {width}x{height}");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"🔄 [VlcCustomRenderer] 更新尺寸: {_width}x{_height} → {width}x{height}");
+//#endif
 
             _width = width;
             _height = height;
@@ -249,9 +251,9 @@ namespace ImageColorChanger.Managers
                 _videoBuffer = IntPtr.Zero;
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 资源已释放");
-#endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 资源已释放");
+//#endif
         }
 
         #endregion
