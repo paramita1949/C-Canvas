@@ -2672,7 +2672,7 @@ namespace ImageColorChanger.UI
                     MarkContentAsModified();
 
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 字体已应用到选中文字: {fontData.Config.Name}");
+                    //System.Diagnostics.Debug.WriteLine($"✅ 字体已应用到选中文字: {fontData.Config.Name}");
 #endif
                 }
                 else
@@ -2680,7 +2680,7 @@ namespace ImageColorChanger.UI
                     // 无选中文本 → 不执行任何操作
                     // 字体选择器的改变不会应用到文本框，只有框选文字后才能应用
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效。字体应用必须框选文字才能应用。");
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效。字体应用必须框选文字才能应用。");
 #endif
                 }
             }

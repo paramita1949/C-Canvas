@@ -70,7 +70,7 @@ namespace ImageColorChanger.Managers
             _lruOrder = new LinkedList<string>();
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已初始化");
+            //System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已初始化");
 #endif
         }
 
@@ -227,7 +227,7 @@ namespace ImageColorChanger.Managers
             _currentVideoPath = null;
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine("🗑️ [视频背景] 清除所有缓存");
+            //System.Diagnostics.Debug.WriteLine("🗑️ [视频背景] 清除所有缓存");
 #endif
         }
 
@@ -319,7 +319,7 @@ namespace ImageColorChanger.Managers
             ClearCache();
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已释放");
+            //System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已释放");
 #endif
         }
 

@@ -566,6 +566,8 @@ namespace ImageColorChanger.UI.Controls
 //#if DEBUG
 //                    System.Diagnostics.Debug.WriteLine($"💾 [ExitEditMode] 提取了 {richTextSpans.Count} 个富文本片段");
 //#endif
+                    // 🔧 修复：退出编辑模式后，重新渲染文本以确保样式正确应用
+                    SyncTextToRichTextBox();
                 }
             }
 
@@ -1920,11 +1922,34 @@ namespace ImageColorChanger.UI.Controls
         private void ApplySpanStyleToRun(System.Windows.Documents.Run run, Database.Models.RichTextSpan span)
         {
             // 应用字体
-            if (!string.IsNullOrEmpty(span.FontFamily))
+            // 🔧 修复：如果 span.FontFamily 为空，使用 Data.FontFamily 作为默认值
+            string fontFamilyToApply = span.FontFamily;
+            if (string.IsNullOrEmpty(fontFamilyToApply))
             {
-                var fontFamily = FontService.Instance.GetFontFamilyByFamily(span.FontFamily);
+                fontFamilyToApply = Data.FontFamily;
+            }
+            
+            if (!string.IsNullOrEmpty(fontFamilyToApply))
+            {
+                var fontFamily = FontService.Instance.GetFontFamilyByFamily(fontFamilyToApply);
                 if (fontFamily != null)
                     run.FontFamily = fontFamily;
+                else
+                {
+                    // 如果 FontService 加载失败，尝试使用 GetFontFamily（支持字体显示名称）
+                    fontFamily = FontService.Instance.GetFontFamily(fontFamilyToApply);
+                    if (fontFamily != null)
+                        run.FontFamily = fontFamily;
+                    else
+                    {
+                        // 降级：直接使用字体名称（可能是系统字体）
+                        try
+                        {
+                            run.FontFamily = new System.Windows.Media.FontFamily(fontFamilyToApply);
+                        }
+                        catch { }
+                    }
+                }
             }
             
             // 应用字体大小
@@ -1998,9 +2023,22 @@ namespace ImageColorChanger.UI.Controls
                                 };
 
                                 // 字体
+                                // 🔧 修复：如果 Run 没有显式设置 FontFamily，使用 RichTextBox 的 FontFamily 或 Data.FontFamily
                                 if (run.FontFamily != null)
                                 {
                                     span.FontFamily = run.FontFamily.Source;
+                                }
+                                else
+                                {
+                                    // 使用 RichTextBox 的 FontFamily 或 Data.FontFamily 作为默认值
+                                    if (_richTextBox != null && _richTextBox.FontFamily != null)
+                                    {
+                                        span.FontFamily = _richTextBox.FontFamily.Source;
+                                    }
+                                    else if (!string.IsNullOrEmpty(Data.FontFamily))
+                                    {
+                                        span.FontFamily = Data.FontFamily;
+                                    }
                                 }
 
                                 // 字号

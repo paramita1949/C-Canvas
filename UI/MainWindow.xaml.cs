@@ -226,7 +226,7 @@ namespace ImageColorChanger.UI
                 VideoBackgroundManager.Instance.Dispose();
                 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("✅ [资源清理] 视频背景管理器已释放");
+                //System.Diagnostics.Debug.WriteLine("✅ [资源清理] 视频背景管理器已释放");
 #endif
             }
             catch (Exception
@@ -1175,7 +1175,7 @@ namespace ImageColorChanger.UI
                     var firstProject = textProjects[0];
 
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 默认加载第一个项目: {firstProject.Name} (ID={firstProject.Id}, SortOrder={firstProject.SortOrder})");
+                    //System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 默认加载第一个项目: {firstProject.Name} (ID={firstProject.Id}, SortOrder={firstProject.SortOrder})");
                     #endif
 
                     // 加载第一个项目
@@ -1186,7 +1186,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 没有找到任何项目");
+                    //System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 没有找到任何项目");
                     #endif
                     ShowStatus("📝 暂无幻灯片项目，请创建新项目");
                 }
@@ -1194,7 +1194,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [首次进入幻灯片] 加载第一个项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($"❌ [首次进入幻灯片] 加载第一个项目失败: {ex.Message}");
                 #endif
                 ShowStatus($"⚠️ 加载项目失败: {ex.Message}");
             }
