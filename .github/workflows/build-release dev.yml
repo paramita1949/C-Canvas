@@ -37,7 +37,7 @@ jobs:
       run: dotnet build ImageColorChanger.csproj --configuration Release --no-restore
     
     - name: 发布项目
-      run: dotnet publish ImageColorChanger.csproj -c Release -r win-x64 -o publish --self-contained false
+      run: dotnet publish ImageColorChanger.csproj -c Release -r win-x64 -o publish --self-contained true
     
     - name: 验证libvlc平台
       shell: pwsh
@@ -410,7 +410,7 @@ jobs:
 
           ### ⚙️ 系统要求
           - Windows 10 或更高版本
-          - .NET 8.0 Runtime (如未安装会自动提示下载)
+          - ✅ **已内置 .NET 8.0 运行时，无需单独安装**
 
           ### 📝 更新日志
           请查看下方自动生成的变更记录
@@ -427,7 +427,7 @@ jobs:
         echo "- **构建标签**: ${{ steps.get_version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
         echo "- **分支**: Dev (开发版)" >> $env:GITHUB_STEP_SUMMARY
         echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
-        echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **.NET**: ${{ env.DOTNET_VERSION }} (自包含部署，已内置运行时)" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "### 📦 发布包" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
