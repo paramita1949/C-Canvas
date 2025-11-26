@@ -82,9 +82,9 @@ namespace ImageColorChanger.UI
         // 🔍 PAK字体列表输出标记（仅输出一次）
 
         // 🎬 投影屏幕动画设置（全局设置，不是针对单个文本框）
-        private bool _projectionAnimationEnabled = false;
-        private double _projectionAnimationOpacity = 0.0; // 透明度（0.0-1.0）
-        private int _projectionAnimationDuration = 300;
+        private bool _projectionAnimationEnabled = true;  // ✅ 默认启用
+        private double _projectionAnimationOpacity = 0.1; // ✅ 默认透明度 0.1
+        private int _projectionAnimationDuration = 800;   // ✅ 默认动画时长 800ms
 
         #endregion
 

@@ -92,7 +92,8 @@ namespace ImageColorChanger.Services
         // 多个验证API地址（按优先级排序 - 优先使用代理服务器）
         private static readonly string[] API_BASE_URLS = new[]
         {
-            "http://106.14.145.43:23412",        // 优先1（代理服务器 - 通过 Nginx 转发到 Cloudflare）
+            "http://106.14.145.43:23412",        // 阿里云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
+            "http://139.159.157.28:45851",       // 华为云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
             "https://wx.019890311.xyz",          // 优先2（备用 - 未开启CDN，直连源站）
             "https://xian.edu.kg",               // 优先3（备用 - 开启CDN）
             "https://jiucai.org.cn",             // 优先4（备用 - 未开启CDN，直连源站）

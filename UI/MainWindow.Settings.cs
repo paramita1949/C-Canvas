@@ -62,9 +62,9 @@ namespace ImageColorChanger.UI
             catch (Exception)
             {
                 // 使用默认值
-                _projectionAnimationEnabled = false;
-                _projectionAnimationOpacity = 0.0;
-                _projectionAnimationDuration = 300;
+                _projectionAnimationEnabled = true;   // ✅ 默认启用
+                _projectionAnimationOpacity = 0.1;    // ✅ 默认透明度 0.1
+                _projectionAnimationDuration = 800;    // ✅ 默认动画时长 800ms
             }
         }
 

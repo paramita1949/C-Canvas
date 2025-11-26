@@ -54,6 +54,8 @@ namespace ImageColorChanger.Services
         {
             "http://106.14.145.43:23414",         // 优先2（代理服务器 - HTTP 备用）
             "http://106.14.145.43:23413",         // 优先3（代理服务器 - HTTP 备用）
+            "http://139.159.157.28:45852",       // 优先4（代理服务器 - HTTP 备用）
+            "http://139.159.157.28:45853",       // 优先5（代理服务器 - HTTP 备用）
             "https://pan.019890311.xyz/raw",      // 优先2（备用 - 特殊：文件在/raw路径下）
             "https://pan.jiucai.org.cn/raw",      // 优先3（备用 - 特殊：文件在/raw路径下）
             "https://pan.xian.edu.kg/raw",         // 优先4（备用 - 特殊：文件在/raw路径下）

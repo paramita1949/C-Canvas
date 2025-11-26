@@ -945,19 +945,19 @@ namespace ImageColorChanger.Core
         public double MenuFontSize { get; set; } = 22.0;
 
         /// <summary>
-        /// 投影动画是否启用（默认：false）
+        /// 投影动画是否启用（默认：true）
         /// </summary>
-        public bool ProjectionAnimationEnabled { get; set; } = false;
+        public bool ProjectionAnimationEnabled { get; set; } = true;
 
         /// <summary>
-        /// 投影动画透明度（默认：0.0）
+        /// 投影动画透明度（默认：0.1）
         /// </summary>
-        public double ProjectionAnimationOpacity { get; set; } = 0.0;
+        public double ProjectionAnimationOpacity { get; set; } = 0.1;
 
         /// <summary>
-        /// 投影动画时长（毫秒，默认：300）
+        /// 投影动画时长（毫秒，默认：800）
         /// </summary>
-        public int ProjectionAnimationDuration { get; set; } = 300;
+        public int ProjectionAnimationDuration { get; set; } = 800;
     }
 
     /// <summary>
