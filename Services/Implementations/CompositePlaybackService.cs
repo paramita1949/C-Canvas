@@ -788,12 +788,16 @@ namespace ImageColorChanger.Services.Implementations
                     });
                 }
             }
+            #if DEBUG
             catch (Exception ex)
             {
-                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ 应用速度到当前段失败: {ex.Message}");
-                #endif
             }
+            #else
+            catch (Exception)
+            {
+            }
+            #endif
         }
         
         /// <summary>
@@ -864,12 +868,16 @@ namespace ImageColorChanger.Services.Implementations
             {
                 // 等待被取消，这是正常的（播放停止）
             }
+            #if DEBUG
             catch (Exception ex)
             {
-                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ WaitWithSpeedAdjustment 异常: {ex.Message}");
-                #endif
             }
+            #else
+            catch (Exception)
+            {
+            }
+            #endif
         }
 
         /// <summary>

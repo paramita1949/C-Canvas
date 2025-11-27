@@ -1318,13 +1318,18 @@ namespace ImageColorChanger.UI
                         e.CurrentScrollPosition = 0;
                     }
                 }
+                #if DEBUG
                 catch (Exception ex)
                 {
-                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"❌ 获取当前滚动位置失败: {ex.Message}");
-                    #endif
                     e.CurrentScrollPosition = 0;
                 }
+                #else
+                catch (Exception)
+                {
+                    e.CurrentScrollPosition = 0;
+                }
+                #endif
             });
         }
         
