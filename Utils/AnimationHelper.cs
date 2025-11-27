@@ -68,6 +68,9 @@ namespace ImageColorChanger.Utils
         /// <param name="toOffset">目标偏移量</param>
         /// <param name="duration">动画持续时间</param>
         /// <param name="onCompleted">动画完成回调</param>
+        /// <param name="easingType">缓动类型</param>
+        /// <param name="isLinear">是否线性滚动</param>
+        /// <param name="speedRatio">动画速度倍率（默认1.0，用于直接加速滚动动画）</param>
         /// <returns>创建的动画故事板</returns>
         public static Storyboard AnimateScroll(
             ScrollViewer scrollViewer,
@@ -76,7 +79,8 @@ namespace ImageColorChanger.Utils
             TimeSpan duration,
             Action onCompleted = null,
             string easingType = "Bezier",
-            bool isLinear = false)
+            bool isLinear = false,
+            double speedRatio = 1.0)
         {
             if (scrollViewer == null)
                 throw new ArgumentNullException(nameof(scrollViewer));
@@ -104,6 +108,9 @@ namespace ImageColorChanger.Utils
             // 创建故事板
             var storyboard = new Storyboard();
             storyboard.Children.Add(animation);
+            
+            // 🔧 设置动画速度倍率（直接加速滚动动画）
+            storyboard.SpeedRatio = speedRatio;
 
             // 设置动画目标
             Storyboard.SetTarget(animation, scrollViewer);

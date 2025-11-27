@@ -3032,8 +3032,8 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
                     VideoContainer.Visibility = Visibility.Collapsed;
                     
-                    // 🎬 隐藏合成播放按钮（媒体文件不需要）
-                    BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                    // 🎬 隐藏合成播放按钮面板（媒体文件不需要）
+                    CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                     
                     //System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     _projectionManager.ShowVideoProjection();

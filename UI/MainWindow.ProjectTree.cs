@@ -425,8 +425,8 @@ namespace ImageColorChanger.UI
                                     _imagePath = selectedItem.Path;
                                     _currentImageId = fileId; // 🔧 同样设置ID
                                     
-                                    // 🎬 隐藏合成播放按钮（媒体文件不需要）
-                                    BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                                    // 🎬 隐藏合成播放按钮面板（媒体文件不需要）
+                                    CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                                     
                                     string fileType = selectedItem.FileType == FileType.Video ? "视频" : "音频";
                                     ShowStatus($"✅ 已选中{fileType}: {selectedItem.Name} (双击播放)");

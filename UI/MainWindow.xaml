@@ -2849,57 +2849,107 @@
                             MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
-                <!-- 🎬 浮动合成播放按钮（左上角） -->
-                <Button x:Name="BtnFloatingCompositePlay"
-                        Content="🎬 合成播放"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="15,45,0,0"
-                        Padding="15,8"
-                        FontSize="16"
-                        FontWeight="SemiBold"
-                        Background="#2196F3"
-                        Foreground="White"
-                        BorderBrush="#1976D2"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        Panel.ZIndex="300"
-                        Click="BtnCompositePlay_Click"
-                        MouseRightButtonUp="BtnCompositePlay_RightClick"
-                        Opacity="0.75"
-                        Visibility="Collapsed"
-                        ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="border" 
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="20"
-                                                Padding="{TemplateBinding Padding}">
-                                            <Border.Effect>
-                                                <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
-                                            </Border.Effect>
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1976D2"/>
-                                                <Setter Property="Opacity" Value="1.0"/>
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                <!-- 🎬 浮动合成播放按钮组（左上角） -->
+                <StackPanel x:Name="CompositePlaybackPanel"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Margin="15,45,0,0"
+                            Orientation="Vertical"
+                            Panel.ZIndex="300"
+                            Visibility="Collapsed">
+                    <Button x:Name="BtnFloatingCompositePlay"
+                            Content="🎬 合成播放"
+                            Padding="15,8"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Background="#2196F3"
+                            Foreground="White"
+                            BorderBrush="#1976D2"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Opacity="0.75"
+                            Click="BtnCompositePlay_Click"
+                            MouseRightButtonUp="BtnCompositePlay_RightClick"
+                            ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="20"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1976D2"/>
+                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <!-- ⚡ 速度控制按钮（仅在播放时显示） -->
+                    <Button x:Name="BtnCompositeSpeed"
+                            Content="⚡ 1.0x"
+                            Padding="12,6"
+                            Margin="0,8,0,0"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Background="#FF9800"
+                            Foreground="White"
+                            BorderBrush="#F57C00"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Opacity="0.75"
+                            Visibility="Collapsed"
+                            MouseRightButtonUp="BtnCompositeSpeed_RightClick"
+                            ToolTip="右键：选择播放速度">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="20"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#F57C00"/>
+                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#E65100"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Grid>
 

@@ -79,8 +79,8 @@ namespace ImageColorChanger.UI
                 LyricsTextBox.Focus();
             }, System.Windows.Threading.DispatcherPriority.Loaded);
 
-            // 🔧 隐藏合成播放按钮（歌词模式不需要）
-            BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+            // 🔧 隐藏合成播放按钮面板（歌词模式不需要）
+            CompositePlaybackPanel.Visibility = Visibility.Collapsed;
 
             // 启动自动保存计时器（每30秒保存一次）
             StartAutoSaveTimer();

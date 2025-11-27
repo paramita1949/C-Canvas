@@ -30,6 +30,9 @@ namespace ImageColorChanger.Services.Implementations
         private System.Collections.Generic.List<PlaybackSegment> _playbackSegments; // 播放段列表
         private System.Diagnostics.Stopwatch _playbackStopwatch; // 播放计时器（用于追踪已播放时间）
         private DateTime _playbackStartTime; // 播放开始时间
+        private PlaybackSegment _currentSegment; // 当前正在播放的段
+        private DateTime _currentSegmentStartTime; // 当前段开始时间
+        private double _currentSegmentSpeed; // 当前段开始时的速度（用于重新计算剩余时间）
 
         /// <summary>
         /// 当前播放模式
@@ -55,6 +58,17 @@ namespace ImageColorChanger.Services.Implementations
         /// 已完成播放次数
         /// </summary>
         public int CompletedPlayCount { get; private set; }
+
+        /// <summary>
+        /// 播放速度倍率（默认1.0，表示正常速度）
+        /// 1.0 = 正常速度，2.0 = 2倍速，0.5 = 0.5倍速
+        /// </summary>
+        public double Speed { get; private set; } = 1.0;
+
+        /// <summary>
+        /// 播放速度变化事件
+        /// </summary>
+        public event EventHandler<SpeedChangedEventArgs> SpeedChanged;
 
         /// <summary>
         /// 播放进度更新事件
@@ -85,6 +99,11 @@ namespace ImageColorChanger.Services.Implementations
         /// 请求获取可滚动高度事件（触发MainWindow返回ScrollViewer的可滚动高度）
         /// </summary>
         public event EventHandler<ScrollableHeightRequestEventArgs> ScrollableHeightRequested;
+        
+        /// <summary>
+        /// 请求获取当前滚动位置事件（触发MainWindow返回ScrollViewer的当前滚动位置）
+        /// </summary>
+        public event EventHandler<CurrentScrollPositionRequestEventArgs> CurrentScrollPositionRequested;
 
         public CompositePlaybackService(
             ITimingRepository timingRepository,
@@ -418,6 +437,11 @@ namespace ImageColorChanger.Services.Implementations
                         if (!IsPlaying || cancellationToken.IsCancellationRequested)
                             break;
                         
+                        // 记录当前段信息（用于速度改变时重新计算）
+                        _currentSegment = segment;
+                        _currentSegmentStartTime = DateTime.Now;
+                        _currentSegmentSpeed = Speed; // 保存段开始时的速度
+                        
                         if (segment.Type == SegmentType.Scroll)
                         {
                             //#if DEBUG
@@ -443,23 +467,31 @@ namespace ImageColorChanger.Services.Implementations
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"   📢 [CompositePlaybackService] 触发 ScrollRequested 事件");
                             //#endif
+                            // 🔧 直接加速滚动动画，不改变时长
+                            // 动画时长保持原始值，通过SpeedRatio加速动画播放
+                            
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"   ⚡ [滚动段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x (直接加速动画)");
+                            #endif
+                            
                             ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
                             {
                                 StartPosition = segment.StartPosition,
                                 EndPosition = segment.EndPosition,
-                                Duration = segment.Duration
+                                Duration = segment.Duration, // 使用原始时长
+                                SpeedRatio = Speed // 传递速度倍率给动画
                             });
                             
-                            // 触发进度更新（显示倒计时）
+                            // 触发进度更新（显示倒计时，显示原始时长）
                             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
                             {
                                 CurrentIndex = CompletedPlayCount,
                                 TotalCount = PlayCount == -1 ? 999 : PlayCount,
-                                RemainingTime = segment.Duration,
+                                RemainingTime = segment.Duration, // 显示原始剩余时间
                                 CurrentItemId = _currentImageId
                             });
                             
-                            // 等待滚动完成
+                            // 等待滚动完成（使用原始时长，动画会以SpeedRatio速度播放）
                             await Task.Delay(TimeSpan.FromSeconds(segment.Duration), cancellationToken);
                         }
                         else if (segment.Type == SegmentType.Pause)
@@ -472,17 +504,24 @@ namespace ImageColorChanger.Services.Implementations
                                 YPosition = segment.StartPosition
                             });
                             
-                            // 触发进度更新（显示倒计时）
+                            // 🔧 停留段：直接加速等待时间
+                            double adjustedDuration = segment.Duration / Speed;
+                            
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"   ⚡ [停留段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x, 调整后: {adjustedDuration:F2}秒");
+                            #endif
+                            
+                            // 触发进度更新（显示倒计时，显示加速后的时间）
                             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
                             {
                                 CurrentIndex = CompletedPlayCount,
                                 TotalCount = PlayCount == -1 ? 999 : PlayCount,
-                                RemainingTime = segment.Duration,
+                                RemainingTime = adjustedDuration, // 显示加速后的剩余时间
                                 CurrentItemId = _currentImageId
                             });
                             
-                            // 等待停留时间
-                            await Task.Delay(TimeSpan.FromSeconds(segment.Duration), cancellationToken);
+                            // 等待停留时间（应用速度倍率）
+                            await Task.Delay(TimeSpan.FromSeconds(adjustedDuration), cancellationToken);
                         }
                     }
 
@@ -495,12 +534,21 @@ namespace ImageColorChanger.Services.Implementations
                     // 如果还要继续，跳回起始位置
                     if (PlayCount == -1 || CompletedPlayCount < PlayCount)
                     {
+                        // 🔧 每次新一轮播放开始时，重置速度为1.0（正常速度）
+                        Speed = 1.0;
+                        SpeedChanged?.Invoke(this, new SpeedChangedEventArgs { Speed = Speed });
+                        
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"🔄 新一轮播放开始，速度已重置为 1.0x");
+                        #endif
+                        
                         // 触发跳回起始位置的事件
                         ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
                         {
                             StartPosition = _startPosition,
                             EndPosition = _startPosition,
-                            Duration = 0 // 时长为0表示直接跳转，不滚动
+                            Duration = 0, // 时长为0表示直接跳转，不滚动
+                            SpeedRatio = 1.0 // 重置速度
                         });
                         
                         await Task.Delay(100, cancellationToken); // 短暂延迟，让跳转完成
@@ -577,13 +625,17 @@ namespace ImageColorChanger.Services.Implementations
 
             // 获取已播放的时间（秒）
             double elapsedSeconds = _playbackStopwatch.Elapsed.TotalSeconds;
+            
+            // 🔧 现在使用SpeedRatio直接加速动画，实际播放时间就是原始时间
+            // 不需要转换，因为动画时长保持不变，只是播放速度加快
+            double elapsedSecondsOriginal = elapsedSeconds;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⏱️ 更新TOTAL时间: {elapsedSeconds:F2}秒");
+            System.Diagnostics.Debug.WriteLine($"⏱️ 更新TOTAL时间: {elapsedSeconds:F2}秒 (调整后) -> {elapsedSecondsOriginal:F2}秒 (原始, 速度: {Speed:F2}x)");
             #endif
 
             // 如果时间太短（小于1秒），忽略
-            if (elapsedSeconds < 1.0)
+            if (elapsedSecondsOriginal < 1.0)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"⚠️ 播放时间太短，忽略更新");
@@ -594,11 +646,11 @@ namespace ImageColorChanger.Services.Implementations
             // 停止当前播放
             await StopPlaybackAsync();
 
-            // 更新CompositeScript的TOTAL时间
-            await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, elapsedSeconds, autoCalculate: false);
+            // 更新CompositeScript的TOTAL时间（使用原始时间）
+            await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, elapsedSecondsOriginal, autoCalculate: false);
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ 已更新TOTAL时间为 {elapsedSeconds:F2}秒，重新开始循环播放");
+            System.Diagnostics.Debug.WriteLine($"✅ 已更新TOTAL时间为 {elapsedSecondsOriginal:F2}秒 (考虑速度 {Speed:F2}x)，重新开始循环播放");
             #endif
 
             // 短暂延迟，确保停止完成
@@ -614,6 +666,210 @@ namespace ImageColorChanger.Services.Implementations
         public double GetElapsedSeconds()
         {
             return _playbackStopwatch.Elapsed.TotalSeconds;
+        }
+
+        /// <summary>
+        /// 设置播放速度倍率
+        /// </summary>
+        /// <param name="speed">速度倍率（必须大于0，建议范围0.5-3.0）</param>
+        public void SetSpeed(double speed)
+        {
+            if (speed <= 0)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ 无效的速度值: {speed}，必须大于0");
+                #endif
+                return;
+            }
+
+            // 限制速度范围（0.1x - 5.0x）
+            speed = Math.Max(0.1, Math.Min(5.0, speed));
+
+            if (Math.Abs(Speed - speed) < 0.01)
+            {
+                // 速度没有变化，不需要更新
+                return;
+            }
+
+            double oldSpeed = Speed;
+            Speed = speed;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"⚡ 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
+            #endif
+
+            // 如果正在播放，且当前有正在播放的段，需要立即应用新速度
+            if (IsPlaying && _currentSegment != null)
+            {
+                // 停止当前滚动动画（如果是滚动段）
+                if (_currentSegment.Type == SegmentType.Scroll)
+                {
+                    ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+                }
+                
+                // 重新计算剩余时间并继续播放
+                ApplySpeedToCurrentSegment();
+            }
+
+            // 触发速度变化事件
+            SpeedChanged?.Invoke(this, new SpeedChangedEventArgs { Speed = Speed });
+        }
+        
+        /// <summary>
+        /// 将当前速度应用到正在播放的段（立即生效）
+        /// </summary>
+        private void ApplySpeedToCurrentSegment()
+        {
+            if (_currentSegment == null || !IsPlaying)
+                return;
+            
+            try
+            {
+                // 计算已播放的时间（从段开始到现在）
+                double elapsedAdjustedTime = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
+                
+                // 计算已播放的原始时间（使用段开始时的速度）
+                double elapsedOriginalTime = elapsedAdjustedTime * _currentSegmentSpeed;
+                
+                // 计算剩余原始时间
+                double remainingOriginalTime = Math.Max(0, _currentSegment.Duration - elapsedOriginalTime);
+                
+                // 使用新速度计算剩余调整后时间
+                double remainingAdjustedTime = remainingOriginalTime / Speed;
+                
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"   🔄 [速度调整] 已播放调整: {elapsedAdjustedTime:F2}秒, 已播放原始: {elapsedOriginalTime:F2}秒");
+                System.Diagnostics.Debug.WriteLine($"      剩余原始: {remainingOriginalTime:F2}秒, 剩余调整: {remainingAdjustedTime:F2}秒 (新速度: {Speed:F2}x)");
+                #endif
+                
+                if (_currentSegment.Type == SegmentType.Scroll && remainingAdjustedTime > 0.1)
+                {
+                    // 如果是滚动段，停止当前动画并重新触发滚动请求（使用剩余时间）
+                    ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+                    
+                    // 获取当前滚动位置（而不是使用段的起始位置）
+                    var positionArgs = new CurrentScrollPositionRequestEventArgs();
+                    CurrentScrollPositionRequested?.Invoke(this, positionArgs);
+                    double currentScrollPosition = positionArgs.CurrentScrollPosition;
+                    
+                    // 如果获取不到当前位置，使用段的起始位置作为后备
+                    if (currentScrollPosition <= 0 && _currentSegment.StartPosition > 0)
+                    {
+                        currentScrollPosition = _currentSegment.StartPosition;
+                    }
+                    
+                    // 确保当前位置不超过目标位置
+                    double actualStartPosition = Math.Min(currentScrollPosition, _currentSegment.EndPosition);
+                    
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"   📍 [速度调整] 当前滚动位置: {currentScrollPosition:F1}, 使用位置: {actualStartPosition:F1}, 目标位置: {_currentSegment.EndPosition:F1}");
+                    #endif
+                    
+                    // 更新段开始时间和速度（重新开始计时）
+                    _currentSegmentStartTime = DateTime.Now;
+                    _currentSegmentSpeed = Speed;
+                    
+                    // 重新触发滚动（从当前位置到目标位置，使用原始剩余时间，通过SpeedRatio加速）
+                    ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
+                    {
+                        StartPosition = actualStartPosition, // 使用当前滚动位置
+                        EndPosition = _currentSegment.EndPosition,
+                        Duration = remainingOriginalTime, // 使用原始剩余时间
+                        SpeedRatio = Speed // 传递速度倍率，直接加速动画
+                    });
+                    
+                    // 更新进度（显示原始剩余时间）
+                    ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
+                    {
+                        CurrentIndex = CompletedPlayCount,
+                        TotalCount = PlayCount == -1 ? 999 : PlayCount,
+                        RemainingTime = remainingOriginalTime, // 显示原始剩余时间
+                        CurrentItemId = _currentImageId
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 应用速度到当前段失败: {ex.Message}");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 带速度调整的等待（速度改变时可以立即响应）
+        /// </summary>
+        private async Task WaitWithSpeedAdjustment(double duration, CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested && IsPlaying)
+                {
+                    if (_currentSegment != null)
+                    {
+                        // 计算已播放的调整后时间（从段开始到现在）
+                        double elapsedAdjusted = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
+                        
+                        // 计算已播放的原始时间（使用段开始时的速度）
+                        double elapsedOriginal = elapsedAdjusted * _currentSegmentSpeed;
+                        
+                        // 计算剩余原始时间
+                        double remainingOriginal = Math.Max(0, _currentSegment.Duration - elapsedOriginal);
+                        
+                        // 使用当前速度计算剩余调整后时间
+                        double remainingAdjusted = remainingOriginal / Speed;
+                        
+                        #if DEBUG
+                        if (remainingAdjusted > 0.1)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"   ⏱️ [等待] 已播放原始: {elapsedOriginal:F2}秒, 剩余原始: {remainingOriginal:F2}秒, 剩余调整: {remainingAdjusted:F2}秒 (当前速度: {Speed:F2}x)");
+                        }
+                        #endif
+                        
+                        if (remainingAdjusted <= 0.05)
+                        {
+                            // 剩余时间很少，直接完成
+                            break;
+                        }
+                        
+                        // 每次等待一小段时间（50ms），以便速度改变时能快速响应
+                        double waitTime = Math.Min(0.05, remainingAdjusted);
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(waitTime), cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // 等待被取消，这是正常的（播放停止或速度改变）
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // 如果没有当前段信息，使用简单的等待（不应该发生）
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(0.05), cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // 等待被取消，正常退出
+                            break;
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // 等待被取消，这是正常的（播放停止）
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ WaitWithSpeedAdjustment 异常: {ex.Message}");
+                #endif
+            }
         }
 
         /// <summary>
@@ -636,37 +892,44 @@ namespace ImageColorChanger.Services.Implementations
 
             double actualElapsed = _playbackStopwatch.Elapsed.TotalSeconds;
             double expectedDuration = _totalDuration;
+            
+            // 🔧 如果设置了加速，需要将实际播放时间转换为原始时间（除以速度）
+            // 因为加速后实际播放时间会变短，但TOTAL时间应该基于原始时间
+            double actualElapsedOriginal = actualElapsed * Speed;
 
             //#if DEBUG
             //System.Diagnostics.Debug.WriteLine($"");
             //System.Diagnostics.Debug.WriteLine($"🕐 [TOTAL时间检测]");
-            //System.Diagnostics.Debug.WriteLine($"   实际播放时间: {actualElapsed:F2}秒");
+            //System.Diagnostics.Debug.WriteLine($"   实际播放时间（调整后）: {actualElapsed:F2}秒");
+            //System.Diagnostics.Debug.WriteLine($"   实际播放时间（原始）: {actualElapsedOriginal:F2}秒");
             //System.Diagnostics.Debug.WriteLine($"   设定TOTAL时间: {expectedDuration:F2}秒");
-            //System.Diagnostics.Debug.WriteLine($"   差异百分比: {(expectedDuration - actualElapsed) / expectedDuration * 100:F1}%");
+            //System.Diagnostics.Debug.WriteLine($"   当前速度: {Speed:F2}x");
+            //System.Diagnostics.Debug.WriteLine($"   差异百分比: {(expectedDuration - actualElapsedOriginal) / expectedDuration * 100:F1}%");
             //#endif
 
             // 如果实际时间明显小于预期时间（提前20%以上完成）
             // 说明TOTAL时间设置得太长了，需要调整
-            if (actualElapsed < expectedDuration * 0.8 && actualElapsed >= 5.0)
+            // 🔧 使用原始时间进行比较，而不是调整后的时间
+            if (actualElapsedOriginal < expectedDuration * 0.8 && actualElapsedOriginal >= 5.0)
             {
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"🔄 检测到TOTAL时间过长，自动调整:");
-                //System.Diagnostics.Debug.WriteLine($"   {expectedDuration:F1}秒 -> {actualElapsed:F1}秒");
+                //System.Diagnostics.Debug.WriteLine($"   {expectedDuration:F1}秒 -> {actualElapsedOriginal:F1}秒");
                 //#endif
 
-                // 更新数据库的TOTAL时间
-                await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, actualElapsed, autoCalculate: false);
+                // 更新数据库的TOTAL时间（使用原始时间）
+                await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, actualElapsedOriginal, autoCalculate: false);
                 
-                // 更新内存中的值
-                _totalDuration = actualElapsed;
-                _playbackSegments[0].Duration = actualElapsed;
+                // 更新内存中的值（使用原始时间）
+                _totalDuration = actualElapsedOriginal;
+                _playbackSegments[0].Duration = actualElapsedOriginal;
 
                 // 重置计时器，下一轮使用新时间
                 _playbackStopwatch.Restart();
 
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ TOTAL时间已自动更新为 {actualElapsed:F1}秒");
-                //#endif
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ TOTAL时间已自动更新为 {actualElapsedOriginal:F1}秒 (考虑速度 {Speed:F2}x)");
+                #endif
             }
             else
             {
@@ -685,14 +948,17 @@ namespace ImageColorChanger.Services.Implementations
     /// </summary>
     public class CompositeScrollEventArgs : EventArgs
     {
-        /// <summary>起始Y坐标</summary>
-        public double StartPosition { get; set; }
+    /// <summary>起始Y坐标</summary>
+    public double StartPosition { get; set; }
 
-        /// <summary>结束Y坐标</summary>
-        public double EndPosition { get; set; }
+    /// <summary>结束Y坐标</summary>
+    public double EndPosition { get; set; }
 
-        /// <summary>滚动时长（秒）</summary>
-        public double Duration { get; set; }
+    /// <summary>滚动时长（秒）</summary>
+    public double Duration { get; set; }
+    
+    /// <summary>动画速度倍率（默认1.0，用于直接加速滚动动画）</summary>
+    public double SpeedRatio { get; set; } = 1.0;
     }
 
     /// <summary>
@@ -747,6 +1013,24 @@ namespace ImageColorChanger.Services.Implementations
     {
         /// <summary>可滚动高度（由MainWindow填充）</summary>
         public double ScrollableHeight { get; set; }
+    }
+
+    /// <summary>
+    /// 播放速度变化事件参数
+    /// </summary>
+    public class SpeedChangedEventArgs : EventArgs
+    {
+        /// <summary>当前播放速度倍率</summary>
+        public double Speed { get; set; }
+    }
+    
+    /// <summary>
+    /// 请求当前滚动位置事件参数
+    /// </summary>
+    public class CurrentScrollPositionRequestEventArgs : EventArgs
+    {
+        /// <summary>当前滚动位置（由MainWindow填充）</summary>
+        public double CurrentScrollPosition { get; set; }
     }
 }
 

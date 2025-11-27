@@ -534,6 +534,9 @@ namespace ImageColorChanger.UI
                     await compositeService.StopPlaybackAsync();
                     BtnFloatingCompositePlay.Content = "🎬 合成播放";
                     
+                    // 隐藏速度控制按钮
+                    BtnCompositeSpeed.Visibility = Visibility.Collapsed;
+                    
                     // 停止滚动动画
                     _keyframeManager?.StopScrollAnimation();
                     StopCompositeScrollAnimation();
@@ -577,9 +580,20 @@ namespace ImageColorChanger.UI
                 // 订阅获取可滚动高度事件
                 compositeService.ScrollableHeightRequested -= OnScrollableHeightRequested;
                 compositeService.ScrollableHeightRequested += OnScrollableHeightRequested;
+                
+                // 订阅获取当前滚动位置事件
+                compositeService.CurrentScrollPositionRequested -= OnCurrentScrollPositionRequested;
+                compositeService.CurrentScrollPositionRequested += OnCurrentScrollPositionRequested;
+
+                // 订阅速度变化事件
+                compositeService.SpeedChanged -= OnCompositeSpeedChanged;
+                compositeService.SpeedChanged += OnCompositeSpeedChanged;
 
                 // 设置播放次数（使用当前的播放次数设置）
                 compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
+                
+                // 🔧 每次开始新一轮播放时，重置速度为1.0（正常速度）
+                compositeService.SetSpeed(1.0);
 
                 // 🔧 在开始播放前，根据情况跳转到起始位置
                 //#if DEBUG
@@ -664,6 +678,11 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== StartPlaybackAsync 调用完成 ==========");
                 //#endif
                 BtnFloatingCompositePlay.Content = "⏹ 停止";
+                
+                // 显示速度控制按钮
+                BtnCompositeSpeed.Visibility = Visibility.Visible;
+                UpdateSpeedButtonText(compositeService.Speed);
+                
                 ShowStatus("▶️ 开始合成播放");
             }
             catch (Exception ex)
@@ -1087,7 +1106,8 @@ namespace ImageColorChanger.UI
                             StopFpsMonitoring();
                         },
                         _keyframeManager?.ScrollEasingType ?? "Bezier",
-                        _keyframeManager?.IsLinearScrolling ?? false
+                        _keyframeManager?.IsLinearScrolling ?? false,
+                        e.SpeedRatio // 传递速度倍率，直接加速动画
                     );
                 }
                 catch (Exception)
@@ -1179,9 +1199,71 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnCompositeProgressUpdated(object sender, Services.Interfaces.PlaybackProgressEventArgs e)
         {
-            // 启动倒计时服务
+            // 启动倒计时服务（剩余时间已经应用了速度倍率）
             var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
             countdownService?.Start(e.RemainingTime);
+        }
+        
+        /// <summary>
+        /// 合成播放速度变化事件处理
+        /// </summary>
+        private void OnCompositeSpeedChanged(object sender, Services.Implementations.SpeedChangedEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateSpeedButtonText(e.Speed);
+            });
+        }
+        
+        /// <summary>
+        /// 更新速度按钮文本
+        /// </summary>
+        private void UpdateSpeedButtonText(double speed)
+        {
+            BtnCompositeSpeed.Content = $"⚡ {speed:F2}x";
+        }
+        
+        /// <summary>
+        /// 速度控制按钮右键点击事件 - 显示速度选择菜单
+        /// </summary>
+        private void BtnCompositeSpeed_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+            var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                as Services.Implementations.CompositePlaybackService;
+            
+            if (compositeService == null || !compositeService.IsPlaying)
+            {
+                return;
+            }
+            
+            // 创建速度选择菜单
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+            
+            // 定义速度选项
+            double[] speedOptions = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 };
+            
+            foreach (double speed in speedOptions)
+            {
+                var menuItem = new System.Windows.Controls.MenuItem
+                {
+                    Header = $"{speed:F2}x {(speed == 1.0 ? "(正常)" : speed > 1.0 ? "(加速)" : "(减速)")}",
+                    IsChecked = Math.Abs(compositeService.Speed - speed) < 0.01
+                };
+                
+                menuItem.Click += (s, args) =>
+                {
+                    compositeService.SetSpeed(speed);
+                    ShowStatus($"⚡ 播放速度已设置为 {speed:F2}x");
+                };
+                
+                contextMenu.Items.Add(menuItem);
+            }
+            
+            // 显示菜单
+            contextMenu.PlacementTarget = BtnCompositeSpeed;
+            contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            contextMenu.IsOpen = true;
         }
 
         /// <summary>
@@ -1217,6 +1299,35 @@ namespace ImageColorChanger.UI
             });
         }
 
+        /// <summary>
+        /// 获取当前滚动位置事件处理
+        /// </summary>
+        private void OnCurrentScrollPositionRequested(object sender, Services.Implementations.CurrentScrollPositionRequestEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var scrollViewer = ImageScrollViewer;
+                    if (scrollViewer != null)
+                    {
+                        e.CurrentScrollPosition = scrollViewer.VerticalOffset;
+                    }
+                    else
+                    {
+                        e.CurrentScrollPosition = 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"❌ 获取当前滚动位置失败: {ex.Message}");
+                    #endif
+                    e.CurrentScrollPosition = 0;
+                }
+            });
+        }
+        
         /// <summary>
         /// 处理获取可滚动高度请求
         /// </summary>
@@ -1264,42 +1375,42 @@ namespace ImageColorChanger.UI
             
             if (_originalMode)
             {
-                // 原图模式，隐藏按钮
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 原图模式，隐藏按钮面板
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
             if (_isLyricsMode)
             {
-                // 歌词模式，隐藏按钮
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 歌词模式，隐藏按钮面板
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
             if (_isBibleMode)
             {
-                // 圣经模式，隐藏按钮
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 圣经模式，隐藏按钮面板
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
             if (_currentImageId == 0)
             {
-                // 没有加载图片，隐藏按钮
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 没有加载图片，隐藏按钮面板
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            // 🔧 幻灯片状态且非分割模式：隐藏按钮
+            // 🔧 幻灯片状态且非分割模式：隐藏按钮面板
             if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null && !IsInSplitMode())
             {
-                // 幻灯片状态但非分割模式（正常文本编辑），隐藏按钮
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 幻灯片状态但非分割模式（正常文本编辑），隐藏按钮面板
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            // 正常文件夹的图片，显示按钮
-            BtnFloatingCompositePlay.Visibility = Visibility.Visible;
+            // 正常文件夹的图片，显示按钮面板
+            CompositePlaybackPanel.Visibility = Visibility.Visible;
             
             // 🎨 异步加载合成标记状态并设置按钮颜色
             _ = UpdateCompositeButtonColorAsync();
