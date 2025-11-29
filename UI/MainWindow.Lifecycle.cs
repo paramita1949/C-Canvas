@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Services;
 
@@ -15,6 +16,21 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
+            // 恢复圣经历史记录+按钮区域高度
+            if (BibleHistoryAndButtonRow != null && _configManager.BibleHistoryRowHeight > 0)
+            {
+                // 如果保存了高度值，使用固定高度
+                BibleHistoryAndButtonRow.Height = new GridLength(_configManager.BibleHistoryRowHeight);
+                // 经文选择表格使用剩余空间
+                if (BibleSelectionTableRow != null)
+                {
+                    BibleSelectionTableRow.Height = new GridLength(1, GridUnitType.Star);
+                }
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 已恢复圣经历史记录+按钮区域高度: {_configManager.BibleHistoryRowHeight}");
+#endif
+            }
+            
             // 初始化圣经服务
             InitializeBibleService();
 

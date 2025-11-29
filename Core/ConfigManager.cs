@@ -365,6 +365,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经历史记录区域高度（0表示使用比例布局，>0表示使用固定高度）
+        /// </summary>
+        public double BibleHistoryRowHeight
+        {
+            get => _config.BibleHistoryRowHeight;
+            set
+            {
+                if (Math.Abs(_config.BibleHistoryRowHeight - value) > 0.001)
+                {
+                    _config.BibleHistoryRowHeight = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 文件夹标签字号（搜索结果显示）
         /// </summary>
         public double FolderTagFontSize
@@ -933,6 +949,11 @@ namespace ImageColorChanger.Core
         /// 导航栏宽度（默认：370，圣经模式5列表格需要370宽度）
         /// </summary>
         public double NavigationPanelWidth { get; set; } = 370.0;
+
+        /// <summary>
+        /// 圣经历史记录区域高度（默认：0，表示使用比例布局）
+        /// </summary>
+        public double BibleHistoryRowHeight { get; set; } = 0.0;
 
         /// <summary>
         /// 文件夹标签字号（搜索结果显示，默认：18）

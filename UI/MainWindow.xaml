@@ -666,13 +666,20 @@
                     <!-- 🆕 圣经导航面板（圣经模式下显示） -->
                     <Grid Grid.Row="1" x:Name="BibleNavigationPanel" Visibility="Collapsed" Background="#2D2D30">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>    <!-- 历史记录 -->
-                            <RowDefinition Height="Auto"/>    <!-- 历史操作按钮 -->
-                            <RowDefinition Height="*"/>       <!-- 经文选择表格 -->
+                            <RowDefinition x:Name="BibleHistoryAndButtonRow" Height="*" MinHeight="150"/>    <!-- 历史记录+按钮（可调整高度，最小150像素） -->
+                            <RowDefinition Height="3"/>       <!-- 分隔条（可拖拽调整） -->
+                            <RowDefinition x:Name="BibleSelectionTableRow" Height="*" MinHeight="180"/>       <!-- 经文选择表格（可调整高度，最小180像素，约显示5个记录） -->
                         </Grid.RowDefinitions>
                         
+                        <!-- 历史记录和按钮容器 -->
+                        <Grid Grid.Row="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>    <!-- 历史记录（占用剩余空间） -->
+                                <RowDefinition Height="Auto"/>    <!-- 历史操作按钮（固定） -->
+                            </Grid.RowDefinitions>
+                        
                         <!-- 历史记录列表（显示1-20号槽位） -->
-                        <ScrollViewer x:Name="BibleHistoryScrollViewer" Grid.Row="0" MaxHeight="330" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
+                        <ScrollViewer x:Name="BibleHistoryScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
                             <ListBox x:Name="BibleHistoryList" 
                                      Background="Transparent"
                                      BorderThickness="0"
@@ -758,9 +765,9 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </ScrollViewer>
-                        
-                        <!-- 历史操作按钮 -->
-                        <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">
+                            
+                            <!-- 历史操作按钮 -->
+                            <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <Button x:Name="BtnHistorySelectAll" 
                                         Content="全选" 
@@ -796,12 +803,24 @@
                                         Click="BtnBibleSettings_Click"/>
                             </StackPanel>
                         </Border>
+                        </Grid>
+                        
+                        <!-- 分隔条（可拖拽调整历史记录+按钮区域和经文选择表格之间的高度） -->
+                        <GridSplitter x:Name="BibleNavigationSplitter"
+                                     Grid.Row="1" 
+                                     Height="3" 
+                                     HorizontalAlignment="Stretch" 
+                                     Background="#555555" 
+                                     Cursor="SizeNS"
+                                     ResizeDirection="Rows"
+                                     ShowsPreview="False"
+                                     DragCompleted="BibleNavigationSplitter_DragCompleted"/>
                         
                         <!-- 经文选择表格 -->
                         <!-- 5列表格布局：分类 | 书卷 | 章 | 起始节 | 结束节 -->
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="70"/>   <!-- 第1列:分类(4个字宽度) -->
+                                <ColumnDefinition Width="75"/>   <!-- 第1列:分类(4个字宽度) -->
                                 <ColumnDefinition Width="125"/>  <!-- 第2列:书卷 -->
                                 <ColumnDefinition Width="65"/>   <!-- 第3列:章 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->

@@ -36,6 +36,8 @@ namespace ImageColorChanger.UI
                     NavigationPanelColumn.Width = new GridLength(_configManager.NavigationPanelWidth);
                 }
                 
+                // 加载圣经历史记录区域高度（在Window_Loaded中恢复）
+                
                 // 加载菜单栏字号
                 ApplyMenuFontSize(_configManager.MenuFontSize);
                 
