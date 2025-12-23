@@ -820,8 +820,8 @@
                         <!-- 5列表格布局：分类 | 书卷 | 章 | 起始节 | 结束节 -->
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="75"/>   <!-- 第1列:分类(4个字宽度) -->
-                                <ColumnDefinition Width="125"/>  <!-- 第2列:书卷 -->
+                                <ColumnDefinition Width="85"/>   <!-- 第1列:分类(4个字宽度) -->
+                                <ColumnDefinition Width="120"/>  <!-- 第2列:书卷 -->
                                 <ColumnDefinition Width="65"/>   <!-- 第3列:章 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第5列:结束节 -->
@@ -875,7 +875,7 @@
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
                                         <Setter Property="Foreground" Value="White"/>
-                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontSize" Value="12"/>
                                         <Setter Property="Padding" Value="8,6"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
                                         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
