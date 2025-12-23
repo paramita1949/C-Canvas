@@ -150,9 +150,9 @@ namespace ImageColorChanger.UI.Controls
 
         private void OnTextBoxPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⌨️ [TextInputProxy] 按键: {e.Key}");
-#endif
+//#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"⌨️ [TextInputProxy] 按键: {e.Key}");
+//#endif
             // 特殊按键可以在这里处理
             // 例如：Esc 退出编辑模式
         }

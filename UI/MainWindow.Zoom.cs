@@ -23,27 +23,16 @@ namespace ImageColorChanger.UI
                 double newZoom = _currentZoom + delta;
                 newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
                 
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 滚轮缩放: {_currentZoom:F2} -> {newZoom:F2}");
-                //#endif
-                
                 // 🔧 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
                 // 避免双重缩放导致的拉伸变形问题
                 if (_imageProcessor != null && !_originalMode)
                 {
                     _currentZoom = newZoom; // 更新当前缩放值
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 同步到ImageProcessor.ZoomRatio: {newZoom:F2}");
-                    //#endif
                     _imageProcessor.ZoomRatio = newZoom; // ImageProcessor会重新渲染图片
                     
                     // 更新投影屏幕
                     if (_projectionManager?.IsProjecting == true)
                     {
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 触发投影更新，缩放比例: {newZoom:F2}");
-#endif
                         _projectionManager.UpdateProjectionImage(
                             _imageProcessor.CurrentImage,
                             _isColorEffectEnabled,
@@ -56,9 +45,6 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 原图模式：只使用UI层ScaleTransform（因为ImageProcessor在原图模式下不支持缩放）
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [主屏缩放] 原图模式：使用UI层ScaleTransform");
-#endif
                     SetZoom(newZoom);
                 }
             }
@@ -67,10 +53,6 @@ namespace ImageColorChanger.UI
         private void ResetZoom()
         {
             if (ImageDisplay.Source == null) return;
-            
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔍 [重置缩放] 当前缩放: {_currentZoom:F2} -> 1.0");
-#endif
             
             _currentZoom = 1.0;
             
@@ -83,9 +65,6 @@ namespace ImageColorChanger.UI
                 // 更新投影屏幕
                 if (_projectionManager?.IsProjecting == true)
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔍 [重置缩放] 触发投影更新，缩放比例: 1.0");
-#endif
                     _projectionManager.UpdateProjectionImage(
                         _imageProcessor.CurrentImage,
                         _isColorEffectEnabled,
@@ -129,13 +108,6 @@ namespace ImageColorChanger.UI
         {
             double oldZoom = _currentZoom;
             _currentZoom = Math.Max(MinZoom, Math.Min(MaxZoom, zoom));
-            
-            if (Math.Abs(oldZoom - _currentZoom) > 0.001)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔍 [SetZoom] UI缩放变换: {oldZoom:F2} -> {_currentZoom:F2}");
-#endif
-            }
             
             ImageScaleTransform.ScaleX = _currentZoom;
             ImageScaleTransform.ScaleY = _currentZoom;

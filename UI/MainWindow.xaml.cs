@@ -207,8 +207,38 @@ namespace ImageColorChanger.UI
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
             
+            // 🎬 监听窗口关闭事件，清理视频资源
+            this.Closing += MainWindow_Closing;
+
+                        
             // 🔐 初始化认证服务
             InitializeAuthService();
+        }
+        
+        /// <summary>
+        /// 🎬 窗口关闭事件：清理视频资源
+        /// </summary>
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            try
+            {
+                // 清理视频背景管理器
+                VideoBackgroundManager.Instance.Dispose();
+                
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine("✅ [资源清理] 视频背景管理器已释放");
+#endif
+            }
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [资源清理] 清理视频资源失败: {ex.Message}");
+#endif
+            }
         }
         
         /// <summary>
@@ -475,13 +505,14 @@ namespace ImageColorChanger.UI
             // 初始化保存管理器
             _imageSaveManager = new ImageSaveManager(_imageProcessor);
             
-            // 初始化投影管理器
+            // 初始化投影管理器（注意：此时 _videoPlayerManager 还未初始化，稍后设置）
             _projectionManager = new ProjectionManager(
                 this,
                 ImageScrollViewer,
                 ImageDisplay,
                 _imageProcessor,
-                ScreenSelector
+                ScreenSelector,
+                null  // VideoPlayerManager 稍后设置
             );
             
             // 订阅投影状态改变事件
@@ -611,6 +642,7 @@ namespace ImageColorChanger.UI
                 _dbManager.MigrateAddRichTextSupport();   // 🆕 RichText 支持（斜体、边框、背景、阴影、间距）
                 _dbManager.MigrateCreateRichTextSpansTable();  // 🆕 富文本片段表（完全 RichText）
                 _dbManager.MigrateAddShadowTypeAndPreset();  // 🆕 阴影类型和预设字段
+                _dbManager.MigrateAddVideoBackgroundSupport();  // 🆕 视频背景支持
 
                 // 创建排序和搜索管理器
                 _sortManager = new SortManager();
@@ -653,6 +685,14 @@ namespace ImageColorChanger.UI
             {
                 // 创建视频播放管理器（此时只初始化LibVLC，不创建MediaPlayer）
                 _videoPlayerManager = new VideoPlayerManager(this);
+                
+                // 🎬 将 VideoPlayerManager 设置到 ProjectionManager（用于 D3D11 视频渲染）
+                if (_projectionManager != null)
+                {
+                    var field = typeof(ProjectionManager).GetField("_videoPlayerManager", 
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    field?.SetValue(_projectionManager, _videoPlayerManager);
+                }
                 
                 // 订阅视频轨道检测事件
                 _videoPlayerManager.VideoTrackDetected += VideoPlayerManager_VideoTrackDetected;
@@ -977,6 +1017,9 @@ namespace ImageColorChanger.UI
             FilterProjectTree();
         }
         
+        // 添加标记，用于跟踪是否是第一次进入幻灯片模式
+        private static bool _isFirstTimeEnteringProjects = true;
+
         /// <summary>
         /// 🆕 项目按钮点击事件
         /// </summary>
@@ -988,20 +1031,20 @@ namespace ImageColorChanger.UI
 
             // 如果已经在项目模式且不是从圣经模式切换过来,直接返回
             if (_currentViewMode == NavigationViewMode.Projects && !_isBibleMode) return;
-            
+
             // 记录是否从圣经模式切换过来
             bool wasInBibleMode = _isBibleMode;
-            
+
             _currentViewMode = NavigationViewMode.Projects;
             _isBibleMode = false;  // 退出圣经模式
-            
+
             // 隐藏圣经视图
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;
-            
+
             // 显示ProjectTree
             ProjectTree.Visibility = Visibility.Visible;
-            
+
             // 🔧 修复：只有从圣经模式切换过来时才需要清空并显示图片区域
             // 否则保持当前状态（可能是编辑器、图片或其他）
             if (wasInBibleMode)
@@ -1010,13 +1053,20 @@ namespace ImageColorChanger.UI
                 ImageScrollViewer.Visibility = Visibility.Visible;
                 VideoContainer.Visibility = Visibility.Visible;
             }
-            
+
             //#if DEBUG
             //Debug.WriteLine($"[MainWindow] 幻灯片视图切换完成: ProjectTree可见={ProjectTree.Visibility}, BiblePanel可见={BibleNavigationPanel.Visibility}");
             //#endif
-            
+
             UpdateViewModeButtons();
             FilterProjectTree();
+
+            // 🆕 优化逻辑：当程序启动，第一次进入幻灯片模式时，默认打开序列第一位的项目
+            if (_isFirstTimeEnteringProjects)
+            {
+                _ = LoadFirstProjectAsync();
+                _isFirstTimeEnteringProjects = false;
+            }
         }
         
         /// <summary>
@@ -1061,7 +1111,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 开始加载文本项目...");
-                
+
                 // 延迟初始化 _textProjectManager（如果还未初始化）
                 if (_textProjectManager == null)
                 {
@@ -1076,11 +1126,11 @@ namespace ImageColorChanger.UI
 
                 var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
                 //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 获取到 {textProjects.Count} 个文本项目");
-                
+
                 foreach (var project in textProjects)
                 {
                     //System.Diagnostics.Debug.WriteLine($"📋 [LoadTextProjectsToTree] 添加文本项目: {project.Name} (ID={project.Id})");
-                    
+
                     _projectTreeItems.Add(new ProjectTreeItem
                     {
                         Id = project.Id,
@@ -1092,13 +1142,61 @@ namespace ImageColorChanger.UI
                         Path = null  // 文本项目没有物理路径
                     });
                 }
-                
+
                 //System.Diagnostics.Debug.WriteLine($"✅ [LoadTextProjectsToTree] 文本项目加载完成，当前项目数: {_projectTreeItems.Count}");
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
                 //System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// 🆕 加载序列第一位的项目（程序启动第一次进入幻灯片模式时调用）
+        /// </summary>
+        private async Task LoadFirstProjectAsync()
+        {
+            try
+            {
+                // 确保TextProjectManager已初始化
+                if (_textProjectManager == null)
+                {
+                    if (_dbManager == null) return;
+                    _textProjectManager = new TextProjectManager(_dbManager);
+                }
+
+                // 获取所有项目（已按SortOrder排序，SortOrder最小的在前）
+                var textProjects = await _textProjectManager.GetAllProjectsAsync();
+
+                if (textProjects != null && textProjects.Count > 0)
+                {
+                    // 获取序列第一位的项目（SortOrder最小的项目，即排序第一位的项目）
+                    var firstProject = textProjects[0];
+
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 默认加载第一个项目: {firstProject.Name} (ID={firstProject.Id}, SortOrder={firstProject.SortOrder})");
+                    #endif
+
+                    // 加载第一个项目
+                    await LoadTextProjectAsync(firstProject.Id);
+
+                    ShowStatus($"✅ 已打开项目: {firstProject.Name}");
+                }
+                else
+                {
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🎯 [首次进入幻灯片] 没有找到任何项目");
+                    #endif
+                    ShowStatus("📝 暂无幻灯片项目，请创建新项目");
+                }
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [首次进入幻灯片] 加载第一个项目失败: {ex.Message}");
+                #endif
+                ShowStatus($"⚠️ 加载项目失败: {ex.Message}");
             }
         }
 
@@ -2872,22 +2970,6 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 检查文件是否为视频
-        /// </summary>
-        private bool IsVideoFile(string filePath)
-        {
-            if (string.IsNullOrEmpty(filePath)) return false;
-            
-            var ext = System.IO.Path.GetExtension(filePath).ToLower();
-            var videoExtensions = new[] { 
-                ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg",
-                ".rm", ".rmvb", ".3gp", ".f4v", ".ts", ".mts", ".m2ts", ".vob", ".ogv"
-            };
-            
-            return videoExtensions.Contains(ext);
-        }
-        
-        /// <summary>
         /// 检查文件是否为媒体文件（视频或音频）
         /// </summary>
         private bool IsMediaFile(string filePath)
@@ -2950,8 +3032,8 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine("步骤1: 隐藏主屏幕视频");
                     VideoContainer.Visibility = Visibility.Collapsed;
                     
-                    // 🎬 隐藏合成播放按钮（媒体文件不需要）
-                    BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                    // 🎬 隐藏合成播放按钮面板（媒体文件不需要）
+                    CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                     
                     //System.Diagnostics.Debug.WriteLine("步骤2: 显示投影视频");
                     _projectionManager.ShowVideoProjection();

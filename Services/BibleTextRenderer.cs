@@ -82,28 +82,32 @@ namespace ImageColorChanger.Services
         /// <returns>渲染后的Y坐标</returns>
         private float DrawTitle(SKCanvas canvas, string text, float x, float y, float maxWidth)
         {
-            using (var paint = new SKPaint())
+            using (var font = new SKFont())
             {
-                paint.Color = _config.TitleStyle.GetSKColor();
-                paint.TextSize = _config.TitleStyle.FontSize;
-                paint.IsAntialias = true;
-                
                 // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                paint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                font.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
                     _config.TitleStyle.IsBold,
                     false
                 );
+                font.Size = _config.TitleStyle.FontSize;
+                font.Subpixel = true;
                 
                 // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.TitleStyle.IsBold)
                 {
-                    paint.FakeBoldText = true;
+                    font.Embolden = true;
                 }
                 
-                canvas.DrawText(text, x, y + paint.TextSize, paint);
-                
-                return y + paint.TextSize;
+                using (var paint = new SKPaint())
+                {
+                    paint.Color = _config.TitleStyle.GetSKColor();
+                    paint.IsAntialias = true;
+                    
+                    canvas.DrawText(text, x, y + font.Size, SKTextAlign.Left, font, paint);
+                    
+                    return y + font.Size;
+                }
             }
         }
         
@@ -118,42 +122,46 @@ namespace ImageColorChanger.Services
         /// <returns>渲染后的Y坐标</returns>
         private float DrawVerse(SKCanvas canvas, string text, float x, float y, float maxWidth)
         {
-            using (var paint = new SKPaint())
+            using (var font = new SKFont())
             {
-                paint.Color = _config.VerseStyle.GetSKColor();
-                paint.TextSize = _config.VerseStyle.FontSize;
-                paint.IsAntialias = true;
-                
                 // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                paint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                font.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
                     _config.VerseStyle.IsBold,
                     false
                 );
+                font.Size = _config.VerseStyle.FontSize;
+                font.Subpixel = true;
                 
                 // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.VerseStyle.IsBold)
                 {
-                    paint.FakeBoldText = true;
+                    font.Embolden = true;
                 }
                 
-                // 分行处理（每行是一节）
-                string[] lines = text.Split('\n');
-                float lineHeight = paint.TextSize + _config.VerseStyle.VerseSpacing; // 字体大小 + 节距
-                float currentY = y;
-                
-                foreach (string line in lines)
+                using (var paint = new SKPaint())
                 {
-                    // 自动换行处理
-                    var wrappedLines = WrapText(line, maxWidth - 40f, paint);
-                    foreach (var wrappedLine in wrappedLines)
+                    paint.Color = _config.VerseStyle.GetSKColor();
+                    paint.IsAntialias = true;
+                    
+                    // 分行处理（每行是一节）
+                    string[] lines = text.Split('\n');
+                    float lineHeight = font.Size + _config.VerseStyle.VerseSpacing; // 字体大小 + 节距
+                    float currentY = y;
+                    
+                    foreach (string line in lines)
                     {
-                        canvas.DrawText(wrappedLine, x, currentY + paint.TextSize, paint);
-                        currentY += lineHeight;
+                        // 自动换行处理
+                        var wrappedLines = WrapText(line, maxWidth - 40f, font);
+                        foreach (var wrappedLine in wrappedLines)
+                        {
+                            canvas.DrawText(wrappedLine, x, currentY + font.Size, SKTextAlign.Left, font, paint);
+                            currentY += lineHeight;
+                        }
                     }
+                    
+                    return currentY;
                 }
-                
-                return currentY;
             }
         }
         
@@ -169,67 +177,71 @@ namespace ImageColorChanger.Services
         private void DrawVerseWithInlineTitle(SKCanvas canvas, string verseText, 
                                                string reference, float x, float y, float maxWidth)
         {
-            using (var versePaint = new SKPaint())
-            using (var titlePaint = new SKPaint())
+            using (var verseFont = new SKFont())
+            using (var titleFont = new SKFont())
             {
-                // 设置经文画笔
-                versePaint.Color = _config.VerseStyle.GetSKColor();
-                versePaint.TextSize = _config.VerseStyle.FontSize;
-                versePaint.IsAntialias = true;
-                
-                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                versePaint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                // 设置经文字体
+                verseFont.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
                     _config.VerseStyle.IsBold,
                     false
                 );
+                verseFont.Size = _config.VerseStyle.FontSize;
+                verseFont.Subpixel = true;
                 
                 // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.VerseStyle.IsBold)
                 {
-                    versePaint.FakeBoldText = true;
+                    verseFont.Embolden = true;
                 }
                 
-                // 设置标题画笔
-                titlePaint.Color = _config.TitleStyle.GetSKColor();
-                titlePaint.TextSize = _config.TitleStyle.FontSize;
-                titlePaint.IsAntialias = true;
-                
-                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                titlePaint.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                // 设置标题字体
+                titleFont.Typeface = Core.SkiaFontService.Instance.GetTypeface(
                     _config.FontFamily,
                     _config.TitleStyle.IsBold,
                     false
                 );
+                titleFont.Size = _config.TitleStyle.FontSize;
+                titleFont.Subpixel = true;
                 
                 // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.TitleStyle.IsBold)
                 {
-                    titlePaint.FakeBoldText = true;
+                    titleFont.Embolden = true;
                 }
                 
-                // 计算最后一行的位置（每行是一节）
-                string[] lines = verseText.Split('\n');
-                float lineHeight = versePaint.TextSize + _config.VerseStyle.VerseSpacing; // 字体大小 + 节距
-                float currentY = y;
-                
-                for (int i = 0; i < lines.Length; i++)
+                using (var versePaint = new SKPaint())
+                using (var titlePaint = new SKPaint())
                 {
-                    if (i < lines.Length - 1)
+                    versePaint.Color = _config.VerseStyle.GetSKColor();
+                    versePaint.IsAntialias = true;
+                    
+                    titlePaint.Color = _config.TitleStyle.GetSKColor();
+                    titlePaint.IsAntialias = true;
+                    
+                    // 计算最后一行的位置（每行是一节）
+                    string[] lines = verseText.Split('\n');
+                    float lineHeight = verseFont.Size + _config.VerseStyle.VerseSpacing; // 字体大小 + 节距
+                    float currentY = y;
+                    
+                    for (int i = 0; i < lines.Length; i++)
                     {
-                        // 非最后一行，正常绘制
-                        canvas.DrawText(lines[i], x, currentY + versePaint.TextSize, versePaint);
-                        currentY += lineHeight;
-                    }
-                    else
-                    {
-                        // 最后一行，经文 + 标题
-                        float verseWidth = versePaint.MeasureText(lines[i]);
-                        canvas.DrawText(lines[i], x, currentY + versePaint.TextSize, versePaint);
-                        
-                        // 标题紧跟在经文后面
-                        canvas.DrawText(reference, x + verseWidth + 5f, 
-                                       currentY + titlePaint.TextSize, titlePaint);
+                        if (i < lines.Length - 1)
+                        {
+                            // 非最后一行，正常绘制
+                            canvas.DrawText(lines[i], x, currentY + verseFont.Size, SKTextAlign.Left, verseFont, versePaint);
+                            currentY += lineHeight;
+                        }
+                        else
+                        {
+                            // 最后一行，经文 + 标题
+                            float verseWidth = verseFont.MeasureText(lines[i]);
+                            canvas.DrawText(lines[i], x, currentY + verseFont.Size, SKTextAlign.Left, verseFont, versePaint);
+                            
+                            // 标题紧跟在经文后面
+                            canvas.DrawText(reference, x + verseWidth + 5f, 
+                                           currentY + titleFont.Size, SKTextAlign.Left, titleFont, titlePaint);
+                        }
                     }
                 }
             }
@@ -240,9 +252,9 @@ namespace ImageColorChanger.Services
         /// </summary>
         /// <param name="text">原始文本</param>
         /// <param name="maxWidth">最大宽度</param>
-        /// <param name="paint">画笔</param>
+        /// <param name="font">字体</param>
         /// <returns>换行后的文本列表</returns>
-        private List<string> WrapText(string text, float maxWidth, SKPaint paint)
+        private List<string> WrapText(string text, float maxWidth, SKFont font)
         {
             var lines = new List<string>();
             if (string.IsNullOrEmpty(text))
@@ -254,7 +266,7 @@ namespace ImageColorChanger.Services
             foreach (char ch in words)
             {
                 string testLine = currentLine + ch;
-                float testWidth = paint.MeasureText(testLine);
+                float testWidth = font.MeasureText(testLine);
                 
                 if (testWidth > maxWidth && !string.IsNullOrEmpty(currentLine))
                 {

@@ -40,7 +40,7 @@ namespace ImageColorChanger.Utils
 
         /// <summary>
         /// 处理ESC键 - 通用功能
-        /// 优先级：关闭投影 > 停止视频 > 清空图片
+        /// 优先级：拼音输入 > 编辑框选中 > 关闭投影 > 停止视频 > 清空图片
         /// </summary>
         /// <returns>是否处理了该按键</returns>
         public async Task<bool> HandleEscapeAsync()
@@ -48,6 +48,14 @@ namespace ImageColorChanger.Utils
             // 优先检查拼音输入
             if (await HandlePinyinEscapeAsync())
             {
+                return true;
+            }
+
+            // 优先级2: 检查是否有选中的编辑框
+            if (_mainWindow.HasSelectedTextBox())
+            {
+                //System.Diagnostics.Debug.WriteLine($"🔑 [全局ESC] 取消编辑框选中状态");
+                _mainWindow.DeselectAllTextBoxes(true); // 关闭浮动工具栏
                 return true;
             }
 

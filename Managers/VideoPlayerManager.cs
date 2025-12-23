@@ -124,6 +124,11 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public int CurrentIndex => _currentIndex;
 
+        /// <summary>
+        /// 获取 LibVLC 实例（供自定义渲染器使用）
+        /// </summary>
+        public LibVLC GetLibVLC() => _libVLC;
+
         #endregion
 
         #region 构造函数
@@ -498,6 +503,10 @@ namespace ImageColorChanger.Managers
                     
                     // 延迟确保VideoView完全就绪
                     System.Threading.Thread.Sleep(50);
+                    
+                    // 🔊 播放前设置音量（LibVLCSharp 3.9.4 默认音量为 0）
+                    _mediaPlayer.Volume = 70;  // 播放前预设音量为 80
+                    _mediaPlayer.Mute = false; // 确保未静音
                     
                     _mediaPlayer.Play();
                 }

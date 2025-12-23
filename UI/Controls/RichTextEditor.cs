@@ -381,9 +381,9 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⚠️ [KeyDown] 未处理的按键: Key={e.Key}");
-#endif
+//#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"⚠️ [KeyDown] 未处理的按键: Key={e.Key}");
+//#endif
         }
 
         /// <summary>
@@ -1137,11 +1137,11 @@ namespace ImageColorChanger.UI.Controls
             if (relativeY < 0) return 0;
 
             // 创建 SkiaSharp Paint 用于精确测量
-            using var paint = new SkiaSharp.SKPaint
+            using var font = new SkiaSharp.SKFont
             {
-                TextSize = fontSize,
-                IsAntialias = true,
-                Typeface = SkiaSharp.SKTypeface.FromFamilyName(fontFamily)
+                Typeface = SkiaSharp.SKTypeface.FromFamilyName(fontFamily),
+                Size = fontSize,
+                Subpixel = true
             };
 
             // 计算行高（与渲染器保持一致）
@@ -1179,7 +1179,7 @@ namespace ImageColorChanger.UI.Controls
                 {
                     // 测量从行首到当前字符的宽度
                     string substring = currentLine.Substring(0, i);
-                    float width = paint.MeasureText(substring);
+                    float width = font.MeasureText(substring);
 
                     // 计算鼠标到当前位置的距离
                     float distance = Math.Abs((float)relativeX - width);

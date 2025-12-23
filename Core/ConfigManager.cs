@@ -11,7 +11,7 @@ namespace ImageColorChanger.Core
     /// <summary>
     /// 配置管理器 - 统一管理应用程序配置
     /// </summary>
-    public class ConfigManager
+    public partial class ConfigManager
     {
         private static ConfigManager _instance;
         private static readonly object _lock = new object();
@@ -110,9 +110,11 @@ namespace ImageColorChanger.Core
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
                     
-                    //#if DEBUG
-                    //Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
-                    //#endif
+                    // ✅ 确保最近颜色列表不为 null
+                    
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
+#endif
                 }
                 else
                 {
@@ -357,6 +359,22 @@ namespace ImageColorChanger.Core
                 if (Math.Abs(_config.NavigationPanelWidth - value) > 0.001)
                 {
                     _config.NavigationPanelWidth = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经历史记录区域高度（0表示使用比例布局，>0表示使用固定高度）
+        /// </summary>
+        public double BibleHistoryRowHeight
+        {
+            get => _config.BibleHistoryRowHeight;
+            set
+            {
+                if (Math.Abs(_config.BibleHistoryRowHeight - value) > 0.001)
+                {
+                    _config.BibleHistoryRowHeight = value;
                     SaveConfig();
                 }
             }
@@ -682,6 +700,22 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>
+        /// 合成播放默认时长（秒）
+        /// </summary>
+        public double CompositePlaybackDefaultDuration
+        {
+            get => _config.CompositePlaybackDefaultDuration;
+            set
+            {
+                if (Math.Abs(_config.CompositePlaybackDefaultDuration - value) > 0.001)
+                {
+                    _config.CompositePlaybackDefaultDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         #endregion
 
         #region 颜色预设管理
@@ -800,6 +834,7 @@ namespace ImageColorChanger.Core
             TargetColorName = presetName ?? customName ?? "自定义";
         }
 
+
         #endregion
 
         #region 文件夹颜色管理
@@ -836,7 +871,7 @@ namespace ImageColorChanger.Core
     /// <summary>
     /// 应用程序配置模型
     /// </summary>
-    public class AppConfig
+    public partial class AppConfig
     {
         /// <summary>
         /// 原图显示模式（默认：拉伸）
@@ -889,6 +924,18 @@ namespace ImageColorChanger.Core
         public List<ColorPreset> CustomColorPresets { get; set; } = new List<ColorPreset>();
 
         /// <summary>
+        /// 边框设置面板最近使用颜色（最多6个）
+        /// </summary>
+
+        /// <summary>
+        /// 文本颜色设置面板最近使用颜色（最多6个）
+        /// </summary>
+
+        /// <summary>
+        /// 背景设置面板最近使用颜色（最多6个）
+        /// </summary>
+
+        /// <summary>
         /// 文件夹字号（默认：26）
         /// </summary>
         public double FolderFontSize { get; set; } = 26.0;
@@ -904,6 +951,11 @@ namespace ImageColorChanger.Core
         public double NavigationPanelWidth { get; set; } = 370.0;
 
         /// <summary>
+        /// 圣经历史记录区域高度（默认：0，表示使用比例布局）
+        /// </summary>
+        public double BibleHistoryRowHeight { get; set; } = 0.0;
+
+        /// <summary>
         /// 文件夹标签字号（搜索结果显示，默认：18）
         /// </summary>
         public double FolderTagFontSize { get; set; } = 18.0;
@@ -913,6 +965,81 @@ namespace ImageColorChanger.Core
         /// </summary>
         public double MenuFontSize { get; set; } = 22.0;
 
+        /// <summary>
+        /// 投影动画是否启用（默认：true）
+        /// </summary>
+        public bool ProjectionAnimationEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 投影动画透明度（默认：0.1）
+        /// </summary>
+        public double ProjectionAnimationOpacity { get; set; } = 0.1;
+
+        /// <summary>
+        /// 投影动画时长（毫秒，默认：800）
+        /// </summary>
+        public int ProjectionAnimationDuration { get; set; } = 800;
+    }
+
+    /// <summary>
+    /// ConfigManager 类 - 配置管理器（属性访问器部分）
+    /// </summary>
+    public partial class ConfigManager
+    {
+        /// <summary>
+        /// 投影动画是否启用
+        /// </summary>
+        public bool ProjectionAnimationEnabled
+        {
+            get => _config.ProjectionAnimationEnabled;
+            set
+            {
+                if (_config.ProjectionAnimationEnabled != value)
+                {
+                    _config.ProjectionAnimationEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 投影动画透明度
+        /// </summary>
+        public double ProjectionAnimationOpacity
+        {
+            get => _config.ProjectionAnimationOpacity;
+            set
+            {
+                if (Math.Abs(_config.ProjectionAnimationOpacity - value) > 0.001)
+                {
+                    _config.ProjectionAnimationOpacity = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 投影动画时长（毫秒）
+        /// </summary>
+        public int ProjectionAnimationDuration
+        {
+            get => _config.ProjectionAnimationDuration;
+            set
+            {
+                if (_config.ProjectionAnimationDuration != value)
+                {
+                    _config.ProjectionAnimationDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// AppConfig 类 - 继续定义（其他属性）
+    /// </summary>
+    public partial class AppConfig
+    {
         /// <summary>
         /// 全局默认歌词颜色（默认：#FFFFFF 白色）
         /// </summary>
@@ -1002,6 +1129,11 @@ namespace ImageColorChanger.Core
         /// 是否在退出程序时保存圣经投影记录（默认：false）
         /// </summary>
         public bool SaveBibleHistory { get; set; } = false;
+
+        /// <summary>
+        /// 合成播放默认时长（秒，默认：105）
+        /// </summary>
+        public double CompositePlaybackDefaultDuration { get; set; } = 105.0;
     }
 
     /// <summary>

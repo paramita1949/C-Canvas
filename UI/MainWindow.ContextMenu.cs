@@ -28,6 +28,24 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 圣经导航分隔条拖动完成事件 - 保存历史记录+按钮区域高度
+        /// </summary>
+        private void BibleNavigationSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            if (BibleHistoryAndButtonRow != null)
+            {
+                double newHeight = BibleHistoryAndButtonRow.ActualHeight;
+                if (newHeight > 0)
+                {
+                    _configManager.BibleHistoryRowHeight = newHeight;
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ 圣经历史记录+按钮区域高度已保存: {newHeight}");
+#endif
+                }
+            }
+        }
+
+        /// <summary>
         /// 右键菜单打开事件 - 如果没有图片则阻止显示
         /// </summary>
         private void CanvasContextMenu_Opened(object sender, RoutedEventArgs e)

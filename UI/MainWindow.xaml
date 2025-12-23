@@ -666,13 +666,20 @@
                     <!-- 🆕 圣经导航面板（圣经模式下显示） -->
                     <Grid Grid.Row="1" x:Name="BibleNavigationPanel" Visibility="Collapsed" Background="#2D2D30">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>    <!-- 历史记录 -->
-                            <RowDefinition Height="Auto"/>    <!-- 历史操作按钮 -->
-                            <RowDefinition Height="*"/>       <!-- 经文选择表格 -->
+                            <RowDefinition x:Name="BibleHistoryAndButtonRow" Height="*" MinHeight="150"/>    <!-- 历史记录+按钮（可调整高度，最小150像素） -->
+                            <RowDefinition Height="3"/>       <!-- 分隔条（可拖拽调整） -->
+                            <RowDefinition x:Name="BibleSelectionTableRow" Height="*" MinHeight="180"/>       <!-- 经文选择表格（可调整高度，最小180像素，约显示5个记录） -->
                         </Grid.RowDefinitions>
                         
+                        <!-- 历史记录和按钮容器 -->
+                        <Grid Grid.Row="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>    <!-- 历史记录（占用剩余空间） -->
+                                <RowDefinition Height="Auto"/>    <!-- 历史操作按钮（固定） -->
+                            </Grid.RowDefinitions>
+                        
                         <!-- 历史记录列表（显示1-20号槽位） -->
-                        <ScrollViewer x:Name="BibleHistoryScrollViewer" Grid.Row="0" MaxHeight="330" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
+                        <ScrollViewer x:Name="BibleHistoryScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto" Background="#3C3C3C">
                             <ListBox x:Name="BibleHistoryList" 
                                      Background="Transparent"
                                      BorderThickness="0"
@@ -758,9 +765,9 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </ScrollViewer>
-                        
-                        <!-- 历史操作按钮 -->
-                        <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">
+                            
+                            <!-- 历史操作按钮 -->
+                            <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <Button x:Name="BtnHistorySelectAll" 
                                         Content="全选" 
@@ -796,14 +803,26 @@
                                         Click="BtnBibleSettings_Click"/>
                             </StackPanel>
                         </Border>
+                        </Grid>
+                        
+                        <!-- 分隔条（可拖拽调整历史记录+按钮区域和经文选择表格之间的高度） -->
+                        <GridSplitter x:Name="BibleNavigationSplitter"
+                                     Grid.Row="1" 
+                                     Height="3" 
+                                     HorizontalAlignment="Stretch" 
+                                     Background="#555555" 
+                                     Cursor="SizeNS"
+                                     ResizeDirection="Rows"
+                                     ShowsPreview="False"
+                                     DragCompleted="BibleNavigationSplitter_DragCompleted"/>
                         
                         <!-- 经文选择表格 -->
                         <!-- 5列表格布局：分类 | 书卷 | 章 | 起始节 | 结束节 -->
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="70"/>   <!-- 第1列:分类(4个字宽度) -->
-                                <ColumnDefinition Width="125"/>  <!-- 第2列:书卷 -->
-                                <ColumnDefinition Width="60"/>   <!-- 第3列:章 -->
+                                <ColumnDefinition Width="85"/>   <!-- 第1列:分类(4个字宽度) -->
+                                <ColumnDefinition Width="120"/>  <!-- 第2列:书卷 -->
+                                <ColumnDefinition Width="65"/>   <!-- 第3列:章 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第4列:起始节 -->
                                 <ColumnDefinition Width="60"/>   <!-- 第5列:结束节 -->
                             </Grid.ColumnDefinitions>
@@ -856,7 +875,7 @@
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
                                         <Setter Property="Foreground" Value="White"/>
-                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontSize" Value="12"/>
                                         <Setter Property="Padding" Value="8,6"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
                                         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -1575,8 +1594,9 @@
             </Grid>
 
                 <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
-                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0" 
+                <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0"
                       Focusable="True" PreviewKeyDown="TextEditorPanel_KeyDown"
+                      PreviewMouseDown="TextEditorPanel_PreviewMouseDown"
                       Panel.ZIndex="100">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
@@ -2257,6 +2277,42 @@
                                             </Button.Style>
                                         </Button>
 
+                                        <!-- 动画按钮 -->
+                                        <Button x:Name="BtnFloatingAnimation"
+                                                Width="48" Height="28"
+                                                Margin="2"
+                                                Background="Transparent"
+                                                Foreground="#2196F3"
+                                                BorderThickness="0"
+                                                ToolTip="动画"
+                                                Click="BtnFloatingAnimation_Click"
+                                                Cursor="Hand">
+                                            <TextBlock Text="动画" FontSize="16" FontWeight="Bold"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="border"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="14">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
                                         <!-- 分隔线 -->
                                         <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
 
@@ -2431,7 +2487,7 @@
                             <!-- 🆕 边框设置侧边面板 -->
                             <Popup x:Name="BorderSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2450,7 +2506,7 @@
                             <!-- 🆕 背景设置侧边面板 -->
                             <Popup x:Name="BackgroundSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2466,10 +2522,29 @@
                                 </Border>
                             </Popup>
 
+                            <!-- 🆕 文本颜色设置侧边面板 -->
+                            <Popup x:Name="TextColorSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="True"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="-160"
+                                   VerticalOffset="0"
+                                   IsOpen="False">
+                                <Border Background="White"
+                                        BorderBrush="#E0E0E0"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:TextColorSettingsPanel x:Name="TextColorSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
                             <!-- 🆕 阴影设置侧边面板 -->
                             <Popup x:Name="ShadowSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2488,7 +2563,7 @@
                             <!-- 🆕 间距设置侧边面板 -->
                             <Popup x:Name="SpacingSettingsPopup"
                                    AllowsTransparency="True"
-                                   StaysOpen="False"
+                                   StaysOpen="True"
                                    Placement="Left"
                                    PlacementTarget="{Binding ElementName=SlidePanelBorder}"
                                    HorizontalOffset="-160"
@@ -2501,6 +2576,25 @@
                                         <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
                                     </Border.Effect>
                                     <controls:SpacingSettingsPanel x:Name="SpacingSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
+                            <!-- 🆕 动画设置侧边面板 -->
+                            <Popup x:Name="AnimationSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="True"
+                                   Placement="Left"
+                                   PlacementTarget="{Binding ElementName=SlidePanelBorder}"
+                                   HorizontalOffset="-220"
+                                   VerticalOffset="0"
+                                   IsOpen="False">
+                                <Border Background="#2D2D30"
+                                        BorderBrush="#3F3F46"
+                                        BorderThickness="1,0,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.3" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:AnimationSettingsPanel x:Name="AnimationSettingsPanel"/>
                                 </Border>
                             </Popup>
 
@@ -2774,57 +2868,107 @@
                             MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
-                <!-- 🎬 浮动合成播放按钮（左上角） -->
-                <Button x:Name="BtnFloatingCompositePlay"
-                        Content="🎬 合成播放"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="15,45,0,0"
-                        Padding="15,8"
-                        FontSize="16"
-                        FontWeight="SemiBold"
-                        Background="#2196F3"
-                        Foreground="White"
-                        BorderBrush="#1976D2"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        Panel.ZIndex="300"
-                        Click="BtnCompositePlay_Click"
-                        MouseRightButtonUp="BtnCompositePlay_RightClick"
-                        Opacity="0.75"
-                        Visibility="Collapsed"
-                        ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="border" 
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="20"
-                                                Padding="{TemplateBinding Padding}">
-                                            <Border.Effect>
-                                                <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
-                                            </Border.Effect>
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1976D2"/>
-                                                <Setter Property="Opacity" Value="1.0"/>
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                <!-- 🎬 浮动合成播放按钮组（左上角） -->
+                <StackPanel x:Name="CompositePlaybackPanel"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Margin="15,45,0,0"
+                            Orientation="Vertical"
+                            Panel.ZIndex="300"
+                            Visibility="Collapsed">
+                    <Button x:Name="BtnFloatingCompositePlay"
+                            Content="🎬 合成播放"
+                            Padding="15,8"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Background="#2196F3"
+                            Foreground="White"
+                            BorderBrush="#1976D2"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Opacity="0.75"
+                            Click="BtnCompositePlay_Click"
+                            MouseRightButtonUp="BtnCompositePlay_RightClick"
+                            ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="20"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1976D2"/>
+                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <!-- ⚡ 速度控制按钮（仅在播放时显示） -->
+                    <Button x:Name="BtnCompositeSpeed"
+                            Content="⚡ 1.0x"
+                            Padding="12,6"
+                            Margin="0,8,0,0"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Background="#FF9800"
+                            Foreground="White"
+                            BorderBrush="#F57C00"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Opacity="0.75"
+                            Visibility="Collapsed"
+                            MouseRightButtonUp="BtnCompositeSpeed_RightClick"
+                            ToolTip="右键：选择播放速度">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="20"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#F57C00"/>
+                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#E65100"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Grid>
 

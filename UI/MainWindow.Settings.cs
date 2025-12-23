@@ -36,12 +36,37 @@ namespace ImageColorChanger.UI
                     NavigationPanelColumn.Width = new GridLength(_configManager.NavigationPanelWidth);
                 }
                 
+                // 加载圣经历史记录区域高度（在Window_Loaded中恢复）
+                
                 // 加载菜单栏字号
                 ApplyMenuFontSize(_configManager.MenuFontSize);
+                
+                // 加载投影动画设置
+                LoadProjectionAnimationSettings();
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 加载投影动画设置
+        /// </summary>
+        private void LoadProjectionAnimationSettings()
+        {
+            try
+            {
+                _projectionAnimationEnabled = _configManager.ProjectionAnimationEnabled;
+                _projectionAnimationOpacity = _configManager.ProjectionAnimationOpacity;
+                _projectionAnimationDuration = _configManager.ProjectionAnimationDuration;
+            }
+            catch (Exception)
+            {
+                // 使用默认值
+                _projectionAnimationEnabled = true;   // ✅ 默认启用
+                _projectionAnimationOpacity = 0.1;    // ✅ 默认透明度 0.1
+                _projectionAnimationDuration = 800;    // ✅ 默认动画时长 800ms
             }
         }
 

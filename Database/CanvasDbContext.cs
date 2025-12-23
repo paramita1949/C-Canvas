@@ -435,6 +435,10 @@ namespace ImageColorChanger.Database
                 EnsureLyricsImageIdColumnExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
 
+                // 🆕 检查并添加文本项目的排序字段（兼容旧数据库）
+                EnsureTextProjectSortOrderColumnExists();
+                // System.Diagnostics.Debug.WriteLine($"✅ EnsureTextProjectSortOrderColumnExists() 完成");
+
                 // 🆕 确保默认项目存在
                 EnsureDefaultProjectExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureDefaultProjectExists() 完成");
@@ -626,12 +630,12 @@ namespace ImageColorChanger.Database
 
                     if (result == null)
                     {
-                        // 创建合成播放脚本表（默认TOTAL时长为120秒）
+                        // 创建合成播放脚本表（数据库默认TOTAL时长为105秒，实际使用时从config.json的CompositePlaybackDefaultDuration读取）
                         Database.ExecuteSqlRaw(@"
                             CREATE TABLE composite_scripts (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 image_id INTEGER NOT NULL UNIQUE,
-                                total_duration REAL NOT NULL DEFAULT 120.0,
+                                total_duration REAL NOT NULL DEFAULT 105.0,
                                 auto_calculate INTEGER NOT NULL DEFAULT 0,
                                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -703,6 +707,59 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 image_id 字段失败: {ex.Message}");
+                // 不抛出异常，因为这不是致命错误
+            }
+        }
+
+        /// <summary>
+        /// 确保 text_projects 表中存在 sort_order 字段（兼容旧数据库）
+        /// </summary>
+        private void EnsureTextProjectSortOrderColumnExists()
+        {
+            try
+            {
+                var connection = Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    // 检查字段是否存在
+                    command.CommandText = "PRAGMA table_info(text_projects)";
+                    using (var reader = command.ExecuteReader())
+                    {
+                        bool columnExists = false;
+                        while (reader.Read())
+                        {
+                            if (reader["name"].ToString() == "sort_order")
+                            {
+                                columnExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!columnExists)
+                        {
+                            reader.Close();
+                            
+                            // 添加字段
+                            using (var alterCommand = connection.CreateCommand())
+                            {
+                                alterCommand.CommandText = @"
+                                    ALTER TABLE text_projects 
+                                    ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0";
+                                alterCommand.ExecuteNonQuery();
+                                System.Diagnostics.Debug.WriteLine("✅ 已添加 sort_order 字段到 text_projects 表");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 sort_order 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }

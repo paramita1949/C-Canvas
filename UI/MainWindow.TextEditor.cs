@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,11 @@ namespace ImageColorChanger.UI
         private double _currentCanvasScaleY = 1.0;
 
         // 🔍 PAK字体列表输出标记（仅输出一次）
+
+        // 🎬 投影屏幕动画设置（全局设置，不是针对单个文本框）
+        private bool _projectionAnimationEnabled = true;  // ✅ 默认启用
+        private double _projectionAnimationOpacity = 0.1; // ✅ 默认透明度 0.1
+        private int _projectionAnimationDuration = 800;   // ✅ 默认动画时长 800ms
 
         #endregion
 
@@ -508,11 +514,22 @@ namespace ImageColorChanger.UI
             _textBoxes.Clear();
             _selectedTextBox = null;
             
-            // 清除所有文本框（保留背景图）
+            // 清除所有文本框
             var textBoxesToRemove = EditorCanvas.Children.OfType<DraggableTextBox>().ToList();
             foreach (var textBox in textBoxesToRemove)
             {
                 EditorCanvas.Children.Remove(textBox);
+            }
+
+            // 🎬 清除视频背景 MediaElement
+            var mediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
+            foreach (var media in mediaElements)
+            {
+                media.Stop();
+                EditorCanvas.Children.Remove(media);
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🗑️ [视频背景] 清除 MediaElement");
+#endif
             }
         }
 
@@ -591,13 +608,9 @@ namespace ImageColorChanger.UI
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
                 }
                 
-                // 🔧 获取当前选中的字体（与字体选择器保持一致）
+                // ✅ 创建文本框时始终使用微软雅黑，不应用当前选择的字体
+                // 字体应用必须框选文字才能应用
                 string defaultFontFamily = "Microsoft YaHei UI";
-                if (FontFamilySelector.SelectedItem is ComboBoxItem selectedItem && 
-                    selectedItem.Tag is Core.FontItemData fontData)
-                {
-                    defaultFontFamily = fontData.Config.Name;  // 使用字体名称
-                }
                 
                 // 创建新元素 (关联到当前幻灯片)
                 var newElement = new TextElement
@@ -609,7 +622,7 @@ namespace ImageColorChanger.UI
                     Height = newHeight,
                     Content = "双击编辑",
                     FontSize = 60,  // 默认字号60
-                    FontFamily = defaultFontFamily,  // 🔧 使用当前选中的字体
+                    FontFamily = defaultFontFamily,  // ✅ 始终使用微软雅黑
                     FontColor = "#FFFFFF",  // 默认白色字体
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
@@ -755,7 +768,7 @@ namespace ImageColorChanger.UI
                     {
                         BibleToolbar.IsOpen = false;
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
+//                        //System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
 //#endif
                     }
                 }
@@ -790,14 +803,19 @@ namespace ImageColorChanger.UI
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 单图导入
-            var singleImageItem = new MenuItem { Header = "单图" };
+            var singleImageItem = new MenuItem { Header = "单背景图" };
             singleImageItem.Click += (s, args) => ImportSingleImageAsSlide();
             contextMenu.Items.Add(singleImageItem);
 
             // 多图导入
-            var multiImageItem = new MenuItem { Header = "多图" };
+            var multiImageItem = new MenuItem { Header = "多背景图" };
             multiImageItem.Click += async (s, args) => await ImportMultipleImagesAsSlidesAsync();
             contextMenu.Items.Add(multiImageItem);
+
+            // 视频背景（一级菜单，点击直接导入）
+            var videoBackgroundItem = new MenuItem { Header = "视频背景" };
+            videoBackgroundItem.Click += async (s, args) => await ImportVideoAsSlideAsync();
+            contextMenu.Items.Add(videoBackgroundItem);
 
             // 显示菜单
             contextMenu.PlacementTarget = BtnBackgroundImage;
@@ -998,7 +1016,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+//                //System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
 //#else
                 _ = ex; // 避免未使用警告
 //#endif
@@ -1299,7 +1317,7 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
                         //if (mediaFile != null)
                         //{
-                        //    System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                        //    //System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
                         //}
                         #endif
                         
@@ -1319,11 +1337,11 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine($"   变色标记: {hasColorEffectMark}");
                             //if (isOriginalFolder)
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
+                            //    //System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
                             //}
                             //if (hasColorEffectMark)
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
+                            //    //System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
                             //}
                             #endif
 
@@ -1492,8 +1510,8 @@ namespace ImageColorChanger.UI
                 
                 MarkContentAsModified();
                 
-                // 🆕 自动选中下一个未加载图片的区域
-                AutoSelectNextEmptyRegion();
+                // 🆕 自动切换到下一个区域（无论是否已有图片）
+                AutoSelectNextRegion();
             }
             catch
             {
@@ -1504,38 +1522,21 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 自动选中下一个未加载图片的区域
+        /// 自动切换到下一个区域（无论是否已有图片，都循环切换）
         /// </summary>
-        private void AutoSelectNextEmptyRegion()
+        private void AutoSelectNextRegion()
         {
             if (_splitRegionBorders.Count == 0)
                 return;
-                
-            // 从当前选中区域的下一个开始查找
-            int startIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
-            
-            // 循环查找第一个没有图片的区域
-            for (int i = 0; i < _splitRegionBorders.Count; i++)
-            {
-                int checkIndex = (startIndex + i) % _splitRegionBorders.Count;
-                
-                // 如果该区域没有图片，选中它
-                if (!_regionImages.ContainsKey(checkIndex))
-                {
-                    #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextEmptyRegion] 自动选中区域 {checkIndex}（未加载图片）");
-                    #endif
-                    
-                    SelectRegion(checkIndex);
-                    return;
-                }
-            }
-            
-            // 如果所有区域都有图片了，回到第一个区域
+
+            // 计算下一个区域的索引（直接循环到下一个，不检查是否有图片）
+            int nextIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
+
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"✅ [AutoSelectNextEmptyRegion] 所有区域都已加载图片，回到区域 0");
+            //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextRegion] 自动切换到区域 {nextIndex}");
             #endif
-            SelectRegion(0);
+
+            SelectRegion(nextIndex);
         }
         
         /// <summary>
@@ -1939,7 +1940,7 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
                         //if (mediaFile != null)
                         //{
-                        //    System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                        //    //System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
                         //}
                         #endif
                         
@@ -1958,11 +1959,11 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine($"   变色标记: {shouldApplyColorEffect}");
                             //if (shouldUseStretch)
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
+                            //    //System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
                             //}
                             //if (shouldApplyColorEffect)
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自变色标记文件夹，应用变色效果");
+                            //    //System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自变色标记文件夹，应用变色效果");
                             //}
                             #endif
                         }
@@ -2278,6 +2279,163 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 导入视频作为幻灯片背景
+        /// </summary>
+        private async Task ImportVideoAsSlideAsync()
+        {
+            if (_currentSlide == null)
+            {
+                WpfMessageBox.Show("请先选择一个幻灯片", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // 选择视频文件
+            var dialog = new WpfOpenFileDialog
+            {
+                Filter = "视频文件|*.mp4;*.avi;*.wmv;*.mov;*.mkv",
+                Title = "选择视频背景"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+#if DEBUG
+                var totalTime = System.Diagnostics.Stopwatch.StartNew();
+                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] ===== 开始导入视频背景 =====");
+#endif
+
+                string videoPath = dialog.FileName;
+
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] 文件: {System.IO.Path.GetFileName(videoPath)}");
+                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+#endif
+
+                // 更新当前幻灯片数据
+                _currentSlide.BackgroundImagePath = videoPath;
+                _currentSlide.VideoBackgroundEnabled = true;
+                _currentSlide.VideoLoopEnabled = true;  // 默认开启循环
+                _currentSlide.VideoVolume = 0.0;  // 默认静音
+
+#if DEBUG
+                var dbStartTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+                // 保存到数据库
+                await SaveVideoBackgroundSettingsAsync();
+#if DEBUG
+                dbStartTime.Stop();
+                //System.Diagnostics.Debug.WriteLine($"💾 [视频导入] 数据库保存完成 (耗时: {dbStartTime.ElapsedMilliseconds} ms)");
+#endif
+
+#if DEBUG
+                var loadStartTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+                // 清除旧的背景
+                EditorCanvas.Background = new SolidColorBrush(Colors.Black);
+                var oldMediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
+                foreach (var old in oldMediaElements)
+                {
+                    old.Stop();
+                    old.Close();
+                    EditorCanvas.Children.Remove(old);
+                }
+
+                // 创建 MediaElement
+                var mediaElement = new MediaElement
+                {
+                    Source = new Uri(videoPath, UriKind.Absolute),
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Manual,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                    Volume = 0.0,  // 默认静音
+                    ScrubbingEnabled = true,
+                    // 🚀 启用 GPU 硬件加速缓存
+                    CacheMode = new BitmapCache
+                    {
+                        EnableClearType = false,  // 视频不需要ClearType
+                        RenderAtScale = 1.0,      // 1080p适配，减少GPU内存占用
+                        SnapsToDevicePixels = true
+                    }
+                };
+                
+                // 🚀 设置 GPU 渲染优化
+                RenderOptions.SetBitmapScalingMode(mediaElement, BitmapScalingMode.LowQuality);  // 优先性能而非质量
+                RenderOptions.SetCachingHint(mediaElement, CachingHint.Cache);  // 强制启用缓存
+                
+#if DEBUG
+                //var cache = mediaElement.CacheMode as BitmapCache;
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapCache 已启用: RenderAtScale={cache?.RenderAtScale ?? 0}");
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] CachingHint: {RenderOptions.GetCachingHint(mediaElement)}");
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(mediaElement)}");
+#endif
+
+                // 设置循环播放
+                UpdateVideoLoopBehavior(mediaElement, true);
+
+                // 添加到 Canvas
+                EditorCanvas.Children.Insert(0, mediaElement);
+
+                // 自动播放
+                mediaElement.Play();
+
+#if DEBUG
+                loadStartTime.Stop();
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频导入] 视频加载到编辑器完成 (耗时: {loadStartTime.ElapsedMilliseconds} ms)");
+#endif
+
+                // 更新投影
+                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
+                {
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔄 [视频导入] 开始更新投影...");
+                    var projStartTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+                    await Task.Delay(100); // 等待视频加载
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        UpdateProjectionFromCanvas();
+                    }, System.Windows.Threading.DispatcherPriority.Render);
+#if DEBUG
+                    projStartTime.Stop();
+                    //System.Diagnostics.Debug.WriteLine($"✅ [视频导入] 投影更新完成 (耗时: {projStartTime.ElapsedMilliseconds} ms)");
+#endif
+                }
+
+                ShowStatus($"已设置视频背景: {System.IO.Path.GetFileName(videoPath)}");
+
+#if DEBUG
+                totalTime.Stop();
+                //System.Diagnostics.Debug.WriteLine($"✅ [视频导入] 已设置视频背景");
+                //System.Diagnostics.Debug.WriteLine($"   - 循环播放: 开启");
+                //System.Diagnostics.Debug.WriteLine($"   - 音量: 0% (静音)");
+                //System.Diagnostics.Debug.WriteLine($"   - 自动播放: 是");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [视频导入] 总耗时: {totalTime.ElapsedMilliseconds} ms");
+                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] ===== 导入完成 =====\n");
+#endif
+            }
+            catch (Exception
+#if DEBUG
+            ex
+#endif
+            )
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [视频导入] 失败: {ex.Message}");
+                WpfMessageBox.Show($"设置视频背景失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+#else
+                WpfMessageBox.Show("设置视频背景失败，请检查视频文件是否有效", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+#endif
+            }
+        }
+
+        /// <summary>
         /// 导入背景图片（原有方法，保持兼容）
         /// </summary>
         private async void BtnLoadBackgroundImage_Click(object sender, RoutedEventArgs e)
@@ -2370,8 +2528,20 @@ namespace ImageColorChanger.UI
                 Color = System.Drawing.Color.White
             };
 
+            // 如果当前幻灯片有背景色，设置为初始颜色
+            if (!string.IsNullOrEmpty(_currentSlide.BackgroundColor))
+            {
+                try
+                {
+                    var wpfColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_currentSlide.BackgroundColor);
+                    colorDialog.Color = System.Drawing.Color.FromArgb(wpfColor.A, wpfColor.R, wpfColor.G, wpfColor.B);
+                }
+                catch { }
+            }
+
             if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
+                
                 try
                 {
                     // 转换为WPF颜色
@@ -2483,6 +2653,7 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 字体选择改变
+        /// ✅ 字体应用必须框选文字才能应用，创建文本框时默认都是微软雅黑
         /// </summary>
         private void FontFamily_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -2493,19 +2664,24 @@ namespace ImageColorChanger.UI
             var selectedItem = FontFamilySelector.SelectedItem as ComboBoxItem;
             if (selectedItem != null && selectedItem.Tag is Core.FontItemData fontData)
             {
-                // ✅ 简化逻辑：只允许选中文字后修改字体
+                // ✅ 字体应用必须框选文字才能应用
                 if (_selectedTextBox.HasTextSelection())
                 {
                     // 有选中文本 → 局部生效（使用 WPF 原生 API，传递 FontFamily 对象）
                     _selectedTextBox.ApplyStyleToSelection(fontFamilyObj: fontData.FontFamily);
                     MarkContentAsModified();
 
-                    //System.Diagnostics.Debug.WriteLine($"✅ 字体已更改: {fontData.Config.Name}");
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ 字体已应用到选中文字: {fontData.Config.Name}");
+#endif
                 }
                 else
                 {
                     // 无选中文本 → 不执行任何操作
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效");
+                    // 字体选择器的改变不会应用到文本框，只有框选文字后才能应用
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未选中文字，字体修改无效。字体应用必须框选文字才能应用。");
+#endif
                 }
             }
         }
@@ -2720,14 +2896,17 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("BorderSettingsPopup");
 
             // 绑定目标文本框
             BorderSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示边框设置面板
             BorderSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2738,14 +2917,17 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("BackgroundSettingsPopup");
 
             // 绑定目标文本框
             BackgroundSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示背景设置面板
             BackgroundSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2753,17 +2935,31 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnFloatingShadow_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedTextBox == null)
-                return;
+            //System.Diagnostics.Debug.WriteLine($"🔘 [BtnFloatingShadow_Click] 开始处理阴影按钮点击");
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            if (_selectedTextBox == null)
+            {
+                //System.Diagnostics.Debug.WriteLine($"   - ❌ _selectedTextBox 为 null，返回");
+                return;
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"   - 🔄 关闭其他侧边面板（不包含阴影面板）");
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("ShadowSettingsPopup");
 
             // 绑定目标文本框
+            //System.Diagnostics.Debug.WriteLine($"   - 🔗 绑定目标文本框");
             ShadowSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示阴影设置面板
+            //System.Diagnostics.Debug.WriteLine($"   - 📋 显示阴影设置面板");
             ShadowSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            //System.Diagnostics.Debug.WriteLine($"   - 🎯 设置 e.Handled = true");
+            e.Handled = true;
+
+            //System.Diagnostics.Debug.WriteLine($"🔘 [BtnFloatingShadow_Click] 处理完成");
         }
 
         /// <summary>
@@ -2774,14 +2970,90 @@ namespace ImageColorChanger.UI
             if (_selectedTextBox == null)
                 return;
 
-            // 关闭其他侧边面板
-            CloseAllSidePanels();
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("SpacingSettingsPopup");
 
             // 绑定目标文本框
             SpacingSettingsPanel.BindTarget(_selectedTextBox);
 
             // 显示间距设置面板
             SpacingSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 动画按钮 - 显示动画设置面板
+        /// </summary>
+        private void BtnFloatingAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedTextBox == null)
+                return;
+
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("AnimationSettingsPopup");
+
+            // 绑定目标文本框（虽然动画设置是针对投影屏幕的，但需要绑定以显示面板）
+            AnimationSettingsPanel.BindTarget(_selectedTextBox);
+
+            // 订阅动画设置改变事件
+            AnimationSettingsPanel.AnimationSettingsChanged -= AnimationSettingsPanel_AnimationSettingsChanged;
+            AnimationSettingsPanel.AnimationSettingsChanged += AnimationSettingsPanel_AnimationSettingsChanged;
+
+            // 加载当前全局动画设置到面板
+            LoadAnimationSettingsToPanel();
+
+            // 显示动画设置面板
+            AnimationSettingsPopup.IsOpen = true;
+
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 加载当前全局动画设置到面板
+        /// </summary>
+        private void LoadAnimationSettingsToPanel()
+        {
+            // 从全局设置更新面板显示
+            AnimationSettingsPanel.SetAnimationSettings(
+                _projectionAnimationEnabled,
+                _projectionAnimationOpacity,
+                _projectionAnimationDuration
+            );
+        }
+
+        /// <summary>
+        /// 动画设置改变事件处理
+        /// </summary>
+        private void AnimationSettingsPanel_AnimationSettingsChanged(object sender, EventArgs e)
+        {
+            // 从面板获取最新设置并更新全局设置
+            var (enabled, opacity, duration) = AnimationSettingsPanel.GetAnimationSettings();
+            _projectionAnimationEnabled = enabled;
+            _projectionAnimationOpacity = opacity;
+            _projectionAnimationDuration = duration;
+            
+            // 保存到配置文件
+            SaveProjectionAnimationSettings();
+        }
+
+        /// <summary>
+        /// 保存投影动画设置
+        /// </summary>
+        private void SaveProjectionAnimationSettings()
+        {
+            try
+            {
+                _configManager.ProjectionAnimationEnabled = _projectionAnimationEnabled;
+                _configManager.ProjectionAnimationOpacity = _projectionAnimationOpacity;
+                _configManager.ProjectionAnimationDuration = _projectionAnimationDuration;
+            }
+            catch (Exception)
+            {
+                // 保存失败时静默处理
+            }
         }
 
         /// <summary>
@@ -2809,12 +3081,131 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CloseAllSidePanels()
         {
+            // 添加调用栈信息来追踪调用来源
+            var stackTrace = new System.Diagnostics.StackTrace();
+            var callingMethod = stackTrace.GetFrame(1)?.GetMethod()?.Name ?? "Unknown";
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseAllSidePanels] 开始关闭所有侧边面板");
+            //System.Diagnostics.Debug.WriteLine($"   - 调用来源: {callingMethod}");
+            //System.Diagnostics.Debug.WriteLine($"   - BorderSettingsPopup.IsOpen: {BorderSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - BackgroundSettingsPopup.IsOpen: {BackgroundSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - TextColorSettingsPopup.IsOpen: {TextColorSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - ShadowSettingsPopup.IsOpen: {ShadowSettingsPopup.IsOpen}");
+            //System.Diagnostics.Debug.WriteLine($"   - SpacingSettingsPopup.IsOpen: {SpacingSettingsPopup.IsOpen}");
+
             BorderSettingsPopup.IsOpen = false;
             BackgroundSettingsPopup.IsOpen = false;
+            TextColorSettingsPopup.IsOpen = false;
             ShadowSettingsPopup.IsOpen = false;
             SpacingSettingsPopup.IsOpen = false;
+            AnimationSettingsPopup.IsOpen = false;
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseAllSidePanels] 所有面板已关闭");
         }
 
+        /// <summary>
+        /// 关闭其他侧边面板（保留指定的面板）
+        /// </summary>
+        private void CloseOtherSidePanels(string keepPopupName)
+        {
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseOtherSidePanels] 关闭其他面板，保留: {keepPopupName}");
+
+            if (keepPopupName != "BorderSettingsPopup")
+            {
+                BorderSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "BackgroundSettingsPopup")
+            {
+                BackgroundSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "TextColorSettingsPopup")
+            {
+                TextColorSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "ShadowSettingsPopup")
+            {
+                ShadowSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "SpacingSettingsPopup")
+            {
+                SpacingSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "AnimationSettingsPopup")
+            {
+                AnimationSettingsPopup.IsOpen = false;
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"🚪 [CloseOtherSidePanels] 其他面板已关闭");
+        }
+
+        
+        
+        /// <summary>
+        /// 取消所有文本框的选中状态
+        /// </summary>
+        public void DeselectAllTextBoxes()
+        {
+            DeselectAllTextBoxes(false);
+        }
+
+        /// <summary>
+        /// 取消所有文本框的选中状态（可选择是否关闭面板）
+        /// </summary>
+        /// <param name="closePanels">是否关闭所有侧边面板</param>
+        public void DeselectAllTextBoxes(bool closePanels)
+        {
+            foreach (var textBox in _textBoxes)
+            {
+                // 如果文本框在编辑模式，先退出编辑模式
+                if (textBox.IsInEditMode)
+                {
+                    textBox.ExitEditMode();
+                }
+                textBox.SetSelected(false);
+            }
+            _selectedTextBox = null;
+
+            // 根据参数决定是否关闭侧边面板
+            if (closePanels)
+            {
+                // 关闭所有侧边面板
+                CloseAllSidePanels();
+            }
+
+            // 清除焦点
+            Keyboard.ClearFocus();
+            EditorCanvas.Focus();
+        }
+
+        /// <summary>
+        /// 检查是否有选中的文本框
+        /// </summary>
+        /// <returns>是否有选中的文本框</returns>
+        public bool HasSelectedTextBox()
+        {
+            return _selectedTextBox != null;
+        }
+
+        /// <summary>
+        /// 主窗口键盘事件 - 处理ESC键
+        /// 注意：ESC键现在主要由全局ShortcutActionHandler统一处理
+        /// </summary>
+        protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
+        {
+            //System.Diagnostics.Debug.WriteLine($"🔑 [OnKeyDown] 按键: {e.Key}, Handled: {e.Handled}");
+
+            if (e.Key == Key.Escape)
+            {
+                //System.Diagnostics.Debug.WriteLine($"🔑 [ESC] 主窗口检测到ESC键，交由全局处理器处理");
+                // ESC键现在由全局ShortcutActionHandler统一处理，这里不再重复处理
+                // 这样确保了所有ESC键处理逻辑的一致性
+            }
+
+            base.OnKeyDown(e);
+        }
+
+        
+        
         /// <summary>
         /// 侧边面板打开事件
         /// </summary>
@@ -2832,33 +3223,24 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 文字颜色按钮
+        /// 文字颜色按钮 - 打开文本颜色设置面板
         /// </summary>
         private void BtnTextColor_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedTextBox == null)
                 return;
 
-            // 保存当前选中的文本框引用（对话框可能导致 _selectedTextBox 被清空）
-            var targetTextBox = _selectedTextBox;
+            // 关闭其他侧边面板，但不包含当前要打开的面板
+            CloseOtherSidePanels("TextColorSettingsPopup");
 
-            // 简化版颜色选择器（使用对话框）
-            var dialog = new System.Windows.Forms.ColorDialog
-            {
-                Color = System.Drawing.ColorTranslator.FromHtml(_currentTextColor)
-            };
+            // 绑定目标文本框
+            TextColorSettingsPanel.BindTarget(_selectedTextBox);
 
-            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                _currentTextColor = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+            // 显示文本颜色设置面板
+            TextColorSettingsPopup.IsOpen = true;
 
-                // ✅ 简化逻辑：只允许选中文字后修改颜色
-                if (targetTextBox.HasTextSelection())
-                {
-                    targetTextBox.ApplyStyleToSelection(color: _currentTextColor);
-                    MarkContentAsModified();
-                }
-            }
+            // 设置焦点防止关闭 Popup
+            e.Handled = true;
         }
 
         /// <summary>
@@ -2998,26 +3380,26 @@ namespace ImageColorChanger.UI
             try
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
 //
 //                // 打印每个文本框的样式信息
 //                foreach (var tb in _textBoxes)
 //                {
-//                    System.Diagnostics.Debug.WriteLine($"  📦 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
+//                    //System.Diagnostics.Debug.WriteLine($"  📦 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
 //                }
 //#endif
 
                 // 批量更新所有元素
                 await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
 //#endif
 
                 // 🔧 同步 FlowDocument 到 RichTextSpans 表（支持局部样式持久化）
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始同步 FlowDocument 到 RichTextSpans");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始同步 FlowDocument 到 RichTextSpans");
 //#endif
                 foreach (var tb in _textBoxes)
                 {
@@ -3025,11 +3407,11 @@ namespace ImageColorChanger.UI
                     if (richTextSpans != null && richTextSpans.Count > 0)
                     {
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 提取了 {richTextSpans.Count} 个片段，准备保存到数据库");
+//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 提取了 {richTextSpans.Count} 个片段，准备保存到数据库");
 //#endif
                         await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 已保存到数据库");
+//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 已保存到数据库");
 //#endif
                     }
                     else
@@ -3037,12 +3419,12 @@ namespace ImageColorChanger.UI
                         // 如果没有富文本片段，清除旧的片段（用户可能删除了所有局部样式）
                         await _textProjectManager.DeleteRichTextSpansByElementIdAsync(tb.Data.Id);
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 清除了富文本片段（无局部样式）");
+//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 清除了富文本片段（无局部样式）");
 //#endif
                     }
                 }
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"💾 [文字保存] FlowDocument 同步完成");
+//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] FlowDocument 同步完成");
 //#endif
 
                 // 🆕 保存分割区域配置（单画面/分割模式的图片）
@@ -3068,22 +3450,22 @@ namespace ImageColorChanger.UI
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
+//                    //System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
 //#endif
                     UpdateProjectionFromCanvas();
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 已调用 UpdateProjectionFromCanvas");
+//                    //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 已调用 UpdateProjectionFromCanvas");
 //#endif
                 }
                 else
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新 (IsProjectionActive={_projectionManager.IsProjectionActive}, IsLocked={_isProjectionLocked})");
+//                    //System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新 (IsProjectionActive={_projectionManager.IsProjectionActive}, IsLocked={_isProjectionLocked})");
 //#endif
                 }
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
+//                //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
 //#endif
             }
             catch (Exception ex)
@@ -3112,44 +3494,41 @@ namespace ImageColorChanger.UI
         #region 画布事件
 
         /// <summary>
-        /// 画布点击（取消选中和退出编辑状态）
+        /// 画布点击（处理编辑区域内的空白点击）
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.OriginalSource == EditorCanvas)
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
+
+            // 这个事件只有在EditorCanvas区域内点击时才会触发
+            // 所以只要不是点击在文本框内，就取消选中
+            bool clickedOnTextBox = false;
+
+            // 检查是否点击在任意文本框内
+            foreach (var textBox in _textBoxes)
             {
-                // 🔧 优化：先检查是否有正在编辑的文本框，如果有则退出编辑状态
-                bool hasEditingTextBox = false;
-                foreach (var textBox in _textBoxes)
+                var position = e.GetPosition(textBox);
+                //System.Diagnostics.Debug.WriteLine($"   - 检查文本框 {textBox.Name}，位置: ({position.X:F1}, {position.Y:F1})");
+
+                if (position.X >= 0 && position.Y >= 0 &&
+                    position.X <= textBox.ActualWidth &&
+                    position.Y <= textBox.ActualHeight)
                 {
-                    if (textBox.IsSelected && textBox.IsInEditMode)
-                    {
-                        // 使用新的ExitEditMode方法退出编辑状态
-                        textBox.ExitEditMode();
-                        hasEditingTextBox = true;
-                        //System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：退出文本编辑状态");
-                    }
-                }
-                
-                // 如果没有正在编辑的文本框，则取消所有选中状态
-                if (!hasEditingTextBox)
-                {
-                    // 取消所有文本框的选中状态
-                    foreach (var textBox in _textBoxes)
-                    {
-                        textBox.SetSelected(false);
-                    }
-                    _selectedTextBox = null;
-                    
-                    // 清除焦点
-                    Keyboard.ClearFocus();
-                    EditorCanvas.Focus();
-                    
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("🖱️ 点击画布：取消所有选中状态");
-//#endif
+                    clickedOnTextBox = true;
+                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，保持选中状态");
+                    break;
                 }
             }
+
+            // 如果点击在编辑区域内但没有点击在文本框内，则取消所有文本框选中状态
+            if (!clickedOnTextBox)
+            {
+                //System.Diagnostics.Debug.WriteLine($"   - ❌ 点击在编辑区域空白位置，取消所有文本框选中状态");
+                DeselectAllTextBoxes(true); // 关闭侧边面板（点击空白区域时关闭）
+            }
+
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 处理完成");
         }
         
         /// <summary>
@@ -3196,21 +3575,21 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //else
                         //{
-                        //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 区域没有图片");
+                        //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 区域没有图片");
                         //}
                         //#endif
                     }
                     //#if DEBUG
                     //else
                     //{
-                    //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 没有选中区域");
+                    //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 没有选中区域");
                     //}
                     //#endif
                 }
                 //#if DEBUG
                 //else
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 不在分割模式");
+                //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 不在分割模式");
                 //}
                 //#endif
             }
@@ -3346,7 +3725,7 @@ namespace ImageColorChanger.UI
 
             // 更新字体选择器
             var fontFamily = _selectedTextBox.Data.FontFamily;
-            // System.Diagnostics.Debug.WriteLine($"🔍 同步字体选择器: {fontFamily}");
+            // //System.Diagnostics.Debug.WriteLine($"🔍 同步字体选择器: {fontFamily}");
             
             for (int i = 0; i < FontFamilySelector.Items.Count; i++)
             {
@@ -3517,68 +3896,281 @@ namespace ImageColorChanger.UI
             _lastCanvasCacheKey = "";
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🗑️ [缓存] Canvas渲染缓存已清除");
+            //System.Diagnostics.Debug.WriteLine($"🗑️ [缓存] Canvas渲染缓存已清除");
             #endif
         }
         
         /// <summary>
         /// 🆕 从Canvas更新投影（核心投影功能）
         /// 🚀 优化：添加缓存机制和节流控制
+        /// 🎬 新增：支持视频背景的 VisualBrush 镜像投影
+        /// 🎨 新增：添加淡入淡出过渡动画
         /// </summary>
         private void UpdateProjectionFromCanvas()
         {
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 开始更新投影 =====");
-//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 文本框数量: {_textBoxes.Count}");
-//
-//            // 打印每个文本框的样式信息
-//            foreach (var tb in _textBoxes)
-//            {
-//                System.Diagnostics.Debug.WriteLine($"  📦 [更新投影] 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
-//            }
-//#endif
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] ===== 开始更新投影 =====");
+            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+            //System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 文本框数量: {_textBoxes.Count}");
+            //System.Diagnostics.Debug.WriteLine($"🎬 [更新投影] 视频背景: {(_currentSlide?.VideoBackgroundEnabled == true ? "已启用" : "未启用")}");
+#endif
 
             if (!_projectionManager.IsProjectionActive)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⚠️ [更新投影] 投影未开启，无法更新投影内容");
+                //System.Diagnostics.Debug.WriteLine("⚠️ [更新投影] 投影未开启，无法更新投影内容");
 #endif
                 WpfMessageBox.Show("请先开启投影！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // 🚀 优化1：渲染节流 - 避免过于频繁的更新
+            // 🎨 投影屏幕淡入淡出动画
+            FadeOutAndUpdateProjection();
+        }
+
+        /// <summary>
+        /// 投影屏幕淡出并更新（根据动画设置决定是否使用动画）
+        /// </summary>
+        private void FadeOutAndUpdateProjection()
+        {
+            if (!_projectionManager.IsProjectionActive)
+                return;
+
+            // 如果动画未启用，直接更新（无动画）
+            if (!_projectionAnimationEnabled)
+            {
+                UpdateProjectionContent();
+                return;
+            }
+
+            // 获取投影窗口的容器（用于动画）
+            var projectionContainer = _projectionManager.GetProjectionContainer();
+            if (projectionContainer == null)
+            {
+                // 如果无法获取容器，直接更新（无动画）
+                UpdateProjectionContent();
+                return;
+            }
+
+            // 淡入淡出动画
+            DoubleAnimation fadeOutAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = _projectionAnimationOpacity,
+                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡出时间占一半
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 淡出完成后更新内容并淡入
+            fadeOutAnimation.Completed += (s, e) =>
+            {
+                // 更新投影内容
+                UpdateProjectionContent();
+                
+                // 淡入新内容
+                FadeInProjection(projectionContainer);
+            };
+
+            // 开始淡出动画
+            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+        }
+
+        /// <summary>
+        /// 更新投影内容（实际更新逻辑）
+        /// </summary>
+        private void UpdateProjectionContent()
+        {
+            // 🎬 检查是否有视频背景
+            bool hasVideoBackground = _currentSlide?.VideoBackgroundEnabled == true 
+                                     && !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath);
+            
+            if (_isProjectionLocked)
+            {
+                // 🔒 锁定模式：使用独立的 MediaElement
+                if (hasVideoBackground)
+                {
+                    // 主屏幕有视频：更新投影的独立 MediaElement
+                    var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    _projectionManager.UpdateProjectionWithLockedVideo(
+                        _currentSlide.BackgroundImagePath,
+                        _currentSlide.VideoLoopEnabled,
+                        textLayer);
+                }
+                else
+                {
+                    // 主屏幕没有视频：清理投影的独立 MediaElement，使用静态背景模式
+                    _projectionManager.ClearLockedVideo();
+                    UpdateProjectionWithStaticBackground();
+                }
+            }
+            else
+            {
+                // 🔓 未锁定模式：使用 VisualBrush（镜像主屏幕）
+                if (hasVideoBackground)
+                {
+                    // 🎬 视频背景模式：使用 VisualBrush 镜像投影
+                    UpdateProjectionWithVideoBackground();
+                }
+                else
+                {
+                    // 📷 普通模式：使用 SkiaSharp 渲染投影
+                    UpdateProjectionWithStaticBackground();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 投影屏幕淡入动画
+        /// </summary>
+        private void FadeInProjection(UIElement projectionContainer)
+        {
+            if (projectionContainer == null)
+                return;
+
+            // 如果动画未启用，直接显示（无动画）
+            if (!_projectionAnimationEnabled)
+            {
+                projectionContainer.Opacity = 1.0;
+                // 清除之前的动画
+                projectionContainer.BeginAnimation(UIElement.OpacityProperty, null);
+                return;
+            }
+
+            // 设置初始透明度为设置的透明度值（淡入效果）
+            projectionContainer.Opacity = _projectionAnimationOpacity;
+
+            // 创建淡入动画
+            DoubleAnimation fadeInAnimation = new DoubleAnimation
+            {
+                From = _projectionAnimationOpacity,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡入时间占一半
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            // 开始动画
+            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
+        }
+
+        /// <summary>
+        /// 🎬 使用 VisualBrush 更新视频背景投影
+        /// </summary>
+        private void UpdateProjectionWithVideoBackground()
+        {
+#if DEBUG
+            var startTime = System.Diagnostics.Stopwatch.StartNew();
+            //System.Diagnostics.Debug.WriteLine($"🎬 [视频投影] ===== 开始更新视频投影 =====");
+            //System.Diagnostics.Debug.WriteLine($"🎬 [视频投影] 使用 VisualBrush 镜像模式");
+#endif
+
+            // 🔍 查找编辑器 Canvas 中的 MediaElement
+            var editorMedia = EditorCanvas.Children.OfType<MediaElement>().FirstOrDefault();
+            if (editorMedia == null)
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚠️ [视频投影] 未找到编辑器中的 MediaElement，回退到静态模式");
+#endif
+                UpdateProjectionWithStaticBackground();
+                return;
+            }
+
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔍 [视频投影] 找到 MediaElement: {editorMedia.Source}");
+            //System.Diagnostics.Debug.WriteLine($"🔍 [视频投影] MediaElement 状态: Position={editorMedia.Position}, NaturalDuration={editorMedia.NaturalDuration}");
+#endif
+
+            // 🎨 创建 VisualBrush 镜像
+            var visualBrush = new VisualBrush(editorMedia)
+            {
+                Stretch = Stretch.UniformToFill,
+                AlignmentX = AlignmentX.Center,
+                AlignmentY = AlignmentY.Center
+            };
+            
+            // 🔧 设置 VisualBrush 的缓存模式为 BitmapCache 以提高性能
+            // 注意：BitmapCache 可能导致视频不更新，所以只在需要时启用
+            // visualBrush.Visual.CacheMode = new BitmapCache();
+
+#if DEBUG
+            var brushTime = startTime.ElapsedMilliseconds;
+            //System.Diagnostics.Debug.WriteLine($"✅ [视频投影] 已创建 VisualBrush (耗时: {brushTime} ms)");
+            //System.Diagnostics.Debug.WriteLine($"🔍 [视频投影] VisualBrush.Visual: {visualBrush.Visual?.GetType().Name}");
+            //System.Diagnostics.Debug.WriteLine($"🔍 [视频投影] MediaElement.IsLoaded: {editorMedia.IsLoaded}, IsVisible: {editorMedia.IsVisible}");
+#endif
+
+            // 📐 获取投影窗口尺寸
+            var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📐 [视频投影] 投影窗口尺寸: {projWidth}x{projHeight}");
+#endif
+
+            // 🎨 渲染文本层（透明背景）
+#if DEBUG
+            var textLayerStartTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+            var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+#if DEBUG
+            textLayerStartTime.Stop();
+            //System.Diagnostics.Debug.WriteLine($"🎨 [视频投影] 文本层渲染完成 (耗时: {textLayerStartTime.ElapsedMilliseconds} ms)");
+#endif
+
+            // 🚀 更新投影（传递 VisualBrush 和文本层）
+#if DEBUG
+            var updateStartTime = System.Diagnostics.Stopwatch.StartNew();
+#endif
+            _projectionManager.UpdateProjectionWithVideo(visualBrush, textLayer);
+#if DEBUG
+            updateStartTime.Stop();
+            //System.Diagnostics.Debug.WriteLine($"🚀 [视频投影] ProjectionManager.UpdateProjectionWithVideo 完成 (耗时: {updateStartTime.ElapsedMilliseconds} ms)");
+#endif
+
+#if DEBUG
+            startTime.Stop();
+            //System.Diagnostics.Debug.WriteLine($"✅ [视频投影] 投影已更新");
+            //System.Diagnostics.Debug.WriteLine($"⏱️ [视频投影] 总耗时: {startTime.ElapsedMilliseconds} ms");
+            //System.Diagnostics.Debug.WriteLine($"🎬 [视频投影] ===== 更新完成 =====\n");
+#endif
+        }
+
+        /// <summary>
+        /// 📷 使用 SkiaSharp 更新静态背景投影（原有逻辑）
+        /// </summary>
+        private void UpdateProjectionWithStaticBackground()
+        {
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📷 [静态投影] 使用 SkiaSharp 渲染模式");
+#endif
+
+            // 🚀 渲染节流 - 避免过于频繁的更新
             var now = DateTime.Now;
             if ((now - _lastCanvasUpdateTime).TotalMilliseconds < CanvasUpdateThrottleMs)
             {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 节流跳过 (距上次 {(now - _lastCanvasUpdateTime).TotalMilliseconds:F0}ms)");
-                //#endif
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚡ [静态投影] 节流跳过 (距上次 {(now - _lastCanvasUpdateTime).TotalMilliseconds:F0}ms)");
+#endif
                 return;
             }
             _lastCanvasUpdateTime = now;
             
-            // 🚀 优化2：缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
+            // 🚀 缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
             string cacheKey = GenerateCanvasCacheKey();
-//#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 当前缓存键: {cacheKey.Substring(0, Math.Min(200, cacheKey.Length))}...");
-//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 上次缓存键: {(_lastCanvasCacheKey ?? "null").Substring(0, Math.Min(200, (_lastCanvasCacheKey ?? "null").Length))}...");
-//            System.Diagnostics.Debug.WriteLine($"🔑 [更新投影-缓存] 缓存键相同: {cacheKey == _lastCanvasCacheKey}, 缓存存在: {_lastCanvasRenderCache != null}");
-//#endif
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔑 [静态投影-缓存] 缓存键相同: {cacheKey == _lastCanvasCacheKey}, 缓存存在: {_lastCanvasRenderCache != null}");
+#endif
             if (cacheKey == _lastCanvasCacheKey && _lastCanvasRenderCache != null)
             {
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"⚡ [更新投影] 缓存命中，直接复用旧渲染结果");
-//#endif
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"⚡ [静态投影] 缓存命中，直接复用旧渲染结果");
+#endif
                 _projectionManager.UpdateProjectionText(_lastCanvasRenderCache);
                 return;
             }
 
-//#if DEBUG
-//            var totalSw = System.Diagnostics.Stopwatch.StartNew();
-//            System.Diagnostics.Debug.WriteLine($"🎨 [更新投影] 缓存未命中，开始完整渲染");
-//#endif
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [静态投影] 缓存未命中，开始完整渲染");
+#endif
 
             // 🔧 保存辅助线的可见性状态
             var guidesVisibility = AlignmentGuidesCanvas.Visibility;
@@ -3637,15 +4229,14 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] UpdateProjectionText: {updateSw.ElapsedMilliseconds}ms");
                 //#endif
 
-                // 🚀 优化3：保存渲染结果到缓存
+                // 🚀 保存渲染结果到缓存
                 _lastCanvasRenderCache?.Dispose(); // 释放旧缓存
                 _lastCanvasRenderCache = finalImage;
                 _lastCanvasCacheKey = cacheKey;
 
-                //#if DEBUG
-                //totalSw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"✅ [性能] 总耗时: {totalSw.ElapsedMilliseconds}ms");
-                //#endif
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [静态投影] 渲染完成");
+#endif
             }
             catch (Exception ex)
             {
@@ -3680,10 +4271,12 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 使用SkiaSharp直接合成Canvas内容（跳过WPF的RenderTargetBitmap）
         /// 🚀 核心优化：直接访问Image控件的Source，避免WPF渲染管道
+        /// 🎬 新增：支持透明背景（用于视频背景的文本层）
         /// </summary>
         /// <param name="targetWidth">目标宽度（0表示使用Canvas实际宽度）</param>
         /// <param name="targetHeight">目标高度（0表示使用Canvas实际高度）</param>
-        private SKBitmap ComposeCanvasWithSkia(int targetWidth = 0, int targetHeight = 0)
+        /// <param name="transparentBackground">是否使用透明背景（true=透明，false=使用幻灯片背景色）</param>
+        private SKBitmap ComposeCanvasWithSkia(int targetWidth = 0, int targetHeight = 0, bool transparentBackground = false)
         {
             // 编辑器画布的实际尺寸（用于计算缩放比例）
             double canvasWidth = EditorCanvas.ActualWidth;
@@ -3702,36 +4295,74 @@ namespace ImageColorChanger.UI
             _currentCanvasScaleY = scaleY;
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"📐 [画布缩放] 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
+//            //System.Diagnostics.Debug.WriteLine($"📐 [画布缩放] 原始={canvasWidth}×{canvasHeight}, 目标={targetWidth}×{targetHeight}, 缩放={scaleX:F2}×{scaleY:F2}");
 //#endif
 
-            // 创建SkiaSharp画布（使用目标尺寸）
-            var bitmap = new SKBitmap(targetWidth, targetHeight);
-            using (var canvas = new SKCanvas(bitmap))
+            // 🎮 优先使用GPU表面，如果GPU不可用则降级到CPU
+            SKBitmap bitmap = null;
+            SKCanvas canvas = null;
+            SKSurface surface = null;
+            
+            try
             {
-                // 🎨 使用幻灯片设置的背景色
-                SKColor backgroundColor = SKColors.Black; // 默认黑色
-                if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundColor))
+                // 尝试创建GPU表面
+                var gpuContext = Core.GPUContext.Instance;
+                if (gpuContext.IsGpuAvailable && gpuContext.GetContext() != null)
                 {
-                    try
+                    var grContext = gpuContext.GetContext();
+                    var info = new SKImageInfo(targetWidth, targetHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    surface = SKSurface.Create(grContext, false, info);
+                    
+                    if (surface != null)
                     {
-                        // 解析十六进制颜色（如 #FFFFFF）
-                        string hexColor = _currentSlide.BackgroundColor.TrimStart('#');
-                        if (hexColor.Length == 6)
-                        {
-                            byte r = Convert.ToByte(hexColor.Substring(0, 2), 16);
-                            byte g = Convert.ToByte(hexColor.Substring(2, 2), 16);
-                            byte b = Convert.ToByte(hexColor.Substring(4, 2), 16);
-                            backgroundColor = new SKColor(r, g, b);
-
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景色: {_currentSlide.BackgroundColor} -> RGB({r},{g},{b})");
-                            //#endif
-                        }
+                        canvas = surface.Canvas;
+                        // GPU表面创建成功，使用GPU渲染
                     }
-                    catch
+                }
+            }
+            catch
+            {
+                // GPU表面创建失败，降级到CPU
+            }
+            
+            // 如果GPU表面创建失败，使用CPU表面
+            if (canvas == null)
+            {
+                bitmap = new SKBitmap(targetWidth, targetHeight);
+                canvas = new SKCanvas(bitmap);
+            }
+            
+            try
+            {
+                // 🎨 根据参数选择背景色
+                SKColor backgroundColor = SKColors.Transparent; // 默认透明
+                
+                if (!transparentBackground)
+                {
+                    // 使用幻灯片设置的背景色
+                    backgroundColor = SKColors.Black; // 默认黑色
+                    if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundColor))
                     {
-                        // 解析失败，使用默认黑色
+                        try
+                        {
+                            // 解析十六进制颜色（如 #FFFFFF）
+                            string hexColor = _currentSlide.BackgroundColor.TrimStart('#');
+                            if (hexColor.Length == 6)
+                            {
+                                byte r = Convert.ToByte(hexColor.Substring(0, 2), 16);
+                                byte g = Convert.ToByte(hexColor.Substring(2, 2), 16);
+                                byte b = Convert.ToByte(hexColor.Substring(4, 2), 16);
+                                backgroundColor = new SKColor(r, g, b);
+
+                                //#if DEBUG
+                                //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景色: {_currentSlide.BackgroundColor} -> RGB({r},{g},{b})");
+                                //#endif
+                            }
+                        }
+                        catch
+                        {
+                            // 解析失败，使用默认黑色
+                        }
                     }
                 }
 
@@ -3762,12 +4393,15 @@ namespace ImageColorChanger.UI
                         {
                             // 绘制背景图，铺满整个画布（使用原始尺寸，canvas.Scale 会自动缩放）
                             var destRect = new SKRect(0, 0, (float)canvasWidth, (float)canvasHeight);
+                            // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                            using var image = SKImage.FromBitmap(bgBitmap);
                             var paint = new SKPaint
                             {
-                                FilterQuality = SKFilterQuality.High,
                                 IsAntialias = true
                             };
-                            canvas.DrawBitmap(bgBitmap, destRect, paint);
+                            var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                            // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                            canvas.DrawImage(image, destRect, sampling, paint);
                             paint.Dispose();
                             bgBitmap.Dispose();
                             
@@ -3829,7 +4463,7 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine($"   _regionImageColorEffects.ContainsKey: {_regionImageColorEffects.ContainsKey(regionIndex)}");
                             //if (_regionImageColorEffects.ContainsKey(regionIndex))
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"   需要变色: {_regionImageColorEffects[regionIndex]}");
+                            //    //System.Diagnostics.Debug.WriteLine($"   需要变色: {_regionImageColorEffects[regionIndex]}");
                             //}
                             //#endif
                             
@@ -3941,12 +4575,15 @@ namespace ImageColorChanger.UI
                         }
                         
                         // 🎨 使用高质量过滤模式，确保投影质量
+                        // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                        using var image = SKImage.FromBitmap(skBitmap);
                         var paint = new SKPaint
                         {
-                            FilterQuality = SKFilterQuality.High,
                             IsAntialias = true
                         };
-                        canvas.DrawBitmap(skBitmap, destRect, paint);
+                        var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                        // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                        canvas.DrawImage(image, destRect, sampling, paint);
                         paint.Dispose();
                         
                         //#if DEBUG
@@ -3978,6 +4615,27 @@ namespace ImageColorChanger.UI
                 {
                     DrawSplitLinesToCanvas(canvas, (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode, canvasWidth, canvasHeight);
                 }
+                
+                // 🎮 如果是GPU表面，需要刷新并获取快照
+                if (surface != null)
+                {
+                    canvas.Flush();
+                    var snapshot = surface.Snapshot();
+                    bitmap = SKBitmap.FromImage(snapshot);
+                }
+            }
+            finally
+            {
+                // 清理资源
+                if (surface != null)
+                {
+                    surface.Dispose();
+                }
+                if (canvas != null && bitmap != null && surface == null)
+                {
+                    // 只有CPU表面才需要释放canvas（GPU表面的canvas会随surface一起释放）
+                    canvas.Dispose();
+                }
             }
             
             return bitmap;
@@ -4006,14 +4664,20 @@ namespace ImageColorChanger.UI
                 IsAntialias = true
             };
             
-            // 角标文字画笔（白色粗体）
+            // 角标字体（白色粗体）
             // 🔧 使用统一常量，与主屏幕保持一致
+            using var labelFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold),
+                Size = (float)REGION_LABEL_FONT_SIZE,
+                Subpixel = true
+            };
+            
+            // 角标文字画笔（白色）
             var labelTextPaint = new SKPaint
             {
                 Color = SKColors.White,
-                TextSize = (float)REGION_LABEL_FONT_SIZE,
-                IsAntialias = true,
-                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
+                IsAntialias = true
             };
             
             switch (mode)
@@ -4026,16 +4690,16 @@ namespace ImageColorChanger.UI
                     // 左右分割：绘制竖线
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.Vertical:
                     // 上下分割：绘制横线
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.Quad:
@@ -4043,10 +4707,10 @@ namespace ImageColorChanger.UI
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)canvasWidth, (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(3)) DrawLabel(canvas, "4", (float)(canvasWidth / 2), (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(3)) DrawLabel(canvas, "4", (float)(canvasWidth / 2), (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
                     break;
                     
                 case Database.Models.Enums.ViewSplitMode.TripleSplit:
@@ -4054,9 +4718,9 @@ namespace ImageColorChanger.UI
                     canvas.DrawLine((float)(canvasWidth / 2), 0, (float)(canvasWidth / 2), (float)canvasHeight, linePaint);
                     canvas.DrawLine(0, (float)(canvasHeight / 2), (float)(canvasWidth / 2), (float)(canvasHeight / 2), linePaint);
                     // 角标（只显示已加载图片的区域）
-                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelTextPaint);
-                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", (float)(canvasWidth / 2), 0, labelBgPaint, labelTextPaint);
+                    if (_regionImages.ContainsKey(0)) DrawLabel(canvas, "1", 0, 0, labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(1)) DrawLabel(canvas, "2", 0, (float)(canvasHeight / 2), labelBgPaint, labelFont, labelTextPaint);
+                    if (_regionImages.ContainsKey(2)) DrawLabel(canvas, "3", (float)(canvasWidth / 2), 0, labelBgPaint, labelFont, labelTextPaint);
                     break;
             }
             
@@ -4068,17 +4732,18 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 绘制角标（带圆角背景的数字标签）
         /// </summary>
-        private void DrawLabel(SKCanvas canvas, string text, float x, float y, SKPaint bgPaint, SKPaint textPaint)
+        private void DrawLabel(SKCanvas canvas, string text, float x, float y, SKPaint bgPaint, SKFont font, SKPaint textPaint)
         {
             // 测量文本尺寸
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
+            float textWidth = font.MeasureText(text);
+            var fontMetrics = font.Metrics;
+            float textHeight = fontMetrics.Descent - fontMetrics.Ascent;
             
             // 🔧 使用统一常量，与主屏幕保持一致
             float paddingX = (float)REGION_LABEL_PADDING_X;  // 左右padding
             float paddingY = (float)REGION_LABEL_PADDING_Y;  // 上下padding
-            float labelWidth = textBounds.Width + paddingX * 2;
-            float labelHeight = textBounds.Height + paddingY * 2;
+            float labelWidth = textWidth + paddingX * 2;
+            float labelHeight = textHeight + paddingY * 2;
             
             // 绘制圆角矩形背景（右下圆角）
             var path = new SKPath();
@@ -4098,8 +4763,8 @@ namespace ImageColorChanger.UI
             
             // 绘制文本（居中）
             float textX = x + paddingX;
-            float textY = y + labelHeight - paddingY - textBounds.Bottom; // 垂直居中
-            canvas.DrawText(text, textX, textY, textPaint);
+            float textY = y + labelHeight - paddingY - fontMetrics.Descent; // 垂直居中
+            canvas.DrawText(text, textX, textY, SKTextAlign.Left, font, textPaint);
         }
         
         /// <summary>
@@ -4131,11 +4796,11 @@ namespace ImageColorChanger.UI
                 if (width > 0 && height > 0)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"📊 [投影渲染参数-WPF] 文本框ID={data.Id}");
-//                    System.Diagnostics.Debug.WriteLine($"  字体大小: {data.FontSize}");
-//                    System.Diagnostics.Debug.WriteLine($"  行间距: {data.LineSpacing}");
-//                    System.Diagnostics.Debug.WriteLine($"  文本框尺寸: {width}×{height}");
-//                    System.Diagnostics.Debug.WriteLine($"  实际位置: ({actualLeft}, {actualTop})");
+//                    //System.Diagnostics.Debug.WriteLine($"📊 [投影渲染参数-WPF] 文本框ID={data.Id}");
+//                    //System.Diagnostics.Debug.WriteLine($"  字体大小: {data.FontSize}");
+//                    //System.Diagnostics.Debug.WriteLine($"  行间距: {data.LineSpacing}");
+//                    //System.Diagnostics.Debug.WriteLine($"  文本框尺寸: {width}×{height}");
+//                    //System.Diagnostics.Debug.WriteLine($"  实际位置: ({actualLeft}, {actualTop})");
 //#endif
 
                     // ✅ 使用 WPF 原生方法渲染 RichTextBox
@@ -4156,17 +4821,20 @@ namespace ImageColorChanger.UI
                                 (float)(actualTop + actualHeight));
 
                             // 🎨 使用高质量过滤模式，确保投影质量
+                            // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
+                            using var image = SKImage.FromBitmap(skBitmap);
                             var paint = new SKPaint
                             {
-                                FilterQuality = SKFilterQuality.High,
                                 IsAntialias = true
                             };
-                            canvas.DrawBitmap(skBitmap, destRect, paint);
+                            var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+                            // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
+                            canvas.DrawImage(image, destRect, sampling, paint);
                             paint.Dispose();
                             skBitmap.Dispose();
 
 //#if DEBUG
-//                            System.Diagnostics.Debug.WriteLine($"✅ [文本绘制-WPF] 位置: ({actualLeft}, {actualTop}), 尺寸: {width}×{height}");
+//                            //System.Diagnostics.Debug.WriteLine($"✅ [文本绘制-WPF] 位置: ({actualLeft}, {actualTop}), 尺寸: {width}×{height}");
 //#endif
                         }
                     }
@@ -4223,7 +4891,7 @@ namespace ImageColorChanger.UI
                     string fileName = System.IO.Path.GetFileName(fontPath);
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  [字体] 尝试从PAK加载: 原始路径='{fontPath}', 文件名='{fileName}'");
+                    //System.Diagnostics.Debug.WriteLine($"  [字体] 尝试从PAK加载: 原始路径='{fontPath}', 文件名='{fileName}'");
                     #endif
                     
                     // 在PAK中搜索匹配的字体文件
@@ -4242,7 +4910,7 @@ namespace ImageColorChanger.UI
                     if (actualPakPath != null)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [字体] 在PAK中找到: {actualPakPath}");
+                        //System.Diagnostics.Debug.WriteLine($"  [字体] 在PAK中找到: {actualPakPath}");
                         #endif
                         
                         var fontData = Core.PakManager.Instance.GetResource(actualPakPath);
@@ -4250,7 +4918,7 @@ namespace ImageColorChanger.UI
                         if (fontData != null)
                         {
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"  [字体] PAK数据获取成功: {fontData.Length} bytes");
+                            //System.Diagnostics.Debug.WriteLine($"  [字体] PAK数据获取成功: {fontData.Length} bytes");
                             #endif
                             
                             typeface = SKTypeface.FromData(SKData.CreateCopy(fontData));
@@ -4258,13 +4926,13 @@ namespace ImageColorChanger.UI
                             if (typeface != null)
                             {
                                 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"  [字体] 从PAK加载成功: {actualPakPath}");
+                                //System.Diagnostics.Debug.WriteLine($"  [字体] 从PAK加载成功: {actualPakPath}");
                                 #endif
                             }
                             else
                             {
                                 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"  [字体] SKTypeface创建失败，数据可能不是有效字体");
+                                //System.Diagnostics.Debug.WriteLine($"  [字体] SKTypeface创建失败，数据可能不是有效字体");
                                 #endif
                             }
                         }
@@ -4272,7 +4940,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [字体] PAK中未找到字体，尝试文件系统");
+                        //System.Diagnostics.Debug.WriteLine($"  [字体] PAK中未找到字体，尝试文件系统");
                         #endif
                         
                         // PAK中没有，尝试从文件系统加载
@@ -4281,13 +4949,13 @@ namespace ImageColorChanger.UI
                             typeface = SKTypeface.FromFile(fontPath);
                             
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
+                            //System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
                             #endif
                         }
                         else
                         {
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"  [字体] 文件也不存在: {fontPath}");
+                            //System.Diagnostics.Debug.WriteLine($"  [字体] 文件也不存在: {fontPath}");
                             #endif
                         }
                     }
@@ -4300,7 +4968,7 @@ namespace ImageColorChanger.UI
                         typeface = SKTypeface.FromFile(fontPath);
                         
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
+                        //System.Diagnostics.Debug.WriteLine($"  [字体] 从文件加载: {fontPath}");
                         #endif
                     }
                 }
@@ -4312,7 +4980,7 @@ namespace ImageColorChanger.UI
                     typeface = SKTypeface.FromFamilyName(fontPath, fontStyle);
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"  [字体] 使用系统字体: {fontPath}");
+                    //System.Diagnostics.Debug.WriteLine($"  [字体] 使用系统字体: {fontPath}");
                     #endif
                 }
             }
@@ -4326,17 +4994,23 @@ namespace ImageColorChanger.UI
                 typeface = SKTypeface.FromFamilyName("Arial", fontStyle);
             }
             
+            // 创建字体
+            using var font = new SKFont
+            {
+                Typeface = typeface,
+                Size = (float)data.FontSize,
+                Subpixel = true
+            };
+            
             // 创建画笔
-            var paint = new SKPaint
+            using var paint = new SKPaint
             {
                 Color = textColor,
-                TextSize = (float)data.FontSize,
-                IsAntialias = true,
-                Typeface = typeface
+                IsAntialias = true
             };
             
             // 处理文本对齐
-            paint.TextAlign = data.TextAlign switch
+            SKTextAlign textAlign = data.TextAlign switch
             {
                 "Center" => SKTextAlign.Center,
                 "Right" => SKTextAlign.Right,
@@ -4356,27 +5030,26 @@ namespace ImageColorChanger.UI
             
             // 绘制文本（支持多行）
             string[] lines = data.Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            float lineHeight = paint.FontSpacing;
+            float lineHeight = font.Spacing;
             
             // 🔧 正确计算第一行基线位置
             // 使用 FontMetrics 获取字体度量信息
-            var fontMetrics = paint.FontMetrics;
+            var fontMetrics = font.Metrics;
             float firstLineBaseline = y - fontMetrics.Ascent; // Ascent是负值，表示基线到顶部的距离
             float currentY = firstLineBaseline;
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"  [文本绘制] 位置: ({textX}, {currentY}), 字号: {paint.TextSize}, 行高: {lineHeight}, 对齐: {paint.TextAlign}");
-            System.Diagnostics.Debug.WriteLine($"  [文本绘制] 区域: x={x}, y={y}, w={width}, h={height}");
-            System.Diagnostics.Debug.WriteLine($"  [字体度量] Ascent: {fontMetrics.Ascent}, Descent: {fontMetrics.Descent}, Leading: {fontMetrics.Leading}");
+            //System.Diagnostics.Debug.WriteLine($"  [文本绘制] 位置: ({textX}, {currentY}), 字号: {font.Size}, 行高: {lineHeight}, 对齐: {textAlign}");
+            //System.Diagnostics.Debug.WriteLine($"  [文本绘制] 区域: x={x}, y={y}, w={width}, h={height}");
+            //System.Diagnostics.Debug.WriteLine($"  [字体度量] Ascent: {fontMetrics.Ascent}, Descent: {fontMetrics.Descent}, Leading: {fontMetrics.Leading}");
             #endif
             
             foreach (string line in lines)
             {
-                canvas.DrawText(line, textX, currentY, paint);
+                canvas.DrawText(line, textX, currentY, textAlign, font, paint);
                 currentY += lineHeight;
             }
             
-            paint.Dispose();
             typeface.Dispose();
         }
         
@@ -4479,7 +5152,7 @@ namespace ImageColorChanger.UI
         private SKBitmap ScaleImageForProjection(SKBitmap sourceImage, int targetWidth, int targetHeight)
         {
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] 输入: {sourceImage.Width}×{sourceImage.Height}, 输出: {targetWidth}×{targetHeight}");
+            //System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] 输入: {sourceImage.Width}×{sourceImage.Height}, 输出: {targetWidth}×{targetHeight}");
             var sw = System.Diagnostics.Stopwatch.StartNew();
             #endif
 
@@ -4491,7 +5164,7 @@ namespace ImageColorChanger.UI
             
             #if DEBUG
             sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] GPUContext.ScaleImageGpu 实际耗时: {sw.ElapsedMilliseconds}ms");
+            //System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] GPUContext.ScaleImageGpu 实际耗时: {sw.ElapsedMilliseconds}ms");
             #endif
 
             return scaled;
@@ -4523,7 +5196,7 @@ namespace ImageColorChanger.UI
                 scale = Math.Max(1.0, Math.Min(4.0, scale));
                 
                 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"🎨 [RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
+                // //System.Diagnostics.Debug.WriteLine($"🎨 [RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
                 #endif
                 
                 return scale;
@@ -4825,20 +5498,20 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void TreeItemEditBox_Loaded(object sender, RoutedEventArgs e)
         {
-            // System.Diagnostics.Debug.WriteLine($"🔍 TreeItemEditBox_Loaded 触发");
+            // //System.Diagnostics.Debug.WriteLine($"🔍 TreeItemEditBox_Loaded 触发");
             
             if (sender is System.Windows.Controls.TextBox textBox)
             {
-                // System.Diagnostics.Debug.WriteLine($"🔍 TextBox 实例: Text={textBox.Text}, Visibility={textBox.Visibility}");
+                // //System.Diagnostics.Debug.WriteLine($"🔍 TextBox 实例: Text={textBox.Text}, Visibility={textBox.Visibility}");
                 
                 if (textBox.DataContext is ProjectTreeItem item)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"🔍 DataContext: Name={item.Name}, IsEditing={item.IsEditing}");
+                    // //System.Diagnostics.Debug.WriteLine($"🔍 DataContext: Name={item.Name}, IsEditing={item.IsEditing}");
                     
                     // 只在编辑模式时才聚焦
                     if (!item.IsEditing)
                     {
-                        // System.Diagnostics.Debug.WriteLine($"⚠️ IsEditing=false，跳过聚焦");
+                        // //System.Diagnostics.Debug.WriteLine($"⚠️ IsEditing=false，跳过聚焦");
                         return;
                     }
                     
@@ -5023,6 +5696,42 @@ namespace ImageColorChanger.UI
                 BtnLockProjection.Tag = "Locked";
                 BtnLockProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 165, 0));
                 BtnLockProjection.Foreground = new SolidColorBrush(Colors.White);
+                
+                // 🔒 锁定模式：如果当前有视频背景，切换到独立 MediaElement 模式
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] ===== 锁定投影 =====");
+                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
+                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
+                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+#endif
+                if (_currentSlide?.VideoBackgroundEnabled == true && 
+                    !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath) &&
+                    IsVideoFile(_currentSlide.BackgroundImagePath) &&
+                    _projectionManager.IsProjectionActive)
+                {
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 切换到独立 MediaElement 模式");
+                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 视频路径: {_currentSlide.BackgroundImagePath}");
+                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 循环播放: {_currentSlide.VideoLoopEnabled}");
+#endif
+                    var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    _projectionManager.UpdateProjectionWithLockedVideo(
+                        _currentSlide.BackgroundImagePath,
+                        _currentSlide.VideoLoopEnabled,
+                        textLayer);
+                }
+#if DEBUG
+                //else
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"⚠️ [BtnLockProjection] 条件不满足，未切换到独立 MediaElement 模式");
+                //    System.Diagnostics.Debug.WriteLine($"   - VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+                //    System.Diagnostics.Debug.WriteLine($"   - BackgroundImagePath为空: {string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath)}");
+                //    System.Diagnostics.Debug.WriteLine($"   - IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
+                //    System.Diagnostics.Debug.WriteLine($"   - IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+                //}
+#endif
             }
             else
             {
@@ -5032,6 +5741,18 @@ namespace ImageColorChanger.UI
                 BtnLockProjection.Tag = null;
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.BackgroundProperty);
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.ForegroundProperty);
+                
+                // 🔓 解锁模式：清理独立 MediaElement，切换回 VisualBrush 模式
+                _projectionManager.ClearLockedVideo();
+                
+                // 如果当前有视频背景，重新使用 VisualBrush 模式更新投影
+                if (_currentSlide?.VideoBackgroundEnabled == true && 
+                    !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath) &&
+                    IsVideoFile(_currentSlide.BackgroundImagePath) &&
+                    _projectionManager.IsProjectionActive)
+                {
+                    UpdateProjectionWithVideoBackground();
+                }
             }
         }
 
@@ -5045,17 +5766,225 @@ namespace ImageColorChanger.UI
         private Slide _currentSlide;
 
         /// <summary>
+        /// 判断文件是否为视频格式
+        /// </summary>
+        private bool IsVideoFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+                return false;
+
+            var extension = System.IO.Path.GetExtension(filePath).ToLower();
+            var videoExtensions = new[] { ".mp4", ".avi", ".wmv", ".mov", ".mkv", ".flv", ".webm", ".m4v" };
+            return videoExtensions.Contains(extension);
+        }
+
+        /// <summary>
+        /// 加载视频背景
+        /// </summary>
+        private void LoadVideoBackground(Slide slide)
+        {
+            try
+            {
+#if DEBUG
+                var startTime = System.Diagnostics.Stopwatch.StartNew();
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] ===== 开始加载视频背景 =====");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 文件: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+#endif
+
+                // 清除旧的背景
+                EditorCanvas.Background = new SolidColorBrush(Colors.Black);
+                var oldMediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
+                
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 清除旧的 MediaElement 数量: {oldMediaElements.Count}");
+#endif
+                
+                foreach (var old in oldMediaElements)
+                {
+                    old.Stop();
+                    old.Close();
+                    EditorCanvas.Children.Remove(old);
+                }
+
+                // 创建新的 MediaElement
+                var mediaElement = new MediaElement
+                {
+                    Source = new Uri(slide.BackgroundImagePath, UriKind.Absolute),
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Manual,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                    Volume = slide.VideoVolume,  // 使用数据库中的音量（默认0）
+                    ScrubbingEnabled = true,
+                    // 🚀 启用 GPU 硬件加速缓存
+                    CacheMode = new BitmapCache
+                    {
+                        EnableClearType = false,  // 视频不需要ClearType
+                        RenderAtScale = 1.0,      // 1080p适配，减少GPU内存占用
+                        SnapsToDevicePixels = true
+                    }
+                };
+                
+                // 🚀 设置 GPU 渲染优化
+                RenderOptions.SetBitmapScalingMode(mediaElement, BitmapScalingMode.LowQuality);  // 优先性能而非质量
+                RenderOptions.SetCachingHint(mediaElement, CachingHint.Cache);  // 强制启用缓存
+                
+#if DEBUG
+                //var cache = mediaElement.CacheMode as BitmapCache;
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapCache 已启用: RenderAtScale={cache?.RenderAtScale ?? 0}");
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] CachingHint: {RenderOptions.GetCachingHint(mediaElement)}");
+                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(mediaElement)}");
+#endif
+
+                // 设置循环播放（根据数据库设置）
+                UpdateVideoLoopBehavior(mediaElement, slide.VideoLoopEnabled);
+
+                // 添加到 Canvas
+                EditorCanvas.Children.Insert(0, mediaElement);
+
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] MediaElement 已添加到 EditorCanvas (索引 0)");
+#endif
+
+                // 自动播放
+                mediaElement.Play();
+
+#if DEBUG
+                startTime.Stop();
+                //System.Diagnostics.Debug.WriteLine($"✅ [视频加载] 加载成功: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //System.Diagnostics.Debug.WriteLine($"   - 循环播放: {slide.VideoLoopEnabled}");
+                //System.Diagnostics.Debug.WriteLine($"   - 音量: {slide.VideoVolume * 100}%");
+                //System.Diagnostics.Debug.WriteLine($"⏱️ [视频加载] 耗时: {startTime.ElapsedMilliseconds} ms");
+                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] ===== 加载完成 =====\n");
+#endif
+            }
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [视频背景] 加载失败: {ex.Message}");
+                _ = ex;
+#endif
+                // 失败时使用纯色背景
+                EditorCanvas.Background = !string.IsNullOrEmpty(slide.BackgroundColor)
+                    ? (SolidColorBrush)new BrushConverter().ConvertFrom(slide.BackgroundColor)
+                    : new SolidColorBrush(Colors.Black);
+            }
+        }
+
+        /// <summary>
         /// 幻灯片列表选择改变事件
+        /// ✅ 切换幻灯片前先保存当前文本，防止文本丢失
         /// </summary>
         private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (SlideListBox.SelectedItem is Slide selectedSlide)
             {
-                // 🆕 使用 Dispatcher.BeginInvoke 延迟加载，确保可视树完全构建
-                Dispatcher.BeginInvoke(new Action(() =>
+                // ✅ 切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
+                // 🔧 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
+                var textBoxesCopy = _textBoxes.ToList();
+                
+                // 先同步所有文本框的内容到 Data.Content
+                foreach (var textBox in textBoxesCopy)
                 {
-                    LoadSlide(selectedSlide);
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    if (textBox.IsInEditMode)
+                    {
+                        // 如果文本框正在编辑，先退出编辑模式（会触发 SyncTextFromRichTextBox）
+                        textBox.ExitEditMode();
+                    }
+                    else
+                    {
+                        // 如果不在编辑模式，手动同步一次（确保 Data.Content 是最新的）
+                        textBox.SyncTextFromRichTextBox();
+                    }
+                }
+                
+                // 🔧 先提取 RichTextSpans（在 LoadSlide 之前，此时 UI 元素仍然有效）
+                var richTextSpansDict = new Dictionary<int, List<Database.Models.RichTextSpan>>();
+                foreach (var tb in textBoxesCopy)
+                {
+                    try
+                    {
+                        if (tb != null && tb.Data != null)
+                        {
+                            var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
+                            if (richTextSpans != null && richTextSpans.Count > 0)
+                            {
+                                richTextSpansDict[tb.Data.Id] = richTextSpans;
+                            }
+                        }
+                    }
+                    catch (Exception
+#if DEBUG
+                        ex
+#endif
+                    )
+                    {
+                        // 如果提取失败，记录但不阻止切换幻灯片
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] 提取 RichTextSpans 失败 (ID={tb?.Data?.Id}): {ex.Message}");
+                        _ = ex;
+#endif
+                    }
+                }
+                
+                // 🚀 在切换前预解析相邻视频（确保切换时已准备好）
+                if (_isProjectionLocked)
+                {
+                    _ = PreparseAdjacentVideosBeforeSwitchAsync(selectedSlide);
+                }
+                
+                // 直接加载新幻灯片
+                LoadSlide(selectedSlide);
+                
+                // 保存到数据库（在 UI 线程中异步执行，避免阻塞UI）
+                // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
+                // ✅ 注意：必须在 UI 线程中执行，因为 DbContext 不是线程安全的
+#pragma warning disable CS4014
+                _ = Dispatcher.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        // 🔧 使用副本集合，避免集合被修改
+                        // 注意：此时 LoadSlide 已经执行，_textBoxes 已被清空，但 textBoxesCopy 仍然有效
+                        await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
+                        
+                        // 同步 FlowDocument 到 RichTextSpans（使用之前提取的数据）
+                        foreach (var kvp in richTextSpansDict)
+                        {
+                            await _textProjectManager.SaveRichTextSpansAsync(kvp.Key, kvp.Value);
+                        }
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"✅ [切换幻灯片] 文本已保存到数据库");
+#endif
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // ✅ 如果 DbContext 已被释放，忽略错误（程序可能正在关闭）
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 已被释放，跳过保存");
+#endif
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // ✅ 如果 DbContext 操作失败（可能是线程安全问题），忽略错误
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 操作失败，跳过保存");
+#endif
+                    }
+                    catch
+                    {
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败");
+#endif
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Background);
+#pragma warning restore CS4014
             }
         }
 
@@ -5114,6 +6043,7 @@ namespace ImageColorChanger.UI
             };
             deleteItem.Click += BtnDeleteSlide_Click;
             contextMenu.Items.Add(deleteItem);
+
 
             contextMenu.PlacementTarget = sender as UIElement;
             contextMenu.IsOpen = true;
@@ -5207,22 +6137,30 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                // 🔧 通过ID查找幻灯片，避免对象引用不一致的问题
                 var slides = await _dbContext.Slides
                     .Where(s => s.ProjectId == _currentTextProject.Id)
                     .OrderBy(s => s.SortOrder)
                     .ToListAsync();
 
-                int sourceIndex = slides.IndexOf(sourceSlide);
-                int targetIndex = slides.IndexOf(targetSlide);
+                // 通过ID查找索引，而不是使用对象引用
+                int sourceIndex = slides.FindIndex(s => s.Id == sourceSlide.Id);
+                int targetIndex = slides.FindIndex(s => s.Id == targetSlide.Id);
 
                 if (sourceIndex == -1 || targetIndex == -1)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [ReorderSlides] 无法找到幻灯片: sourceIndex={sourceIndex}, targetIndex={targetIndex}");
+                    #endif
                     return;
+                }
 
                 // 移除源幻灯片
+                var sourceSlideEntity = slides[sourceIndex];
                 slides.RemoveAt(sourceIndex);
                 
                 // 插入到目标位置
-                slides.Insert(targetIndex, sourceSlide);
+                slides.Insert(targetIndex, sourceSlideEntity);
 
                 // 更新所有幻灯片的SortOrder
                 for (int i = 0; i < slides.Count; i++)
@@ -5230,16 +6168,33 @@ namespace ImageColorChanger.UI
                     slides[i].SortOrder = i;
                 }
 
+                // 🔧 显式标记所有幻灯片为已修改，确保EF Core跟踪更改
+                foreach (var slide in slides)
+                {
+                    _dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
+                }
+
                 await _dbContext.SaveChangesAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
+                #endif
 
                 // 刷新列表
                 LoadSlideList();
 
-                // 保持选中当前幻灯片
-                SlideListBox.SelectedItem = sourceSlide;
+                // 保持选中当前幻灯片（通过ID查找）
+                var updatedSourceSlide = slides.FirstOrDefault(s => s.Id == sourceSlide.Id);
+                if (updatedSourceSlide != null)
+                {
+                    SlideListBox.SelectedItem = updatedSourceSlide;
+                }
             }
             catch (Exception ex)
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [ReorderSlides] 排序失败: {ex.Message}");
+                #endif
                 WpfMessageBox.Show($"排序失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5263,6 +6218,60 @@ namespace ImageColorChanger.UI
         }
 
         #endregion
+
+        /// <summary>
+        /// 文本编辑器面板鼠标点击事件（只在点击编辑区域空白处时取消编辑框选中状态）
+        /// </summary>
+        private void TextEditorPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // 只在文本编辑器可见时处理
+            if (TextEditorPanel.Visibility != Visibility.Visible)
+                return;
+
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [TextEditorPanel_PreviewMouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
+
+            // 检查点击是否在 DraggableTextBox 内部
+            var clickedElement = e.OriginalSource as DependencyObject;
+            while (clickedElement != null)
+            {
+                if (clickedElement is DraggableTextBox)
+                {
+                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，不处理");
+                    // 点击在文本框内部，不处理（让文本框自己处理）
+                    return;
+                }
+
+                // 检查是否点击在工具栏、面板等控件上
+                if (clickedElement is FrameworkElement fe)
+                {
+                    if (fe.Name?.Contains("Toolbar") == true ||
+                        fe.Name?.Contains("Panel") == true ||
+                        fe.Name?.Contains("Popup") == true ||
+                        fe.Name?.Contains("Button") == true ||
+                        fe.Name?.Contains("Border") == true)
+                    {
+                        //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在工具栏/按钮上: {fe.Name}，不处理");
+                        return;
+                    }
+                }
+
+                // 🔧 修复：只对 Visual 或 Visual3D 使用 VisualTreeHelper.GetParent
+                // 对于非 Visual 元素（如 Run、Paragraph 等文档元素），使用 LogicalTreeHelper
+                if (clickedElement is Visual || clickedElement is System.Windows.Media.Media3D.Visual3D)
+                {
+                    clickedElement = VisualTreeHelper.GetParent(clickedElement);
+                }
+                else
+                {
+                    clickedElement = LogicalTreeHelper.GetParent(clickedElement);
+                }
+            }
+
+            // 只有当点击在EditorCanvas内的空白区域时才处理
+            // 这个判断通过EditorCanvas_MouseDown事件来处理，这里不再重复处理
+            //System.Diagnostics.Debug.WriteLine($"   - ⚠️ 点击在其他区域，交由EditorCanvas_MouseDown处理");
+        }
 
         /// <summary>
         /// 文本编辑器面板键盘事件（处理PageUp/PageDown切换幻灯片）
@@ -5398,14 +6407,14 @@ namespace ImageColorChanger.UI
                 //
                 //if (!string.IsNullOrEmpty(slide.ThumbnailPath))
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"📋 缩略图文件名: {System.IO.Path.GetFileName(slide.ThumbnailPath)}");
-                //    System.Diagnostics.Debug.WriteLine($"📋 缩略图存在: {System.IO.File.Exists(slide.ThumbnailPath)}");
+                //    //System.Diagnostics.Debug.WriteLine($"📋 缩略图文件名: {System.IO.Path.GetFileName(slide.ThumbnailPath)}");
+                //    //System.Diagnostics.Debug.WriteLine($"📋 缩略图存在: {System.IO.File.Exists(slide.ThumbnailPath)}");
                 //}
                 //
                 //if (!string.IsNullOrEmpty(slide.BackgroundImagePath))
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"📋 主图文件名: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
-                //    System.Diagnostics.Debug.WriteLine($"📋 主图存在: {System.IO.File.Exists(slide.BackgroundImagePath)}");
+                //    //System.Diagnostics.Debug.WriteLine($"📋 主图文件名: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //    //System.Diagnostics.Debug.WriteLine($"📋 主图存在: {System.IO.File.Exists(slide.BackgroundImagePath)}");
                 //}
                 //System.Diagnostics.Debug.WriteLine($"====================================\n");
 
@@ -5414,23 +6423,51 @@ namespace ImageColorChanger.UI
                 // 清空画布
                 ClearEditorCanvas();
 
-                // 加载背景
+                // 🎬 加载背景（支持视频背景）
                 if (!string.IsNullOrEmpty(slide.BackgroundImagePath) &&
                     System.IO.File.Exists(slide.BackgroundImagePath))
                 {
-                    // 🆕 使用 ImageBrush 设置 Canvas.Background（性能最佳方案）
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(slide.BackgroundImagePath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
+                    // 判断是视频还是图片
+                    bool isVideo = slide.VideoBackgroundEnabled && IsVideoFile(slide.BackgroundImagePath);
 
-                    EditorCanvas.Background = new ImageBrush(bitmap)
+#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] 背景路径: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] VideoBackgroundEnabled: {slide.VideoBackgroundEnabled}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsVideoFile: {IsVideoFile(slide.BackgroundImagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] isVideo: {isVideo}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] _isProjectionLocked: {_isProjectionLocked}");
+                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+#endif
+
+                    if (isVideo)
                     {
-                        Stretch = Stretch.Fill
-                    };
+                        // 🎬 视频背景：主屏幕正常加载视频
+                        // 🔒 锁定模式下，投影使用独立的 MediaElement，主屏幕也正常显示视频
+                        // 这样主屏幕可以正常预览，投影独立播放
+#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"🎬 [LoadSlide] 加载视频背景");
+                        //System.Diagnostics.Debug.WriteLine($"   - 视频路径: {slide.BackgroundImagePath}");
+                        //System.Diagnostics.Debug.WriteLine($"   - 循环播放: {slide.VideoLoopEnabled}");
+                        //System.Diagnostics.Debug.WriteLine($"   - 锁定状态: {_isProjectionLocked}");
+#endif
+                        LoadVideoBackground(slide);
+                    }
+                    else
+                    {
+                        // 🖼️ 图片背景
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(slide.BackgroundImagePath);
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+
+                        EditorCanvas.Background = new ImageBrush(bitmap)
+                        {
+                            Stretch = Stretch.Fill
+                        };
+                    }
                 }
                 else
                 {
@@ -5463,7 +6500,7 @@ namespace ImageColorChanger.UI
 
 //#if DEBUG
 //                int totalSpans = elements.Sum(e => e.RichTextSpans?.Count ?? 0);
-//                System.Diagnostics.Debug.WriteLine($"📥 [加载幻灯片] ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}, RichTextSpans={totalSpans}");
+//                //System.Diagnostics.Debug.WriteLine($"📥 [加载幻灯片] ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}, RichTextSpans={totalSpans}");
 //#endif
 
                 foreach (var element in elements)
@@ -5495,6 +6532,9 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine("✅ 幻灯片加载后已自动更新投影");
                     }), System.Windows.Threading.DispatcherPriority.Render);
                 }
+
+                // 🚀 预解析下一个/上一个视频（异步，不阻塞）
+                _ = PreparseAdjacentVideosAsync(slide);
             }
             catch (Exception ex)
             {
@@ -5503,6 +6543,27 @@ namespace ImageColorChanger.UI
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        /// <summary>
+        /// ❌ 已禁用：切换前预解析相邻视频（简化为跟主屏幕WPF一样的逻辑）
+        /// </summary>
+        private async System.Threading.Tasks.Task PreparseAdjacentVideosBeforeSwitchAsync(Slide targetSlide)
+        {
+            // ✅ 简化：去掉预解析，直接播放更简单稳定
+            await System.Threading.Tasks.Task.CompletedTask;
+            return;
+        }
+
+        /// <summary>
+        /// ❌ 已禁用：预解析相邻幻灯片的视频（简化为跟主屏幕WPF一样的逻辑）
+        /// </summary>
+        private async System.Threading.Tasks.Task PreparseAdjacentVideosAsync(Slide currentSlide)
+        {
+            // ✅ 简化：去掉预解析，直接播放更简单稳定
+            await System.Threading.Tasks.Task.CompletedTask;
+            return;
+        }
+
 
         /// <summary>
         /// 新建幻灯片按钮点击事件
@@ -5571,10 +6632,20 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 加载源幻灯片的所有元素
+                // 加载源幻灯片的所有元素（包含富文本片段）
                 var sourceElements = await _dbContext.TextElements
+                    .Include(e => e.RichTextSpans)  // 🔧 加载富文本片段
                     .Where(e => e.SlideId == sourceSlide.Id)
                     .ToListAsync();
+
+                // 🔧 手动排序 RichTextSpans（EF Core 不支持在 Include 中使用 OrderBy）
+                foreach (var element in sourceElements)
+                {
+                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
+                    {
+                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
+                    }
+                }
 
                 // 计算新的排序位置（在源幻灯片后面）
                 int newSortOrder = sourceSlide.SortOrder + 1;
@@ -5605,28 +6676,53 @@ namespace ImageColorChanger.UI
                 _dbContext.Slides.Add(newSlide);
                 await _dbContext.SaveChangesAsync();
 
-                // 复制所有文本元素
+                // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
                 foreach (var sourceElement in sourceElements)
                 {
-                    var newElement = new TextElement
-                    {
-                        SlideId = newSlide.Id,
-                        X = sourceElement.X,
-                        Y = sourceElement.Y,
-                        Width = sourceElement.Width,
-                        Height = sourceElement.Height,
-                        Content = sourceElement.Content,
-                        FontSize = sourceElement.FontSize,
-                        FontFamily = sourceElement.FontFamily,
-                        FontColor = sourceElement.FontColor,
-                        IsBold = sourceElement.IsBold,
-                        TextAlign = sourceElement.TextAlign,
-                        ZIndex = sourceElement.ZIndex
-                    };
+                    // ✅ 使用 CloneElement 方法复制所有样式属性
+                    var newElement = _textProjectManager.CloneElement(sourceElement);
+                    newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
+                    
                     _dbContext.TextElements.Add(newElement);
-                }
+                    await _dbContext.SaveChangesAsync();  // 先保存以获取新元素的ID
 
-                await _dbContext.SaveChangesAsync();
+                    // 🆕 复制富文本片段（如果有）
+                    if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
+                    {
+                        var newSpans = new List<Database.Models.RichTextSpan>();
+                        foreach (var sourceSpan in sourceElement.RichTextSpans.OrderBy(s => s.SpanOrder))
+                        {
+                            var newSpan = new Database.Models.RichTextSpan
+                            {
+                                TextElementId = newElement.Id,
+                                SpanOrder = sourceSpan.SpanOrder,
+                                Text = sourceSpan.Text,
+                                FontFamily = sourceSpan.FontFamily,
+                                FontSize = sourceSpan.FontSize,
+                                FontColor = sourceSpan.FontColor,
+                                IsBold = sourceSpan.IsBold,
+                                IsItalic = sourceSpan.IsItalic,
+                                IsUnderline = sourceSpan.IsUnderline,
+                                BorderColor = sourceSpan.BorderColor,
+                                BorderWidth = sourceSpan.BorderWidth,
+                                BorderRadius = sourceSpan.BorderRadius,
+                                BorderOpacity = sourceSpan.BorderOpacity,
+                                BackgroundColor = sourceSpan.BackgroundColor,
+                                BackgroundRadius = sourceSpan.BackgroundRadius,
+                                BackgroundOpacity = sourceSpan.BackgroundOpacity,
+                                ShadowColor = sourceSpan.ShadowColor,
+                                ShadowOffsetX = sourceSpan.ShadowOffsetX,
+                                ShadowOffsetY = sourceSpan.ShadowOffsetY,
+                                ShadowBlur = sourceSpan.ShadowBlur,
+                                ShadowOpacity = sourceSpan.ShadowOpacity
+                            };
+                            newSpans.Add(newSpan);
+                        }
+
+                        // 批量保存富文本片段
+                        await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, newSpans);
+                    }
+                }
 
                 // 先加载新幻灯片内容并生成缩略图,再刷新列表(避免闪烁)
                 await Dispatcher.InvokeAsync(async () =>
@@ -5677,19 +6773,91 @@ namespace ImageColorChanger.UI
             if (SlideListBox.SelectedItem is not Slide selectedSlide)
                 return;
 
+            // 🔧 保存要删除的幻灯片ID和当前选中索引
+            int slideIdToDelete = selectedSlide.Id;
+            int currentSelectedIndex = SlideListBox.SelectedIndex;
+
             try
             {
-                _dbContext.Slides.Remove(selectedSlide);
-                await _dbContext.SaveChangesAsync();
+                // ✅ 从数据库重新加载实体，确保实体是从当前 DbContext 加载的
+                // 这样可以避免乐观并发异常
+                var slideToDelete = await _dbContext.Slides.FindAsync(slideIdToDelete);
+                if (slideToDelete == null)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ 幻灯片不存在: ID={slideIdToDelete}");
+#endif
+                    // 刷新列表，可能已经被删除了
+                    LoadSlideList();
+                    return;
+                }
 
-                // 刷新幻灯片列表
-                LoadSlideList();
+                // 🔧 临时禁用 SelectionChanged 事件，避免删除后刷新列表时触发保存操作
+                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 删除幻灯片成功: ID={selectedSlide.Id}, Title={selectedSlide.Title}");
+                try
+                {
+                    // 🔧 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
+                    // 这样可以避免在删除时尝试保存已删除的文本元素
+                    var allSlides = await _dbContext.Slides
+                        .Where(s => s.ProjectId == _currentTextProject.Id)
+                        .OrderBy(s => s.SortOrder)
+                        .ToListAsync();
+                    
+                    var slideToSwitchTo = allSlides.FirstOrDefault(s => s.Id != slideIdToDelete);
+                    if (slideToSwitchTo != null)
+                    {
+                        // 先切换到其他幻灯片（不触发 SelectionChanged，因为已禁用）
+                        LoadSlide(slideToSwitchTo);
+                    }
+                    else
+                    {
+                        // 如果没有其他幻灯片，清空画布
+                        EditorCanvas.Children.Clear();
+                        _textBoxes.Clear();
+                        _selectedTextBox = null;
+                    }
+
+                    // 删除幻灯片（级联删除会自动删除关联的 TextElements 和 RichTextSpans）
+                    _dbContext.Slides.Remove(slideToDelete);
+                    await _dbContext.SaveChangesAsync();
+
+                    // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
+                    LoadSlideList();
+
+                    // 🔧 选中合适的幻灯片
+                    if (SlideListBox.Items.Count > 0)
+                    {
+                        int targetIndex = currentSelectedIndex < SlideListBox.Items.Count 
+                            ? currentSelectedIndex 
+                            : SlideListBox.Items.Count - 1;
+                        SlideListBox.SelectedIndex = targetIndex;
+                        
+                        // 手动加载选中的幻灯片（因为 SelectionChanged 被禁用了）
+                        if (SlideListBox.SelectedItem is Slide targetSlide)
+                        {
+                            LoadSlide(targetSlide);
+                        }
+                    }
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"✅ 删除幻灯片成功: ID={slideIdToDelete}, Title={selectedSlide.Title}");
+#endif
+                }
+                finally
+                {
+                    // 恢复 SelectionChanged 事件
+                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                }
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 删除幻灯片失败: {ex.Message}");
+                // 如果出错，也要恢复事件监听
+                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ 删除幻灯片失败: {ex.Message}");
+#endif
                 WpfMessageBox.Show($"删除幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -5950,7 +7118,127 @@ namespace ImageColorChanger.UI
         }
 
         #endregion
+
+        #region 🎬 视频背景控制功能
+
+        /// <summary>
+        /// 更新 MediaElement 的循环播放行为
+        /// </summary>
+        private void UpdateVideoLoopBehavior(MediaElement mediaElement, bool loop)
+        {
+            if (mediaElement == null)
+                return;
+
+            // 先移除旧的事件处理器
+            mediaElement.MediaEnded -= OnVideoMediaEnded;
+
+            // 如果启用循环，添加新的事件处理器
+            if (loop)
+            {
+                mediaElement.MediaEnded += OnVideoMediaEnded;
+            }
+
+#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateVideoLoopBehavior] 循环播放: {loop}");
+#endif
+        }
+
+        /// <summary>
+        /// 视频播放结束事件处理（循环播放）
+        /// </summary>
+        private void OnVideoMediaEnded(object sender, RoutedEventArgs e)
+        {
+            if (sender is MediaElement mediaElement)
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🔄 [OnVideoMediaEnded] 视频循环播放，当前位置: {mediaElement.Position}");
+#endif
+                mediaElement.Position = TimeSpan.Zero;
+                mediaElement.Play();
+                
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"✅ [OnVideoMediaEnded] 已重置并重新播放");
+#endif
+            }
+        }
+
+#if DEBUG
+        // 📊 帧率监控变量
+        private System.Diagnostics.Stopwatch _frameMonitorStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        private int _frameCount = 0;
+        private DateTime _lastFrameReport = DateTime.Now;
+#endif
+
+        /// <summary>
+        /// 🔍 监控 VisualBrush 刷新率（调试用）
+        /// </summary>
+        private void MonitorVisualBrushFrameRate()
+        {
+#if DEBUG
+            _frameCount++;
+            
+            // 每秒报告一次帧率
+            if ((DateTime.Now - _lastFrameReport).TotalSeconds >= 1.0)
+            {
+                double fps = _frameCount / _frameMonitorStopwatch.Elapsed.TotalSeconds;
+                //System.Diagnostics.Debug.WriteLine($"📊 [VisualBrush FPS] 当前帧率: {fps:F1} FPS");
+                
+                // 重置计数器
+                _frameCount = 0;
+                _frameMonitorStopwatch.Restart();
+                _lastFrameReport = DateTime.Now;
+            }
+#endif
+        }
+
+        /// <summary>
+        /// 保存视频背景设置到数据库
+        /// </summary>
+        private async Task SaveVideoBackgroundSettingsAsync()
+        {
+            if (_currentSlide == null)
+                return;
+                
+            try
+            {
+                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                if (slideToUpdate != null)
+                {
+                    slideToUpdate.BackgroundImagePath = _currentSlide.BackgroundImagePath;
+                    slideToUpdate.VideoBackgroundEnabled = _currentSlide.VideoBackgroundEnabled;
+                    slideToUpdate.VideoLoopEnabled = _currentSlide.VideoLoopEnabled;
+                    slideToUpdate.VideoVolume = _currentSlide.VideoVolume;
+                    slideToUpdate.ModifiedTime = DateTime.Now;
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // 更新本地缓存
+                    _currentSlide.BackgroundImagePath = slideToUpdate.BackgroundImagePath;
+                    _currentSlide.VideoBackgroundEnabled = slideToUpdate.VideoBackgroundEnabled;
+                    _currentSlide.VideoLoopEnabled = slideToUpdate.VideoLoopEnabled;
+                    _currentSlide.VideoVolume = slideToUpdate.VideoVolume;
+                    
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveVideoBackgroundSettings] 已保存视频背景设置: SlideId={slideToUpdate.Id}");
+                    #endif
+                }
+            }
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
+            {
+#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"❌ [SaveVideoBackgroundSettings] 失败: {ex.Message}");
+                _ = ex;
+#endif
+            }
+        }
+
+
+        #endregion
     }
     // FontItemData 类已移至 Core.FontService，统一管理
 }
+
 

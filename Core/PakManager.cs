@@ -272,8 +272,8 @@ namespace ImageColorChanger.Core
                     }
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包创建成功: {outputPakPath}");
-                System.Diagnostics.Debug.WriteLine($"📊 文件大小: {new FileInfo(outputPakPath).Length / 1024} KB");
+                //System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包创建成功: {outputPakPath}");
+                //System.Diagnostics.Debug.WriteLine($"📊 文件大小: {new FileInfo(outputPakPath).Length / 1024} KB");
             }
             catch (Exception ex)
             {

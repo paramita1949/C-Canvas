@@ -133,6 +133,7 @@ namespace ImageColorChanger.UI.Controls
                 UpdateLineSpacingButtonStates();
                 ApplySpacingStyle();
             }
+            e.Handled = true;
         }
 
         /// <summary>
@@ -146,6 +147,7 @@ namespace ImageColorChanger.UI.Controls
                 UpdateLetterSpacingButtonStates();
                 ApplySpacingStyle();
             }
+            e.Handled = true;
         }
 
         /// <summary>

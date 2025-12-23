@@ -70,6 +70,24 @@ namespace ImageColorChanger.Database.Models
         public bool SplitStretchMode { get; set; } = false;
 
         /// <summary>
+        /// 是否启用视频背景（当此值为true时，BackgroundImagePath应指向视频文件）
+        /// </summary>
+        [Column("video_background_enabled")]
+        public bool VideoBackgroundEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 视频循环播放
+        /// </summary>
+        [Column("video_loop_enabled")]
+        public bool VideoLoopEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 视频音量（0.0 - 1.0）
+        /// </summary>
+        [Column("video_volume")]
+        public double VideoVolume { get; set; } = 0.5;
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         [Column("created_time")]

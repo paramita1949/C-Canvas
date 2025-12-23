@@ -89,14 +89,16 @@ namespace ImageColorChanger.Services
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
-        // 多个验证API地址（按优先级排序 - 优先使用未开启CDN）
+        // 多个验证API地址（按优先级排序 - 优先使用代理服务器）
         private static readonly string[] API_BASE_URLS = new[]
         {
-            "https://wx.019890311.xyz",          // 优先1（未开启CDN，直连源站）
-            "https://xian.edu.kg",        // 优先2（开启CDN）
-            "https://jiucai.org.cn",       // 优先3（未开启CDN，直连源站）
-            "https://www.xian.edu.kg",       // 优先4（未开启CDN，直连源站）
-            "https://ym.jiucai.org.cn"             // 优先5（开启CDN）
+            "http://106.14.145.43:23412",        // 阿里云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
+            "http://139.159.157.28:45851",       // 华为云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
+            "https://wx.019890311.xyz",          // 优先2（备用 - 未开启CDN，直连源站）
+            "https://xian.edu.kg",               // 优先3（备用 - 开启CDN）
+            "https://jiucai.org.cn",             // 优先4（备用 - 未开启CDN，直连源站）
+            "https://www.xian.edu.kg",           // 优先5（备用 - 未开启CDN，直连源站）
+            "https://ym.jiucai.org.cn"           // 优先6（备用 - 开启CDN）
         };
 
         // 当前使用的API地址（动态选择）
@@ -1696,11 +1698,11 @@ namespace ImageColorChanger.Services
             var estimatedServerTime = _lastServerTime.Value + elapsedTimeSpan;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次服务器时间: {_lastServerTime.Value}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次Tick: {_lastTickCount}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 当前Tick: {currentTick}");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 真实流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
-            System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 估算服务器时间: {estimatedServerTime}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次服务器时间: {_lastServerTime.Value}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 上次Tick: {_lastTickCount}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 当前Tick: {currentTick}");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 真实流逝: {elapsedTimeSpan.TotalSeconds:F1} 秒");
+            //System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 估算服务器时间: {estimatedServerTime}");
             
             // 额外检测：对比本地时间流逝，检测时间篡改
             if (_lastLocalTime != null)

@@ -99,12 +99,13 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 获取所有项目（仅基本信息，不加载元素）
         /// </summary>
-        /// <returns>项目列表</returns>
+        /// <returns>项目列表（按SortOrder排序，然后按修改时间排序）</returns>
         public async Task<List<TextProject>> GetAllProjectsAsync()
         {
             var dbContext = GetDbContext();
             return await dbContext.TextProjects
-                .OrderByDescending(p => p.ModifiedTime ?? p.CreatedTime)
+                .OrderBy(p => p.SortOrder)
+                .ThenByDescending(p => p.ModifiedTime ?? p.CreatedTime)
                 .ToListAsync();
         }
 

@@ -209,6 +209,9 @@ namespace ImageColorChanger.Managers
                     SplitMode = s.SplitMode,
                     SplitRegionsData = s.SplitRegionsData,
                     SplitStretchMode = s.SplitStretchMode,
+                    VideoBackgroundEnabled = s.VideoBackgroundEnabled,
+                    VideoLoopEnabled = s.VideoLoopEnabled,
+                    VideoVolume = s.VideoVolume,
                     CreatedTime = s.CreatedTime,
                     ModifiedTime = s.ModifiedTime,
                     ThumbnailBase64 = GetThumbnailBase64(s.Id),
@@ -313,6 +316,9 @@ namespace ImageColorChanger.Managers
         public int SplitMode { get; set; }
         public string SplitRegionsData { get; set; }
         public bool SplitStretchMode { get; set; }
+        public bool VideoBackgroundEnabled { get; set; } = false;
+        public bool VideoLoopEnabled { get; set; } = true;
+        public double VideoVolume { get; set; } = 0.0;
         public DateTime CreatedTime { get; set; }
         public DateTime? ModifiedTime { get; set; }
         public string ThumbnailBase64 { get; set; }

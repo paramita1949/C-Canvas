@@ -3673,9 +3673,9 @@ namespace ImageColorChanger.UI
         {
             // IME控制已通过XAML的InputMethod属性实现，无需手动恢复
             // 当焦点离开BibleVerseScrollViewer时，输入法会自动恢复正常状态
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("[圣经拼音] IME会在焦点离开时自动恢复");
-#endif
+//#if DEBUG
+            //System.Diagnostics.Debug.WriteLine("[圣经拼音] IME会在焦点离开时自动恢复");
+//#endif
         }
 
         /// <summary>
@@ -3683,13 +3683,30 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void InitializePinyinService()
         {
-            _pinyinService = new ImageColorChanger.Services.BiblePinyinService(_bibleService);
-            _pinyinInputManager = new ImageColorChanger.Services.BiblePinyinInputManager(
-                _pinyinService,
-                OnPinyinLocationConfirmedAsync,
-                OnPinyinHintUpdateAsync,
-                OnPinyinDeactivate
-            );
+            try
+            {
+                // 检查 BibleService 是否可用
+                if (_bibleService == null)
+                {
+                    //System.Diagnostics.Debug.WriteLine("[圣经拼音] BibleService 未初始化，跳过拼音服务初始化");
+                    return;
+                }
+
+                _pinyinService = new ImageColorChanger.Services.BiblePinyinService(_bibleService);
+                _pinyinInputManager = new ImageColorChanger.Services.BiblePinyinInputManager(
+                    _pinyinService,
+                    OnPinyinLocationConfirmedAsync,
+                    OnPinyinHintUpdateAsync,
+                    OnPinyinDeactivate
+                );
+
+                //System.Diagnostics.Debug.WriteLine("[圣经拼音] 拼音快速定位服务初始化成功");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[圣经拼音] 拼音快速定位服务初始化失败: {ex.Message}");
+                _pinyinInputManager = null; // 确保为 null，后续检查会跳过拼音功能
+            }
         }
 
         /// <summary>
@@ -3714,6 +3731,12 @@ namespace ImageColorChanger.UI
         private async void BibleVerseScrollViewer_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (!_isBibleMode) return;
+
+            // 检查拼音输入管理器是否已初始化
+            if (_pinyinInputManager == null)
+            {
+                return;
+            }
 
             // 如果拼音输入已激活，优先处理ESC键（取消输入框，不关闭投影）
             if (_pinyinInputManager.IsActive && e.Key == Key.Escape)
@@ -3754,6 +3777,12 @@ namespace ImageColorChanger.UI
         private void BibleVerseScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (!_isBibleMode) return;
+
+            // 检查拼音输入管理器是否已初始化
+            if (_pinyinInputManager == null)
+            {
+                return;
+            }
 
             // 检查点击位置是否在提示框外
             if (_pinyinInputManager.IsActive)
@@ -4337,9 +4366,9 @@ namespace ImageColorChanger.UI
                         slot.IsChecked = (slot == targetSlot);
                     }
                     
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
-                    #endif
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"✅ [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
+                    //#endif
                 }
 
                 // 刷新列表显示
@@ -5216,7 +5245,8 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 主窗口失去焦点时，关闭圣经样式 Popup 和所有侧边面板
+        /// 主窗口失去焦点时，关闭圣经样式 Popup
+        /// 注意：不再自动关闭所有侧边面板，只关闭圣经相关组件
         /// </summary>
         private void MainWindow_Deactivated(object sender, EventArgs e)
         {
@@ -5232,19 +5262,19 @@ namespace ImageColorChanger.UI
                 BibleVersionToolbar.Visibility = Visibility.Collapsed;
             }
 
-            // 关闭所有侧边面板（边框、背景、阴影、间距）
-            CloseAllSidePanels();
-
-            // 取消选中编辑框，触发工具栏自动隐藏
-            if (_selectedTextBox != null)
-            {
-                _selectedTextBox.SetSelected(false);
-                _selectedTextBox = null;
-            }
+            // 注意：不再自动关闭所有侧边面板，让用户通过ESC或点击来控制
+            // CloseAllSidePanels(); // 移除这行
+            // 取消编辑框选中：移除这行，让用户通过ESC控制
+            // if (_selectedTextBox != null)
+            // {
+            //     _selectedTextBox.SetSelected(false);
+            //     _selectedTextBox = null;
+            // }
         }
         
         /// <summary>
-        /// 主窗口状态变化时（最小化、最大化等），关闭圣经样式 Popup 和所有侧边面板
+        /// 主窗口状态变化时（最小化、最大化等），关闭圣经样式 Popup
+        /// 注意：不再自动关闭所有侧边面板，只关闭圣经相关组件
         /// </summary>
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
@@ -5260,19 +5290,19 @@ namespace ImageColorChanger.UI
                 BibleVersionToolbar.Visibility = Visibility.Collapsed;
             }
 
-            // 关闭所有侧边面板（边框、背景、阴影、间距）
-            CloseAllSidePanels();
-
-            // 取消选中编辑框，触发工具栏自动隐藏
-            if (_selectedTextBox != null)
-            {
-                _selectedTextBox.SetSelected(false);
-                _selectedTextBox = null;
-            }
+            // 注意：不再自动关闭所有侧边面板，让用户通过ESC或点击来控制
+            // CloseAllSidePanels(); // 移除这行
+            // 取消编辑框选中：移除这行，让用户通过ESC控制
+            // if (_selectedTextBox != null)
+            // {
+            //     _selectedTextBox.SetSelected(false);
+            //     _selectedTextBox = null;
+            // }
         }
         
         /// <summary>
-        /// 主窗口位置变化时，关闭圣经样式 Popup 和所有侧边面板
+        /// 主窗口位置变化时，关闭圣经样式 Popup
+        /// 注意：不再自动关闭所有侧边面板，只关闭圣经相关组件
         /// </summary>
         private void MainWindow_LocationChanged(object sender, EventArgs e)
         {
@@ -5288,15 +5318,14 @@ namespace ImageColorChanger.UI
                 BibleVersionToolbar.Visibility = Visibility.Collapsed;
             }
 
-            // 关闭所有侧边面板（边框、背景、阴影、间距）
-            CloseAllSidePanels();
-
-            // 取消选中编辑框，触发工具栏自动隐藏
-            if (_selectedTextBox != null)
-            {
-                _selectedTextBox.SetSelected(false);
-                _selectedTextBox = null;
-            }
+            // 注意：不再自动关闭所有侧边面板，让用户通过ESC或点击来控制
+            // CloseAllSidePanels(); // 移除这行
+            // 取消编辑框选中：移除这行，让用户通过ESC控制
+            // if (_selectedTextBox != null)
+            // {
+            //     _selectedTextBox.SetSelected(false);
+            //     _selectedTextBox = null;
+            // }
         }
 
     /// <summary>

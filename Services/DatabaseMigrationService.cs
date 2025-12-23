@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 namespace ImageColorChanger.Services
 {
     /// <summary>
-    /// 数据库迁移服务 - 提供数据库导入导出功能
+    /// 数据库迁移服务 - 提供数据库、缩略图和配置文件的导入导出功能
     /// </summary>
     public class DatabaseMigrationService
     {
         private readonly string _defaultDbPath;
         private readonly string _thumbnailsDir;
+        private readonly string _configFilePath;
 
         /// <summary>
         /// 构造函数
@@ -22,10 +23,12 @@ namespace ImageColorChanger.Services
             _defaultDbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
             // 缩略图文件夹路径：主程序目录/Thumbnails
             _thumbnailsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Thumbnails");
+            // 配置文件路径：主程序目录/config.json
+            _configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
         }
 
         /// <summary>
-        /// 导出数据库到指定位置（压缩包格式，包含数据库和缩略图）
+        /// 导出数据库到指定位置（压缩包格式，包含数据库、缩略图和配置文件）
         /// </summary>
         /// <param name="targetPath">目标压缩包文件路径</param>
         /// <returns>是否成功</returns>
@@ -80,6 +83,14 @@ namespace ImageColorChanger.Services
                         var tempThumbnailsDir = Path.Combine(tempDir, "Thumbnails");
                         await Task.Run(() => CopyDirectory(_thumbnailsDir, tempThumbnailsDir));
                         System.Diagnostics.Debug.WriteLine($"✅ 缩略图文件夹已复制到临时目录（{Directory.GetFiles(tempThumbnailsDir).Length} 个文件）");
+                    }
+
+                    // 复制配置文件到临时目录（如果存在）
+                    if (File.Exists(_configFilePath))
+                    {
+                        var tempConfigPath = Path.Combine(tempDir, "config.json");
+                        await Task.Run(() => File.Copy(_configFilePath, tempConfigPath, overwrite: true));
+                        System.Diagnostics.Debug.WriteLine("✅ 配置文件已复制到临时目录");
                     }
 
                     // 删除目标文件（如果存在）
@@ -154,6 +165,15 @@ namespace ImageColorChanger.Services
                     System.Diagnostics.Debug.WriteLine($"✅ 已备份当前缩略图文件夹到: {backupThumbnailsDir}");
                 }
 
+                // 备份当前配置文件到 backdb 文件夹
+                if (File.Exists(_configFilePath))
+                {
+                    var backupConfigFileName = $"config.json.backup_{DateTime.Now:yyyyMMdd_HHmmss}";
+                    var backupConfigPath = Path.Combine(backdbDir, backupConfigFileName);
+                    await Task.Run(() => File.Copy(_configFilePath, backupConfigPath, overwrite: true));
+                    System.Diagnostics.Debug.WriteLine($"✅ 已备份当前配置文件到: {backupConfigPath}");
+                }
+
                 // 关闭所有数据库连接
                 CloseAllDatabaseConnections();
 
@@ -205,7 +225,7 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 从压缩包导入数据库和缩略图
+        /// 从压缩包导入数据库、缩略图和配置文件
         /// </summary>
         private async Task ImportFromZipAsync(string zipPath)
         {
@@ -249,6 +269,18 @@ namespace ImageColorChanger.Services
                 else
                 {
                     System.Diagnostics.Debug.WriteLine("⚠️ 压缩包中未找到 Thumbnails 文件夹");
+                }
+
+                // 导入配置文件（如果存在）
+                var tempConfigPath = Path.Combine(tempDir, "config.json");
+                if (File.Exists(tempConfigPath))
+                {
+                    await Task.Run(() => File.Copy(tempConfigPath, _configFilePath, overwrite: true));
+                    System.Diagnostics.Debug.WriteLine("✅ 配置文件已导入");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ 压缩包中未找到 config.json 文件");
                 }
             }
             finally

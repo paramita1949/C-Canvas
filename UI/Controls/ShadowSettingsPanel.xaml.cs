@@ -183,6 +183,7 @@ namespace ImageColorChanger.UI.Controls
             UpdatePresetButtons();
             UpdateParametersVisibility();
             ApplyPreset(_currentPreset);
+            e.Handled = true;
         }
 
         private void BtnInnerShadow_Click(object sender, RoutedEventArgs e)
@@ -193,6 +194,7 @@ namespace ImageColorChanger.UI.Controls
             UpdatePresetButtons();
             UpdateParametersVisibility();
             ApplyPreset(_currentPreset);
+            e.Handled = true;
         }
 
         private void BtnPerspectiveShadow_Click(object sender, RoutedEventArgs e)
@@ -203,6 +205,7 @@ namespace ImageColorChanger.UI.Controls
             UpdatePresetButtons();
             UpdateParametersVisibility();
             ApplyPreset(_currentPreset);
+            e.Handled = true;
         }
 
         /// <summary>
@@ -225,6 +228,7 @@ namespace ImageColorChanger.UI.Controls
 
             UpdateShadowTypeButtons();
             UpdateParametersVisibility();
+            e.Handled = true;
         }
 
         /// <summary>
@@ -239,6 +243,7 @@ namespace ImageColorChanger.UI.Controls
                 _currentColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
                 ApplyShadow();
             }
+            e.Handled = true;
         }
 
         /// <summary>
@@ -251,6 +256,7 @@ namespace ImageColorChanger.UI.Controls
                 _currentPreset = preset;
                 ApplyPreset(preset);
             }
+            e.Handled = true;
         }
 
         /// <summary>
@@ -282,6 +288,7 @@ namespace ImageColorChanger.UI.Controls
                 _currentColor = colorHex;
                 ApplyShadow();
             }
+            e.Handled = true;
         }
 
         /// <summary>
@@ -297,11 +304,13 @@ namespace ImageColorChanger.UI.Controls
         private void BtnDecreaseDistance_Click(object sender, RoutedEventArgs e)
         {
             DistanceSlider.Value = Math.Max(0, DistanceSlider.Value - 1);
+            e.Handled = true;
         }
 
         private void BtnIncreaseDistance_Click(object sender, RoutedEventArgs e)
         {
             DistanceSlider.Value = Math.Min(30, DistanceSlider.Value + 1);
+            e.Handled = true;
         }
 
         /// <summary>
@@ -317,11 +326,13 @@ namespace ImageColorChanger.UI.Controls
         private void BtnDecreaseBlur_Click(object sender, RoutedEventArgs e)
         {
             BlurSlider.Value = Math.Max(0, BlurSlider.Value - 1);
+            e.Handled = true;
         }
 
         private void BtnIncreaseBlur_Click(object sender, RoutedEventArgs e)
         {
             BlurSlider.Value = Math.Min(40, BlurSlider.Value + 1);
+            e.Handled = true;
         }
 
         /// <summary>
@@ -337,11 +348,13 @@ namespace ImageColorChanger.UI.Controls
         private void BtnDecreaseOpacity_Click(object sender, RoutedEventArgs e)
         {
             OpacitySlider.Value = Math.Max(0, OpacitySlider.Value - 5);
+            e.Handled = true;
         }
 
         private void BtnIncreaseOpacity_Click(object sender, RoutedEventArgs e)
         {
             OpacitySlider.Value = Math.Min(100, OpacitySlider.Value + 5);
+            e.Handled = true;
         }
 
         // ========== 辅助方法 ==========
