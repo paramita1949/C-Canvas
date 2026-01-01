@@ -137,10 +137,11 @@ namespace ImageColorChanger.UI
             // 显示图片浏览区域
             ImageScrollViewer.Visibility = Visibility.Visible;
 
+            // 🔧 先设置标志为false，再恢复合成播放按钮的显示状态
+            _isLyricsMode = false;
+
             // 🔧 恢复合成播放按钮的显示状态
             UpdateFloatingCompositePlayButton();
-
-            _isLyricsMode = false;
 
             // 🔧 如果投影已开启，恢复图片投影（刷新当前图片）
             if (_projectionManager != null && _projectionManager.IsProjecting)

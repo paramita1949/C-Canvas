@@ -266,29 +266,6 @@ namespace ImageColorChanger.UI
             {
                 contextMenu.Items.Add(new Separator());
 
-                // 🆕 创建分割图菜单项（仅在有相似图片时显示）
-                if (_originalManager.HasSimilarImages())
-                {
-                    var similarImages = _originalManager.GetSimilarImages();
-                    int imageCount = similarImages.Count;
-
-                    // 只支持1-4张图片
-                    if (imageCount >= 1 && imageCount <= 4)
-                    {
-                        var createSplitMenuItem = new MenuItem
-                        {
-                            Header = $"创建分割图 ({imageCount}张)",
-                            FontSize = 14
-                        };
-                        createSplitMenuItem.Click += async (s, args) =>
-                        {
-                            await CreateSplitSlideInPraiseProject();
-                        };
-                        contextMenu.Items.Add(createSplitMenuItem);
-                        contextMenu.Items.Add(new Separator());
-                    }
-                }
-
                 var displayModeMenuItem = new MenuItem { Header = "原图模式" };
                 
                 // 拉伸模式

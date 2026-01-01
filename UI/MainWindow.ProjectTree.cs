@@ -734,7 +734,7 @@ namespace ImageColorChanger.UI
                         // 🆕 创建分割图菜单项（点击后再查找相似图片）
                         var createSplitMenuItem = new MenuItem
                         {
-                            Header = "📊 创建分割图",
+                            Header = "创建分割图",
                             FontSize = 14
                         };
                         createSplitMenuItem.Click += async (s, args) =>
