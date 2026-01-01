@@ -730,7 +730,20 @@ namespace ImageColorChanger.UI
                     else if (item.Type == TreeItemType.File)
                     {
                         // 文件右键菜单
-                        
+
+                        // 🆕 创建分割图菜单项（点击后再查找相似图片）
+                        var createSplitMenuItem = new MenuItem
+                        {
+                            Header = "📊 创建分割图",
+                            FontSize = 14
+                        };
+                        createSplitMenuItem.Click += async (s, args) =>
+                        {
+                            await CreateSplitSlideInPraiseProjectFromFile(item.Id);
+                        };
+                        contextMenu.Items.Add(createSplitMenuItem);
+                        contextMenu.Items.Add(new Separator());
+
                         var deleteItem = new MenuItem { Header = "删除文件" };
                         deleteItem.Click += (s, args) => DeleteFile(item);
                         contextMenu.Items.Add(deleteItem);
