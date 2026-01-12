@@ -89,16 +89,16 @@ namespace ImageColorChanger.Services
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
-        // 多个验证API地址（按优先级排序 - 优先使用代理服务器）
+        // 多个验证API地址（按优先级排序 - 优先使用域名，IP地址作为最后备用）
         private static readonly string[] API_BASE_URLS = new[]
         {
-            "http://106.14.145.43:23412",        // 阿里云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
-            "http://139.159.157.28:45851",       // 华为云（代理服务器 - 通过 Nginx 转发到 Cloudflare）
-            "https://wx.019890311.xyz",          // 优先2（备用 - 未开启CDN，直连源站）
-            "https://xian.edu.kg",               // 优先3（备用 - 开启CDN）
-            "https://jiucai.org.cn",             // 优先4（备用 - 未开启CDN，直连源站）
-            "https://www.xian.edu.kg",           // 优先5（备用 - 未开启CDN，直连源站）
-            "https://ym.jiucai.org.cn"           // 优先6（备用 - 开启CDN）
+            "https://wx.019890311.xyz",          // 优先1（域名 - 未开启CDN，直连源站，可获取真实IP）
+            "https://xian.edu.kg",               // 优先2（域名 - 开启CDN）
+            "https://jiucai.org.cn",             // 优先3（域名 - 未开启CDN，直连源站，可获取真实IP）
+            "https://www.xian.edu.kg",           // 优先4（域名 - 未开启CDN，直连源站，可获取真实IP）
+            "https://ym.jiucai.org.cn",          // 优先5（域名 - 开启CDN）
+            "http://106.14.145.43:23412",        // 优先6（阿里云IP - 反向代理，最后备用）
+            "http://139.159.157.28:45851"        // 优先7（华为云IP - 反向代理，最后备用）
         };
 
         // 当前使用的API地址（动态选择）
@@ -126,7 +126,7 @@ namespace ImageColorChanger.Services
         private int _resetDeviceCount = 0;     // 剩余重置设备次数（默认0）
         private System.Threading.Timer _heartbeatTimer;
         private DateTime? _lastSuccessfulHeartbeat; // 最后一次成功心跳的时间
-        private const int MAX_OFFLINE_DAYS = 14;  // 最长离线天数（14天）
+        private const int MAX_OFFLINE_DAYS = 90;  // 最长离线天数（90天）
         
         // 🔒 全局互斥锁（防止多开）
         private static System.Threading.Mutex _appMutex;
@@ -1486,7 +1486,7 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 启动心跳定时器（登录后1分钟首次检查，之后每20分钟检查一次）
+        /// 启动心跳定时器（每2小时检查一次）
         /// </summary>
         private void StartHeartbeat()
         {
@@ -1494,14 +1494,14 @@ namespace ImageColorChanger.Services
             _heartbeatTimer = new System.Threading.Timer(
                 HeartbeatCallback,
                 null,
-                TimeSpan.FromMinutes(1),   // 登录后1分钟首次检查
-                TimeSpan.FromMinutes(20)   // 之后每20分钟检查一次
+                TimeSpan.FromHours(2),   // 首次心跳：2小时后
+                TimeSpan.FromHours(2)    // 之后每2小时检查一次
             );
 
             #if DEBUG
-            var firstHeartbeat = DateTime.Now.AddMinutes(1);
-            var secondHeartbeat = DateTime.Now.AddMinutes(21); // 首次1分钟 + 间隔20分钟
-            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（登录后1分钟首次检查，之后每20分钟）");
+            var firstHeartbeat = DateTime.Now.AddHours(2);
+            var secondHeartbeat = DateTime.Now.AddHours(4); // 首次2小时 + 间隔2小时
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每2小时检查一次）");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
             #endif
