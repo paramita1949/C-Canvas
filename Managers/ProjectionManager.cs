@@ -621,22 +621,9 @@ namespace ImageColorChanger.Managers
                         // 🔧 居中对齐，确保内容在屏幕中央完整显示
                         _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Center;
                         _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                        
-                        // 计算位置偏移量
-                        double containerWidth = _projectionScrollViewer?.ActualWidth ?? screenWidth;
-                        double containerHeight = _projectionScrollViewer?.ActualHeight ?? screenHeight;
-                        if (containerWidth <= 0) containerWidth = screenWidth;
-                        if (containerHeight <= 0) containerHeight = screenHeight;
-                        
-                        // 🔧 拉伸到容器宽度：图片宽度=主屏幕宽度，需要拉伸到投影屏幕宽度
-                        _projectionImageControl.Stretch = System.Windows.Media.Stretch.Fill;
-                        _projectionImageControl.Width = containerWidth; // 拉伸到容器宽度
-                        _projectionImageControl.Height = renderedTextImage.Height * (containerWidth / renderedTextImage.Width); // 按比例调整高度
-                        
-                        double x = 0; // 拉伸后宽度=容器宽度，左对齐
-                        double y = 0; // 顶部对齐
-                        
-                        _projectionImageControl.Margin = new System.Windows.Thickness(x, y, 0, 0);
+
+                        // 🔧 清除Margin，让WPF自动居中
+                        _projectionImageControl.Margin = new System.Windows.Thickness(0);
 
 //#if DEBUG
 //                        //System.Diagnostics.Debug.WriteLine($"📐 [文字投影-对齐] 原始图片尺寸: {renderedTextImage.Width}x{renderedTextImage.Height}");
