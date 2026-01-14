@@ -17,7 +17,7 @@
     <AssemblyVersion>5.9.9.2</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2025 咏慕投影</Copyright>
-    <!-- 🔧 应用程序清单：启用 Per-Monitor V2 DPI 感知，确保投影仪正确显示 -->
+    <!-- 🔧 应用程序清单：启用基本配置（DPI设置已注释） -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
