@@ -128,13 +128,13 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 应用菜单栏字号设置 - 按照Python版本字号设计
+        /// 应用菜单栏字号设置 - 扩展字号范围以适配小型笔记本
         /// </summary>
         private void ApplyMenuFontSize(double fontSize)
         {
-            // 限制范围：18-40，按照Python版本的字号范围
-            fontSize = Math.Max(18, Math.Min(40, fontSize));
-            
+            // 限制范围：12-40，扩展到更小字号以适配小型笔记本
+            fontSize = Math.Max(12, Math.Min(40, fontSize));
+
             // Python版本逻辑：主字号22，菜单字号=主字号*0.8=17.6≈18
             // 这里fontSize是主字号，实际显示字号是fontSize*0.8
             double displayFontSize = fontSize * 0.8;

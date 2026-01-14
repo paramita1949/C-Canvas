@@ -108,12 +108,12 @@ namespace ImageColorChanger.UI
             }
             fontSizeItem.Items.Add(folderTagFontSizeItem);
             
-            // 菜单字号子菜单（按照Python版本：18-40）
+            // 菜单字号子菜单（扩展范围：12-40，适配小型笔记本）
             var menuFontSizeItem = new MenuItem { Header = "菜单字号" };
-            foreach (var size in new[] { 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 35.0, 40.0 })
+            foreach (var size in new[] { 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 35.0, 40.0 })
             {
-                var menuItem = new MenuItem 
-                { 
+                var menuItem = new MenuItem
+                {
                     Header = $"{size}",
                     IsCheckable = true,
                     IsChecked = Math.Abs(_configManager.MenuFontSize - size) < 0.1

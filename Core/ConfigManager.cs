@@ -397,7 +397,7 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
-        /// 菜单栏字号（18-40，按照Python版本设计）
+        /// 菜单栏字号（12-40，扩展范围以适配小型笔记本）
         /// </summary>
         public double MenuFontSize
         {
@@ -961,7 +961,7 @@ namespace ImageColorChanger.Core
         public double FolderTagFontSize { get; set; } = 18.0;
         
         /// <summary>
-        /// 菜单栏字号（默认：22，范围18-40，按照Python版本设计）
+        /// 菜单栏字号（默认：22，范围12-40，扩展以适配小型笔记本）
         /// </summary>
         public double MenuFontSize { get; set; } = 22.0;
 
