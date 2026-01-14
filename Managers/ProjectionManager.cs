@@ -599,21 +599,28 @@ namespace ImageColorChanger.Managers
                     
                     // 直接转换并显示，无需缓存、变色、缩放等复杂逻辑
                     var bitmapSource = ConvertToBitmapSource(renderedTextImage);
-                    
+
                     if (bitmapSource != null)
                     {
                         // 更新投影窗口的图像控件
                         _projectionImageControl.Source = bitmapSource;
-                        _projectionImageControl.Width = renderedTextImage.Width;
-                        _projectionImageControl.Height = renderedTextImage.Height;
-                        
+
+                        // 🔧 关键修复：不设置固定Width/Height，让Image自动填充容器
+                        // 原因：renderedTextImage是物理像素尺寸，而WPF的Width/Height是设备独立单位
+                        // 如果投影仪DPI不是100%，设置固定尺寸会导致内容超出屏幕
+                        _projectionImageControl.Width = double.NaN;  // 自动宽度
+                        _projectionImageControl.Height = double.NaN; // 自动高度
+
+                        // 🔧 使用Stretch.Uniform确保内容完整显示且不变形
+                        _projectionImageControl.Stretch = Stretch.Uniform;
+
                         var screen = _screens[_currentScreenIndex];
                         double screenWidth = screen.PhysicalBounds.Width;
                         double screenHeight = screen.PhysicalBounds.Height;
-                        
-                        // 🔧 像素级对齐：与图片投影保持一致（左上角对齐+Margin）
-                        _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Left;
-                        _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+
+                        // 🔧 居中对齐，确保内容在屏幕中央完整显示
+                        _projectionImageControl.HorizontalAlignment = WpfHorizontalAlignment.Center;
+                        _projectionImageControl.VerticalAlignment = System.Windows.VerticalAlignment.Center;
                         
                         // 计算位置偏移量
                         double containerWidth = _projectionScrollViewer?.ActualWidth ?? screenWidth;
