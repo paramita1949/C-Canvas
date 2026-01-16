@@ -1623,7 +1623,7 @@
                                     Click="BtnBackgroundImage_Click"/>
                             
                             <!-- 背景颜色按钮 -->
-                            <Button x:Name="BtnBackgroundColor" Content="🎨 背景色" 
+                            <Button x:Name="BtnBackgroundColor" Content="🎨 背景"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="选择背景颜色"
                                     Click="BtnBackgroundColor_Click"/>

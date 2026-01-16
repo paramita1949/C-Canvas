@@ -2352,9 +2352,11 @@ namespace ImageColorChanger.UI
                     Source = new Uri(videoPath, UriKind.Absolute),
                     LoadedBehavior = MediaState.Manual,
                     UnloadedBehavior = MediaState.Manual,
-                    Stretch = Stretch.Uniform,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                    Stretch = Stretch.UniformToFill,  // 🔧 改为 UniformToFill，填充整个画布
+                    Width = EditorCanvas.Width,       // 🔧 明确设置宽度
+                    Height = EditorCanvas.Height,     // 🔧 明确设置高度
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Top,
                     Volume = 0.0,  // 默认静音
                     ScrubbingEnabled = true,
                     // 🚀 启用 GPU 硬件加速缓存
@@ -2380,7 +2382,10 @@ namespace ImageColorChanger.UI
                 // 设置循环播放
                 UpdateVideoLoopBehavior(mediaElement, true);
 
-                // 添加到 Canvas
+                // 添加到 Canvas（设置位置为左上角）
+                Canvas.SetLeft(mediaElement, 0);
+                Canvas.SetTop(mediaElement, 0);
+                Canvas.SetZIndex(mediaElement, -1);  // 🔧 设置为最底层，确保文本在上方
                 EditorCanvas.Children.Insert(0, mediaElement);
 
                 // 自动播放
@@ -5817,9 +5822,11 @@ namespace ImageColorChanger.UI
                     Source = new Uri(slide.BackgroundImagePath, UriKind.Absolute),
                     LoadedBehavior = MediaState.Manual,
                     UnloadedBehavior = MediaState.Manual,
-                    Stretch = Stretch.Uniform,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                    Stretch = Stretch.UniformToFill,  // 🔧 改为 UniformToFill，填充整个画布
+                    Width = EditorCanvas.Width,       // 🔧 明确设置宽度
+                    Height = EditorCanvas.Height,     // 🔧 明确设置高度
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Top,
                     Volume = slide.VideoVolume,  // 使用数据库中的音量（默认0）
                     ScrubbingEnabled = true,
                     // 🚀 启用 GPU 硬件加速缓存
@@ -5845,7 +5852,10 @@ namespace ImageColorChanger.UI
                 // 设置循环播放（根据数据库设置）
                 UpdateVideoLoopBehavior(mediaElement, slide.VideoLoopEnabled);
 
-                // 添加到 Canvas
+                // 添加到 Canvas（设置位置为左上角）
+                Canvas.SetLeft(mediaElement, 0);
+                Canvas.SetTop(mediaElement, 0);
+                Canvas.SetZIndex(mediaElement, -1);  // 🔧 设置为最底层，确保文本在上方
                 EditorCanvas.Children.Insert(0, mediaElement);
 
 #if DEBUG
@@ -7328,6 +7338,9 @@ namespace ImageColorChanger.UI
                     UpdateSplitLayout((Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode);
                 }
 
+                // 🔧 更新视频背景尺寸（如果存在）
+                UpdateVideoBackgroundSize(width, height);
+
                 // 🔧 更新浮动工具栏位置（根据画布高度调整）
                 UpdateBibleToolbarPosition(height);
 
@@ -7371,6 +7384,41 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [初始化画布比例] 失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 更新视频背景尺寸（比例切换时调用）
+        /// </summary>
+        private void UpdateVideoBackgroundSize(double width, double height)
+        {
+            try
+            {
+                if (EditorCanvas == null)
+                    return;
+
+                // 查找 Canvas 中的 MediaElement
+                var mediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
+                foreach (var mediaElement in mediaElements)
+                {
+                    mediaElement.Width = width;
+                    mediaElement.Height = height;
+                }
+
+#if DEBUG
+                if (mediaElements.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"🔧 [视频尺寸] 已更新 {mediaElements.Count} 个视频背景尺寸: {width}×{height}");
+                }
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [更新视频尺寸] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
