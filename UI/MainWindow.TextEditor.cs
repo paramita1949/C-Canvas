@@ -100,6 +100,9 @@ namespace ImageColorChanger.UI
 
             // 加载系统字体
             LoadSystemFonts();
+
+            // 🆕 初始化画布比例
+            InitializeCanvasAspectRatio();
         }
 
         /// <summary>
@@ -1038,8 +1041,8 @@ namespace ImageColorChanger.UI
                 return;
             }
             
-            double canvasWidth = EditorCanvas.ActualWidth > 0 ? EditorCanvas.ActualWidth : 1080;
-            double canvasHeight = EditorCanvas.ActualHeight > 0 ? EditorCanvas.ActualHeight : 700;
+            double canvasWidth = EditorCanvas.ActualWidth > 0 ? EditorCanvas.ActualWidth : 1600;
+            double canvasHeight = EditorCanvas.ActualHeight > 0 ? EditorCanvas.ActualHeight : 900;
             
             switch (mode)
             {
@@ -5181,25 +5184,25 @@ namespace ImageColorChanger.UI
             {
                 // 获取投影屏幕分辨率
                 var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionSize() ?? (1920, 1080);
-                
-                // 编辑器画布固定尺寸
-                const double canvasWidth = 1080.0;
-                const double canvasHeight = 700.0;
-                
+
+                // 🔧 使用实际画布尺寸（而非硬编码）
+                double canvasWidth = EditorCanvas?.ActualWidth ?? 1600.0;
+                double canvasHeight = EditorCanvas?.ActualHeight ?? 900.0;
+
                 // 计算宽度和高度的缩放比例
                 double scaleX = projWidth / canvasWidth;
                 double scaleY = projHeight / canvasHeight;
-                
+
                 // 使用较大的缩放比例，确保投影时质量充足
                 double scale = Math.Max(scaleX, scaleY);
-                
+
                 // 限制范围：1.0-4.0（避免过大导致内存问题）
                 scale = Math.Max(1.0, Math.Min(4.0, scale));
-                
+
                 #if DEBUG
                 // //System.Diagnostics.Debug.WriteLine($"🎨 [RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
                 #endif
-                
+
                 return scale;
             }
             catch
@@ -6983,8 +6986,8 @@ namespace ImageColorChanger.UI
                 int height = (int)canvasParent.ActualHeight;
                 
                 // 如果尺寸无效，使用默认值
-                if (width <= 0) width = 1080;
-                if (height <= 0) height = 700;
+                if (width <= 0) width = 1600;
+                if (height <= 0) height = 900;
 
                 // 创建渲染目标
                 var renderBitmap = new RenderTargetBitmap(
@@ -7236,6 +7239,136 @@ namespace ImageColorChanger.UI
             }
         }
 
+        #endregion
+
+        #region 画布比例切换
+
+        /// <summary>
+        /// 画布比例切换按钮点击事件
+        /// </summary>
+        private void BtnCanvasAspectRatio_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 切换比例
+                string currentRatio = _configManager.CanvasAspectRatio;
+                string newRatio = currentRatio == "16:9" ? "4:3" : "16:9";
+
+                // 保存到配置
+                _configManager.CanvasAspectRatio = newRatio;
+
+                // 应用新比例
+                ApplyCanvasAspectRatio(newRatio);
+
+                // 更新按钮文本（只显示比例）
+                if (BtnCanvasAspectRatioInPanel != null)
+                {
+                    BtnCanvasAspectRatioInPanel.Content = newRatio;
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [画布比例切换] 失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 应用画布比例设置
+        /// </summary>
+        private void ApplyCanvasAspectRatio(string ratio)
+        {
+            try
+            {
+                int width, height;
+
+                if (ratio == "16:9")
+                {
+                    // 16:9 比例：1600×900
+                    width = 1600;
+                    height = 900;
+                }
+                else // 4:3
+                {
+                    // 4:3 比例：1600×1200
+                    width = 1600;
+                    height = 1200;
+                }
+
+                // 更新画布尺寸
+                if (EditorCanvasContainer != null)
+                {
+                    EditorCanvasContainer.Width = width;
+                    EditorCanvasContainer.Height = height;
+                }
+
+                if (EditorCanvas != null)
+                {
+                    EditorCanvas.Width = width;
+                    EditorCanvas.Height = height;
+                }
+
+                // 更新对齐线的长度
+                if (VerticalAlignLine != null)
+                {
+                    VerticalAlignLine.Y2 = height;
+                }
+
+                if (HorizontalAlignLine != null)
+                {
+                    HorizontalAlignLine.X2 = width;
+                }
+
+                // 如果有当前幻灯片，更新分割布局
+                if (_currentSlide != null && _currentSlide.SplitMode >= 0)
+                {
+                    UpdateSplitLayout((Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode);
+                }
+
+                // 强制更新布局
+                EditorCanvas?.UpdateLayout();
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [应用画布比例] 失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 初始化画布比例（在编辑器初始化时调用）
+        /// </summary>
+        private void InitializeCanvasAspectRatio()
+        {
+            try
+            {
+                // 从配置加载比例
+                string ratio = _configManager.CanvasAspectRatio;
+
+                // 应用比例
+                ApplyCanvasAspectRatio(ratio);
+
+                // 更新按钮文本（只显示比例）
+                if (BtnCanvasAspectRatioInPanel != null)
+                {
+                    BtnCanvasAspectRatioInPanel.Content = ratio;
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [初始化画布比例] 失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
 
         #endregion
     }

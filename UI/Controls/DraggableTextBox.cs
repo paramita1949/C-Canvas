@@ -1858,17 +1858,9 @@ namespace ImageColorChanger.UI.Controls
                 {
                     // ✅ 普通文本：按换行符分割为多个段落，保留文本顺序
                     string content = Data.Content ?? "";
-                    
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📥 [SyncTextToRichTextBox] 加载文本，长度={content.Length}, 内容预览={content.Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\n").Substring(0, Math.Min(50, content.Length))}");
-#endif
-                    
+
                     // 按换行符分割文本（支持 \r\n、\n、\r）
                     string[] lines = content.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
-                    
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📥 [SyncTextToRichTextBox] 分割后行数={lines.Length}");
-#endif
                     
                     foreach (string line in lines)
                     {
@@ -1898,7 +1890,7 @@ namespace ImageColorChanger.UI.Controls
                         paragraph.Inlines.Add(run);
                         _richTextBox.Document.Blocks.Add(paragraph);
                     }
-                    
+
                     // 如果内容为空，至少创建一个空段落
                     if (lines.Length == 0)
                     {
@@ -1906,10 +1898,6 @@ namespace ImageColorChanger.UI.Controls
                         paragraph.Margin = new System.Windows.Thickness(0);
                         _richTextBox.Document.Blocks.Add(paragraph);
                     }
-                    
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [SyncTextToRichTextBox] 加载完成，段落数={_richTextBox.Document.Blocks.Count}");
-#endif
                 }
 
                 // 应用样式（包括 RichTextSpans）

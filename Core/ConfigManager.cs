@@ -979,6 +979,12 @@ namespace ImageColorChanger.Core
         /// 投影动画时长（毫秒，默认：800）
         /// </summary>
         public int ProjectionAnimationDuration { get; set; } = 800;
+
+        /// <summary>
+        /// 画布宽高比（默认：16:9）
+        /// 可选值："16:9" 或 "4:3"
+        /// </summary>
+        public string CanvasAspectRatio { get; set; } = "16:9";
     }
 
     /// <summary>
@@ -1029,6 +1035,22 @@ namespace ImageColorChanger.Core
                 if (_config.ProjectionAnimationDuration != value)
                 {
                     _config.ProjectionAnimationDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 画布宽高比
+        /// </summary>
+        public string CanvasAspectRatio
+        {
+            get => _config.CanvasAspectRatio;
+            set
+            {
+                if (_config.CanvasAspectRatio != value)
+                {
+                    _config.CanvasAspectRatio = value;
                     SaveConfig();
                 }
             }
