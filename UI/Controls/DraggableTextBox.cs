@@ -295,14 +295,8 @@ namespace ImageColorChanger.UI.Controls
                 CaretBrush = WpfBrushes.White,  // 白色光标
 
                 // ✅ 隐藏滚动条
-                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden,
-                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden
             };
-
-            // ✅ 启用高质量文本渲染
-            System.Windows.Media.TextOptions.SetTextRenderingMode(_richTextBox, System.Windows.Media.TextRenderingMode.ClearType);
-            System.Windows.Media.TextOptions.SetTextFormattingMode(_richTextBox, System.Windows.Media.TextFormattingMode.Ideal);
-            System.Windows.Media.RenderOptions.SetClearTypeHint(_richTextBox, System.Windows.Media.ClearTypeHint.Enabled);
 
             // 监听文本改变事件
             _richTextBox.TextChanged += (s, e) =>
@@ -1608,30 +1602,11 @@ namespace ImageColorChanger.UI.Controls
             if (_border == null)
                 return null;
 
-            // ✅ 获取系统 DPI，提高高分辨率显示器的渲染质量
-            var dpiX = 96.0;
-            var dpiY = 96.0;
-            try
-            {
-                var source = System.Windows.PresentationSource.FromVisual(this);
-                if (source?.CompositionTarget != null)
-                {
-                    var matrix = source.CompositionTarget.TransformToDevice;
-                    dpiX = 96.0 * matrix.M11;
-                    dpiY = 96.0 * matrix.M22;
-                }
-            }
-            catch
-            {
-                // 如果获取失败，使用默认 96 DPI
-            }
-
             // 🔧 渲染整个 Border 容器（包含边框、背景和 RichTextBox）
-            // ✅ 使用实际 DPI 提高渲染质量（特别是高分辨率显示器）
             var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
                 (int)ActualWidth,
                 (int)ActualHeight,
-                dpiX, dpiY,
+                96, 96,
                 System.Windows.Media.PixelFormats.Pbgra32);
 
             // 🔧 渲染 _border 而不是 _richTextBox，以包含边框和背景样式
