@@ -4801,10 +4801,11 @@ namespace ImageColorChanger.UI
 //                    //System.Diagnostics.Debug.WriteLine($"  行间距: {data.LineSpacing}");
 //                    //System.Diagnostics.Debug.WriteLine($"  文本框尺寸: {width}×{height}");
 //                    //System.Diagnostics.Debug.WriteLine($"  实际位置: ({actualLeft}, {actualTop})");
+//                    //System.Diagnostics.Debug.WriteLine($"  缩放比例: {_currentCanvasScaleX:F2}×{_currentCanvasScaleY:F2}");
 //#endif
 
-                    // ✅ 使用 WPF 原生方法渲染 RichTextBox
-                    var wpfBitmap = textBox.GetRenderedBitmap();
+                    // ✅ 使用 WPF 原生方法渲染 RichTextBox，传入缩放比例以获得高清效果
+                    var wpfBitmap = textBox.GetRenderedBitmap(_currentCanvasScaleX, _currentCanvasScaleY);
 
                     if (wpfBitmap != null)
                     {
