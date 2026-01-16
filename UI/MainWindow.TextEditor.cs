@@ -7328,6 +7328,9 @@ namespace ImageColorChanger.UI
                     UpdateSplitLayout((Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode);
                 }
 
+                // 🔧 更新浮动工具栏位置（根据画布高度调整）
+                UpdateBibleToolbarPosition(height);
+
                 // 强制更新布局
                 EditorCanvas?.UpdateLayout();
             }
@@ -7359,11 +7362,44 @@ namespace ImageColorChanger.UI
                 {
                     BtnCanvasAspectRatioInPanel.Content = ratio;
                 }
+
+                // 🔧 初始化工具栏位置
+                int height = ratio == "16:9" ? 900 : 1200;
+                UpdateBibleToolbarPosition(height);
             }
             catch (Exception ex)
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [初始化画布比例] 失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 更新浮动工具栏位置（根据画布高度调整）
+        /// </summary>
+        private void UpdateBibleToolbarPosition(double canvasHeight)
+        {
+            try
+            {
+                if (BibleToolbar != null)
+                {
+                    // 🎯 工具栏位置 = -(画布高度/2 + 25)
+                    // 这样工具栏始终悬浮在画布上方中央，距离画布顶部约25px
+                    double offset = -(canvasHeight / 2 + 25);
+                    BibleToolbar.VerticalOffset = offset;
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"🔧 [工具栏位置] 画布高度={canvasHeight}, VerticalOffset={offset:F0}");
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [更新工具栏位置] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif

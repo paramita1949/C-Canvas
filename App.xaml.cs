@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -16,7 +17,7 @@ namespace ImageColorChanger
         /// 依赖注入服务提供者
         /// </summary>
         public static IServiceProvider ServiceProvider { get; private set; }
-        
+
         /// <summary>
         /// 互斥锁，用于防止同一目录下启动多个实例
         /// </summary>
@@ -27,6 +28,9 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnStartup(StartupEventArgs e)
         {
+            // 🔧 在 WPF 初始化之前设置 Per-Monitor DPI Awareness
+            SetProcessDpiAwareness();
+
             base.OnStartup(e);
 
             // 🔒 检查是否已有实例在同一目录运行
@@ -213,14 +217,14 @@ namespace ImageColorChanger
                 // 从MainWindow.xaml的Title属性中提取版本号
                 // Title格式: "咏慕投影 V5.3.5"
                 string title = "咏慕投影 V5.3.5"; // 从MainWindow.xaml中获取的实际Title（显示用中文）
-                
+
                 // 使用正则表达式提取版本号
                 var match = Regex.Match(title, @"V(\d+\.\d+\.\d+)");
                 if (match.Success)
                 {
                     return match.Groups[1].Value; // 返回版本号部分，如 "2.5.8"
                 }
-                
+
                 // 如果正则匹配失败，返回默认版本号
                 return "3.0.6";
             }
@@ -229,6 +233,75 @@ namespace ImageColorChanger
                 return "3.0.6"; // 返回默认版本号
             }
         }
+
+        #region DPI Awareness
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetProcessDpiAwarenessContext(int dpiFlag);
+
+        [DllImport("SHCore.dll", SetLastError = true)]
+        private static extern bool SetProcessDpiAwareness(PROCESS_DPI_AWARENESS awareness);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        private enum PROCESS_DPI_AWARENESS
+        {
+            Process_DPI_Unaware = 0,
+            Process_System_DPI_Aware = 1,
+            Process_Per_Monitor_DPI_Aware = 2
+        }
+
+        private const int DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
+
+        /// <summary>
+        /// 设置进程的 DPI Awareness
+        /// </summary>
+        private static void SetProcessDpiAwareness()
+        {
+            try
+            {
+                if (Environment.OSVersion.Version >= new Version(6, 3, 0)) // Windows 8.1+
+                {
+                    if (Environment.OSVersion.Version >= new Version(10, 0, 15063)) // Windows 10 Creators Update+
+                    {
+                        // 尝试设置 Per-Monitor V2（最佳）
+                        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                        {
+                            // 回退到 Per-Monitor V1
+                            SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.Process_Per_Monitor_DPI_Aware);
+                        }
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 Per-Monitor DPI Aware V2");
+#endif
+                    }
+                    else
+                    {
+                        // Windows 8.1 - 10（Creators Update 之前）
+                        SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.Process_Per_Monitor_DPI_Aware);
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 Per-Monitor DPI Aware");
+#endif
+                    }
+                }
+                else
+                {
+                    // Windows 7 及更早版本
+                    SetProcessDPIAware();
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 System DPI Aware");
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 设置 DPI Awareness 失败: {ex.Message}");
+#endif
+            }
+        }
+
+        #endregion
     }
 }
 

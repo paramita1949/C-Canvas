@@ -762,44 +762,48 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 获取投影屏幕的实际尺寸
-                var (screenWidth, screenHeight) = _projectionManager.GetProjectionScreenSize();
+                // 🔧 获取投影屏幕的物理分辨率（用于高质量渲染）
+                var (physicalWidth, physicalHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
 
                 // ========================================
-                // ✅ 恢复使用 WPF TextBlock 渲染（确保与主屏 TextBox 行高完全一致）
+                // ✅ 使用 WPF TextBlock 渲染到物理分辨率（确保高清晰度）
                 // ========================================
-                
-                // 创建一个与投影窗口同尺寸的Canvas
+
+                // 创建一个与投影屏幕物理分辨率对应的Canvas
                 var canvas = new Canvas
                 {
-                    Width = screenWidth,
-                    Height = screenHeight,
+                    Width = physicalWidth,
+                    Height = physicalHeight,
                     Background = WpfBrushes.Black
                 };
 
-                double actualHeight = screenHeight;
+                double actualHeight = physicalHeight;
 
                 // 🔧 使用 WPF TextBlock，与主屏幕 TextBox 共享同一渲染引擎
+                // 字体大小需要根据物理分辨率与 WPF 单位的比例进行缩放
+                var (wpfWidth, wpfHeight) = _projectionManager.GetProjectionScreenSize();
+                double fontScale = physicalWidth / wpfWidth;  // 计算缩放比例（例如 1920/1280 = 1.5）
+
                 var textBlock = new TextBlock
                 {
                     Text = LyricsTextBox.Text,
                     FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = LyricsTextBox.FontSize,
+                    FontSize = LyricsTextBox.FontSize * fontScale,  // ✅ 按物理分辨率缩放字体
                     Foreground = LyricsTextBox.Foreground,
                     TextAlignment = LyricsTextBox.TextAlignment,
                     TextWrapping = TextWrapping.Wrap,
-                    Width = screenWidth,
-                    Padding = new Thickness(60, 40, 60, 40), // 与主屏幕ScrollViewer的Padding一致
+                    Width = physicalWidth,
+                    Padding = new Thickness(60 * fontScale, 40 * fontScale, 60 * fontScale, 40 * fontScale),  // ✅ 缩放内边距
                     VerticalAlignment = VerticalAlignment.Top,
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Left
                 };
 
                 // 🔧 测量TextBlock的实际高度
-                textBlock.Measure(new WpfSize(screenWidth, double.PositiveInfinity));
+                textBlock.Measure(new WpfSize(physicalWidth, double.PositiveInfinity));
                 double textBlockHeight = textBlock.DesiredSize.Height;
 
                 // 如果内容超过屏幕高度，调整Canvas高度
-                if (textBlockHeight > screenHeight)
+                if (textBlockHeight > physicalHeight)
                 {
                     actualHeight = textBlockHeight;
                     canvas.Height = actualHeight;
@@ -809,14 +813,14 @@ namespace ImageColorChanger.UI
                 Canvas.SetTop(textBlock, 0);
                 canvas.Children.Add(textBlock);
 
-                // 渲染到图片（固定使用96 DPI）
-                canvas.Measure(new WpfSize(screenWidth, actualHeight));
-                canvas.Arrange(new Rect(0, 0, screenWidth, actualHeight));
+                // 渲染到物理分辨率（高质量）
+                canvas.Measure(new WpfSize(physicalWidth, actualHeight));
+                canvas.Arrange(new Rect(0, 0, physicalWidth, actualHeight));
                 canvas.UpdateLayout();
 
-                // 🔧 使用96 DPI渲染，确保像素对齐
+                // ✅ 渲染到物理分辨率，DPI 参数保持 96（只是元数据）
                 var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
-                    (int)screenWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    (int)physicalWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                 renderBitmap.Render(canvas);
                 renderBitmap.Freeze();
 

@@ -4,12 +4,12 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using WinFormsScreen = System.Windows.Forms.Screen;
 
 namespace ImageColorChanger.Managers
 {
     /// <summary>
-    /// WPF 原生屏幕信息助手（替代 Windows Forms Screen API）
-    /// 使用 Windows API + WPF，完全移除 Windows Forms 依赖
+    /// WPF 屏幕信息助手（混合方案：使用 Windows Forms Screen 获取物理分辨率 + GetDpiForMonitor 获取真实 DPI）
     /// </summary>
     public static class WpfScreenHelper
     {
@@ -21,6 +21,15 @@ namespace ImageColorChanger.Managers
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+
+        [DllImport("shcore.dll")]
+        private static extern int GetDpiForMonitor(IntPtr hmonitor, MONITOR_DPI_TYPE dpiType, out uint dpiX, out uint dpiY);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
 
         private delegate bool MonitorEnumDelegate(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData);
 
@@ -44,51 +53,249 @@ namespace ImageColorChanger.Managers
             public int bottom;
         }
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct DISPLAY_DEVICE
+        {
+            public int cb;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string DeviceName;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceString;
+            public uint StateFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceID;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceKey;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct DEVMODE
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string dmDeviceName;
+            public short dmSpecVersion;
+            public short dmDriverVersion;
+            public short dmSize;
+            public short dmDriverExtra;
+            public int dmFields;
+            public int dmPositionX;
+            public int dmPositionY;
+            public int dmDisplayOrientation;
+            public int dmDisplayFixedOutput;
+            public short dmColor;
+            public short dmDuplex;
+            public short dmYResolution;
+            public short dmTTOption;
+            public short dmCollate;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string dmFormName;
+            public short dmLogPixels;
+            public int dmBitsPerPel;
+            public int dmPelsWidth;
+            public int dmPelsHeight;
+            public int dmDisplayFlags;
+            public int dmDisplayFrequency;
+        }
+
+        private enum MONITOR_DPI_TYPE
+        {
+            MDT_EFFECTIVE_DPI = 0,
+            MDT_ANGULAR_DPI = 1,
+            MDT_RAW_DPI = 2,
+            MDT_DEFAULT = MDT_EFFECTIVE_DPI
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int x;
+            public int y;
+        }
+
         private const int MONITORINFOF_PRIMARY = 0x00000001;
+        private const uint DISPLAY_DEVICE_ATTACHED_TO_DESKTOP = 0x00000001;
+        private const uint DISPLAY_DEVICE_PRIMARY_DEVICE = 0x00000004;
+        private const int ENUM_CURRENT_SETTINGS = -1;
+        private const int MONITOR_DEFAULTTONEAREST = 2;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromPoint(POINT pt, int dwFlags);
 
         #endregion
 
         /// <summary>
-        /// 获取所有显示器信息
+        /// 获取所有显示器信息（使用 Windows Forms Screen API + GetDpiForMonitor）
+        /// 在 Per-Monitor DPI Aware 模式下，可以准确获取每个显示器的真实 DPI
         /// </summary>
         public static List<WpfScreenInfo> GetAllScreens()
         {
             var screens = new List<WpfScreenInfo>();
 
+            // 使用 Windows Forms Screen API 获取物理分辨率
+            foreach (var screen in WinFormsScreen.AllScreens)
+            {
+                // 获取设备名称
+                string deviceName = screen.DeviceName;
+
+                // 获取显示器的真实 DPI
+                uint dpiX = 96, dpiY = 96;
+                try
+                {
+                    // 获取显示器句柄
+                    IntPtr hMonitor = MonitorFromPoint(
+                        new POINT { x = screen.Bounds.Left + 1, y = screen.Bounds.Top + 1 },
+                        MONITOR_DEFAULTTONEAREST
+                    );
+
+                    if (hMonitor != IntPtr.Zero)
+                    {
+                        GetDpiForMonitor(hMonitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
+                    }
+                }
+                catch (Exception ex)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 获取 {deviceName} 的 DPI 失败: {ex.Message}，使用默认值 96");
+#endif
+                }
+
+                var wpfScreen = new WpfScreenInfo
+                {
+                    DeviceName = deviceName,
+                    IsPrimary = screen.Primary,
+                    // Screen.Bounds 返回的是物理像素
+                    PhysicalBounds = new Rect(
+                        screen.Bounds.X,
+                        screen.Bounds.Y,
+                        screen.Bounds.Width,
+                        screen.Bounds.Height
+                    ),
+                    WorkArea = new Rect(
+                        screen.WorkingArea.X,
+                        screen.WorkingArea.Y,
+                        screen.WorkingArea.Width,
+                        screen.WorkingArea.Height
+                    ),
+                    DpiScale = (dpiX / 96.0, dpiY / 96.0)
+                };
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📺 [Screen API] {(wpfScreen.IsPrimary ? "主" : "扩展")} - {deviceName}");
+                System.Diagnostics.Debug.WriteLine($"   物理分辨率: {screen.Bounds.Width}×{screen.Bounds.Height} (Screen.Bounds)");
+                System.Diagnostics.Debug.WriteLine($"   真实 DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%)");
+                System.Diagnostics.Debug.WriteLine($"   WPF 单位: {wpfScreen.WpfWidth:F0}×{wpfScreen.WpfHeight:F0}");
+#endif
+
+                screens.Add(wpfScreen);
+            }
+
+            // 按主显示器优先排序
+            screens.Sort((a, b) => b.IsPrimary.CompareTo(a.IsPrimary));
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"✅ [Screen API] 共检测到 {screens.Count} 个显示器");
+#endif
+
+            return screens;
+        }
+
+        /// <summary>
+        /// 备用方法：使用 EnumDisplayDevices 检测显示器（推荐！可获取正确的物理分辨率）
+        /// 根据 Microsoft 文档：EnumDisplaySettings 返回物理像素，不受 DPI 虚拟化影响
+        /// </summary>
+        public static List<WpfScreenInfo> GetAllScreensAlternative()
+        {
+            var screens = new List<WpfScreenInfo>();
+
+            // 第一步：获取所有 HMONITOR 句柄（用于尝试获取 DPI）
+            var monitorHandles = new Dictionary<string, IntPtr>();
             EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero,
                 delegate (IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData)
                 {
                     var mi = new MONITORINFOEX();
                     mi.cbSize = Marshal.SizeOf(mi);
-
                     if (GetMonitorInfo(hMonitor, ref mi))
                     {
-                        var screen = new WpfScreenInfo
-                        {
-                            DeviceName = mi.szDevice,
-                            IsPrimary = (mi.dwFlags & MONITORINFOF_PRIMARY) != 0,
-                            PhysicalBounds = new Rect(
-                                mi.rcMonitor.left,
-                                mi.rcMonitor.top,
-                                mi.rcMonitor.right - mi.rcMonitor.left,
-                                mi.rcMonitor.bottom - mi.rcMonitor.top
-                            ),
-                            WorkArea = new Rect(
-                                mi.rcWork.left,
-                                mi.rcWork.top,
-                                mi.rcWork.right - mi.rcWork.left,
-                                mi.rcWork.bottom - mi.rcWork.top
-                            )
-                        };
-
-                        screens.Add(screen);
+                        monitorHandles[mi.szDevice] = hMonitor;
                     }
-
                     return true;
                 }, IntPtr.Zero);
 
-            // 按主显示器优先排序
+            // 第二步：使用 EnumDisplayDevices 枚举显示设备
+            DISPLAY_DEVICE d = new DISPLAY_DEVICE();
+            d.cb = Marshal.SizeOf(d);
+
+            for (uint id = 0; EnumDisplayDevices(null, id, ref d, 0); id++)
+            {
+                if ((d.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) != 0)
+                {
+                    DEVMODE dm = new DEVMODE();
+                    dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+
+                    if (EnumDisplaySettings(d.DeviceName, ENUM_CURRENT_SETTINGS, ref dm))
+                    {
+                        // 尝试获取 DPI（对于某些 USB 显示器可能不准确）
+                        uint dpiX = 96, dpiY = 96;
+                        bool dpiFromMonitor = false;
+
+                        if (monitorHandles.TryGetValue(d.DeviceName, out IntPtr hMonitor))
+                        {
+                            try
+                            {
+                                uint tempDpiX, tempDpiY;
+                                if (GetDpiForMonitor(hMonitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out tempDpiX, out tempDpiY) == 0)
+                                {
+                                    // 只有当分辨率匹配时才使用 GetDpiForMonitor 的结果
+                                    // （USB 显示器可能被错误地报告为主显示器的 DPI）
+                                    dpiX = tempDpiX;
+                                    dpiY = tempDpiY;
+                                    dpiFromMonitor = true;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // 如果无法从 GetDpiForMonitor 获取，使用默认 96 DPI
+                        // （大多数外接显示器和投影仪都是 100% 缩放）
+
+                        var screen = new WpfScreenInfo
+                        {
+                            DeviceName = d.DeviceName,
+                            IsPrimary = (d.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0,
+                            PhysicalBounds = new Rect(
+                                dm.dmPositionX,
+                                dm.dmPositionY,
+                                dm.dmPelsWidth,
+                                dm.dmPelsHeight
+                            ),
+                            WorkArea = new Rect(
+                                dm.dmPositionX,
+                                dm.dmPositionY,
+                                dm.dmPelsWidth,
+                                dm.dmPelsHeight
+                            ),
+                            DpiScale = (dpiX / 96.0, dpiY / 96.0)
+                        };
+
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"📺 [EnumDisplayDevices] {(screen.IsPrimary ? "主" : "扩展")} - {d.DeviceString}");
+                        System.Diagnostics.Debug.WriteLine($"   设备: {d.DeviceName}");
+                        System.Diagnostics.Debug.WriteLine($"   物理分辨率: {dm.dmPelsWidth}×{dm.dmPelsHeight} @ {dm.dmDisplayFrequency}Hz (EnumDisplaySettings)");
+                        System.Diagnostics.Debug.WriteLine($"   DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%) {(dpiFromMonitor ? "[GetDpiForMonitor]" : "[默认值]")}");
+                        System.Diagnostics.Debug.WriteLine($"   WPF 单位: {screen.WpfWidth}×{screen.WpfHeight}");
+#endif
+
+                        screens.Add(screen);
+                    }
+                }
+                d.cb = Marshal.SizeOf(d);
+            }
+
             screens.Sort((a, b) => b.IsPrimary.CompareTo(a.IsPrimary));
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"✅ [EnumDisplayDevices] 共检测到 {screens.Count} 个显示器");
+#endif
 
             return screens;
         }

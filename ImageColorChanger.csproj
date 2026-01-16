@@ -28,7 +28,14 @@
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <!-- 🔧 可选：启用压缩（减少发布大小，但启动时间稍长） -->
     <!-- <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile> -->
+    <!-- 🔧 启用 Per-Monitor DPI Awareness -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+
+  <!-- 🔧 禁用 WPF 自动 DPI 缩放 (.NET 8 配置方式) -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="Switch.System.Windows.DoNotScaleForDpiChanges" Value="true" />
+  </ItemGroup>
 
   <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
   <ItemGroup>

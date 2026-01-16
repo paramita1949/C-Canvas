@@ -243,20 +243,39 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                // 🔧 使用 WPF 原生 API 获取所有屏幕
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine("🖥️ [投影管理器] 开始检测显示器");
+                System.Diagnostics.Debug.WriteLine("========================================");
+#endif
+                // 🔧 使用 Windows Forms Screen API + GetDpiForMonitor（推荐方法）
                 _screens = WpfScreenHelper.GetAllScreens();
-                
+
                 if (_screens.Count == 0)
                 {
                     // 回退到主屏幕
                     _screens.Add(WpfScreenHelper.GetPrimaryScreen());
                 }
 
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("");
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine($"📊 [投影管理器] 最终显示器列表，共 {_screens.Count} 个显示器");
+                for (int i = 0; i < _screens.Count; i++)
+                {
+                    var screen = _screens[i];
+                    System.Diagnostics.Debug.WriteLine($"   [{i}] {screen.ToString()}");
+                }
+                System.Diagnostics.Debug.WriteLine("========================================");
+#endif
+
                 UpdateScreenComboBox();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"初始化屏幕信息失败: {ex.Message}");
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [投影管理器] 初始化屏幕信息失败: {ex.Message}");
+#endif
                 _screens.Add(WpfScreenHelper.GetPrimaryScreen());
             }
         }
