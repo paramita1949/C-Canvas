@@ -16,6 +16,34 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
+            // 🔍 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
+            /*
+            System.Diagnostics.Debug.WriteLine("========== 幻灯片按钮间距调试信息 ==========");
+
+            var buttons = new[]
+            {
+                ("A+", BtnIncreaseFontSize),
+                ("A-", BtnDecreaseFontSize),
+                ("B", BtnBold),
+                ("A", BtnTextColor)
+            };
+
+            foreach (var (name, btn) in buttons)
+            {
+                if (btn != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"\n【{name}】按钮:");
+                    System.Diagnostics.Debug.WriteLine($"  Margin: {btn.Margin}");
+                    System.Diagnostics.Debug.WriteLine($"  Padding: {btn.Padding}");
+                    System.Diagnostics.Debug.WriteLine($"  BorderThickness: {btn.BorderThickness}");
+                    System.Diagnostics.Debug.WriteLine($"  Width: {btn.Width}, Height: {btn.Height}");
+                    System.Diagnostics.Debug.WriteLine($"  ActualWidth: {btn.ActualWidth}, ActualHeight: {btn.ActualHeight}");
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine("\n==============================================");
+            */
+
             // 恢复圣经历史记录+按钮区域高度
             if (BibleHistoryAndButtonRow != null && _configManager.BibleHistoryRowHeight > 0)
             {

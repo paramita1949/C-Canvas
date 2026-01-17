@@ -107,10 +107,10 @@ namespace ImageColorChanger.UI
                 folderTagFontSizeItem.Items.Add(menuItem);
             }
             fontSizeItem.Items.Add(folderTagFontSizeItem);
-            
+
             // 菜单字号子菜单（扩展范围：12-40，适配小型笔记本）
             var menuFontSizeItem = new MenuItem { Header = "菜单字号" };
-            foreach (var size in new[] { 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 35.0, 40.0 })
+            foreach (var size in new[] { 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 29.0, 30.0, 35.0, 40.0 })
             {
                 var menuItem = new MenuItem
                 {
@@ -121,6 +121,16 @@ namespace ImageColorChanger.UI
                 menuItem.Click += (s, args) => SetMenuFontSize(size);
                 menuFontSizeItem.Items.Add(menuItem);
             }
+
+
+            // 🆕 添加分隔符
+            menuFontSizeItem.Items.Add(new Separator());
+
+            // 🆕 自定义字号选项（下拉框，步长 0.5）
+            var customFontSizeItem = new MenuItem { Header = "自定义..." };
+            customFontSizeItem.Click += (s, args) => ShowCustomMenuFontSizeComboBox();
+            menuFontSizeItem.Items.Add(customFontSizeItem);
+
             fontSizeItem.Items.Add(menuFontSizeItem);
 
             contextMenu.Items.Add(fontSizeItem);
@@ -280,6 +290,137 @@ namespace ImageColorChanger.UI
             {
                 System.Windows.MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 显示自定义菜单字号下拉框（步长 0.5，支持鼠标滚动）
+        /// </summary>
+        private void ShowCustomMenuFontSizeComboBox()
+        {
+            try
+            {
+                // 创建对话框
+                var dialog = new Window
+                {
+                    Title = "自定义菜单字号",
+                    Width = 320,
+                    Height = 180,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    ResizeMode = ResizeMode.NoResize,
+                    WindowStyle = WindowStyle.ToolWindow
+                };
+
+                var grid = new Grid { Margin = new Thickness(20) };
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(12) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                // 提示文本
+                var label = new TextBlock
+                {
+                    Text = "选择菜单字号（步长 0.5）：",
+                    FontSize = 14
+                };
+                Grid.SetRow(label, 0);
+                grid.Children.Add(label);
+
+                // 下拉框（生成 12-40，步长 0.5）
+                var comboBox = new System.Windows.Controls.ComboBox
+                {
+                    FontSize = 16,
+                    Height = 36,
+                    IsEditable = false
+                };
+
+                // 生成选项：12, 12.5, 13, 13.5, ..., 39.5, 40
+                for (double size = 12.0; size <= 40.0; size += 0.5)
+                {
+                    comboBox.Items.Add(size);
+                }
+
+                // 设置当前值
+                double currentSize = _configManager.MenuFontSize;
+                if (comboBox.Items.Contains(currentSize))
+                {
+                    comboBox.SelectedItem = currentSize;
+                }
+                else
+                {
+                    // 如果当前值不在列表中，选择最接近的值
+                    double closestSize = 18.0;
+                    double minDiff = double.MaxValue;
+                    foreach (double size in comboBox.Items)
+                    {
+                        double diff = Math.Abs(size - currentSize);
+                        if (diff < minDiff)
+                        {
+                            minDiff = diff;
+                            closestSize = size;
+                        }
+                    }
+                    comboBox.SelectedItem = closestSize;
+                }
+
+                Grid.SetRow(comboBox, 2);
+                grid.Children.Add(comboBox);
+
+                // 按钮面板
+                var buttonPanel = new StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+                };
+                Grid.SetRow(buttonPanel, 4);
+
+                var okButton = new System.Windows.Controls.Button
+                {
+                    Content = "确定",
+                    Width = 80,
+                    Height = 32,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    IsDefault = true
+                };
+                okButton.Click += (s, e) =>
+                {
+                    if (comboBox.SelectedItem != null)
+                    {
+                        double size = (double)comboBox.SelectedItem;
+                        SetMenuFontSize(size);
+                        dialog.DialogResult = true;
+                        dialog.Close();
+                    }
+                };
+                buttonPanel.Children.Add(okButton);
+
+                var cancelButton = new System.Windows.Controls.Button
+                {
+                    Content = "取消",
+                    Width = 80,
+                    Height = 32,
+                    IsCancel = true
+                };
+                cancelButton.Click += (s, e) =>
+                {
+                    dialog.DialogResult = false;
+                    dialog.Close();
+                };
+                buttonPanel.Children.Add(cancelButton);
+
+                grid.Children.Add(buttonPanel);
+                dialog.Content = grid;
+
+                // 聚焦下拉框
+                comboBox.Focus();
+
+                dialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 显示自定义字号下拉框异常: {ex}");
             }
         }
 

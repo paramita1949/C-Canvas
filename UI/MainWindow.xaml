@@ -94,6 +94,53 @@
             </Setter>
         </Style>
 
+        <!-- 🆕 紧贴按钮样式 - 无圆角、无边框，适合多个按钮紧贴排列 -->
+        <Style x:Key="CompactButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="32"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter x:Name="contentPresenter"
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            RecognizesAccessKey="False"
+                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- 鼠标悬停效果 - 整个按钮变色 -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                <Setter Property="Foreground" Value="#1976D2"/>
+                            </Trigger>
+                            <!-- 按下效果 - 整个按钮变深色 -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                <Setter Property="Foreground" Value="#0D47A1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- 主要操作按钮样式（如播放、录制） -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
             <Setter Property="Background" Value="#2196F3"/>
@@ -1780,46 +1827,40 @@
                             </ComboBox>
                             
                             <!-- 字号增大按钮 A+ -->
-                            <Button x:Name="BtnIncreaseFontSize" Content="A+" 
-                                    Width="32" Height="32"
-                                    FontWeight="Bold"
-                                    Style="{StaticResource MenuButtonStyle}"
+                            <Button x:Name="BtnIncreaseFontSize" Content="A+"
+                                    Width="40" Height="32"
+                                    Padding="2"
+                                    FontSize="16"
+                                    Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnIncreaseFontSize_Click"
                                     ToolTip="增大字号"/>
-                            
+
                             <!-- 字号减小按钮 A- -->
-                            <Button x:Name="BtnDecreaseFontSize" Content="A-" 
-                                    Width="32" Height="32"
-                                    FontWeight="Bold"
-                                    Style="{StaticResource MenuButtonStyle}"
+                            <Button x:Name="BtnDecreaseFontSize" Content="A-"
+                                    Width="40" Height="32"
+                                    Padding="2"
+                                    FontSize="16"
+                                    Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnDecreaseFontSize_Click"
                                     ToolTip="减小字号"/>
 
-                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
-
                             <!-- 加粗按钮 -->
                             <Button x:Name="BtnBold" Content="B"
-                                    Width="40" Height="40"
+                                    Width="40" Height="32"
+                                    Padding="2"
                                     FontFamily="Segoe UI"
-                                    FontWeight="Bold" FontSize="20"
-                                    Margin="8,0,0,0"
-                                    Padding="0"
-                                    Style="{StaticResource MenuButtonStyle}"
+                                    FontSize="18"
+                                    Style="{StaticResource CompactButtonStyle}"
                                     ToolTip="加粗 (B)" Click="BtnBold_Click"/>
-
-
 
                             <!-- 文字颜色按钮 -->
                             <Button x:Name="BtnTextColor" Content="A"
-                                    Width="40" Height="40"
+                                    Width="40" Height="32"
+                                    Padding="2"
                                     FontFamily="Segoe UI"
-                                    FontWeight="Bold" FontSize="20"
-                                    Margin="4,0,0,0"
-                                    Padding="0"
-                                    Style="{StaticResource MenuButtonStyle}"
+                                    FontSize="18"
+                                    Style="{StaticResource CompactButtonStyle}"
                                     ToolTip="文字颜色 (A)" Click="BtnTextColor_Click"/>
-
-                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                             <!-- 保存和投影 -->
                             <Button x:Name="BtnSaveTextProject" Content="💾 保存"

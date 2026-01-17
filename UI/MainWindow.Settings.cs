@@ -187,18 +187,30 @@ namespace ImageColorChanger.UI
                 {
                     btn.FontSize = adaptiveFontSize * textEditorScale;
                     btn.Height = buttonParams.Height * textEditorScale;
-                    btn.Padding = new Thickness(
-                        buttonParams.Padding.Left * textEditorScale,
-                        buttonParams.Padding.Top * textEditorScale,
-                        buttonParams.Padding.Right * textEditorScale,
-                        buttonParams.Padding.Bottom * textEditorScale
-                    );
-                    btn.Margin = new Thickness(
-                        buttonParams.Margin.Left * textEditorScale,
-                        buttonParams.Margin.Top * textEditorScale,
-                        buttonParams.Margin.Right * textEditorScale,
-                        buttonParams.Margin.Bottom * textEditorScale
-                    );
+
+                    // 🎯 A+、A-、B、A 按钮设置为紧凑样式（0间距、小内边距）
+                    if (btn == BtnIncreaseFontSize || btn == BtnDecreaseFontSize ||
+                        btn == BtnBold || btn == BtnTextColor)
+                    {
+                        btn.Margin = new Thickness(0);
+                        btn.Padding = new Thickness(2); // 紧凑内边距
+                    }
+                    else
+                    {
+                        btn.Padding = new Thickness(
+                            buttonParams.Padding.Left * textEditorScale,
+                            buttonParams.Padding.Top * textEditorScale,
+                            buttonParams.Padding.Right * textEditorScale,
+                            buttonParams.Padding.Bottom * textEditorScale
+                        );
+                        btn.Margin = new Thickness(
+                            buttonParams.Margin.Left * textEditorScale,
+                            buttonParams.Margin.Top * textEditorScale,
+                            buttonParams.Margin.Right * textEditorScale,
+                            buttonParams.Margin.Bottom * textEditorScale
+                        );
+                    }
+
                     btn.VerticalAlignment = VerticalAlignment.Center;
                 }
             }
