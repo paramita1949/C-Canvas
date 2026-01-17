@@ -297,6 +297,8 @@ namespace ImageColorChanger
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 设置 DPI Awareness 失败: {ex.Message}");
+#else
+                _ = ex; // 避免编译警告
 #endif
             }
         }

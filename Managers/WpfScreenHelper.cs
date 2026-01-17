@@ -156,6 +156,8 @@ namespace ImageColorChanger.Managers
                 {
 #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 获取 {deviceName} 的 DPI 失败: {ex.Message}，使用默认值 96");
+#else
+                    _ = ex; // 避免编译警告
 #endif
                 }
 
@@ -283,6 +285,8 @@ namespace ImageColorChanger.Managers
                         System.Diagnostics.Debug.WriteLine($"   物理分辨率: {dm.dmPelsWidth}×{dm.dmPelsHeight} @ {dm.dmDisplayFrequency}Hz (EnumDisplaySettings)");
                         System.Diagnostics.Debug.WriteLine($"   DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%) {(dpiFromMonitor ? "[GetDpiForMonitor]" : "[默认值]")}");
                         System.Diagnostics.Debug.WriteLine($"   WPF 单位: {screen.WpfWidth}×{screen.WpfHeight}");
+#else
+                        _ = dpiFromMonitor; // 避免 Release 模式下的未使用变量警告
 #endif
 
                         screens.Add(screen);

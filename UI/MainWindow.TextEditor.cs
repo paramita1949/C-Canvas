@@ -7270,10 +7270,10 @@ namespace ImageColorChanger.UI
                 // 应用新比例
                 ApplyCanvasAspectRatio(newRatio);
 
-                // 更新按钮文本（只显示比例）
+                // 更新按钮文本（显示中文描述）
                 if (BtnCanvasAspectRatioInPanel != null)
                 {
-                    BtnCanvasAspectRatioInPanel.Content = newRatio;
+                    BtnCanvasAspectRatioInPanel.Content = newRatio == "16:9" ? "宽屏幕" : "窄屏幕";
                 }
             }
             catch (Exception ex)
@@ -7370,10 +7370,10 @@ namespace ImageColorChanger.UI
                 // 应用比例
                 ApplyCanvasAspectRatio(ratio);
 
-                // 更新按钮文本（只显示比例）
+                // 更新按钮文本（显示中文描述）
                 if (BtnCanvasAspectRatioInPanel != null)
                 {
-                    BtnCanvasAspectRatioInPanel.Content = ratio;
+                    BtnCanvasAspectRatioInPanel.Content = ratio == "16:9" ? "宽屏幕" : "窄屏幕";
                 }
 
                 // 🔧 初始化工具栏位置

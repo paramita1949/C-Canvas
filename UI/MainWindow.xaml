@@ -1939,9 +1939,9 @@
 
                                         <!-- 画布比例切换按钮 -->
                                         <Button x:Name="BtnCanvasAspectRatioInPanel"
-                                                Content="16:9"
+                                                Content="宽屏幕"
                                                 Height="36"
-                                                Width="60"
+                                                Width="80"
                                                 FontSize="14"
                                                 FontWeight="SemiBold"
                                                 Background="Transparent"

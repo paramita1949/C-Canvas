@@ -275,6 +275,8 @@ namespace ImageColorChanger.Managers
             {
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [投影管理器] 初始化屏幕信息失败: {ex.Message}");
+#else
+                _ = ex; // 避免编译警告
 #endif
                 _screens.Add(WpfScreenHelper.GetPrimaryScreen());
             }
