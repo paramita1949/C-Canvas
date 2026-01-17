@@ -549,7 +549,7 @@
                             BorderThickness="0"
                             CornerRadius="4" Padding="8,2" Margin="3,0" Width="90"
                             VerticalAlignment="Center">
-                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="16" 
+                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="18" 
                                    FontWeight="Bold" Foreground="#CC6600" 
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -1824,13 +1824,21 @@
                                 <ComboBoxItem Content="104"/>
                                 <ComboBoxItem Content="112"/>
                                 <ComboBoxItem Content="120"/>
+                                <ComboBoxItem Content="128"/>
+                                <ComboBoxItem Content="144"/>
+                                <ComboBoxItem Content="160"/>
+                                <ComboBoxItem Content="176"/>
+                                <ComboBoxItem Content="192"/>
+                                <ComboBoxItem Content="208"/>
+                                <ComboBoxItem Content="224"/>
+                                <ComboBoxItem Content="240"/>
                             </ComboBox>
                             
                             <!-- 字号增大按钮 A+ -->
                             <Button x:Name="BtnIncreaseFontSize" Content="A+"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontSize="16"
+                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnIncreaseFontSize_Click"
                                     ToolTip="增大字号"/>
@@ -1839,7 +1847,7 @@
                             <Button x:Name="BtnDecreaseFontSize" Content="A-"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontSize="16"
+                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnDecreaseFontSize_Click"
                                     ToolTip="减小字号"/>
@@ -2144,9 +2152,9 @@
                         <Grid Grid.Column="2" Background="#F5F5F5">
                             <Border Background="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
                                 <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
-                                    <Grid x:Name="EditorCanvasContainer" Width="1080" Height="700" Background="White">
+                                    <Grid x:Name="EditorCanvasContainer" Width="1600" Height="900" Background="White">
                             <Canvas x:Name="EditorCanvas"
-                                    Width="1080" Height="700"
+                                    Width="1600" Height="900"
                                     Background="White"
                                     MouseLeftButtonDown="EditorCanvas_MouseDown"
                                     KeyDown="EditorCanvas_KeyDown"
@@ -2165,28 +2173,28 @@
                                    Placement="Center"
                                    PlacementTarget="{Binding ElementName=EditorCanvas}"
                                    HorizontalOffset="0"
-                                   VerticalOffset="-375"
+                                   VerticalOffset="-495"
                                    IsOpen="False">
                                 <Border Background="#F0FFFFFF"
                                         BorderBrush="#E0E0E0"
                                         BorderThickness="1"
-                                        CornerRadius="20"
-                                        Padding="4">
+                                        CornerRadius="25"
+                                        Padding="6">
                                     <Border.Effect>
                                         <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.15" Color="#000000"/>
                                     </Border.Effect>
                                     <StackPanel Orientation="Horizontal">
                                         <!-- 经文样式设置按钮 -->
                                         <Button x:Name="BtnBibleStyleIcon"
-                                                Width="28" Height="28"
-                                                Margin="2"
+                                                Width="42" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="经文样式设置"
                                                 Click="BtnBibleInsertStyleSettings_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="✝️" FontSize="14"/>
+                                            <TextBlock Text="✝️" FontSize="20"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2194,7 +2202,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2213,19 +2221,19 @@
                                         </Button>
 
                                         <!-- 分隔线 -->
-                                        <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
+                                        <Rectangle Width="1" Height="30" Fill="#D0D0D0" Margin="5,0"/>
 
                                         <!-- 边框按钮 -->
                                         <Button x:Name="BtnFloatingBorder"
-                                                Width="48" Height="28"
-                                                Margin="2"
+                                                Width="72" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="边框"
                                                 Click="BtnFloatingBorder_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="边框" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="边框" FontSize="18" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2233,7 +2241,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2253,15 +2261,15 @@
 
                                         <!-- 背景按钮 -->
                                         <Button x:Name="BtnFloatingBackground"
-                                                Width="48" Height="28"
-                                                Margin="2"
+                                                Width="72" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="背景"
                                                 Click="BtnFloatingBackground_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="文字" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="文字" FontSize="18" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2269,7 +2277,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2289,15 +2297,15 @@
 
                                         <!-- 阴影按钮 -->
                                         <Button x:Name="BtnFloatingShadow"
-                                                Width="48" Height="28"
-                                                Margin="2"
+                                                Width="72" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="阴影"
                                                 Click="BtnFloatingShadow_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="阴影" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="阴影" FontSize="18" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2305,7 +2313,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2325,15 +2333,15 @@
 
                                         <!-- 间距按钮 -->
                                         <Button x:Name="BtnFloatingSpacing"
-                                                Width="48" Height="28"
-                                                Margin="2"
+                                                Width="72" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="间距"
                                                 Click="BtnFloatingSpacing_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="间距" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="间距" FontSize="18" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2341,7 +2349,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2361,15 +2369,15 @@
 
                                         <!-- 动画按钮 -->
                                         <Button x:Name="BtnFloatingAnimation"
-                                                Width="48" Height="28"
-                                                Margin="2"
+                                                Width="72" Height="42"
+                                                Margin="3"
                                                 Background="Transparent"
                                                 Foreground="#2196F3"
                                                 BorderThickness="0"
                                                 ToolTip="动画"
                                                 Click="BtnFloatingAnimation_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="动画" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="动画" FontSize="18" FontWeight="Bold"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -2377,7 +2385,7 @@
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border x:Name="border"
                                                                         Background="{TemplateBinding Background}"
-                                                                        CornerRadius="14">
+                                                                        CornerRadius="21">
                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
@@ -2396,13 +2404,13 @@
                                         </Button>
 
                                         <!-- 分隔线 -->
-                                        <Rectangle Width="1" Height="20" Fill="#D0D0D0" Margin="4,0"/>
+                                        <Rectangle Width="1" Height="30" Fill="#D0D0D0" Margin="5,0"/>
 
                                         <!-- 斜体按钮 -->
                                         <Button x:Name="BtnFloatingItalic" Content="/"
                                                 Width="28" Height="28" Margin="2"
                                                 Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
+                                                BorderThickness="0" FontSize="18" FontWeight="Bold"
                                                 ToolTip="斜体" Cursor="Hand"
                                                 Click="BtnFloatingItalic_Click">
                                             <Button.Style>
@@ -2432,7 +2440,7 @@
                                         <Button x:Name="BtnFloatingUnderline" Content="U"
                                                 Width="28" Height="28" Margin="2"
                                                 Background="Transparent" Foreground="#2196F3"
-                                                BorderThickness="0" FontSize="16" FontWeight="Bold"
+                                                BorderThickness="0" FontSize="18" FontWeight="Bold"
                                                 ToolTip="下划线" Cursor="Hand"
                                                 Click="BtnUnderline_Click">
                                             <Button.Style>
@@ -2752,7 +2760,7 @@
                                     Content="❌ 退出"
                                     Width="100" Height="40"
                                     Margin="0,0,12,0"
-                                    FontSize="16"
+                                    FontSize="18"
                                     FontWeight="Bold"
                                     Style="{StaticResource MenuButtonStyle}"
                                     Click="BtnCloseLyricsEditor_Click"
@@ -2795,7 +2803,7 @@
                                     Content="🎨 颜色"
                                     Width="110" Height="40"
                                     Margin="0,0,12,0"
-                                    FontSize="16"
+                                    FontSize="18"
                                     Style="{StaticResource MenuButtonStyle}"
                                     Click="BtnLyricsTextColor_Click"
                                     ToolTip="选择文字颜色"/>
@@ -2855,7 +2863,7 @@
                                     Content="🗑 清空"
                                     Width="100" Height="40"
                                     Margin="0,0,12,0"
-                                    FontSize="16"
+                                    FontSize="18"
                                     FontWeight="Bold"
                                     Click="BtnLyricsClear_Click"
                                     Style="{StaticResource RecordButtonStyle}"
@@ -2961,7 +2969,7 @@
                     <Button x:Name="BtnFloatingCompositePlay"
                             Content="🎬 合成播放"
                             Padding="15,8"
-                            FontSize="16"
+                            FontSize="18"
                             FontWeight="SemiBold"
                             Background="#2196F3"
                             Foreground="White"
@@ -3109,7 +3117,7 @@
                             ToolTip="播放模式：随机 (默认)" Click="BtnPlayMode_Click"
                             Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
 
-                    <TextBlock Text="🔊" FontSize="16" VerticalAlignment="Center" 
+                    <TextBlock Text="🔊" FontSize="18" VerticalAlignment="Center" 
                                Foreground="White" Margin="15,0,5,0"/>
 
                     <Slider x:Name="VolumeSlider" Width="100" VerticalAlignment="Center"

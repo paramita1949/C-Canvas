@@ -2779,7 +2779,7 @@ namespace ImageColorChanger.UI
                 {
                     delta = e.Delta > 0 ? 2 : -2;
                 }
-                int newSize = Math.Max(10, Math.Min(120, currentSize + delta));
+                int newSize = Math.Max(10, Math.Min(240, currentSize + delta));
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();
@@ -2846,7 +2846,7 @@ namespace ImageColorChanger.UI
 
                 // 增大字号，30以上步进1，30以下步进2
                 int delta = currentSize >= 30 ? 1 : 2;
-                int newSize = Math.Min(120, currentSize + delta);
+                int newSize = Math.Min(240, currentSize + delta);
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();
@@ -7303,9 +7303,9 @@ namespace ImageColorChanger.UI
                 }
                 else // 4:3
                 {
-                    // 4:3 比例：1600×1200
-                    width = 1600;
-                    height = 1200;
+                    // 4:3 比例：960×720（更小以更适合编辑）
+                    width = 960;
+                    height = 720;
                 }
 
                 // 更新画布尺寸
@@ -7377,7 +7377,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 🔧 初始化工具栏位置
-                int height = ratio == "16:9" ? 900 : 1200;
+                int height = ratio == "16:9" ? 900 : 720;
                 UpdateBibleToolbarPosition(height);
             }
             catch (Exception ex)
@@ -7434,9 +7434,9 @@ namespace ImageColorChanger.UI
             {
                 if (BibleToolbar != null)
                 {
-                    // 🎯 工具栏位置 = -(画布高度/2 + 25)
-                    // 这样工具栏始终悬浮在画布上方中央，距离画布顶部约25px
-                    double offset = -(canvasHeight / 2 + 25);
+                    // 🎯 工具栏位置 = -(画布高度/2 + 45)
+                    // 这样工具栏始终悬浮在画布上方中央，距离画布顶部约45px（按钮放大后）
+                    double offset = -(canvasHeight / 2 + 45);
                     BibleToolbar.VerticalOffset = offset;
 
 #if DEBUG
