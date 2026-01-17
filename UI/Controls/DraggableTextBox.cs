@@ -57,6 +57,12 @@ namespace ImageColorChanger.UI.Controls
         private const int DOUBLE_CLICK_INTERVAL = 500;  // 双击间隔（毫秒）
         private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
 
+        // 🔧 四个拖动区域（用于在编辑模式下拖动文本框）
+        private WpfBorder _dragAreaTop;
+        private WpfBorder _dragAreaBottom;
+        private WpfBorder _dragAreaLeft;
+        private WpfBorder _dragAreaRight;
+
         #endregion
 
         #region 属性
@@ -273,6 +279,58 @@ namespace ImageColorChanger.UI.Controls
                 Background = WpfBrushes.Transparent  // 设置透明背景，使鼠标事件能够穿透
             };
 
+            // 🔧 定义拖动区域的宽度
+            const double dragAreaWidth = 30;
+
+            // 🔧 创建四个拖动区域（上、下、左、右）
+            _dragAreaTop = new WpfBorder
+            {
+                Background = WpfBrushes.Transparent,
+                Height = dragAreaWidth,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                Cursor = WpfCursors.SizeAll
+            };
+            _dragAreaTop.MouseLeftButtonDown += OnDragAreaMouseDown;
+            _dragAreaTop.MouseMove += OnDragAreaMouseMove;
+            _dragAreaTop.MouseLeftButtonUp += OnDragAreaMouseUp;
+
+            _dragAreaBottom = new WpfBorder
+            {
+                Background = WpfBrushes.Transparent,
+                Height = dragAreaWidth,
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                Cursor = WpfCursors.SizeAll
+            };
+            _dragAreaBottom.MouseLeftButtonDown += OnDragAreaMouseDown;
+            _dragAreaBottom.MouseMove += OnDragAreaMouseMove;
+            _dragAreaBottom.MouseLeftButtonUp += OnDragAreaMouseUp;
+
+            _dragAreaLeft = new WpfBorder
+            {
+                Background = WpfBrushes.Transparent,
+                Width = dragAreaWidth,
+                VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                Cursor = WpfCursors.SizeAll
+            };
+            _dragAreaLeft.MouseLeftButtonDown += OnDragAreaMouseDown;
+            _dragAreaLeft.MouseMove += OnDragAreaMouseMove;
+            _dragAreaLeft.MouseLeftButtonUp += OnDragAreaMouseUp;
+
+            _dragAreaRight = new WpfBorder
+            {
+                Background = WpfBrushes.Transparent,
+                Width = dragAreaWidth,
+                VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Cursor = WpfCursors.SizeAll
+            };
+            _dragAreaRight.MouseLeftButtonDown += OnDragAreaMouseDown;
+            _dragAreaRight.MouseMove += OnDragAreaMouseMove;
+            _dragAreaRight.MouseLeftButtonUp += OnDragAreaMouseUp;
+
             // ✅ 初始化 WPF RichTextBox
             _richTextBox = new System.Windows.Controls.RichTextBox
             {
@@ -325,6 +383,12 @@ namespace ImageColorChanger.UI.Controls
             };
 
             grid.Children.Add(_richTextBox);
+
+            // 🔧 添加四个拖动区域到 Grid（在 RichTextBox 上层，用于编辑模式下拖动）
+            grid.Children.Add(_dragAreaTop);
+            grid.Children.Add(_dragAreaBottom);
+            grid.Children.Add(_dragAreaLeft);
+            grid.Children.Add(_dragAreaRight);
 
             // WPF RichTextBox 自动处理鼠标事件，无需手动处理
 
@@ -438,7 +502,7 @@ namespace ImageColorChanger.UI.Controls
             GotFocus += OnGotFocus;
             LostFocus += OnLostFocus;
             KeyDown += OnKeyDown;
-            
+
             // 监听尺寸变化
             base.SizeChanged += (s, e) =>
             {
@@ -732,8 +796,78 @@ namespace ImageColorChanger.UI.Controls
 
             contextMenu.PlacementTarget = this;
             contextMenu.IsOpen = true;
-            
+
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// 🔧 拖动区域的 MouseDown 事件：在编辑模式下启动拖动
+        /// </summary>
+        private void OnDragAreaMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != WpfMouseButton.Left)
+                return;
+
+            // 启动拖动
+            _isDragging = true;
+            _dragStartPoint = e.GetPosition(Parent as System.Windows.UIElement);
+
+            // 捕获鼠标到发送事件的控件
+            var dragArea = sender as WpfBorder;
+            dragArea?.CaptureMouse();
+
+            e.Handled = true;
+
+            //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 拖动区域启动拖动");
+        }
+
+        /// <summary>
+        /// 🔧 拖动区域的 MouseMove 事件：在编辑模式下处理拖动
+        /// </summary>
+        private void OnDragAreaMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            var dragArea = sender as WpfBorder;
+
+            // 只在拖动状态下处理
+            if (!_isDragging || dragArea == null || !dragArea.IsMouseCaptured)
+                return;
+
+            WpfPoint currentPoint = e.GetPosition(Parent as System.Windows.UIElement);
+            double deltaX = currentPoint.X - _dragStartPoint.X;
+            double deltaY = currentPoint.Y - _dragStartPoint.Y;
+
+            double newX = Data.X + deltaX;
+            double newY = Data.Y + deltaY;
+
+            Data.X = newX;
+            Data.Y = newY;
+
+            WpfCanvas.SetLeft(this, Data.X);
+            WpfCanvas.SetTop(this, Data.Y);
+
+            _dragStartPoint = currentPoint;
+
+            PositionChanged?.Invoke(this, new WpfPoint(Data.X, Data.Y));
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 🔧 拖动区域的 MouseUp 事件：在编辑模式下结束拖动
+        /// </summary>
+        private void OnDragAreaMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var dragArea = sender as WpfBorder;
+
+            if (_isDragging && dragArea != null && dragArea.IsMouseCaptured)
+            {
+                _isDragging = false;
+                dragArea.ReleaseMouseCapture();
+                DragEnded?.Invoke(this, EventArgs.Empty);
+                e.Handled = true;
+
+                //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 拖动区域结束拖动");
+            }
         }
 
         #endregion
