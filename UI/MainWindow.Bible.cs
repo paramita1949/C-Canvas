@@ -1087,6 +1087,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BibleEndVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // 🔧 如果正在同步导航栏，跳过事件处理（防止重复加载）
+            if (_isNavigationSyncing) return;
+
             if (BibleStartVerse.SelectedItem == null || BibleEndVerse.SelectedItem == null)
                 return;
 
@@ -1116,7 +1119,7 @@ namespace ImageColorChanger.UI
                 //#if DEBUG
                 //Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式，自动创建文本框元素");
                 //#endif
-                
+
                 await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
                 return;
             }
@@ -1139,6 +1142,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task LoadVerseRangeAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📖 [加载经文] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"   参数: BookId={bookId}, Chapter={chapter}, Verse={startVerse}-{endVerse}");
+            //#endif
+
             try
             {
                 _currentBook = bookId;
@@ -1151,7 +1159,7 @@ namespace ImageColorChanger.UI
                 var book = BibleBookConfig.GetBook(bookId);
                 // 🔧 如果开始节和结束节相同，只显示一个节号（如"18节"），否则显示范围（如"18-25节"）
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
-                
+
                 // ========================================
                 // 📌 统一数据源方案：始终更新 _mergedVerses
                 // ========================================
@@ -1160,7 +1168,7 @@ namespace ImageColorChanger.UI
                 {
                     BibleVerseList.ItemsSource = _mergedVerses;
                 }
-                
+
                 // 检查是否有锁定记录
                 bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
                 if (hasLockedRecords)
@@ -1170,53 +1178,36 @@ namespace ImageColorChanger.UI
                     //#endif
                     return; // 锁定模式下，不允许通过导航加载新内容
                 }
-                
+
                 // 🆕 非锁定模式：同步导航栏状态
                 SyncNavigationToRecord(bookId, chapter, startVerse, endVerse);
-                
+
                 // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {verseText}";
                 BibleChapterTitleBorder.Visibility = Visibility.Visible;
-                
+
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"📌 [非锁定模式] 加载经文: {verses.Count}条，{book?.Name}{chapter}:{startVerse}-{endVerse}");
                 //#endif
-                
+
                 // 清空并添加新数据
                 _mergedVerses.Clear();
                 foreach (var verse in verses)
                 {
                     _mergedVerses.Add(verse);
                 }
-                
-                //#if DEBUG
-                //// 检查创世记1:26是否完整
-                //if (bookId == 1 && chapter == 1)
-                //{
-                //    var verse26 = verses.FirstOrDefault(v => v.Verse == 26);
-                //    if (verse26 != null)
-                //    {
-                //        Debug.WriteLine($"");
-                //        Debug.WriteLine($"🔍 [经文完整性检查] 创世记1:26");
-                //        Debug.WriteLine($"   经文内容: {verse26.Scripture}");
-                //        Debug.WriteLine($"   字符长度: {verse26.Scripture?.Length}");
-                //        Debug.WriteLine($"   应包含: '并地上所爬的一切昆虫' - {(verse26.Scripture?.Contains("并地上所爬的一切昆虫") == true ? "✅存在" : "❌缺失")}");
-                //        Debug.WriteLine($"");
-                //    }
-                //}
-                //#endif
-                
+
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
 
                 // 🔧 设置主屏幕底部扩展空间（等于视口高度,支持底部内容向上拉）
                 UpdateMainScreenBottomExtension();
-                
+
                 // 🔧 应用样式后再更新投影（确保高度计算完成）
                 _ = Dispatcher.InvokeAsync(() =>
                 {
                     ApplyBibleSettings();
-                    
+
                     // 🆕 样式应用完成后，更新投影
                     if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
                     {
@@ -2115,18 +2106,19 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenderBibleToProjection()
         {
-//#if DEBUG
-//            Debug.WriteLine($"[圣经] 开始渲染投影 - 经文数量: {BibleVerseList.Items.Count}");
-//#endif
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"📺 [渲染投影] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"   经文列表项数量: {BibleVerseList.Items.Count}");
+            //#endif
 
             try
             {
                 // 如果没有经文，不投影
                 if (BibleVerseList.ItemsSource == null || BibleVerseList.Items.Count == 0)
                 {
-//#if DEBUG
-//                    Debug.WriteLine("[圣经] 没有经文可投影");
-//#endif
+                    //#if DEBUG
+                    //Debug.WriteLine("[圣经] 没有经文可投影");
+                    //#endif
                     return;
                 }
 
@@ -2146,9 +2138,9 @@ namespace ImageColorChanger.UI
 
                 if (versesList.Count == 0)
                 {
-//#if DEBUG
-//                    Debug.WriteLine("[圣经] 没有有效的经文数据");
-//#endif
+                    //#if DEBUG
+                    //Debug.WriteLine("[圣经] 没有有效的经文数据");
+                    //#endif
                     return;
                 }
 
@@ -2156,7 +2148,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
-                    
+
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-RenderTargetBitmap] 投影完成，共{versesList.Count}节");
                     //#endif
@@ -2377,69 +2369,111 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BibleHistoryItem_Click(object sender, MouseButtonEventArgs e)
         {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 开始 ==========");
+            //#endif
+
             if (sender is Border border && border.DataContext is BibleHistoryItem item)
             {
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   槽位: {item.Index}, 显示文本: {item.DisplayText}");
+                //System.Diagnostics.Debug.WriteLine($"   当前状态: IsChecked={item.IsChecked}, IsLocked={item.IsLocked}");
+                //#endif
+
                 // 🔧 双击检测
                 var now = DateTime.Now;
                 var interval = (now - _lastHistoryClickTime).TotalMilliseconds;
                 var isDoubleClick = interval < DoubleClickInterval && _lastHistoryClickedItem == item;
-                
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   点击间隔: {interval:F0}ms, 是否双击: {isDoubleClick}");
+                //#endif
+
                 _lastHistoryClickTime = now;
                 _lastHistoryClickedItem = item;
-                
+
                 if (isDoubleClick)
                 {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   ✅ 检测到双击，切换锁定状态");
+                    //#endif
+
                     // 双击：切换锁定状态
                     bool wasLocked = item.IsLocked;
                     item.IsLocked = !item.IsLocked;
-                    
+
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   锁定状态: {wasLocked} -> {item.IsLocked}");
+                    //#endif
+
                     // 🆕 锁定后自动勾选（但不触发单击逻辑）
                     if (item.IsLocked && !item.IsChecked)
                     {
                         // 使用私有字段直接设置，避免触发PropertyChanged
                         item.IsChecked = true;
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   自动勾选槽位");
+                        //#endif
                     }
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[圣经] 槽位{item.Index} 双击锁定: {item.IsLocked}, 勾选: {item.IsChecked}");
-                    //#endif
-                    
+
                     // 强制刷新列表显示以确保边框更新
                     BibleHistoryList.Items.Refresh();
-                    
+
                     // 🆕 增量更新：根据锁定状态决定是添加还是删除
                     if (item.IsLocked)
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   添加锁定记录的经文");
+                        //#endif
                         // 新增锁定：插入该记录的经文
                         await AddLockedRecordVerses(item);
                     }
                     else
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   删除锁定记录的经文");
+                        //#endif
                         // 取消锁定：删除该记录的经文
                         RemoveLockedRecordVerses(item);
                     }
-                    
+
                     // 更新投影
                     await UpdateProjectionFromMergedVerses();
-                    return;
-                }
-                
-                // 🔧 单击逻辑：检查是否有锁定记录
-                bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
-                
-                if (hasLockedRecords)
-                {
-                    // 有锁定记录时：允许勾选，但不切换主屏幕内容
-                    item.IsChecked = !item.IsChecked;
+
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[圣经] 锁定模式：单击槽位{item.Index}勾选={item.IsChecked}，不切换主屏幕");
+                    //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（双击） ==========\n");
                     //#endif
                     return;
                 }
-                
+
+                // 🔧 单击逻辑：检查是否有锁定记录
+                bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   是否有锁定记录: {hasLockedRecords}");
+                //#endif
+
+                if (hasLockedRecords)
+                {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   锁定模式：切换勾选状态，不切换主屏幕");
+                    //#endif
+                    // 有锁定记录时：允许勾选，但不切换主屏幕内容
+                    item.IsChecked = !item.IsChecked;
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   勾选状态: {item.IsChecked}");
+                    //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（锁定模式单击） ==========\n");
+                    //#endif
+                    return;
+                }
+
                 // 🔧 无锁定记录时：单选模式
                 if (!item.IsChecked)
                 {
+                    //#if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   单选模式：取消其他槽位勾选，勾选当前槽位");
+                    //#endif
+
                     // 槽位未勾选：取消其他所有记录的勾选，并勾选当前记录
                     foreach (var slot in _historySlots)
                     {
@@ -2448,26 +2482,28 @@ namespace ImageColorChanger.UI
                             slot.IsChecked = false;
                         }
                     }
-                    
+
                     // 勾选当前记录
                     item.IsChecked = true;
-
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[圣经] 选中槽位{item.Index}: {item.DisplayText}");
-                    //#endif
 
                     // 如果有有效经文数据，则加载经文
                     if (item.BookId > 0)
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   加载经文: BookId={item.BookId}, Chapter={item.Chapter}, Verse={item.StartVerse}-{item.EndVerse}");
+                        //#endif
                         await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
                     }
                     else
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   空白记录：清空主屏幕和投影");
+                        //#endif
                         // 空白记录：清空主屏幕和投影屏幕
                         _mergedVerses.Clear();
                         BibleChapterTitle.Text = "";
                         BibleChapterTitleBorder.Visibility = Visibility.Visible;
-                        
+
                         if (_projectionManager != null && _projectionManager.IsProjecting)
                         {
                             _projectionManager.ClearProjectionDisplay();
@@ -2476,17 +2512,24 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 槽位已勾选：重新加载该经文（用于从保存的配置恢复后点击）
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📖 [圣经] 槽位{item.Index}已勾选，重新加载经文");
+                    //System.Diagnostics.Debug.WriteLine($"   槽位已勾选：重新加载经文");
                     //#endif
-                    
+
+                    // 槽位已勾选：重新加载该经文（用于从保存的配置恢复后点击）
                     // 如果有有效经文数据，则加载经文到主屏幕
                     if (item.BookId > 0)
                     {
+                        //#if DEBUG
+                        //System.Diagnostics.Debug.WriteLine($"   重新加载经文: BookId={item.BookId}, Chapter={item.Chapter}, Verse={item.StartVerse}-{item.EndVerse}");
+                        //#endif
                         await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
                     }
                 }
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（单击） ==========\n");
+                //#endif
             }
         }
 
@@ -2992,9 +3035,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task UpdateProjectionFromMergedVerses()
         {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔄 [更新合并投影] ========== 开始 ==========");
+            //#endif
+
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
                 var verseList = _mergedVerses.ToList();
+
+                //#if DEBUG
+                //System.Diagnostics.Debug.WriteLine($"   合并经文数量: {verseList.Count}");
+                //#endif
+
                 if (verseList.Count > 0 && BibleVerseScrollViewer != null)
                 {
                     // 🆕 使用 VisualBrush 投影（100%像素级一致）
@@ -3005,7 +3057,11 @@ namespace ImageColorChanger.UI
                     _projectionManager.ClearProjectionDisplay();
                 }
             }
-            
+
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🔄 [更新合并投影] ========== 结束 ==========\n");
+            //#endif
+
             await Task.CompletedTask;
         }
         
@@ -3279,12 +3335,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ApplyBibleSettings()
         {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"🎨 [应用圣经样式] ========== 开始 ==========");
+            //#endif
+
             try
             {
                 // 应用背景色
                 var backgroundColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleBackgroundColor);
                 BibleVerseScrollViewer.Background = new WpfSolidColorBrush(backgroundColor);
-                
+
                 // 应用标题背景色（与经文背景色一致）
                 BibleChapterTitleBorder.Background = new WpfSolidColorBrush(backgroundColor);
 
@@ -3323,6 +3383,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ApplyVerseStyles()
         {
+            //#if DEBUG
+            //System.Diagnostics.Debug.WriteLine($"✨ [应用经文样式] ========== 开始 ==========");
+            //#endif
+
             try
             {
                 if (BibleVerseList.Items.Count == 0)
@@ -3341,23 +3405,11 @@ namespace ImageColorChanger.UI
 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"🔍 [ApplyVerseStyles] 开始应用样式，总共 {BibleVerseList.Items.Count} 条记录，模式={isLockedMode}");
-                //// 统计高亮的经文数量
-                //int highlightedCount = 0;
-                //for (int debugIdx = 0; debugIdx < BibleVerseList.Items.Count; debugIdx++)
-                //{
-                //    var debugVerse = BibleVerseList.Items[debugIdx] as BibleVerse;
-                //    if (debugVerse != null && debugVerse.IsHighlighted)
-                //    {
-                //        highlightedCount++;
-                //        System.Diagnostics.Debug.WriteLine($"💡 [ApplyVerseStyles] 发现高亮经文{debugIdx}: {debugVerse.Reference}, IsHighlighted={debugVerse.IsHighlighted}");
-                //    }
-                //}
-                //System.Diagnostics.Debug.WriteLine($"📊 [ApplyVerseStyles] 高亮经文总数: {highlightedCount}");
                 //#endif
 
                 var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
                 var verseNumberColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleVerseNumberColor);
-                
+
                 // 使用FontService加载字体（支持自定义字体文件）
                 var fontFamily = Core.FontService.Instance.GetFontFamilyByFamily(_configManager.BibleFontFamily);
                 if (fontFamily == null)
@@ -3365,10 +3417,6 @@ namespace ImageColorChanger.UI
                     // 回退到系统字体
                     fontFamily = new WpfFontFamily(_configManager.BibleFontFamily);
                 }
-                
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎨 [ApplyVerseStyles] 颜色配置 - 经文:{_configManager.BibleTextColor}, 节号:{_configManager.BibleVerseNumberColor}, 高亮:{_configManager.BibleHighlightColor}");
-                //#endif
 
                 // 遍历所有已生成的容器
                 for (int i = 0; i < BibleVerseList.Items.Count; i++)
