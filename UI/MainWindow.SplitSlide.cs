@@ -189,7 +189,6 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 确保 TextProjectManager 已初始化
                 if (_textProjectManager == null)
                 {
                     if (_dbManager == null)
@@ -199,7 +198,6 @@ namespace ImageColorChanger.UI
                     _textProjectManager = new Managers.TextProjectManager(_dbManager);
                 }
 
-                // 查找现有的"赞美诗"项目
                 var allProjects = await _textProjectManager.GetAllProjectsAsync();
                 var praiseProject = allProjects.FirstOrDefault(p => p.Name == PRAISE_PROJECT_NAME);
 
@@ -208,8 +206,13 @@ namespace ImageColorChanger.UI
                     return praiseProject;
                 }
 
-                // 不存在则创建新项目
                 praiseProject = await _textProjectManager.CreateProjectAsync(PRAISE_PROJECT_NAME);
+                
+                if (praiseProject != null)
+                {
+                    LoadProjects();
+                }
+                
                 return praiseProject;
             }
             catch (Exception)
@@ -294,7 +297,6 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 1. 获取文件信息
                 var mediaFile = _dbManager.GetMediaFileById(fileId);
                 if (mediaFile == null)
                 {
@@ -302,7 +304,6 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 2. 查找或创建"赞美诗"项目
                 var praiseProject = await FindOrCreatePraiseProjectAsync();
                 if (praiseProject == null)
                 {
@@ -310,7 +311,6 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 3. 创建新幻灯片（追加）
                 var newSlide = await CreateSingleSlideAsync(praiseProject.Id, mediaFile.Path, mediaFile.Name);
                 if (newSlide == null)
                 {
@@ -318,12 +318,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 4. 如果当前正在查看赞美诗项目，刷新幻灯片列表
-                if (_currentTextProject != null && _currentTextProject.Id == praiseProject.Id)
-                {
-                    LoadSlideList();
-                }
-
+                await OpenSlideAsync(praiseProject, newSlide);
                 ShowStatus($"✅ 已添加幻灯片: {mediaFile.Name}");
             }
             catch (Exception ex)
@@ -389,30 +384,29 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 1. 重置状态：关闭原图模式
                 ResetViewStateForTextEditor();
-
-                // 2. 设置当前项目
                 _currentTextProject = project;
-
-                // 3. 切换到编辑模式
                 ShowTextEditor();
-
-                // 4. 加载幻灯片列表
                 LoadSlideList();
 
-                // 5. 选中新创建的幻灯片并加载内容
-                // 需要等待UI更新后再加载幻灯片
                 await Dispatcher.InvokeAsync(() =>
                 {
                     _currentSlide = slide;
                     SlideListBox.SelectedItem = slide;
                     LoadSlide(slide);
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (_currentSlide != null && _currentSlide.Id == slide.Id)
+                    {
+                        SaveSlideThumbnail(slide.Id);
+                        LoadSlideList();
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception)
             {
-                // 静默处理异常
             }
         }
 
