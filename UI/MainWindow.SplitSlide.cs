@@ -89,13 +89,10 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 8. 刷新项目树
-                LoadProjects();
-
-                // 9. 自动打开新创建的幻灯片
+                // 8. 自动打开新创建的幻灯片
                 await OpenSlideAsync(praiseProject, newSlide);
 
-                // 10. 显示成功提示
+                // 9. 显示成功提示
                 string modeName = count switch
                 {
                     1 => "单画面",
@@ -165,13 +162,10 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 7. 刷新项目树
-                LoadProjects();
-
-                // 8. 自动打开新创建的幻灯片
+                // 7. 自动打开新创建的幻灯片
                 await OpenSlideAsync(praiseProject, newSlide);
 
-                // 9. 显示成功提示
+                // 8. 显示成功提示
                 string modeName = count switch
                 {
                     1 => "单画面",
@@ -276,6 +270,101 @@ namespace ImageColorChanger.UI
                     SortOrder = 1,
                     BackgroundColor = "#000000",  // 黑色背景
                     SplitMode = (int)splitMode,
+                    SplitRegionsData = splitRegionsJson,
+                    SplitStretchMode = true,  // 默认拉伸模式
+                    CreatedTime = DateTime.Now,
+                    ModifiedTime = DateTime.Now
+                };
+
+                _dbContext.Slides.Add(newSlide);
+                await _dbContext.SaveChangesAsync();
+
+                return newSlide;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 从文件ID添加单画面幻灯片到赞美诗项目（用于右键菜单）
+        /// </summary>
+        private async Task AddSingleSlideToPraiseProjectFromFile(int fileId)
+        {
+            try
+            {
+                // 1. 获取文件信息
+                var mediaFile = _dbManager.GetMediaFileById(fileId);
+                if (mediaFile == null)
+                {
+                    ShowStatus("❌ 文件不存在");
+                    return;
+                }
+
+                // 2. 查找或创建"赞美诗"项目
+                var praiseProject = await FindOrCreatePraiseProjectAsync();
+                if (praiseProject == null)
+                {
+                    ShowStatus("❌ 创建赞美诗项目失败");
+                    return;
+                }
+
+                // 3. 创建新幻灯片（追加）
+                var newSlide = await CreateSingleSlideAsync(praiseProject.Id, mediaFile.Path, mediaFile.Name);
+                if (newSlide == null)
+                {
+                    ShowStatus("❌ 创建幻灯片失败");
+                    return;
+                }
+
+                // 4. 如果当前正在查看赞美诗项目，刷新幻灯片列表
+                if (_currentTextProject != null && _currentTextProject.Id == praiseProject.Id)
+                {
+                    LoadSlideList();
+                }
+
+                ShowStatus($"✅ 已添加幻灯片: {mediaFile.Name}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 添加幻灯片失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从单个文件创建单画面幻灯片
+        /// </summary>
+        private async Task<Slide> CreateSingleSlideAsync(int projectId, string filePath, string fileName)
+        {
+            try
+            {
+                // 1. 获取项目中的幻灯片数量，用于计算SortOrder
+                var slideCount = await _dbContext.Slides
+                    .Where(s => s.ProjectId == projectId)
+                    .CountAsync();
+
+                // 2. 创建分割区域数据（单画面）
+                var regionDataList = new List<SplitRegionData>
+                {
+                    new SplitRegionData
+                    {
+                        RegionIndex = 0,
+                        ImagePath = filePath
+                    }
+                };
+
+                // 3. 序列化为JSON
+                string splitRegionsJson = JsonSerializer.Serialize(regionDataList);
+
+                // 4. 创建幻灯片
+                var newSlide = new Slide
+                {
+                    ProjectId = projectId,
+                    Title = $"幻灯片 {slideCount + 1}",
+                    SortOrder = slideCount + 1,
+                    BackgroundColor = "#000000",  // 黑色背景
+                    SplitMode = (int)ViewSplitMode.Single,  // 单画面
                     SplitRegionsData = splitRegionsJson,
                     SplitStretchMode = true,  // 默认拉伸模式
                     CreatedTime = DateTime.Now,

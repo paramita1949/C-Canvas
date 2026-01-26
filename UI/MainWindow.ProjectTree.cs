@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows;
@@ -742,6 +742,19 @@ namespace ImageColorChanger.UI
                             await CreateSplitSlideInPraiseProjectFromFile(item.Id);
                         };
                         contextMenu.Items.Add(createSplitMenuItem);
+
+                        // 🆕 添加到幻灯片菜单项
+                        var addToSlideMenuItem = new MenuItem
+                        {
+                            Header = "添加到幻灯片",
+                            FontSize = 14
+                        };
+                        addToSlideMenuItem.Click += async (s, args) =>
+                        {
+                            await AddSingleSlideToPraiseProjectFromFile(item.Id);
+                        };
+                        contextMenu.Items.Add(addToSlideMenuItem);
+
                         contextMenu.Items.Add(new Separator());
 
                         var deleteItem = new MenuItem { Header = "删除文件" };
