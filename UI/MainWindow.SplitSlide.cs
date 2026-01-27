@@ -207,12 +207,22 @@ namespace ImageColorChanger.UI
                 }
 
                 praiseProject = await _textProjectManager.CreateProjectAsync(PRAISE_PROJECT_NAME);
-                
+
                 if (praiseProject != null)
                 {
-                    LoadProjects();
+                    _projectTreeItems.Add(new ProjectTreeItem
+                    {
+                        Id = praiseProject.Id,
+                        Name = praiseProject.Name,
+                        Icon = "FileDocument",
+                        IconKind = "FileDocument",
+                        IconColor = "#2196F3",
+                        Type = TreeItemType.TextProject,
+                        Path = null
+                    });
+                    FilterProjectTree();
                 }
-                
+
                 return praiseProject;
             }
             catch (Exception)

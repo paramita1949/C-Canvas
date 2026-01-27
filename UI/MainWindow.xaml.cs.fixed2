@@ -529,6 +529,8 @@ namespace ImageColorChanger.UI
             
             // 初始化视频播放器
             InitializeVideoPlayer();
+            // 🆕 首次启动检查：如果没有任何项目，创建默认项目            InitializeDefaultProjects();
+            // 🆕 首次启动检查：如果没有任何项目，创建默认项目            InitializeDefaultProjects();
             
             // 初始化项目树（绑定到过滤集合）
             ProjectTree.ItemsSource = _filteredProjectTreeItems;
@@ -769,8 +771,65 @@ namespace ImageColorChanger.UI
                     "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
-        
+
         /// <summary>
+        private void InitializeDefaultProjects()
+        {
+            try
+            {
+                if (_textProjectManager == null) return;
+
+                var allProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
+
+                bool hasProject1 = allProjects.Any(p => p.Name == "项目1");
+                bool hasPraiseProject = allProjects.Any(p => p.Name == "赞美诗");
+
+                if (hasProject1 && hasPraiseProject)
+                {
+                    return;
+                }
+
+                var dbContext = _dbManager.GetDbContext();
+
+                if (!hasProject1)
+                {
+                    var project1 = new TextProject
+                    {
+                        Name = "项目1",
+                        CanvasWidth = 1920,
+                        CanvasHeight = 1080,
+                        CreatedTime = DateTime.Now,
+                        ModifiedTime = DateTime.Now,
+                        SortOrder = 1
+                    };
+
+                    dbContext.TextProjects.Add(project1);
+                }
+
+                if (!hasPraiseProject)
+                {
+                    var praiseProject = new TextProject
+                    {
+                        Name = "赞美诗",
+                        CanvasWidth = 1920,
+                        CanvasHeight = 1080,
+                        CreatedTime = DateTime.Now,
+                        ModifiedTime = DateTime.Now,
+                        SortOrder = 2
+                    };
+
+                    dbContext.TextProjects.Add(praiseProject);
+                }
+
+                if (!hasProject1 || !hasPraiseProject)
+                {
+                    dbContext.SaveChanges();
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
         /// 从数据库加载项目树
         /// </summary>
         private void LoadProjects()
@@ -808,6 +867,7 @@ namespace ImageColorChanger.UI
                     bool hasMediaFiles = files.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
                     
                     // 检查是否有播放模式标记
+                        Name = "赞美诗",
                     string folderPlayMode = _dbManager.GetFolderVideoPlayMode(folder.Id);
                     
                     // 检查是否有变色标记
@@ -1152,9 +1212,12 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private async Task LoadFirstProjectAsync()
+        private void CreateDefaultProjectsSync()
         {
             try
+            {
+                if (_textProjectManager == null) return;
+
             {
                 // 确保TextProjectManager已初始化
                 if (_textProjectManager == null)
@@ -3421,64 +3484,3 @@ namespace ImageColorChanger.UI
             {
                 if (_isSelected != value)
                 {
-                    _isSelected = value;
-                    OnPropertyChanged(nameof(IsSelected));
-                }
-            }
-        }
-
-        private bool _isExpanded;
-        public bool IsExpanded
-        {
-            get => _isExpanded;
-            set
-            {
-                if (_isExpanded != value)
-                {
-                    _isExpanded = value;
-                    OnPropertyChanged(nameof(IsExpanded));
-                }
-            }
-        }
-
-        private bool _isEditing;
-        public bool IsEditing
-        {
-            get => _isEditing;
-            set
-            {
-                if (_isEditing != value)
-                {
-                    _isEditing = value;
-                    OnPropertyChanged(nameof(IsEditing));
-                }
-            }
-        }
-
-        // 编辑前的原始名称
-        public string OriginalName { get; set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public enum TreeItemType
-    {
-        Project,
-        Folder,
-        File,
-        Image,
-        Video,
-        Audio,
-        TextProject,     // 文本项目
-        BibleTestament,  // 圣经约（旧约/新约）
-        BibleBook,       // 圣经书卷
-        BibleChapter     // 圣经章节
-    }
-
-    #endregion
-}

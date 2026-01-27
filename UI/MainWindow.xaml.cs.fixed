@@ -529,6 +529,7 @@ namespace ImageColorChanger.UI
             
             // 初始化视频播放器
             InitializeVideoPlayer();
+            // 🆕 首次启动检查：如果没有任何项目，创建默认项目            InitializeDefaultProjects();
             
             // 初始化项目树（绑定到过滤集合）
             ProjectTree.ItemsSource = _filteredProjectTreeItems;
@@ -769,13 +770,12 @@ namespace ImageColorChanger.UI
                     "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
-        
+
         /// <summary>
         /// 从数据库加载项目树
         /// </summary>
         private void LoadProjects()
         {
-                if (_textProjectManager == null) return;
             try
             {
                 //System.Diagnostics.Debug.WriteLine($"🔄 [LoadProjects] 开始加载项目树...");
@@ -1152,9 +1152,12 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private async Task LoadFirstProjectAsync()
+        private void CreateDefaultProjectsSync()
         {
             try
+            {
+                if (_textProjectManager == null) return;
+
             {
                 // 确保TextProjectManager已初始化
                 if (_textProjectManager == null)
@@ -3481,4 +3484,3 @@ namespace ImageColorChanger.UI
     }
 
     #endregion
-}

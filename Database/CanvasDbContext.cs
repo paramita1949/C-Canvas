@@ -765,7 +765,9 @@ namespace ImageColorChanger.Database
         }
 
         /// <summary>
-        /// 确保默认项目"项目1"存在（新数据库初始化时自动创建）
+        /// 确保默认项目存在
+        /// - 首次安装：创建"项目1"和"赞美诗"
+        /// - 用户删除所有项目后：只创建"项目1"
         /// </summary>
         private void EnsureDefaultProjectExists()
         {
@@ -775,37 +777,98 @@ namespace ImageColorChanger.Database
                 if (!TextProjects.Any())
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("📋 [数据库初始化] 没有项目，创建默认项目");
+                    System.Diagnostics.Debug.WriteLine("📋 [数据库初始化] 没有项目，检查是否首次初始化...");
                     #endif
 
-                    // 创建默认项目
-                    var defaultProject = new TextProject
+                    // 检查是否是首次初始化（通过 Settings 表中的标记判断）
+                    const string INIT_FLAG_KEY = "first_initialization_completed";
+                    var initFlag = Settings.FirstOrDefault(s => s.Key == INIT_FLAG_KEY);
+                    bool isFirstTime = (initFlag == null);
+
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"📋 [数据库初始化] 首次初始化: {isFirstTime}");
+                    #endif
+
+                    // 创建"项目1"
+                    var project1 = new TextProject
                     {
                         Name = "项目1",
                         CanvasWidth = 1920,
                         CanvasHeight = 1080,
                         CreatedTime = DateTime.Now,
-                        ModifiedTime = DateTime.Now
+                        ModifiedTime = DateTime.Now,
+                        SortOrder = 1
                     };
-                    TextProjects.Add(defaultProject);
+                    TextProjects.Add(project1);
                     SaveChanges();
 
-                    // 为默认项目创建第一张幻灯片
-                    var firstSlide = new Slide
+                    // 为"项目1"创建第一张幻灯片
+                    var firstSlide1 = new Slide
                     {
-                        ProjectId = defaultProject.Id,
+                        ProjectId = project1.Id,
                         Title = "幻灯片 1",
                         SortOrder = 1,
                         BackgroundColor = "#000000",  // 默认黑色背景
                         SplitMode = -1,  // 默认无分割模式
                         SplitStretchMode = false  // 默认适中模式
                     };
-                    Slides.Add(firstSlide);
+                    Slides.Add(firstSlide1);
                     SaveChanges();
 
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {defaultProject.Name} (ID={defaultProject.Id})");
+                    System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {project1.Name} (ID={project1.Id})");
                     #endif
+
+                    // 只在首次初始化时创建"赞美诗"
+                    if (isFirstTime)
+                    {
+                        var praiseProject = new TextProject
+                        {
+                            Name = "赞美诗",
+                            CanvasWidth = 1920,
+                            CanvasHeight = 1080,
+                            CreatedTime = DateTime.Now,
+                            ModifiedTime = DateTime.Now,
+                            SortOrder = 2
+                        };
+                        TextProjects.Add(praiseProject);
+                        SaveChanges();
+
+                        // 为"赞美诗"创建第一张幻灯片
+                        var firstSlide2 = new Slide
+                        {
+                            ProjectId = praiseProject.Id,
+                            Title = "幻灯片 1",
+                            SortOrder = 1,
+                            BackgroundColor = "#000000",  // 默认黑色背景
+                            SplitMode = -1,  // 默认无分割模式
+                            SplitStretchMode = false  // 默认适中模式
+                        };
+                        Slides.Add(firstSlide2);
+                        SaveChanges();
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {praiseProject.Name} (ID={praiseProject.Id})");
+                        #endif
+
+                        // 标记首次初始化已完成
+                        Settings.Add(new Setting
+                        {
+                            Key = INIT_FLAG_KEY,
+                            Value = "true"
+                        });
+                        SaveChanges();
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("✅ [数据库初始化] 首次初始化标记已设置");
+                        #endif
+                    }
+                    else
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine("ℹ️ [数据库初始化] 非首次初始化，仅创建项目1");
+                        #endif
+                    }
                 }
             }
             catch (Exception ex)
