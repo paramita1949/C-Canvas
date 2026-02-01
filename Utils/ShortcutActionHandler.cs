@@ -59,14 +59,24 @@ namespace ImageColorChanger.Utils
                 return true;
             }
 
-            // 尝试关闭投影
+            // 尝试关闭投影（仅当主窗口在前台时）
             var projectionManager = _mainWindow.GetProjectionManager();
             if (projectionManager != null)
             {
-                bool wasClosed = projectionManager.CloseProjection();
-                if (wasClosed)
+                // 🔒 安全检查：只有主窗口激活（在前台）时才允许ESC关闭投影
+                if (_mainWindow.IsActive)
                 {
-                    return true;
+                    bool wasClosed = projectionManager.CloseProjection();
+                    if (wasClosed)
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    // 主窗口不在前台，忽略ESC键（防止误触关闭投影）
+                    //System.Diagnostics.Debug.WriteLine($"🔑 [ESC键] 主窗口不在前台，忽略关闭投影请求");
+                    return false;
                 }
             }
 
