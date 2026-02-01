@@ -871,15 +871,6 @@ namespace ImageColorChanger.UI
             //#if DEBUG
             //Debug.WriteLine($"[圣经-节数获取] 双击章: BookId={bookId}, Chapter={chapter}，加载整章");
             //#endif
-
-            // 加载整章经文
-            await LoadChapterVersesAsync(bookId, chapter);
-            
-            //#if DEBUG
-            //var verses = BibleVerseList.ItemsSource as List<BibleVerse>;
-            //int processedCount = verses?.Count ?? 0;
-            //Debug.WriteLine($"[圣经-节数获取] 双击加载 - 原始节数: {verseCount}, 处理后列表长度: {processedCount}");
-            //#endif
             
             if (verseCount > 0)
             {
@@ -892,9 +883,6 @@ namespace ImageColorChanger.UI
                 // 默认选中第1节和最后一节
                 BibleStartVerse.SelectedIndex = 0;
                 BibleEndVerse.SelectedIndex = verseCount - 1;
-
-                // 🔧 强制更新历史槽位
-                AddToHistory(bookId, chapter, 1, verseCount);
 
                 //#if DEBUG
                 //Debug.WriteLine($"[圣经-节数获取] 双击加载整章，节范围: 1-{verseCount}");
@@ -909,6 +897,14 @@ namespace ImageColorChanger.UI
                     
                     await CreateBibleTextElements(bookId, chapter, 1, verseCount);
                 }
+                else
+                {
+                    // 🔧 非编辑模式：加载经文到投影区（与双击开始节行为一致）
+                    await LoadVerseRangeAsync(bookId, chapter, 1, verseCount);
+                }
+                
+                // 🔧 更新历史槽位
+                AddToHistory(bookId, chapter, 1, verseCount);
             }
         }
 
