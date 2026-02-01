@@ -127,3 +127,11 @@ docs/
 # .NET Reactor configuration (local only)
 *.dotnet_reactor.targets
 
+# Windows reserved device names (prevent Git from misdetecting them as files)
+nul
+NUL
+CON
+PRN
+AUX
+COM[1-9]
+LPT[1-9]
