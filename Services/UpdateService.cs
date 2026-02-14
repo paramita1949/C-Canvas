@@ -132,20 +132,12 @@ namespace ImageColorChanger.Services
         /// </summary>
         public static async Task<List<string>> GetRollbackVersionsAsync()
         {
-            var swTotal = Stopwatch.StartNew();
             var currentVersion = GetCurrentVersion();
             var versions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-#if DEBUG
-            Debug.WriteLine($"[Rollback] 开始拉取可回退版本, current={currentVersion}");
-#endif
-
             // 尝试从版本清单文件中提取版本
             foreach (var listFile in VERSION_LIST_FILES)
             {
                 var listLoaded = false;
-#if DEBUG
-                var swList = Stopwatch.StartNew();
-#endif
                 for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
                 {
                     try
@@ -154,9 +146,6 @@ namespace ImageColorChanger.Services
                         var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
                         if (string.IsNullOrWhiteSpace(content))
                         {
-#if DEBUG
-                            Debug.WriteLine($"[Rollback] 清单为空或失败: {url}");
-#endif
                             continue;
                         }
 
@@ -167,10 +156,6 @@ namespace ImageColorChanger.Services
 
                         // 同一份清单在多个镜像通常一致，拿到一份即可
                         listLoaded = true;
-#if DEBUG
-                        swList.Stop();
-                        Debug.WriteLine($"[Rollback] 清单成功: {url}, 耗时={swList.ElapsedMilliseconds}ms, 已提取版本数={versions.Count}");
-#endif
                         break;
                     }
                     catch
@@ -184,10 +169,6 @@ namespace ImageColorChanger.Services
                     // 优先读取 next list file
                     continue;
                 }
-#if DEBUG
-                swList.Stop();
-                Debug.WriteLine($"[Rollback] 清单未命中: {listFile}, 耗时={swList.ElapsedMilliseconds}ms");
-#endif
             }
 
             // latest 兜底
@@ -200,9 +181,6 @@ namespace ImageColorChanger.Services
                     if (!string.IsNullOrEmpty(normalized))
                     {
                         versions.Add(normalized);
-#if DEBUG
-                        Debug.WriteLine($"[Rollback] latest 命中: {DOWNLOAD_BASE_URLS[i]}/latest.txt -> {normalized}");
-#endif
                         break;
                     }
                 }
@@ -219,15 +197,6 @@ namespace ImageColorChanger.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderByDescending(v => v, Comparer<string>.Create(CompareVersions))
                 .ToList();
-
-#if DEBUG
-            swTotal.Stop();
-            Debug.WriteLine($"[Rollback] 完成, 原始候选={versions.Count}, 列表展示={result.Count}, 总耗时={swTotal.ElapsedMilliseconds}ms");
-            if (result.Count > 0)
-            {
-                Debug.WriteLine($"[Rollback] 可用版本: {string.Join(", ", result.Select(v => "V" + v))}");
-            }
-#endif
 
             return result;
         }
@@ -276,17 +245,10 @@ namespace ImageColorChanger.Services
                     var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
                     if (!string.IsNullOrWhiteSpace(content))
                     {
-#if DEBUG
-                        Debug.WriteLine($"[Rollback] read.txt 命中: {url}");
-#endif
                         return content;
                     }
                 }
             }
-
-#if DEBUG
-            Debug.WriteLine($"[Rollback] read.txt 未命中: v={normalized}");
-#endif
             return null;
         }
 
@@ -542,6 +504,7 @@ namespace ImageColorChanger.Services
                         });
                     }
                 }
+
             }
             catch (HttpRequestException)
             {
@@ -680,7 +643,6 @@ namespace ImageColorChanger.Services
                                 }
 
                                 response.EnsureSuccessStatusCode();
-
                                 long fileDownloadedBytes = 0;
                                 using (var contentStream = await response.Content.ReadAsStreamAsync())
                                 using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
@@ -696,7 +658,6 @@ namespace ImageColorChanger.Services
                                         progress?.Report((newDownloadedBytes, totalBytes));
                                     }
                                 }
-
                                 return (true, fileDownloadedBytes); // 下载成功，返回下载的字节数
                             }
                         }
@@ -746,6 +707,7 @@ namespace ImageColorChanger.Services
                 foreach (var file in versionInfo.Files)
                 {
                     // 尝试从多个地址获取文件大小（使用HEAD请求，只获取响应头）
+                    var sizeResolved = false;
                     for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
                     {
                         var baseUrl = DOWNLOAD_BASE_URLS[i];
@@ -762,11 +724,17 @@ namespace ImageColorChanger.Services
                                     {
                                         file.FileSize = response.Content.Headers.ContentLength ?? 0;
                                         totalBytes += file.FileSize;
+                                        sizeResolved = true;
                                         break; // 成功获取大小，跳出循环
                                     }
                                 }
                             }
                             catch { }
+                        }
+
+                        if (sizeResolved)
+                        {
+                            break; // 已获取到该文件大小，不再累加其他镜像
                         }
                     }
                 }
@@ -799,7 +767,6 @@ namespace ImageColorChanger.Services
                     // 更新已下载字节数
                     downloadedBytes += bytesDownloaded;
                     successfulFiles++;
-
                     // 如果是压缩包，自动解压
                     if (IsCompressedFile(file.FileName))
                     {
@@ -815,7 +782,6 @@ namespace ImageColorChanger.Services
                 {
                     return null;
                 }
-
                 return tempDir; // 返回临时目录路径
             }
             catch (Exception)
@@ -1181,7 +1147,6 @@ exit
 
         private static async Task<bool> HasFilesListAsync(string version)
         {
-            var sw = Stopwatch.StartNew();
             for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
             {
                 foreach (var url in BuildFilesListUrls(DOWNLOAD_BASE_URLS[i], version))
@@ -1193,10 +1158,6 @@ exit
                         using var response = await _httpClient.SendAsync(request, cts.Token);
                         if (response.IsSuccessStatusCode)
                         {
-#if DEBUG
-                            sw.Stop();
-                            Debug.WriteLine($"[Rollback] files.txt 命中(HEAD): v={version}, url={url}, 耗时={sw.ElapsedMilliseconds}ms");
-#endif
                             return true;
                         }
 
@@ -1208,10 +1169,6 @@ exit
                             using var getResponse = await _httpClient.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead, getCts.Token);
                             if (getResponse.IsSuccessStatusCode)
                             {
-#if DEBUG
-                                sw.Stop();
-                                Debug.WriteLine($"[Rollback] files.txt 命中(GET): v={version}, url={url}, 耗时={sw.ElapsedMilliseconds}ms");
-#endif
                                 return true;
                             }
                         }
@@ -1223,10 +1180,6 @@ exit
                 }
             }
 
-#if DEBUG
-            sw.Stop();
-            Debug.WriteLine($"[Rollback] files.txt 未命中: v={version}, 耗时={sw.ElapsedMilliseconds}ms");
-#endif
             return false;
         }
 
@@ -1252,5 +1205,6 @@ exit
         }
     }
 }
+
 
 

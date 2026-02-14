@@ -60,15 +60,6 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            // 版本管理
-            var versionManageItem = new MenuItem { Header = "版本管理" };
-            var rollbackItem = new MenuItem { Header = "版本回退" };
-            rollbackItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
-            versionManageItem.Items.Add(rollbackItem);
-            contextMenu.Items.Add(versionManageItem);
-
-            contextMenu.Items.Add(new Separator());
-
             // 字号设置
             var fontSizeItem = new MenuItem { Header = "字号设置" };
             
@@ -143,6 +134,15 @@ namespace ImageColorChanger.UI
             fontSizeItem.Items.Add(menuFontSizeItem);
 
             contextMenu.Items.Add(fontSizeItem);
+
+            contextMenu.Items.Add(new Separator());
+
+            // 版本管理（放在字号设置下方，保持在文件菜单最底部）
+            var versionManageItem = new MenuItem { Header = "版本管理" };
+            var rollbackItem = new MenuItem { Header = "版本回退" };
+            rollbackItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
+            versionManageItem.Items.Add(rollbackItem);
+            contextMenu.Items.Add(versionManageItem);
 
             // 显示菜单
             contextMenu.PlacementTarget = BtnImport;

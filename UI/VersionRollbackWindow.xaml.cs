@@ -123,7 +123,6 @@ namespace ImageColorChanger.UI
                     MessageBox.Show("无法读取该版本的 files.txt 或版本不可用。", "回退失败", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
-
                 var progress = new Progress<(long downloaded, long total)>(p =>
                 {
                     Dispatcher.Invoke(() =>
@@ -179,3 +178,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

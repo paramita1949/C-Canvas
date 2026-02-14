@@ -1726,6 +1726,12 @@ namespace ImageColorChanger.UI
                 _bibleStylePopup.IsOpen = false;
             }
 
+            // 关闭文本编辑悬浮工具栏（修复：切换到其他软件时工具栏仍显示）
+            if (BibleToolbar != null && BibleToolbar.IsOpen)
+            {
+                BibleToolbar.IsOpen = false;
+            }
+
             // 隐藏圣经译本选择工具栏
             if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
             {
@@ -1758,6 +1764,16 @@ namespace ImageColorChanger.UI
             if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
             {
                 BibleVersionToolbar.Visibility = Visibility.Collapsed;
+            }
+
+            if (WindowState == WindowState.Minimized)
+            {
+                if (BibleToolbar != null)
+                {
+                    BibleToolbar.IsOpen = false;
+                }
+
+                CloseAllSidePanels();
             }
 
             // 注意：不再自动关闭所有侧边面板，让用户通过ESC或点击来控制

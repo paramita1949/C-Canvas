@@ -82,6 +82,9 @@ namespace ImageColorChanger.Services
 
         [JsonPropertyName("show_mode")]
         public string ShowMode { get; set; }
+
+        [JsonPropertyName("expires_at")]
+        public long? ExpiresAt { get; set; }
     }
 
     public class PaymentInfo
@@ -1098,6 +1101,15 @@ namespace ImageColorChanger.Services
             if (notice == null || string.IsNullOrWhiteSpace(notice.Message))
             {
                 return;
+            }
+
+            if (notice.ExpiresAt.HasValue && notice.ExpiresAt.Value > 0)
+            {
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (notice.ExpiresAt.Value <= now)
+                {
+                    return;
+                }
             }
 
             var showMode = string.Equals(notice.ShowMode, "always", StringComparison.OrdinalIgnoreCase)
