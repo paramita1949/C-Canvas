@@ -58,6 +58,14 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 当前是否有文本框处于编辑模式
+        /// </summary>
+        public bool IsTextBoxInEditMode()
+        {
+            return _selectedTextBox != null && _selectedTextBox.IsInEditMode;
+        }
+
+        /// <summary>
         /// 是否处于原图模式
         /// </summary>
         public bool IsOriginalMode()

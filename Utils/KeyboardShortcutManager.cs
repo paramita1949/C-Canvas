@@ -104,6 +104,13 @@ namespace ImageColorChanger.Utils
         /// <returns>是否应该由文本编辑器处理</returns>
         public bool ShouldTextEditorHandle(Key key)
         {
+            // 文本框编辑时，方向键必须交给RichTextBox处理（移动光标）
+            if (_mainWindow.IsTextBoxInEditMode())
+            {
+                return key == Key.Left || key == Key.Right || key == Key.Up || key == Key.Down ||
+                       key == Key.PageUp || key == Key.PageDown;
+            }
+
             // 文本编辑器激活时，PageUp/PageDown由文本编辑器自己处理
             if (_mainWindow.IsTextEditorActive())
             {
