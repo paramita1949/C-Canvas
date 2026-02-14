@@ -181,13 +181,18 @@ namespace ImageColorChanger.Repositories.Implementations
                     #endif
                 }
             }
+#if DEBUG
             catch (Exception ex)
             {
-                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [数据库写入异常] ImageId={imageId}, SequenceOrder={sequenceOrder}: {ex.Message}");
-                #endif
                 throw;
             }
+#else
+            catch (Exception)
+            {
+                throw;
+            }
+#endif
         }
         
         /// <summary>
