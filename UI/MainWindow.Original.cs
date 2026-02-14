@@ -139,8 +139,8 @@ namespace ImageColorChanger.UI
             try
             {
                 // 调用录制服务记录时间
-                var recordingService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                    .GetRecordingService(PlaybackMode.Original);
+                var recordingService = _playbackServiceFactory?.GetRecordingService(PlaybackMode.Original);
+                if (recordingService == null) return;
 
                 await recordingService.RecordTimingAsync(targetImageId);
 
@@ -184,8 +184,8 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 开始播放: ImageId={_currentImageId}");
 
                 // 同步播放次数设置
-                var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                    .GetPlaybackService(PlaybackMode.Original);
+                var playbackService = _playbackServiceFactory?.GetPlaybackService(PlaybackMode.Original);
+                if (playbackService == null) return;
                 playbackService.PlayCount = _playbackViewModel.PlayCount;
 
                 // 订阅图片切换事件
@@ -223,8 +223,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"⏹️ [原图播放] 停止播放");
 
                 // 取消订阅事件
-                var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                    .GetPlaybackService(PlaybackMode.Original);
+                var playbackService = _playbackServiceFactory?.GetPlaybackService(PlaybackMode.Original);
                 if (playbackService is OriginalPlaybackService originalPlayback)
                 {
                     originalPlayback.SwitchImageRequested -= OnOriginalPlaybackSwitchImageRequested;
@@ -471,8 +470,7 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($"🔧 检测到播放时手动跳转: {fromImageId} -> {toImageId}");
                 
-                var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                    .GetPlaybackService(PlaybackMode.Original);
+                var playbackService = _playbackServiceFactory?.GetPlaybackService(PlaybackMode.Original);
                 
                 if (playbackService is OriginalPlaybackService originalPlayback)
                 {
@@ -532,8 +530,8 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
-                    var recordingService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                        .GetRecordingService(PlaybackMode.Original);
+                    var recordingService = _playbackServiceFactory?.GetRecordingService(PlaybackMode.Original);
+                    if (recordingService == null) return;
 
                     await recordingService.ClearTimingDataAsync(_currentImageId, PlaybackMode.Original);
 

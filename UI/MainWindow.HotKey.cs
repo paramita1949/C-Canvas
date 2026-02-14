@@ -130,9 +130,9 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F3键触发");
                         //#endif
-                        Dispatcher.InvokeAsync(() =>
+                        Dispatcher.InvokeAsync(async () =>
                         {
-                            _shortcutActionHandler.HandleF3Key();
+                            await _shortcutActionHandler.HandleF3KeyAsync();
                         });
                     });
                 

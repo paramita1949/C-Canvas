@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -20,6 +21,9 @@ namespace ImageColorChanger.Services
         public string Message { get; set; }
         public string Reason { get; set; }
         public AuthData Data { get; set; }
+
+        [JsonPropertyName("payment_info")]
+        public PaymentInfo PaymentInfo { get; set; }
         
         [JsonPropertyName("server_time")]
         public string ServerTimeString { get; set; }
@@ -60,6 +64,48 @@ namespace ImageColorChanger.Services
         
         [JsonPropertyName("max_devices")]
         public int? MaxDevices { get; set; }
+
+        [JsonPropertyName("holiday_bonus")]
+        public HolidayBonusInfo HolidayBonus { get; set; }
+
+        [JsonPropertyName("client_notice")]
+        public ClientNoticeInfo ClientNotice { get; set; }
+    }
+
+    public class ClientNoticeInfo
+    {
+        [JsonPropertyName("notice_key")]
+        public string NoticeKey { get; set; }
+
+        public string Title { get; set; }
+        public string Message { get; set; }
+
+        [JsonPropertyName("show_mode")]
+        public string ShowMode { get; set; }
+    }
+
+    public class PaymentInfo
+    {
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public string Url { get; set; }
+    }
+
+    public class HolidayBonusInfo
+    {
+        [JsonPropertyName("holiday_key")]
+        public string HolidayKey { get; set; }
+
+        [JsonPropertyName("holiday_name")]
+        public string HolidayName { get; set; }
+
+        [JsonPropertyName("bonus_days")]
+        public int BonusDays { get; set; }
+
+        [JsonPropertyName("new_expires_at")]
+        public long? NewExpiresAt { get; set; }
+
+        public string Message { get; set; }
     }
 
     /// <summary>
@@ -89,6 +135,14 @@ namespace ImageColorChanger.Services
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
+        static AuthService()
+        {
+            _httpClient.DefaultRequestHeaders.UserAgent.Clear();
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("CanvasCast/1.0");
+            _httpClient.DefaultRequestHeaders.Accept.Clear();
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        }
+
         // 多个验证API地址（按优先级排序 - 优先使用域名，IP地址作为最后备用）
         private static readonly string[] API_BASE_URLS = new[]
         {
@@ -97,8 +151,8 @@ namespace ImageColorChanger.Services
             "https://jiucai.org.cn",             // 优先3（域名 - 未开启CDN，直连源站，可获取真实IP）
             "https://www.xian.edu.kg",           // 优先4（域名 - 未开启CDN，直连源站，可获取真实IP）
             "https://ym.jiucai.org.cn",          // 优先5（域名 - 开启CDN）
-            "http://106.14.145.43:23412",        // 优先6（阿里云IP - 反向代理，最后备用）
-            "http://139.159.157.28:45851"        // 优先7（华为云IP - 反向代理，最后备用）
+            "http://106.14.145.43:23412",
+            "http://139.159.157.28:45851"
         };
 
         // 当前使用的API地址（动态选择）
@@ -106,6 +160,7 @@ namespace ImageColorChanger.Services
 
         private const string VERIFY_ENDPOINT = "/api/auth/verify";
         private const string HEARTBEAT_ENDPOINT = "/api/auth/heartbeat";
+        private const string NOTICE_ACK_ENDPOINT = "/api/auth/notice-ack";
         
         // 持久化文件路径
         private static readonly string AUTH_DATA_FILE = System.IO.Path.Combine(
@@ -125,8 +180,11 @@ namespace ImageColorChanger.Services
         private DeviceInfo _deviceInfo;    // 设备绑定信息
         private int _resetDeviceCount = 0;     // 剩余重置设备次数（默认0）
         private System.Threading.Timer _heartbeatTimer;
+        private System.Threading.Timer _noticeHeartbeatTimer;
         private DateTime? _lastSuccessfulHeartbeat; // 最后一次成功心跳的时间
         private const int MAX_OFFLINE_DAYS = 90;  // 最长离线天数（90天）
+        private static readonly TimeSpan AUTH_HEARTBEAT_INTERVAL = TimeSpan.FromHours(2);
+        private static readonly TimeSpan NOTICE_HEARTBEAT_INTERVAL = TimeSpan.FromMinutes(10);
         
         // 🔒 全局互斥锁（防止多开）
         private static System.Threading.Mutex _appMutex;
@@ -146,6 +204,10 @@ namespace ImageColorChanger.Services
         private long _trialProjectionStartTick;  // 试用投影开始时刻（TickCount64）
         private int _trialDurationSeconds;       // 试用时长（秒）
         private string _trialProjectionToken;    // 试用投影令牌（SHA256）
+        private string _lastHolidayBonusKey;
+        private string _lastAuthFailureReason;
+        private PaymentInfo _lastPaymentInfo;
+        private readonly System.Collections.Generic.HashSet<string> _shownClientNoticeKeys = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         
         // 单例模式
         private static AuthService _instance;
@@ -285,6 +347,10 @@ namespace ImageColorChanger.Services
         /// </summary>
         public string Username => _username;
 
+        public string LastAuthFailureReason => _lastAuthFailureReason;
+
+        public PaymentInfo LastPaymentInfo => _lastPaymentInfo;
+
         /// <summary>
         /// 账号到期时间
         /// </summary>
@@ -348,7 +414,8 @@ namespace ImageColorChanger.Services
         /// </summary>
         private async Task<HttpResponseMessage> TryMultipleApiUrlsAsync(
             Func<string, Task<HttpResponseMessage>> requestFunc,
-            int timeoutSeconds = 20)
+            int timeoutSeconds = 20,
+            bool allowFailoverOnFailure = true)
         {
             Exception lastException = null;
             int attemptNumber = 0;
@@ -396,6 +463,39 @@ namespace ImageColorChanger.Services
 
                             return response;
                         }
+
+                        string failureBody = string.Empty;
+                        try
+                        {
+                            failureBody = await response.Content.ReadAsStringAsync();
+                            if (!string.IsNullOrEmpty(failureBody) && failureBody.Length > 180)
+                            {
+                                failureBody = failureBody.Substring(0, 180);
+                            }
+                        }
+                        catch
+                        {
+                        }
+
+                        var statusCode = (int)response.StatusCode;
+                        if (statusCode >= 400 && statusCode < 500)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⏸️ [AuthService] 命中客户端错误{statusCode}，停止切换备用地址: {apiUrl}");
+                            #endif
+                            return response;
+                        }
+
+                        if (!allowFailoverOnFailure)
+                        {
+                            #if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⏸️ [AuthService] 非幂等请求命中HTTP {statusCode}，停止切换备用地址: {apiUrl}");
+                            #endif
+                            return response;
+                        }
+
+                        lastException = new HttpRequestException(
+                            $"HTTP {(int)response.StatusCode} ({response.StatusCode}) from {apiUrl}. {failureBody}".Trim());
                     }
                 }
                 catch (OperationCanceledException)
@@ -404,6 +504,14 @@ namespace ImageColorChanger.Services
                     System.Diagnostics.Debug.WriteLine($"⏱️ [AuthService] 地址超时({timeoutSeconds}秒): {apiUrl}");
                     #endif
                     lastException = new TimeoutException($"请求超时({timeoutSeconds}秒)");
+
+                    if (!allowFailoverOnFailure)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⏸️ [AuthService] 非幂等请求超时，停止切换备用地址: {apiUrl}");
+                        #endif
+                        break;
+                    }
 
                     // 通知前端：当前服务器超时，尝试下一个
                     if (attemptNumber < totalServers)
@@ -423,6 +531,14 @@ namespace ImageColorChanger.Services
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 地址失败: {apiUrl}, 错误: {ex.Message}");
                     #endif
+
+                    if (!allowFailoverOnFailure)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"⏸️ [AuthService] 非幂等请求异常，停止切换备用地址: {apiUrl}");
+                        #endif
+                        break;
+                    }
 
                     // 通知前端：当前服务器失败，尝试下一个
                     if (attemptNumber < totalServers)
@@ -465,6 +581,9 @@ namespace ImageColorChanger.Services
         {
             try
             {
+                _lastAuthFailureReason = null;
+                _lastPaymentInfo = null;
+
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 开始登录验证: {username}");
                 #endif
@@ -515,13 +634,20 @@ namespace ImageColorChanger.Services
 
                 if (!authResponse.Success)
                 {
+                    _lastAuthFailureReason = authResponse.Reason;
+                    _lastPaymentInfo = authResponse.PaymentInfo;
                     return (false, authResponse.Message ?? "验证失败");
                 }
 
                 if (!authResponse.Valid)
                 {
+                    _lastAuthFailureReason = authResponse.Reason;
+                    _lastPaymentInfo = authResponse.PaymentInfo;
                     return (false, authResponse.Message ?? "账号无效");
                 }
+
+                _lastAuthFailureReason = null;
+                _lastPaymentInfo = null;
 
                 // 登录成功，保存状态
                 _username = username;
@@ -586,6 +712,9 @@ namespace ImageColorChanger.Services
                     }
                 }
 
+                TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
+                TryShowClientNotice(authResponse.Data?.ClientNotice, "login");
+
                 // 启动心跳
                 StartHeartbeat();
 
@@ -612,6 +741,12 @@ namespace ImageColorChanger.Services
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
+
+                if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message.StartsWith("HTTP "))
+                {
+                    return (false, ex.Message);
+                }
+
                 return (false, "网络连接失败，请检查网络设置");
             }
             catch (Exception ex)
@@ -648,7 +783,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/send-verification-code", requestContent);
-                }, timeoutSeconds: 20);
+                }, timeoutSeconds: 20, allowFailoverOnFailure: false);
 
                 if (response == null)
                 {
@@ -689,6 +824,12 @@ namespace ImageColorChanger.Services
                 #else
                 _ = ex;
                 #endif
+
+                if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message.StartsWith("HTTP "))
+                {
+                    return (false, ex.Message);
+                }
+
                 return (false, "网络连接失败，请检查网络设置");
             }
             catch (Exception ex)
@@ -726,7 +867,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/reset-password", requestContent);
-                }, timeoutSeconds: 20);
+                }, timeoutSeconds: 20, allowFailoverOnFailure: false);
 
                 if (response == null)
                 {
@@ -766,6 +907,12 @@ namespace ImageColorChanger.Services
                 #else
                 _ = ex;
                 #endif
+
+                if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message.StartsWith("HTTP "))
+                {
+                    return (false, ex.Message);
+                }
+
                 return (false, "网络连接失败，请检查网络设置");
             }
             catch (Exception ex)
@@ -816,7 +963,7 @@ namespace ImageColorChanger.Services
                 {
                     var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                     return await _httpClient.PostAsync(apiUrl + "/api/user/register", requestContent);
-                }, timeoutSeconds: 20);
+                }, timeoutSeconds: 20, allowFailoverOnFailure: false);
 
                 if (response == null)
                 {
@@ -890,6 +1037,7 @@ namespace ImageColorChanger.Services
             _remainingDays = 0;
             _lastServerTime = null;
             _lastLocalTime = null;
+            _lastHolidayBonusKey = null;
             
             StopHeartbeat();
             
@@ -905,6 +1053,136 @@ namespace ImageColorChanger.Services
             #if DEBUG
             System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 已退出登录");
             #endif
+        }
+
+        private void TryShowHolidayBonusNotification(HolidayBonusInfo holidayBonus)
+        {
+            if (holidayBonus == null || string.IsNullOrWhiteSpace(holidayBonus.HolidayKey))
+            {
+                return;
+            }
+
+            if (string.Equals(_lastHolidayBonusKey, holidayBonus.HolidayKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastHolidayBonusKey = holidayBonus.HolidayKey;
+
+            var title = string.IsNullOrWhiteSpace(holidayBonus.HolidayName)
+                ? "有效期已自动延长"
+                : $"{holidayBonus.HolidayName}活动";
+
+            var content = !string.IsNullOrWhiteSpace(holidayBonus.Message)
+                ? holidayBonus.Message
+                : $"账号有效期已自动增加 {holidayBonus.BonusDays} 天。";
+
+            if (holidayBonus.NewExpiresAt.HasValue)
+            {
+                var newExpiresAt = DateTimeOffset.FromUnixTimeSeconds(holidayBonus.NewExpiresAt.Value).LocalDateTime;
+                content += $"\n当前到期时间：{newExpiresAt:yyyy-MM-dd HH:mm:ss}";
+            }
+
+            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                System.Windows.MessageBox.Show(
+                    content,
+                    title,
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            });
+        }
+
+        private void TryShowClientNotice(ClientNoticeInfo notice, string source)
+        {
+            if (notice == null || string.IsNullOrWhiteSpace(notice.Message))
+            {
+                return;
+            }
+
+            var showMode = string.Equals(notice.ShowMode, "always", StringComparison.OrdinalIgnoreCase)
+                ? "always"
+                : "once";
+
+            var title = string.IsNullOrWhiteSpace(notice.Title)
+                ? "系统通知"
+                : notice.Title.Trim();
+
+            var rawKey = string.IsNullOrWhiteSpace(notice.NoticeKey)
+                ? $"{title}|{notice.Message.Trim()}"
+                : notice.NoticeKey.Trim();
+
+            var scopedKey = string.IsNullOrWhiteSpace(_username)
+                ? rawKey
+                : $"{_username}:{rawKey}";
+
+            if (showMode == "once")
+            {
+                if (_shownClientNoticeKeys.Contains(scopedKey))
+                {
+                    return;
+                }
+
+                _shownClientNoticeKeys.Add(scopedKey);
+
+                if (_isAuthenticated)
+                {
+                    _ = SaveAuthDataAsync();
+                }
+            }
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"📢 [AuthService] 显示客户端通知, mode={showMode}, key={scopedKey}");
+#endif
+
+            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                System.Windows.MessageBox.Show(
+                    notice.Message.Trim(),
+                    title,
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            });
+
+            _ = ReportNoticeReceiptAsync(rawKey, source);
+        }
+
+        private async Task ReportNoticeReceiptAsync(string noticeKey, string source)
+        {
+            if (!_isAuthenticated || string.IsNullOrWhiteSpace(_token) || string.IsNullOrWhiteSpace(noticeKey))
+            {
+                return;
+            }
+
+            try
+            {
+                var requestData = new
+                {
+                    token = _token,
+                    notice_key = noticeKey,
+                    channel = string.IsNullOrWhiteSpace(source) ? "client" : source
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync(apiUrl + NOTICE_ACK_ENDPOINT, requestContent);
+                }, timeoutSeconds: 8);
+
+                if (response != null)
+                {
+                    _ = response.IsSuccessStatusCode;
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 通知回执失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
         }
 
         /// <summary>
@@ -1186,6 +1464,8 @@ namespace ImageColorChanger.Services
                     _remainingDays = authResponse.Data?.RemainingDays ?? 0;
                     _deviceInfo = authResponse.Data?.DeviceInfo;
                     _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;
+                    TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
+                    TryShowClientNotice(authResponse.Data?.ClientNotice, "refresh");
                     
                     // 更新本地缓存
                     _ = SaveAuthDataAsync();
@@ -1414,6 +1694,8 @@ namespace ImageColorChanger.Services
                 _remainingDays = authResponse.Data?.RemainingDays ?? 0;
                 _deviceInfo = authResponse.Data?.DeviceInfo;  // 更新设备信息
                 _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 更新解绑次数（默认0）
+                TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
+                TryShowClientNotice(authResponse.Data?.ClientNotice, "heartbeat");
                 
                 // 🔒 记录成功心跳时间（用于离线时长检测）
                 _lastSuccessfulHeartbeat = DateTime.Now;
@@ -1422,7 +1704,7 @@ namespace ImageColorChanger.Services
                 _ = SaveAuthDataAsync();
 
                 #if DEBUG
-                var nextHeartbeat = DateTime.Now.AddMinutes(20);
+                var nextHeartbeat = DateTime.Now.Add(AUTH_HEARTBEAT_INTERVAL);
                 System.Diagnostics.Debug.WriteLine($"✅ [心跳] 心跳正常，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
                 System.Diagnostics.Debug.WriteLine($"💓 [心跳] 下次心跳时间: {nextHeartbeat:HH:mm:ss}");
                 #endif
@@ -1486,7 +1768,7 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 启动心跳定时器（每2小时检查一次）
+        /// 启动心跳定时器
         /// </summary>
         private void StartHeartbeat()
         {
@@ -1494,17 +1776,63 @@ namespace ImageColorChanger.Services
             _heartbeatTimer = new System.Threading.Timer(
                 HeartbeatCallback,
                 null,
-                TimeSpan.FromHours(2),   // 首次心跳：2小时后
-                TimeSpan.FromHours(2)    // 之后每2小时检查一次
+                AUTH_HEARTBEAT_INTERVAL,
+                AUTH_HEARTBEAT_INTERVAL
             );
 
+            StartNoticeHeartbeat();
+
             #if DEBUG
-            var firstHeartbeat = DateTime.Now.AddHours(2);
-            var secondHeartbeat = DateTime.Now.AddHours(4); // 首次2小时 + 间隔2小时
-            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 心跳已启动（每2小时检查一次）");
+            var firstHeartbeat = DateTime.Now.Add(AUTH_HEARTBEAT_INTERVAL);
+            var secondHeartbeat = firstHeartbeat.Add(AUTH_HEARTBEAT_INTERVAL);
+            System.Diagnostics.Debug.WriteLine($"💓 [心跳] 认证心跳已启动（每2小时检查一次）");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
             System.Diagnostics.Debug.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
             #endif
+        }
+
+        private void StartNoticeHeartbeat()
+        {
+            _noticeHeartbeatTimer = new System.Threading.Timer(
+                NoticeHeartbeatCallback,
+                null,
+                TimeSpan.Zero,
+                NOTICE_HEARTBEAT_INTERVAL
+            );
+
+            #if DEBUG
+            var nextNoticeHeartbeat = DateTime.Now.Add(NOTICE_HEARTBEAT_INTERVAL);
+            System.Diagnostics.Debug.WriteLine($"📢 [通知心跳] 已启动（首次立即执行，之后每10分钟）");
+            System.Diagnostics.Debug.WriteLine($"📢 [通知心跳] 下次通知检查时间: {nextNoticeHeartbeat:HH:mm:ss}");
+            #endif
+        }
+
+        private async void NoticeHeartbeatCallback(object state)
+        {
+            if (!_isAuthenticated || string.IsNullOrEmpty(_username))
+            {
+                StopNoticeHeartbeat();
+                return;
+            }
+
+            try
+            {
+                await RefreshAccountInfoAsync();
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [通知心跳] 执行异常: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
+            }
+        }
+
+        private void StopNoticeHeartbeat()
+        {
+            _noticeHeartbeatTimer?.Dispose();
+            _noticeHeartbeatTimer = null;
         }
 
         /// <summary>
@@ -1514,6 +1842,7 @@ namespace ImageColorChanger.Services
         {
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = null;
+            StopNoticeHeartbeat();
         }
 
         /// <summary>
@@ -2291,6 +2620,7 @@ namespace ImageColorChanger.Services
                     nonce = nonce,  // 🔒 随机数（每次保存都不同）
                     save_time = saveTime,  // 🔒 保存时间戳
                     file_version = newVersion,  // 🔒 文件版本号（防止回滚攻击）
+                    shown_client_notice_keys = _shownClientNoticeKeys.ToArray(),
                     device_info = _deviceInfo != null ? new
                     {
                         bound_devices = _deviceInfo.BoundDevices,
@@ -2455,6 +2785,24 @@ namespace ImageColorChanger.Services
                     if (authData.TryGetValue("reset_device_count", out var resetDeviceCount))
                     {
                         _resetDeviceCount = resetDeviceCount.GetInt32();
+                    }
+
+                    if (authData.TryGetValue("shown_client_notice_keys", out var shownNoticeKeys) && shownNoticeKeys.ValueKind == JsonValueKind.Array)
+                    {
+                        _shownClientNoticeKeys.Clear();
+                        foreach (var item in shownNoticeKeys.EnumerateArray())
+                        {
+                            if (item.ValueKind != JsonValueKind.String)
+                            {
+                                continue;
+                            }
+
+                            var key = item.GetString();
+                            if (!string.IsNullOrWhiteSpace(key))
+                            {
+                                _shownClientNoticeKeys.Add(key);
+                            }
+                        }
                     }
                     
                     // 🔒 恢复心跳时间

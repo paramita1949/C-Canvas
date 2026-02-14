@@ -22,12 +22,15 @@ namespace ImageColorChanger.ViewModels
     /// 管理播放、录制、暂停等操作
     /// 参考Python版本：LOGIC_ANALYSIS_05
     /// </summary>
-    public partial class PlaybackControlViewModel : ViewModelBase
+    public partial class PlaybackControlViewModel : ViewModelBase, IDisposable
     {
         private readonly Services.PlaybackServiceFactory _serviceFactory;
         private readonly ICountdownService _countdownService;
         private readonly PlaybackStateMachine _stateMachine;
         private readonly Repositories.Interfaces.ITimingRepository _timingRepository;
+        private readonly Repositories.Interfaces.IOriginalModeRepository _originalModeRepository;
+        private IPlaybackService _subscribedPlaybackService;
+        private bool _disposed;
         
         /// <summary>
         /// 标志：是否正在加载设置（防止加载时触发保存）
@@ -160,12 +163,14 @@ namespace ImageColorChanger.ViewModels
             Services.PlaybackServiceFactory serviceFactory,
             ICountdownService countdownService,
             PlaybackStateMachine stateMachine,
-            Repositories.Interfaces.ITimingRepository timingRepository)
+            Repositories.Interfaces.ITimingRepository timingRepository,
+            Repositories.Interfaces.IOriginalModeRepository originalModeRepository)
         {
             _serviceFactory = serviceFactory ?? throw new ArgumentNullException(nameof(serviceFactory));
             _countdownService = countdownService ?? throw new ArgumentNullException(nameof(countdownService));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _timingRepository = timingRepository ?? throw new ArgumentNullException(nameof(timingRepository));
+            _originalModeRepository = originalModeRepository ?? throw new ArgumentNullException(nameof(originalModeRepository));
 
             // 订阅事件
             _countdownService.CountdownUpdated += OnCountdownUpdated;
@@ -347,11 +352,7 @@ namespace ImageColorChanger.ViewModels
                         //System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
                         //#endif
                         
-                        // 🎯 订阅播放服务事件（每次播放时重新订阅，确保使用正确的服务）
-                        playbackService.ProgressUpdated -= OnPlaybackProgressUpdated;
-                        playbackService.PlaybackCompleted -= OnPlaybackCompleted;
-                        playbackService.ProgressUpdated += OnPlaybackProgressUpdated;
-                        playbackService.PlaybackCompleted += OnPlaybackCompleted;
+                        AttachPlaybackServiceEvents(playbackService);
                         
                         playbackService.PlayCount = PlayCount;
                         await playbackService.StartPlaybackAsync(CurrentImageId);
@@ -673,24 +674,20 @@ namespace ImageColorChanger.ViewModels
             {
                 if (mode == PlaybackMode.Keyframe)
                 {
-                    // 关键帧模式：使用TimingRepository
-                    var timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
-                    HasTimingData = await timingRepository.HasTimingDataAsync(imageId);
+                    HasTimingData = await _timingRepository.HasTimingDataAsync(imageId);
                 }
                 else if (mode == PlaybackMode.Original)
                 {
-                    // 原图模式：先查找BaseImageId，再检查是否有数据
-                    var originalRepo = App.GetRequiredService<Repositories.Interfaces.IOriginalModeRepository>();
-                    var baseImageId = await originalRepo.FindBaseImageIdBySimilarImageAsync(imageId);
+                    var baseImageId = await _originalModeRepository.FindBaseImageIdBySimilarImageAsync(imageId);
                     
                     if (baseImageId.HasValue)
                     {
-                        HasTimingData = await originalRepo.HasOriginalTimingDataAsync(baseImageId.Value);
+                        HasTimingData = await _originalModeRepository.HasOriginalTimingDataAsync(baseImageId.Value);
                     }
                     else
                     {
                         // 如果找不到BaseImageId，尝试直接用imageId查询
-                        HasTimingData = await originalRepo.HasOriginalTimingDataAsync(imageId);
+                        HasTimingData = await _originalModeRepository.HasOriginalTimingDataAsync(imageId);
                     }
                 }
             }
@@ -791,20 +788,17 @@ namespace ImageColorChanger.ViewModels
                 }
                 else
                 {
-                    // 原图模式：从DI容器获取OriginalModeRepository
-                    var originalRepo = App.GetRequiredService<Repositories.Interfaces.IOriginalModeRepository>();
-                    
                     // 🎯 先通过当前图片ID查找BaseImageId（可能当前图片不是录制时的起始图片）
-                    var baseImageId = await originalRepo.FindBaseImageIdBySimilarImageAsync(CurrentImageId);
+                    var baseImageId = await _originalModeRepository.FindBaseImageIdBySimilarImageAsync(CurrentImageId);
                     
                     if (baseImageId.HasValue)
                     {
-                        HasTimingData = await originalRepo.HasOriginalTimingDataAsync(baseImageId.Value);
+                        HasTimingData = await _originalModeRepository.HasOriginalTimingDataAsync(baseImageId.Value);
                     }
                     else
                     {
                         // 如果找不到BaseImageId，尝试直接用CurrentImageId查询
-                        HasTimingData = await originalRepo.HasOriginalTimingDataAsync(CurrentImageId);
+                        HasTimingData = await _originalModeRepository.HasOriginalTimingDataAsync(CurrentImageId);
                     }
                 }
                 
@@ -814,6 +808,38 @@ namespace ImageColorChanger.ViewModels
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败: {ex.Message}");
                 HasTimingData = false;
+            }
+        }
+
+        private void AttachPlaybackServiceEvents(IPlaybackService playbackService)
+        {
+            if (_subscribedPlaybackService != null && !ReferenceEquals(_subscribedPlaybackService, playbackService))
+            {
+                _subscribedPlaybackService.ProgressUpdated -= OnPlaybackProgressUpdated;
+                _subscribedPlaybackService.PlaybackCompleted -= OnPlaybackCompleted;
+            }
+
+            playbackService.ProgressUpdated -= OnPlaybackProgressUpdated;
+            playbackService.PlaybackCompleted -= OnPlaybackCompleted;
+            playbackService.ProgressUpdated += OnPlaybackProgressUpdated;
+            playbackService.PlaybackCompleted += OnPlaybackCompleted;
+            _subscribedPlaybackService = playbackService;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            _countdownService.CountdownUpdated -= OnCountdownUpdated;
+            _countdownService.CountdownCompleted -= OnCountdownCompleted;
+            _stateMachine.StatusChanged -= OnStatusChanged;
+
+            if (_subscribedPlaybackService != null)
+            {
+                _subscribedPlaybackService.ProgressUpdated -= OnPlaybackProgressUpdated;
+                _subscribedPlaybackService.PlaybackCompleted -= OnPlaybackCompleted;
+                _subscribedPlaybackService = null;
             }
         }
 

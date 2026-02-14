@@ -218,8 +218,7 @@ namespace ImageColorChanger.UI
                         var currentKeyframe = keyframes[currentIndexBeforeJump];
                         
                         // 调用播放服务的手动修正方法
-                        var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                            .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                        var playbackService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                         if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                         {
                             _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
@@ -352,8 +351,7 @@ namespace ImageColorChanger.UI
             }
             
             // 🎯 合成播放中：更新TOTAL时间并重新开始循环
-            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
-            var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+            var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                 as Services.Implementations.CompositePlaybackService;
             
             if (compositeService != null && compositeService.IsPlaying)
@@ -374,7 +372,7 @@ namespace ImageColorChanger.UI
                     var currentKeyframe = keyframes[currentIndexBeforeJump];
                     
                     // 调用播放服务的手动修正方法
-                    var playbackService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                    var playbackService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
@@ -430,8 +428,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取合成播放服务
-                var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
-                var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                     as Services.Implementations.CompositePlaybackService;
 
                 if (compositeService == null)
@@ -455,8 +452,7 @@ namespace ImageColorChanger.UI
                     
                     // 重置倒计时显示
                     CountdownText.Text = "倒: --";
-                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                    countdownService?.Stop();
+                    _countdownService?.Stop();
                     
                     //System.Diagnostics.Debug.WriteLine("🛑 [合成播放] 已停止滚动动画和倒计时");
                     ShowStatus("⏹️ 已停止合成播放");
@@ -689,7 +685,8 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取CompositeScriptRepository
-                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+                var compositeScriptRepo = _compositeScriptRepository;
+                if (compositeScriptRepo == null) return;
                 
                 // 更新TOTAL时长
                 await compositeScriptRepo.CreateOrUpdateAsync(_currentImageId, duration, autoCalculate: false);
@@ -1074,8 +1071,7 @@ namespace ImageColorChanger.UI
                     
                     // 重置倒计时显示
                     CountdownText.Text = "倒: --";
-                    var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                    countdownService?.Stop();
+                    _countdownService?.Stop();
                     
                     // 恢复正常的关键帧指示块显示
                     _keyframeManager?.UpdatePreviewLines();
@@ -1098,8 +1094,7 @@ namespace ImageColorChanger.UI
                 ShowStatus("✅ 合成播放完成");
                 
                 // 停止倒计时显示
-                var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                countdownService?.Stop();
+                _countdownService?.Stop();
                 
                 // 恢复正常的关键帧指示块显示
                 _keyframeManager?.UpdatePreviewLines();
@@ -1112,8 +1107,7 @@ namespace ImageColorChanger.UI
         private void OnCompositeProgressUpdated(object sender, Services.Interfaces.PlaybackProgressEventArgs e)
         {
             // 启动倒计时服务（剩余时间已经应用了速度倍率）
-            var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-            countdownService?.Start(e.RemainingTime);
+            _countdownService?.Start(e.RemainingTime);
         }
         
         /// <summary>
@@ -1140,8 +1134,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnCompositeSpeed_RightClick(object sender, MouseButtonEventArgs e)
         {
-            var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
-            var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+            var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                 as Services.Implementations.CompositePlaybackService;
             
             if (compositeService == null || !compositeService.IsPlaying)
@@ -1390,8 +1383,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var serviceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
-                var compositeService = serviceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
+                var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                     as Services.Implementations.CompositePlaybackService;
 
                 if (compositeService != null && compositeService.IsPlaying)
@@ -1409,8 +1401,7 @@ namespace ImageColorChanger.UI
                         
                         // 重置倒计时显示
                         CountdownText.Text = "倒: --";
-                        var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                        countdownService?.Stop();
+                        _countdownService?.Stop();
                     }
                     else
                     {
@@ -1424,8 +1415,7 @@ namespace ImageColorChanger.UI
                             
                             // 重置倒计时显示
                             CountdownText.Text = "倒: --";
-                            var countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                            countdownService?.Stop();
+                            _countdownService?.Stop();
                         });
                     }
                 }

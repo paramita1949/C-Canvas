@@ -236,21 +236,14 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task ClearProjectSlidesAsync(int projectId)
         {
-            try
-            {
-                var slides = await _dbContext.Slides
-                    .Where(s => s.ProjectId == projectId)
-                    .ToListAsync();
+            var slides = await _dbContext.Slides
+                .Where(s => s.ProjectId == projectId)
+                .ToListAsync();
 
-                if (slides.Any())
-                {
-                    _dbContext.Slides.RemoveRange(slides);
-                    await _dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception)
+            if (slides.Any())
             {
-                throw;
+                _dbContext.Slides.RemoveRange(slides);
+                await _dbContext.SaveChangesAsync();
             }
         }
 

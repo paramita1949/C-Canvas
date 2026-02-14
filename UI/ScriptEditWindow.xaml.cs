@@ -19,6 +19,7 @@ namespace ImageColorChanger.UI
         private readonly PlaybackMode _mode;
         private readonly List<TimingSequenceDto> _keyframeTimings;
         private readonly List<OriginalTimingSequenceDto> _originalTimings;
+        private readonly Repositories.Interfaces.ICompositeScriptRepository _compositeScriptRepo;
 
         // 关键帧模式构造函数
         public ScriptEditWindow(int imageId, List<TimingSequenceDto> timings)
@@ -27,6 +28,7 @@ namespace ImageColorChanger.UI
             _imageId = imageId;
             _mode = PlaybackMode.Keyframe;
             _keyframeTimings = timings;
+            _compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
 
             Title = "关键帧脚本编辑";
             // 格式化并显示脚本内容
@@ -43,6 +45,7 @@ namespace ImageColorChanger.UI
             _imageId = imageId;
             _mode = PlaybackMode.Original;
             _originalTimings = timings;
+            _compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
 
             Title = "原图模式脚本编辑";
             // 格式化并显示脚本内容
@@ -61,8 +64,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
-                var compositeScript = await compositeScriptRepo.GetByImageIdAsync(_imageId);
+                var compositeScript = await _compositeScriptRepo.GetByImageIdAsync(_imageId);
                 
                 if (_keyframeTimings != null && _keyframeTimings.Any())
                 {
@@ -509,13 +511,11 @@ namespace ImageColorChanger.UI
                     totalDuration = defaultDuration; // 使用JSON配置的默认值
                 }
                 
-                var compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
-                
                 // 判断是否有关键帧数据
                 bool hasKeyframes = _keyframeTimings != null && _keyframeTimings.Any();
                 
                 // 保存或更新CompositeScript
-                await compositeScriptRepo.CreateOrUpdateAsync(_imageId, totalDuration, autoCalculate: hasKeyframes);
+                await _compositeScriptRepo.CreateOrUpdateAsync(_imageId, totalDuration, autoCalculate: hasKeyframes);
                 
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"✅ 已保存TOTAL时间: {totalDuration:F2}秒, AutoCalculate={hasKeyframes}");

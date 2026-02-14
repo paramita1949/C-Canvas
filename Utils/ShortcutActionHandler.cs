@@ -225,10 +225,10 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 处理F3键 - 合成播放（直接重置播放）
         /// </summary>
-        public async void HandleF3Key()
+        public async Task HandleF3KeyAsync()
         {
             // 获取合成播放服务
-            var compositeService = App.GetService<Services.Implementations.CompositePlaybackService>();
+            var compositeService = _mainWindow.GetCompositePlaybackService();
 
             // 如果正在播放，先停止
             if (compositeService != null && compositeService.IsPlaying)

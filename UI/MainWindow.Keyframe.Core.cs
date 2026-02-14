@@ -77,10 +77,10 @@ namespace ImageColorChanger.UI
                 _keyframeRepository = new KeyframeRepository(dbContext);
 
                 // 获取MediaFileRepository
-                var mediaFileRepository = App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
+                _mediaFileRepository ??= App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
 
                 // 创建关键帧管理器
-                _keyframeManager = new KeyframeManager(_keyframeRepository, this, mediaFileRepository);
+                _keyframeManager = new KeyframeManager(_keyframeRepository, this, _mediaFileRepository);
                 
                 // 从数据库加载滚动速度和缓动函数设置
                 LoadScrollSpeedSettings();

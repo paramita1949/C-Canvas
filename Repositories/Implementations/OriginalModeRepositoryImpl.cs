@@ -26,40 +26,33 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<OriginalTimingSequenceDto>> GetOriginalTimingSequenceAsync(int baseImageId)
         {
-            try
-            {
-                var timings = await _dbSet
-                    .Where(t => t.BaseImageId == baseImageId)
-                    .OrderBy(t => t.SequenceOrder)
-                    .ToListAsync();
+            var timings = await _dbSet
+                .Where(t => t.BaseImageId == baseImageId)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
 
-                var result = new List<OriginalTimingSequenceDto>();
-                foreach (var timing in timings)
+            var result = new List<OriginalTimingSequenceDto>();
+            foreach (var timing in timings)
+            {
+                // 获取相似图片路径
+                var similarImage = await _context.MediaFiles
+                    .FirstOrDefaultAsync(m => m.Id == timing.ToImageId);
+
+                result.Add(new OriginalTimingSequenceDto
                 {
-                    // 获取相似图片路径
-                    var similarImage = await _context.MediaFiles
-                        .FirstOrDefaultAsync(m => m.Id == timing.ToImageId);
-
-                    result.Add(new OriginalTimingSequenceDto
-                    {
-                        Id = timing.Id,
-                        BaseImageId = timing.BaseImageId,
-                        FromImageId = timing.FromImageId,
-                        ToImageId = timing.ToImageId,
-                        Duration = timing.Duration,
-                        SequenceOrder = timing.SequenceOrder,
-                        PausedTime = 0,
-                        CreatedAt = timing.CreatedAt,
-                        SimilarImagePath = similarImage?.Path
-                    });
-                }
-
-                return result;
+                    Id = timing.Id,
+                    BaseImageId = timing.BaseImageId,
+                    FromImageId = timing.FromImageId,
+                    ToImageId = timing.ToImageId,
+                    Duration = timing.Duration,
+                    SequenceOrder = timing.SequenceOrder,
+                    PausedTime = 0,
+                    CreatedAt = timing.CreatedAt,
+                    SimilarImagePath = similarImage?.Path
+                });
             }
-            catch (Exception)
-            {
-                throw;
-            }
+
+            return result;
         }
 
         /// <summary>
@@ -67,14 +60,7 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<bool> HasOriginalTimingDataAsync(int baseImageId)
         {
-            try
-            {
-                return await _dbSet.AnyAsync(t => t.BaseImageId == baseImageId);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet.AnyAsync(t => t.BaseImageId == baseImageId);
         }
 
         /// <summary>
@@ -82,21 +68,14 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task ClearOriginalTimingsByBaseIdAsync(int baseImageId)
         {
-            try
-            {
-                var timings = await _dbSet
-                    .Where(t => t.BaseImageId == baseImageId)
-                    .ToListAsync();
+            var timings = await _dbSet
+                .Where(t => t.BaseImageId == baseImageId)
+                .ToListAsync();
 
-                if (timings.Any())
-                {
-                    _dbSet.RemoveRange(timings);
-                    await _context.SaveChangesAsync();
-                }
-            }
-            catch (Exception)
+            if (timings.Any())
             {
-                throw;
+                _dbSet.RemoveRange(timings);
+                await _context.SaveChangesAsync();
             }
         }
 
@@ -140,35 +119,28 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<SimilarImageDto>> GetSimilarImagesAsync(int imageId)
         {
-            try
+            var image = await _context.MediaFiles.FindAsync(imageId);
+            if (image == null)
+                return new List<SimilarImageDto>();
+
+            // 查找相似图片
+            var similarImages = await FindSimilarImagesByPatternAsync(image.Path, image.FolderId);
+
+            // 转换为DTO
+            var result = similarImages.Select(img => new SimilarImageDto
             {
-                var image = await _context.MediaFiles.FindAsync(imageId);
-                if (image == null)
-                    return new List<SimilarImageDto>();
+                ImageId = img.Id,
+                Name = img.Name,
+                Path = img.Path,
+                FolderId = img.FolderId,
+                OrderIndex = img.OrderIndex,
+                SimilarityScore = 100, // TODO: 实现相似度计算
+                IsPrimary = img.Id == imageId,
+                IsOriginal = false, // TODO: 从原图标记表查询
+                MatchPattern = "序号匹配"
+            }).ToList();
 
-                // 查找相似图片
-                var similarImages = await FindSimilarImagesByPatternAsync(image.Path, image.FolderId);
-
-                // 转换为DTO
-                var result = similarImages.Select(img => new SimilarImageDto
-                {
-                    ImageId = img.Id,
-                    Name = img.Name,
-                    Path = img.Path,
-                    FolderId = img.FolderId,
-                    OrderIndex = img.OrderIndex,
-                    SimilarityScore = 100, // TODO: 实现相似度计算
-                    IsPrimary = img.Id == imageId,
-                    IsOriginal = false, // TODO: 从原图标记表查询
-                    MatchPattern = "序号匹配"
-                }).ToList();
-
-                return result;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return result;
         }
 
         /// <summary>
@@ -177,60 +149,53 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<MediaFile>> FindSimilarImagesByPatternAsync(string imagePath, int? folderId)
         {
-            try
+            var fileName = Path.GetFileNameWithoutExtension(imagePath);
+            var extension = Path.GetExtension(imagePath);
+
+            // 提取基础名称和序号
+            // 例如: "image_001" -> baseName="image_", number=1
+            var match = Regex.Match(fileName, @"^(.+?)(\d+)$");
+            if (!match.Success)
             {
-                var fileName = Path.GetFileNameWithoutExtension(imagePath);
-                var extension = Path.GetExtension(imagePath);
-
-                // 提取基础名称和序号
-                // 例如: "image_001" -> baseName="image_", number=1
-                var match = Regex.Match(fileName, @"^(.+?)(\d+)$");
-                if (!match.Success)
-                {
-                    // 没有序号，只返回自己
-                    return await _context.MediaFiles
-                        .Where(m => m.Path == imagePath)
-                        .ToListAsync();
-                }
-
-                var baseName = match.Groups[1].Value;
-                var numberLength = match.Groups[2].Value.Length;
-
-                // 查找同一文件夹下，文件名匹配模式的所有图片
-                var allFiles = await _context.MediaFiles
-                    .Where(m => m.FolderId == folderId)
-                    .Where(m => m.FileTypeString == "image")
+                // 没有序号，只返回自己
+                return await _context.MediaFiles
+                    .Where(m => m.Path == imagePath)
                     .ToListAsync();
-
-                // 筛选符合模式的文件
-                var similarFiles = allFiles
-                    .Where(m =>
-                    {
-                        var name = Path.GetFileNameWithoutExtension(m.Path);
-                        var ext = Path.GetExtension(m.Path);
-                        
-                        // 扩展名必须相同
-                        if (ext != extension)
-                            return false;
-
-                        // 检查文件名模式
-                        var fileMatch = Regex.Match(name, @"^(.+?)(\d+)$");
-                        if (!fileMatch.Success)
-                            return false;
-
-                        // 基础名称必须相同，数字长度必须相同
-                        return fileMatch.Groups[1].Value == baseName 
-                            && fileMatch.Groups[2].Value.Length == numberLength;
-                    })
-                    .OrderBy(m => m.Name)
-                    .ToList();
-
-                return similarFiles;
             }
-            catch (Exception)
-            {
-                throw;
-            }
+
+            var baseName = match.Groups[1].Value;
+            var numberLength = match.Groups[2].Value.Length;
+
+            // 查找同一文件夹下，文件名匹配模式的所有图片
+            var allFiles = await _context.MediaFiles
+                .Where(m => m.FolderId == folderId)
+                .Where(m => m.FileTypeString == "image")
+                .ToListAsync();
+
+            // 筛选符合模式的文件
+            var similarFiles = allFiles
+                .Where(m =>
+                {
+                    var name = Path.GetFileNameWithoutExtension(m.Path);
+                    var ext = Path.GetExtension(m.Path);
+                    
+                    // 扩展名必须相同
+                    if (ext != extension)
+                        return false;
+
+                    // 检查文件名模式
+                    var fileMatch = Regex.Match(name, @"^(.+?)(\d+)$");
+                    if (!fileMatch.Success)
+                        return false;
+
+                    // 基础名称必须相同，数字长度必须相同
+                    return fileMatch.Groups[1].Value == baseName 
+                        && fileMatch.Groups[2].Value.Length == numberLength;
+                })
+                .OrderBy(m => m.Name)
+                .ToList();
+
+            return similarFiles;
         }
 
         /// <summary>
@@ -239,23 +204,16 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task UpdateOriginalDurationAsync(int baseImageId, int similarImageId, double newDuration)
         {
-            try
-            {
-                // 查找对应的时间记录（base_image_id + to_image_id）
-                var timing = await _dbSet
-                    .FirstOrDefaultAsync(t => 
-                        t.BaseImageId == baseImageId && 
-                        t.ToImageId == similarImageId);
+            // 查找对应的时间记录（base_image_id + to_image_id）
+            var timing = await _dbSet
+                .FirstOrDefaultAsync(t => 
+                    t.BaseImageId == baseImageId && 
+                    t.ToImageId == similarImageId);
 
-                if (timing != null)
-                {
-                    timing.Duration = newDuration;
-                    await _context.SaveChangesAsync();
-                }
-            }
-            catch (Exception)
+            if (timing != null)
             {
-                throw;
+                timing.Duration = newDuration;
+                await _context.SaveChangesAsync();
             }
         }
 

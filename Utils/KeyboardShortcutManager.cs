@@ -82,7 +82,7 @@ namespace ImageColorChanger.Utils
                     return true;
 
                 case Key.F3:
-                    _actionHandler.HandleF3Key();
+                    await _actionHandler.HandleF3KeyAsync();
                     return true;
 
                 case Key.Up:

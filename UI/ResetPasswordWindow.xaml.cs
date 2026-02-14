@@ -9,6 +9,8 @@ namespace ImageColorChanger.UI
     {
         private int _countdown = 0;
         private System.Windows.Threading.DispatcherTimer _countdownTimer;
+        private bool _showCountdownInStatus = false;
+        private bool _countdownStatusIsError = false;
 
         public ResetPasswordWindow()
         {
@@ -99,7 +101,15 @@ namespace ImageColorChanger.UI
                 else
                 {
                     ShowStatus(message, isError: true);
-                    SendCodeButton.IsEnabled = true;
+
+                    if (TryExtractRetryAfterSeconds(message, out var retrySeconds))
+                    {
+                        StartCountdown(retrySeconds, showStatus: true, statusIsError: true);
+                    }
+                    else
+                    {
+                        SendCodeButton.IsEnabled = true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -206,10 +216,18 @@ namespace ImageColorChanger.UI
             Close();
         }
 
-        private void StartCountdown(int seconds)
+        private void StartCountdown(int seconds, bool showStatus = false, bool statusIsError = false)
         {
             _countdown = seconds;
+            _showCountdownInStatus = showStatus;
+            _countdownStatusIsError = statusIsError;
+
             UpdateCountdownButton();
+
+            if (_showCountdownInStatus)
+            {
+                ShowStatus($"请在 {_countdown} 秒后重试", _countdownStatusIsError);
+            }
 
             if (_countdownTimer == null)
             {
@@ -230,10 +248,21 @@ namespace ImageColorChanger.UI
                 _countdownTimer.Stop();
                 SendCodeButton.IsEnabled = true;
                 SendCodeButton.Content = "发送验证码";
+
+                if (_showCountdownInStatus)
+                {
+                    ShowStatus("现在可以重新发送验证码", isError: false);
+                    _showCountdownInStatus = false;
+                }
             }
             else
             {
                 UpdateCountdownButton();
+
+                if (_showCountdownInStatus)
+                {
+                    ShowStatus($"请在 {_countdown} 秒后重试", _countdownStatusIsError);
+                }
             }
         }
 
@@ -250,6 +279,30 @@ namespace ImageColorChanger.UI
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red)
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
             StatusText.Visibility = Visibility.Visible;
+        }
+
+        private bool TryExtractRetryAfterSeconds(string message, out int seconds)
+        {
+            seconds = 0;
+
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            var jsonMatch = Regex.Match(message, "\\\"retry_after\\\"\\s*:\\s*(\\d+)");
+            if (jsonMatch.Success && int.TryParse(jsonMatch.Groups[1].Value, out seconds) && seconds > 0)
+            {
+                return true;
+            }
+
+            var textMatch = Regex.Match(message, @"请在\s*(\d+)\s*秒后重试");
+            if (textMatch.Success && int.TryParse(textMatch.Groups[1].Value, out seconds) && seconds > 0)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

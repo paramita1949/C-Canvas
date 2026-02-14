@@ -1,0 +1,189 @@
+using System;
+using System.ComponentModel;
+using ImageColorChanger.Managers;
+
+namespace ImageColorChanger.UI
+{
+    /// <summary>
+    /// MainWindow 服务接线与退订
+    /// </summary>
+    public partial class MainWindow
+    {
+        /// <summary>
+        /// 窗口关闭事件：清理服务事件订阅和视频资源
+        /// </summary>
+        private void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            try
+            {
+                if (_countdownService != null && _countdownUpdatedHandler != null)
+                {
+                    _countdownService.CountdownUpdated -= _countdownUpdatedHandler;
+                    _countdownUpdatedHandler = null;
+                }
+
+                if (_playbackViewModel != null && _playbackPropertyChangedHandler != null)
+                {
+                    _playbackViewModel.PropertyChanged -= _playbackPropertyChangedHandler;
+                    _playbackPropertyChangedHandler = null;
+                }
+
+                if (_keyframePlaybackService != null && _jumpToKeyframeRequestedHandler != null)
+                {
+                    _keyframePlaybackService.JumpToKeyframeRequested -= _jumpToKeyframeRequestedHandler;
+                    _jumpToKeyframeRequestedHandler = null;
+                    _keyframePlaybackService = null;
+                }
+
+                if (_playbackViewModel is IDisposable disposablePlaybackViewModel)
+                {
+                    disposablePlaybackViewModel.Dispose();
+                }
+
+                if (_projectionManager != null)
+                {
+                    _projectionManager.ProjectionStateChanged -= OnProjectionStateChanged;
+                    _projectionManager.ProjectionVideoViewLoaded -= OnProjectionVideoViewLoaded;
+                }
+
+                if (_videoPlayerManager != null)
+                {
+                    _videoPlayerManager.VideoTrackDetected -= VideoPlayerManager_VideoTrackDetected;
+                    _videoPlayerManager.PlayStateChanged -= OnVideoPlayStateChanged;
+                    _videoPlayerManager.MediaChanged -= OnVideoMediaChanged;
+                    _videoPlayerManager.MediaEnded -= OnVideoMediaEnded;
+                    _videoPlayerManager.ProgressUpdated -= OnVideoProgressUpdated;
+                }
+
+                // 清理视频背景管理器
+                VideoBackgroundManager.Instance.Dispose();
+            }
+            catch (Exception
+#if DEBUG
+                ex
+#endif
+            )
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [资源清理] 清理视频资源失败: {ex.Message}");
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 初始化新的PlaybackControlViewModel
+        /// </summary>
+        private void InitializePlaybackViewModel()
+        {
+            try
+            {
+                _playbackViewModel = App.GetRequiredService<ViewModels.PlaybackControlViewModel>();
+                _playbackServiceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
+                _countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
+                _timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
+                _originalModeRepository = App.GetRequiredService<Repositories.Interfaces.IOriginalModeRepository>();
+                _compositeScriptRepository = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+                _memoryCache = App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                _mediaFileRepository = App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
+
+                _countdownUpdatedHandler = (s, e) =>
+                {
+                    Dispatcher.Invoke(() => { CountdownText.Text = $"倒: {e.RemainingTime:F1}"; });
+                };
+                _countdownService.CountdownUpdated += _countdownUpdatedHandler;
+
+                _playbackPropertyChangedHandler = (s, e) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        switch (e.PropertyName)
+                        {
+                            case "IsRecording":
+                                BtnRecord.Content = _playbackViewModel.IsRecording ? "⏹ 停止" : "⏺ 录制";
+                                break;
+                            case "IsPlaying":
+                                BtnPlay.Content = _playbackViewModel.IsPlaying ? "⏹ 停止" : "▶ 播放";
+                                BtnPauseResume.IsEnabled = _playbackViewModel.IsPlaying;
+                                BtnPlay.Background = _playbackViewModel.IsPlaying
+                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
+                                    : System.Windows.SystemColors.ControlBrush;
+                                if (!_playbackViewModel.IsPlaying)
+                                {
+                                    CountdownText.Text = "倒: --";
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
+                                }
+                                break;
+                            case "IsPaused":
+                                BtnPauseResume.Content = _playbackViewModel.IsPaused ? "▶ 继续" : "⏸ 暂停";
+                                break;
+                            case "PlayCount":
+                                string text = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
+                                BtnPlayCount.Content = $"🔄 {text}次";
+                                break;
+                            case "HasTimingData":
+                                BtnScript.Background = _playbackViewModel.HasTimingData
+                                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
+                                    : System.Windows.SystemColors.ControlBrush;
+                                break;
+                        }
+                    });
+                };
+                _playbackViewModel.PropertyChanged += _playbackPropertyChangedHandler;
+
+                Dispatcher.Invoke(() =>
+                {
+                    BtnRecord.Content = _playbackViewModel.IsRecording ? "⏹ 停止" : "⏺ 录制";
+                    BtnPlay.Content = _playbackViewModel.IsPlaying ? "⏹ 停止" : "▶ 播放";
+                    BtnPauseResume.Content = _playbackViewModel.IsPaused ? "▶ 继续" : "⏸ 暂停";
+                    BtnPauseResume.IsEnabled = _playbackViewModel.IsPlaying;
+                    string playCountText = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
+                    BtnPlayCount.Content = $"🔄 {playCountText}次";
+                });
+
+                var keyframePlayback = _playbackServiceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                if (keyframePlayback is Services.Implementations.KeyframePlaybackService kfService)
+                {
+                    _keyframePlaybackService = kfService;
+                    _jumpToKeyframeRequestedHandler = async (s, e) =>
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            if (_keyframeManager != null)
+                            {
+                                if (e.UseDirectJump)
+                                {
+                                    ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
+                                }
+                                else
+                                {
+                                    _keyframeManager.SmoothScrollTo(e.Position);
+                                }
+
+                                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                                if (keyframes != null)
+                                {
+                                    for (int i = 0; i < keyframes.Count; i++)
+                                    {
+                                        if (keyframes[i].Id == e.KeyframeId)
+                                        {
+                                            _keyframeManager.UpdateKeyframeIndex(i);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                _keyframeManager?.UpdatePreviewLines();
+                            }
+                        });
+                    };
+                    _keyframePlaybackService.JumpToKeyframeRequested -= _jumpToKeyframeRequestedHandler;
+                    _keyframePlaybackService.JumpToKeyframeRequested += _jumpToKeyframeRequestedHandler;
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+}

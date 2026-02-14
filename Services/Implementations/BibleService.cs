@@ -126,18 +126,13 @@ namespace ImageColorChanger.Services.Implementations
 
                 return result;
             }
-#if DEBUG
             catch (Exception ex)
             {
+                #if DEBUG
                 Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                #endif
                 throw;
             }
-#else
-            catch (Exception)
-            {
-                throw;
-            }
-#endif
         }
 
         /// <summary>
@@ -180,18 +175,13 @@ namespace ImageColorChanger.Services.Implementations
 
                 return processedVerses;
             }
-#if DEBUG
             catch (Exception ex)
             {
+                #if DEBUG
                 Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                #endif
                 throw;
             }
-#else
-            catch (Exception)
-            {
-                throw;
-            }
-#endif
         }
 
         /// <summary>
@@ -474,18 +464,13 @@ namespace ImageColorChanger.Services.Implementations
 
                 return results;
             }
-#if DEBUG
             catch (Exception ex)
             {
+                #if DEBUG
                 Debug.WriteLine($"[圣经服务] 搜索失败: {ex.Message}");
+                #endif
                 throw;
             }
-#else
-            catch (Exception)
-            {
-                throw;
-            }
-#endif
         }
 
         /// <summary>

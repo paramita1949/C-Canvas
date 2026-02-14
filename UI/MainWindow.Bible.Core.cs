@@ -186,8 +186,8 @@ namespace ImageColorChanger.UI
             {
                 // 🔧 重要：手动创建 BibleService，使用主窗口的 _configManager 实例
                 // 这样确保配置修改能立即生效
-                var cache = App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-                _bibleService = new Services.Implementations.BibleService(cache, _configManager);
+                _memoryCache ??= App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                _bibleService = new Services.Implementations.BibleService(_memoryCache, _configManager);
 
                 //#if DEBUG
                 //Debug.WriteLine("[圣经] 服务初始化成功");

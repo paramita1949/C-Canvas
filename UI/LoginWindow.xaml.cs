@@ -151,6 +151,14 @@ namespace ImageColorChanger.UI
                 else
                 {
                     ShowStatus(message, isError: true);
+
+                    if (string.Equals(AuthService.Instance.LastAuthFailureReason, "expired", StringComparison.Ordinal))
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine("[LoginWindow] 检测到账号过期，自动打开付费窗口");
+#endif
+                        OpenPaymentWindow();
+                    }
                 }
             }
             catch (System.Net.Http.HttpRequestException)
@@ -194,6 +202,11 @@ namespace ImageColorChanger.UI
         }
 
         private void PaymentButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenPaymentWindow();
+        }
+
+        private void OpenPaymentWindow()
         {
             try
             {

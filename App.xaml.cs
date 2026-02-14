@@ -172,6 +172,9 @@ namespace ImageColorChanger
                 #endif
                 System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}", 
                     "严重错误", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                // 非UI线程未处理异常通常不可恢复，统一退出避免进入脏状态
+                Shutdown();
             }
         }
 
@@ -183,11 +186,33 @@ namespace ImageColorChanger
             #if DEBUG
             System.Diagnostics.Debug.WriteLine($"❌ [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
             #endif
-            System.Windows.MessageBox.Show($"发生错误：{e.Exception.Message}", 
-                "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            
-            // 标记为已处理，防止应用程序崩溃
-            e.Handled = true;
+
+            if (IsRecoverableUiException(e.Exception))
+            {
+                System.Windows.MessageBox.Show($"发生错误：{e.Exception.Message}", 
+                    "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                e.Handled = true;
+                return;
+            }
+
+            System.Windows.MessageBox.Show(
+                $"发生严重错误，程序将退出以保护数据。\n\n{e.Exception.Message}",
+                "严重错误",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            e.Handled = false;
+            Shutdown();
+        }
+
+        /// <summary>
+        /// 判断UI异常是否可恢复
+        /// </summary>
+        private static bool IsRecoverableUiException(Exception ex)
+        {
+            return ex is InvalidOperationException
+                || ex is ArgumentException
+                || ex is IOException;
         }
 
         /// <summary>

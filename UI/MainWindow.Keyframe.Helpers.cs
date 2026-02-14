@@ -376,8 +376,7 @@ namespace ImageColorChanger.UI
                     if (_playbackViewModel?.IsPlaying == true && currentIndexBeforeJump >= 0 && currentIndexBeforeJump < keyframes.Count)
                     {
                         var currentKeyframe = keyframes[currentIndexBeforeJump];
-                        var playbackService = App.GetRequiredService<Services.PlaybackServiceFactory>()
-                            .GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
+                        var playbackService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
                         if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                         {
                             _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待

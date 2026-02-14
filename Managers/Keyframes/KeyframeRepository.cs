@@ -69,17 +69,10 @@ namespace ImageColorChanger.Managers.Keyframes
         /// </summary>
         public List<Keyframe> GetKeyframesByImageId(int imageId)
         {
-            try
-            {
-                return _context.Keyframes
-                    .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
-                    .ToList();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return _context.Keyframes
+                .Where(k => k.ImageId == imageId)
+                .OrderBy(k => k.OrderIndex)
+                .ToList();
         }
         
         /// <summary>

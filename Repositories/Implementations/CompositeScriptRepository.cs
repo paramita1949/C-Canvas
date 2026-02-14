@@ -24,15 +24,8 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<CompositeScript> GetByImageIdAsync(int imageId)
         {
-            try
-            {
-                return await _context.CompositeScripts
-                    .FirstOrDefaultAsync(s => s.ImageId == imageId);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _context.CompositeScripts
+                .FirstOrDefaultAsync(s => s.ImageId == imageId);
         }
 
         /// <summary>
@@ -40,52 +33,43 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<CompositeScript> CreateOrUpdateAsync(int imageId, double totalDuration, bool autoCalculate)
         {
-            try
+            var existing = await GetByImageIdAsync(imageId);
+
+            if (existing != null)
             {
-                var existing = await GetByImageIdAsync(imageId);
+                // 更新现有记录
+                existing.TotalDuration = totalDuration;
+                existing.AutoCalculate = autoCalculate;
+                existing.UpdatedAt = DateTime.Now;
 
-                if (existing != null)
-                {
-                    // 更新现有记录
-                    existing.TotalDuration = totalDuration;
-                    existing.AutoCalculate = autoCalculate;
-                    existing.UpdatedAt = DateTime.Now;
+                _context.CompositeScripts.Update(existing);
+                await _context.SaveChangesAsync();
 
-                    _context.CompositeScripts.Update(existing);
-                    await _context.SaveChangesAsync();
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
+                #endif
 
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
-                    #endif
-
-                    return existing;
-                }
-                else
-                {
-                    // 创建新记录
-                    var newScript = new CompositeScript
-                    {
-                        ImageId = imageId,
-                        TotalDuration = totalDuration,
-                        AutoCalculate = autoCalculate,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now
-                    };
-
-                    await _context.CompositeScripts.AddAsync(newScript);
-                    await _context.SaveChangesAsync();
-
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 创建合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
-                    #endif
-
-                    return newScript;
-                }
+                return existing;
             }
-            catch (Exception)
+
+            // 创建新记录
+            var newScript = new CompositeScript
             {
-                throw;
-            }
+                ImageId = imageId,
+                TotalDuration = totalDuration,
+                AutoCalculate = autoCalculate,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            await _context.CompositeScripts.AddAsync(newScript);
+            await _context.SaveChangesAsync();
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"✅ 创建合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
+            #endif
+
+            return newScript;
         }
 
         /// <summary>
@@ -93,32 +77,24 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task UpdateTotalDurationAsync(int imageId, double totalDuration)
         {
-            try
+            var script = await GetByImageIdAsync(imageId);
+
+            if (script != null)
             {
-                var script = await GetByImageIdAsync(imageId);
+                script.TotalDuration = totalDuration;
+                script.UpdatedAt = DateTime.Now;
 
-                if (script != null)
-                {
-                    script.TotalDuration = totalDuration;
-                    script.UpdatedAt = DateTime.Now;
+                _context.CompositeScripts.Update(script);
+                await _context.SaveChangesAsync();
 
-                    _context.CompositeScripts.Update(script);
-                    await _context.SaveChangesAsync();
-
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本总时长: ImageId={imageId}, TotalDuration={totalDuration:F2}秒");
-                    #endif
-                }
-                else
-                {
-                    // 如果不存在，创建一个默认的
-                    await CreateOrUpdateAsync(imageId, totalDuration, false);
-                }
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本总时长: ImageId={imageId}, TotalDuration={totalDuration:F2}秒");
+                #endif
+                return;
             }
-            catch (Exception)
-            {
-                throw;
-            }
+
+            // 如果不存在，创建一个默认的
+            await CreateOrUpdateAsync(imageId, totalDuration, false);
         }
 
         /// <summary>
@@ -126,23 +102,16 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task DeleteAsync(int imageId)
         {
-            try
-            {
-                var script = await GetByImageIdAsync(imageId);
+            var script = await GetByImageIdAsync(imageId);
 
-                if (script != null)
-                {
-                    _context.CompositeScripts.Remove(script);
-                    await _context.SaveChangesAsync();
-
-                    #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 删除合成脚本: ImageId={imageId}");
-                    #endif
-                }
-            }
-            catch (Exception)
+            if (script != null)
             {
-                throw;
+                _context.CompositeScripts.Remove(script);
+                await _context.SaveChangesAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ 删除合成脚本: ImageId={imageId}");
+                #endif
             }
         }
 
@@ -151,15 +120,8 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<bool> ExistsAsync(int imageId)
         {
-            try
-            {
-                return await _context.CompositeScripts
-                    .AnyAsync(s => s.ImageId == imageId);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _context.CompositeScripts
+                .AnyAsync(s => s.ImageId == imageId);
         }
     }
 }

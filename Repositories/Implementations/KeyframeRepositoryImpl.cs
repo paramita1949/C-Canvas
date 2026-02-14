@@ -23,17 +23,10 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public List<Keyframe> GetKeyframesByImageId(int imageId)
         {
-            try
-            {
-                return _dbSet
-                    .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
-                    .ToList();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return _dbSet
+                .Where(k => k.ImageId == imageId)
+                .OrderBy(k => k.OrderIndex)
+                .ToList();
         }
 
         /// <summary>
@@ -41,17 +34,10 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<Keyframe>> GetKeyframesByImageIdAsync(int imageId)
         {
-            try
-            {
-                return await _dbSet
-                    .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
-                    .ToListAsync();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet
+                .Where(k => k.ImageId == imageId)
+                .OrderBy(k => k.OrderIndex)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -59,14 +45,7 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<int> GetKeyframeCountAsync(int imageId)
         {
-            try
-            {
-                return await _dbSet.CountAsync(k => k.ImageId == imageId);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet.CountAsync(k => k.ImageId == imageId);
         }
 
         /// <summary>
@@ -74,18 +53,11 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task UpdateKeyframeOrdersAsync(List<Keyframe> keyframes)
         {
-            try
+            foreach (var keyframe in keyframes)
             {
-                foreach (var keyframe in keyframes)
-                {
-                    _dbSet.Update(keyframe);
-                }
-                await _context.SaveChangesAsync();
+                _dbSet.Update(keyframe);
             }
-            catch (Exception)
-            {
-                throw;
-            }
+            await _context.SaveChangesAsync();
         }
 
         /// <summary>
@@ -93,18 +65,11 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task DeleteKeyframesByImageIdAsync(int imageId)
         {
-            try
+            var keyframes = await GetKeyframesByImageIdAsync(imageId);
+            if (keyframes.Any())
             {
-                var keyframes = await GetKeyframesByImageIdAsync(imageId);
-                if (keyframes.Any())
-                {
-                    _dbSet.RemoveRange(keyframes);
-                    await _context.SaveChangesAsync();
-                }
-            }
-            catch (Exception)
-            {
-                throw;
+                _dbSet.RemoveRange(keyframes);
+                await _context.SaveChangesAsync();
             }
         }
 
@@ -113,21 +78,14 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<Keyframe> FindClosestKeyframeAsync(int imageId, double position)
         {
-            try
-            {
-                var keyframes = await GetKeyframesByImageIdAsync(imageId);
-                if (!keyframes.Any())
-                    return null;
+            var keyframes = await GetKeyframesByImageIdAsync(imageId);
+            if (!keyframes.Any())
+                return null;
 
-                // 找到最接近的关键帧
-                return keyframes
-                    .OrderBy(k => Math.Abs(k.Position - position))
-                    .FirstOrDefault();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            // 找到最接近的关键帧
+            return keyframes
+                .OrderBy(k => Math.Abs(k.Position - position))
+                .FirstOrDefault();
         }
     }
 }

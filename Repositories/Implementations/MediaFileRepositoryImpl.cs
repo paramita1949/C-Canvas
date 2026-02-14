@@ -23,15 +23,8 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<MediaFile> GetByPathAsync(string path)
         {
-            try
-            {
-                return await _dbSet
-                    .FirstOrDefaultAsync(m => m.Path == path);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet
+                .FirstOrDefaultAsync(m => m.Path == path);
         }
 
         /// <summary>
@@ -39,37 +32,35 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<MediaFile>> GetMediaFilesByFolderIdAsync(int? folderId, bool includeSubfolders = false)
         {
-            try
-            {
-                var query = _dbSet.AsQueryable();
+            var query = _dbSet.AsQueryable();
 
-                if (folderId.HasValue)
+            if (folderId.HasValue)
+            {
+                if (includeSubfolders)
                 {
-                    if (includeSubfolders)
+                    var folderIds = await GetFolderAndDescendantIdsAsync(folderId.Value);
+                    if (!folderIds.Any())
                     {
-                        // TODO: 实现递归查询子文件夹
-                        query = query.Where(m => m.FolderId == folderId.Value);
+                        return new List<MediaFile>();
                     }
-                    else
-                    {
-                        query = query.Where(m => m.FolderId == folderId.Value);
-                    }
+
+                    query = query.Where(m => m.FolderId.HasValue && folderIds.Contains(m.FolderId.Value));
                 }
                 else
                 {
-                    // folderId为null表示根目录
-                    query = query.Where(m => m.FolderId == null);
+                    query = query.Where(m => m.FolderId == folderId.Value);
                 }
-
-                return await query
-                    .OrderBy(m => m.OrderIndex)
-                    .ThenBy(m => m.Name)
-                    .ToListAsync();
             }
-            catch (Exception)
+            else
             {
-                throw;
+                // folderId为null表示根目录
+                query = query.Where(m => m.FolderId == null);
             }
+
+            return await query
+                .OrderBy(m => m.OrderIndex)
+                .ThenBy(m => m.Name)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -77,20 +68,13 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<MediaFile>> SearchByNameAsync(string searchTerm)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(searchTerm))
-                    return new List<MediaFile>();
+            if (string.IsNullOrWhiteSpace(searchTerm))
+                return new List<MediaFile>();
 
-                return await _dbSet
-                    .Where(m => EF.Functions.Like(m.Name, $"%{searchTerm}%"))
-                    .OrderBy(m => m.Name)
-                    .ToListAsync();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet
+                .Where(m => EF.Functions.Like(m.Name, $"%{searchTerm}%"))
+                .OrderBy(m => m.Name)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -98,18 +82,11 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<MediaFile>> GetMediaFilesByTypeAsync(string fileType)
         {
-            try
-            {
-                return await _dbSet
-                    .Where(m => m.FileTypeString == fileType)
-                    .OrderBy(m => m.OrderIndex)
-                    .ThenBy(m => m.Name)
-                    .ToListAsync();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _dbSet
+                .Where(m => m.FileTypeString == fileType)
+                .OrderBy(m => m.OrderIndex)
+                .ThenBy(m => m.Name)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -117,20 +94,13 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<int> BatchImportAsync(List<MediaFile> mediaFiles)
         {
-            try
-            {
-                if (!mediaFiles.Any())
-                    return 0;
+            if (!mediaFiles.Any())
+                return 0;
 
-                await _dbSet.AddRangeAsync(mediaFiles);
-                var count = await _context.SaveChangesAsync();
+            await _dbSet.AddRangeAsync(mediaFiles);
+            var count = await _context.SaveChangesAsync();
 
-                return count;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return count;
         }
 
         /// <summary>
@@ -138,18 +108,45 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task UpdateOrderIndexesAsync(List<MediaFile> mediaFiles)
         {
-            try
+            foreach (var file in mediaFiles)
             {
-                foreach (var file in mediaFiles)
+                _dbSet.Update(file);
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// 获取指定文件夹及其所有子文件夹ID（基于路径前缀）
+        /// </summary>
+        private async Task<HashSet<int>> GetFolderAndDescendantIdsAsync(int folderId)
+        {
+            var folders = await _context.Folders
+                .Select(f => new { f.Id, f.Path })
+                .ToListAsync();
+
+            var rootFolder = folders.FirstOrDefault(f => f.Id == folderId);
+            if (rootFolder == null || string.IsNullOrWhiteSpace(rootFolder.Path))
+            {
+                return new HashSet<int>();
+            }
+
+            var rootPath = NormalizeFolderPath(rootFolder.Path);
+
+            return folders
+                .Where(f => !string.IsNullOrWhiteSpace(f.Path))
+                .Where(f =>
                 {
-                    _dbSet.Update(file);
-                }
-                await _context.SaveChangesAsync();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+                    var currentPath = NormalizeFolderPath(f.Path);
+                    return currentPath.Equals(rootPath, StringComparison.OrdinalIgnoreCase)
+                        || currentPath.StartsWith(rootPath + "\\", StringComparison.OrdinalIgnoreCase);
+                })
+                .Select(f => f.Id)
+                .ToHashSet();
+        }
+
+        private static string NormalizeFolderPath(string path)
+        {
+            return path.Replace('/', '\\').TrimEnd('\\');
         }
     }
 }

@@ -38,53 +38,46 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<TimingSequenceDto>> GetTimingSequenceAsync(int imageId)
         {
-            try
+            // 检查缓存
+            if (_cache.TryGetValue(imageId, out var cached))
             {
-                // 检查缓存
-                if (_cache.TryGetValue(imageId, out var cached))
+                if (DateTime.Now - cached.CachedAt < _cacheTtl)
                 {
-                    if (DateTime.Now - cached.CachedAt < _cacheTtl)
-                    {
-                        return cached.Data;
-                    }
-                    else
-                    {
-                        // 缓存过期，移除
-                        _cache.Remove(imageId);
-                    }
+                    return cached.Data;
                 }
-
-                // 从数据库查询
-                var timings = await _context.KeyframeTimings
-                    .Include(t => t.Keyframe)
-                    .Where(t => t.ImageId == imageId)
-                    .OrderBy(t => t.SequenceOrder)
-                    .Select(t => new TimingSequenceDto
-                    {
-                        KeyframeId = t.KeyframeId,
-                        Duration = t.Duration,
-                        SequenceOrder = t.SequenceOrder,
-                        Position = t.Keyframe.Position,
-                        YPosition = t.Keyframe.YPosition,
-                        LoopCount = t.Keyframe.LoopCount,
-                        PausedTime = 0, // 暂停时间需要单独计算
-                        CreatedAt = t.CreatedAt
-                    })
-                    .ToListAsync();
-
-                // 更新缓存
-                _cache[imageId] = new CachedTimingData
+                else
                 {
-                    Data = timings,
-                    CachedAt = DateTime.Now
-                };
+                    // 缓存过期，移除
+                    _cache.Remove(imageId);
+                }
+            }
 
-                return timings;
-            }
-            catch (Exception)
+            // 从数据库查询
+            var timings = await _context.KeyframeTimings
+                .Include(t => t.Keyframe)
+                .Where(t => t.ImageId == imageId)
+                .OrderBy(t => t.SequenceOrder)
+                .Select(t => new TimingSequenceDto
+                {
+                    KeyframeId = t.KeyframeId,
+                    Duration = t.Duration,
+                    SequenceOrder = t.SequenceOrder,
+                    Position = t.Keyframe.Position,
+                    YPosition = t.Keyframe.YPosition,
+                    LoopCount = t.Keyframe.LoopCount,
+                    PausedTime = 0, // 暂停时间需要单独计算
+                    CreatedAt = t.CreatedAt
+                })
+                .ToListAsync();
+
+            // 更新缓存
+            _cache[imageId] = new CachedTimingData
             {
-                throw;
-            }
+                Data = timings,
+                CachedAt = DateTime.Now
+            };
+
+            return timings;
         }
 
         /// <summary>
@@ -92,15 +85,8 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<bool> HasTimingDataAsync(int imageId)
         {
-            try
-            {
-                return await _context.KeyframeTimings
-                    .AnyAsync(t => t.ImageId == imageId);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            return await _context.KeyframeTimings
+                .AnyAsync(t => t.ImageId == imageId);
         }
 
         /// <summary>
@@ -108,24 +94,17 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task ClearTimingsByImageIdAsync(int imageId)
         {
-            try
-            {
-                var timings = await _context.KeyframeTimings
-                    .Where(t => t.ImageId == imageId)
-                    .ToListAsync();
+            var timings = await _context.KeyframeTimings
+                .Where(t => t.ImageId == imageId)
+                .ToListAsync();
 
-                if (timings.Any())
-                {
-                    _context.KeyframeTimings.RemoveRange(timings);
-                    await _context.SaveChangesAsync();
-
-                    // 清除缓存
-                    _cache.Remove(imageId);
-                }
-            }
-            catch (Exception)
+            if (timings.Any())
             {
-                throw;
+                _context.KeyframeTimings.RemoveRange(timings);
+                await _context.SaveChangesAsync();
+
+                // 清除缓存
+                _cache.Remove(imageId);
             }
         }
 
@@ -202,18 +181,13 @@ namespace ImageColorChanger.Repositories.Implementations
                     #endif
                 }
             }
-            #if DEBUG
             catch (Exception ex)
             {
+                #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [数据库写入异常] ImageId={imageId}, SequenceOrder={sequenceOrder}: {ex.Message}");
+                #endif
                 throw;
             }
-            #else
-            catch (Exception)
-            {
-                throw;
-            }
-            #endif
         }
         
         /// <summary>
@@ -259,24 +233,17 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task UpdatePausedTimeAsync(int imageId, int sequenceOrder, double pausedTime)
         {
-            try
-            {
-                var timing = await _context.KeyframeTimings
-                    .FirstOrDefaultAsync(t => t.ImageId == imageId && t.SequenceOrder == sequenceOrder);
+            var timing = await _context.KeyframeTimings
+                .FirstOrDefaultAsync(t => t.ImageId == imageId && t.SequenceOrder == sequenceOrder);
 
-                if (timing != null)
-                {
-                    // 暂停时间累加到持续时间
-                    timing.Duration += pausedTime;
-                    await _context.SaveChangesAsync();
-
-                    // 清除缓存
-                    _cache.Remove(imageId);
-                }
-            }
-            catch (Exception)
+            if (timing != null)
             {
-                throw;
+                // 暂停时间累加到持续时间
+                timing.Duration += pausedTime;
+                await _context.SaveChangesAsync();
+
+                // 清除缓存
+                _cache.Remove(imageId);
             }
         }
 

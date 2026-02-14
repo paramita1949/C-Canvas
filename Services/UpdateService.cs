@@ -878,49 +878,42 @@ exit
             {
                 var extension = Path.GetExtension(archivePath).ToLowerInvariant();
                 
-                try
+                if (extension == ".zip")
                 {
-                    if (extension == ".zip")
+                    // 使用 .NET 内置的 ZIP 解压
+                    ZipFile.ExtractToDirectory(archivePath, extractPath, true);
+                }
+                else if (extension == ".7z" || extension == ".rar")
+                {
+                    // 7z 和 RAR 需要外部工具，这里尝试使用 7z.exe
+                    var sevenZipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "7z.exe");
+                    
+                    if (File.Exists(sevenZipPath))
                     {
-                        // 使用 .NET 内置的 ZIP 解压
-                        ZipFile.ExtractToDirectory(archivePath, extractPath, true);
-                    }
-                    else if (extension == ".7z" || extension == ".rar")
-                    {
-                        // 7z 和 RAR 需要外部工具，这里尝试使用 7z.exe
-                        var sevenZipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "7z.exe");
-                        
-                        if (File.Exists(sevenZipPath))
+                        var processInfo = new ProcessStartInfo
                         {
-                            var processInfo = new ProcessStartInfo
-                            {
-                                FileName = sevenZipPath,
-                                Arguments = $"x \"{archivePath}\" -o\"{extractPath}\" -y",
-                                UseShellExecute = false,
-                                CreateNoWindow = true,
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true
-                            };
+                            FileName = sevenZipPath,
+                            Arguments = $"x \"{archivePath}\" -o\"{extractPath}\" -y",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true
+                        };
 
-                            using (var process = Process.Start(processInfo))
+                        using (var process = Process.Start(processInfo))
+                        {
+                            process?.WaitForExit();
+                            
+                            if (process?.ExitCode != 0)
                             {
-                                process?.WaitForExit();
-                                
-                                if (process?.ExitCode != 0)
-                                {
-                                    throw new Exception($"解压失败，退出码: {process?.ExitCode}");
-                                }
+                                throw new Exception($"解压失败，退出码: {process?.ExitCode}");
                             }
                         }
-                        else
-                        {
-                            throw new FileNotFoundException("未找到 7z.exe，无法解压此格式的压缩包");
-                        }
                     }
-                }
-                catch (Exception)
-                {
-                    throw;
+                    else
+                    {
+                        throw new FileNotFoundException("未找到 7z.exe，无法解压此格式的压缩包");
+                    }
                 }
             });
         }

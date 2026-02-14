@@ -40,6 +40,16 @@ namespace ImageColorChanger.UI
         public Core.ImageProcessor GetImageProcessor() => _imageProcessor;
 
         /// <summary>
+        /// 获取合成播放服务
+        /// </summary>
+        public Services.Implementations.CompositePlaybackService GetCompositePlaybackService()
+        {
+            return _playbackServiceFactory?
+                .GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite)
+                as Services.Implementations.CompositePlaybackService;
+        }
+
+        /// <summary>
         /// 是否处于文本编辑器模式
         /// </summary>
         public bool IsTextEditorActive()
