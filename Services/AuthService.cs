@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Management;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace ImageColorChanger.Services
 {
@@ -70,6 +71,9 @@ namespace ImageColorChanger.Services
 
         [JsonPropertyName("client_notice")]
         public ClientNoticeInfo ClientNotice { get; set; }
+
+        [JsonPropertyName("client_notices")]
+        public List<ClientNoticeInfo> ClientNotices { get; set; }
     }
 
     public class ClientNoticeInfo
@@ -716,7 +720,7 @@ namespace ImageColorChanger.Services
                 }
 
                 TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
-                TryShowClientNotice(authResponse.Data?.ClientNotice, "login");
+                TryShowClientNotices(authResponse.Data, "login");
 
                 // 启动心跳
                 StartHeartbeat();
@@ -1096,67 +1100,111 @@ namespace ImageColorChanger.Services
             });
         }
 
-        private void TryShowClientNotice(ClientNoticeInfo notice, string source)
+        private void TryShowClientNotices(AuthData authData, string source)
         {
-            if (notice == null || string.IsNullOrWhiteSpace(notice.Message))
+            var incoming = new List<ClientNoticeInfo>();
+            if (authData?.ClientNotices != null && authData.ClientNotices.Count > 0)
+            {
+                incoming.AddRange(authData.ClientNotices.Where(n => n != null));
+            }
+
+            if (authData?.ClientNotice != null)
+            {
+                var fallback = authData.ClientNotice;
+                var exists = incoming.Any(n =>
+                    string.Equals((n.NoticeKey ?? string.Empty).Trim(), (fallback.NoticeKey ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals((n.Message ?? string.Empty).Trim(), (fallback.Message ?? string.Empty).Trim(), StringComparison.Ordinal));
+                if (!exists)
+                {
+                    incoming.Add(fallback);
+                }
+            }
+
+            if (incoming.Count == 0)
             {
                 return;
             }
 
-            if (notice.ExpiresAt.HasValue && notice.ExpiresAt.Value > 0)
+            var displayItems = new List<ImageColorChanger.UI.NoticePagerWindow.NoticeDisplayItem>();
+            var ackKeys = new List<string>();
+            var changedShownSet = false;
+
+            foreach (var notice in incoming)
             {
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                if (notice.ExpiresAt.Value <= now)
+                if (notice == null || string.IsNullOrWhiteSpace(notice.Message))
                 {
-                    return;
+                    continue;
+                }
+
+                if (notice.ExpiresAt.HasValue && notice.ExpiresAt.Value > 0)
+                {
+                    var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    if (notice.ExpiresAt.Value <= now)
+                    {
+                        continue;
+                    }
+                }
+
+                var showMode = string.Equals(notice.ShowMode, "always", StringComparison.OrdinalIgnoreCase)
+                    ? "always"
+                    : "once";
+
+                var title = string.IsNullOrWhiteSpace(notice.Title)
+                    ? "系统通知"
+                    : notice.Title.Trim();
+
+                var message = notice.Message.Trim();
+                var rawKey = string.IsNullOrWhiteSpace(notice.NoticeKey)
+                    ? $"{title}|{message}"
+                    : notice.NoticeKey.Trim();
+
+                var scopedKey = string.IsNullOrWhiteSpace(_username)
+                    ? rawKey
+                    : $"{_username}:{rawKey}";
+
+                if (showMode == "once")
+                {
+                    if (_shownClientNoticeKeys.Contains(scopedKey))
+                    {
+                        continue;
+                    }
+
+                    _shownClientNoticeKeys.Add(scopedKey);
+                    changedShownSet = true;
+                }
+
+                displayItems.Add(new ImageColorChanger.UI.NoticePagerWindow.NoticeDisplayItem
+                {
+                    Title = title,
+                    Message = message
+                });
+
+                if (!string.IsNullOrWhiteSpace(rawKey))
+                {
+                    ackKeys.Add(rawKey);
                 }
             }
 
-            var showMode = string.Equals(notice.ShowMode, "always", StringComparison.OrdinalIgnoreCase)
-                ? "always"
-                : "once";
-
-            var title = string.IsNullOrWhiteSpace(notice.Title)
-                ? "系统通知"
-                : notice.Title.Trim();
-
-            var rawKey = string.IsNullOrWhiteSpace(notice.NoticeKey)
-                ? $"{title}|{notice.Message.Trim()}"
-                : notice.NoticeKey.Trim();
-
-            var scopedKey = string.IsNullOrWhiteSpace(_username)
-                ? rawKey
-                : $"{_username}:{rawKey}";
-
-            if (showMode == "once")
+            if (displayItems.Count == 0)
             {
-                if (_shownClientNoticeKeys.Contains(scopedKey))
-                {
-                    return;
-                }
-
-                _shownClientNoticeKeys.Add(scopedKey);
-
-                if (_isAuthenticated)
-                {
-                    _ = SaveAuthDataAsync();
-                }
+                return;
             }
 
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📢 [AuthService] 显示客户端通知, mode={showMode}, key={scopedKey}");
-#endif
+            if (_isAuthenticated && changedShownSet)
+            {
+                _ = SaveAuthDataAsync();
+            }
 
             System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
             {
-                System.Windows.MessageBox.Show(
-                    notice.Message.Trim(),
-                    title,
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                var window = new ImageColorChanger.UI.NoticePagerWindow(displayItems);
+                window.ShowDialog();
             });
 
-            _ = ReportNoticeReceiptAsync(rawKey, source);
+            foreach (var key in ackKeys.Distinct(StringComparer.Ordinal))
+            {
+                _ = ReportNoticeReceiptAsync(key, source);
+            }
         }
 
         private async Task ReportNoticeReceiptAsync(string noticeKey, string source)
@@ -1477,7 +1525,7 @@ namespace ImageColorChanger.Services
                     _deviceInfo = authResponse.Data?.DeviceInfo;
                     _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;
                     TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
-                    TryShowClientNotice(authResponse.Data?.ClientNotice, "refresh");
+                    TryShowClientNotices(authResponse.Data, "refresh");
                     
                     // 更新本地缓存
                     _ = SaveAuthDataAsync();
@@ -1707,7 +1755,7 @@ namespace ImageColorChanger.Services
                 _deviceInfo = authResponse.Data?.DeviceInfo;  // 更新设备信息
                 _resetDeviceCount = authResponse.Data?.ResetDeviceCount ?? 0;  // 更新解绑次数（默认0）
                 TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
-                TryShowClientNotice(authResponse.Data?.ClientNotice, "heartbeat");
+                TryShowClientNotices(authResponse.Data, "heartbeat");
                 
                 // 🔒 记录成功心跳时间（用于离线时长检测）
                 _lastSuccessfulHeartbeat = DateTime.Now;
