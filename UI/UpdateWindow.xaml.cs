@@ -22,6 +22,9 @@ namespace ImageColorChanger.UI
         {
             // 设置版本信息
             VersionText.Text = $"V{_versionInfo.Version}";
+            ReleaseNotesText.Text = string.IsNullOrWhiteSpace(_versionInfo.ReleaseNotes)
+                ? "修复若干BUG"
+                : _versionInfo.ReleaseNotes.Trim();
             
             // 默认显示提示信息
             InfoPanel.Visibility = Visibility.Visible;

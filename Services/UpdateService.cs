@@ -28,6 +28,7 @@ namespace ImageColorChanger.Services
     {
         public string Version { get; set; } = "";
         public List<UpdateFileInfo> Files { get; set; } = new List<UpdateFileInfo>();
+        public string ReleaseNotes { get; set; } = "";
         
         // 兼容旧代码
         public string DownloadUrl 
@@ -69,7 +70,8 @@ namespace ImageColorChanger.Services
         private static string _currentBaseUrl = DOWNLOAD_BASE_URLS[0];
 
         private static string LATEST_VERSION_URL => _currentBaseUrl + "/latest.txt";
-        private static string FILES_LIST_URL_TEMPLATE => _currentBaseUrl + "/v{version}/files.txt";
+        private static readonly string[] VERSION_DIR_PREFIXES = new[] { "v", "V" };
+        private static readonly string[] VERSION_LIST_FILES = new[] { "versions.txt" };
         
         // 尝试自动发现的文件名列表（如果 files.txt 不存在时使用）
         // 优先级：压缩包 > DLL > 资源文件 > 配置文件
@@ -104,6 +106,7 @@ namespace ImageColorChanger.Services
         };
         
         private static readonly HttpClient _httpClient = new HttpClient();
+        private const int RollbackRequestTimeoutSeconds = 6;
         
         // 保存最新检查到的版本信息（用于显示更新提示）
         private static VersionInfo? _lastCheckedVersionInfo = null;
@@ -123,6 +126,169 @@ namespace ImageColorChanger.Services
         /// 获取最后一次检查到的版本信息（如果有新版本）
         /// </summary>
         public static VersionInfo? GetLastCheckedVersionInfo() => _lastCheckedVersionInfo;
+
+        /// <summary>
+        /// 获取可回退版本列表（仅返回小于等于当前版本且存在 files.txt 的版本）
+        /// </summary>
+        public static async Task<List<string>> GetRollbackVersionsAsync()
+        {
+            var swTotal = Stopwatch.StartNew();
+            var currentVersion = GetCurrentVersion();
+            var versions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+#if DEBUG
+            Debug.WriteLine($"[Rollback] 开始拉取可回退版本, current={currentVersion}");
+#endif
+
+            // 尝试从版本清单文件中提取版本
+            foreach (var listFile in VERSION_LIST_FILES)
+            {
+                var listLoaded = false;
+#if DEBUG
+                var swList = Stopwatch.StartNew();
+#endif
+                for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+                {
+                    try
+                    {
+                        var url = $"{DOWNLOAD_BASE_URLS[i]}/{listFile}";
+                        var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
+                        if (string.IsNullOrWhiteSpace(content))
+                        {
+#if DEBUG
+                            Debug.WriteLine($"[Rollback] 清单为空或失败: {url}");
+#endif
+                            continue;
+                        }
+
+                        foreach (var v in ExtractVersions(content))
+                        {
+                            versions.Add(v);
+                        }
+
+                        // 同一份清单在多个镜像通常一致，拿到一份即可
+                        listLoaded = true;
+#if DEBUG
+                        swList.Stop();
+                        Debug.WriteLine($"[Rollback] 清单成功: {url}, 耗时={swList.ElapsedMilliseconds}ms, 已提取版本数={versions.Count}");
+#endif
+                        break;
+                    }
+                    catch
+                    {
+                        // 单个地址失败不影响整体
+                    }
+                }
+
+                if (listLoaded)
+                {
+                    // 优先读取 next list file
+                    continue;
+                }
+#if DEBUG
+                swList.Stop();
+                Debug.WriteLine($"[Rollback] 清单未命中: {listFile}, 耗时={swList.ElapsedMilliseconds}ms");
+#endif
+            }
+
+            // latest 兜底
+            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            {
+                try
+                {
+                    var latest = await TryGetStringWithTimeoutAsync($"{DOWNLOAD_BASE_URLS[i]}/latest.txt", RollbackRequestTimeoutSeconds);
+                    var normalized = NormalizeVersion(latest);
+                    if (!string.IsNullOrEmpty(normalized))
+                    {
+                        versions.Add(normalized);
+#if DEBUG
+                        Debug.WriteLine($"[Rollback] latest 命中: {DOWNLOAD_BASE_URLS[i]}/latest.txt -> {normalized}");
+#endif
+                        break;
+                    }
+                }
+                catch
+                {
+                    // 忽略
+                }
+            }
+
+            // 列表阶段只做版本过滤，不预检 files.txt。
+            // files.txt 在用户点击回退时，通过 GetVersionInfoAsync/GetUpdateFilesListAsync 再校验。
+            var result = versions
+                .Where(version => CompareVersions(version, currentVersion) < 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(v => v, Comparer<string>.Create(CompareVersions))
+                .ToList();
+
+#if DEBUG
+            swTotal.Stop();
+            Debug.WriteLine($"[Rollback] 完成, 原始候选={versions.Count}, 列表展示={result.Count}, 总耗时={swTotal.ElapsedMilliseconds}ms");
+            if (result.Count > 0)
+            {
+                Debug.WriteLine($"[Rollback] 可用版本: {string.Join(", ", result.Select(v => "V" + v))}");
+            }
+#endif
+
+            return result;
+        }
+
+        /// <summary>
+        /// 获取指定版本的更新信息（用于手动升级/回退）
+        /// </summary>
+        public static async Task<VersionInfo?> GetVersionInfoAsync(string version)
+        {
+            var normalized = NormalizeVersion(version);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return null;
+            }
+
+            var files = await GetUpdateFilesListAsync(normalized);
+            if (files.Count == 0)
+            {
+                return null;
+            }
+
+            return new VersionInfo
+            {
+                Version = normalized,
+                Files = files,
+                ReleaseNotes = (await GetVersionReadmeAsync(normalized)) ?? ""
+            };
+        }
+
+        /// <summary>
+        /// 获取指定版本的更新说明（read.txt）
+        /// </summary>
+        public static async Task<string?> GetVersionReadmeAsync(string version)
+        {
+            var normalized = NormalizeVersion(version);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            {
+                var baseUrl = DOWNLOAD_BASE_URLS[i];
+                foreach (var url in BuildReadmeUrls(baseUrl, normalized))
+                {
+                    var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+#if DEBUG
+                        Debug.WriteLine($"[Rollback] read.txt 命中: {url}");
+#endif
+                        return content;
+                    }
+                }
+            }
+
+#if DEBUG
+            Debug.WriteLine($"[Rollback] read.txt 未命中: v={normalized}");
+#endif
+            return null;
+        }
 
         /// <summary>
         /// 获取当前应用程序版本（从程序集属性读取）
@@ -182,7 +348,7 @@ namespace ImageColorChanger.Services
             for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
             {
                 var baseUrl = DOWNLOAD_BASE_URLS[i];
-                var timeout = timeouts[i];
+                var timeout = i < timeouts.Length ? timeouts[i] : 20;
 
                 // 每个地址重试2次
                 for (int retry = 0; retry < 2; retry++)
@@ -229,11 +395,15 @@ namespace ImageColorChanger.Services
         private static async Task<VersionInfo?> CheckForUpdatesInternalAsync(CancellationToken cancellationToken = default)
         {
             // 下载 latest.txt 获取最新版本号
-            var latestVersion = await _httpClient.GetStringAsync(LATEST_VERSION_URL, cancellationToken);
-            latestVersion = latestVersion.Trim();
+            var latestVersion = await TryGetStringWithTimeoutAsync(LATEST_VERSION_URL, 8, cancellationToken);
+            if (string.IsNullOrWhiteSpace(latestVersion))
+            {
+                return null;
+            }
+            latestVersion = NormalizeVersion(latestVersion);
 
             // 验证版本号格式（支持3位或4位版本号，如 5.3.5 或 5.8.6.3）
-            if (!Regex.IsMatch(latestVersion, @"^\d+\.\d+\.\d+(\.\d+)?$"))
+            if (string.IsNullOrEmpty(latestVersion))
             {
                 return null;
             }
@@ -249,7 +419,8 @@ namespace ImageColorChanger.Services
                 var versionInfo = new VersionInfo
                 {
                     Version = latestVersion,
-                    Files = files
+                    Files = files,
+                    ReleaseNotes = (await GetVersionReadmeAsync(latestVersion)) ?? ""
                 };
                 
                 // 保存版本信息供UI使用
@@ -341,8 +512,21 @@ namespace ImageColorChanger.Services
             try
             {
                 // 优先尝试从服务器获取文件列表
-                var filesListUrl = FILES_LIST_URL_TEMPLATE.Replace("{version}", version);
-                var filesList = await _httpClient.GetStringAsync(filesListUrl);
+                string? filesList = null;
+                foreach (var filesListUrl in BuildFilesListUrls(_currentBaseUrl, version))
+                {
+                    filesList = await TryGetStringWithTimeoutAsync(filesListUrl, 8);
+                    if (!string.IsNullOrWhiteSpace(filesList))
+                    {
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(filesList))
+                {
+                    throw new HttpRequestException("files.txt not found");
+                }
+
                 var fileNames = filesList.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 
                 foreach (var fileName in fileNames)
@@ -389,52 +573,54 @@ namespace ImageColorChanger.Services
             for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
             {
                 var baseUrl = DOWNLOAD_BASE_URLS[i];
-                var basePath = baseUrl.EndsWith("/raw") ? $"{baseUrl}/v{version}/" : $"{baseUrl}/v{version}/";
-                
+                var basePaths = BuildVersionBasePaths(baseUrl, version);
                 var addressHasError = false;
                 
-                // 尝试发现常见文件
-                foreach (var fileName in concreteFileNames)
+                foreach (var basePath in basePaths)
                 {
-                    var fileUrl = basePath + fileName;
-                    try
+                    // 尝试发现常见文件
+                    foreach (var fileName in concreteFileNames)
                     {
-                        // 使用HEAD请求检查文件是否存在（设置超时）
-                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
-                        using (var request = new HttpRequestMessage(HttpMethod.Head, fileUrl))
+                        var fileUrl = basePath + fileName;
+                        try
                         {
-                            var response = await _httpClient.SendAsync(request, cts.Token);
-                            if (response.IsSuccessStatusCode)
+                            // 使用HEAD请求检查文件是否存在（设置超时）
+                            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                            using (var request = new HttpRequestMessage(HttpMethod.Head, fileUrl))
                             {
-                                files.Add(new UpdateFileInfo
+                                var response = await _httpClient.SendAsync(request, cts.Token);
+                                if (response.IsSuccessStatusCode)
                                 {
-                                    FileName = fileName,
-                                    DownloadUrl = fileUrl,
-                                    FileSize = response.Content.Headers.ContentLength ?? 0
-                                });
+                                    files.Add(new UpdateFileInfo
+                                    {
+                                        FileName = fileName,
+                                        DownloadUrl = fileUrl,
+                                        FileSize = response.Content.Headers.ContentLength ?? 0
+                                    });
+                                }
                             }
                         }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // 超时
-                        addressHasError = true;
-                        // 如果这个地址超时，跳过剩余文件，尝试下一个地址
-                        break;
-                    }
-                    catch (HttpRequestException)
-                    {
-                        // HTTP请求异常（网络错误、SSL错误等）
-                        addressHasError = true;
-                        // 如果这个地址有网络问题，跳过剩余文件，尝试下一个地址
-                        break;
-                    }
-                    catch (Exception)
-                    {
-                        // 其他异常
-                        addressHasError = true;
-                        // 如果这个地址有问题，跳过剩余文件，尝试下一个地址
-                        break;
+                        catch (OperationCanceledException)
+                        {
+                            // 超时
+                            addressHasError = true;
+                            // 如果这个地址超时，跳过剩余文件，尝试下一个地址
+                            break;
+                        }
+                        catch (HttpRequestException)
+                        {
+                            // HTTP请求异常（网络错误、SSL错误等）
+                            addressHasError = true;
+                            // 如果这个地址有网络问题，跳过剩余文件，尝试下一个地址
+                            break;
+                        }
+                        catch (Exception)
+                        {
+                            // 其他异常
+                            addressHasError = true;
+                            // 如果这个地址有问题，跳过剩余文件，尝试下一个地址
+                            break;
+                        }
                     }
                 }
                 
@@ -461,15 +647,7 @@ namespace ImageColorChanger.Services
         /// </summary>
         private static string BuildFileDownloadUrl(string baseUrl, string version, string fileName)
         {
-            // 处理特殊路径：/raw路径下的文件
-            if (baseUrl.EndsWith("/raw"))
-            {
-                return $"{baseUrl}/v{version}/{fileName}";
-            }
-            else
-            {
-                return $"{baseUrl}/v{version}/{fileName}";
-            }
+            return $"{baseUrl}/v{version}/{fileName}";
         }
 
         /// <summary>
@@ -484,52 +662,55 @@ namespace ImageColorChanger.Services
             for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
             {
                 var baseUrl = DOWNLOAD_BASE_URLS[i];
-                var downloadUrl = BuildFileDownloadUrl(baseUrl, version, fileName);
-                
-                // 每个地址重试2次
-                for (int retry = 0; retry < 2; retry++)
+                var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, version, fileName);
+
+                foreach (var downloadUrl in downloadCandidates)
                 {
-                    try
+                    // 每个地址重试2次
+                    for (int retry = 0; retry < 2; retry++)
                     {
-                        using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                        try
                         {
-                            // 如果文件不存在（404），尝试下一个地址
-                            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                            using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                             {
-                                break; // 跳出重试循环，尝试下一个地址
-                            }
-                            
-                            response.EnsureSuccessStatusCode();
-
-                            long fileDownloadedBytes = 0;
-                            using (var contentStream = await response.Content.ReadAsStreamAsync())
-                            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
-                            {
-                                var buffer = new byte[8192];
-                                int bytesRead;
-
-                                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                // 如果文件不存在（404），尝试下一个地址
+                                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                                 {
-                                    await fileStream.WriteAsync(buffer, 0, bytesRead);
-                                    fileDownloadedBytes += bytesRead;
-                                    var newDownloadedBytes = currentDownloadedBytes + fileDownloadedBytes;
-                                    progress?.Report((newDownloadedBytes, totalBytes));
+                                    break; // 跳出重试循环，尝试下一个地址
                                 }
+
+                                response.EnsureSuccessStatusCode();
+
+                                long fileDownloadedBytes = 0;
+                                using (var contentStream = await response.Content.ReadAsStreamAsync())
+                                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                                {
+                                    var buffer = new byte[8192];
+                                    int bytesRead;
+
+                                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                    {
+                                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                        fileDownloadedBytes += bytesRead;
+                                        var newDownloadedBytes = currentDownloadedBytes + fileDownloadedBytes;
+                                        progress?.Report((newDownloadedBytes, totalBytes));
+                                    }
+                                }
+
+                                return (true, fileDownloadedBytes); // 下载成功，返回下载的字节数
                             }
-                            
-                            return (true, fileDownloadedBytes); // 下载成功，返回下载的字节数
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        lastException = ex;
+                        catch (Exception ex)
+                        {
+                            lastException = ex;
                         
-                        // 如果是最后一次重试，跳出重试循环，尝试下一个地址
-                        if (retry == 1)
-                            break;
+                            // 如果是最后一次重试，跳出重试循环，尝试下一个地址
+                            if (retry == 1)
+                                break;
                         
-                        // 否则等待1秒后重试当前地址
-                        await Task.Delay(1000);
+                            // 否则等待1秒后重试当前地址
+                            await Task.Delay(1000);
+                        }
                     }
                 }
             }
@@ -568,22 +749,25 @@ namespace ImageColorChanger.Services
                     for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
                     {
                         var baseUrl = DOWNLOAD_BASE_URLS[i];
-                        var downloadUrl = BuildFileDownloadUrl(baseUrl, versionInfo.Version, file.FileName);
-                        
-                        try
+                        var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, versionInfo.Version, file.FileName);
+
+                        foreach (var downloadUrl in downloadCandidates)
                         {
-                            using (var request = new HttpRequestMessage(HttpMethod.Head, downloadUrl))
-                            using (var response = await _httpClient.SendAsync(request))
+                            try
                             {
-                                if (response.IsSuccessStatusCode)
+                                using (var request = new HttpRequestMessage(HttpMethod.Head, downloadUrl))
+                                using (var response = await _httpClient.SendAsync(request))
                                 {
-                                    file.FileSize = response.Content.Headers.ContentLength ?? 0;
-                                    totalBytes += file.FileSize;
-                                    break; // 成功获取大小，跳出循环
+                                    if (response.IsSuccessStatusCode)
+                                    {
+                                        file.FileSize = response.Content.Headers.ContentLength ?? 0;
+                                        totalBytes += file.FileSize;
+                                        break; // 成功获取大小，跳出循环
+                                    }
                                 }
                             }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
 
@@ -819,6 +1003,9 @@ exit
         {
             try
             {
+                version1 = NormalizeVersion(version1) ?? version1;
+                version2 = NormalizeVersion(version2) ?? version2;
+
                 var v1Parts = version1.Split('.');
                 var v2Parts = version2.Split('.');
                 var maxLength = Math.Max(v1Parts.Length, v2Parts.Length);
@@ -916,6 +1103,152 @@ exit
                     }
                 }
             });
+        }
+
+        private static string? NormalizeVersion(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                return null;
+            }
+
+            var input = version.Trim();
+            if (input.StartsWith("V", StringComparison.OrdinalIgnoreCase))
+            {
+                input = input.Substring(1);
+            }
+
+            if (!Regex.IsMatch(input, @"^\d+\.\d+\.\d+(\.\d+)?$"))
+            {
+                return null;
+            }
+
+            return input;
+        }
+
+        private static IEnumerable<string> ExtractVersions(string content)
+        {
+            var matches = Regex.Matches(content, @"V?(\d+\.\d+\.\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
+            foreach (Match match in matches)
+            {
+                var normalized = NormalizeVersion(match.Value);
+                if (!string.IsNullOrEmpty(normalized))
+                {
+                    yield return normalized;
+                }
+            }
+        }
+
+        private static List<string> BuildVersionBasePaths(string baseUrl, string version)
+        {
+            return VERSION_DIR_PREFIXES.Select(prefix => $"{baseUrl}/{prefix}{version}/").ToList();
+        }
+
+        private static List<string> BuildFilesListUrls(string baseUrl, string version)
+        {
+            var urls = new List<string>();
+
+            // 兼容 v5.9.9.8 / V5.9.9.8
+            urls.AddRange(VERSION_DIR_PREFIXES.Select(prefix => $"{baseUrl}/{prefix}{version}/files.txt"));
+            // 兼容 5.9.9.8（无前缀）
+            urls.Add($"{baseUrl}/{version}/files.txt");
+
+            // 兼容大小写文件名差异
+            urls.AddRange(VERSION_DIR_PREFIXES.Select(prefix => $"{baseUrl}/{prefix}{version}/Files.txt"));
+            urls.Add($"{baseUrl}/{version}/Files.txt");
+
+            return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private static List<string> BuildFileDownloadCandidateUrls(string baseUrl, string version, string fileName)
+        {
+            return VERSION_DIR_PREFIXES
+                .Select(prefix => $"{baseUrl}/{prefix}{version}/{fileName}")
+                .ToList();
+        }
+
+        private static List<string> BuildReadmeUrls(string baseUrl, string version)
+        {
+            var urls = new List<string>();
+
+            urls.AddRange(VERSION_DIR_PREFIXES.Select(prefix => $"{baseUrl}/{prefix}{version}/read.txt"));
+            urls.Add($"{baseUrl}/{version}/read.txt");
+            urls.AddRange(VERSION_DIR_PREFIXES.Select(prefix => $"{baseUrl}/{prefix}{version}/Read.txt"));
+            urls.Add($"{baseUrl}/{version}/Read.txt");
+
+            return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private static async Task<bool> HasFilesListAsync(string version)
+        {
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            {
+                foreach (var url in BuildFilesListUrls(DOWNLOAD_BASE_URLS[i], version))
+                {
+                    try
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Head, url);
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(RollbackRequestTimeoutSeconds));
+                        using var response = await _httpClient.SendAsync(request, cts.Token);
+                        if (response.IsSuccessStatusCode)
+                        {
+#if DEBUG
+                            sw.Stop();
+                            Debug.WriteLine($"[Rollback] files.txt 命中(HEAD): v={version}, url={url}, 耗时={sw.ElapsedMilliseconds}ms");
+#endif
+                            return true;
+                        }
+
+                        // 某些网盘镜像不支持 HEAD
+                        if (response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
+                        {
+                            using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                            using var getCts = new CancellationTokenSource(TimeSpan.FromSeconds(RollbackRequestTimeoutSeconds));
+                            using var getResponse = await _httpClient.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead, getCts.Token);
+                            if (getResponse.IsSuccessStatusCode)
+                            {
+#if DEBUG
+                                sw.Stop();
+                                Debug.WriteLine($"[Rollback] files.txt 命中(GET): v={version}, url={url}, 耗时={sw.ElapsedMilliseconds}ms");
+#endif
+                                return true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 忽略单个地址
+                    }
+                }
+            }
+
+#if DEBUG
+            sw.Stop();
+            Debug.WriteLine($"[Rollback] files.txt 未命中: v={version}, 耗时={sw.ElapsedMilliseconds}ms");
+#endif
+            return false;
+        }
+
+        private static async Task<string?> TryGetStringWithTimeoutAsync(string url, int timeoutSeconds, CancellationToken externalToken = default)
+        {
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                return await response.Content.ReadAsStringAsync(cts.Token);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

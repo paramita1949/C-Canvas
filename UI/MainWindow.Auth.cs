@@ -94,6 +94,26 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 版本回退按钮
+        /// </summary>
+        private void BtnRollback_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rollbackWindow = new VersionRollbackWindow
+                {
+                    Owner = this
+                };
+                rollbackWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开版本回退窗口失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
         /// 显示用户管理菜单（手动刷新）
         /// </summary>
         private void ShowUserMenu()
@@ -321,9 +341,18 @@ namespace ImageColorChanger.UI
                 userWindow.Close();
                 UnbindDeviceWithConfirm();
             };
+
+            // 版本回退按钮
+            var rollbackBtn = CreateStyledButton("版本回退", Color.FromRgb(33, 150, 243));
+            rollbackBtn.Click += (s, e) =>
+            {
+                userWindow.Close();
+                BtnRollback_Click(this, new RoutedEventArgs());
+            };
             
             buttonPanel.Children.Add(logoutBtn);
             buttonPanel.Children.Add(unbindBtn);
+            buttonPanel.Children.Add(rollbackBtn);
             mainPanel.Children.Add(buttonPanel);
             
             userWindow.Content = mainPanel;
