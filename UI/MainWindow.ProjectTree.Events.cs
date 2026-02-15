@@ -652,6 +652,15 @@ namespace ImageColorChanger.UI
                         };
                         contextMenu.Items.Add(createSplitMenuItem);
 
+                        // 歌词模式菜单项
+                        var lyricsModeMenuItem = new MenuItem
+                        {
+                            Header = "歌词模式",
+                            FontSize = 14
+                        };
+                        lyricsModeMenuItem.Click += (s, args) => EnterLyricsModeFromFile(item);
+                        contextMenu.Items.Add(lyricsModeMenuItem);
+
                         // 🆕 添加到幻灯片菜单项
                         var addToSlideMenuItem = new MenuItem
                         {
@@ -692,6 +701,54 @@ namespace ImageColorChanger.UI
 
                     contextMenu.IsOpen = true;
                 }
+            }
+        }
+
+        private void EnterLyricsModeFromFile(ProjectTreeItem item)
+        {
+            try
+            {
+                if (item == null || item.Type != TreeItemType.File)
+                {
+                    return;
+                }
+
+                if (item.FileType != FileType.Image)
+                {
+                    ShowStatus("⚠️ 歌词模式仅支持图片文件");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(item.Path) || !System.IO.File.Exists(item.Path))
+                {
+                    ShowStatus($"❌ 文件不存在: {item?.Name}");
+                    return;
+                }
+
+                // 进入歌词模式前，先退出文本编辑态（若有）
+                AutoExitTextEditorIfNeeded();
+
+                // 切换歌词关联目标到当前右键文件
+                _currentImageId = item.Id;
+                _imagePath = item.Path;
+
+                if (_isLyricsMode)
+                {
+                    OnImageChangedInLyricsMode();
+                }
+                else
+                {
+                    EnterLyricsMode();
+                }
+
+                ShowStatus($"🎤 已进入歌词模式: {item.Name}");
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"❌ [EnterLyricsModeFromFile] 失败: {ex.Message}");
+#endif
+                ShowStatus($"❌ 进入歌词模式失败: {ex.Message}");
             }
         }
         #endregion

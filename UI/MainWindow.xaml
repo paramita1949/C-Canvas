@@ -2868,6 +2868,63 @@
                                     Click="BtnLyricsClear_Click"
                                     Style="{StaticResource RecordButtonStyle}"
                                     ToolTip="清空所有内容"/>
+
+                            <StackPanel x:Name="LyricsPageNavPanel"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                <Button x:Name="BtnLyricsPagingToggle"
+                                        Content="分页"
+                                        Width="82" Height="40"
+                                        Margin="0,0,8,0"
+                                        FontSize="16"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        Click="BtnLyricsPagingToggle_Click"
+                                        ToolTip="进入/退出分页"/>
+                                <Button x:Name="BtnLyricsPageUp"
+                                        Content="◀"
+                                        Width="56" Height="40"
+                                        Margin="0,0,6,0"
+                                        FontSize="18"
+                                        FontWeight="Bold"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        Click="BtnLyricsPageUp_Click"
+                                        ToolTip="上一项"/>
+                                <Border Background="#2D2D2D"
+                                        BorderBrush="#555555"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="8,0"
+                                        Height="40"
+                                        MinWidth="70"
+                                        Margin="0,0,6,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock x:Name="LyricsPagingStateText"
+                                               Text="1/2"
+                                               Foreground="White"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"/>
+                                </Border>
+                                <Button x:Name="BtnLyricsPageDown"
+                                        Content="▶"
+                                        Width="56" Height="40"
+                                        FontSize="18"
+                                        FontWeight="Bold"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        Click="BtnLyricsPageDown_Click"
+                                        ToolTip="下一项"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -2885,61 +2942,204 @@
                                 <Style TargetType="{x:Type ScrollBar}" 
                                        BasedOn="{StaticResource FixedScrollBarStyle}"/>
                             </ScrollViewer.Resources>
-                            <TextBox x:Name="LyricsTextBox"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     BorderThickness="0"
-                                     Background="Transparent"
-                                     FontSize="48"
-                                     FontFamily="Microsoft YaHei UI"
-                                     Foreground="White"
-                                     TextAlignment="Center"
-                                     MinHeight="600"
-                                     CaretBrush="White"
-                                     VerticalAlignment="Top"
-                                     TextChanged="LyricsTextBox_TextChanged"
-                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
-                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel">
-                                <!-- 🔧 水印提示 -->
-                                <TextBox.Resources>
-                                    <!-- ✅ 不设置行高，使用WPF默认（投影也用WPF TextBlock渲染，自动对齐） -->
-                                    <VisualBrush x:Key="HintBrush" 
-                                                 TileMode="None" 
-                                                 Opacity="0.3" 
-                                                 Stretch="None" 
-                                                 AlignmentX="Left" 
-                                                 AlignmentY="Top">
-                                        <VisualBrush.Visual>
-                                            <TextBlock Text="在此粘贴或输入歌谱文字内容...&#x0a;&#x0a;支持 Ctrl+V 粘贴"
-                                                       FontSize="28"
-                                                       FontStyle="Italic"
-                                                       Foreground="#666666"
-                                                       TextAlignment="Left"
-                                                       Margin="0,20,0,0"/>
-                                        </VisualBrush.Visual>
-                                    </VisualBrush>
-                                </TextBox.Resources>
-                                <TextBox.Style>
-                                    <Style TargetType="TextBox">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="TextBox">
-                                                    <ScrollViewer x:Name="PART_ContentHost" 
-                                                                  Focusable="False"
-                                                                  HorizontalScrollBarVisibility="Disabled"
-                                                                  VerticalScrollBarVisibility="Disabled"/>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Style.Triggers>
-                                            <Trigger Property="Text" Value="">
-                                                <Setter Property="Background" 
-                                                        Value="{StaticResource HintBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBox.Style>
-                            </TextBox>
+                            <Grid>
+                                <TextBox x:Name="LyricsTextBox"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         FontSize="48"
+                                         FontFamily="Microsoft YaHei UI"
+                                         Foreground="White"
+                                         TextAlignment="Center"
+                                         MinHeight="600"
+                                         CaretBrush="White"
+                                         VerticalAlignment="Top"
+                                         TextChanged="LyricsTextBox_TextChanged"
+                                         PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                         PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel"
+                                         GotFocus="LyricsEditor_GotFocus">
+                                    <TextBox.Resources>
+                                        <VisualBrush x:Key="HintBrush" 
+                                                     TileMode="None" 
+                                                     Opacity="0.3" 
+                                                     Stretch="None" 
+                                                     AlignmentX="Left" 
+                                                     AlignmentY="Top">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="在此粘贴或输入歌谱文字内容...&#x0a;&#x0a;支持 Ctrl+V 粘贴"
+                                                           FontSize="28"
+                                                           FontStyle="Italic"
+                                                           Foreground="#666666"
+                                                           TextAlignment="Left"
+                                                           Margin="0,20,0,0"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </TextBox.Resources>
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="TextBox">
+                                                        <ScrollViewer x:Name="PART_ContentHost" 
+                                                                      Focusable="False"
+                                                                      HorizontalScrollBarVisibility="Disabled"
+                                                                      VerticalScrollBarVisibility="Disabled"/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background" 
+                                                            Value="{StaticResource HintBrush}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+
+                                <Grid x:Name="LyricsSplitGrid"
+                                      MinHeight="600"
+                                      Visibility="Collapsed"
+                                      Background="Transparent">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border x:Name="LyricsSplitRegion1" Grid.Row="0" Grid.Column="0" BorderBrush="#FF3B30" BorderThickness="0">
+                                        <Grid>
+                                            <TextBox x:Name="LyricsSplitTextBox1"
+                                                     AcceptsReturn="True"
+                                                     TextWrapping="Wrap"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     FontSize="48"
+                                                     FontFamily="Microsoft YaHei UI"
+                                                     Foreground="White"
+                                                     TextAlignment="Center"
+                                                     CaretBrush="White"
+                                                     Padding="10,30,10,10"
+                                                     VerticalContentAlignment="Center"
+                                                     TextChanged="LyricsTextBox_TextChanged"
+                                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel"
+                                                     GotFocus="LyricsEditor_GotFocus"/>
+                                            <Border Background="#CCFF6600"
+                                                    CornerRadius="0,0,10,0"
+                                                    Padding="12,5,12,5"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    IsHitTestVisible="False">
+                                                <TextBlock Text="1"
+                                                           FontSize="24"
+                                                           FontWeight="Bold"
+                                                           Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border x:Name="LyricsSplitRegion2" Grid.Row="0" Grid.Column="1" BorderBrush="#FF3B30" BorderThickness="0">
+                                        <Grid>
+                                            <TextBox x:Name="LyricsSplitTextBox2"
+                                                     AcceptsReturn="True"
+                                                     TextWrapping="Wrap"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     FontSize="48"
+                                                     FontFamily="Microsoft YaHei UI"
+                                                     Foreground="White"
+                                                     TextAlignment="Center"
+                                                     CaretBrush="White"
+                                                     Padding="10,30,10,10"
+                                                     VerticalContentAlignment="Center"
+                                                     TextChanged="LyricsTextBox_TextChanged"
+                                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel"
+                                                     GotFocus="LyricsEditor_GotFocus"/>
+                                            <Border Background="#CCFF6600"
+                                                    CornerRadius="0,0,10,0"
+                                                    Padding="12,5,12,5"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    IsHitTestVisible="False">
+                                                <TextBlock Text="2"
+                                                           FontSize="24"
+                                                           FontWeight="Bold"
+                                                           Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border x:Name="LyricsSplitRegion3" Grid.Row="1" Grid.Column="0" BorderBrush="#FF3B30" BorderThickness="0">
+                                        <Grid>
+                                            <TextBox x:Name="LyricsSplitTextBox3"
+                                                     AcceptsReturn="True"
+                                                     TextWrapping="Wrap"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     FontSize="48"
+                                                     FontFamily="Microsoft YaHei UI"
+                                                     Foreground="White"
+                                                     TextAlignment="Center"
+                                                     CaretBrush="White"
+                                                     Padding="10,30,10,10"
+                                                     VerticalContentAlignment="Center"
+                                                     TextChanged="LyricsTextBox_TextChanged"
+                                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel"
+                                                     GotFocus="LyricsEditor_GotFocus"/>
+                                            <Border Background="#CCFF6600"
+                                                    CornerRadius="0,0,10,0"
+                                                    Padding="12,5,12,5"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    IsHitTestVisible="False">
+                                                <TextBlock Text="3"
+                                                           FontSize="24"
+                                                           FontWeight="Bold"
+                                                           Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border x:Name="LyricsSplitRegion4" Grid.Row="1" Grid.Column="1" BorderBrush="#FF3B30" BorderThickness="0">
+                                        <Grid>
+                                            <TextBox x:Name="LyricsSplitTextBox4"
+                                                     AcceptsReturn="True"
+                                                     TextWrapping="Wrap"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     FontSize="48"
+                                                     FontFamily="Microsoft YaHei UI"
+                                                     Foreground="White"
+                                                     TextAlignment="Center"
+                                                     CaretBrush="White"
+                                                     Padding="10,30,10,10"
+                                                     VerticalContentAlignment="Center"
+                                                     TextChanged="LyricsTextBox_TextChanged"
+                                                     PreviewKeyDown="LyricsTextBox_PreviewKeyDown"
+                                                     PreviewMouseWheel="LyricsTextBox_PreviewMouseWheel"
+                                                     GotFocus="LyricsEditor_GotFocus"/>
+                                            <Border Background="#CCFF6600"
+                                                    CornerRadius="0,0,10,0"
+                                                    Padding="12,5,12,5"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    IsHitTestVisible="False">
+                                                <TextBlock Text="4"
+                                                           FontSize="24"
+                                                           FontWeight="Bold"
+                                                           Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
                         </ScrollViewer>
                     </Grid>
                 </Grid>

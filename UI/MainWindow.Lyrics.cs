@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Database.Models.Enums;
 using static ImageColorChanger.Core.Constants;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
@@ -14,6 +17,7 @@ using WpfBrushes = System.Windows.Media.Brushes;
 using WpfFontFamily = System.Windows.Media.FontFamily;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfSize = System.Windows.Size;
+using WpfTextBox = System.Windows.Controls.TextBox;
 
 namespace ImageColorChanger.UI
 {
@@ -29,6 +33,15 @@ namespace ImageColorChanger.UI
         private bool _isLyricsMode = false; // 是否处于歌词模式
         private LyricsProject _currentLyricsProject = null; // 当前歌词项目
         private System.Windows.Threading.DispatcherTimer _lyricsAutoSaveTimer; // 自动保存计时器
+        private int _lyricsSplitMode = (int)ViewSplitMode.Single; // 歌词分割模式
+        private WpfTextBox _activeLyricsEditor = null; // 当前激活的歌词输入框
+        private bool _lyricsSplitBorderVisible = true; // 是否显示分割线
+        private bool _lyricsPagingMode = false; // 分页模式开关（仅分割模式下有效）
+        private bool _isSyncingPagingEditor = false; // 防止分页区域切换时 TextChanged 误回写
+        private const string LyricsSplitContentPrefix = "__LYRICS_SPLIT_V1__";
+        private const string LyricsPagesContentPrefix = "__LYRICS_PAGES_V2__";
+        private readonly List<LyricsSplitContentData> _lyricsSplitPages = new();
+        private int _lyricsCurrentPageIndex = 0;
 
         // ============================================
         // 公共属性
@@ -38,6 +51,624 @@ namespace ImageColorChanger.UI
         /// 是否处于歌词模式（供ProjectionManager访问）
         /// </summary>
         public bool IsInLyricsMode => _isLyricsMode;
+
+        private sealed class LyricsSplitContentData
+        {
+            public int SplitMode { get; set; }
+            public string[] Regions { get; set; } = new string[4];
+            public LyricsSplitRegionStyle[] RegionStyles { get; set; } = new LyricsSplitRegionStyle[4];
+        }
+
+        private sealed class LyricsPagesContentData
+        {
+            public int CurrentPageIndex { get; set; } = 0;
+            public List<LyricsSplitContentData> Pages { get; set; } = new();
+        }
+
+        private sealed class LyricsSplitRegionStyle
+        {
+            public double FontSize { get; set; } = 48;
+            public string TextAlign { get; set; } = "Center";
+            public string ColorHex { get; set; } = "";
+        }
+
+        private IEnumerable<WpfTextBox> GetCurrentLyricsEditors()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                yield return LyricsTextBox;
+                yield break;
+            }
+
+            switch ((ViewSplitMode)_lyricsSplitMode)
+            {
+                case ViewSplitMode.Horizontal:
+                case ViewSplitMode.Vertical:
+                    yield return LyricsSplitTextBox1;
+                    yield return LyricsSplitTextBox2;
+                    break;
+                case ViewSplitMode.TripleSplit:
+                    yield return LyricsSplitTextBox1;
+                    yield return LyricsSplitTextBox2;
+                    yield return LyricsSplitTextBox3;
+                    break;
+                case ViewSplitMode.Quad:
+                    yield return LyricsSplitTextBox1;
+                    yield return LyricsSplitTextBox2;
+                    yield return LyricsSplitTextBox3;
+                    yield return LyricsSplitTextBox4;
+                    break;
+                default:
+                    yield return LyricsSplitTextBox1;
+                    break;
+            }
+        }
+
+        private WpfTextBox GetActiveLyricsEditor()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return LyricsTextBox;
+            }
+
+            if (_activeLyricsEditor != null && GetCurrentLyricsEditors().Contains(_activeLyricsEditor))
+            {
+                return _activeLyricsEditor;
+            }
+
+            return GetCurrentLyricsEditors().FirstOrDefault() ?? LyricsSplitTextBox1;
+        }
+
+        private WpfTextBox GetSplitEditorByRegionIndex(int index)
+        {
+            return index switch
+            {
+                0 => LyricsSplitTextBox1,
+                1 => LyricsSplitTextBox2,
+                2 => LyricsSplitTextBox3,
+                3 => LyricsSplitTextBox4,
+                _ => LyricsSplitTextBox1
+            };
+        }
+
+        private void SyncSplitRegionFromPagingEditor()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single || !_lyricsPagingMode)
+            {
+                return;
+            }
+
+            var target = GetSplitEditorByRegionIndex(ClampPagingRegionIndex(_lyricsCurrentPageIndex));
+            target.Text = LyricsTextBox.Text ?? "";
+            target.FontSize = LyricsTextBox.FontSize;
+            target.TextAlignment = LyricsTextBox.TextAlignment;
+            target.Foreground = LyricsTextBox.Foreground;
+            SaveCurrentSplitPageFromUi();
+        }
+
+        private void SyncPagingEditorFromSplitRegion()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single || !_lyricsPagingMode)
+            {
+                return;
+            }
+
+            var source = GetSplitEditorByRegionIndex(ClampPagingRegionIndex(_lyricsCurrentPageIndex));
+            try
+            {
+                _isSyncingPagingEditor = true;
+                LyricsTextBox.Text = source.Text ?? "";
+                LyricsTextBox.FontSize = source.FontSize;
+                LyricsTextBox.TextAlignment = source.TextAlignment;
+                LyricsTextBox.Foreground = source.Foreground;
+                LyricsTextBox.Visibility = Visibility.Visible;
+                LyricsSplitGrid.Visibility = Visibility.Collapsed;
+                LyricsScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+                _activeLyricsEditor = LyricsTextBox;
+                LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
+                UpdateAlignmentButtonsState(LyricsTextBox.TextAlignment);
+                LyricsTextBox.Focus();
+            }
+            finally
+            {
+                _isSyncingPagingEditor = false;
+            }
+        }
+
+        private void RestoreSplitEditorView()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+
+            LyricsTextBox.Visibility = Visibility.Collapsed;
+            LyricsSplitGrid.Visibility = Visibility.Visible;
+            LyricsScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            _activeLyricsEditor = GetSplitEditorByRegionIndex(ClampPagingRegionIndex(_lyricsCurrentPageIndex));
+            LyricsFontSizeDisplay.Text = _activeLyricsEditor.FontSize.ToString("0");
+            UpdateAlignmentButtonsState(_activeLyricsEditor.TextAlignment);
+            _activeLyricsEditor.Focus();
+        }
+
+        private void ApplyLyricsEditorStyleToCurrentMode(Action<WpfTextBox> action)
+        {
+            foreach (var textBox in GetCurrentLyricsEditors())
+            {
+                action(textBox);
+            }
+        }
+
+        private void ApplyLyricsEditorStyleToActiveEditor(Action<WpfTextBox> action)
+        {
+            action(GetActiveLyricsEditor());
+        }
+
+        private TextAlignment ParseTextAlignmentOrDefault(string value, TextAlignment fallback = TextAlignment.Center)
+        {
+            if (Enum.TryParse<TextAlignment>(value, out var alignment))
+            {
+                return alignment;
+            }
+            return fallback;
+        }
+
+        private LyricsSplitContentData CreateDefaultSplitPage(ViewSplitMode mode, string seedText = "")
+        {
+            var page = new LyricsSplitContentData
+            {
+                SplitMode = (int)mode,
+                Regions = new[] { seedText ?? "", "", "", "" },
+                RegionStyles = Enumerable.Range(0, 4).Select(_ => new LyricsSplitRegionStyle()).ToArray()
+            };
+            return page;
+        }
+
+        private int GetSplitRegionCount(ViewSplitMode mode)
+        {
+            switch (mode)
+            {
+                case ViewSplitMode.Horizontal:
+                case ViewSplitMode.Vertical:
+                    return 2;
+                case ViewSplitMode.TripleSplit:
+                    return 3;
+                case ViewSplitMode.Quad:
+                    return 4;
+                default:
+                    return 1;
+            }
+        }
+
+        private int GetCurrentSplitRegionCount()
+        {
+            return GetSplitRegionCount((ViewSplitMode)_lyricsSplitMode);
+        }
+
+        private int ClampPagingRegionIndex(int index)
+        {
+            return Math.Clamp(index, 0, Math.Max(0, GetCurrentSplitRegionCount() - 1));
+        }
+
+        private void NormalizeSplitPages()
+        {
+            if (_lyricsSplitPages.Count == 0)
+            {
+                _lyricsSplitPages.Add(CreateDefaultSplitPage((ViewSplitMode)_lyricsSplitMode));
+            }
+
+            var page = _lyricsSplitPages[0] ?? CreateDefaultSplitPage((ViewSplitMode)_lyricsSplitMode);
+            if (_lyricsSplitPages.Count > 1)
+            {
+                _lyricsSplitPages.Clear();
+                _lyricsSplitPages.Add(page);
+                LogPagingDebug("[NormalizePages] collapsed to single split data");
+            }
+
+            if (page.Regions == null || page.Regions.Length < 4)
+            {
+                page.Regions = (page.Regions ?? Array.Empty<string>())
+                    .Concat(Enumerable.Repeat(string.Empty, 4))
+                    .Take(4)
+                    .ToArray();
+            }
+
+            var styles = page.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+            if (styles.Length < 4)
+            {
+                styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length).Select(_ => new LyricsSplitRegionStyle())).ToArray();
+            }
+            page.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
+            page.SplitMode = _lyricsSplitMode;
+
+            _lyricsCurrentPageIndex = ClampPagingRegionIndex(_lyricsCurrentPageIndex);
+        }
+
+        private LyricsSplitContentData GetCurrentSplitPage()
+        {
+            NormalizeSplitPages();
+            return _lyricsSplitPages[0];
+        }
+
+        private void EnsureSplitPagesInitialized(ViewSplitMode mode, string seedText = "")
+        {
+            NormalizeSplitPages();
+            var page = _lyricsSplitPages[0];
+            page.SplitMode = (int)mode;
+            if (string.IsNullOrWhiteSpace(page.Regions[0]) && !string.IsNullOrWhiteSpace(seedText))
+            {
+                page.Regions[0] = seedText;
+            }
+        }
+
+        private void SaveCurrentSplitPageFromUi()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+
+            var page = GetCurrentSplitPage();
+            page.SplitMode = _lyricsSplitMode;
+            page.Regions = new[]
+            {
+                LyricsSplitTextBox1.Text ?? "",
+                LyricsSplitTextBox2.Text ?? "",
+                LyricsSplitTextBox3.Text ?? "",
+                LyricsSplitTextBox4.Text ?? ""
+            };
+
+            var splitEditors = new[] { LyricsSplitTextBox1, LyricsSplitTextBox2, LyricsSplitTextBox3, LyricsSplitTextBox4 };
+            page.RegionStyles = splitEditors.Select(tb => new LyricsSplitRegionStyle
+            {
+                FontSize = tb.FontSize,
+                TextAlign = tb.TextAlignment.ToString(),
+                ColorHex = ColorToHex((tb.Foreground as SolidColorBrush)?.Color ?? HexToColor(_configManager.DefaultLyricsColor))
+            }).ToArray();
+        }
+
+        private void LoadCurrentSplitPageToUi()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+
+            var page = GetCurrentSplitPage();
+            if (page.Regions == null || page.Regions.Length < 4)
+            {
+                page.Regions = (page.Regions ?? Array.Empty<string>())
+                    .Concat(Enumerable.Repeat(string.Empty, 4))
+                    .Take(4)
+                    .ToArray();
+            }
+
+            var styles = page.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+            if (styles.Length < 4)
+            {
+                styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length).Select(_ => new LyricsSplitRegionStyle())).ToArray();
+            }
+
+            var splitEditors = new[] { LyricsSplitTextBox1, LyricsSplitTextBox2, LyricsSplitTextBox3, LyricsSplitTextBox4 };
+            LyricsSplitTextBox1.Text = page.Regions[0] ?? "";
+            LyricsSplitTextBox2.Text = page.Regions[1] ?? "";
+            LyricsSplitTextBox3.Text = page.Regions[2] ?? "";
+            LyricsSplitTextBox4.Text = page.Regions[3] ?? "";
+
+            for (int i = 0; i < splitEditors.Length; i++)
+            {
+                var style = styles[i] ?? new LyricsSplitRegionStyle();
+                splitEditors[i].FontSize = style.FontSize > 0 ? style.FontSize : 48;
+                splitEditors[i].TextAlignment = ParseTextAlignmentOrDefault(style.TextAlign, TextAlignment.Center);
+                splitEditors[i].Foreground = new SolidColorBrush(HexToColor(
+                    string.IsNullOrWhiteSpace(style.ColorHex) ? _configManager.DefaultLyricsColor : style.ColorHex));
+            }
+
+            _activeLyricsEditor = splitEditors[0];
+            LyricsFontSizeDisplay.Text = _activeLyricsEditor.FontSize.ToString("0");
+            UpdateAlignmentButtonsState(_activeLyricsEditor.TextAlignment);
+        }
+
+        private void ShowSplitPageStatus()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+
+            if (_lyricsPagingMode)
+            {
+                ShowStatus($"📄 分页 {(_lyricsCurrentPageIndex + 1)}/{GetCurrentSplitRegionCount()}");
+            }
+            else
+            {
+                ShowStatus($"✨ 分割模式：{(ViewSplitMode)_lyricsSplitMode}");
+            }
+        }
+
+        private void UpdatePagingNavVisibility()
+        {
+            if (LyricsPageNavPanel == null)
+            {
+                return;
+            }
+
+            bool visible = _lyricsSplitMode != (int)ViewSplitMode.Single;
+            LyricsPageNavPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            if (!visible)
+            {
+                return;
+            }
+
+            BtnLyricsPagingToggle.Content = "分页";
+            BtnLyricsPagingToggle.Background = _lyricsPagingMode
+                ? new SolidColorBrush(WpfColor.FromRgb(76, 175, 80))
+                : new SolidColorBrush(WpfColor.FromRgb(44, 44, 44));
+            BtnLyricsPagingToggle.BorderBrush = _lyricsPagingMode
+                ? new SolidColorBrush(WpfColor.FromRgb(129, 199, 132))
+                : new SolidColorBrush(WpfColor.FromRgb(68, 68, 68));
+            BtnLyricsPagingToggle.Foreground = WpfBrushes.White;
+            int total = GetCurrentSplitRegionCount();
+            BtnLyricsPageUp.IsEnabled = true;
+            BtnLyricsPageDown.IsEnabled = true;
+            if (LyricsPagingStateText != null)
+            {
+                int current = _lyricsPagingMode
+                    ? Math.Clamp(_lyricsCurrentPageIndex + 1, 1, total)
+                    : 1;
+                LyricsPagingStateText.Text = $"{current}/{total}";
+            }
+        }
+
+        private void SetLyricsPagingMode(bool enabled)
+        {
+            LogPagingDebug($"[Toggle-Begin] enabled={enabled}, splitMode={_lyricsSplitMode}, paging={_lyricsPagingMode}, region={_lyricsCurrentPageIndex + 1}, totalRegion={GetCurrentSplitRegionCount()}");
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                _lyricsPagingMode = false;
+                UpdatePagingNavVisibility();
+                ShowStatus("⚠️ 请先选择分割模式，再进入分页");
+                LogPagingDebug("[Toggle-End] blocked: split single");
+                return;
+            }
+
+            SaveCurrentSplitPageFromUi();
+            NormalizeSplitPages();
+            _lyricsPagingMode = enabled;
+            _lyricsCurrentPageIndex = enabled ? 0 : ClampPagingRegionIndex(_lyricsCurrentPageIndex);
+
+            if (_lyricsPagingMode)
+            {
+                RestoreSplitEditorView();
+                ShowStatus($"✅ 已进入分页（{_lyricsCurrentPageIndex + 1}/{GetCurrentSplitRegionCount()}）");
+                SyncPagingEditorFromSplitRegion();
+            }
+            else
+            {
+                SyncSplitRegionFromPagingEditor();
+                _lyricsCurrentPageIndex = 0;
+                RestoreSplitEditorView();
+                ShowStatus("✅ 已退出分页，恢复分割显示");
+            }
+
+            UpdatePagingNavVisibility();
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+            LogPagingDebug($"[Toggle-End] paging={_lyricsPagingMode}, region={_lyricsCurrentPageIndex + 1}, totalRegion={GetCurrentSplitRegionCount()}");
+        }
+
+
+        private void SetLyricsSplitMode(ViewSplitMode mode, bool keepTextBridge = true)
+        {
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                SaveCurrentSplitPageFromUi();
+            }
+
+            _lyricsSplitMode = (int)mode;
+
+            if (mode == ViewSplitMode.Single)
+            {
+                _lyricsPagingMode = false;
+                if (keepTextBridge)
+                {
+                    LyricsTextBox.Text = string.Join(
+                        Environment.NewLine + Environment.NewLine,
+                        new[] { LyricsSplitTextBox1.Text, LyricsSplitTextBox2.Text, LyricsSplitTextBox3.Text, LyricsSplitTextBox4.Text }
+                            .Where(t => !string.IsNullOrWhiteSpace(t)));
+                }
+
+                LyricsTextBox.Visibility = Visibility.Visible;
+                LyricsSplitGrid.Visibility = Visibility.Collapsed;
+                LyricsSplitRegion1.Visibility = Visibility.Collapsed;
+                LyricsSplitRegion2.Visibility = Visibility.Collapsed;
+                LyricsSplitRegion3.Visibility = Visibility.Collapsed;
+                LyricsSplitRegion4.Visibility = Visibility.Collapsed;
+                _activeLyricsEditor = LyricsTextBox;
+                LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
+                UpdateAlignmentButtonsState(LyricsTextBox.TextAlignment);
+                LyricsScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+                UpdatePagingNavVisibility();
+                return;
+            }
+
+            LyricsTextBox.Visibility = Visibility.Collapsed;
+            LyricsSplitGrid.Visibility = Visibility.Visible;
+            LyricsScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+
+            EnsureSplitPagesInitialized(mode, keepTextBridge ? LyricsTextBox.Text : "");
+            GetCurrentSplitPage().SplitMode = (int)mode;
+            _lyricsCurrentPageIndex = ClampPagingRegionIndex(_lyricsCurrentPageIndex);
+
+            ConfigureSplitRegion(LyricsSplitRegion1, 0, 0, 1, 1, false);
+            ConfigureSplitRegion(LyricsSplitRegion2, 0, 1, 1, 1, false);
+            ConfigureSplitRegion(LyricsSplitRegion3, 1, 0, 1, 1, false);
+            ConfigureSplitRegion(LyricsSplitRegion4, 1, 1, 1, 1, false);
+
+            switch (mode)
+            {
+                case ViewSplitMode.Horizontal:
+                    ConfigureSplitRegion(LyricsSplitRegion1, 0, 0, 2, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion2, 0, 1, 2, 1, true);
+                    break;
+                case ViewSplitMode.Vertical:
+                    ConfigureSplitRegion(LyricsSplitRegion1, 0, 0, 1, 2, true);
+                    ConfigureSplitRegion(LyricsSplitRegion2, 1, 0, 1, 2, true);
+                    break;
+                case ViewSplitMode.TripleSplit:
+                    ConfigureSplitRegion(LyricsSplitRegion1, 0, 0, 1, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion2, 1, 0, 1, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion3, 0, 1, 2, 1, true);
+                    break;
+                case ViewSplitMode.Quad:
+                    ConfigureSplitRegion(LyricsSplitRegion1, 0, 0, 1, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion2, 0, 1, 1, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion3, 1, 0, 1, 1, true);
+                    ConfigureSplitRegion(LyricsSplitRegion4, 1, 1, 1, 1, true);
+                    break;
+            }
+
+            LoadCurrentSplitPageToUi();
+            if (_lyricsPagingMode)
+            {
+                SyncPagingEditorFromSplitRegion();
+            }
+            else
+            {
+                _activeLyricsEditor?.Focus();
+            }
+            ShowSplitPageStatus();
+            UpdatePagingNavVisibility();
+        }
+
+        private void ConfigureSplitRegion(Border region, int row, int column, int rowSpan, int columnSpan, bool visible)
+        {
+            region.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            Grid.SetRow(region, row);
+            Grid.SetColumn(region, column);
+            Grid.SetRowSpan(region, rowSpan);
+            Grid.SetColumnSpan(region, columnSpan);
+            region.BorderThickness = visible && _lyricsSplitBorderVisible ? new Thickness(1) : new Thickness(0);
+        }
+
+        private void RefreshSplitBorders()
+        {
+            var visibleThickness = _lyricsSplitBorderVisible ? new Thickness(1) : new Thickness(0);
+            if (LyricsSplitRegion1.Visibility == Visibility.Visible) LyricsSplitRegion1.BorderThickness = visibleThickness;
+            if (LyricsSplitRegion2.Visibility == Visibility.Visible) LyricsSplitRegion2.BorderThickness = visibleThickness;
+            if (LyricsSplitRegion3.Visibility == Visibility.Visible) LyricsSplitRegion3.BorderThickness = visibleThickness;
+            if (LyricsSplitRegion4.Visibility == Visibility.Visible) LyricsSplitRegion4.BorderThickness = visibleThickness;
+        }
+
+        private bool TryParseSplitLyricsContent(string content, out LyricsSplitContentData splitData)
+        {
+            splitData = null;
+            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsSplitContentPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string json = content.Substring(LyricsSplitContentPrefix.Length);
+            try
+            {
+                splitData = JsonSerializer.Deserialize<LyricsSplitContentData>(json);
+                if (splitData == null)
+                {
+                    return false;
+                }
+
+                if (splitData.Regions == null || splitData.Regions.Length < 4)
+                {
+                    splitData.Regions = (splitData.Regions ?? Array.Empty<string>())
+                        .Concat(Enumerable.Repeat(string.Empty, 4))
+                        .Take(4)
+                        .ToArray();
+                }
+
+                if (splitData.SplitMode < (int)ViewSplitMode.Single || splitData.SplitMode > (int)ViewSplitMode.Quad)
+                {
+                    splitData.SplitMode = (int)ViewSplitMode.Single;
+                }
+
+                var styles = splitData.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+                if (styles.Length < 4)
+                {
+                    styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
+                        .Select(_ => new LyricsSplitRegionStyle())).ToArray();
+                }
+                splitData.RegionStyles = styles.Take(4)
+                    .Select(s => s ?? new LyricsSplitRegionStyle())
+                    .ToArray();
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool TryParsePagesLyricsContent(string content, out LyricsPagesContentData pagesData)
+        {
+            pagesData = null;
+            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsPagesContentPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string json = content.Substring(LyricsPagesContentPrefix.Length);
+            try
+            {
+                pagesData = JsonSerializer.Deserialize<LyricsPagesContentData>(json);
+                if (pagesData == null)
+                {
+                    return false;
+                }
+
+                pagesData.Pages ??= new List<LyricsSplitContentData>();
+                if (pagesData.Pages.Count == 0)
+                {
+                    pagesData.Pages.Add(CreateDefaultSplitPage(ViewSplitMode.Horizontal));
+                }
+
+                for (int i = 0; i < pagesData.Pages.Count; i++)
+                {
+                    var page = pagesData.Pages[i] ?? CreateDefaultSplitPage(ViewSplitMode.Horizontal);
+                    pagesData.Pages[i] = page;
+
+                    if (page.Regions == null || page.Regions.Length < 4)
+                    {
+                        page.Regions = (page.Regions ?? Array.Empty<string>())
+                            .Concat(Enumerable.Repeat(string.Empty, 4))
+                            .Take(4)
+                            .ToArray();
+                    }
+
+                    var styles = page.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+                    if (styles.Length < 4)
+                    {
+                        styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
+                            .Select(_ => new LyricsSplitRegionStyle())).ToArray();
+                    }
+                    page.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
+
+                    if (page.SplitMode < (int)ViewSplitMode.Horizontal || page.SplitMode > (int)ViewSplitMode.Quad)
+                    {
+                        page.SplitMode = (int)ViewSplitMode.Horizontal;
+                    }
+                }
+
+                pagesData.CurrentPageIndex = Math.Clamp(pagesData.CurrentPageIndex, 0, pagesData.Pages.Count - 1);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         // ============================================
         // 进入/退出歌词模式
@@ -76,7 +707,7 @@ namespace ImageColorChanger.UI
             // 聚焦到文本框
             Dispatcher.InvokeAsync(() =>
             {
-                LyricsTextBox.Focus();
+                GetActiveLyricsEditor().Focus();
             }, System.Windows.Threading.DispatcherPriority.Loaded);
 
             // 🔧 隐藏合成播放按钮面板（歌词模式不需要）
@@ -162,15 +793,17 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsFontSizeDisplay_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            double currentSize = LyricsTextBox.FontSize;
+            var activeEditor = GetActiveLyricsEditor();
+            double currentSize = activeEditor.FontSize;
             
             if (e.Delta > 0)
             {
                 // 向上滚动 - 增大字号
                 if (currentSize < 200)
                 {
-                    LyricsTextBox.FontSize = Math.Min(200, currentSize + 4);
-                    LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
+                    double newSize = Math.Min(200, currentSize + 4);
+                    ApplyLyricsEditorStyleToActiveEditor(tb => tb.FontSize = newSize);
+                    LyricsFontSizeDisplay.Text = newSize.ToString("0");
 
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
@@ -182,8 +815,9 @@ namespace ImageColorChanger.UI
                 // 向下滚动 - 减小字号
                 if (currentSize > 20)
                 {
-                    LyricsTextBox.FontSize = Math.Max(20, currentSize - 4);
-                    LyricsFontSizeDisplay.Text = LyricsTextBox.FontSize.ToString("0");
+                    double newSize = Math.Max(20, currentSize - 4);
+                    ApplyLyricsEditorStyleToActiveEditor(tb => tb.FontSize = newSize);
+                    LyricsFontSizeDisplay.Text = newSize.ToString("0");
 
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
@@ -192,6 +826,10 @@ namespace ImageColorChanger.UI
             }
             
             e.Handled = true;
+            if (_lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
 
             // 字号改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -220,7 +858,7 @@ namespace ImageColorChanger.UI
             var colorDialog = new System.Windows.Forms.ColorDialog();
 
             // 设置默认颜色为当前颜色
-            var currentColor = (LyricsTextBox.Foreground as System.Windows.Media.SolidColorBrush)?.Color 
+            var currentColor = (GetActiveLyricsEditor().Foreground as System.Windows.Media.SolidColorBrush)?.Color 
                 ?? HexToColor(_configManager.DefaultLyricsColor);
             colorDialog.Color = System.Drawing.Color.FromArgb(
                 currentColor.A, currentColor.R, currentColor.G, currentColor.B);
@@ -229,7 +867,14 @@ namespace ImageColorChanger.UI
             {
                 var color = colorDialog.Color;
                 SetLyricsColor(color.R, color.G, color.B);
-                ShowStatus($"✨ 全局歌词颜色已更新");
+                if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                {
+                    ShowStatus("✨ 全局歌词颜色已更新");
+                }
+                else
+                {
+                    ShowStatus("✨ 当前分区歌词颜色已更新");
+                }
 
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-全局] 自定义颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
@@ -245,8 +890,12 @@ namespace ImageColorChanger.UI
             // 转换为十六进制格式
             string hexColor = $"#{r:X2}{g:X2}{b:X2}";
 
-            // 更新全局默认颜色配置（保存到config.json）
-            _configManager.DefaultLyricsColor = hexColor;
+            bool isSplitMode = _lyricsSplitMode != (int)ViewSplitMode.Single;
+            if (!isSplitMode)
+            {
+                // 单画面仍然沿用全局默认颜色行为
+                _configManager.DefaultLyricsColor = hexColor;
+            }
 
 //#if DEBUG
 //            Debug.WriteLine($"[歌词-全局] 颜色更改为 {hexColor}");
@@ -254,7 +903,18 @@ namespace ImageColorChanger.UI
 
             // 更新当前UI显示
             var brush = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(r, g, b));
-            LyricsTextBox.Foreground = brush;
+            if (isSplitMode)
+            {
+                ApplyLyricsEditorStyleToActiveEditor(tb => tb.Foreground = brush);
+            }
+            else
+            {
+                ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = brush);
+            }
+            if (_lyricsPagingMode && isSplitMode)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
 
             // 颜色改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -272,7 +932,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnLyricsAlignLeft_Click(object sender, RoutedEventArgs e)
         {
-            LyricsTextBox.TextAlignment = TextAlignment.Left;
+            ApplyLyricsEditorStyleToActiveEditor(tb => tb.TextAlignment = TextAlignment.Left);
+            if (_lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
             UpdateAlignmentButtonsState(TextAlignment.Left);
 
 //#if DEBUG
@@ -291,7 +955,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnLyricsAlignCenter_Click(object sender, RoutedEventArgs e)
         {
-            LyricsTextBox.TextAlignment = TextAlignment.Center;
+            ApplyLyricsEditorStyleToActiveEditor(tb => tb.TextAlignment = TextAlignment.Center);
+            if (_lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
             UpdateAlignmentButtonsState(TextAlignment.Center);
 
 //#if DEBUG
@@ -310,7 +978,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnLyricsAlignRight_Click(object sender, RoutedEventArgs e)
         {
-            LyricsTextBox.TextAlignment = TextAlignment.Right;
+            ApplyLyricsEditorStyleToActiveEditor(tb => tb.TextAlignment = TextAlignment.Right);
+            if (_lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
             UpdateAlignmentButtonsState(TextAlignment.Right);
 
 //#if DEBUG
@@ -378,8 +1050,8 @@ namespace ImageColorChanger.UI
 
             if (result == MessageBoxResult.Yes)
             {
-                LyricsTextBox.Text = "";
-                LyricsTextBox.Focus();
+                ApplyLyricsEditorStyleToCurrentMode(tb => tb.Text = "");
+                GetActiveLyricsEditor().Focus();
 
 //#if DEBUG
 //                Debug.WriteLine("[歌词] 清空内容");
@@ -397,6 +1069,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (sender == LyricsTextBox && _lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single && !_isSyncingPagingEditor)
+            {
+                SyncSplitRegionFromPagingEditor();
+            }
+
             // 内容改变时重置自动保存计时器
             if (_lyricsAutoSaveTimer != null && _lyricsAutoSaveTimer.IsEnabled)
             {
@@ -418,6 +1095,94 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void ClearCurrentLyricsRegion()
+        {
+            GetActiveLyricsEditor().Text = string.Empty;
+            SaveLyricsProject();
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+        }
+
+        private void ClearAllLyricsRegions()
+        {
+            var result = WpfMessageBox.Show(
+                "确定要清空全部分区歌词内容吗？",
+                "确认清空",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            foreach (var editor in GetCurrentLyricsEditors())
+            {
+                editor.Text = string.Empty;
+            }
+
+            SaveLyricsProject();
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+        }
+
+        private void LyricsEditor_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is WpfTextBox textBox)
+            {
+                _activeLyricsEditor = textBox;
+                LyricsFontSizeDisplay.Text = textBox.FontSize.ToString("0");
+                UpdateAlignmentButtonsState(textBox.TextAlignment);
+            }
+        }
+
+        private void BtnLyricsPageUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+            if (!_lyricsPagingMode)
+            {
+                ShowStatus("⚠️ 请先点击“分页”");
+                LogPagingDebug("[PageUp] blocked: paging=false");
+                return;
+            }
+            LogPagingDebug($"[PageUp] currentRegion={_lyricsCurrentPageIndex + 1}, totalRegion={GetCurrentSplitRegionCount()}");
+            GoToSplitPage(_lyricsCurrentPageIndex - 1);
+        }
+
+        private void BtnLyricsPagingToggle_Click(object sender, RoutedEventArgs e)
+        {
+            LogPagingDebug($"[BtnPagingClick] before={_lyricsPagingMode}");
+            SetLyricsPagingMode(!_lyricsPagingMode);
+        }
+
+        private void BtnLyricsPageDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                LogPagingDebug("[PageDown] blocked: split single");
+                return;
+            }
+            if (!_lyricsPagingMode)
+            {
+                ShowStatus("⚠️ 请先点击“分页”");
+                LogPagingDebug("[PageDown] blocked: paging=false");
+                return;
+            }
+
+            LogPagingDebug($"[PageDown] currentRegion={_lyricsCurrentPageIndex + 1}, totalRegion={GetCurrentSplitRegionCount()}");
+            GoToSplitPage(_lyricsCurrentPageIndex + 1);
+        }
+
+
         /// <summary>
         /// 键盘事件处理
         /// </summary>
@@ -429,6 +1194,24 @@ namespace ImageColorChanger.UI
                 SaveLyricsProject();
                 ShowToast("歌词已保存");
                 e.Handled = true;
+                return;
+            }
+
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single && _lyricsPagingMode && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Key == Key.PageDown)
+                {
+                    GoToSplitPage(_lyricsCurrentPageIndex + 1);
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key == Key.PageUp)
+                {
+                    GoToSplitPage(_lyricsCurrentPageIndex - 1);
+                    e.Handled = true;
+                    return;
+                }
             }
         }
 
@@ -467,6 +1250,36 @@ namespace ImageColorChanger.UI
             
             // 应用自定义样式
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+
+            var splitMenuItem = new MenuItem
+            {
+                Header = "分割",
+                Height = 36
+            };
+
+            AddSplitMenuItem(splitMenuItem, "单画面", ViewSplitMode.Single);
+            AddSplitMenuItem(splitMenuItem, "左右分割", ViewSplitMode.Horizontal);
+            AddSplitMenuItem(splitMenuItem, "上下分割", ViewSplitMode.Vertical);
+            AddSplitMenuItem(splitMenuItem, "三分割", ViewSplitMode.TripleSplit);
+            AddSplitMenuItem(splitMenuItem, "四分割", ViewSplitMode.Quad);
+            splitMenuItem.Items.Add(new Separator());
+
+            var borderToggleItem = new MenuItem
+            {
+                Header = "显示分割线",
+                IsCheckable = true,
+                IsChecked = _lyricsSplitBorderVisible,
+                Height = 36
+            };
+            borderToggleItem.Click += (s, args) =>
+            {
+                _lyricsSplitBorderVisible = borderToggleItem.IsChecked;
+                RefreshSplitBorders();
+                ShowStatus(_lyricsSplitBorderVisible ? "✨ 已显示分割线" : "✨ 已隐藏分割线");
+            };
+            splitMenuItem.Items.Add(borderToggleItem);
+
+            contextMenu.Items.Add(splitMenuItem);
             
             // 颜色菜单（第一位）
             var colorMenuItem = new MenuItem 
@@ -476,7 +1289,7 @@ namespace ImageColorChanger.UI
             };
 
             // 获取当前颜色
-            var currentColor = (LyricsTextBox.Foreground as System.Windows.Media.SolidColorBrush)?.Color 
+            var currentColor = (GetActiveLyricsEditor().Foreground as System.Windows.Media.SolidColorBrush)?.Color 
                 ?? System.Windows.Media.Colors.White;
 
             // 预设颜色
@@ -503,7 +1316,14 @@ namespace ImageColorChanger.UI
                 colorItem.Click += (s, args) =>
                 {
                     SetLyricsColor(currentPreset.R, currentPreset.G, currentPreset.B);
-                    ShowStatus($"✨ 歌词颜色: {currentPreset.Name}");
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        ShowStatus($"✨ 歌词颜色: {currentPreset.Name}");
+                    }
+                    else
+                    {
+                        ShowStatus($"✨ 当前分区颜色: {currentPreset.Name}");
+                    }
                 };
 
                 colorMenuItem.Items.Add(colorItem);
@@ -522,6 +1342,24 @@ namespace ImageColorChanger.UI
             colorMenuItem.Items.Add(customColorItem);
 
             contextMenu.Items.Add(colorMenuItem);
+
+            contextMenu.Items.Add(new Separator());
+
+            var clearCurrentRegionItem = new MenuItem
+            {
+                Header = _lyricsSplitMode == (int)ViewSplitMode.Single ? "清空歌词" : "清空当前分区",
+                Height = 36
+            };
+            clearCurrentRegionItem.Click += (s, args) => ClearCurrentLyricsRegion();
+            contextMenu.Items.Add(clearCurrentRegionItem);
+
+            var clearAllRegionsItem = new MenuItem
+            {
+                Header = _lyricsSplitMode == (int)ViewSplitMode.Single ? "清空歌词(确认)" : "清空全部分区",
+                Height = 36
+            };
+            clearAllRegionsItem.Click += (s, args) => ClearAllLyricsRegions();
+            contextMenu.Items.Add(clearAllRegionsItem);
             
             // 退出歌词模式选项
             var exitLyricsItem = new MenuItem 
@@ -538,6 +1376,61 @@ namespace ImageColorChanger.UI
             
             e.Handled = true;
         }
+
+        private void AddSplitMenuItem(MenuItem parent, string title, ViewSplitMode mode)
+        {
+            var item = new MenuItem
+            {
+                Header = title,
+                IsCheckable = true,
+                IsChecked = _lyricsSplitMode == (int)mode,
+                Height = 36
+            };
+
+            item.Click += (s, e) =>
+            {
+                SetLyricsSplitMode(mode);
+                SaveLyricsProject();
+                ShowStatus($"✨ 歌词分割: {title}");
+
+                if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+                {
+                    RenderLyricsToProjection();
+                }
+            };
+
+            parent.Items.Add(item);
+        }
+
+        private void GoToSplitPage(int index)
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single || !_lyricsPagingMode)
+            {
+                LogPagingDebug($"[GoPage] blocked split={_lyricsSplitMode}, paging={_lyricsPagingMode}");
+                return;
+            }
+
+            int total = GetCurrentSplitRegionCount();
+            LogPagingDebug($"[GoPage-Begin] target={index + 1}, current={_lyricsCurrentPageIndex + 1}, totalRegion={total}");
+            SyncSplitRegionFromPagingEditor();
+            _lyricsCurrentPageIndex = Math.Clamp(index, 0, total - 1);
+            SyncPagingEditorFromSplitRegion();
+            UpdatePagingNavVisibility();
+            ShowStatus($"📄 当前第 {_lyricsCurrentPageIndex + 1}/{total} 页");
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+            LogPagingDebug($"[GoPage-End] current={_lyricsCurrentPageIndex + 1}, totalRegion={total}");
+        }
+
+        [Conditional("DEBUG")]
+        private void LogPagingDebug(string message)
+        {
+            _ = message;
+        }
+
 
         // ============================================
         // 数据管理
@@ -609,21 +1502,65 @@ namespace ImageColorChanger.UI
 //#endif
                     }
 
-                    LyricsTextBox.Text = _currentLyricsProject.Content ?? "";
-                    LyricsTextBox.FontSize = _currentLyricsProject.FontSize;
-                    LyricsFontSizeDisplay.Text = _currentLyricsProject.FontSize.ToString("0");
+                    string content = _currentLyricsProject.Content ?? "";
+                    _lyricsSplitPages.Clear();
+                    _lyricsCurrentPageIndex = 0;
+
+                    if (TryParsePagesLyricsContent(content, out var pagesData))
+                    {
+                        _lyricsSplitPages.Add(pagesData.Pages[0]);
+                        _lyricsCurrentPageIndex = 0;
+                        var loadedMode = (ViewSplitMode)_lyricsSplitPages[0].SplitMode;
+                        SetLyricsSplitMode(loadedMode, keepTextBridge: false);
+                        LogPagingDebug("[Load] legacy pages content detected, collapsed to single split data");
+                    }
+                    else if (TryParseSplitLyricsContent(content, out var splitData))
+                    {
+                        _lyricsSplitPages.Add(splitData);
+                        _lyricsCurrentPageIndex = 0;
+                        SetLyricsSplitMode((ViewSplitMode)splitData.SplitMode, keepTextBridge: false);
+                    }
+                    else
+                    {
+                        SetLyricsSplitMode(ViewSplitMode.Single, keepTextBridge: false);
+                        LyricsTextBox.Text = content;
+                        LyricsSplitTextBox1.Text = "";
+                        LyricsSplitTextBox2.Text = "";
+                        LyricsSplitTextBox3.Text = "";
+                        LyricsSplitTextBox4.Text = "";
+                    }
+
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _currentLyricsProject.FontSize);
+                        LyricsFontSizeDisplay.Text = _currentLyricsProject.FontSize.ToString("0");
+                    }
+                    else
+                    {
+                        LyricsFontSizeDisplay.Text = GetActiveLyricsEditor().FontSize.ToString("0");
+                    }
 
                     // 始终使用全局默认颜色（不从数据库读取）
                     var textColor = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor));
-                    LyricsTextBox.Foreground = textColor;
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = textColor);
+                    }
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词-颜色] 使用全局默认颜色: {_configManager.DefaultLyricsColor}");
 //#endif
 
                     // 恢复对齐方式
-                    var alignment = (TextAlignment)Enum.Parse(typeof(TextAlignment), _currentLyricsProject.TextAlign);
-                    LyricsTextBox.TextAlignment = alignment;
-                    UpdateAlignmentButtonsState(alignment);
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        var alignment = ParseTextAlignmentOrDefault(_currentLyricsProject.TextAlign, TextAlignment.Center);
+                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = alignment);
+                        UpdateAlignmentButtonsState(alignment);
+                    }
+                    else
+                    {
+                        UpdateAlignmentButtonsState(GetActiveLyricsEditor().TextAlignment);
+                    }
 
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词] 加载项目完成: {_currentLyricsProject.Name}");
@@ -651,12 +1588,19 @@ namespace ImageColorChanger.UI
                     _dbContext.LyricsProjects.Add(_currentLyricsProject);
                     _dbContext.SaveChanges();
                     
-                    // 🔧 清空TextBox内容（新项目没有歌词）
+                    // 🔧 清空歌词内容（新项目没有歌词）
+                    _lyricsSplitPages.Clear();
+                    _lyricsCurrentPageIndex = 0;
+                    SetLyricsSplitMode(ViewSplitMode.Single, keepTextBridge: false);
                     LyricsTextBox.Text = "";
-                    LyricsTextBox.FontSize = 48;
+                    LyricsSplitTextBox1.Text = "";
+                    LyricsSplitTextBox2.Text = "";
+                    LyricsSplitTextBox3.Text = "";
+                    LyricsSplitTextBox4.Text = "";
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = 48);
                     LyricsFontSizeDisplay.Text = "48";
-                    LyricsTextBox.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor));
-                    LyricsTextBox.TextAlignment = TextAlignment.Center;
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
 
                     // 初始化对齐按钮状态
                     UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -689,6 +1633,19 @@ namespace ImageColorChanger.UI
                 FontSize = 48,
                 TextAlign = "Center"
             };
+
+            _lyricsSplitPages.Clear();
+            _lyricsCurrentPageIndex = 0;
+            SetLyricsSplitMode(ViewSplitMode.Single, keepTextBridge: false);
+            LyricsTextBox.Text = "";
+            LyricsSplitTextBox1.Text = "";
+            LyricsSplitTextBox2.Text = "";
+            LyricsSplitTextBox3.Text = "";
+            LyricsSplitTextBox4.Text = "";
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = 48);
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
+            LyricsFontSizeDisplay.Text = "48";
             
             // 初始化对齐按钮状态
             UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -704,10 +1661,22 @@ namespace ImageColorChanger.UI
 
             try
             {
+                var activeEditor = GetActiveLyricsEditor();
+
                 // 更新内容（不保存颜色，使用全局配置）
-                _currentLyricsProject.Content = LyricsTextBox.Text;
-                _currentLyricsProject.FontSize = LyricsTextBox.FontSize;
-                _currentLyricsProject.TextAlign = LyricsTextBox.TextAlignment.ToString();
+                if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                {
+                    _currentLyricsProject.Content = LyricsTextBox.Text;
+                }
+                else
+                {
+                    SaveCurrentSplitPageFromUi();
+                    NormalizeSplitPages();
+                    _currentLyricsProject.Content = LyricsSplitContentPrefix + JsonSerializer.Serialize(_lyricsSplitPages[0]);
+                }
+
+                _currentLyricsProject.FontSize = activeEditor.FontSize;
+                _currentLyricsProject.TextAlign = activeEditor.TextAlignment.ToString();
                 _currentLyricsProject.ModifiedTime = DateTime.Now;
 
                 // 保存到数据库
@@ -760,10 +1729,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenderLyricsToProjection()
         {
+            Action caretRestore = () => { };
             try
             {
+                caretRestore = HideAllLyricsCaretsForProjection();
                 // 🔧 获取投影屏幕的物理分辨率（用于高质量渲染）
                 var (physicalWidth, physicalHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
+
+                if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+                {
+                    RenderSplitLyricsToProjection(physicalWidth, physicalHeight);
+                    return;
+                }
 
                 // ========================================
                 // ✅ 使用 WPF TextBlock 渲染到物理分辨率（确保高清晰度）
@@ -841,6 +1818,266 @@ namespace ImageColorChanger.UI
                 _ = ex;
 #endif
                 WpfMessageBox.Show($"投影失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                caretRestore();
+            }
+        }
+
+        private Action HideAllLyricsCaretsForProjection()
+        {
+            var allEditors = new[] { LyricsTextBox, LyricsSplitTextBox1, LyricsSplitTextBox2, LyricsSplitTextBox3, LyricsSplitTextBox4 };
+            var backups = new List<(WpfTextBox Tb, System.Windows.Media.Brush Brush)>(allEditors.Length);
+            foreach (var tb in allEditors)
+            {
+                if (tb == null)
+                {
+                    continue;
+                }
+
+                backups.Add((tb, tb.CaretBrush));
+                tb.CaretBrush = WpfBrushes.Transparent;
+            }
+
+            return () =>
+            {
+                foreach (var (tb, brush) in backups)
+                {
+                    tb.CaretBrush = brush;
+                }
+            };
+        }
+
+        private void RenderSplitLyricsToProjection(double physicalWidth, double physicalHeight)
+        {
+            if (_lyricsPagingMode)
+            {
+                RenderPagingRegionToProjection(physicalWidth, physicalHeight);
+                return;
+            }
+
+            if (LyricsSplitGrid == null || LyricsSplitGrid.ActualWidth <= 0 || LyricsSplitGrid.ActualHeight <= 0)
+            {
+                return;
+            }
+
+            var canvas = new Canvas
+            {
+                Width = physicalWidth,
+                Height = physicalHeight,
+                Background = WpfBrushes.Black
+            };
+
+            var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
+            double fontScale = physicalWidth / wpfWidth;
+            foreach (var region in GetSplitRenderRegions(physicalWidth, physicalHeight))
+            {
+                AddSplitRegionTextElement(canvas, region.Rect, region.Editor, region.Text, fontScale);
+            }
+
+            AddSplitOverlayForProjection(canvas, physicalWidth, physicalHeight);
+
+            canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
+            canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
+            canvas.UpdateLayout();
+
+            var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                (int)physicalWidth, (int)physicalHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            renderBitmap.Render(canvas);
+            renderBitmap.Freeze();
+
+            var skBitmap = ConvertToSKBitmap(renderBitmap);
+            if (skBitmap != null)
+            {
+                _projectionManager?.UpdateProjectionText(skBitmap);
+                skBitmap.Dispose();
+            }
+        }
+
+        private void RenderPagingRegionToProjection(double physicalWidth, double physicalHeight)
+        {
+            int regionIndex = ClampPagingRegionIndex(_lyricsCurrentPageIndex);
+            var regions = GetSplitRenderRegions(physicalWidth, physicalHeight).ToList();
+            if (regions.Count == 0)
+            {
+                return;
+            }
+
+            var current = regions[Math.Min(regionIndex, regions.Count - 1)];
+            var canvas = new Canvas
+            {
+                Width = physicalWidth,
+                Height = physicalHeight,
+                Background = WpfBrushes.Black
+            };
+
+            var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
+            double fontScale = physicalWidth / wpfWidth;
+            AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale);
+
+            canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
+            canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
+            canvas.UpdateLayout();
+
+            var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                (int)physicalWidth, (int)physicalHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            renderBitmap.Render(canvas);
+            renderBitmap.Freeze();
+
+            var skBitmap = ConvertToSKBitmap(renderBitmap);
+            if (skBitmap != null)
+            {
+                _projectionManager?.UpdateProjectionText(skBitmap);
+                skBitmap.Dispose();
+            }
+        }
+
+        private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale)
+        {
+            var host = new Grid
+            {
+                Width = Math.Max(0, rect.Width),
+                Height = Math.Max(0, rect.Height),
+                Background = WpfBrushes.Transparent
+            };
+
+            var textBlock = new TextBlock
+            {
+                Text = text ?? "",
+                FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                FontSize = editor.FontSize * fontScale,
+                Foreground = editor.Foreground,
+                TextAlignment = editor.TextAlignment,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                Padding = new Thickness(10 * fontScale, 30 * fontScale, 10 * fontScale, 10 * fontScale)
+            };
+
+            host.Children.Add(textBlock);
+            Canvas.SetLeft(host, rect.X);
+            Canvas.SetTop(host, rect.Y);
+            canvas.Children.Add(host);
+        }
+
+        private void AddSplitOverlayForProjection(Canvas canvas, double width, double height)
+        {
+            double halfWidth = width / 2.0;
+            double halfHeight = height / 2.0;
+
+            var lineBrush = new SolidColorBrush(WpfColor.FromRgb(255, 59, 48));
+            double lineThickness = 2;
+            double labelScale = Math.Max(1.0, Math.Min(width, height) / 1080.0);
+
+            switch ((ViewSplitMode)_lyricsSplitMode)
+            {
+                case ViewSplitMode.Horizontal:
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
+                    AddProjectionRegionLabel(canvas, "2", halfWidth, 0, labelScale);
+                    break;
+                case ViewSplitMode.Vertical:
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = 0, Y1 = halfHeight, X2 = width, Y2 = halfHeight,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
+                    AddProjectionRegionLabel(canvas, "2", 0, halfHeight, labelScale);
+                    break;
+                case ViewSplitMode.TripleSplit:
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = 0, Y1 = halfHeight, X2 = halfWidth, Y2 = halfHeight,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
+                    AddProjectionRegionLabel(canvas, "2", 0, halfHeight, labelScale);
+                    AddProjectionRegionLabel(canvas, "3", halfWidth, 0, labelScale);
+                    break;
+                case ViewSplitMode.Quad:
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    canvas.Children.Add(new System.Windows.Shapes.Line
+                    {
+                        X1 = 0, Y1 = halfHeight, X2 = width, Y2 = halfHeight,
+                        Stroke = lineBrush, StrokeThickness = lineThickness
+                    });
+                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
+                    AddProjectionRegionLabel(canvas, "2", halfWidth, 0, labelScale);
+                    AddProjectionRegionLabel(canvas, "3", 0, halfHeight, labelScale);
+                    AddProjectionRegionLabel(canvas, "4", halfWidth, halfHeight, labelScale);
+                    break;
+            }
+        }
+
+        private void AddProjectionRegionLabel(Canvas canvas, string text, double x, double y, double scale)
+        {
+            double fontSize = Math.Max(28, 24 * scale);
+            double padX = Math.Max(12, 10 * scale);
+            double padY = Math.Max(5, 4 * scale);
+            double radius = Math.Max(10, 8 * scale);
+
+            var label = new Border
+            {
+                Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)),
+                CornerRadius = new CornerRadius(0, 0, radius, 0),
+                Padding = new Thickness(padX, padY, padX, padY),
+                IsHitTestVisible = false,
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = fontSize,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = WpfBrushes.White
+                }
+            };
+
+            Canvas.SetLeft(label, x);
+            Canvas.SetTop(label, y);
+            Canvas.SetZIndex(label, 1000);
+            canvas.Children.Add(label);
+        }
+
+        private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text)> GetSplitRenderRegions(double width, double height)
+        {
+            double halfWidth = width / 2.0;
+            double halfHeight = height / 2.0;
+
+            switch ((ViewSplitMode)_lyricsSplitMode)
+            {
+                case ViewSplitMode.Horizontal:
+                    yield return (new Rect(0, 0, halfWidth, height), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    break;
+                case ViewSplitMode.Vertical:
+                    yield return (new Rect(0, 0, width, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
+                    yield return (new Rect(0, halfHeight, width, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    break;
+                case ViewSplitMode.TripleSplit:
+                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
+                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
+                    break;
+                case ViewSplitMode.Quad:
+                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
+                    yield return (new Rect(halfWidth, halfHeight, width - halfWidth, height - halfHeight), LyricsSplitTextBox4, LyricsSplitTextBox4.Text ?? "");
+                    break;
             }
         }
 
