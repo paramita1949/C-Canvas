@@ -1,7 +1,9 @@
 using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Controls.Primitives;
 using ImageColorChanger.UI.Controls;
 
 namespace ImageColorChanger.UI
@@ -11,6 +13,15 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
+        private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
+
+        private bool _isSidePanelDragging;
+        private System.Windows.Point _sidePanelDragStartPoint;
+        private double _sidePanelDragStartHorizontalOffset;
+        private double _sidePanelDragStartVerticalOffset;
+        private Popup _draggingSidePanelPopup;
+
         private void FontFamilySelector_GotFocus(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as System.Windows.Controls.ComboBox;
@@ -191,6 +202,7 @@ namespace ImageColorChanger.UI
                 return;
 
             CloseOtherSidePanels("BorderSettingsPopup");
+            RestoreSidePanelOffset(BorderSettingsPopup);
             BorderSettingsPanel.BindTarget(_selectedTextBox);
             BorderSettingsPopup.IsOpen = true;
             e.Handled = true;
@@ -202,6 +214,7 @@ namespace ImageColorChanger.UI
                 return;
 
             CloseOtherSidePanels("BackgroundSettingsPopup");
+            RestoreSidePanelOffset(BackgroundSettingsPopup);
             BackgroundSettingsPanel.BindTarget(_selectedTextBox);
             BackgroundSettingsPopup.IsOpen = true;
             e.Handled = true;
@@ -215,6 +228,7 @@ namespace ImageColorChanger.UI
             }
 
             CloseOtherSidePanels("ShadowSettingsPopup");
+            RestoreSidePanelOffset(ShadowSettingsPopup);
             ShadowSettingsPanel.BindTarget(_selectedTextBox);
             ShadowSettingsPopup.IsOpen = true;
             e.Handled = true;
@@ -226,6 +240,7 @@ namespace ImageColorChanger.UI
                 return;
 
             CloseOtherSidePanels("SpacingSettingsPopup");
+            RestoreSidePanelOffset(SpacingSettingsPopup);
             SpacingSettingsPanel.BindTarget(_selectedTextBox);
             SpacingSettingsPopup.IsOpen = true;
             e.Handled = true;
@@ -237,6 +252,7 @@ namespace ImageColorChanger.UI
                 return;
 
             CloseOtherSidePanels("AnimationSettingsPopup");
+            RestoreSidePanelOffset(AnimationSettingsPopup);
             AnimationSettingsPanel.BindTarget(_selectedTextBox);
             AnimationSettingsPanel.AnimationSettingsChanged -= AnimationSettingsPanel_AnimationSettingsChanged;
             AnimationSettingsPanel.AnimationSettingsChanged += AnimationSettingsPanel_AnimationSettingsChanged;
@@ -384,9 +400,120 @@ namespace ImageColorChanger.UI
                 return;
 
             CloseOtherSidePanels("TextColorSettingsPopup");
+            RestoreSidePanelOffset(TextColorSettingsPopup);
             TextColorSettingsPanel.BindTarget(_selectedTextBox);
             TextColorSettingsPopup.IsOpen = true;
             e.Handled = true;
+        }
+
+        private void SidePanelDragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not FrameworkElement dragHandle || dragHandle.Tag is not string popupName)
+                return;
+
+            var popup = GetSidePanelPopupByName(popupName);
+            if (popup == null || popup.PlacementTarget is not UIElement placementTarget)
+                return;
+
+            _draggingSidePanelPopup = popup;
+            _isSidePanelDragging = true;
+            _sidePanelDragStartPoint = e.GetPosition(placementTarget);
+            _sidePanelDragStartHorizontalOffset = popup.HorizontalOffset;
+            _sidePanelDragStartVerticalOffset = popup.VerticalOffset;
+
+            dragHandle.CaptureMouse();
+            e.Handled = true;
+        }
+
+        private void SidePanelDragHandle_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_isSidePanelDragging || _draggingSidePanelPopup == null)
+                return;
+
+            if (_draggingSidePanelPopup.PlacementTarget is not UIElement placementTarget)
+                return;
+
+            var currentPoint = e.GetPosition(placementTarget);
+            var delta = currentPoint - _sidePanelDragStartPoint;
+
+            _draggingSidePanelPopup.HorizontalOffset = _sidePanelDragStartHorizontalOffset + delta.X;
+            _draggingSidePanelPopup.VerticalOffset = _sidePanelDragStartVerticalOffset + delta.Y;
+            e.Handled = true;
+        }
+
+        private void SidePanelDragHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement dragHandle)
+            {
+                dragHandle.ReleaseMouseCapture();
+            }
+
+            if (_isSidePanelDragging && _draggingSidePanelPopup != null)
+            {
+                SaveSidePanelOffset(_draggingSidePanelPopup);
+            }
+
+            _isSidePanelDragging = false;
+            _draggingSidePanelPopup = null;
+            e.Handled = true;
+        }
+
+        private void SidePanelHeaderClose_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement closeButton || closeButton.Tag is not string popupName)
+                return;
+
+            var popup = GetSidePanelPopupByName(popupName);
+            if (popup != null)
+            {
+                popup.IsOpen = false;
+            }
+
+            e.Handled = true;
+        }
+
+        private Popup GetSidePanelPopupByName(string popupName)
+        {
+            return popupName switch
+            {
+                "BorderSettingsPopup" => BorderSettingsPopup,
+                "BackgroundSettingsPopup" => BackgroundSettingsPopup,
+                "TextColorSettingsPopup" => TextColorSettingsPopup,
+                "ShadowSettingsPopup" => ShadowSettingsPopup,
+                "SpacingSettingsPopup" => SpacingSettingsPopup,
+                "AnimationSettingsPopup" => AnimationSettingsPopup,
+                _ => null
+            };
+        }
+
+        private void RestoreSidePanelOffset(Popup popup)
+        {
+            if (popup == null)
+                return;
+
+            var popupName = popup.Name;
+            var savedX = _dbManager?.GetUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}");
+            var savedY = _dbManager?.GetUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}");
+
+            if (double.TryParse(savedX, NumberStyles.Float, CultureInfo.InvariantCulture, out var x))
+            {
+                popup.HorizontalOffset = x;
+            }
+
+            if (double.TryParse(savedY, NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+            {
+                popup.VerticalOffset = y;
+            }
+        }
+
+        private void SaveSidePanelOffset(Popup popup)
+        {
+            if (popup == null || _dbManager == null)
+                return;
+
+            var popupName = popup.Name;
+            _dbManager.SaveUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}", popup.HorizontalOffset.ToString(CultureInfo.InvariantCulture));
+            _dbManager.SaveUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}", popup.VerticalOffset.ToString(CultureInfo.InvariantCulture));
         }
 
         private void BtnAlignLeft_Click(object sender, RoutedEventArgs e)
