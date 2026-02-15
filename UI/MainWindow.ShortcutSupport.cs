@@ -215,6 +215,34 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// F2：合成播放暂停/继续
+        /// </summary>
+        public async Task<bool> ToggleCompositePauseResumeByHotkeyAsync()
+        {
+            var compositeService = GetCompositePlaybackService();
+            if (compositeService == null || !compositeService.IsPlaying)
+            {
+                return false;
+            }
+
+            if (compositeService.IsPaused)
+            {
+                await compositeService.ResumePlaybackAsync();
+                _countdownService?.Resume();
+                ShowStatus("▶️ 已继续合成播放");
+            }
+            else
+            {
+                await compositeService.PausePlaybackAsync();
+                StopCompositeScrollAnimation();
+                _countdownService?.Pause();
+                ShowStatus("⏸ 已暂停合成播放");
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 保存歌词项目（供快捷键调用）
         /// 注意：实际保存逻辑在 MainWindow.Lyrics.cs 的 SaveLyricsProject() 方法中
         /// </summary>

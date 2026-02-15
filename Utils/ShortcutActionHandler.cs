@@ -198,8 +198,14 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 处理F2键 - 播放/暂停（脚本播放/视频播放）
         /// </summary>
-        public void HandleF2Key()
+        public async Task HandleF2KeyAsync()
         {
+            // 合成播放中：F2 = 暂停/继续（滚动与倒计时）
+            if (await _mainWindow.ToggleCompositePauseResumeByHotkeyAsync())
+            {
+                return;
+            }
+
             // 视频播放模式
             if (_mainWindow.IsMediaPlaybackMode())
             {

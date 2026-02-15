@@ -90,7 +90,7 @@ namespace ImageColorChanger.Utils
                     return true;
 
                 case Key.F2:
-                    _actionHandler.HandleF2Key();
+                    await _actionHandler.HandleF2KeyAsync();
                     return true;
 
                 case Key.F3:

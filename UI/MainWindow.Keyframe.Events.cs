@@ -1063,18 +1063,22 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
+                    bool isPauseOnly = (sender as Services.Implementations.CompositePlaybackService)?.IsPaused == true;
+
                     // 立即停止合成播放的滚动动画
                     StopCompositeScrollAnimation();
                     
                     // 停止FPS监控
                     StopFpsMonitoring();
-                    
-                    // 重置倒计时显示
-                    CountdownText.Text = "倒: --";
-                    _countdownService?.Stop();
-                    
-                    // 恢复正常的关键帧指示块显示
-                    _keyframeManager?.UpdatePreviewLines();
+
+                    // 暂停场景：保留当前倒计时显示与状态
+                    // 停止场景：清空倒计时并恢复指示块
+                    if (!isPauseOnly)
+                    {
+                        CountdownText.Text = "倒: --";
+                        _countdownService?.Stop();
+                        _keyframeManager?.UpdatePreviewLines();
+                    }
                 }
                 catch (Exception)
                 {
@@ -1134,6 +1138,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnCompositeSpeed_RightClick(object sender, MouseButtonEventArgs e)
         {
+            ShowCompositeSpeedMenu();
+        }
+
+        private void BtnCompositeSpeed_Click(object sender, RoutedEventArgs e)
+        {
+            ShowCompositeSpeedMenu();
+        }
+
+        private void ShowCompositeSpeedMenu()
+        {
             var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                 as Services.Implementations.CompositePlaybackService;
             
@@ -1146,7 +1160,7 @@ namespace ImageColorChanger.UI
             var contextMenu = new System.Windows.Controls.ContextMenu();
             
             // 定义速度选项
-            double[] speedOptions = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 };
+            double[] speedOptions = { 0.5, 0.75, 1.0, 1.1, 1.25, 1.5, 2.0, 2.5, 3.0 };
             
             foreach (double speed in speedOptions)
             {

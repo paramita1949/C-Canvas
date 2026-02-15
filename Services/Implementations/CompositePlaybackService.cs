@@ -33,6 +33,7 @@ namespace ImageColorChanger.Services.Implementations
         private PlaybackSegment _currentSegment; // 当前正在播放的段
         private DateTime _currentSegmentStartTime; // 当前段开始时间
         private double _currentSegmentSpeed; // 当前段开始时的速度（用于重新计算剩余时间）
+        private DateTime _pauseStartTime; // 暂停开始时间（用于恢复时剔除暂停时长）
 
         /// <summary>
         /// 当前播放模式
@@ -335,6 +336,7 @@ namespace ImageColorChanger.Services.Implementations
 
             IsPlaying = true;
             IsPaused = false;
+            _pauseStartTime = default;
             CompletedPlayCount = 0;
             _cancellationTokenSource = new CancellationTokenSource();
 
@@ -492,7 +494,7 @@ namespace ImageColorChanger.Services.Implementations
                             });
                             
                             // 等待滚动完成（使用原始时长，动画会以SpeedRatio速度播放）
-                            await Task.Delay(TimeSpan.FromSeconds(segment.Duration), cancellationToken);
+                            await WaitWithSpeedAdjustment(segment.Duration, cancellationToken);
                         }
                         else if (segment.Type == SegmentType.Pause)
                         {
@@ -521,15 +523,21 @@ namespace ImageColorChanger.Services.Implementations
                             });
                             
                             // 等待停留时间（应用速度倍率）
-                            await Task.Delay(TimeSpan.FromSeconds(adjustedDuration), cancellationToken);
+                            await WaitWithSpeedAdjustment(segment.Duration, cancellationToken);
                         }
+                    }
+
+                    // 手动停止/取消时，直接退出循环，避免误触发“自动调整TOTAL时间”
+                    if (!IsPlaying || cancellationToken.IsCancellationRequested)
+                    {
+                        break;
                     }
 
                     // 完成一轮播放
                     CompletedPlayCount++;
 
-                    // 📊 检查是否需要自动调整TOTAL时间（仅在无关键帧或单关键帧模式）
-                    await CheckAndAdjustTotalTimeAsync();
+                    // 业务规则：TOTAL 只允许由“下帧/PageDown 手动校准”覆盖
+                    // 这里不做自动改写，避免停止/循环后意外覆盖用户设定值
 
                     // 如果还要继续，跳回起始位置
                     if (PlayCount == -1 || CompletedPlayCount < PlayCount)
@@ -555,9 +563,12 @@ namespace ImageColorChanger.Services.Implementations
                     }
                 }
 
-                // 播放结束
-                await StopPlaybackAsync();
-                PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+                // 正常播放完成（非手动取消）才触发完成逻辑
+                if (!cancellationToken.IsCancellationRequested && IsPlaying)
+                {
+                    await StopPlaybackAsync();
+                    PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -578,7 +589,13 @@ namespace ImageColorChanger.Services.Implementations
                 return Task.CompletedTask;
 
             IsPaused = true;
-            // TODO: 实现暂停逻辑（暂停滚动动画）
+            _pauseStartTime = DateTime.Now;
+
+            // 滚动段暂停时，立即停掉当前动画，恢复时按剩余时长重启
+            if (_currentSegment != null && _currentSegment.Type == SegmentType.Scroll)
+            {
+                ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+            }
             return Task.CompletedTask;
         }
 
@@ -590,8 +607,38 @@ namespace ImageColorChanger.Services.Implementations
             if (!IsPlaying || !IsPaused)
                 return Task.CompletedTask;
 
+            if (_pauseStartTime != default && _currentSegmentStartTime != default)
+            {
+                var pausedDuration = DateTime.Now - _pauseStartTime;
+                _currentSegmentStartTime = _currentSegmentStartTime.Add(pausedDuration);
+            }
+
             IsPaused = false;
-            // TODO: 实现继续逻辑（恢复滚动动画）
+            _pauseStartTime = default;
+
+            // 如果当前是滚动段，恢复时从当前位置继续滚动剩余时长
+            if (_currentSegment != null && _currentSegment.Type == SegmentType.Scroll)
+            {
+                double elapsedAdjustedTime = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
+                double elapsedOriginalTime = elapsedAdjustedTime * _currentSegmentSpeed;
+                double remainingOriginalTime = Math.Max(0, _currentSegment.Duration - elapsedOriginalTime);
+
+                if (remainingOriginalTime > 0.05)
+                {
+                    var positionArgs = new CurrentScrollPositionRequestEventArgs();
+                    CurrentScrollPositionRequested?.Invoke(this, positionArgs);
+                    double currentScrollPosition = positionArgs.CurrentScrollPosition;
+                    double actualStartPosition = currentScrollPosition;
+
+                    ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
+                    {
+                        StartPosition = actualStartPosition,
+                        EndPosition = _currentSegment.EndPosition,
+                        Duration = remainingOriginalTime,
+                        SpeedRatio = Speed
+                    });
+                }
+            }
             return Task.CompletedTask;
         }
 
@@ -809,6 +856,12 @@ namespace ImageColorChanger.Services.Implementations
             {
                 while (!cancellationToken.IsCancellationRequested && IsPlaying)
                 {
+                    if (IsPaused)
+                    {
+                        await Task.Delay(50, cancellationToken);
+                        continue;
+                    }
+
                     if (_currentSegment != null)
                     {
                         // 计算已播放的调整后时间（从段开始到现在）
@@ -822,13 +875,6 @@ namespace ImageColorChanger.Services.Implementations
                         
                         // 使用当前速度计算剩余调整后时间
                         double remainingAdjusted = remainingOriginal / Speed;
-                        
-                        #if DEBUG
-                        if (remainingAdjusted > 0.1)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"   ⏱️ [等待] 已播放原始: {elapsedOriginal:F2}秒, 剩余原始: {remainingOriginal:F2}秒, 剩余调整: {remainingAdjusted:F2}秒 (当前速度: {Speed:F2}x)");
-                        }
-                        #endif
                         
                         if (remainingAdjusted <= 0.05)
                         {
@@ -880,75 +926,8 @@ namespace ImageColorChanger.Services.Implementations
             #endif
         }
 
-        /// <summary>
-        /// 检查并自动调整TOTAL时间
-        /// 仅在Mode 2b（单关键帧）和Mode 3（无关键帧）时执行
-        /// 如果实际播放时间远小于设定的TOTAL时间，自动更新为实际时间
-        /// </summary>
-        private async Task CheckAndAdjustTotalTimeAsync()
-        {
-            // 只检查单段滚动模式（Mode 2b和Mode 3）
-            if (_playbackSegments.Count != 1 || _playbackSegments[0].Type != SegmentType.Scroll)
-                return;
-
-            var segment = _playbackSegments[0];
-            
-            // Mode 2b: 单关键帧（KeyframeId > 0）
-            // Mode 3: 无关键帧（KeyframeId == 0）
-            if (segment.KeyframeId != 0 && segment.KeyframeId != _playbackSegments[0].KeyframeId)
-                return;
-
-            double actualElapsed = _playbackStopwatch.Elapsed.TotalSeconds;
-            double expectedDuration = _totalDuration;
-            
-            // 🔧 如果设置了加速，需要将实际播放时间转换为原始时间（除以速度）
-            // 因为加速后实际播放时间会变短，但TOTAL时间应该基于原始时间
-            double actualElapsedOriginal = actualElapsed * Speed;
-
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"");
-            //System.Diagnostics.Debug.WriteLine($"🕐 [TOTAL时间检测]");
-            //System.Diagnostics.Debug.WriteLine($"   实际播放时间（调整后）: {actualElapsed:F2}秒");
-            //System.Diagnostics.Debug.WriteLine($"   实际播放时间（原始）: {actualElapsedOriginal:F2}秒");
-            //System.Diagnostics.Debug.WriteLine($"   设定TOTAL时间: {expectedDuration:F2}秒");
-            //System.Diagnostics.Debug.WriteLine($"   当前速度: {Speed:F2}x");
-            //System.Diagnostics.Debug.WriteLine($"   差异百分比: {(expectedDuration - actualElapsedOriginal) / expectedDuration * 100:F1}%");
-            //#endif
-
-            // 如果实际时间明显小于预期时间（提前20%以上完成）
-            // 说明TOTAL时间设置得太长了，需要调整
-            // 🔧 使用原始时间进行比较，而不是调整后的时间
-            if (actualElapsedOriginal < expectedDuration * 0.8 && actualElapsedOriginal >= 5.0)
-            {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔄 检测到TOTAL时间过长，自动调整:");
-                //System.Diagnostics.Debug.WriteLine($"   {expectedDuration:F1}秒 -> {actualElapsedOriginal:F1}秒");
-                //#endif
-
-                // 更新数据库的TOTAL时间（使用原始时间）
-                await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, actualElapsedOriginal, autoCalculate: false);
-                
-                // 更新内存中的值（使用原始时间）
-                _totalDuration = actualElapsedOriginal;
-                _playbackSegments[0].Duration = actualElapsedOriginal;
-
-                // 重置计时器，下一轮使用新时间
-                _playbackStopwatch.Restart();
-
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ TOTAL时间已自动更新为 {actualElapsedOriginal:F1}秒 (考虑速度 {Speed:F2}x)");
-                #endif
-            }
-            else
-            {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✓ TOTAL时间合理，无需调整");
-                //#endif
-                
-                // 重置计时器，准备下一轮
-                _playbackStopwatch.Restart();
-            }
-        }
+        // CheckAndAdjustTotalTimeAsync 已废弃：
+        // 规则已改为仅允许下帧/PageDown手动覆盖TOTAL，不允许自动改写
     }
 
     /// <summary>

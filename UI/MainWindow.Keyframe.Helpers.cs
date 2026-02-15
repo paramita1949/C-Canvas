@@ -860,8 +860,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal bool IsMediaPlaybackMode()
         {
-            // 检查是否有媒体播放器且正在播放
-            return _videoPlayerManager?.IsPlaying == true;
+            // 包含“播放中”与“暂停中”，确保F2可继续恢复媒体播放
+            return _videoPlayerManager != null &&
+                   (_videoPlayerManager.IsPlaying || _videoPlayerManager.IsPaused);
         }
 
         /// <summary>

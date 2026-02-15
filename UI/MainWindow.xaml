@@ -3225,6 +3225,7 @@
                             Cursor="Hand"
                             Opacity="0.75"
                             Visibility="Collapsed"
+                            Click="BtnCompositeSpeed_Click"
                             MouseRightButtonUp="BtnCompositeSpeed_RightClick"
                             ToolTip="右键：选择播放速度">
                         <Button.Style>
