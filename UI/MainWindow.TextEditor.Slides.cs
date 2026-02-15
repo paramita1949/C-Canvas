@@ -37,6 +37,20 @@ namespace ImageColorChanger.UI
         /// 当前选中的幻灯片
         /// </summary>
         private Slide _currentSlide;
+        private bool _isRevertingSlideSelection;
+
+        private bool CanSwitchSlideWhileProjecting(bool showToast = true)
+        {
+            if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
+            {
+                if (showToast)
+                {
+                    ShowToast("投影模式下请先开启“锁定投影”，再编辑其他幻灯片");
+                }
+                return false;
+            }
+            return true;
+        }
 
         /// <summary>
         /// 判断文件是否为视频格式
@@ -161,8 +175,27 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
+            if (_isRevertingSlideSelection)
+            {
+                return;
+            }
+
             if (SlideListBox.SelectedItem is Slide selectedSlide)
             {
+                if (_currentSlide != null && selectedSlide.Id != _currentSlide.Id && !CanSwitchSlideWhileProjecting())
+                {
+                    _isRevertingSlideSelection = true;
+                    try
+                    {
+                        SlideListBox.SelectedItem = _currentSlide;
+                    }
+                    finally
+                    {
+                        _isRevertingSlideSelection = false;
+                    }
+                    return;
+                }
+
                 // ✅ 切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
                 // 🔧 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
                 var textBoxesCopy = _textBoxes.ToList();
@@ -581,6 +614,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal void NavigateToPreviousSlide()
         {
+            if (!CanSwitchSlideWhileProjecting())
+                return;
+
             if (SlideListBox.Items.Count == 0)
                 return;
 
@@ -607,6 +643,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal void NavigateToNextSlide()
         {
+            if (!CanSwitchSlideWhileProjecting())
+                return;
+
             if (SlideListBox.Items.Count == 0)
                 return;
 

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace ImageColorChanger.UI
@@ -55,6 +56,42 @@ namespace ImageColorChanger.UI
         public bool IsTextEditorActive()
         {
             return TextEditorPanel.Visibility == Visibility.Visible;
+        }
+
+        /// <summary>
+        /// 文本编辑器中是否有选中的文本框
+        /// </summary>
+        public bool HasSelectedTextBoxInEditor()
+        {
+            return IsTextEditorActive() && _selectedTextBox != null;
+        }
+
+        /// <summary>
+        /// 复制当前选中文本框到内部剪贴板
+        /// </summary>
+        public async Task<bool> TryCopySelectedTextBoxAsync()
+        {
+            if (!HasSelectedTextBoxInEditor() || IsTextBoxInEditMode())
+            {
+                return false;
+            }
+
+            await CopyTextBoxToClipboardAsync(_selectedTextBox);
+            return true;
+        }
+
+        /// <summary>
+        /// 从内部剪贴板粘贴文本框
+        /// </summary>
+        public async Task<bool> TryPasteTextBoxAsync()
+        {
+            if (!IsTextEditorActive() || IsTextBoxInEditMode())
+            {
+                return false;
+            }
+
+            await PasteTextBoxFromClipboardAsync(_selectedTextBox);
+            return true;
         }
 
         /// <summary>

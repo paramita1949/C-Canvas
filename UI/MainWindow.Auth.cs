@@ -342,17 +342,8 @@ namespace ImageColorChanger.UI
                 UnbindDeviceWithConfirm();
             };
 
-            // 版本回退按钮
-            var rollbackBtn = CreateStyledButton("版本回退", Color.FromRgb(33, 150, 243));
-            rollbackBtn.Click += (s, e) =>
-            {
-                userWindow.Close();
-                BtnRollback_Click(this, new RoutedEventArgs());
-            };
-            
             buttonPanel.Children.Add(logoutBtn);
             buttonPanel.Children.Add(unbindBtn);
-            buttonPanel.Children.Add(rollbackBtn);
             mainPanel.Children.Add(buttonPanel);
             
             userWindow.Content = mainPanel;

@@ -9,6 +9,103 @@ namespace ImageColorChanger.UI
         #region 全局热键管理
 
         private Utils.ShortcutActionHandler _shortcutActionHandler;
+        private int _hotKeyIdLeft = -1;
+        private int _hotKeyIdRight = -1;
+        private int _hotKeyIdPageUp = -1;
+        private int _hotKeyIdPageDown = -1;
+        private bool _projectionNavigationHotKeysRegistered;
+
+        /// <summary>
+        /// 投影锁定且文本框处于编辑状态时，不执行全局导航热键，交给编辑器处理光标移动。
+        /// </summary>
+        private bool ShouldBypassProjectionNavigationHotKey()
+        {
+            return _isProjectionLocked && IsTextBoxInEditMode();
+        }
+
+        private void RegisterProjectionNavigationHotKeys()
+        {
+            if (_globalHotKeyManager == null || _shortcutActionHandler == null || _projectionNavigationHotKeysRegistered)
+                return;
+
+            _hotKeyIdLeft = _globalHotKeyManager.RegisterHotKey(
+                Key.Left,
+                ModifierKeys.None,
+                () =>
+                {
+                    Dispatcher.InvokeAsync(async () =>
+                    {
+                        await _shortcutActionHandler.HandleLeftKeyAsync();
+                    });
+                });
+
+            _hotKeyIdRight = _globalHotKeyManager.RegisterHotKey(
+                Key.Right,
+                ModifierKeys.None,
+                () =>
+                {
+                    Dispatcher.InvokeAsync(async () =>
+                    {
+                        await _shortcutActionHandler.HandleRightKeyAsync();
+                    });
+                });
+
+            _hotKeyIdPageUp = _globalHotKeyManager.RegisterHotKey(
+                Key.PageUp,
+                ModifierKeys.None,
+                () =>
+                {
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        _shortcutActionHandler.HandlePageUpKey();
+                    });
+                });
+
+            _hotKeyIdPageDown = _globalHotKeyManager.RegisterHotKey(
+                Key.PageDown,
+                ModifierKeys.None,
+                () =>
+                {
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        _shortcutActionHandler.HandlePageDownKey();
+                    });
+                });
+
+            _projectionNavigationHotKeysRegistered = true;
+        }
+
+        private void UnregisterProjectionNavigationHotKeys()
+        {
+            if (_globalHotKeyManager == null || !_projectionNavigationHotKeysRegistered)
+                return;
+
+            _globalHotKeyManager.UnregisterHotKey(_hotKeyIdLeft);
+            _globalHotKeyManager.UnregisterHotKey(_hotKeyIdRight);
+            _globalHotKeyManager.UnregisterHotKey(_hotKeyIdPageUp);
+            _globalHotKeyManager.UnregisterHotKey(_hotKeyIdPageDown);
+
+            _hotKeyIdLeft = -1;
+            _hotKeyIdRight = -1;
+            _hotKeyIdPageUp = -1;
+            _hotKeyIdPageDown = -1;
+            _projectionNavigationHotKeysRegistered = false;
+        }
+
+        internal void SyncProjectionNavigationHotKeys()
+        {
+            if (_projectionManager?.IsProjectionActive != true)
+                return;
+
+            if (ShouldBypassProjectionNavigationHotKey())
+            {
+                UnregisterProjectionNavigationHotKeys();
+            }
+            else
+            {
+                RegisterProjectionNavigationHotKeys();
+            }
+        }
 
         private void InitializeGlobalHotKeys()
         {
@@ -46,65 +143,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine("🔧 [全局热键] 开始注册全局热键...");
                 //#endif
 
-                // Left键: 上一个（文本编辑器/视频/关键帧）
-                _globalHotKeyManager.RegisterHotKey(
-                    Key.Left,
-                    ModifierKeys.None,
-                    () =>
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Left键触发");
-                        //#endif
-                        Dispatcher.InvokeAsync(async () =>
-                        {
-                            await _shortcutActionHandler.HandleLeftKeyAsync();
-                        });
-                    });
-                
-                // Right键: 下一个（文本编辑器/视频/关键帧）
-                _globalHotKeyManager.RegisterHotKey(
-                    Key.Right,
-                    ModifierKeys.None,
-                    () =>
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] Right键触发");
-                        //#endif
-                        Dispatcher.InvokeAsync(async () =>
-                        {
-                            await _shortcutActionHandler.HandleRightKeyAsync();
-                        });
-                    });
-                
-                // PageUp: 上一页（文本编辑器/原图/关键帧）
-                _globalHotKeyManager.RegisterHotKey(
-                    Key.PageUp,
-                    ModifierKeys.None,
-                    () =>
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageUp键触发");
-                        //#endif
-                        Dispatcher.InvokeAsync(() =>
-                        {
-                            _shortcutActionHandler.HandlePageUpKey();
-                        });
-                    });
-                
-                // PageDown: 下一页（文本编辑器/原图/关键帧）
-                _globalHotKeyManager.RegisterHotKey(
-                    Key.PageDown,
-                    ModifierKeys.None,
-                    () =>
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] PageDown键触发");
-                        //#endif
-                        Dispatcher.InvokeAsync(() =>
-                        {
-                            _shortcutActionHandler.HandlePageDownKey();
-                        });
-                    });
+                RegisterProjectionNavigationHotKeys();
                 
                 // F2键: 播放/暂停（脚本/视频）
                 _globalHotKeyManager.RegisterHotKey(
@@ -171,6 +210,11 @@ namespace ImageColorChanger.UI
             try
             {
                 _globalHotKeyManager.UnregisterAllHotKeys();
+                _projectionNavigationHotKeysRegistered = false;
+                _hotKeyIdLeft = -1;
+                _hotKeyIdRight = -1;
+                _hotKeyIdPageUp = -1;
+                _hotKeyIdPageDown = -1;
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键已注销");
                 //#endif

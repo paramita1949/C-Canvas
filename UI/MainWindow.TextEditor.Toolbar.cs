@@ -106,98 +106,148 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 复制文本框（立即创建新的副本）
+        /// 复制文本框到内部剪贴板（支持跨幻灯片粘贴）
         /// </summary>
-        private async Task CopyTextBoxAsync(DraggableTextBox sourceTextBox)
+        private Task CopyTextBoxToClipboardAsync(DraggableTextBox sourceTextBox)
         {
-            if (sourceTextBox == null || _currentSlide == null)
-                return;
+            if (sourceTextBox == null)
+                return Task.CompletedTask;
 
             try
             {
+                // 先同步文本内容，确保复制的是最新状态
+                sourceTextBox.SyncTextFromRichTextBox();
+
                 var sourceElement = sourceTextBox.Data;
+                _textBoxClipboardElement = _textProjectManager.CloneElement(sourceElement);
+                _textBoxClipboardSpans = CloneRichTextSpans(sourceElement.RichTextSpans);
+                _textBoxPasteOffsetStep = 1;
 
-                // 计算最大ZIndex,新文本框在最上层
-                int maxZIndex = 0;
-                if (_textBoxes.Count > 0)
-                {
-                    maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
-                }
-
-                // 使用 CloneElement 方法复制所有样式
-                var newElement = _textProjectManager.CloneElement(sourceElement);
-
-                // 修改位置和层级
-                newElement.SlideId = _currentSlide.Id;
-                newElement.X = sourceElement.X + 20;  // 向右偏移20像素
-                newElement.Y = sourceElement.Y + 20;  // 向下偏移20像素
-                newElement.ZIndex = maxZIndex + 1;
-
-                // 保存到数据库
-                await _textProjectManager.AddElementAsync(newElement);
-
-                // 🆕 复制富文本片段（如果有）
-                if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
-                {
-                    var newSpans = new List<Database.Models.RichTextSpan>();
-                    foreach (var sourceSpan in sourceElement.RichTextSpans.OrderBy(s => s.SpanOrder))
-                    {
-                        var newSpan = new Database.Models.RichTextSpan
-                        {
-                            TextElementId = newElement.Id,
-                            SpanOrder = sourceSpan.SpanOrder,
-                            Text = sourceSpan.Text,
-                            FontFamily = sourceSpan.FontFamily,
-                            FontSize = sourceSpan.FontSize,
-                            FontColor = sourceSpan.FontColor,
-                            IsBold = sourceSpan.IsBold,
-                            IsItalic = sourceSpan.IsItalic,
-                            IsUnderline = sourceSpan.IsUnderline,
-                            BorderColor = sourceSpan.BorderColor,
-                            BorderWidth = sourceSpan.BorderWidth,
-                            BorderRadius = sourceSpan.BorderRadius,
-                            BorderOpacity = sourceSpan.BorderOpacity,
-                            BackgroundColor = sourceSpan.BackgroundColor,
-                            BackgroundRadius = sourceSpan.BackgroundRadius,
-                            BackgroundOpacity = sourceSpan.BackgroundOpacity,
-                            ShadowColor = sourceSpan.ShadowColor,
-                            ShadowOffsetX = sourceSpan.ShadowOffsetX,
-                            ShadowOffsetY = sourceSpan.ShadowOffsetY,
-                            ShadowBlur = sourceSpan.ShadowBlur,
-                            ShadowOpacity = sourceSpan.ShadowOpacity
-                        };
-                        newSpans.Add(newSpan);
-                    }
-
-                    // 批量保存富文本片段
-                    await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, newSpans);
-
-                    // 更新新元素的 RichTextSpans 集合
-                    newElement.RichTextSpans = newSpans;
-                }
-
-                // 添加到画布
-                var textBox = new DraggableTextBox(newElement);
-                AddTextBoxToCanvas(textBox);
-
-                // 选中新复制的文本框
-                textBox.SetSelected(true);
-                _selectedTextBox = textBox;
-
-                // 显示浮动工具栏
-                ShowTextBoxFloatingToolbar(textBox);
-
-                // 标记已修改
-                MarkContentAsModified();
-
-                //System.Diagnostics.Debug.WriteLine($"✅ 复制文本框成功（包含 {newElement.RichTextSpans?.Count ?? 0} 个富文本片段）");
+                ShowToast("已复制文本框");
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 复制文本框失败: {ex.Message}");
                 WpfMessageBox.Show($"复制文本框失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 从内部剪贴板粘贴文本框（可跨幻灯片）
+        /// </summary>
+        private async Task PasteTextBoxFromClipboardAsync(DraggableTextBox anchorTextBox = null)
+        {
+            if (_currentSlide == null)
+                return;
+
+            if (_textBoxClipboardElement == null)
+            {
+                ShowToast("没有可粘贴的文本框");
+                return;
+            }
+
+            try
+            {
+                int maxZIndex = _textBoxes.Count > 0 ? _textBoxes.Max(tb => tb.Data.ZIndex) : 0;
+                var newElement = _textProjectManager.CloneElement(_textBoxClipboardElement);
+
+                // 位置策略：优先锚点文本框，否则当前选中文本框，再否则默认位置
+                double baseX = anchorTextBox?.Data.X ?? _selectedTextBox?.Data.X ?? 100;
+                double baseY = anchorTextBox?.Data.Y ?? _selectedTextBox?.Data.Y ?? 100;
+                double step = 20 * _textBoxPasteOffsetStep;
+
+                newElement.SlideId = _currentSlide.Id;
+                newElement.ProjectId = null;
+                newElement.X = baseX + step;
+                newElement.Y = baseY + step;
+                newElement.ZIndex = maxZIndex + 1;
+
+                await _textProjectManager.AddElementAsync(newElement);
+
+                if (_textBoxClipboardSpans != null && _textBoxClipboardSpans.Count > 0)
+                {
+                    var spansToSave = _textBoxClipboardSpans
+                        .OrderBy(s => s.SpanOrder)
+                        .Select((span, index) => new Database.Models.RichTextSpan
+                        {
+                            TextElementId = newElement.Id,
+                            SpanOrder = index,
+                            Text = span.Text,
+                            FontFamily = span.FontFamily,
+                            FontSize = span.FontSize,
+                            FontColor = span.FontColor,
+                            IsBold = span.IsBold,
+                            IsItalic = span.IsItalic,
+                            IsUnderline = span.IsUnderline,
+                            BorderColor = span.BorderColor,
+                            BorderWidth = span.BorderWidth,
+                            BorderRadius = span.BorderRadius,
+                            BorderOpacity = span.BorderOpacity,
+                            BackgroundColor = span.BackgroundColor,
+                            BackgroundRadius = span.BackgroundRadius,
+                            BackgroundOpacity = span.BackgroundOpacity,
+                            ShadowColor = span.ShadowColor,
+                            ShadowOffsetX = span.ShadowOffsetX,
+                            ShadowOffsetY = span.ShadowOffsetY,
+                            ShadowBlur = span.ShadowBlur,
+                            ShadowOpacity = span.ShadowOpacity
+                        })
+                        .ToList();
+
+                    await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, spansToSave);
+                    newElement.RichTextSpans = spansToSave;
+                }
+
+                var textBox = new DraggableTextBox(newElement);
+                AddTextBoxToCanvas(textBox);
+                textBox.SetSelected(true);
+                _selectedTextBox = textBox;
+                ShowTextBoxFloatingToolbar(textBox);
+                MarkContentAsModified();
+
+                _textBoxPasteOffsetStep++;
+                ShowToast("已粘贴文本框");
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"粘贴文本框失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private List<Database.Models.RichTextSpan> CloneRichTextSpans(ICollection<Database.Models.RichTextSpan> sourceSpans)
+        {
+            if (sourceSpans == null || sourceSpans.Count == 0)
+                return new List<Database.Models.RichTextSpan>();
+
+            return sourceSpans
+                .OrderBy(s => s.SpanOrder)
+                .Select((span, index) => new Database.Models.RichTextSpan
+                {
+                    SpanOrder = index,
+                    Text = span.Text,
+                    FontFamily = span.FontFamily,
+                    FontSize = span.FontSize,
+                    FontColor = span.FontColor,
+                    IsBold = span.IsBold,
+                    IsItalic = span.IsItalic,
+                    IsUnderline = span.IsUnderline,
+                    BorderColor = span.BorderColor,
+                    BorderWidth = span.BorderWidth,
+                    BorderRadius = span.BorderRadius,
+                    BorderOpacity = span.BorderOpacity,
+                    BackgroundColor = span.BackgroundColor,
+                    BackgroundRadius = span.BackgroundRadius,
+                    BackgroundOpacity = span.BackgroundOpacity,
+                    ShadowColor = span.ShadowColor,
+                    ShadowOffsetX = span.ShadowOffsetX,
+                    ShadowOffsetY = span.ShadowOffsetY,
+                    ShadowBlur = span.ShadowBlur,
+                    ShadowOpacity = span.ShadowOpacity
+                })
+                .ToList();
         }
 
         /// <summary>

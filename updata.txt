@@ -1,7 +1,23 @@
 2026.2.14
 -------------------------
+
+V6.0.0.4
+继续拆分幻灯片编辑框大类文件，重构为多文件分部类架构
+DraggableTextBox 按功能拆分为 Core/Init/EditMode/Keyboard/Drag/Resize/Selection/Style/Lifecycle/Render/RichText.Sync/RichText.Spans/Appearance
+RichTextEditor 按功能拆分为 Core/EditMode/Selection/Keyboard/Cursor/LayoutCache/Clipboard/Helpers/Mouse
+修复光标某些文字不闪烁无定位问题
+新增幻灯片复制粘贴功能，支持跨幻灯片和快捷键CTRL+C CTRL+V
+
+V6.0.0.5
+Cloudflare 后台删除登录日志入口和接口
+新增管理员邮件中心：支持单用户/全体用户发送邮件（Resend）
+新增 VIP 开通邮件模板：小团队版（168元/3台）、大团队版（278元/7台）
+设为 VIP 时可选自动发送开通通知邮件，邮件发送结果写入审计日志
+
+
 V6.0.0.3
 优化幻灯片文本编辑光标移动支持，方向键
+
 
 V6.0.0.2
 新增版本回退功能

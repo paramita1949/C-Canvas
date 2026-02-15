@@ -38,6 +38,9 @@ namespace ImageColorChanger.UI
         private TextProject _currentTextProject;
         private List<DraggableTextBox> _textBoxes = new List<DraggableTextBox>();
         private DraggableTextBox _selectedTextBox;
+        private TextElement _textBoxClipboardElement;
+        private List<RichTextSpan> _textBoxClipboardSpans = new List<RichTextSpan>();
+        private int _textBoxPasteOffsetStep = 1;
         private string _currentTextColor = "#000000";
 
         // 辅助线相关
@@ -103,6 +106,15 @@ namespace ImageColorChanger.UI
 
             // 🆕 初始化画布比例
             InitializeCanvasAspectRatio();
+
+            // 右键空白画布菜单（复制/粘贴）
+            if (EditorCanvas != null)
+            {
+                EditorCanvas.MouseRightButtonDown -= EditorCanvas_MouseRightButtonDown;
+                EditorCanvas.MouseRightButtonDown += EditorCanvas_MouseRightButtonDown;
+                EditorCanvas.MouseRightButtonUp -= EditorCanvas_MouseRightButtonUp;
+                EditorCanvas.MouseRightButtonUp += EditorCanvas_MouseRightButtonUp;
+            }
         }
 
         /// <summary>

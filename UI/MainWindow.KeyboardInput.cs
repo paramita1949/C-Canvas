@@ -18,6 +18,8 @@ namespace ImageColorChanger.UI
             // System.Diagnostics.Debug.WriteLine($"⌨️ [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
 #endif
 
+            SyncProjectionNavigationHotKeys();
+
             if (_keyboardShortcutManager != null && _keyboardShortcutManager.ShouldTextEditorHandle(e.Key))
             {
                 return;

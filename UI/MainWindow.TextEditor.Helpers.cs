@@ -105,10 +105,16 @@ namespace ImageColorChanger.UI
                 await DeleteTextBoxAsync(textBox);
             };
 
-            // 🆕 监听复制请求（右键菜单 - 立即复制创建新文本框）
+            // 🆕 监听复制请求（右键菜单 - 复制到缓冲区）
             textBox.RequestCopy += async (s, e) =>
             {
-                await CopyTextBoxAsync(textBox);
+                await CopyTextBoxToClipboardAsync(textBox);
+            };
+
+            // 🆕 监听粘贴请求（右键菜单 - 从缓冲区粘贴）
+            textBox.RequestPaste += async (s, e) =>
+            {
+                await PasteTextBoxFromClipboardAsync(textBox);
             };
 
             // ✅ 监听文本选择改变事件（更新工具栏按钮状态）

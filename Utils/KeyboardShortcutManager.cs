@@ -27,6 +27,18 @@ namespace ImageColorChanger.Utils
         /// <returns>是否处理了该按键</returns>
         public async Task<bool> HandleKeyAsync(Key key, ModifierKeys modifiers)
         {
+            // Ctrl+C: 复制选中文本框（文本编辑器）
+            if (key == Key.C && modifiers == ModifierKeys.Control)
+            {
+                return await _mainWindow.TryCopySelectedTextBoxAsync();
+            }
+
+            // Ctrl+V: 粘贴文本框（文本编辑器）
+            if (key == Key.V && modifiers == ModifierKeys.Control)
+            {
+                return await _mainWindow.TryPasteTextBoxAsync();
+            }
+
             // Ctrl+S: 保存（歌词/幻灯片）
             if (key == Key.S && modifiers == ModifierKeys.Control)
             {

@@ -135,6 +135,68 @@ namespace ImageColorChanger.UI
             }
         }
 
+        /// <summary>
+        /// 画布右键菜单（空白区域支持粘贴）
+        /// </summary>
+        private void EditorCanvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ShowEditorCanvasPasteContextMenu(e);
+        }
+
+        /// <summary>
+        /// 画布右键弹起（兜底，避免某些情况下Down事件被占用）
+        /// </summary>
+        private void EditorCanvas_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ShowEditorCanvasPasteContextMenu(e);
+        }
+
+        private void ShowEditorCanvasPasteContextMenu(MouseButtonEventArgs e)
+        {
+            if (EditorCanvas?.ContextMenu != null && EditorCanvas.ContextMenu.IsOpen)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // 点击在文本框上时交给文本框自身右键菜单处理
+            DependencyObject source = e.OriginalSource as DependencyObject;
+            while (source != null)
+            {
+                if (source is DraggableTextBox)
+                {
+                    return;
+                }
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            var contextMenu = new ContextMenu();
+            try
+            {
+                contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+            }
+            catch
+            {
+            }
+
+            var pasteItem = new MenuItem
+            {
+                Header = "粘贴",
+                FontSize = 14,
+                IsEnabled = _textBoxClipboardElement != null
+            };
+            pasteItem.Click += async (s, args) =>
+            {
+                await PasteTextBoxFromClipboardAsync(null);
+            };
+            contextMenu.Items.Add(pasteItem);
+
+            EditorCanvas.ContextMenu = contextMenu;
+            contextMenu.PlacementTarget = EditorCanvas;
+            contextMenu.IsOpen = true;
+            e.Handled = true;
+        }
+
         #endregion
 
     }

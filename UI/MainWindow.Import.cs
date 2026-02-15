@@ -139,9 +139,7 @@ namespace ImageColorChanger.UI
 
             // 版本管理（放在字号设置下方，保持在文件菜单最底部）
             var versionManageItem = new MenuItem { Header = "版本管理" };
-            var rollbackItem = new MenuItem { Header = "版本回退" };
-            rollbackItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
-            versionManageItem.Items.Add(rollbackItem);
+            versionManageItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
             contextMenu.Items.Add(versionManageItem);
 
             // 显示菜单
