@@ -124,11 +124,26 @@ namespace ImageColorChanger.Managers
         #endregion
 
         /// <summary>
-        /// 获取所有显示器信息（使用 Windows Forms Screen API + GetDpiForMonitor）
-        /// 在 Per-Monitor DPI Aware 模式下，可以准确获取每个显示器的真实 DPI
+        /// 获取所有显示器信息（优先使用 EnumDisplayDevices/EnumDisplaySettings，失败时回退 Screen API）
+        /// 说明：
+        /// 1) EnumDisplaySettings 返回物理像素，通常更稳定，不受 DPI 虚拟化影响
+        /// 2) 某些环境下若枚举失败，再使用 Screen API 兜底
         /// </summary>
         public static List<WpfScreenInfo> GetAllScreens()
         {
+            var preferred = GetAllScreensAlternative();
+            if (preferred.Count > 0)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("ℹ️ [WpfScreenHelper] 使用 EnumDisplayDevices 作为主检测结果");
+#endif
+                return preferred;
+            }
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("⚠️ [WpfScreenHelper] EnumDisplayDevices 未返回有效结果，回退到 Screen API");
+#endif
+
             var screens = new List<WpfScreenInfo>();
 
             // 使用 Windows Forms Screen API 获取物理分辨率

@@ -248,7 +248,7 @@ namespace ImageColorChanger.Managers
                 System.Diagnostics.Debug.WriteLine("🖥️ [投影管理器] 开始检测显示器");
                 System.Diagnostics.Debug.WriteLine("========================================");
 #endif
-                // 🔧 使用 Windows Forms Screen API + GetDpiForMonitor（推荐方法）
+                // 🔧 优先 EnumDisplayDevices/EnumDisplaySettings，失败时回退 Screen API
                 _screens = WpfScreenHelper.GetAllScreens();
 
                 if (_screens.Count == 0)
