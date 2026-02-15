@@ -38,6 +38,7 @@ namespace ImageColorChanger.UI
         private bool _lyricsSplitBorderVisible = true; // 是否显示分割线
         private bool _lyricsPagingMode = false; // 分页模式开关（仅分割模式下有效）
         private bool _isSyncingPagingEditor = false; // 防止分页区域切换时 TextChanged 误回写
+        private const string LyricsModeContentPrefix = "__LYRICS_MODE_V1__";
         private const string LyricsSplitContentPrefix = "__LYRICS_SPLIT_V1__";
         private const string LyricsPagesContentPrefix = "__LYRICS_PAGES_V2__";
         private readonly List<LyricsSplitContentData> _lyricsSplitPages = new();
@@ -63,6 +64,13 @@ namespace ImageColorChanger.UI
         {
             public int CurrentPageIndex { get; set; } = 0;
             public List<LyricsSplitContentData> Pages { get; set; } = new();
+        }
+
+        private sealed class LyricsModeContentData
+        {
+            public string SingleContent { get; set; } = "";
+            public LyricsSplitContentData SplitContent { get; set; } = new LyricsSplitContentData();
+            public int ActiveMode { get; set; } = (int)ViewSplitMode.Single;
         }
 
         private sealed class LyricsSplitRegionStyle
@@ -461,7 +469,7 @@ namespace ImageColorChanger.UI
         }
 
 
-        private void SetLyricsSplitMode(ViewSplitMode mode, bool keepTextBridge = true)
+        private void SetLyricsSplitMode(ViewSplitMode mode, bool keepTextBridge = false)
         {
             if (_lyricsSplitMode != (int)ViewSplitMode.Single)
             {
@@ -602,6 +610,61 @@ namespace ImageColorChanger.UI
                 splitData.RegionStyles = styles.Take(4)
                     .Select(s => s ?? new LyricsSplitRegionStyle())
                     .ToArray();
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool TryParseModeLyricsContent(string content, out LyricsModeContentData modeData)
+        {
+            modeData = null;
+            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsModeContentPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string json = content.Substring(LyricsModeContentPrefix.Length);
+            try
+            {
+                modeData = JsonSerializer.Deserialize<LyricsModeContentData>(json);
+                if (modeData == null)
+                {
+                    return false;
+                }
+
+                modeData.SingleContent ??= "";
+                modeData.SplitContent ??= CreateDefaultSplitPage(ViewSplitMode.Horizontal);
+
+                var split = modeData.SplitContent;
+                if (split.Regions == null || split.Regions.Length < 4)
+                {
+                    split.Regions = (split.Regions ?? Array.Empty<string>())
+                        .Concat(Enumerable.Repeat(string.Empty, 4))
+                        .Take(4)
+                        .ToArray();
+                }
+
+                var styles = split.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+                if (styles.Length < 4)
+                {
+                    styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
+                        .Select(_ => new LyricsSplitRegionStyle())).ToArray();
+                }
+                split.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
+
+                if (split.SplitMode < (int)ViewSplitMode.Horizontal || split.SplitMode > (int)ViewSplitMode.Quad)
+                {
+                    split.SplitMode = (int)ViewSplitMode.Horizontal;
+                }
+
+                if (modeData.ActiveMode < (int)ViewSplitMode.Single || modeData.ActiveMode > (int)ViewSplitMode.Quad)
+                {
+                    modeData.ActiveMode = (int)ViewSplitMode.Single;
+                }
 
                 return true;
             }
@@ -1389,7 +1452,7 @@ namespace ImageColorChanger.UI
 
             item.Click += (s, e) =>
             {
-                SetLyricsSplitMode(mode);
+                SetLyricsSplitMode(mode, keepTextBridge: false);
                 SaveLyricsProject();
                 ShowStatus($"✨ 歌词分割: {title}");
 
@@ -1506,7 +1569,14 @@ namespace ImageColorChanger.UI
                     _lyricsSplitPages.Clear();
                     _lyricsCurrentPageIndex = 0;
 
-                    if (TryParsePagesLyricsContent(content, out var pagesData))
+                    if (TryParseModeLyricsContent(content, out var modeData))
+                    {
+                        LyricsTextBox.Text = modeData.SingleContent ?? "";
+                        _lyricsSplitPages.Add(modeData.SplitContent ?? CreateDefaultSplitPage(ViewSplitMode.Horizontal));
+                        _lyricsCurrentPageIndex = 0;
+                        SetLyricsSplitMode((ViewSplitMode)modeData.ActiveMode, keepTextBridge: false);
+                    }
+                    else if (TryParsePagesLyricsContent(content, out var pagesData))
                     {
                         _lyricsSplitPages.Add(pagesData.Pages[0]);
                         _lyricsCurrentPageIndex = 0;
@@ -1663,17 +1733,28 @@ namespace ImageColorChanger.UI
             {
                 var activeEditor = GetActiveLyricsEditor();
 
-                // 更新内容（不保存颜色，使用全局配置）
-                if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                // 更新内容（单画面与分割画面分别保存）
+                if (_lyricsSplitMode != (int)ViewSplitMode.Single)
                 {
-                    _currentLyricsProject.Content = LyricsTextBox.Text;
-                }
-                else
-                {
+                    if (_lyricsPagingMode)
+                    {
+                        SyncSplitRegionFromPagingEditor();
+                    }
                     SaveCurrentSplitPageFromUi();
-                    NormalizeSplitPages();
-                    _currentLyricsProject.Content = LyricsSplitContentPrefix + JsonSerializer.Serialize(_lyricsSplitPages[0]);
                 }
+
+                NormalizeSplitPages();
+                var splitSnapshot = _lyricsSplitPages.Count > 0
+                    ? _lyricsSplitPages[0]
+                    : CreateDefaultSplitPage(ViewSplitMode.Horizontal);
+
+                var modeData = new LyricsModeContentData
+                {
+                    SingleContent = LyricsTextBox.Text ?? "",
+                    SplitContent = splitSnapshot,
+                    ActiveMode = _lyricsSplitMode
+                };
+                _currentLyricsProject.Content = LyricsModeContentPrefix + JsonSerializer.Serialize(modeData);
 
                 _currentLyricsProject.FontSize = activeEditor.FontSize;
                 _currentLyricsProject.TextAlign = activeEditor.TextAlignment.ToString();
