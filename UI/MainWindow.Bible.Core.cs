@@ -433,9 +433,6 @@ namespace ImageColorChanger.UI
             // 初始化拼音快速定位服务
             InitializePinyinService();
             
-            // 💾 加载滚动节数设置
-            LoadBibleScrollVerseCountSetting();
-            
             // 🆕 更新译本选择按钮状态
             UpdateBibleVersionRadioButtons();
             

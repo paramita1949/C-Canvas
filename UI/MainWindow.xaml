@@ -1501,25 +1501,12 @@
                                               Click="SetBibleCopyStyle_Click"
                                               IsCheckable="True"
                                               Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuBibleCopyStyleChapter"
+                                <MenuItem x:Name="MenuBibleCopyStyleChapter"
                                               Header="章节样式  示例：[约翰福音1章1-2节]"
                                               Tag="Chapter"
                                               Click="SetBibleCopyStyle_Click"
                                               IsCheckable="True"
                                               Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                </MenuItem>
-                                <Separator/>
-                                <MenuItem Header="滚动节数">
-                                    <MenuItem x:Name="MenuScrollCount1" Header="1节" Tag="1" Click="SetScrollVerseCount_Click" IsCheckable="True" IsChecked="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount2" Header="2节" Tag="2" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount3" Header="3节" Tag="3" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount4" Header="4节" Tag="4" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount5" Header="5节" Tag="5" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount6" Header="6节" Tag="6" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount7" Header="7节" Tag="7" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount8" Header="8节" Tag="8" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount9" Header="9节" Tag="9" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
-                                    <MenuItem x:Name="MenuScrollCount10" Header="10节" Tag="10" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
                                 </MenuItem>
                             </ContextMenu>
                         </ScrollViewer.ContextMenu>

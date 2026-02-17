@@ -302,10 +302,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ScrollToVerseAtIndex(int index)
         {
-            // ItemsControl 不支持 ScrollIntoView，使用其他方式实现滚动
-            // 可以通过查找子元素并计算位置来滚动
-            // 暂时简化实现：不自动滚动（用户可以手动滚动查看）
-            // 如果需要自动滚动，可以后续使用 VisualTreeHelper 查找元素位置实现
+            ScrollToVerseInstant(index);
         }
 
         #endregion
