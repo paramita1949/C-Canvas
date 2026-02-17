@@ -50,6 +50,7 @@ namespace ImageColorChanger.UI
         }
 
         private BibleCopyHeaderStyle _bibleCopyHeaderStyle = BibleCopyHeaderStyle.Short;
+        private const string BibleCopyHeaderStyleSettingKey = "BibleCopyHeaderStyle";
         
         // 双击检测
         private DateTime _lastHistoryClickTime = DateTime.MinValue;
@@ -210,6 +211,8 @@ namespace ImageColorChanger.UI
                             MessageBoxButton.OK,
                             MessageBoxImage.Error);
                     });
+
+                LoadBibleCopyStyleSetting();
             }
             catch (Exception ex)
             {
@@ -1551,6 +1554,47 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void LoadBibleCopyStyleSetting()
+        {
+            try
+            {
+                var savedValue = _dbManager?.GetUISetting(BibleCopyHeaderStyleSettingKey, "Short");
+                _bibleCopyHeaderStyle = savedValue switch
+                {
+                    "Full" => BibleCopyHeaderStyle.Full,
+                    "Chapter" => BibleCopyHeaderStyle.Chapter,
+                    _ => BibleCopyHeaderStyle.Short
+                };
+            }
+            catch
+            {
+                _bibleCopyHeaderStyle = BibleCopyHeaderStyle.Short;
+            }
+
+            UpdateBibleCopyStyleMenuChecks();
+        }
+
+        private void SaveBibleCopyStyleSetting()
+        {
+            try
+            {
+                _dbManager?.SaveUISetting(BibleCopyHeaderStyleSettingKey, _bibleCopyHeaderStyle.ToString());
+            }
+            catch
+            {
+            }
+        }
+
+        private void UpdateBibleCopyStyleMenuChecks()
+        {
+            if (MenuBibleCopyStyleShort != null)
+                MenuBibleCopyStyleShort.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Short;
+            if (MenuBibleCopyStyleFull != null)
+                MenuBibleCopyStyleFull.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Full;
+            if (MenuBibleCopyStyleChapter != null)
+                MenuBibleCopyStyleChapter.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Chapter;
+        }
+
         /// <summary>
         /// 右键复制经文（固定格式）
         /// [约翰福音3:16-18]
@@ -1632,12 +1676,8 @@ namespace ImageColorChanger.UI
                 _ => BibleCopyHeaderStyle.Short
             };
 
-            if (MenuBibleCopyStyleShort != null)
-                MenuBibleCopyStyleShort.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Short;
-            if (MenuBibleCopyStyleFull != null)
-                MenuBibleCopyStyleFull.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Full;
-            if (MenuBibleCopyStyleChapter != null)
-                MenuBibleCopyStyleChapter.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Chapter;
+            UpdateBibleCopyStyleMenuChecks();
+            SaveBibleCopyStyleSetting();
 
             ShowStatus("✅ 复制样式已切换");
         }
