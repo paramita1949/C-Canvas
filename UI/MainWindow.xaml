@@ -5,6 +5,7 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
         xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls"
+        xmlns:converters="clr-namespace:ImageColorChanger.UI.Converters"
         Title="咏慕投影"
         Height="1004" Width="1600"
         MinHeight="800" MinWidth="1400"
@@ -20,6 +21,8 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <converters:ThumbnailPathToImageSourceConverter x:Key="ThumbnailPathToImageSourceConverter"/>
+
         <!-- 无边框 ContextMenu 样式 -->
         <Style x:Key="NoBorderContextMenuStyle" TargetType="ContextMenu">
             <Setter Property="Background" Value="#2D2D30"/>
@@ -1483,6 +1486,29 @@
                                         </Setter>
                                     </Style>
                                 </ContextMenu.Resources>
+                                <MenuItem Header="复制经文" Click="CopyBibleVerses_Click"/>
+                                <MenuItem Header="复制样式">
+                                    <MenuItem x:Name="MenuBibleCopyStyleShort"
+                                              Header="简称样式  示例：[约1:1-2]"
+                                              Tag="Short"
+                                              Click="SetBibleCopyStyle_Click"
+                                              IsCheckable="True"
+                                              IsChecked="True"
+                                              Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuBibleCopyStyleFull"
+                                              Header="全称样式  示例：[约翰福音1:1-2]"
+                                              Tag="Full"
+                                              Click="SetBibleCopyStyle_Click"
+                                              IsCheckable="True"
+                                              Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                    <MenuItem x:Name="MenuBibleCopyStyleChapter"
+                                              Header="章节样式  示例：[约翰福音1章1-2节]"
+                                              Tag="Chapter"
+                                              Click="SetBibleCopyStyle_Click"
+                                              IsCheckable="True"
+                                              Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                                </MenuItem>
+                                <Separator/>
                                 <MenuItem Header="滚动节数">
                                     <MenuItem x:Name="MenuScrollCount1" Header="1节" Tag="1" Click="SetScrollVerseCount_Click" IsCheckable="True" IsChecked="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
                                     <MenuItem x:Name="MenuScrollCount2" Header="2节" Tag="2" Click="SetScrollVerseCount_Click" IsCheckable="True" Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
@@ -1555,25 +1581,25 @@
                                                  VerticalAlignment="Center"
                                                  Panel.ZIndex="1000"/>
                 
-                <!-- 🆕 底部工具栏：快速切换译本（鼠标悬停显示）-->
-                <!-- 鼠标触发区域（悬浮在经文区底部，不占用布局空间）-->
+                <!-- 🆕 顶部工具栏：快速切换译本（鼠标悬停显示）-->
+                <!-- 鼠标触发区域（悬浮在经文区顶部，不占用布局空间）-->
                 <Border Grid.Row="0" 
                         x:Name="BibleVersionTriggerArea"
                         Height="20"
-                        VerticalAlignment="Bottom"
+                        VerticalAlignment="Top"
                         Background="Transparent"
                         Panel.ZIndex="999"
                         MouseEnter="BibleVersionTrigger_MouseEnter"
                         MouseLeave="BibleVersionTrigger_MouseLeave"/>
                 
-                <!-- 版本切换工具栏（默认隐藏，悬浮在内容上方）-->
+                <!-- 版本切换工具栏（默认隐藏，悬浮在顶部）-->
                 <Border Grid.Row="0"
                         x:Name="BibleVersionToolbar"
                         Background="#2D2D30" 
                         BorderBrush="#3E3E42" 
-                        BorderThickness="0,1,0,0" 
+                        BorderThickness="0,0,0,1" 
                         Padding="10,8"
-                        VerticalAlignment="Bottom"
+                        VerticalAlignment="Top"
                         Visibility="Collapsed"
                         Panel.ZIndex="1000"
                         MouseEnter="BibleVersionTrigger_MouseEnter"
@@ -2127,7 +2153,7 @@
                                                         <Rectangle Fill="{Binding BackgroundColor, TargetNullValue=#FFFFFF}"/>
                                                         
                                                         <!-- 缩略图图片（如果有） -->
-                                                        <Image Source="{Binding ThumbnailImage}" 
+                                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource ThumbnailPathToImageSourceConverter}}" 
                                                                Stretch="Uniform"
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Center"/>
@@ -2140,7 +2166,7 @@
                                                                 <Style TargetType="StackPanel">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding ThumbnailImage}" Value="{x:Null}">
+                                                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
                                                                             <Setter Property="Visibility" Value="Visible"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>

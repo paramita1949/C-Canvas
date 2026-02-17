@@ -195,7 +195,7 @@ namespace ImageColorChanger.UI
                     {
                         return null;
                     }
-                    _textProjectManager = new Managers.TextProjectManager(_dbManager);
+                    _textProjectManager = new Managers.TextProjectManager(_dbContext);
                 }
 
                 var allProjects = await _textProjectManager.GetAllProjectsAsync();
@@ -236,15 +236,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task ClearProjectSlidesAsync(int projectId)
         {
-            var slides = await _dbContext.Slides
-                .Where(s => s.ProjectId == projectId)
-                .ToListAsync();
-
-            if (slides.Any())
-            {
-                _dbContext.Slides.RemoveRange(slides);
-                await _dbContext.SaveChangesAsync();
-            }
+            await _textProjectManager.DeleteSlidesByProjectAsync(projectId);
         }
 
         /// <summary>
@@ -282,8 +274,7 @@ namespace ImageColorChanger.UI
                     ModifiedTime = DateTime.Now
                 };
 
-                _dbContext.Slides.Add(newSlide);
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.AddSlideAsync(newSlide);
 
                 return newSlide;
             }
@@ -338,9 +329,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 1. 获取项目中的幻灯片数量，用于计算SortOrder
-                var slideCount = await _dbContext.Slides
-                    .Where(s => s.ProjectId == projectId)
-                    .CountAsync();
+                var slideCount = await _textProjectManager.GetSlideCountAsync(projectId);
 
                 // 2. 创建分割区域数据（单画面）
                 var regionDataList = new List<SplitRegionData>
@@ -369,8 +358,7 @@ namespace ImageColorChanger.UI
                     ModifiedTime = DateTime.Now
                 };
 
-                _dbContext.Slides.Add(newSlide);
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.AddSlideAsync(newSlide);
 
                 return newSlide;
             }
@@ -416,4 +404,5 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
 

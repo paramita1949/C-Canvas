@@ -12,14 +12,16 @@ namespace ImageColorChanger.Services
     public class BibleTextRenderer
     {
         private BibleTextInsertConfig _config;
+        private readonly SkiaFontService _fontService;
         
         /// <summary>
         /// 构造函数
         /// </summary>
         /// <param name="config">圣经插入配置</param>
-        public BibleTextRenderer(BibleTextInsertConfig config)
+        public BibleTextRenderer(BibleTextInsertConfig config, SkiaFontService fontService = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _fontService = fontService ?? App.GetRequiredService<SkiaFontService>() ?? throw new InvalidOperationException("SkiaFontService is not available.");
             
             #if DEBUG
             Debug.WriteLine($"✅ [BibleTextRenderer] 初始化完成");
@@ -85,7 +87,7 @@ namespace ImageColorChanger.Services
             using (var font = new SKFont())
             {
                 // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                font.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                font.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.TitleStyle.IsBold,
                     false
@@ -125,7 +127,7 @@ namespace ImageColorChanger.Services
             using (var font = new SKFont())
             {
                 // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-                font.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                font.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.VerseStyle.IsBold,
                     false
@@ -181,7 +183,7 @@ namespace ImageColorChanger.Services
             using (var titleFont = new SKFont())
             {
                 // 设置经文字体
-                verseFont.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                verseFont.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.VerseStyle.IsBold,
                     false
@@ -196,7 +198,7 @@ namespace ImageColorChanger.Services
                 }
                 
                 // 设置标题字体
-                titleFont.Typeface = Core.SkiaFontService.Instance.GetTypeface(
+                titleFont.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.TitleStyle.IsBold,
                     false

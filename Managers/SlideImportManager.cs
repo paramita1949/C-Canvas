@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using Microsoft.Win32;
-using System.Windows;
 
 namespace ImageColorChanger.Managers
 {
@@ -17,19 +16,12 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class SlideImportManager
     {
-        private readonly DatabaseManager _dbManager;
+        private readonly CanvasDbContext _dbContext;
+        public string LastError { get; private set; }
 
-        public SlideImportManager(DatabaseManager dbManager)
+        public SlideImportManager(CanvasDbContext dbContext)
         {
-            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
-        }
-
-        /// <summary>
-        /// 获取 DbContext
-        /// </summary>
-        private CanvasDbContext GetDbContext()
-        {
-            return _dbManager.GetDbContext();
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
 
         /// <summary>
@@ -38,6 +30,7 @@ namespace ImageColorChanger.Managers
         /// <returns>导入的项目数量</returns>
         public async Task<int> ImportProjectsAsync()
         {
+            LastError = null;
             try
             {
                 // 选择要导入的文件
@@ -56,12 +49,11 @@ namespace ImageColorChanger.Managers
 
                 if (exportData == null || exportData.Projects == null || exportData.Projects.Count == 0)
                 {
-                    System.Windows.MessageBox.Show("文件格式无效或没有项目数据", "错误",
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    LastError = "文件格式无效或没有项目数据";
                     return 0;
                 }
 
-                var dbContext = GetDbContext();
+                var dbContext = _dbContext;
                 int importedCount = 0;
 
                 // 导入每个项目
@@ -241,15 +233,11 @@ namespace ImageColorChanger.Managers
                     importedCount++;
                 }
 
-                System.Windows.MessageBox.Show($"成功导入 {importedCount} 个项目", "导入成功",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-
                 return importedCount;
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"导入失败: {ex.Message}", "错误",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                LastError = $"导入失败: {ex.Message}";
                 return 0;
             }
         }

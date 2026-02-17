@@ -1,5 +1,7 @@
+using System.Windows;
 using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
 {
@@ -16,8 +18,8 @@ namespace ImageColorChanger.UI
             InitializeDatabase();
             InitializeKeyframeSystem();
 
-            _imageProcessor = new ImageProcessor(this, ImageScrollViewer, ImageDisplay, ImageContainer);
-            _skiaRenderer = App.GetRequiredService<SkiaTextRenderer>();
+            _imageProcessor = new ImageProcessor(new MainWindowImageProcessingHost(this), _gpuContext, ImageScrollViewer, ImageDisplay, ImageContainer);
+            _skiaRenderer = _mainWindowServices.GetRequired<SkiaTextRenderer>();
 
             LoadSettings();
             InitializeAdaptiveFontSystem();
@@ -29,7 +31,17 @@ namespace ImageColorChanger.UI
                 ImageScrollViewer,
                 ImageDisplay,
                 _imageProcessor,
+                _gpuContext,
                 ScreenSelector,
+                new AuthServiceProjectionAuthPolicy(_authService),
+                new WpfProjectionUiNotifier(),
+                new DelegateProjectionHost(
+                    () => IsInLyricsMode,
+                    SwitchToPreviousSimilarImage,
+                    SwitchToNextSimilarImage,
+                    () => _fpsMonitor?.RecordProjectionSync(),
+                    ForwardProjectionKeyDownFromProjection),
+                new WpfProjectionWindowFactory(),
                 null);
 
             _projectionManager.ProjectionStateChanged += OnProjectionStateChanged;
@@ -60,6 +72,23 @@ namespace ImageColorChanger.UI
                 Focus();
                 Activate();
             };
+        }
+
+        private void ForwardProjectionKeyDownFromProjection(System.Windows.Input.KeyEventArgs e)
+        {
+            if (e == null)
+            {
+                return;
+            }
+
+            RaiseEvent(new System.Windows.Input.KeyEventArgs(
+                e.KeyboardDevice,
+                e.InputSource,
+                e.Timestamp,
+                e.Key)
+            {
+                RoutedEvent = Window.PreviewKeyDownEvent
+            });
         }
     }
 }

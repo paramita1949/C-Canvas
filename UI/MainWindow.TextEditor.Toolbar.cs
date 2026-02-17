@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.UI.Modules;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -31,6 +32,8 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private TextEditorMenuController _textEditorMenuController;
+
         #region 工具栏事件处理
 
         /// <summary>
@@ -307,28 +310,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 创建导入菜单
-            var contextMenu = new ContextMenu();
-            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
-
-            // 单图导入
-            var singleImageItem = new MenuItem { Header = "单背景图" };
-            singleImageItem.Click += (s, args) => ImportSingleImageAsSlide();
-            contextMenu.Items.Add(singleImageItem);
-
-            // 多图导入
-            var multiImageItem = new MenuItem { Header = "多背景图" };
-            multiImageItem.Click += async (s, args) => await ImportMultipleImagesAsSlidesAsync();
-            contextMenu.Items.Add(multiImageItem);
-
-            // 视频背景（一级菜单，点击直接导入）
-            var videoBackgroundItem = new MenuItem { Header = "视频背景" };
-            videoBackgroundItem.Click += async (s, args) => await ImportVideoAsSlideAsync();
-            contextMenu.Items.Add(videoBackgroundItem);
-
-            // 显示菜单
-            contextMenu.PlacementTarget = BtnBackgroundImage;
-            contextMenu.IsOpen = true;
+            EnsureTextEditorMenuController();
+            _textEditorMenuController.ShowBackgroundImportMenu(
+                BtnBackgroundImage,
+                (Style)FindResource("NoBorderContextMenuStyle"),
+                ImportSingleImageAsSlide,
+                ImportMultipleImagesAsSlidesAsync,
+                ImportVideoAsSlideAsync);
         }
 
         /// <summary>
@@ -397,12 +385,12 @@ namespace ImageColorChanger.UI
                 
             try
             {
-                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitStretchMode = _splitStretchMode;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
                     _currentSlide.SplitStretchMode = _splitStretchMode;
@@ -428,66 +416,17 @@ namespace ImageColorChanger.UI
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
-            var contextMenu = new ContextMenu();
-            
-            // 🔑 应用自定义样式
-            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+            EnsureTextEditorMenuController();
+            _textEditorMenuController.ShowSplitModeMenu(
+                sender as UIElement ?? BtnSplitView,
+                (Style)FindResource("NoBorderContextMenuStyle"),
+                _currentSlide.SplitMode,
+                SetSplitMode);
+        }
 
-            // 获取当前分割模式（-1 表示未设置，不勾选任何项）
-            int currentSplitMode = _currentSlide.SplitMode;
-
-            // 单画面
-            var singleItem = new MenuItem 
-            { 
-                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Single 
-                    ? "✓ 单画面" : "   单画面",
-                Height = 36
-            };
-            singleItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Single);
-            contextMenu.Items.Add(singleItem);
-
-            // 左右分割
-            var horizontalItem = new MenuItem 
-            { 
-                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Horizontal 
-                    ? "✓ 左右分割" : "   左右分割",
-                Height = 36
-            };
-            horizontalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Horizontal);
-            contextMenu.Items.Add(horizontalItem);
-
-            // 上下分割
-            var verticalItem = new MenuItem 
-            { 
-                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Vertical 
-                    ? "✓ 上下分割" : "   上下分割",
-                Height = 36
-            };
-            verticalItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Vertical);
-            contextMenu.Items.Add(verticalItem);
-
-            // 三分割
-            var tripleSplitItem = new MenuItem 
-            { 
-                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.TripleSplit 
-                    ? "✓ 三分割" : "   三分割",
-                Height = 36
-            };
-            tripleSplitItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.TripleSplit);
-            contextMenu.Items.Add(tripleSplitItem);
-
-            // 四宫格
-            var quadItem = new MenuItem 
-            { 
-                Header = currentSplitMode == (int)Database.Models.Enums.ViewSplitMode.Quad 
-                    ? "✓ 四宫格" : "   四宫格",
-                Height = 36
-            };
-            quadItem.Click += (s, args) => SetSplitMode(Database.Models.Enums.ViewSplitMode.Quad);
-            contextMenu.Items.Add(quadItem);
-
-            contextMenu.PlacementTarget = sender as UIElement;
-            contextMenu.IsOpen = true;
+        private void EnsureTextEditorMenuController()
+        {
+            _textEditorMenuController ??= new TextEditorMenuController();
         }
 
         /// <summary>
@@ -501,7 +440,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 更新数据库
-                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitMode = (int)mode;
@@ -510,7 +449,7 @@ namespace ImageColorChanger.UI
                     // 切换分割模式时，清空分割区域数据
                     slideToUpdate.SplitRegionsData = null;
                     
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
 
                     // 更新本地缓存
                     _currentSlide.SplitMode = (int)mode;
@@ -599,66 +538,6 @@ namespace ImageColorChanger.UI
             
             // 默认选中第一个区域
             SelectRegion(0);
-        }
-        
-        /// <summary>
-        /// 清除分割线
-        /// </summary>
-        private void ClearSplitLines()
-        {
-            // 移除所有带有 "SplitLine" 标记的元素
-            var linesToRemove = EditorCanvas.Children.OfType<Line>()
-                .Where(l => l.Tag != null && l.Tag.ToString() == "SplitLine")
-                .ToList();
-                
-            foreach (var line in linesToRemove)
-            {
-                EditorCanvas.Children.Remove(line);
-            }
-        }
-        
-        /// <summary>
-        /// 绘制竖线
-        /// </summary>
-        private void DrawVerticalLine(double x, double y1, double y2)
-        {
-            var line = new Line
-            {
-                X1 = x,
-                Y1 = y1,
-                X2 = x,
-                Y2 = y2,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(SPLIT_LINE_COLOR_R, SPLIT_LINE_COLOR_G, SPLIT_LINE_COLOR_B)), // 🔧 使用统一常量
-                StrokeThickness = SPLIT_LINE_THICKNESS_MAIN,
-                StrokeDashArray = new DoubleCollection { SPLIT_LINE_DASH_LENGTH, SPLIT_LINE_DASH_GAP }, // 🔧 使用统一常量
-                Tag = "SplitLine",
-                IsHitTestVisible = false // 不响应鼠标事件
-            };
-            
-            Canvas.SetZIndex(line, 1000); // 置于顶层
-            EditorCanvas.Children.Add(line);
-        }
-        
-        /// <summary>
-        /// 绘制横线
-        /// </summary>
-        private void DrawHorizontalLine(double y, double x1, double x2)
-        {
-            var line = new Line
-            {
-                X1 = x1,
-                Y1 = y,
-                X2 = x2,
-                Y2 = y,
-                Stroke = new SolidColorBrush(WpfColor.FromRgb(SPLIT_LINE_COLOR_R, SPLIT_LINE_COLOR_G, SPLIT_LINE_COLOR_B)), // 🔧 使用统一常量
-                StrokeThickness = SPLIT_LINE_THICKNESS_MAIN,
-                StrokeDashArray = new DoubleCollection { SPLIT_LINE_DASH_LENGTH, SPLIT_LINE_DASH_GAP }, // 🔧 使用统一常量
-                Tag = "SplitLine",
-                IsHitTestVisible = false // 不响应鼠标事件
-            };
-            
-            Canvas.SetZIndex(line, 1000); // 置于顶层
-            EditorCanvas.Children.Add(line);
         }
         
         /// <summary>
@@ -819,7 +698,7 @@ namespace ImageColorChanger.UI
                 {
                     try
                     {
-                        var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == imagePath);
+                        var mediaFile = _textProjectManager.GetMediaFileByPathAsync(imagePath).GetAwaiter().GetResult();
                         
                         #if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"🔍 [LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
@@ -1220,12 +1099,12 @@ namespace ImageColorChanger.UI
                 string json = JsonSerializer.Serialize(regionDataList);
                 
                 // 更新数据库
-                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitRegionsData = json;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
                     _currentSlide.SplitRegionsData = json;
@@ -1442,7 +1321,7 @@ namespace ImageColorChanger.UI
                     bool shouldApplyColorEffect = false;
                     try
                     {
-                        var mediaFile = _dbContext.MediaFiles.FirstOrDefault(m => m.Path == regionData.ImagePath);
+                        var mediaFile = _textProjectManager.GetMediaFileByPathAsync(regionData.ImagePath).GetAwaiter().GetResult();
                         
                         #if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"🔍 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");
@@ -1657,716 +1536,6 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 失败");
                 #endif
             }
-        }
-
-        /// <summary>
-        /// 导入单张图片为当前幻灯片背景
-        /// </summary>
-        private void ImportSingleImageAsSlide()
-        {
-            if (_currentSlide == null)
-            {
-                WpfMessageBox.Show("请先选择一个幻灯片", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            BtnLoadBackgroundImage_Click(null, null);
-        }
-
-        /// <summary>
-        /// 导入多张图片，每张图创建一张新幻灯片
-        /// </summary>
-        private async Task ImportMultipleImagesAsSlidesAsync()
-        {
-            try
-            {
-                // 选择多张图片
-                var dialog = new WpfOpenFileDialog
-                {
-                    Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
-                    Title = "选择图片（可多选）",
-                    Multiselect = true
-                };
-
-                if (dialog.ShowDialog() != true || dialog.FileNames == null || dialog.FileNames.Length == 0)
-                    return;
-
-                var fileNames = dialog.FileNames;
-
-                // 使用 SortManager 按数字优先排序
-                var sortManager = new SortManager();
-                var sortedFiles = fileNames
-                    .Select(f => new { Path = f, SortKey = sortManager.GetSortKey(System.IO.Path.GetFileName(f)) })
-                    .OrderBy(x => x.SortKey.prefixNumber)
-                    .ThenBy(x => x.SortKey.pinyinPart)
-                    .ThenBy(x => x.SortKey.suffixNumber)
-                    .Select(x => x.Path)
-                    .ToArray();
-
-                // 显示进度提示
-                var progressMessage = $"正在导入 {sortedFiles.Length} 张图片...";
-                ShowStatus(progressMessage);
-
-                // 获取当前最大排序号
-                var maxOrderValue = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id)
-                    .Select(s => (int?)s.SortOrder)
-                    .MaxAsync();
-
-                int currentOrder = maxOrderValue ?? 0;
-
-                // 获取当前幻灯片总数（用于生成标题序号）
-                var slideCount = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id)
-                    .CountAsync();
-
-                // 批量创建幻灯片
-                var newSlides = new List<Slide>();
-                for (int i = 0; i < sortedFiles.Length; i++)
-                {
-                    var imagePath = sortedFiles[i];
-                    var fileName = System.IO.Path.GetFileNameWithoutExtension(imagePath);
-
-                    var newSlide = new Slide
-                    {
-                        ProjectId = _currentTextProject.Id,
-                        Title = $"幻灯片 {slideCount + i + 1}",
-                        SortOrder = currentOrder + i + 1,
-                        BackgroundImagePath = imagePath,
-                        BackgroundColor = null,
-                        SplitMode = -1,
-                        SplitStretchMode = false,
-                        CreatedTime = DateTime.Now,
-                        ModifiedTime = DateTime.Now
-                    };
-
-                    _dbContext.Slides.Add(newSlide);
-                    newSlides.Add(newSlide);
-                }
-
-                // 批量保存到数据库
-                await _dbContext.SaveChangesAsync();
-
-                // 🔧 先禁用事件，避免 LoadSlideList 触发自动选中干扰缩略图生成
-                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
-
-                foreach (var slide in newSlides)
-                {
-                    // 加载幻灯片到 EditorCanvas
-                    LoadSlide(slide);
-
-                    // 等待渲染完成
-                    await Task.Delay(150);
-
-                    // 生成缩略图
-                    var thumbnailPath = SaveSlideThumbnail(slide.Id);
-                    if (!string.IsNullOrEmpty(thumbnailPath))
-                    {
-                        slide.ThumbnailPath = thumbnailPath;
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-
-                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
-
-                // 缩略图生成完成后刷新列表
-                LoadSlideList();
-                ShowStatus($"✅ 成功导入 {sortedFiles.Length} 张图片");
-
-                // 选中第一张新幻灯片
-                if (newSlides.Count > 0)
-                {
-                    SlideListBox.SelectedItem = newSlides[0];
-                }
-            }
-            catch (Exception ex)
-            {
-                WpfMessageBox.Show($"批量导入失败: {ex.Message}", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 导入视频作为幻灯片背景
-        /// </summary>
-        private async Task ImportVideoAsSlideAsync()
-        {
-            if (_currentSlide == null)
-            {
-                WpfMessageBox.Show("请先选择一个幻灯片", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            // 选择视频文件
-            var dialog = new WpfOpenFileDialog
-            {
-                Filter = "视频文件|*.mp4;*.avi;*.wmv;*.mov;*.mkv",
-                Title = "选择视频背景"
-            };
-
-            if (dialog.ShowDialog() != true)
-                return;
-
-            try
-            {
-#if DEBUG
-                var totalTime = System.Diagnostics.Stopwatch.StartNew();
-                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] ===== 开始导入视频背景 =====");
-#endif
-
-                string videoPath = dialog.FileName;
-
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] 文件: {System.IO.Path.GetFileName(videoPath)}");
-                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-#endif
-
-                // 更新当前幻灯片数据
-                _currentSlide.BackgroundImagePath = videoPath;
-                _currentSlide.VideoBackgroundEnabled = true;
-                _currentSlide.VideoLoopEnabled = true;  // 默认开启循环
-                _currentSlide.VideoVolume = 0.0;  // 默认静音
-
-#if DEBUG
-                var dbStartTime = System.Diagnostics.Stopwatch.StartNew();
-#endif
-                // 保存到数据库
-                await SaveVideoBackgroundSettingsAsync();
-#if DEBUG
-                dbStartTime.Stop();
-                //System.Diagnostics.Debug.WriteLine($"💾 [视频导入] 数据库保存完成 (耗时: {dbStartTime.ElapsedMilliseconds} ms)");
-#endif
-
-#if DEBUG
-                var loadStartTime = System.Diagnostics.Stopwatch.StartNew();
-#endif
-                // 清除旧的背景
-                EditorCanvas.Background = new SolidColorBrush(Colors.Black);
-                var oldMediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
-                foreach (var old in oldMediaElements)
-                {
-                    old.Stop();
-                    old.Close();
-                    EditorCanvas.Children.Remove(old);
-                }
-
-                // 创建 MediaElement
-                var mediaElement = new MediaElement
-                {
-                    Source = new Uri(videoPath, UriKind.Absolute),
-                    LoadedBehavior = MediaState.Manual,
-                    UnloadedBehavior = MediaState.Manual,
-                    Stretch = Stretch.UniformToFill,  // 🔧 改为 UniformToFill，填充整个画布
-                    Width = EditorCanvas.Width,       // 🔧 明确设置宽度
-                    Height = EditorCanvas.Height,     // 🔧 明确设置高度
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Top,
-                    Volume = 0.0,  // 默认静音
-                    ScrubbingEnabled = true,
-                    // 🚀 启用 GPU 硬件加速缓存
-                    CacheMode = new BitmapCache
-                    {
-                        EnableClearType = false,  // 视频不需要ClearType
-                        RenderAtScale = 1.0,      // 1080p适配，减少GPU内存占用
-                        SnapsToDevicePixels = true
-                    }
-                };
-                
-                // 🚀 设置 GPU 渲染优化
-                RenderOptions.SetBitmapScalingMode(mediaElement, BitmapScalingMode.LowQuality);  // 优先性能而非质量
-                RenderOptions.SetCachingHint(mediaElement, CachingHint.Cache);  // 强制启用缓存
-                
-#if DEBUG
-                //var cache = mediaElement.CacheMode as BitmapCache;
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapCache 已启用: RenderAtScale={cache?.RenderAtScale ?? 0}");
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] CachingHint: {RenderOptions.GetCachingHint(mediaElement)}");
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(mediaElement)}");
-#endif
-
-                // 设置循环播放
-                UpdateVideoLoopBehavior(mediaElement, true);
-
-                // 添加到 Canvas（设置位置为左上角）
-                Canvas.SetLeft(mediaElement, 0);
-                Canvas.SetTop(mediaElement, 0);
-                Canvas.SetZIndex(mediaElement, -1);  // 🔧 设置为最底层，确保文本在上方
-                EditorCanvas.Children.Insert(0, mediaElement);
-
-                // 自动播放
-                mediaElement.Play();
-
-#if DEBUG
-                loadStartTime.Stop();
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频导入] 视频加载到编辑器完成 (耗时: {loadStartTime.ElapsedMilliseconds} ms)");
-#endif
-
-                // 更新投影
-                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
-                {
-#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔄 [视频导入] 开始更新投影...");
-                    var projStartTime = System.Diagnostics.Stopwatch.StartNew();
-#endif
-                    await Task.Delay(100); // 等待视频加载
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        UpdateProjectionFromCanvas();
-                    }, System.Windows.Threading.DispatcherPriority.Render);
-#if DEBUG
-                    projStartTime.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"✅ [视频导入] 投影更新完成 (耗时: {projStartTime.ElapsedMilliseconds} ms)");
-#endif
-                }
-
-                ShowStatus($"已设置视频背景: {System.IO.Path.GetFileName(videoPath)}");
-
-#if DEBUG
-                totalTime.Stop();
-                //System.Diagnostics.Debug.WriteLine($"✅ [视频导入] 已设置视频背景");
-                //System.Diagnostics.Debug.WriteLine($"   - 循环播放: 开启");
-                //System.Diagnostics.Debug.WriteLine($"   - 音量: 0% (静音)");
-                //System.Diagnostics.Debug.WriteLine($"   - 自动播放: 是");
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [视频导入] 总耗时: {totalTime.ElapsedMilliseconds} ms");
-                //System.Diagnostics.Debug.WriteLine($"📥 [视频导入] ===== 导入完成 =====\n");
-#endif
-            }
-            catch (Exception
-#if DEBUG
-            ex
-#endif
-            )
-            {
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [视频导入] 失败: {ex.Message}");
-                WpfMessageBox.Show($"设置视频背景失败: {ex.Message}", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-#else
-                WpfMessageBox.Show("设置视频背景失败，请检查视频文件是否有效", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-#endif
-            }
-        }
-
-        /// <summary>
-        /// 导入背景图片（原有方法，保持兼容）
-        /// </summary>
-        private async void BtnLoadBackgroundImage_Click(object sender, RoutedEventArgs e)
-        {
-            if (_currentTextProject == null || _currentSlide == null)
-                return;
-
-            var dialog = new WpfOpenFileDialog
-            {
-                Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
-                Title = "选择背景图"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                try
-                {
-                    // 🆕 使用 ImageBrush 设置 Canvas.Background
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(dialog.FileName);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-
-                    EditorCanvas.Background = new ImageBrush(bitmap)
-                    {
-                        Stretch = Stretch.Fill
-                    };
-                    
-                    // 🔧 保存背景图路径到当前幻灯片
-                    var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
-                    if (slideToUpdate != null)
-                    {
-                        slideToUpdate.BackgroundImagePath = dialog.FileName;
-                        slideToUpdate.BackgroundColor = null; // 清除背景色
-                        slideToUpdate.ModifiedTime = DateTime.Now;
-                        await _dbContext.SaveChangesAsync();
-                        
-                        // 更新本地缓存
-                        _currentSlide.BackgroundImagePath = dialog.FileName;
-                        _currentSlide.BackgroundColor = null;
-                        
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"✅ [背景图] 已保存到数据库: SlideId={slideToUpdate.Id}");
-                        //#endif
-                    }
-                    
-                    // 更新项目的背景图片路径（兼容旧数据）
-                    await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
-
-                    // 🔧 如果投影已开启且未锁定，更新投影
-                    if (_projectionManager != null && _projectionManager.IsProjectionActive && !_isProjectionLocked)
-                    {
-                        UpdateProjectionFromCanvas();
-                    }
-
-                    MarkContentAsModified();
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [背景图] 导入完成");
-                    //#endif
-                }
-                catch (Exception ex)
-                {
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"❌ [背景图] 导入失败: {ex.Message}");
-                    //System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
-                    //#endif
-                    
-                    WpfMessageBox.Show($"加载背景图失败: {ex.Message}", "错误", 
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 选择背景颜色
-        /// </summary>
-        private async void BtnSelectBackgroundColor_Click(object sender, RoutedEventArgs e)
-        {
-            if (_currentTextProject == null || _currentSlide == null)
-                return;
-
-            // 创建颜色选择对话框
-            var colorDialog = new System.Windows.Forms.ColorDialog
-            {
-                FullOpen = true,
-                Color = System.Drawing.Color.White
-            };
-
-            // 如果当前幻灯片有背景色，设置为初始颜色
-            if (!string.IsNullOrEmpty(_currentSlide.BackgroundColor))
-            {
-                try
-                {
-                    var wpfColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_currentSlide.BackgroundColor);
-                    colorDialog.Color = System.Drawing.Color.FromArgb(wpfColor.A, wpfColor.R, wpfColor.G, wpfColor.B);
-                }
-                catch { }
-            }
-
-            if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                
-                try
-                {
-                    // 转换为WPF颜色
-                    var wpfColor = System.Windows.Media.Color.FromArgb(
-                        colorDialog.Color.A,
-                        colorDialog.Color.R,
-                        colorDialog.Color.G,
-                        colorDialog.Color.B
-                    );
-
-                    // 转换为十六进制字符串
-                    var hexColor = $"#{wpfColor.R:X2}{wpfColor.G:X2}{wpfColor.B:X2}";
-
-                    //System.Diagnostics.Debug.WriteLine($"🎨 准备设置背景色: {hexColor}");
-                    //System.Diagnostics.Debug.WriteLine($"   EditorCanvas: {EditorCanvas?.Name ?? "null"}");
-                    
-                    // 设置Canvas背景色
-                    EditorCanvas.Background = new SolidColorBrush(wpfColor);
-                    
-                    //System.Diagnostics.Debug.WriteLine($"   EditorCanvas.Background 已设置: {EditorCanvas.Background}");
-                    
-                    // 🔧 背景色设置后，Canvas.Background 会被直接覆盖为纯色，无需额外清除
-                    
-                    // 🔧 保存背景色到当前幻灯片
-                    var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
-                    if (slideToUpdate != null)
-                    {
-                        slideToUpdate.BackgroundColor = hexColor;
-                        slideToUpdate.BackgroundImagePath = null; // 清除背景图片
-                        slideToUpdate.ModifiedTime = DateTime.Now;
-                        await _dbContext.SaveChangesAsync();
-                        
-                        // 更新本地缓存
-                        _currentSlide.BackgroundColor = hexColor;
-                        _currentSlide.BackgroundImagePath = null;
-                        
-                        //System.Diagnostics.Debug.WriteLine($"✅ 背景色已保存到幻灯片: {hexColor}");
-                    }
-                    
-                    // 清除项目的背景图片路径（兼容旧数据）
-                    await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
-                    
-                    //System.Diagnostics.Debug.WriteLine($"✅ 背景色设置成功: {hexColor}");
-                    MarkContentAsModified();
-                }
-                catch (Exception ex)
-                {
-                    //System.Diagnostics.Debug.WriteLine($"❌ 设置背景色失败: {ex.Message}");
-                    WpfMessageBox.Show($"设置背景色失败: {ex.Message}", "错误", 
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 清除背景
-        /// </summary>
-        private async void BtnClearBackground_Click(object sender, RoutedEventArgs e)
-        {
-            if (_currentTextProject == null || _currentSlide == null)
-                return;
-
-            try
-            {
-                // 重置Canvas背景为白色
-                EditorCanvas.Background = new SolidColorBrush(Colors.White);
-                
-                // 🔧 保存白色背景到当前幻灯片
-                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
-                if (slideToUpdate != null)
-                {
-                    slideToUpdate.BackgroundColor = "#FFFFFF";
-                    slideToUpdate.BackgroundImagePath = null;
-                    slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _dbContext.SaveChangesAsync();
-                    
-                    // 更新本地缓存
-                    _currentSlide.BackgroundColor = "#FFFFFF";
-                    _currentSlide.BackgroundImagePath = null;
-                    
-                    //System.Diagnostics.Debug.WriteLine("✅ 背景已清除并保存到幻灯片");
-                }
-                
-                // 清除项目的背景图片路径（兼容旧数据）
-                await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
-                
-                //System.Diagnostics.Debug.WriteLine("✅ 背景已清除");
-                MarkContentAsModified();
-            }
-            catch (Exception ex)
-            {
-                //System.Diagnostics.Debug.WriteLine($"❌ 清除背景失败: {ex.Message}");
-                WpfMessageBox.Show($"清除背景失败: {ex.Message}", "错误", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 水平对称按钮
-        /// </summary>
-        private async void BtnSymmetricH_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedTextBox == null)
-            {
-                WpfMessageBox.Show("请先选中一个文本框！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                double centerX = EditorCanvas.Width / 2;
-                double mirrorX = centerX + (centerX - _selectedTextBox.Data.X - _selectedTextBox.Data.Width);
-
-                // 克隆元素
-                var mirrorElement = _textProjectManager.CloneElement(_selectedTextBox.Data);
-                mirrorElement.X = mirrorX;
-                mirrorElement.IsSymmetricBool = true;
-                mirrorElement.SymmetricPairId = _selectedTextBox.Data.Id;
-                mirrorElement.SymmetricType = "Horizontal";
-
-                // 保存到数据库
-                await _textProjectManager.AddElementAsync(mirrorElement);
-
-                // 添加到画布
-                var mirrorBox = new DraggableTextBox(mirrorElement);
-                AddTextBoxToCanvas(mirrorBox);
-
-                // 建立联动
-                _selectedTextBox.PositionChanged += (s, pos) =>
-                {
-                    double newMirrorX = centerX + (centerX - pos.X - _selectedTextBox.Data.Width);
-                    Canvas.SetLeft(mirrorBox, newMirrorX);
-                    mirrorBox.Data.X = newMirrorX;
-                };
-
-                //System.Diagnostics.Debug.WriteLine($"✅ 创建水平对称元素成功");
-            }
-            catch (Exception ex)
-            {
-                //System.Diagnostics.Debug.WriteLine($"❌ 创建对称元素失败: {ex.Message}");
-                WpfMessageBox.Show($"创建对称元素失败: {ex.Message}", "错误", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 垂直对称按钮
-        /// </summary>
-        private async void BtnSymmetricV_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedTextBox == null)
-            {
-                WpfMessageBox.Show("请先选中一个文本框！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                double centerY = EditorCanvas.Height / 2;
-                double mirrorY = centerY + (centerY - _selectedTextBox.Data.Y - _selectedTextBox.Data.Height);
-
-                // 克隆元素
-                var mirrorElement = _textProjectManager.CloneElement(_selectedTextBox.Data);
-                mirrorElement.Y = mirrorY;
-                mirrorElement.IsSymmetricBool = true;
-                mirrorElement.SymmetricPairId = _selectedTextBox.Data.Id;
-                mirrorElement.SymmetricType = "Vertical";
-
-                // 保存到数据库
-                await _textProjectManager.AddElementAsync(mirrorElement);
-
-                // 添加到画布
-                var mirrorBox = new DraggableTextBox(mirrorElement);
-                AddTextBoxToCanvas(mirrorBox);
-
-                // 建立联动
-                _selectedTextBox.PositionChanged += (s, pos) =>
-                {
-                    double newMirrorY = centerY + (centerY - pos.Y - _selectedTextBox.Data.Height);
-                    Canvas.SetTop(mirrorBox, newMirrorY);
-                    mirrorBox.Data.Y = newMirrorY;
-                };
-
-                //System.Diagnostics.Debug.WriteLine($"✅ 创建垂直对称元素成功");
-            }
-            catch (Exception ex)
-            {
-                //System.Diagnostics.Debug.WriteLine($"❌ 创建对称元素失败: {ex.Message}");
-                WpfMessageBox.Show($"创建对称元素失败: {ex.Message}", "错误", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 保存项目按钮
-        /// </summary>
-        private async void BtnSaveTextProject_Click(object sender, RoutedEventArgs e)
-        {
-            if (_currentTextProject == null)
-                return;
-
-            try
-            {
-//#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始保存项目: {_currentTextProject.Name}");
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框数量: {_textBoxes.Count}");
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-//
-//                // 打印每个文本框的样式信息
-//                foreach (var tb in _textBoxes)
-//                {
-//                    //System.Diagnostics.Debug.WriteLine($"  📦 文本框 ID={tb.Data.Id}: 边框={tb.Data.BorderColor}/{tb.Data.BorderWidth}px/透明度{tb.Data.BorderOpacity}%, 背景={tb.Data.BackgroundColor}/透明度{tb.Data.BackgroundOpacity}%, 加粗={tb.Data.IsBold}, 斜体={tb.Data.IsItalic}");
-//                }
-//#endif
-
-                // 批量更新所有元素
-                await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
-//#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 已更新元素到数据库");
-//#endif
-
-                // 🔧 同步 FlowDocument 到 RichTextSpans 表（支持局部样式持久化）
-//#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 开始同步 FlowDocument 到 RichTextSpans");
-//#endif
-                foreach (var tb in _textBoxes)
-                {
-                    var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
-                    if (richTextSpans != null && richTextSpans.Count > 0)
-                    {
-//#if DEBUG
-//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 提取了 {richTextSpans.Count} 个片段，准备保存到数据库");
-//#endif
-                        await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
-//#if DEBUG
-//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 已保存到数据库");
-//#endif
-                    }
-                    else
-                    {
-                        // 如果没有富文本片段，清除旧的片段（用户可能删除了所有局部样式）
-                        await _textProjectManager.DeleteRichTextSpansByElementIdAsync(tb.Data.Id);
-//#if DEBUG
-//                        //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] 文本框 ID={tb.Data.Id} 清除了富文本片段（无局部样式）");
-//#endif
-                    }
-                }
-//#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"💾 [文字保存] FlowDocument 同步完成");
-//#endif
-
-                // 🆕 保存分割区域配置（单画面/分割模式的图片）
-                await SaveSplitConfigAsync();
-
-                // 🆕 生成当前幻灯片的缩略图
-                if (_currentSlide != null)
-                {
-                    var thumbnailPath = SaveSlideThumbnail(_currentSlide.Id);
-                    if (!string.IsNullOrEmpty(thumbnailPath))
-                    {
-                        _currentSlide.ThumbnailPath = thumbnailPath;
-                    }
-                }
-
-                // 🆕 保存成功后，恢复按钮为白色
-                BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
-
-                // 🆕 刷新幻灯片列表，更新缩略图显示
-                RefreshSlideList();
-
-                // 🔧 如果投影开启且未锁定，自动更新投影
-                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
-                {
-//#if DEBUG
-//                    //System.Diagnostics.Debug.WriteLine($"🔄 [文字保存] 投影已开启，准备自动更新投影...");
-//#endif
-                    UpdateProjectionFromCanvas();
-//#if DEBUG
-//                    //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 已调用 UpdateProjectionFromCanvas");
-//#endif
-                }
-                else
-                {
-//#if DEBUG
-//                    //System.Diagnostics.Debug.WriteLine($"⚠️ [文字保存] 投影未开启或已锁定，跳过投影更新 (IsProjectionActive={_projectionManager.IsProjectionActive}, IsLocked={_isProjectionLocked})");
-//#endif
-                }
-
-//#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"✅ [文字保存] 保存项目成功: {_currentTextProject.Name}");
-//#endif
-            }
-            catch (Exception ex)
-            {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 保存项目失败: {ex.Message}");
-                //#endif
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [文字保存] 堆栈: {ex.StackTrace}");
-                //#endif
-                WpfMessageBox.Show($"保存项目失败: {ex.Message}", "错误", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 🆕 更新投影按钮（核心功能）
-        /// </summary>
-        private void BtnUpdateProjection_Click(object sender, RoutedEventArgs e)
-        {
-            UpdateProjectionFromCanvas();
         }
 
         #endregion

@@ -22,13 +22,13 @@ namespace ImageColorChanger.UI
         private readonly Repositories.Interfaces.ICompositeScriptRepository _compositeScriptRepo;
 
         // 关键帧模式构造函数
-        public ScriptEditWindow(int imageId, List<TimingSequenceDto> timings)
+        public ScriptEditWindow(int imageId, List<TimingSequenceDto> timings, Repositories.Interfaces.ICompositeScriptRepository compositeScriptRepo)
         {
             InitializeComponent();
             _imageId = imageId;
             _mode = PlaybackMode.Keyframe;
             _keyframeTimings = timings;
-            _compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+            _compositeScriptRepo = compositeScriptRepo ?? throw new ArgumentNullException(nameof(compositeScriptRepo));
 
             Title = "关键帧脚本编辑";
             // 格式化并显示脚本内容
@@ -39,13 +39,13 @@ namespace ImageColorChanger.UI
         }
         
         // 原图模式构造函数
-        public ScriptEditWindow(int imageId, List<OriginalTimingSequenceDto> timings)
+        public ScriptEditWindow(int imageId, List<OriginalTimingSequenceDto> timings, Repositories.Interfaces.ICompositeScriptRepository compositeScriptRepo)
         {
             InitializeComponent();
             _imageId = imageId;
             _mode = PlaybackMode.Original;
             _originalTimings = timings;
-            _compositeScriptRepo = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
+            _compositeScriptRepo = compositeScriptRepo ?? throw new ArgumentNullException(nameof(compositeScriptRepo));
 
             Title = "原图模式脚本编辑";
             // 格式化并显示脚本内容

@@ -923,7 +923,7 @@ namespace ImageColorChanger.UI
                 if (textProjectItems.Count == 0)
                     return;
 
-                var dbContext = _dbManager.GetDbContext();
+                var dbContext = _dbContext;
                 
                 // 更新每个项目的SortOrder
                 for (int i = 0; i < textProjectItems.Count; i++)

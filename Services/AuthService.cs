@@ -396,9 +396,56 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
+        /// UI消息级别（用于将服务层提示上抛到UI层）
+        /// </summary>
+        public enum UiMessageLevel
+        {
+            Info,
+            Warning,
+            Error
+        }
+
+        /// <summary>
+        /// 服务消息事件参数
+        /// </summary>
+        public class UiMessageEventArgs : EventArgs
+        {
+            public string Title { get; set; }
+            public string Message { get; set; }
+            public UiMessageLevel Level { get; set; } = UiMessageLevel.Info;
+        }
+
+        /// <summary>
+        /// 客户端通知显示项（服务层无UI依赖）
+        /// </summary>
+        public class ClientNoticeDisplayItem
+        {
+            public string Title { get; set; }
+            public string Message { get; set; }
+        }
+
+        /// <summary>
+        /// 客户端通知事件参数
+        /// </summary>
+        public class ClientNoticesEventArgs : EventArgs
+        {
+            public List<ClientNoticeDisplayItem> Items { get; set; } = new List<ClientNoticeDisplayItem>();
+        }
+
+        /// <summary>
         /// 事件：认证状态改变
         /// </summary>
         public event EventHandler<AuthenticationChangedEventArgs> AuthenticationChanged;
+
+        /// <summary>
+        /// 事件：服务层请求UI显示消息
+        /// </summary>
+        public event EventHandler<UiMessageEventArgs> UiMessageRequested;
+
+        /// <summary>
+        /// 事件：服务层请求UI显示客户端通知
+        /// </summary>
+        public event EventHandler<ClientNoticesEventArgs> ClientNoticesRequested;
 
         /// <summary>
         /// 事件：服务器切换状态通知
@@ -1062,6 +1109,16 @@ namespace ImageColorChanger.Services
             #endif
         }
 
+        private void RaiseUiMessage(string title, string message, UiMessageLevel level = UiMessageLevel.Info)
+        {
+            UiMessageRequested?.Invoke(this, new UiMessageEventArgs
+            {
+                Title = title ?? string.Empty,
+                Message = message ?? string.Empty,
+                Level = level
+            });
+        }
+
         private void TryShowHolidayBonusNotification(HolidayBonusInfo holidayBonus)
         {
             if (holidayBonus == null || string.IsNullOrWhiteSpace(holidayBonus.HolidayKey))
@@ -1090,14 +1147,7 @@ namespace ImageColorChanger.Services
                 content += $"\n当前到期时间：{newExpiresAt:yyyy-MM-dd HH:mm:ss}";
             }
 
-            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                System.Windows.MessageBox.Show(
-                    content,
-                    title,
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
-            });
+            RaiseUiMessage(title, content, UiMessageLevel.Info);
         }
 
         private void TryShowClientNotices(AuthData authData, string source)
@@ -1125,7 +1175,7 @@ namespace ImageColorChanger.Services
                 return;
             }
 
-            var displayItems = new List<ImageColorChanger.UI.NoticePagerWindow.NoticeDisplayItem>();
+            var displayItems = new List<ClientNoticeDisplayItem>();
             var ackKeys = new List<string>();
             var changedShownSet = false;
 
@@ -1173,7 +1223,7 @@ namespace ImageColorChanger.Services
                     changedShownSet = true;
                 }
 
-                displayItems.Add(new ImageColorChanger.UI.NoticePagerWindow.NoticeDisplayItem
+                displayItems.Add(new ClientNoticeDisplayItem
                 {
                     Title = title,
                     Message = message
@@ -1195,10 +1245,9 @@ namespace ImageColorChanger.Services
                 _ = SaveAuthDataAsync();
             }
 
-            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+            ClientNoticesRequested?.Invoke(this, new ClientNoticesEventArgs
             {
-                var window = new ImageColorChanger.UI.NoticePagerWindow(displayItems);
-                window.ShowDialog();
+                Items = displayItems
             });
 
             foreach (var key in ackKeys.Distinct(StringComparer.Ordinal))
@@ -1475,16 +1524,8 @@ namespace ImageColorChanger.Services
                             if (forceLogout)
                             {
                                 Logout();
-                                
-                                // 通知UI显示消息
-                                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-                                {
-                                    System.Windows.MessageBox.Show(
-                                        logoutMessage,
-                                        logoutTitle,
-                                        System.Windows.MessageBoxButton.OK,
-                                        System.Windows.MessageBoxImage.Warning);
-                                });
+
+                                RaiseUiMessage(logoutTitle, logoutMessage, UiMessageLevel.Warning);
                                 return false;
                             }
                         }
@@ -1555,6 +1596,87 @@ namespace ImageColorChanger.Services
                 _ = ex;
                 #endif
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 轻量拉取通知更新（不刷新账号缓存字段）
+        /// 仅用于通知心跳，避免每10分钟触发完整账号刷新逻辑。
+        /// </summary>
+        private async Task PullNoticeUpdatesAsync()
+        {
+            if (!_isAuthenticated || string.IsNullOrEmpty(_username) || string.IsNullOrWhiteSpace(_token))
+            {
+                return;
+            }
+
+            try
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"📢 [通知心跳] 开始检查通知更新...");
+#endif
+
+                var hardwareId = GetHardwareId();
+                var requestData = new
+                {
+                    token = _token,
+                    hardware_id = hardwareId
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestData);
+
+                // 复用现有心跳接口，仅提取通知相关字段，不更新账号有效期/设备信息。
+                var response = await TryMultipleApiUrlsAsync(async (apiUrl) =>
+                {
+                    var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8)))
+                    {
+                        return await _httpClient.PostAsync(apiUrl + HEARTBEAT_ENDPOINT, requestContent, cts.Token);
+                    }
+                }, timeoutSeconds: 8);
+
+                if (response == null)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [通知心跳] 网络连接失败，跳过本次通知检查");
+#endif
+                    return;
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var authResponse = JsonSerializer.Deserialize<AuthResponse>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (authResponse == null || !authResponse.Success || !authResponse.Valid)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [通知心跳] 服务器未返回有效通知数据，本次跳过");
+#endif
+                    return;
+                }
+
+                TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
+                TryShowClientNotices(authResponse.Data, "notice-heartbeat");
+
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [通知心跳] 通知检查完成");
+#endif
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⏱️ [通知心跳] 检查超时，跳过本次");
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"⚠️ [通知心跳] 检查异常: {ex.Message}");
+#else
+                _ = ex;
+#endif
             }
         }
 
@@ -1687,16 +1809,8 @@ namespace ImageColorChanger.Services
                     if (forceLogout)
                     {
                         Logout();
-                        
-                        // 通知UI显示消息
-                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-                        {
-                            System.Windows.MessageBox.Show(
-                                logoutMessage,
-                                logoutTitle,
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Warning);
-                        });
+
+                        RaiseUiMessage(logoutTitle, logoutMessage, UiMessageLevel.Warning);
                         return;
                     }
                     
@@ -1795,15 +1909,11 @@ namespace ImageColorChanger.Services
                         #endif
                         
                         Logout();
-                        
-                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-                        {
-                            System.Windows.MessageBox.Show(
-                                $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
-                                "离线时间过长",
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Warning);
-                        });
+
+                        RaiseUiMessage(
+                            "离线时间过长",
+                            $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
+                            UiMessageLevel.Warning);
                         return;
                     }
                 }
@@ -1877,7 +1987,7 @@ namespace ImageColorChanger.Services
 
             try
             {
-                await RefreshAccountInfoAsync();
+                await PullNoticeUpdatesAsync();
             }
             catch (Exception ex)
             {
@@ -2896,15 +3006,8 @@ namespace ImageColorChanger.Services
                         #endif
                         
                         DeleteAuthData();
-                        
-                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-                        {
-                            System.Windows.MessageBox.Show(
-                                "检测到凭证文件异常，请重新登录。",
-                                "安全警告",
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Warning);
-                        });
+
+                        RaiseUiMessage("安全警告", "检测到凭证文件异常，请重新登录。", UiMessageLevel.Warning);
                         return;
                     }
                     
@@ -2956,15 +3059,11 @@ namespace ImageColorChanger.Services
                             #endif
                             
                             DeleteAuthData();
-                            
-                            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
-                            {
-                                System.Windows.MessageBox.Show(
-                                    $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
-                                    "离线时间过长",
-                                    System.Windows.MessageBoxButton.OK,
-                                    System.Windows.MessageBoxImage.Warning);
-                            });
+
+                            RaiseUiMessage(
+                                "离线时间过长",
+                                $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。",
+                                UiMessageLevel.Warning);
                             return;
                         }
                     }

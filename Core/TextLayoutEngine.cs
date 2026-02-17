@@ -10,6 +10,13 @@ namespace ImageColorChanger.Core
     /// </summary>
     public class TextLayoutEngine
     {
+        private readonly SkiaFontService _fontService;
+
+        public TextLayoutEngine(SkiaFontService fontService)
+        {
+            _fontService = fontService ?? throw new ArgumentNullException(nameof(fontService));
+        }
+
         /// <summary>
         /// 计算文本布局（返回每行的位置和大小）
         /// </summary>
@@ -296,7 +303,7 @@ namespace ImageColorChanger.Core
         private SKFont CreateFont(TextStyle style)
         {
             // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-            var typeface = SkiaFontService.Instance.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
+            var typeface = _fontService.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
             var font = new SKFont
             {

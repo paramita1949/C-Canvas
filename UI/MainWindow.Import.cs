@@ -167,6 +167,10 @@ namespace ImageColorChanger.UI
                     LoadSearchScopes(); // 刷新搜索范围
                     ShowStatus($"✅ 已导入: {mediaFile.Name}");
                 }
+                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                {
+                    ShowStatus($"❌ {_importManager.LastError}");
+                }
             }
         }
 
@@ -203,6 +207,10 @@ namespace ImageColorChanger.UI
                     
                     ShowStatus($"✅ 已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
                 }
+                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                {
+                    ShowStatus($"❌ {_importManager.LastError}");
+                }
             }
         }
 
@@ -213,7 +221,11 @@ namespace ImageColorChanger.UI
         {
             if (_imageSaveManager != null)
             {
-                _imageSaveManager.SaveEffectImage(_imagePath);
+                var saved = _imageSaveManager.SaveEffectImage(_imagePath);
+                if (!saved && !string.IsNullOrWhiteSpace(_imageSaveManager.LastError))
+                {
+                    ShowStatus($"❌ {_imageSaveManager.LastError}");
+                }
             }
         }
 
@@ -229,6 +241,10 @@ namespace ImageColorChanger.UI
                 {
                     LoadProjects(); // 刷新项目树
                     ShowStatus($"✅ 已导入 {count} 个幻灯片项目");
+                }
+                else if (!string.IsNullOrWhiteSpace(_slideImportManager.LastError))
+                {
+                    ShowStatus($"❌ {_slideImportManager.LastError}");
                 }
             }
         }
@@ -252,7 +268,8 @@ namespace ImageColorChanger.UI
                 if (saveDialog.ShowDialog() == true)
                 {
                     var migrationService = new Services.DatabaseMigrationService();
-                    await migrationService.ExportDatabaseAsync(saveDialog.FileName);
+                    var result = await migrationService.ExportDatabaseAsync(saveDialog.FileName);
+                    ShowMigrationResult(result);
                 }
             }
             catch (Exception ex)
@@ -289,7 +306,22 @@ namespace ImageColorChanger.UI
                     if (confirmResult == System.Windows.MessageBoxResult.Yes)
                     {
                         var migrationService = new Services.DatabaseMigrationService();
-                        await migrationService.ImportDatabaseAsync(openDialog.FileName);
+                        var result = await migrationService.ImportDatabaseAsync(openDialog.FileName);
+                        ShowMigrationResult(result);
+
+                        if (result.Success && result.RequiresRestart)
+                        {
+                            var restartResult = System.Windows.MessageBox.Show(
+                                "检测到数据库已更新，是否立即重启应用以使更改生效？",
+                                "需要重启",
+                                System.Windows.MessageBoxButton.YesNo,
+                                System.Windows.MessageBoxImage.Question);
+
+                            if (restartResult == System.Windows.MessageBoxResult.Yes)
+                            {
+                                TryRestartApplication();
+                            }
+                        }
                     }
                 }
             }
@@ -297,6 +329,47 @@ namespace ImageColorChanger.UI
             {
                 System.Windows.MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
+            }
+        }
+
+        private void ShowMigrationResult(Services.DatabaseMigrationResult result)
+        {
+            if (result == null)
+            {
+                return;
+            }
+
+            var icon = result.Level switch
+            {
+                Services.DatabaseMigrationMessageLevel.Error => System.Windows.MessageBoxImage.Error,
+                Services.DatabaseMigrationMessageLevel.Warning => System.Windows.MessageBoxImage.Warning,
+                _ => System.Windows.MessageBoxImage.Information
+            };
+
+            System.Windows.MessageBox.Show(
+                result.Message ?? string.Empty,
+                string.IsNullOrWhiteSpace(result.Title) ? "提示" : result.Title,
+                System.Windows.MessageBoxButton.OK,
+                icon);
+        }
+
+        private void TryRestartApplication()
+        {
+            try
+            {
+                var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(exePath))
+                {
+                    System.Windows.MessageBox.Show("无法获取当前程序路径，请手动重启应用。", "重启失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                System.Diagnostics.Process.Start(exePath);
+                System.Windows.Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"自动重启失败，请手动重启应用程序。\n\n错误：{ex.Message}", "重启失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
 

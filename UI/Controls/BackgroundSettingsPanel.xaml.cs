@@ -13,6 +13,11 @@ namespace ImageColorChanger.UI.Controls
     /// </summary>
     public partial class BackgroundSettingsPanel : System.Windows.Controls.UserControl
     {
+        /// <summary>
+        /// 由宿主显式注入的设置存储。
+        /// </summary>
+        public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
+
         private DraggableTextBox _targetTextBox;
         private int _cornerRadius = 0;
         private int _opacity = 100;
@@ -145,8 +150,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 无法访问数据库，使用空列表");
@@ -156,7 +161,7 @@ namespace ImageColorChanger.UI.Controls
                     return;
                 }
 
-                var jsonValue = dbManager.GetUISetting("BackgroundRecentColors");
+                var jsonValue = settingsStore.GetValue("BackgroundRecentColors");
                 if (string.IsNullOrEmpty(jsonValue))
                 {
                     //#if DEBUG
@@ -190,8 +195,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 无法访问数据库，保存失败");
@@ -201,7 +206,7 @@ namespace ImageColorChanger.UI.Controls
 
                 var colorsToSave = _recentColors.Take(6).ToList();
                 var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
-                dbManager.SaveUISetting("BackgroundRecentColors", jsonValue);
+                settingsStore.SaveValue("BackgroundRecentColors", jsonValue);
                 //#if DEBUG
                 //                System.Diagnostics.Debug.WriteLine($"💾 [背景面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
                 //#endif
@@ -212,24 +217,6 @@ namespace ImageColorChanger.UI.Controls
                 //                System.Diagnostics.Debug.WriteLine($"⚠️ [背景面板] 保存失败: {ex.Message}");
                 //#endif
             }
-        }
-
-        /// <summary>
-        /// 获取数据库管理器
-        /// </summary>
-        private Database.DatabaseManager GetDatabaseManager()
-        {
-            try
-            {
-                if (System.Windows.Application.Current?.MainWindow is MainWindow mainWin)
-                {
-                    var dbManagerField = typeof(MainWindow).GetField("_dbManager", 
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    return dbManagerField?.GetValue(mainWin) as Database.DatabaseManager;
-                }
-            }
-            catch { }
-            return null;
         }
 
         private void UpdateRecentColorsGrid()

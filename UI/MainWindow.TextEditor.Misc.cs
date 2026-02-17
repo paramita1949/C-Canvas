@@ -171,7 +171,7 @@ namespace ImageColorChanger.UI
                 
             try
             {
-                var slideToUpdate = await _dbContext.Slides.FindAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.BackgroundImagePath = _currentSlide.BackgroundImagePath;
@@ -179,7 +179,7 @@ namespace ImageColorChanger.UI
                     slideToUpdate.VideoLoopEnabled = _currentSlide.VideoLoopEnabled;
                     slideToUpdate.VideoVolume = _currentSlide.VideoVolume;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
                     _currentSlide.BackgroundImagePath = slideToUpdate.BackgroundImagePath;

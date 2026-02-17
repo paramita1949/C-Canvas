@@ -147,6 +147,7 @@ namespace ImageColorChanger.UI
                         int importedFolderCount = 0;
                         int importedFileCount = 0;
                         int totalNewFiles = 0;
+                        string lastError = null;
 
                         foreach (var path in paths)
                         {
@@ -168,6 +169,10 @@ namespace ImageColorChanger.UI
                                     System.Diagnostics.Debug.WriteLine($"✅ 文件夹导入成功: {folder.Name} (新增 {newFiles?.Count ?? 0} 个文件)");
                                     #endif
                                 }
+                                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                                {
+                                    lastError = _importManager.LastError;
+                                }
                             }
                             else if (System.IO.File.Exists(path))
                             {
@@ -188,6 +193,10 @@ namespace ImageColorChanger.UI
                                         #if DEBUG
                                         System.Diagnostics.Debug.WriteLine($"✅ 文件导入成功: {mediaFile.Name}");
                                         #endif
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                                    {
+                                        lastError = _importManager.LastError;
                                     }
                                 }
                             }
@@ -224,7 +233,7 @@ namespace ImageColorChanger.UI
                         }
                         else
                         {
-                            ShowStatus("❌ 没有导入任何文件");
+                            ShowStatus(!string.IsNullOrWhiteSpace(lastError) ? $"❌ {lastError}" : "❌ 没有导入任何文件");
                         }
                     }
                 }

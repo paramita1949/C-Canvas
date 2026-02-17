@@ -2,7 +2,11 @@ using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Database;
+using ImageColorChanger.Database.Repositories;
+using ImageColorChanger.Managers;
 using ImageColorChanger.Managers.Keyframes;
+using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.Services.StateMachine;
 
 namespace ImageColorChanger.Core
@@ -51,6 +55,14 @@ namespace ImageColorChanger.Core
                 context.InitializeDatabase();
                 return context;
             });
+            
+            // 新版仓储（P0-4B）
+            services.AddScoped<IFolderRepository, FolderRepository>();
+            services.AddScoped<IMediaRepository, MediaRepository>();
+            services.AddScoped<ISettingsRepository, SettingsRepository>();
+            services.AddScoped<IOriginalMarkRepository, OriginalMarkRepository>();
+            services.AddScoped<IKeyframeRepository, ImageColorChanger.Database.Repositories.KeyframeRepository>();
+            services.AddScoped<IDatabaseMaintenanceRepository, DatabaseMaintenanceRepository>();
 
             // 注册数据库管理器（Singleton，构造函数会自动初始化数据库）
             services.AddSingleton<DatabaseManager>(provider => new DatabaseManager(dbPath));
@@ -71,7 +83,7 @@ namespace ImageColorChanger.Core
             services.AddScoped<Repositories.Interfaces.ICompositeScriptRepository, Repositories.Implementations.CompositeScriptRepository>();
 
             // 保留旧的Repository（向后兼容）
-            services.AddScoped<KeyframeRepository>();
+            services.AddScoped<ImageColorChanger.Managers.Keyframes.KeyframeRepository>();
 
             return services;
         }
@@ -83,6 +95,17 @@ namespace ImageColorChanger.Core
         {
             // 配置管理器（Singleton）- 全局唯一配置
             services.AddSingleton<ConfigManager>();
+            services.AddSingleton<IVideoBackgroundManager, VideoBackgroundManager>();
+            services.AddSingleton<PakManager>();
+            services.AddSingleton<GPUContext>();
+            services.AddSingleton<SkiaFontService>();
+
+            // 认证服务（通过 DI 获取单例，避免 UI 层直接引用 AuthService.Instance）
+            services.AddSingleton<AuthService>(_ => AuthService.Instance);
+
+            // 认证门面（窗口层使用，避免直接依赖 AuthService.Instance）
+            services.AddSingleton<IAuthFacade>(_ => new AuthServiceFacade(AuthService.Instance));
+            services.AddSingleton<IUiSettingsStore, UiSettingsStore>();
             
             // 内存缓存（Singleton）- 圣经服务需要
             services.AddMemoryCache();
@@ -146,6 +169,7 @@ namespace ImageColorChanger.Core
         {
             // 注册ViewModels（Transient，每次请求创建新实例）
             services.AddTransient<ViewModels.PlaybackControlViewModel>();
+            services.AddTransient<UI.Composition.ScriptEditWindowFactory>();
             
             // 注册图片缓存（Singleton，全局共享）
             services.AddSingleton<Utils.ImageCache>();

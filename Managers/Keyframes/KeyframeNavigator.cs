@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using ImageColorChanger.Database.Models;
-using ImageColorChanger.UI;
 
 namespace ImageColorChanger.Managers.Keyframes
 {
@@ -13,13 +12,13 @@ namespace ImageColorChanger.Managers.Keyframes
     public class KeyframeNavigator
     {
         private readonly KeyframeManager _keyframeManager;
-        private readonly MainWindow _mainWindow;
+        private readonly IKeyframeUiHost _uiHost;
         private readonly KeyframeRepository _repository;
 
-        public KeyframeNavigator(KeyframeManager keyframeManager, MainWindow mainWindow, KeyframeRepository repository)
+        public KeyframeNavigator(KeyframeManager keyframeManager, IKeyframeUiHost uiHost, KeyframeRepository repository)
         {
             _keyframeManager = keyframeManager ?? throw new ArgumentNullException(nameof(keyframeManager));
-            _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
+            _uiHost = uiHost ?? throw new ArgumentNullException(nameof(uiHost));
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
@@ -31,10 +30,10 @@ namespace ImageColorChanger.Managers.Keyframes
             try
             {
                 // 获取当前图片ID
-                var currentImageId = _mainWindow.GetCurrentImageId();
+                var currentImageId = _uiHost.CurrentImageId;
                 if (currentImageId == 0)
                 {
-                    _mainWindow.ShowStatus("请先选择一张图片");
+                    _uiHost.ShowStatus("请先选择一张图片");
                     return;
                 }
 
@@ -42,7 +41,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes == null || keyframes.Count == 0)
                 {
-                    _mainWindow.ShowStatus("当前图片没有关键帧");
+                    _uiHost.ShowStatus("当前图片没有关键帧");
                     return;
                 }
 
@@ -91,22 +90,22 @@ namespace ImageColorChanger.Managers.Keyframes
                     try
                     {
                         // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        _uiHost.SetAutoProjectionSyncEnabled(false);
                         
-                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var scrollViewer = _uiHost.ImageScrollViewer;
                         var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                         scrollViewer.ScrollToVerticalOffset(targetOffset);
                     }
                     finally
                     {
                         // 🛡️ 确保必定重新启用自动投影同步
-                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                        _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
-                    if (_mainWindow.IsProjectionEnabled)
+                    if (_uiHost.IsProjectionEnabled)
                     {
-                        _mainWindow.UpdateProjection();
+                        _uiHost.UpdateProjection();
                     }
                 }
                 else
@@ -120,12 +119,12 @@ namespace ImageColorChanger.Managers.Keyframes
                 _ = _keyframeManager.UpdateKeyframeIndicatorsAsync();
 
                 // 显示状态
-                _mainWindow.ShowStatus($"关键帧 {targetIndex + 1}/{keyframes.Count}");
+                _uiHost.ShowStatus($"关键帧 {targetIndex + 1}/{keyframes.Count}");
             }
             catch (Exception ex)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 跳转上一关键帧异常: {ex.Message}");
-                _mainWindow.ShowStatus($"跳转失败: {ex.Message}");
+                _uiHost.ShowStatus($"跳转失败: {ex.Message}");
             }
         }
 
@@ -138,10 +137,10 @@ namespace ImageColorChanger.Managers.Keyframes
             try
             {
                 // 获取当前图片ID
-                var currentImageId = _mainWindow.GetCurrentImageId();
+                var currentImageId = _uiHost.CurrentImageId;
                 if (currentImageId == 0)
                 {
-                    _mainWindow.ShowStatus("请先选择一张图片");
+                    _uiHost.ShowStatus("请先选择一张图片");
                     return false;
                 }
 
@@ -149,7 +148,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 var keyframes = _keyframeManager.GetKeyframesFromCache(currentImageId);
                 if (keyframes == null || keyframes.Count == 0)
                 {
-                    _mainWindow.ShowStatus("当前图片没有关键帧");
+                    _uiHost.ShowStatus("当前图片没有关键帧");
                     return false;
                 }
 
@@ -198,7 +197,7 @@ namespace ImageColorChanger.Managers.Keyframes
                     targetIndex = 0;
                     
                     // 检查录制状态（优先使用新的ViewModel系统）
-                    bool wasRecording = _mainWindow._playbackViewModel?.IsRecording ?? false;
+                    bool wasRecording = _uiHost.IsPlaybackRecording;
                     
                     // 如果正在录制，自动停止录制（参考Python版本 playback_controller.py 第50-64行）
                     if (wasRecording)
@@ -215,28 +214,26 @@ namespace ImageColorChanger.Managers.Keyframes
                             #if DEBUG
                             System.Diagnostics.Debug.WriteLine($"📹 [循环-录制] 记录最后一帧 #{currentIndex + 1} (ID={lastKeyframe.Id}) 的时间");
                             #endif
-                            await _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(lastKeyframe.Id);
+                            await _uiHost.RecordKeyframeTimeAsync(lastKeyframe.Id);
                         }
                         
                         // 2. 然后停止录制
-                        var viewModel = _mainWindow._playbackViewModel;
-                        var command = viewModel?.ToggleRecordingCommand;
-                        bool canExecute = command?.CanExecute(null) ?? false;
+                        bool canExecute = _uiHost.CanToggleRecording;
                         
                         // 使用ViewModel的录制命令停止录制
                         if (canExecute)
                         {
-                            await command.ExecuteAsync(null).ConfigureAwait(false);
+                            await _uiHost.ToggleRecordingAsync().ConfigureAwait(false);
                             
                             // 等待一小段时间确保录制状态完全清除
                             await System.Threading.Tasks.Task.Delay(50).ConfigureAwait(false);
                             
                             // 录制结束后，延迟自动启动播放（参考Python版本第64行）
-                            _ = _mainWindow.Dispatcher.InvokeAsync(async () =>
+                            _uiHost.PostToUi(async () =>
                             {
                                 await System.Threading.Tasks.Task.Delay(100);
                                 await AutoStartPlayAfterRecording(currentImageId);
-                            }, System.Windows.Threading.DispatcherPriority.Background);
+                            });
                         }
                         
                         // 无论停止录制是否成功，都标记为不再记录时间
@@ -280,22 +277,22 @@ namespace ImageColorChanger.Managers.Keyframes
                     try
                     {
                         // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        _uiHost.SetAutoProjectionSyncEnabled(false);
                         
-                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var scrollViewer = _uiHost.ImageScrollViewer;
                         var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                         scrollViewer.ScrollToVerticalOffset(targetOffset);
                     }
                     finally
                     {
                         // 🛡️ 确保必定重新启用自动投影同步
-                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                        _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
-                    if (_mainWindow.IsProjectionEnabled)
+                    if (_uiHost.IsProjectionEnabled)
                     {
-                        _mainWindow.UpdateProjection();
+                        _uiHost.UpdateProjection();
                     }
                 }
                 else
@@ -309,7 +306,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 _ = _keyframeManager.UpdateKeyframeIndicatorsAsync();
 
                 // 显示状态
-                _mainWindow.ShowStatus($"关键帧 {targetIndex + 1}/{keyframes.Count}");
+                _uiHost.ShowStatus($"关键帧 {targetIndex + 1}/{keyframes.Count}");
                 
                 // 根据 shouldReturn 标志决定是否允许继续记录时间
                 // 如果检测到循环并停止了录制，则返回 false
@@ -318,7 +315,7 @@ namespace ImageColorChanger.Managers.Keyframes
             catch (Exception ex)
             {
                 //System.Diagnostics.Debug.WriteLine($"❌ 跳转下一关键帧异常: {ex.Message}");
-                _mainWindow.ShowStatus($"跳转失败: {ex.Message}");
+                _uiHost.ShowStatus($"跳转失败: {ex.Message}");
                 return false; // 异常情况下，不记录时间
             }
         }
@@ -342,13 +339,13 @@ namespace ImageColorChanger.Managers.Keyframes
                 // 🔧 修复：如果正在录制，先记录当前帧的时间（跳转前）
                 // 支持跳帧录制：即使直接跳转到某个关键帧，也要记录之前帧的停留时间
                 var currentIndex = _keyframeManager.CurrentKeyframeIndex;
-                if (_mainWindow._playbackViewModel?.IsRecording == true && currentIndex >= 0 && currentIndex < keyframes.Count)
+                if (_uiHost.IsPlaybackRecording && currentIndex >= 0 && currentIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[currentIndex];
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"📹 [跳转录制] 从关键帧 #{currentIndex + 1} (ID={currentKeyframe.Id}) 跳转到 #{index + 1}，先记录当前帧时间");
                     #endif
-                    _ = _mainWindow._playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
+                    _ = _uiHost.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                 }
 
                 // 更新当前帧索引
@@ -366,22 +363,22 @@ namespace ImageColorChanger.Managers.Keyframes
                     try
                     {
                         // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
-                        _mainWindow.SetAutoProjectionSyncEnabled(false);
+                        _uiHost.SetAutoProjectionSyncEnabled(false);
                         
-                        var scrollViewer = _mainWindow.ImageScrollViewer;
+                        var scrollViewer = _uiHost.ImageScrollViewer;
                         var targetOffset = targetPosition * scrollViewer.ScrollableHeight;
                         scrollViewer.ScrollToVerticalOffset(targetOffset);
                     }
                     finally
                     {
                         // 🛡️ 确保必定重新启用自动投影同步
-                        _mainWindow.SetAutoProjectionSyncEnabled(true);
+                        _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
                     // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
-                    if (_mainWindow.IsProjectionEnabled)
+                    if (_uiHost.IsProjectionEnabled)
                     {
-                        _mainWindow.UpdateProjection();
+                        _uiHost.UpdateProjection();
                     }
                 }
                 else
@@ -407,7 +404,7 @@ namespace ImageColorChanger.Managers.Keyframes
             try
             {
                 // 🔧 确保投影同步状态已恢复（修复投影卡住BUG）
-                _mainWindow.SetAutoProjectionSyncEnabled(true);
+                _uiHost.SetAutoProjectionSyncEnabled(true);
                 
                 // 检查是否有录制的时间数据
                 var keyframes = await _keyframeManager.GetKeyframesAsync(imageId);
@@ -422,19 +419,14 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isCompositeEnabled)
                 {
                     // 🎬 自动播放合成模式
-                    var compositeButton = _mainWindow.BtnFloatingCompositePlay;
-                    if (compositeButton != null)
-                    {
-                        compositeButton.RaiseEvent(new System.Windows.RoutedEventArgs(
-                            System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-                    }
+                    _uiHost.TriggerCompositePlayback();
                 }
                 else
                 {
                     // 普通播放模式
-                    if (_mainWindow._playbackViewModel?.TogglePlaybackCommand?.CanExecute(null) == true)
+                    if (_uiHost.CanTogglePlayback)
                     {
-                        await _mainWindow._playbackViewModel.TogglePlaybackCommand.ExecuteAsync(null);
+                        await _uiHost.TogglePlaybackAsync();
                     }
                 }
             }

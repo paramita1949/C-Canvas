@@ -5,6 +5,46 @@ using System.Threading.Tasks;
 
 namespace ImageColorChanger.Services
 {
+    public enum DatabaseMigrationMessageLevel
+    {
+        Info,
+        Warning,
+        Error
+    }
+
+    public class DatabaseMigrationResult
+    {
+        public bool Success { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public DatabaseMigrationMessageLevel Level { get; set; } = DatabaseMigrationMessageLevel.Info;
+        public bool RequiresRestart { get; set; }
+
+        public static DatabaseMigrationResult Ok(string title, string message, bool requiresRestart = false)
+        {
+            return new DatabaseMigrationResult
+            {
+                Success = true,
+                Title = title,
+                Message = message,
+                Level = DatabaseMigrationMessageLevel.Info,
+                RequiresRestart = requiresRestart
+            };
+        }
+
+        public static DatabaseMigrationResult Fail(string title, string message, DatabaseMigrationMessageLevel level = DatabaseMigrationMessageLevel.Error)
+        {
+            return new DatabaseMigrationResult
+            {
+                Success = false,
+                Title = title,
+                Message = message,
+                Level = level,
+                RequiresRestart = false
+            };
+        }
+    }
+
     /// <summary>
     /// 数据库迁移服务 - 提供数据库、缩略图和配置文件的导入导出功能
     /// </summary>
@@ -31,16 +71,15 @@ namespace ImageColorChanger.Services
         /// 导出数据库到指定位置（压缩包格式，包含数据库、缩略图和配置文件）
         /// </summary>
         /// <param name="targetPath">目标压缩包文件路径</param>
-        /// <returns>是否成功</returns>
-        public async Task<bool> ExportDatabaseAsync(string targetPath)
+        /// <returns>导出结果</returns>
+        public async Task<DatabaseMigrationResult> ExportDatabaseAsync(string targetPath)
         {
             try
             {
                 // 检查源数据库是否存在
                 if (!File.Exists(_defaultDbPath))
                 {
-                    System.Windows.MessageBox.Show("数据库文件不存在，无法导出。", "导出失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                    return false;
+                    return DatabaseMigrationResult.Fail("导出失败", "数据库文件不存在，无法导出。", DatabaseMigrationMessageLevel.Warning);
                 }
 
                 // 确保目标目录存在
@@ -103,8 +142,7 @@ namespace ImageColorChanger.Services
                     await Task.Run(() => ZipFile.CreateFromDirectory(tempDir, targetPath, CompressionLevel.Optimal, false));
                     System.Diagnostics.Debug.WriteLine($"✅ 压缩包创建成功: {targetPath}");
 
-                    System.Windows.MessageBox.Show($"数据库导出成功！\n\n导出位置：{targetPath}", "导出成功", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-                    return true;
+                    return DatabaseMigrationResult.Ok("导出成功", $"数据库导出成功！\n\n导出位置：{targetPath}");
                 }
                 finally
                 {
@@ -118,9 +156,8 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"数据库导出失败：{ex.Message}", "导出失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 数据库导出异常: {ex}");
-                return false;
+                return DatabaseMigrationResult.Fail("导出失败", $"数据库导出失败：{ex.Message}");
             }
         }
 
@@ -128,16 +165,15 @@ namespace ImageColorChanger.Services
         /// 从指定位置导入数据库（支持压缩包格式）
         /// </summary>
         /// <param name="sourcePath">源文件路径（.zip 压缩包或 .db 文件）</param>
-        /// <returns>是否成功</returns>
-        public async Task<bool> ImportDatabaseAsync(string sourcePath)
+        /// <returns>导入结果</returns>
+        public async Task<DatabaseMigrationResult> ImportDatabaseAsync(string sourcePath)
         {
             try
             {
                 // 检查源文件是否存在
                 if (!File.Exists(sourcePath))
                 {
-                    System.Windows.MessageBox.Show("选择的数据库文件不存在。", "导入失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                    return false;
+                    return DatabaseMigrationResult.Fail("导入失败", "选择的数据库文件不存在。", DatabaseMigrationMessageLevel.Warning);
                 }
 
                 // 确保 backdb 文件夹存在
@@ -190,37 +226,25 @@ namespace ImageColorChanger.Services
                     // 导入单个数据库文件（兼容旧格式）
                     if (!IsValidSqliteDatabase(sourcePath))
                     {
-                        System.Windows.MessageBox.Show("选择的文件不是有效的SQLite数据库文件。", "导入失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                        return false;
+                        return DatabaseMigrationResult.Fail("导入失败", "选择的文件不是有效的SQLite数据库文件。", DatabaseMigrationMessageLevel.Warning);
                     }
                     await Task.Run(() => File.Copy(sourcePath, _defaultDbPath, overwrite: true));
                     System.Diagnostics.Debug.WriteLine("✅ 数据库文件导入成功（单文件模式）");
                 }
                 else
                 {
-                    System.Windows.MessageBox.Show("不支持的文件格式，请选择 .zip 或 .db 文件。", "导入失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                    return false;
+                    return DatabaseMigrationResult.Fail("导入失败", "不支持的文件格式，请选择 .zip 或 .db 文件。", DatabaseMigrationMessageLevel.Warning);
                 }
 
-                // 提示重启应用程序
-                var result = System.Windows.MessageBox.Show(
-                    "数据库导入成功！\n\n为使更改生效，需要重启应用程序。\n是否立即重启？",
+                return DatabaseMigrationResult.Ok(
                     "导入成功",
-                    System.Windows.MessageBoxButton.YesNo,
-                    System.Windows.MessageBoxImage.Information);
-
-                if (result == System.Windows.MessageBoxResult.Yes)
-                {
-                    RestartApplication();
-                }
-
-                return true;
+                    "数据库导入成功！\n\n为使更改生效，需要重启应用程序。",
+                    requiresRestart: true);
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"数据库导入失败：{ex.Message}", "导入失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 数据库导入异常: {ex}");
-                return false;
+                return DatabaseMigrationResult.Fail("导入失败", $"数据库导入失败：{ex.Message}");
             }
         }
 
@@ -364,22 +388,6 @@ namespace ImageColorChanger.Services
             }
         }
 
-        /// <summary>
-        /// 重启应用程序
-        /// </summary>
-        private void RestartApplication()
-        {
-            try
-            {
-                var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-                System.Diagnostics.Process.Start(exePath);
-                System.Windows.Application.Current.Shutdown();
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"自动重启失败，请手动重启应用程序。\n\n错误：{ex.Message}", "重启失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-            }
-        }
     }
 }
 

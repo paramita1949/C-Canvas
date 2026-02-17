@@ -8,7 +8,6 @@ using System.Windows.Media.Imaging;
 using SkiaSharp;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
-using ImageColorChanger.UI;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace ImageColorChanger.Core
@@ -22,7 +21,8 @@ namespace ImageColorChanger.Core
     {
         #region 字段
 
-        private readonly MainWindow mainWindow;
+        private readonly IImageProcessingHost _host;
+        private readonly GPUContext _gpuContext;
         private readonly ScrollViewer scrollViewer;
         private readonly System.Windows.Controls.Image imageControl;
         private readonly Grid imageContainer; // 图片容器（用于控制滚动区域）
@@ -56,9 +56,15 @@ namespace ImageColorChanger.Core
 
         #region 构造函数
 
-        public ImageProcessor(MainWindow window, ScrollViewer scrollViewer, System.Windows.Controls.Image imageControl, Grid imageContainer)
+        public ImageProcessor(
+            IImageProcessingHost host,
+            GPUContext gpuContext,
+            ScrollViewer scrollViewer,
+            System.Windows.Controls.Image imageControl,
+            Grid imageContainer)
         {
-            this.mainWindow = window;
+            _host = host;
+            _gpuContext = gpuContext ?? throw new ArgumentNullException(nameof(gpuContext));
             this.scrollViewer = scrollViewer;
             this.imageControl = imageControl;
             this.imageContainer = imageContainer;
@@ -306,7 +312,7 @@ namespace ImageColorChanger.Core
                     scrollViewer.ScrollToLeftEnd();
                     
                     // 🔧 重置关键帧索引（参考Python版本）
-                    mainWindow.ResetKeyframeIndex();
+                    _host?.ResetKeyframeIndex();
                     
                     sw.Stop();
                     return true;
@@ -677,7 +683,7 @@ namespace ImageColorChanger.Core
             try
             {
                 // 🎮 使用GPU加速缩放（如果GPU不可用，自动降级到CPU）
-                return GPUContext.Instance.ScaleImageGpu(source, targetWidth, targetHeight, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                return _gpuContext.ScaleImageGpu(source, targetWidth, targetHeight, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
             }
             catch (Exception ex)
             {
@@ -831,9 +837,9 @@ namespace ImageColorChanger.Core
         private SKColor GetYellowColorSettings()
         {
             // 从主应用获取当前目标颜色
-            if (mainWindow != null)
+            if (_host != null)
             {
-                var targetColor = mainWindow.GetCurrentTargetColor();
+                var targetColor = _host.GetCurrentTargetColor();
                 return targetColor;
             }
             

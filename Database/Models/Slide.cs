@@ -128,34 +128,6 @@ namespace ImageColorChanger.Database.Models
         [NotMapped]
         public string ThumbnailPath { get; set; }
 
-        /// <summary>
-        /// 辅助属性：缩略图图片源（用于UI绑定）
-        /// </summary>
-        [NotMapped]
-        public System.Windows.Media.ImageSource ThumbnailImage
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(ThumbnailPath) || !System.IO.File.Exists(ThumbnailPath))
-                    return null;
-                
-                try
-                {
-                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    bitmap.CreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions.IgnoreImageCache;
-                    bitmap.UriSource = new Uri(ThumbnailPath, UriKind.Absolute);
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    return bitmap;
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-        }
     }
 }
 

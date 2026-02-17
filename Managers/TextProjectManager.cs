@@ -14,19 +14,11 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class TextProjectManager
     {
-        private readonly DatabaseManager _dbManager;
+        private readonly CanvasDbContext _dbContext;
 
-        public TextProjectManager(DatabaseManager dbManager)
+        public TextProjectManager(CanvasDbContext dbContext)
         {
-            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
-        }
-
-        /// <summary>
-        /// 获取 DbContext（每次操作时动态获取，避免使用已释放的上下文）
-        /// </summary>
-        private CanvasDbContext GetDbContext()
-        {
-            return _dbManager.GetDbContext();
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
 
         #region 项目管理
@@ -52,7 +44,7 @@ namespace ImageColorChanger.Managers
                 ModifiedTime = DateTime.Now
             };
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             dbContext.TextProjects.Add(project);
             await dbContext.SaveChangesAsync();
 
@@ -67,7 +59,7 @@ namespace ImageColorChanger.Managers
         /// <returns>项目实体（包含元素和富文本片段）</returns>
         public async Task<TextProject> LoadProjectAsync(int projectId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var project = await dbContext.TextProjects
                 .Include(p => p.Elements)
                     .ThenInclude(e => e.RichTextSpans)  // 🔧 加载富文本片段
@@ -102,7 +94,7 @@ namespace ImageColorChanger.Managers
         /// <returns>项目列表（按SortOrder排序，然后按修改时间排序）</returns>
         public async Task<List<TextProject>> GetAllProjectsAsync()
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             return await dbContext.TextProjects
                 .OrderBy(p => p.SortOrder)
                 .ThenByDescending(p => p.ModifiedTime ?? p.CreatedTime)
@@ -119,7 +111,7 @@ namespace ImageColorChanger.Managers
                 throw new ArgumentNullException(nameof(project));
 
             project.ModifiedTime = DateTime.Now;
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             dbContext.TextProjects.Update(project);
             await dbContext.SaveChangesAsync();
 
@@ -132,7 +124,7 @@ namespace ImageColorChanger.Managers
         /// <param name="projectId">项目ID</param>
         public async Task DeleteProjectAsync(int projectId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
@@ -150,7 +142,7 @@ namespace ImageColorChanger.Managers
         /// <param name="imagePath">背景图路径</param>
         public async Task UpdateBackgroundImageAsync(int projectId, string imagePath)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
@@ -160,6 +152,203 @@ namespace ImageColorChanger.Managers
             await dbContext.SaveChangesAsync();
 
             //System.Diagnostics.Debug.WriteLine($"✅ 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
+        }
+
+        #endregion
+
+        #region 幻灯片管理
+
+        public async Task<bool> ProjectHasSlidesAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            return await dbContext.Slides.AnyAsync(s => s.ProjectId == projectId);
+        }
+
+        public async Task<int> GetSlideCountAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            return await dbContext.Slides.CountAsync(s => s.ProjectId == projectId);
+        }
+
+        public async Task<int> GetMaxSlideSortOrderAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            var maxOrderValue = await dbContext.Slides
+                .Where(s => s.ProjectId == projectId)
+                .Select(s => (int?)s.SortOrder)
+                .MaxAsync();
+            return maxOrderValue ?? 0;
+        }
+
+        public async Task<Slide> AddSlideAsync(Slide slide)
+        {
+            if (slide == null)
+                throw new ArgumentNullException(nameof(slide));
+
+            var dbContext = _dbContext;
+            dbContext.Slides.Add(slide);
+            await dbContext.SaveChangesAsync();
+            return slide;
+        }
+
+        public async Task AddSlidesAsync(IEnumerable<Slide> slides)
+        {
+            if (slides == null)
+                throw new ArgumentNullException(nameof(slides));
+
+            var slideList = slides.ToList();
+            if (slideList.Count == 0)
+                return;
+
+            var dbContext = _dbContext;
+            dbContext.Slides.AddRange(slideList);
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task<Slide> GetSlideByIdAsync(int slideId)
+        {
+            var dbContext = _dbContext;
+            return await dbContext.Slides.FindAsync(slideId);
+        }
+
+        public async Task UpdateSlideAsync(Slide slide)
+        {
+            if (slide == null)
+                throw new ArgumentNullException(nameof(slide));
+
+            var dbContext = _dbContext;
+            dbContext.Slides.Update(slide);
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task UpdateSlideThumbnailAsync(int slideId, string thumbnailPath)
+        {
+            var dbContext = _dbContext;
+            var slide = await dbContext.Slides.FindAsync(slideId);
+            if (slide == null)
+                return;
+
+            slide.ThumbnailPath = thumbnailPath;
+            slide.ModifiedTime = DateTime.Now;
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task<List<Slide>> GetSlidesByProjectAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            return await dbContext.Slides
+                .Where(s => s.ProjectId == projectId)
+                .OrderBy(s => s.SortOrder)
+                .ToListAsync();
+        }
+
+        public async Task<List<Slide>> GetSlidesByProjectWithElementsAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            return await dbContext.Slides
+                .Include(s => s.Elements)
+                .Where(s => s.ProjectId == projectId)
+                .OrderBy(s => s.SortOrder)
+                .ToListAsync();
+        }
+
+        public async Task UpdateSlideSortOrdersAsync(IEnumerable<Slide> slides)
+        {
+            if (slides == null)
+                throw new ArgumentNullException(nameof(slides));
+
+            var slideList = slides.ToList();
+            if (slideList.Count == 0)
+                return;
+
+            var dbContext = _dbContext;
+            foreach (var slide in slideList)
+            {
+                dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task ShiftSlideSortOrdersAsync(int projectId, int fromSortOrder, int delta)
+        {
+            if (delta == 0)
+                return;
+
+            var dbContext = _dbContext;
+            var slides = await dbContext.Slides
+                .Where(s => s.ProjectId == projectId && s.SortOrder >= fromSortOrder)
+                .ToListAsync();
+
+            foreach (var slide in slides)
+            {
+                slide.SortOrder += delta;
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task DeleteSlideAsync(int slideId)
+        {
+            var dbContext = _dbContext;
+            var slide = await dbContext.Slides.FindAsync(slideId);
+            if (slide == null)
+                return;
+
+            dbContext.Slides.Remove(slide);
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task DeleteSlidesByProjectAsync(int projectId)
+        {
+            var dbContext = _dbContext;
+            var slides = await dbContext.Slides
+                .Where(s => s.ProjectId == projectId)
+                .ToListAsync();
+
+            if (slides.Count == 0)
+                return;
+
+            dbContext.Slides.RemoveRange(slides);
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task<List<TextElement>> GetElementsBySlideWithRichTextAsync(int slideId)
+        {
+            var dbContext = _dbContext;
+            var elements = await dbContext.TextElements
+                .Include(e => e.RichTextSpans)
+                .Where(e => e.SlideId == slideId)
+                .OrderBy(e => e.ZIndex)
+                .ToListAsync();
+
+            foreach (var element in elements)
+            {
+                if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
+                {
+                    element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
+                }
+            }
+
+            return elements;
+        }
+
+        public async Task RebindProjectElementsToSlideAsync(int projectId, int targetSlideId)
+        {
+            var dbContext = _dbContext;
+            var oldElements = await dbContext.TextElements
+                .Where(e => e.ProjectId == projectId && e.SlideId == null)
+                .ToListAsync();
+
+            if (oldElements.Count == 0)
+                return;
+
+            foreach (var element in oldElements)
+            {
+                element.SlideId = targetSlideId;
+            }
+
+            await dbContext.SaveChangesAsync();
         }
 
         #endregion
@@ -176,7 +365,7 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
 
             // 检查关联是否存在（ProjectId 或 SlideId 至少有一个）
             if (element.ProjectId.HasValue)
@@ -222,7 +411,7 @@ namespace ImageColorChanger.Managers
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             dbContext.TextElements.Update(element);
             await dbContext.SaveChangesAsync();
 
@@ -248,7 +437,7 @@ namespace ImageColorChanger.Managers
             if (elements == null || !elements.Any())
                 return;
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             dbContext.TextElements.UpdateRange(elements);
             await dbContext.SaveChangesAsync();
 
@@ -279,7 +468,7 @@ namespace ImageColorChanger.Managers
             if (span == null)
                 throw new ArgumentNullException(nameof(span));
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             dbContext.RichTextSpans.Add(span);
             await dbContext.SaveChangesAsync();
 
@@ -292,7 +481,7 @@ namespace ImageColorChanger.Managers
         /// <param name="textElementId">文本元素ID</param>
         public async Task DeleteRichTextSpansByElementIdAsync(int textElementId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var spans = await dbContext.RichTextSpans
                 .Where(s => s.TextElementId == textElementId)
                 .ToListAsync();
@@ -314,7 +503,7 @@ namespace ImageColorChanger.Managers
             if (spans == null)
                 throw new ArgumentNullException(nameof(spans));
 
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
 
             // 删除旧的片段
             var oldSpans = await dbContext.RichTextSpans
@@ -341,7 +530,7 @@ namespace ImageColorChanger.Managers
         /// <param name="elementId">元素ID</param>
         public async Task DeleteElementAsync(int elementId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var element = await dbContext.TextElements.FindAsync(elementId);
             if (element == null)
                 throw new InvalidOperationException($"元素不存在: ID={elementId}");
@@ -371,7 +560,7 @@ namespace ImageColorChanger.Managers
         /// <param name="projectId">项目ID</param>
         public async Task DeleteAllElementsAsync(int projectId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var elements = await dbContext.TextElements
                 .Where(e => e.ProjectId == projectId)
                 .ToListAsync();
@@ -392,7 +581,7 @@ namespace ImageColorChanger.Managers
         /// <returns>元素列表</returns>
         public async Task<List<TextElement>> GetElementsByProjectAsync(int projectId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             return await dbContext.TextElements
                 .Where(e => e.ProjectId == projectId)
                 .OrderBy(e => e.ZIndex)
@@ -403,12 +592,23 @@ namespace ImageColorChanger.Managers
 
         #region 辅助方法
 
+        public async Task<MediaFile> GetMediaFileByPathAsync(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            var dbContext = _dbContext;
+            return await dbContext.MediaFiles.FirstOrDefaultAsync(m => m.Path == path);
+        }
+
         /// <summary>
         /// 更新项目修改时间
         /// </summary>
         private async Task UpdateProjectModifiedTimeAsync(int projectId)
         {
-            var dbContext = GetDbContext();
+            var dbContext = _dbContext;
             var project = await dbContext.TextProjects.FindAsync(projectId);
             if (project != null)
             {
@@ -470,4 +670,5 @@ namespace ImageColorChanger.Managers
         #endregion
     }
 }
+
 

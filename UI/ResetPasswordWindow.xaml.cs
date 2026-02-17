@@ -2,22 +2,25 @@ using System;
 using System.Text.RegularExpressions;
 using System.Windows;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.UI
 {
     public partial class ResetPasswordWindow : Window
     {
+        private readonly IAuthFacade _authFacade;
         private int _countdown = 0;
         private System.Windows.Threading.DispatcherTimer _countdownTimer;
         private bool _showCountdownInStatus = false;
         private bool _countdownStatusIsError = false;
 
-        public ResetPasswordWindow()
+        public ResetPasswordWindow(IAuthFacade authFacade)
         {
+            _authFacade = authFacade ?? throw new ArgumentNullException(nameof(authFacade));
             InitializeComponent();
 
             // 订阅服务器切换事件
-            AuthService.Instance.ServerSwitching += OnServerSwitching;
+            _authFacade.ServerSwitching += OnServerSwitching;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -29,7 +32,7 @@ namespace ImageColorChanger.UI
         protected override void OnClosed(EventArgs e)
         {
             // 取消订阅事件
-            AuthService.Instance.ServerSwitching -= OnServerSwitching;
+            _authFacade.ServerSwitching -= OnServerSwitching;
 
             // 清理定时器
             if (_countdownTimer != null)
@@ -86,7 +89,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                var (success, message) = await AuthService.Instance.SendVerificationCodeAsync(username, email);
+                var (success, message) = await _authFacade.SendVerificationCodeAsync(username, email);
 
                 if (success)
                 {
@@ -172,7 +175,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                var (success, message) = await AuthService.Instance.ResetPasswordAsync(email, code, newPassword);
+                var (success, message) = await _authFacade.ResetPasswordAsync(email, code, newPassword);
 
                 if (success)
                 {

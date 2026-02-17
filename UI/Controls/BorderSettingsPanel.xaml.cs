@@ -13,6 +13,11 @@ namespace ImageColorChanger.UI.Controls
     /// </summary>
     public partial class BorderSettingsPanel : System.Windows.Controls.UserControl
     {
+        /// <summary>
+        /// 由宿主显式注入的设置存储。
+        /// </summary>
+        public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
+
         private DraggableTextBox _targetTextBox;
         private int _borderWidth = 2;
         private int _cornerRadius = 0;
@@ -163,8 +168,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，使用空列表");
@@ -174,7 +179,7 @@ namespace ImageColorChanger.UI.Controls
                     return;
                 }
 
-                var jsonValue = dbManager.GetUISetting("BorderRecentColors");
+                var jsonValue = settingsStore.GetValue("BorderRecentColors");
                 //#if DEBUG
                 //                System.Diagnostics.Debug.WriteLine($"🔍 [边框面板] 从数据库读取值: {(string.IsNullOrEmpty(jsonValue) ? "空" : jsonValue)}");
                 //#endif
@@ -211,8 +216,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，保存失败");
@@ -222,7 +227,7 @@ namespace ImageColorChanger.UI.Controls
 
                 var colorsToSave = _recentColors.Take(6).ToList();
                 var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
-                dbManager.SaveUISetting("BorderRecentColors", jsonValue);
+                settingsStore.SaveValue("BorderRecentColors", jsonValue);
                 //#if DEBUG
                 //                System.Diagnostics.Debug.WriteLine($"💾 [边框面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
                 //#endif
@@ -233,24 +238,6 @@ namespace ImageColorChanger.UI.Controls
                 //                System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 保存失败: {ex.Message}");
                 //#endif
             }
-        }
-
-        /// <summary>
-        /// 获取数据库管理器
-        /// </summary>
-        private Database.DatabaseManager GetDatabaseManager()
-        {
-            try
-            {
-                if (System.Windows.Application.Current?.MainWindow is MainWindow mainWin)
-                {
-                    var dbManagerField = typeof(MainWindow).GetField("_dbManager", 
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    return dbManagerField?.GetValue(mainWin) as Database.DatabaseManager;
-                }
-            }
-            catch { }
-            return null;
         }
 
         /// <summary>

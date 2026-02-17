@@ -530,7 +530,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = _dbManager?.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_speed");
@@ -558,7 +558,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = _dbManager?.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_speed");
@@ -762,7 +762,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = _dbManager?.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null) return;
                 
                 // 保存缓动类型或"Linear"
@@ -797,7 +797,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var dbContext = _dbManager?.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null) return;
                 
                 var setting = dbContext.Settings.FirstOrDefault(s => s.Key == "scroll_easing");
@@ -876,7 +876,7 @@ namespace ImageColorChanger.UI
                 if (_currentImageId == 0 || _dbManager == null)
                     return false;
 
-                var dbContext = _dbManager.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null)
                     return false;
 

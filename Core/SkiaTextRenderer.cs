@@ -12,11 +12,13 @@ namespace ImageColorChanger.Core
     {
         private readonly IMemoryCache _cache;
         private readonly TextLayoutEngine _layoutEngine;
+        private readonly SkiaFontService _fontService;
         
-        public SkiaTextRenderer(IMemoryCache cache)
+        public SkiaTextRenderer(IMemoryCache cache, TextLayoutEngine layoutEngine, SkiaFontService fontService)
         {
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-            _layoutEngine = new TextLayoutEngine();
+            _layoutEngine = layoutEngine ?? throw new ArgumentNullException(nameof(layoutEngine));
+            _fontService = fontService ?? throw new ArgumentNullException(nameof(fontService));
         }
         
         /// <summary>
@@ -444,7 +446,7 @@ namespace ImageColorChanger.Core
         private SKFont CreateFont(TextStyle style)
         {
             // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
-            var typeface = SkiaFontService.Instance.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
+            var typeface = _fontService.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
             var font = new SKFont
             {

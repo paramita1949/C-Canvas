@@ -143,6 +143,20 @@ namespace ImageColorChanger.UI
         {
             //System.Diagnostics.Debug.WriteLine("🏁 视频播放结束");
         }
+
+        /// <summary>
+        /// 视频播放器错误事件（由管理器回传，UI 决定提示方式）
+        /// </summary>
+        private void OnVideoPlaybackError(object sender, string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    ShowStatus($"❌ {message}");
+                }
+            });
+        }
         
         /// <summary>
         /// 视频播放进度更新事件

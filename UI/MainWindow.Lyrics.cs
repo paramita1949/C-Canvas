@@ -10,6 +10,8 @@ using System.Windows.Media;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.Managers;
+using ImageColorChanger.UI.Modules;
 using static ImageColorChanger.Core.Constants;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
@@ -26,6 +28,8 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private LyricsModuleController _lyricsModuleController;
+
         // ============================================
         // 字段
         // ============================================
@@ -38,6 +42,7 @@ namespace ImageColorChanger.UI
         private bool _lyricsSplitBorderVisible = true; // 是否显示分割线
         private bool _lyricsPagingMode = false; // 分页模式开关（仅分割模式下有效）
         private bool _isSyncingPagingEditor = false; // 防止分页区域切换时 TextChanged 误回写
+        private LyricsProjectManager _lyricsProjectManager;
         private const string LyricsModeContentPrefix = "__LYRICS_MODE_V1__";
         private const string LyricsSplitContentPrefix = "__LYRICS_SPLIT_V1__";
         private const string LyricsPagesContentPrefix = "__LYRICS_PAGES_V2__";
@@ -569,168 +574,6 @@ namespace ImageColorChanger.UI
             if (LyricsSplitRegion2.Visibility == Visibility.Visible) LyricsSplitRegion2.BorderThickness = visibleThickness;
             if (LyricsSplitRegion3.Visibility == Visibility.Visible) LyricsSplitRegion3.BorderThickness = visibleThickness;
             if (LyricsSplitRegion4.Visibility == Visibility.Visible) LyricsSplitRegion4.BorderThickness = visibleThickness;
-        }
-
-        private bool TryParseSplitLyricsContent(string content, out LyricsSplitContentData splitData)
-        {
-            splitData = null;
-            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsSplitContentPrefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            string json = content.Substring(LyricsSplitContentPrefix.Length);
-            try
-            {
-                splitData = JsonSerializer.Deserialize<LyricsSplitContentData>(json);
-                if (splitData == null)
-                {
-                    return false;
-                }
-
-                if (splitData.Regions == null || splitData.Regions.Length < 4)
-                {
-                    splitData.Regions = (splitData.Regions ?? Array.Empty<string>())
-                        .Concat(Enumerable.Repeat(string.Empty, 4))
-                        .Take(4)
-                        .ToArray();
-                }
-
-                if (splitData.SplitMode < (int)ViewSplitMode.Single || splitData.SplitMode > (int)ViewSplitMode.Quad)
-                {
-                    splitData.SplitMode = (int)ViewSplitMode.Single;
-                }
-
-                var styles = splitData.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
-                if (styles.Length < 4)
-                {
-                    styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
-                        .Select(_ => new LyricsSplitRegionStyle())).ToArray();
-                }
-                splitData.RegionStyles = styles.Take(4)
-                    .Select(s => s ?? new LyricsSplitRegionStyle())
-                    .ToArray();
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private bool TryParseModeLyricsContent(string content, out LyricsModeContentData modeData)
-        {
-            modeData = null;
-            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsModeContentPrefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            string json = content.Substring(LyricsModeContentPrefix.Length);
-            try
-            {
-                modeData = JsonSerializer.Deserialize<LyricsModeContentData>(json);
-                if (modeData == null)
-                {
-                    return false;
-                }
-
-                modeData.SingleContent ??= "";
-                modeData.SplitContent ??= CreateDefaultSplitPage(ViewSplitMode.Horizontal);
-
-                var split = modeData.SplitContent;
-                if (split.Regions == null || split.Regions.Length < 4)
-                {
-                    split.Regions = (split.Regions ?? Array.Empty<string>())
-                        .Concat(Enumerable.Repeat(string.Empty, 4))
-                        .Take(4)
-                        .ToArray();
-                }
-
-                var styles = split.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
-                if (styles.Length < 4)
-                {
-                    styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
-                        .Select(_ => new LyricsSplitRegionStyle())).ToArray();
-                }
-                split.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
-
-                if (split.SplitMode < (int)ViewSplitMode.Horizontal || split.SplitMode > (int)ViewSplitMode.Quad)
-                {
-                    split.SplitMode = (int)ViewSplitMode.Horizontal;
-                }
-
-                if (modeData.ActiveMode < (int)ViewSplitMode.Single || modeData.ActiveMode > (int)ViewSplitMode.Quad)
-                {
-                    modeData.ActiveMode = (int)ViewSplitMode.Single;
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private bool TryParsePagesLyricsContent(string content, out LyricsPagesContentData pagesData)
-        {
-            pagesData = null;
-            if (string.IsNullOrWhiteSpace(content) || !content.StartsWith(LyricsPagesContentPrefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            string json = content.Substring(LyricsPagesContentPrefix.Length);
-            try
-            {
-                pagesData = JsonSerializer.Deserialize<LyricsPagesContentData>(json);
-                if (pagesData == null)
-                {
-                    return false;
-                }
-
-                pagesData.Pages ??= new List<LyricsSplitContentData>();
-                if (pagesData.Pages.Count == 0)
-                {
-                    pagesData.Pages.Add(CreateDefaultSplitPage(ViewSplitMode.Horizontal));
-                }
-
-                for (int i = 0; i < pagesData.Pages.Count; i++)
-                {
-                    var page = pagesData.Pages[i] ?? CreateDefaultSplitPage(ViewSplitMode.Horizontal);
-                    pagesData.Pages[i] = page;
-
-                    if (page.Regions == null || page.Regions.Length < 4)
-                    {
-                        page.Regions = (page.Regions ?? Array.Empty<string>())
-                            .Concat(Enumerable.Repeat(string.Empty, 4))
-                            .Take(4)
-                            .ToArray();
-                    }
-
-                    var styles = page.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
-                    if (styles.Length < 4)
-                    {
-                        styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
-                            .Select(_ => new LyricsSplitRegionStyle())).ToArray();
-                    }
-                    page.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
-
-                    if (page.SplitMode < (int)ViewSplitMode.Horizontal || page.SplitMode > (int)ViewSplitMode.Quad)
-                    {
-                        page.SplitMode = (int)ViewSplitMode.Horizontal;
-                    }
-                }
-
-                pagesData.CurrentPageIndex = Math.Clamp(pagesData.CurrentPageIndex, 0, pagesData.Pages.Count - 1);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         // ============================================
@@ -1506,6 +1349,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                EnsureLyricsProjectManager();
+
                 // 获取当前图片ID（从主窗口）
                 int currentImageId = _currentImageId;
                 
@@ -1524,12 +1369,12 @@ namespace ImageColorChanger.UI
                 }
 
                 // 🔧 强制刷新数据库上下文（确保查询到最新数据）
-                _dbContext.ChangeTracker.Clear();
+                _lyricsProjectManager.ClearTracking();
                 
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-加载] 开始查询，条件：ImageId == {currentImageId}");
 //                // 显示数据库中所有歌词项目
-//                var allProjects = _dbContext.LyricsProjects.ToList();
+//                var allProjects = new List<LyricsProject>();
 //                Debug.WriteLine($"[歌词-加载] 数据库中共有 {allProjects.Count} 个歌词项目：");
 //                foreach (var proj in allProjects)
 //                {
@@ -1538,8 +1383,7 @@ namespace ImageColorChanger.UI
 //#endif
                 
                 // 尝试加载当前图片对应的歌词项目
-                _currentLyricsProject = _dbContext.LyricsProjects
-                    .FirstOrDefault(p => p.ImageId == currentImageId);
+                _currentLyricsProject = _lyricsProjectManager.FindByImageId(currentImageId);
                     
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
@@ -1559,7 +1403,7 @@ namespace ImageColorChanger.UI
                     if (_currentLyricsProject.TextAlign == "Left")
                     {
                         _currentLyricsProject.TextAlign = "Center";
-                        _dbContext.SaveChanges();
+                        _lyricsProjectManager.Save(_currentLyricsProject);
 //#if DEBUG
 //                        Debug.WriteLine($"[歌词-升级] 对齐从左对齐更新为居中");
 //#endif
@@ -1655,8 +1499,7 @@ namespace ImageColorChanger.UI
                         TextAlign = "Center"
                     };
 
-                    _dbContext.LyricsProjects.Add(_currentLyricsProject);
-                    _dbContext.SaveChanges();
+                    _lyricsProjectManager.Add(_currentLyricsProject);
                     
                     // 🔧 清空歌词内容（新项目没有歌词）
                     _lyricsSplitPages.Clear();
@@ -1761,7 +1604,7 @@ namespace ImageColorChanger.UI
                 _currentLyricsProject.ModifiedTime = DateTime.Now;
 
                 // 保存到数据库
-                _dbContext.SaveChanges();
+                _lyricsProjectManager.Save(_currentLyricsProject);
 
 //#if DEBUG
 //                Debug.WriteLine($"[歌词] 保存成功: {_currentLyricsProject.Name}");
@@ -1775,6 +1618,11 @@ namespace ImageColorChanger.UI
 
                 WpfMessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void EnsureLyricsProjectManager()
+        {
+            _lyricsProjectManager ??= new LyricsProjectManager(_dbContext);
         }
 
         /// <summary>
@@ -1803,363 +1651,6 @@ namespace ImageColorChanger.UI
             }
 
             return System.Windows.Media.Colors.White;
-        }
-
-        /// <summary>
-        /// 渲染歌词到投影（使用SkiaSharp）
-        /// </summary>
-        private void RenderLyricsToProjection()
-        {
-            Action caretRestore = () => { };
-            try
-            {
-                caretRestore = HideAllLyricsCaretsForProjection();
-                // 🔧 获取投影屏幕的物理分辨率（用于高质量渲染）
-                var (physicalWidth, physicalHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
-
-                if (_lyricsSplitMode != (int)ViewSplitMode.Single)
-                {
-                    RenderSplitLyricsToProjection(physicalWidth, physicalHeight);
-                    return;
-                }
-
-                // ========================================
-                // ✅ 使用 WPF TextBlock 渲染到物理分辨率（确保高清晰度）
-                // ========================================
-
-                // 创建一个与投影屏幕物理分辨率对应的Canvas
-                var canvas = new Canvas
-                {
-                    Width = physicalWidth,
-                    Height = physicalHeight,
-                    Background = WpfBrushes.Black
-                };
-
-                double actualHeight = physicalHeight;
-
-                // 🔧 使用 WPF TextBlock，与主屏幕 TextBox 共享同一渲染引擎
-                // 字体大小需要根据物理分辨率与 WPF 单位的比例进行缩放
-                var (wpfWidth, wpfHeight) = _projectionManager.GetProjectionScreenSize();
-                double fontScale = physicalWidth / wpfWidth;  // 计算缩放比例（例如 1920/1280 = 1.5）
-
-                var textBlock = new TextBlock
-                {
-                    Text = LyricsTextBox.Text,
-                    FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = LyricsTextBox.FontSize * fontScale,  // ✅ 按物理分辨率缩放字体
-                    Foreground = LyricsTextBox.Foreground,
-                    TextAlignment = LyricsTextBox.TextAlignment,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = physicalWidth,
-                    Padding = new Thickness(60 * fontScale, 40 * fontScale, 60 * fontScale, 40 * fontScale),  // ✅ 缩放内边距
-                    VerticalAlignment = VerticalAlignment.Top,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left
-                };
-
-                // 🔧 测量TextBlock的实际高度
-                textBlock.Measure(new WpfSize(physicalWidth, double.PositiveInfinity));
-                double textBlockHeight = textBlock.DesiredSize.Height;
-
-                // 如果内容超过屏幕高度，调整Canvas高度
-                if (textBlockHeight > physicalHeight)
-                {
-                    actualHeight = textBlockHeight;
-                    canvas.Height = actualHeight;
-                }
-
-                Canvas.SetLeft(textBlock, 0);
-                Canvas.SetTop(textBlock, 0);
-                canvas.Children.Add(textBlock);
-
-                // 渲染到物理分辨率（高质量）
-                canvas.Measure(new WpfSize(physicalWidth, actualHeight));
-                canvas.Arrange(new Rect(0, 0, physicalWidth, actualHeight));
-                canvas.UpdateLayout();
-
-                // ✅ 渲染到物理分辨率，DPI 参数保持 96（只是元数据）
-                var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
-                    (int)physicalWidth, (int)Math.Ceiling(actualHeight), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-                renderBitmap.Render(canvas);
-                renderBitmap.Freeze();
-
-                // 转换为SKBitmap并更新投影
-                var skBitmap = ConvertToSKBitmap(renderBitmap);
-                
-                if (skBitmap != null)
-                {
-                    _projectionManager?.UpdateProjectionText(skBitmap);
-                    skBitmap.Dispose();
-                }
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [歌词渲染-WPF] 失败: {ex.Message}");
-#else
-                _ = ex;
-#endif
-                WpfMessageBox.Show($"投影失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                caretRestore();
-            }
-        }
-
-        private Action HideAllLyricsCaretsForProjection()
-        {
-            var allEditors = new[] { LyricsTextBox, LyricsSplitTextBox1, LyricsSplitTextBox2, LyricsSplitTextBox3, LyricsSplitTextBox4 };
-            var backups = new List<(WpfTextBox Tb, System.Windows.Media.Brush Brush)>(allEditors.Length);
-            foreach (var tb in allEditors)
-            {
-                if (tb == null)
-                {
-                    continue;
-                }
-
-                backups.Add((tb, tb.CaretBrush));
-                tb.CaretBrush = WpfBrushes.Transparent;
-            }
-
-            return () =>
-            {
-                foreach (var (tb, brush) in backups)
-                {
-                    tb.CaretBrush = brush;
-                }
-            };
-        }
-
-        private void RenderSplitLyricsToProjection(double physicalWidth, double physicalHeight)
-        {
-            if (_lyricsPagingMode)
-            {
-                RenderPagingRegionToProjection(physicalWidth, physicalHeight);
-                return;
-            }
-
-            if (LyricsSplitGrid == null || LyricsSplitGrid.ActualWidth <= 0 || LyricsSplitGrid.ActualHeight <= 0)
-            {
-                return;
-            }
-
-            var canvas = new Canvas
-            {
-                Width = physicalWidth,
-                Height = physicalHeight,
-                Background = WpfBrushes.Black
-            };
-
-            var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
-            double fontScale = physicalWidth / wpfWidth;
-            foreach (var region in GetSplitRenderRegions(physicalWidth, physicalHeight))
-            {
-                AddSplitRegionTextElement(canvas, region.Rect, region.Editor, region.Text, fontScale);
-            }
-
-            AddSplitOverlayForProjection(canvas, physicalWidth, physicalHeight);
-
-            canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
-            canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
-            canvas.UpdateLayout();
-
-            var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
-                (int)physicalWidth, (int)physicalHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-            renderBitmap.Render(canvas);
-            renderBitmap.Freeze();
-
-            var skBitmap = ConvertToSKBitmap(renderBitmap);
-            if (skBitmap != null)
-            {
-                _projectionManager?.UpdateProjectionText(skBitmap);
-                skBitmap.Dispose();
-            }
-        }
-
-        private void RenderPagingRegionToProjection(double physicalWidth, double physicalHeight)
-        {
-            int regionIndex = ClampPagingRegionIndex(_lyricsCurrentPageIndex);
-            var regions = GetSplitRenderRegions(physicalWidth, physicalHeight).ToList();
-            if (regions.Count == 0)
-            {
-                return;
-            }
-
-            var current = regions[Math.Min(regionIndex, regions.Count - 1)];
-            var canvas = new Canvas
-            {
-                Width = physicalWidth,
-                Height = physicalHeight,
-                Background = WpfBrushes.Black
-            };
-
-            var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
-            double fontScale = physicalWidth / wpfWidth;
-            AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale);
-
-            canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
-            canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
-            canvas.UpdateLayout();
-
-            var renderBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
-                (int)physicalWidth, (int)physicalHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-            renderBitmap.Render(canvas);
-            renderBitmap.Freeze();
-
-            var skBitmap = ConvertToSKBitmap(renderBitmap);
-            if (skBitmap != null)
-            {
-                _projectionManager?.UpdateProjectionText(skBitmap);
-                skBitmap.Dispose();
-            }
-        }
-
-        private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale)
-        {
-            var host = new Grid
-            {
-                Width = Math.Max(0, rect.Width),
-                Height = Math.Max(0, rect.Height),
-                Background = WpfBrushes.Transparent
-            };
-
-            var textBlock = new TextBlock
-            {
-                Text = text ?? "",
-                FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                FontSize = editor.FontSize * fontScale,
-                Foreground = editor.Foreground,
-                TextAlignment = editor.TextAlignment,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                Padding = new Thickness(10 * fontScale, 30 * fontScale, 10 * fontScale, 10 * fontScale)
-            };
-
-            host.Children.Add(textBlock);
-            Canvas.SetLeft(host, rect.X);
-            Canvas.SetTop(host, rect.Y);
-            canvas.Children.Add(host);
-        }
-
-        private void AddSplitOverlayForProjection(Canvas canvas, double width, double height)
-        {
-            double halfWidth = width / 2.0;
-            double halfHeight = height / 2.0;
-
-            var lineBrush = new SolidColorBrush(WpfColor.FromRgb(255, 59, 48));
-            double lineThickness = 2;
-            double labelScale = Math.Max(1.0, Math.Min(width, height) / 1080.0);
-
-            switch ((ViewSplitMode)_lyricsSplitMode)
-            {
-                case ViewSplitMode.Horizontal:
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
-                    AddProjectionRegionLabel(canvas, "2", halfWidth, 0, labelScale);
-                    break;
-                case ViewSplitMode.Vertical:
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = 0, Y1 = halfHeight, X2 = width, Y2 = halfHeight,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
-                    AddProjectionRegionLabel(canvas, "2", 0, halfHeight, labelScale);
-                    break;
-                case ViewSplitMode.TripleSplit:
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = 0, Y1 = halfHeight, X2 = halfWidth, Y2 = halfHeight,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
-                    AddProjectionRegionLabel(canvas, "2", 0, halfHeight, labelScale);
-                    AddProjectionRegionLabel(canvas, "3", halfWidth, 0, labelScale);
-                    break;
-                case ViewSplitMode.Quad:
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = halfWidth, Y1 = 0, X2 = halfWidth, Y2 = height,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    canvas.Children.Add(new System.Windows.Shapes.Line
-                    {
-                        X1 = 0, Y1 = halfHeight, X2 = width, Y2 = halfHeight,
-                        Stroke = lineBrush, StrokeThickness = lineThickness
-                    });
-                    AddProjectionRegionLabel(canvas, "1", 0, 0, labelScale);
-                    AddProjectionRegionLabel(canvas, "2", halfWidth, 0, labelScale);
-                    AddProjectionRegionLabel(canvas, "3", 0, halfHeight, labelScale);
-                    AddProjectionRegionLabel(canvas, "4", halfWidth, halfHeight, labelScale);
-                    break;
-            }
-        }
-
-        private void AddProjectionRegionLabel(Canvas canvas, string text, double x, double y, double scale)
-        {
-            double fontSize = Math.Max(28, 24 * scale);
-            double padX = Math.Max(12, 10 * scale);
-            double padY = Math.Max(5, 4 * scale);
-            double radius = Math.Max(10, 8 * scale);
-
-            var label = new Border
-            {
-                Background = new SolidColorBrush(WpfColor.FromArgb(200, 255, 102, 0)),
-                CornerRadius = new CornerRadius(0, 0, radius, 0),
-                Padding = new Thickness(padX, padY, padX, padY),
-                IsHitTestVisible = false,
-                Child = new TextBlock
-                {
-                    Text = text,
-                    FontSize = fontSize,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = WpfBrushes.White
-                }
-            };
-
-            Canvas.SetLeft(label, x);
-            Canvas.SetTop(label, y);
-            Canvas.SetZIndex(label, 1000);
-            canvas.Children.Add(label);
-        }
-
-        private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text)> GetSplitRenderRegions(double width, double height)
-        {
-            double halfWidth = width / 2.0;
-            double halfHeight = height / 2.0;
-
-            switch ((ViewSplitMode)_lyricsSplitMode)
-            {
-                case ViewSplitMode.Horizontal:
-                    yield return (new Rect(0, 0, halfWidth, height), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    break;
-                case ViewSplitMode.Vertical:
-                    yield return (new Rect(0, 0, width, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(0, halfHeight, width, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    break;
-                case ViewSplitMode.TripleSplit:
-                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
-                    break;
-                case ViewSplitMode.Quad:
-                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
-                    yield return (new Rect(halfWidth, halfHeight, width - halfWidth, height - halfHeight), LyricsSplitTextBox4, LyricsSplitTextBox4.Text ?? "");
-                    break;
-            }
         }
 
         // ============================================
@@ -2210,141 +1701,7 @@ namespace ImageColorChanger.UI
         // 公共方法（供主窗口调用）
         // ============================================
 
-        /// <summary>
-        /// 当图片切换时调用（供主窗口调用）
-        /// 如果在歌词模式，自动切换到新图片的歌词
-        /// </summary>
-        public void OnImageChanged()
-        {
-            if (!_isLyricsMode)
-                return;
-
-//#if DEBUG
-//            Debug.WriteLine("[歌词] 检测到图片切换，重新加载对应歌词");
-//#endif
-
-            // 保存当前歌词
-            SaveLyricsProject();
-
-            // 加载新图片的歌词
-            LoadOrCreateLyricsProject();
-
-            // 如果投影已开启，更新投影
-            if (_projectionManager != null && _projectionManager.IsProjecting)
-            {
-//#if DEBUG
-//                Debug.WriteLine("[歌词] 图片切换，自动更新歌词投影");
-//#endif
-                RenderLyricsToProjection();
-            }
-        }
-
-        /// <summary>
-        /// 图片切换时的回调（在歌词模式下调用）
-        /// 保存当前歌词，加载新图片的歌词，更新投影
-        /// </summary>
-        public void OnImageChangedInLyricsMode()
-        {
-//#if DEBUG
-//            Debug.WriteLine("[歌词] 检测到图片切换，准备切换歌词");
-//#endif
-
-            // 1. 保存当前歌词项目
-            SaveLyricsProject();
-            
-            // 2. 加载新图片的歌词
-            LoadOrCreateLyricsProject();
-            
-            // 3. 如果投影已开启，更新投影
-            if (_projectionManager != null && _projectionManager.IsProjecting)
-            {
-//#if DEBUG
-//                Debug.WriteLine("[歌词] 投影已开启，渲染新图片的歌词");
-//#endif
-                RenderLyricsToProjection();
-            }
-
-//#if DEBUG
-//            Debug.WriteLine($"[歌词] 已切换到新图片的歌词: {_currentLyricsProject?.Name}");
-//#endif
-        }
-
-        /// <summary>
-        /// 投影状态改变时的回调（供主窗口调用）
-        /// 当投影开启时，如果在歌词模式，自动投影歌词
-        /// </summary>
-        public void OnProjectionStateChanged(bool isProjecting)
-        {
-//#if DEBUG
-//            Debug.WriteLine($"[歌词] 投影状态改变 - IsProjecting: {isProjecting}, _isLyricsMode: {_isLyricsMode}");
-//#endif
-
-            if (isProjecting && _isLyricsMode)
-            {
-//#if DEBUG
-//                Debug.WriteLine("[歌词] 投影开启且在歌词模式，触发投影");
-//#endif
-                // 🔧 立即清空图片状态（防止自动刷新显示图片）
-                _projectionManager.ClearImageState();
-                
-                // 延迟500ms确保投影窗口完全初始化，并且在其他自动刷新之后执行
-                var timer = new System.Windows.Threading.DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(2)
-                };
-                timer.Tick += (s, e) =>
-                {
-                    timer.Stop();
-//#if DEBUG
-//                    Debug.WriteLine("[歌词] 延迟后开始投影歌词");
-//#endif
-                    RenderLyricsToProjection();
-                };
-                timer.Start();
-            }
-        }
-
         // 浮动歌词按钮已删除
-
-        /// <summary>
-        /// 将WPF BitmapSource转换为SKBitmap
-        /// </summary>
-        private SkiaSharp.SKBitmap ConvertToSKBitmap(System.Windows.Media.Imaging.BitmapSource bitmapSource)
-        {
-            try
-            {
-                int width = bitmapSource.PixelWidth;
-                int height = bitmapSource.PixelHeight;
-                
-                // 转换为Bgra32格式
-                var converted = new System.Windows.Media.Imaging.FormatConvertedBitmap();
-                converted.BeginInit();
-                converted.Source = bitmapSource;
-                converted.DestinationFormat = System.Windows.Media.PixelFormats.Bgra32;
-                converted.EndInit();
-
-                // 获取像素数据
-                int stride = width * 4;
-                byte[] pixels = new byte[stride * height];
-                converted.CopyPixels(pixels, stride, 0);
-
-                // 创建SKBitmap
-                var skBitmap = new SkiaSharp.SKBitmap(width, height, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Premul);
-                
-                // 复制像素数据
-                IntPtr pixelsPtr = skBitmap.GetPixels();
-                System.Runtime.InteropServices.Marshal.Copy(pixels, 0, pixelsPtr, pixels.Length);
-
-                return skBitmap;
-            }
-            catch (Exception)
-            {
-//#if DEBUG
-//                Debug.WriteLine($"[歌词] BitmapSource转SKBitmap出错: {ex.Message}");
-//#endif
-                return null;
-            }
-        }
     }
 }
 

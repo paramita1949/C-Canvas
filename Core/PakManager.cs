@@ -46,7 +46,7 @@ namespace ImageColorChanger.Core
             }
         }
         
-        private PakManager()
+        public PakManager()
         {
             _pakFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources.pak");
         }

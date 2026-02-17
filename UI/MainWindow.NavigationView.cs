@@ -263,7 +263,7 @@ namespace ImageColorChanger.UI
                         return;
                     }
 
-                    _textProjectManager = new TextProjectManager(_dbManager);
+                    _textProjectManager = new TextProjectManager(_dbContext);
                 }
 
                 var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
@@ -294,7 +294,7 @@ namespace ImageColorChanger.UI
                 if (_textProjectManager == null)
                 {
                     if (_dbManager == null) return;
-                    _textProjectManager = new TextProjectManager(_dbManager);
+                    _textProjectManager = new TextProjectManager(_dbContext);
                 }
 
                 var textProjects = await _textProjectManager.GetAllProjectsAsync();

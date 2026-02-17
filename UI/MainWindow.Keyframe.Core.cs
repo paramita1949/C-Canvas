@@ -66,7 +66,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取数据库上下文
-                var dbContext = _dbManager?.GetDbContext();
+                var dbContext = _dbContext;
                 if (dbContext == null)
                 {
                     // Console.WriteLine("❌ 数据库上下文未就绪");
@@ -77,7 +77,7 @@ namespace ImageColorChanger.UI
                 _keyframeRepository = new KeyframeRepository(dbContext);
 
                 // 获取MediaFileRepository
-                _mediaFileRepository ??= App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
+                _mediaFileRepository ??= _mainWindowServices.GetRequired<Repositories.Interfaces.IMediaFileRepository>();
 
                 // 创建关键帧管理器
                 _keyframeManager = new KeyframeManager(_keyframeRepository, this, _mediaFileRepository);

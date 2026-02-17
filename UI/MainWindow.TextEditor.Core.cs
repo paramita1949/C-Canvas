@@ -98,8 +98,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void InitializeTextEditor()
         {
-            _dbContext = _dbManager.GetDbContext(); // 🆕 保存数据库上下文引用
-            _textProjectManager = new TextProjectManager(_dbManager);
+            if (_dbContext == null)
+            {
+                throw new InvalidOperationException("Database context is not initialized.");
+            }
+            _textProjectManager = new TextProjectManager(_dbContext);
 
             // 加载系统字体
             LoadSystemFonts();
@@ -269,8 +272,7 @@ namespace ImageColorChanger.UI
                     SplitMode = -1,  // 默认无分割模式
                     SplitStretchMode = false  // 默认适中模式
                 };
-                _dbContext.Slides.Add(firstSlide);
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.AddSlideAsync(firstSlide);
 
                 // 🆕 加载幻灯片列表
                 LoadSlideList();
@@ -328,7 +330,7 @@ namespace ImageColorChanger.UI
                 LoadSlideList();
 
                 // 🆕 如果没有幻灯片，自动创建第一张
-                if (!_dbContext.Slides.Any(s => s.ProjectId == _currentTextProject.Id))
+                if (!await _textProjectManager.ProjectHasSlidesAsync(_currentTextProject.Id))
                 {
                     //System.Diagnostics.Debug.WriteLine("⚠️ 项目没有幻灯片，自动创建第一张");
                     var firstSlide = new Slide
@@ -340,22 +342,10 @@ namespace ImageColorChanger.UI
                         SplitMode = -1,  // 默认无分割模式
                         SplitStretchMode = false  // 默认适中模式
                     };
-                    _dbContext.Slides.Add(firstSlide);
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.AddSlideAsync(firstSlide);
                     
                     // 🔧 迁移旧的文本元素到第一张幻灯片
-                    var oldElements = _dbContext.TextElements
-                        .Where(e => e.ProjectId == _currentTextProject.Id && e.SlideId == null)
-                        .ToList();
-                    if (oldElements.Any())
-                    {
-                        foreach (var element in oldElements)
-                        {
-                            element.SlideId = firstSlide.Id;
-                        }
-                        await _dbContext.SaveChangesAsync();
-                        //System.Diagnostics.Debug.WriteLine($"✅ 已迁移 {oldElements.Count} 个旧文本元素到第一张幻灯片");
-                    }
+                    await _textProjectManager.RebindProjectElementsToSlideAsync(_currentTextProject.Id, firstSlide.Id);
                     
                     // 重新加载幻灯片列表
                     LoadSlideList();

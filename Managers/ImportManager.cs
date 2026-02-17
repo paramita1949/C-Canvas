@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Windows;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
-using MessageBox = System.Windows.MessageBox;
 
 namespace ImageColorChanger.Managers
 {
@@ -17,6 +15,7 @@ namespace ImageColorChanger.Managers
     {
         private readonly DatabaseManager _dbManager;
         private readonly SortManager _sortManager;
+        public string LastError { get; private set; }
 
         /// <summary>
         /// 支持的图片扩展名
@@ -52,11 +51,12 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public MediaFile ImportSingleFile(string filePath)
         {
+            LastError = null;
             try
             {
                 if (!File.Exists(filePath))
                 {
-                    MessageBox.Show("文件不存在！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LastError = "文件不存在";
                     return null;
                 }
 
@@ -64,7 +64,7 @@ namespace ImageColorChanger.Managers
                 var extension = Path.GetExtension(filePath).ToLower();
                 if (!AllExtensions.Contains(extension))
                 {
-                    MessageBox.Show("不支持的文件格式！", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    LastError = "不支持的文件格式";
                     return null;
                 }
 
@@ -80,7 +80,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"导入文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LastError = $"导入文件失败: {ex.Message}";
                 //System.Diagnostics.Debug.WriteLine($"导入文件失败: {ex}");
                 return null;
             }
@@ -93,11 +93,12 @@ namespace ImageColorChanger.Managers
         /// <returns>导入结果：(文件夹, 新文件列表, 已存在文件列表)</returns>
         public (Folder folder, List<MediaFile> newFiles, List<string> existingFiles) ImportFolder(string folderPath)
         {
+            LastError = null;
             try
             {
                 if (!Directory.Exists(folderPath))
                 {
-                    MessageBox.Show("文件夹不存在！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LastError = "文件夹不存在";
                     return (null, null, null);
                 }
 
@@ -109,7 +110,7 @@ namespace ImageColorChanger.Managers
                 
                 if (mediaFiles.Count == 0)
                 {
-                    MessageBox.Show("所选文件夹中没有支持的媒体文件", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    LastError = "所选文件夹中没有支持的媒体文件";
                     return (null, new List<MediaFile>(), new List<string>());
                 }
 
@@ -128,7 +129,7 @@ namespace ImageColorChanger.Managers
 
                 if (newFilePaths.Count == 0 && existingFiles.Count > 0)
                 {
-                    MessageBox.Show("所有媒体文件都已存在", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    LastError = "所有媒体文件都已存在";
                     return (folder, new List<MediaFile>(), existingFiles);
                 }
 
@@ -141,7 +142,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"导入文件夹失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LastError = $"导入文件夹失败: {ex.Message}";
                 //System.Diagnostics.Debug.WriteLine($"导入文件夹失败: {ex}");
                 return (null, null, null);
             }

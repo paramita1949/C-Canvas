@@ -8,36 +8,11 @@ using System.Windows.Threading;
 namespace ImageColorChanger.Managers
 {
     /// <summary>
-    /// 视频背景管理器（单例）
+    /// 视频背景管理器
     /// 负责管理幻灯片视频背景的播放、缓存和资源释放
     /// </summary>
-    public class VideoBackgroundManager : IDisposable
+    public class VideoBackgroundManager : IVideoBackgroundManager
     {
-        #region 单例模式
-
-        private static VideoBackgroundManager _instance;
-        private static readonly object _lock = new object();
-
-        public static VideoBackgroundManager Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                        {
-                            _instance = new VideoBackgroundManager();
-                        }
-                    }
-                }
-                return _instance;
-            }
-        }
-
-        #endregion
-
         #region 字段
 
         /// <summary>
@@ -64,7 +39,7 @@ namespace ImageColorChanger.Managers
 
         #region 构造函数
 
-        private VideoBackgroundManager()
+        public VideoBackgroundManager()
         {
             _mediaCache = new Dictionary<string, MediaElement>();
             _lruOrder = new LinkedList<string>();

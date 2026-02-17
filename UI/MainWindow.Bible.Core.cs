@@ -42,6 +42,14 @@ namespace ImageColorChanger.UI
         private bool _bibleNavigationInitialized = false;  // 圣经导航是否已初始化（用于保留用户选择状态）
         private ObservableCollection<BibleHistoryItem> _historySlots = new ObservableCollection<BibleHistoryItem>(); // 20个历史槽位
         private ObservableCollection<BibleVerse> _mergedVerses = new ObservableCollection<BibleVerse>(); // 合并后的经文列表
+        private enum BibleCopyHeaderStyle
+        {
+            Short,      // [约1:1-2]
+            Full,       // [约翰福音1:1-2]
+            Chapter     // [约翰福音1章1-2节]
+        }
+
+        private BibleCopyHeaderStyle _bibleCopyHeaderStyle = BibleCopyHeaderStyle.Short;
         
         // 双击检测
         private DateTime _lastHistoryClickTime = DateTime.MinValue;
@@ -184,36 +192,24 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 重要：手动创建 BibleService，使用主窗口的 _configManager 实例
-                // 这样确保配置修改能立即生效
-                _memoryCache ??= App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-                _bibleService = new Services.Implementations.BibleService(_memoryCache, _configManager);
+                _bibleModuleController ??= new Modules.BibleModuleController(Dispatcher);
+                _memoryCache ??= _mainWindowServices.GetRequired<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                _bibleService = _bibleModuleController.CreateService(_memoryCache, _configManager);
 
                 //#if DEBUG
                 //Debug.WriteLine("[圣经] 服务初始化成功");
                 //#endif
 
-                // 检查数据库是否可用
-                Task.Run(async () =>
-                {
-                    var available = await _bibleService.IsDatabaseAvailableAsync();
-
-                    //#if DEBUG
-                    //Debug.WriteLine($"[圣经] 数据库可用: {available}");
-                    //#endif
-
-                    if (!available)
+                _bibleModuleController.StartDatabaseAvailabilityProbe(
+                    _bibleService,
+                    () =>
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            WpfMessageBox.Show(
-                                "圣经数据库文件未找到！\n请确保 bible.db 文件位于 data/assets/ 目录下。",
-                                "错误",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
-                        });
-                    }
-                });
+                        WpfMessageBox.Show(
+                            "圣经数据库文件未找到！\n请确保 bible.db 文件位于 data/assets/ 目录下。",
+                            "错误",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    });
             }
             catch (Exception ex)
             {
@@ -1553,6 +1549,97 @@ namespace ImageColorChanger.UI
                 // 因为两者使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
                 _projectionManager.SyncBibleScroll(BibleVerseScrollViewer);
             }
+        }
+
+        /// <summary>
+        /// 右键复制经文（固定格式）
+        /// [约翰福音3:16-18]
+        /// 16 经文...
+        /// 17 经文...
+        /// </summary>
+        private void CopyBibleVerses_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_mergedVerses == null || _mergedVerses.Count == 0)
+                {
+                    ShowStatus("⚠️ 当前没有可复制的经文");
+                    return;
+                }
+
+                // 始终复制当前显示的全部经文
+                var verses = _mergedVerses.ToList();
+
+                if (verses.Count == 0)
+                {
+                    ShowStatus("⚠️ 当前没有可复制的经文");
+                    return;
+                }
+
+                verses = verses.OrderBy(v => v.Verse).ToList();
+
+                var first = verses.First();
+                var last = verses.Last();
+                var bookConfig = BibleBookConfig.GetBook(first.Book);
+                string shortName = bookConfig?.ShortName ?? first.BookName;
+
+                string header = _bibleCopyHeaderStyle switch
+                {
+                    BibleCopyHeaderStyle.Full => first.Verse == last.Verse
+                        ? $"[{first.BookName}{first.Chapter}:{first.Verse}]"
+                        : $"[{first.BookName}{first.Chapter}:{first.Verse}-{last.Verse}]",
+                    BibleCopyHeaderStyle.Chapter => first.Verse == last.Verse
+                        ? $"[{first.BookName}{first.Chapter}章{first.Verse}节]"
+                        : $"[{first.BookName}{first.Chapter}章{first.Verse}-{last.Verse}节]",
+                    _ => first.Verse == last.Verse
+                        ? $"[{shortName}{first.Chapter}:{first.Verse}]"
+                        : $"[{shortName}{first.Chapter}:{first.Verse}-{last.Verse}]"
+                };
+
+                var lines = new List<string> { header };
+                foreach (var verse in verses)
+                {
+                    var number = string.IsNullOrWhiteSpace(verse.DisplayVerseNumber)
+                        ? verse.Verse.ToString()
+                        : verse.DisplayVerseNumber;
+                    lines.Add($"{number} {verse.Scripture}".Trim());
+                }
+
+                var text = string.Join(Environment.NewLine, lines);
+                System.Windows.Clipboard.SetText(text);
+                ShowStatus("✅ 经文已复制");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 复制经文失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 设置圣经复制样式
+        /// </summary>
+        private void SetBibleCopyStyle_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.Tag is not string tag)
+            {
+                return;
+            }
+
+            _bibleCopyHeaderStyle = tag switch
+            {
+                "Full" => BibleCopyHeaderStyle.Full,
+                "Chapter" => BibleCopyHeaderStyle.Chapter,
+                _ => BibleCopyHeaderStyle.Short
+            };
+
+            if (MenuBibleCopyStyleShort != null)
+                MenuBibleCopyStyleShort.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Short;
+            if (MenuBibleCopyStyleFull != null)
+                MenuBibleCopyStyleFull.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Full;
+            if (MenuBibleCopyStyleChapter != null)
+                MenuBibleCopyStyleChapter.IsChecked = _bibleCopyHeaderStyle == BibleCopyHeaderStyle.Chapter;
+
+            ShowStatus("✅ 复制样式已切换");
         }
         
 //#if DEBUG

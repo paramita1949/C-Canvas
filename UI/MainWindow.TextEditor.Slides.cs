@@ -449,10 +449,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 🔧 通过ID查找幻灯片，避免对象引用不一致的问题
-                var slides = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id)
-                    .OrderBy(s => s.SortOrder)
-                    .ToListAsync();
+                var slides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
 
                 // 通过ID查找索引，而不是使用对象引用
                 int sourceIndex = slides.FindIndex(s => s.Id == sourceSlide.Id);
@@ -479,13 +476,7 @@ namespace ImageColorChanger.UI
                     slides[i].SortOrder = i;
                 }
 
-                // 🔧 显式标记所有幻灯片为已修改，确保EF Core跟踪更改
-                foreach (var slide in slides)
-                {
-                    _dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
-                }
-
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.UpdateSlideSortOrdersAsync(slides);
 
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"✅ [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
@@ -800,20 +791,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 加载文本元素（包含富文本片段）
-                var elements = _dbContext.TextElements
-                    .Include(e => e.RichTextSpans)  // 🔧 加载富文本片段
-                    .Where(e => e.SlideId == slide.Id)
-                    .OrderBy(e => e.ZIndex)
-                    .ToList();
-
-                // 🔧 手动排序 RichTextSpans（EF Core 不支持在 Include 中使用 OrderBy）
-                foreach (var element in elements)
-                {
-                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
-                    {
-                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
-                    }
-                }
+                var elements = _textProjectManager.GetElementsBySlideWithRichTextAsync(slide.Id).GetAwaiter().GetResult();
 
 //#if DEBUG
 //                int totalSpans = elements.Sum(e => e.RichTextSpans?.Count ?? 0);
@@ -893,17 +871,10 @@ namespace ImageColorChanger.UI
             try
             {
                 // 🔧 获取当前幻灯片总数（用于生成标题序号）
-                var slideCount = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id)
-                    .CountAsync();
+                var slideCount = await _textProjectManager.GetSlideCountAsync(_currentTextProject.Id);
                 
                 // 🔧 获取当前最大排序号（用于SortOrder）
-                var maxOrderValue = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id)
-                    .Select(s => (int?)s.SortOrder)
-                    .MaxAsync();
-                
-                int maxOrder = maxOrderValue ?? 0;
+                int maxOrder = await _textProjectManager.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
 
                 // 创建新幻灯片（标题序号 = 总数 + 1）
                 var newSlide = new Slide
@@ -916,8 +887,7 @@ namespace ImageColorChanger.UI
                     SplitStretchMode = false  // 默认适中模式
                 };
 
-                _dbContext.Slides.Add(newSlide);
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.AddSlideAsync(newSlide);
 
                 // 刷新幻灯片列表
                 LoadSlideList();
@@ -950,32 +920,21 @@ namespace ImageColorChanger.UI
             try
             {
                 // 加载源幻灯片的所有元素（包含富文本片段）
-                var sourceElements = await _dbContext.TextElements
-                    .Include(e => e.RichTextSpans)  // 🔧 加载富文本片段
-                    .Where(e => e.SlideId == sourceSlide.Id)
-                    .ToListAsync();
-
-                // 🔧 手动排序 RichTextSpans（EF Core 不支持在 Include 中使用 OrderBy）
-                foreach (var element in sourceElements)
-                {
-                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
-                    {
-                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
-                    }
-                }
+                var sourceElements = await _textProjectManager.GetElementsBySlideWithRichTextAsync(sourceSlide.Id);
 
                 // 计算新的排序位置（在源幻灯片后面）
                 int newSortOrder = sourceSlide.SortOrder + 1;
                 
                 // 将后面的幻灯片排序顺序都+1
-                var slidesToUpdate = await _dbContext.Slides
-                    .Where(s => s.ProjectId == _currentTextProject.Id && s.SortOrder >= newSortOrder)
-                    .ToListAsync();
+                var slidesToUpdate = (await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id))
+                    .Where(s => s.SortOrder >= newSortOrder)
+                    .ToList();
                 
                 foreach (var slide in slidesToUpdate)
                 {
                     slide.SortOrder++;
                 }
+                await _textProjectManager.UpdateSlideSortOrdersAsync(slidesToUpdate);
 
                 // 创建新幻灯片（复制所有属性）
                 var newSlide = new Slide
@@ -990,8 +949,7 @@ namespace ImageColorChanger.UI
                     SplitRegionsData = sourceSlide.SplitRegionsData  // 复制区域数据
                 };
 
-                _dbContext.Slides.Add(newSlide);
-                await _dbContext.SaveChangesAsync();
+                await _textProjectManager.AddSlideAsync(newSlide);
 
                 // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
                 foreach (var sourceElement in sourceElements)
@@ -1000,8 +958,7 @@ namespace ImageColorChanger.UI
                     var newElement = _textProjectManager.CloneElement(sourceElement);
                     newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
                     
-                    _dbContext.TextElements.Add(newElement);
-                    await _dbContext.SaveChangesAsync();  // 先保存以获取新元素的ID
+                    await _textProjectManager.AddElementAsync(newElement);
 
                     // 🆕 复制富文本片段（如果有）
                     if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
@@ -1098,7 +1055,7 @@ namespace ImageColorChanger.UI
             {
                 // ✅ 从数据库重新加载实体，确保实体是从当前 DbContext 加载的
                 // 这样可以避免乐观并发异常
-                var slideToDelete = await _dbContext.Slides.FindAsync(slideIdToDelete);
+                var slideToDelete = await _textProjectManager.GetSlideByIdAsync(slideIdToDelete);
                 if (slideToDelete == null)
                 {
 #if DEBUG
@@ -1116,10 +1073,7 @@ namespace ImageColorChanger.UI
                 {
                     // 🔧 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
                     // 这样可以避免在删除时尝试保存已删除的文本元素
-                    var allSlides = await _dbContext.Slides
-                        .Where(s => s.ProjectId == _currentTextProject.Id)
-                        .OrderBy(s => s.SortOrder)
-                        .ToListAsync();
+                    var allSlides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
                     
                     var slideToSwitchTo = allSlides.FirstOrDefault(s => s.Id != slideIdToDelete);
                     if (slideToSwitchTo != null)
@@ -1136,8 +1090,7 @@ namespace ImageColorChanger.UI
                     }
 
                     // 删除幻灯片（级联删除会自动删除关联的 TextElements 和 RichTextSpans）
-                    _dbContext.Slides.Remove(slideToDelete);
-                    await _dbContext.SaveChangesAsync();
+                    await _textProjectManager.DeleteSlideAsync(slideIdToDelete);
 
                     // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
                     LoadSlideList();
@@ -1188,12 +1141,7 @@ namespace ImageColorChanger.UI
             if (_currentTextProject == null)
                 return;
 
-            // 🆕 使用Include加载Elements集合，以便计算元素数量
-            var slides = _dbContext.Slides
-                .Include(s => s.Elements)
-                .Where(s => s.ProjectId == _currentTextProject.Id)
-                .OrderBy(s => s.SortOrder)
-                .ToList();
+            var slides = _textProjectManager.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id).GetAwaiter().GetResult();
 
             // 🆕 加载缩略图路径
             var thumbnailDir = System.IO.Path.Combine(

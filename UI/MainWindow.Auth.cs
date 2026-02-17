@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using ImageColorChanger.Services;
@@ -17,24 +18,61 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void InitializeAuthService()
         {
-            // 订阅认证状态变化事件
-            AuthService.Instance.AuthenticationChanged += OnAuthenticationChanged;
-            
+            _authModuleController ??= new Modules.AuthModuleController(
+                _authService,
+                Dispatcher,
+                UpdateAuthUI,
+                ShowAuthServiceUiMessage,
+                ShowAuthServiceClientNotices);
+
+            _authModuleController.Start();
+
             // 初始化UI状态
             UpdateAuthUI();
         }
 
-        /// <summary>
-        /// 认证状态改变事件处理
-        /// </summary>
-        private void OnAuthenticationChanged(object sender, AuthService.AuthenticationChangedEventArgs e)
+        private void ShowAuthServiceUiMessage(AuthService.UiMessageEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            var image = e.Level switch
             {
-                UpdateAuthUI();
-                
-                // 不再弹窗提示登录成功，信息已显示在标题栏
-            });
+                AuthService.UiMessageLevel.Error => MessageBoxImage.Error,
+                AuthService.UiMessageLevel.Warning => MessageBoxImage.Warning,
+                _ => MessageBoxImage.Information
+            };
+
+            MessageBox.Show(
+                e.Message ?? string.Empty,
+                string.IsNullOrWhiteSpace(e.Title) ? "提示" : e.Title,
+                MessageBoxButton.OK,
+                image);
+        }
+
+        private void ShowAuthServiceClientNotices(AuthService.ClientNoticesEventArgs e)
+        {
+            if (e?.Items == null || e.Items.Count == 0)
+            {
+                return;
+            }
+
+            var displayItems = e.Items
+                .Where(item => item != null && !string.IsNullOrWhiteSpace(item.Message))
+                .Select(item => new NoticePagerWindow.NoticeDisplayItem
+                {
+                    Title = string.IsNullOrWhiteSpace(item.Title) ? "系统通知" : item.Title,
+                    Message = item.Message.Trim()
+                })
+                .ToList();
+
+            if (displayItems.Count == 0)
+            {
+                return;
+            }
+
+            var window = new NoticePagerWindow(displayItems)
+            {
+                Owner = this
+            };
+            window.ShowDialog();
         }
 
         /// <summary>
@@ -42,13 +80,13 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateAuthUI()
         {
-            if (AuthService.Instance.IsAuthenticated)
+            if (_authService.IsAuthenticated)
             {
                 // 已登录状态
                 BtnLogin.Content = "用户";
                 
                 // 显示重置次数信息
-                int resetCount = AuthService.Instance.ResetDeviceCount;
+                int resetCount = _authService.ResetDeviceCount;
                 string resetInfo = resetCount > 0 ? $"可解绑{resetCount}次" : "解绑次数已用完";
                 BtnLogin.ToolTip = $"用户管理 - {resetInfo}";
                 
@@ -73,7 +111,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
-            if (AuthService.Instance.IsAuthenticated)
+            if (_authService.IsAuthenticated)
             {
                 // 已登录，显示用户菜单
                 ShowUserMenu();
@@ -81,7 +119,7 @@ namespace ImageColorChanger.UI
             else
             {
                 // 未登录，显示登录窗口
-                var loginWindow = new LoginWindow
+                var loginWindow = new LoginWindow(_mainWindowServices.GetRequired<Services.Interfaces.IAuthFacade>())
                 {
                     Owner = this
                 };
@@ -119,11 +157,11 @@ namespace ImageColorChanger.UI
         private void ShowUserMenu()
         {
             // 获取当前缓存的用户信息
-            string username = AuthService.Instance.Username;
-            int remainingDays = AuthService.Instance.RemainingDays;
-            DateTime? expiresAt = AuthService.Instance.ExpiresAt;
-            int resetCount = AuthService.Instance.ResetDeviceCount;
-            var deviceInfo = AuthService.Instance.DeviceBindingInfo;
+            string username = _authService.Username;
+            int remainingDays = _authService.RemainingDays;
+            DateTime? expiresAt = _authService.ExpiresAt;
+            int resetCount = _authService.ResetDeviceCount;
+            var deviceInfo = _authService.DeviceBindingInfo;
             
             // 调试信息已注释
             //#if DEBUG
@@ -250,7 +288,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"🔄 [手动刷新] 用户点击刷新按钮");
                 //#endif
                 
-                bool success = await AuthService.Instance.RefreshAccountInfoAsync();
+                bool success = await _authService.RefreshAccountInfoAsync();
                 
                 btn.IsEnabled = true;
                 btn.Content = originalContent;
@@ -309,7 +347,7 @@ namespace ImageColorChanger.UI
             AddInfoBlock(contentPanel, "解绑次数", resetInfo, "🔓");
             
             // 硬件ID（可点击复制）
-            string hardwareId = AuthService.Instance.GetCurrentHardwareId();
+            string hardwareId = _authService.GetCurrentHardwareId();
             AddClickableCopyBlock(contentPanel, "硬件ID", hardwareId, "🖥️");
             
             mainPanel.Children.Add(contentPanel);
@@ -329,7 +367,7 @@ namespace ImageColorChanger.UI
                 userWindow.Close();
                 if (MessageBox.Show("确定要退出登录吗？", "确认退出", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
-                    AuthService.Instance.Logout();
+                    _authService.Logout();
                     UpdateAuthUI();
                 }
             };
@@ -624,7 +662,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UnbindDeviceWithConfirm()
         {
-            var resetCount = AuthService.Instance.ResetDeviceCount;
+            var resetCount = _authService.ResetDeviceCount;
             
             if (resetCount <= 0)
             {
@@ -884,7 +922,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 执行解绑
-                var (success, message, remaining) = await AuthService.Instance.ResetDevicesAsync(passwordBox.Password);
+                var (success, message, remaining) = await _authService.ResetDevicesAsync(passwordBox.Password);
                 
                 // 关闭加载窗口
                 loadingWindow.Close();
@@ -906,7 +944,7 @@ namespace ImageColorChanger.UI
                         MessageBoxImage.Information);
                     
                     // 自动退出登录
-                    AuthService.Instance.Logout();
+                    _authService.Logout();
                     UpdateAuthUI();
                 }
                 else
@@ -940,7 +978,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CleanupAuthService()
         {
-            AuthService.Instance.AuthenticationChanged -= OnAuthenticationChanged;
+            _authModuleController?.Dispose();
+            _authModuleController = null;
         }
     }
 }

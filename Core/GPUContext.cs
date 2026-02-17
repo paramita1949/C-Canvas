@@ -39,7 +39,7 @@ namespace ImageColorChanger.Core
             }
         }
 
-        private GPUContext()
+        public GPUContext()
         {
             Initialize();
         }
@@ -471,7 +471,7 @@ namespace ImageColorChanger.Core
                 sb.AppendLine($"最大纹理高度: {System.Windows.Media.RenderCapability.MaxHardwareTextureSize.Height}");
                 
                 // SkiaSharp GPU状态
-                var instance = GPUContext.Instance;
+                var instance = App.GetRequiredService<GPUContext>();
                 sb.AppendLine($"SkiaSharp GPU可用: {instance.IsGpuAvailable}");
                 sb.AppendLine($"SkiaSharp GPU信息: {instance.GpuInfo}");
                 

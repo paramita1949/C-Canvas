@@ -4,20 +4,23 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Navigation;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.UI
 {
     public partial class LoginWindow : Window
     {
+        private readonly IAuthFacade _authFacade;
         public bool LoginSuccess { get; private set; }
 
-        public LoginWindow()
+        public LoginWindow(IAuthFacade authFacade)
         {
+            _authFacade = authFacade ?? throw new ArgumentNullException(nameof(authFacade));
             InitializeComponent();
             LoginSuccess = false;
 
             // 订阅服务器切换事件
-            AuthService.Instance.ServerSwitching += OnServerSwitching;
+            _authFacade.ServerSwitching += OnServerSwitching;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -32,7 +35,7 @@ namespace ImageColorChanger.UI
         protected override void OnClosed(EventArgs e)
         {
             // 取消订阅事件
-            AuthService.Instance.ServerSwitching -= OnServerSwitching;
+            _authFacade.ServerSwitching -= OnServerSwitching;
             base.OnClosed(e);
         }
 
@@ -123,7 +126,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 设置超时：60秒
-                var loginTask = AuthService.Instance.LoginAsync(username, password);
+                var loginTask = _authFacade.LoginAsync(username, password);
                 var timeoutTask = System.Threading.Tasks.Task.Delay(60000); // 60秒超时
 
                 var completedTask = await System.Threading.Tasks.Task.WhenAny(loginTask, timeoutTask);
@@ -152,7 +155,7 @@ namespace ImageColorChanger.UI
                 {
                     ShowStatus(message, isError: true);
 
-                    if (string.Equals(AuthService.Instance.LastAuthFailureReason, "expired", StringComparison.Ordinal))
+                    if (string.Equals(_authFacade.LastAuthFailureReason, "expired", StringComparison.Ordinal))
                     {
 #if DEBUG
                         System.Diagnostics.Debug.WriteLine("[LoginWindow] 检测到账号过期，自动打开付费窗口");
@@ -187,7 +190,7 @@ namespace ImageColorChanger.UI
         private void RegisterButton_Click(object sender, RoutedEventArgs e)
         {
             // 打开注册窗口
-            var registerWindow = new RegisterWindow
+            var registerWindow = new RegisterWindow(_authFacade)
             {
                 Owner = this
             };
@@ -263,7 +266,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 打开密码重置窗口
-                var resetWindow = new ResetPasswordWindow
+                var resetWindow = new ResetPasswordWindow(_authFacade)
                 {
                     Owner = this
                 };

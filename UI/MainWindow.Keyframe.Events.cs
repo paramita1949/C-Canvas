@@ -858,7 +858,9 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 打开脚本编辑窗口
-                var scriptWindow = new ScriptEditWindow(_currentImageId, timings);
+                var scriptWindow = _mainWindowServices
+                    .GetRequired<Composition.ScriptEditWindowFactory>()
+                    .CreateForKeyframe(_currentImageId, timings);
                 scriptWindow.Owner = this;
                 scriptWindow.ShowDialog();
             }

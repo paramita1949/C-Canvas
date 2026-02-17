@@ -13,6 +13,11 @@ namespace ImageColorChanger.UI.Controls
     /// </summary>
     public partial class TextColorSettingsPanel : System.Windows.Controls.UserControl
     {
+        /// <summary>
+        /// 由宿主显式注入的设置存储。
+        /// </summary>
+        public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
+
         private DraggableTextBox _targetTextBox;
         private string _currentColor = "#000000";
         private List<string> _recentColors = new List<string>();
@@ -151,8 +156,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 无法访问数据库，使用空列表");
@@ -162,7 +167,7 @@ namespace ImageColorChanger.UI.Controls
                     return;
                 }
 
-                var jsonValue = dbManager.GetUISetting("TextColorRecentColors");
+                var jsonValue = settingsStore.GetValue("TextColorRecentColors");
                 if (string.IsNullOrEmpty(jsonValue))
                 {
                     //#if DEBUG
@@ -196,8 +201,8 @@ namespace ImageColorChanger.UI.Controls
         {
             try
             {
-                var dbManager = GetDatabaseManager();
-                if (dbManager == null)
+                var settingsStore = SettingsStore;
+                if (settingsStore == null)
                 {
                     //#if DEBUG
                     //                    System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 无法访问数据库，保存失败");
@@ -207,7 +212,7 @@ namespace ImageColorChanger.UI.Controls
 
                 var colorsToSave = _recentColors.Take(6).ToList();
                 var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
-                dbManager.SaveUISetting("TextColorRecentColors", jsonValue);
+                settingsStore.SaveValue("TextColorRecentColors", jsonValue);
                 //#if DEBUG
                 //                System.Diagnostics.Debug.WriteLine($"💾 [文本颜色面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
                 //#endif
@@ -218,24 +223,6 @@ namespace ImageColorChanger.UI.Controls
                 //                System.Diagnostics.Debug.WriteLine($"⚠️ [文本颜色面板] 保存失败: {ex.Message}");
                 //#endif
             }
-        }
-
-        /// <summary>
-        /// 获取数据库管理器
-        /// </summary>
-        private Database.DatabaseManager GetDatabaseManager()
-        {
-            try
-            {
-                if (System.Windows.Application.Current?.MainWindow is MainWindow mainWin)
-                {
-                    var dbManagerField = typeof(MainWindow).GetField("_dbManager", 
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    return dbManagerField?.GetValue(mainWin) as Database.DatabaseManager;
-                }
-            }
-            catch { }
-            return null;
         }
 
         /// <summary>

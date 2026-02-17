@@ -1,9 +1,7 @@
 using System;
 using System.IO;
-using System.Windows;
 using SkiaSharp;
 using ImageColorChanger.Core;
-using MessageBox = System.Windows.MessageBox;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace ImageColorChanger.Managers
@@ -15,6 +13,7 @@ namespace ImageColorChanger.Managers
     public class ImageSaveManager
     {
         private readonly ImageProcessor _imageProcessor;
+        public string LastError { get; private set; }
 
         /// <summary>
         /// 构造函数
@@ -31,9 +30,10 @@ namespace ImageColorChanger.Managers
         /// <returns>保存是否成功</returns>
         public bool SaveEffectImage(string currentImagePath = null)
         {
+            LastError = null;
             if (_imageProcessor.CurrentImage == null)
             {
-                MessageBox.Show("请先打开一张图片！", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                LastError = "请先打开一张图片";
                 return false;
             }
 
@@ -87,7 +87,7 @@ namespace ImageColorChanger.Managers
 
                 if (imageToSave == null)
                 {
-                    MessageBox.Show("准备保存图片失败！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LastError = "准备保存图片失败";
                     return false;
                 }
 
@@ -123,7 +123,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"保存图片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LastError = $"保存图片失败: {ex.Message}";
                 return false;
             }
         }

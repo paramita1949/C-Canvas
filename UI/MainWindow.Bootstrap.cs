@@ -26,7 +26,7 @@ namespace ImageColorChanger.UI
         private void InitializeGpuProcessor()
         {
             // 初始化GPU上下文（自动检测GPU可用性）
-            var gpuContext = Core.GPUContext.Instance;
+            var gpuContext = _gpuContext;
 
             // 强制启用WPF硬件加速
             Core.GPUContext.ForceEnableHardwareAcceleration();

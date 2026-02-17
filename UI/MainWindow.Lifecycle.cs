@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
-using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
@@ -139,19 +138,10 @@ namespace ImageColorChanger.UI
             try
             {
                 // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
+                MainWindow_Closing(sender, e);
                 
                 // 保存用户设置
                 SaveSettings();
-                
-                // 取消订阅事件，防止内存泄漏
-                if (_videoPlayerManager != null)
-                {
-                    _videoPlayerManager.VideoTrackDetected -= VideoPlayerManager_VideoTrackDetected;
-                    _videoPlayerManager.PlayStateChanged -= OnVideoPlayStateChanged;
-                    _videoPlayerManager.MediaChanged -= OnVideoMediaChanged;
-                    _videoPlayerManager.MediaEnded -= OnVideoMediaEnded;
-                    _videoPlayerManager.ProgressUpdated -= OnVideoProgressUpdated;
-                }
                 
                 // 注意：PropertyChanged事件使用匿名方法订阅，无法直接取消订阅
                 // ViewModel会随窗口关闭自动释放
@@ -161,6 +151,8 @@ namespace ImageColorChanger.UI
                 if (_videoPlayerManager != null)
                 {
                     _videoPlayerManager.Stop();
+                    _mediaModuleController?.Dispose();
+                    _mediaModuleController = null;
                     _videoPlayerManager.Dispose();
                 }
                 
@@ -240,48 +232,20 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 如果文本编辑器的DbContext存在，先处理它
-                if (_dbContext != null)
-                {
-                    try
-                    {
-                        // 执行checkpoint操作，将WAL文件的内容合并回主数据库
-                        _dbContext.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE);");
-                        
-                        // 释放DbContext
-                        _dbContext.Dispose();
-                        _dbContext = null;
-                    }
-                    catch (Exception)
-                    {
-                        // 忽略错误，确保继续清理
-                    }
-                }
-                
-                // 清理DatabaseManager中的主DbContext
                 if (_dbManager != null)
                 {
                     try
                     {
-                        var mainDbContext = _dbManager.GetDbContext();
-                        if (mainDbContext != null)
-                        {
-                            // 执行checkpoint操作
-                            mainDbContext.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE);");
-                            
-                            // 关闭连接
-                            var connection = mainDbContext.Database.GetDbConnection();
-                            if (connection != null && connection.State == System.Data.ConnectionState.Open)
-                            {
-                                connection.Close();
-                            }
-                        }
+                        _dbManager.CheckpointAndCloseConnections();
                     }
                     catch (Exception)
                     {
-                        // 忽略错误
+                        // 忽略错误，不影响退出
                     }
                 }
+
+                // 释放UI持有的上下文引用（生命周期由 DatabaseManager 统一管理）
+                _dbContext = null;
             }
             catch (Exception)
             {

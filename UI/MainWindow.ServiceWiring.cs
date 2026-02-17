@@ -48,15 +48,12 @@ namespace ImageColorChanger.UI
 
                 if (_videoPlayerManager != null)
                 {
-                    _videoPlayerManager.VideoTrackDetected -= VideoPlayerManager_VideoTrackDetected;
-                    _videoPlayerManager.PlayStateChanged -= OnVideoPlayStateChanged;
-                    _videoPlayerManager.MediaChanged -= OnVideoMediaChanged;
-                    _videoPlayerManager.MediaEnded -= OnVideoMediaEnded;
-                    _videoPlayerManager.ProgressUpdated -= OnVideoProgressUpdated;
+                    _videoPlayerManager.PlaybackError -= OnVideoPlaybackError;
+                    _mediaModuleController?.Detach();
                 }
 
                 // 清理视频背景管理器
-                VideoBackgroundManager.Instance.Dispose();
+                _videoBackgroundManager?.Dispose();
             }
             catch (Exception
 #if DEBUG
@@ -77,14 +74,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                _playbackViewModel = App.GetRequiredService<ViewModels.PlaybackControlViewModel>();
-                _playbackServiceFactory = App.GetRequiredService<Services.PlaybackServiceFactory>();
-                _countdownService = App.GetRequiredService<Services.Interfaces.ICountdownService>();
-                _timingRepository = App.GetRequiredService<Repositories.Interfaces.ITimingRepository>();
-                _originalModeRepository = App.GetRequiredService<Repositories.Interfaces.IOriginalModeRepository>();
-                _compositeScriptRepository = App.GetRequiredService<Repositories.Interfaces.ICompositeScriptRepository>();
-                _memoryCache = App.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-                _mediaFileRepository = App.GetRequiredService<Repositories.Interfaces.IMediaFileRepository>();
+                _playbackViewModel = _mainWindowServices.GetRequired<ViewModels.PlaybackControlViewModel>();
+                _playbackServiceFactory = _mainWindowServices.GetRequired<Services.PlaybackServiceFactory>();
+                _countdownService = _mainWindowServices.GetRequired<Services.Interfaces.ICountdownService>();
+                _timingRepository = _mainWindowServices.GetRequired<Repositories.Interfaces.ITimingRepository>();
+                _originalModeRepository = _mainWindowServices.GetRequired<Repositories.Interfaces.IOriginalModeRepository>();
+                _compositeScriptRepository = _mainWindowServices.GetRequired<Repositories.Interfaces.ICompositeScriptRepository>();
+                _memoryCache = _mainWindowServices.GetRequired<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                _mediaFileRepository = _mainWindowServices.GetRequired<Repositories.Interfaces.IMediaFileRepository>();
 
                 _countdownUpdatedHandler = (s, e) =>
                 {

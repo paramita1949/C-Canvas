@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using ImageColorChanger.Database.Models;
-using ImageColorChanger.UI;
 
 namespace ImageColorChanger.Managers.Keyframes
 {
@@ -14,12 +13,12 @@ namespace ImageColorChanger.Managers.Keyframes
     /// 关键帧管理器
     /// 负责关键帧的增删改查、状态管理、缓存优化
     /// </summary>
-    public class KeyframeManager
-    {
-        private readonly KeyframeRepository _repository;
-        private readonly MainWindow _mainWindow;
-        private KeyframeNavigator _navigator;
-        private readonly Repositories.Interfaces.IMediaFileRepository _mediaFileRepository;
+        public class KeyframeManager
+        {
+            private readonly KeyframeRepository _repository;
+            private readonly IKeyframeUiHost _uiHost;
+            private KeyframeNavigator _navigator;
+            private readonly Repositories.Interfaces.IMediaFileRepository _mediaFileRepository;
 
         #region 状态管理
 
@@ -101,11 +100,11 @@ namespace ImageColorChanger.Managers.Keyframes
         /// </summary>
         public void StopScrollAnimation()
         {
-            if (_currentScrollAnimation != null)
-            {
-                _mainWindow.Dispatcher.Invoke(() =>
+                if (_currentScrollAnimation != null)
                 {
-                    var scrollViewer = _mainWindow.ImageScrollViewer;
+                _uiHost.Dispatcher.Invoke(() =>
+                {
+                    var scrollViewer = _uiHost.ImageScrollViewer;
                     if (scrollViewer != null)
                     {
                         // 获取当前滚动位置（动画进行中的位置）
@@ -133,15 +132,15 @@ namespace ImageColorChanger.Managers.Keyframes
         /// </summary>
         public KeyframeManager(
             KeyframeRepository repository, 
-            MainWindow mainWindow,
+            IKeyframeUiHost uiHost,
             Repositories.Interfaces.IMediaFileRepository mediaFileRepository)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-            _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
+            _uiHost = uiHost ?? throw new ArgumentNullException(nameof(uiHost));
             _mediaFileRepository = mediaFileRepository ?? throw new ArgumentNullException(nameof(mediaFileRepository));
 
             // 初始化导航器
-            _navigator = new KeyframeNavigator(this, mainWindow, repository);
+            _navigator = new KeyframeNavigator(this, _uiHost, repository);
 
             // 初始化UI更新定时器
             InitializeUiUpdateTimer();
@@ -312,11 +311,11 @@ namespace ImageColorChanger.Managers.Keyframes
         /// <param name="targetPosition">目标位置（0.0-1.0）</param>
         public void SmoothScrollTo(double targetPosition)
         {
-            _mainWindow.Dispatcher.Invoke(() =>
+            _uiHost.Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    var scrollViewer = _mainWindow.ImageScrollViewer;
+                    var scrollViewer = _uiHost.ImageScrollViewer;
                     if (scrollViewer == null) return;
 
                     var currentPosition = scrollViewer.VerticalOffset;
@@ -333,7 +332,7 @@ namespace ImageColorChanger.Managers.Keyframes
                     }
 
                     // 开始FPS监控
-                    _mainWindow.StartFpsMonitoring();
+                    _uiHost.StartFpsMonitoring();
                     
                     // 执行平滑滚动动画
                     _currentScrollAnimation = Utils.AnimationHelper.AnimateScroll(
@@ -347,13 +346,13 @@ namespace ImageColorChanger.Managers.Keyframes
                             _currentScrollAnimation = null;
                             
                             // 更新投影
-                            if (_mainWindow.IsProjectionEnabled)
+                            if (_uiHost.IsProjectionEnabled)
                             {
-                                _mainWindow.UpdateProjection();
+                                _uiHost.UpdateProjection();
                             }
                             
                             // 停止FPS监控
-                            _mainWindow.StopFpsMonitoring();
+                            _uiHost.StopFpsMonitoring();
                         },
                         ScrollEasingType,  // 使用配置的缓动类型
                         IsLinearScrolling   // 是否线性滚动
@@ -439,21 +438,21 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             _lastUiUpdate = DateTime.Now;
 
-            _mainWindow.Dispatcher.Invoke(() =>
+            _uiHost.Dispatcher.Invoke(() =>
             {
                 try
                 {
                     switch (updateType)
                     {
                         case "indicators":
-                            _mainWindow.UpdateKeyframeIndicators();
+                            _uiHost.UpdateKeyframeIndicators();
                             break;
                         case "preview_lines":
-                            _mainWindow.UpdatePreviewLines();
+                            _uiHost.UpdatePreviewLines();
                             break;
                         case "both":
-                            _mainWindow.UpdateKeyframeIndicators();
-                            _mainWindow.UpdatePreviewLines();
+                            _uiHost.UpdateKeyframeIndicators();
+                            _uiHost.UpdatePreviewLines();
                             break;
                     }
                 }

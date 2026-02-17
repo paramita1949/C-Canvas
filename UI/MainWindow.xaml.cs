@@ -23,11 +23,14 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services;
+using ImageColorChanger.UI.Composition;
+using ImageColorChanger.UI.Modules;
 using LibVLCSharp.WPF;
 
 namespace ImageColorChanger.UI
 {
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window, INotifyPropertyChanged, Managers.Keyframes.IKeyframeUiHost
     {
         #region INotifyPropertyChanged 实现
 
@@ -138,6 +141,7 @@ namespace ImageColorChanger.UI
         
         // 视频播放相关
         private VideoPlayerManager _videoPlayerManager;
+        private IVideoBackgroundManager _videoBackgroundManager;
         private VideoView _mainVideoView;
         private bool _isUpdatingProgress = false; // 防止进度条更新时触发事件
         private string _pendingProjectionVideoPath = null;
@@ -170,6 +174,17 @@ namespace ImageColorChanger.UI
         
         // ✅ SkiaSharp文本渲染器
         private SkiaTextRenderer _skiaRenderer;
+        private GPUContext _gpuContext;
+        private PakManager _pakManager;
+        private SkiaFontService _skiaFontService;
+
+        // 模块控制器
+        private readonly AuthService _authService;
+        private AuthModuleController _authModuleController;
+        private BibleModuleController _bibleModuleController;
+        private MediaModuleController _mediaModuleController;
+        private MainWindowComposer _mainWindowComposer;
+        private MainWindowServices _mainWindowServices;
 
         #endregion
 
@@ -197,6 +212,14 @@ namespace ImageColorChanger.UI
         public MainWindow()
         {
             InitializeComponent();
+
+            _mainWindowComposer = MainWindowComposer.CreateDefault();
+            _mainWindowServices = _mainWindowComposer.Compose();
+            _authService = _mainWindowServices.GetRequired<AuthService>();
+            _videoBackgroundManager = _mainWindowServices.GetRequired<IVideoBackgroundManager>();
+            _gpuContext = _mainWindowServices.GetRequired<GPUContext>();
+            _pakManager = _mainWindowServices.GetRequired<PakManager>();
+            _skiaFontService = _mainWindowServices.GetRequired<SkiaFontService>();
             
             // 初始化GPU处理器
             InitializeGpuProcessor();
@@ -218,10 +241,6 @@ namespace ImageColorChanger.UI
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
             
-            // 🎬 监听窗口关闭事件，清理视频资源
-            this.Closing += MainWindow_Closing;
-
-                        
             // 🔐 初始化认证服务
             InitializeAuthService();
         }

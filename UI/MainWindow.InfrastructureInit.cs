@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database;
+using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
 using LibVLCSharp.WPF;
 using MessageBox = System.Windows.MessageBox;
@@ -19,22 +20,23 @@ namespace ImageColorChanger.UI
             {
                 _configManager = new ConfigManager();
                 _dbManager = new DatabaseManager();
-
-                _dbManager.MigrateAddLoopCount();
-                _dbManager.MigrateAddHighlightColor();
-                _dbManager.MigrateAddBibleHistoryTable();
-                _dbManager.MigrateAddBibleInsertConfigTable();
-                _dbManager.MigrateAddUnderlineSupport();
-                _dbManager.MigrateAddRichTextSupport();
-                _dbManager.MigrateCreateRichTextSpansTable();
-                _dbManager.MigrateAddShadowTypeAndPreset();
-                _dbManager.MigrateAddVideoBackgroundSupport();
+                _dbContext = _dbManager.GetDbContext();
+                using (var migrationRunner = new DatabaseMigrationRunner(_dbContext))
+                {
+                    migrationRunner.RunStartupMigrations();
+                }
 
                 _sortManager = new SortManager();
                 _searchManager = new SearchManager(_dbManager, _configManager);
                 _importManager = new ImportManager(_dbManager, _sortManager);
-                _slideExportManager = new SlideExportManager(_dbManager);
-                _slideImportManager = new SlideImportManager(_dbManager);
+                _slideExportManager = new SlideExportManager(_dbContext);
+                _slideImportManager = new SlideImportManager(_dbContext);
+
+                // 显式注入设置存储，避免控件直接依赖 DatabaseManager
+                var uiSettingsStore = _mainWindowServices.GetRequired<Services.Interfaces.IUiSettingsStore>();
+                BackgroundSettingsPanel.SettingsStore = uiSettingsStore;
+                BorderSettingsPanel.SettingsStore = uiSettingsStore;
+                TextColorSettingsPanel.SettingsStore = uiSettingsStore;
 
                 LoadSearchScopes();
             }
@@ -61,13 +63,19 @@ namespace ImageColorChanger.UI
 
                 if (_projectionManager != null)
                 {
-                    var field = typeof(ProjectionManager).GetField(
-                        "_videoPlayerManager",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    field?.SetValue(_projectionManager, _videoPlayerManager);
+                    _projectionManager.AttachVideoPlayerManager(_videoPlayerManager);
                 }
 
-                _videoPlayerManager.VideoTrackDetected += VideoPlayerManager_VideoTrackDetected;
+                _mediaModuleController?.Dispose();
+                _mediaModuleController = new Modules.MediaModuleController(
+                    _videoPlayerManager,
+                    VideoPlayerManager_VideoTrackDetected,
+                    OnVideoPlayStateChanged,
+                    OnVideoMediaChanged,
+                    OnVideoMediaEnded,
+                    OnVideoProgressUpdated);
+                _mediaModuleController.Attach();
+                _videoPlayerManager.PlaybackError += OnVideoPlaybackError;
 
                 _mainVideoView = new VideoView
                 {
@@ -99,11 +107,6 @@ namespace ImageColorChanger.UI
                 };
 
                 _mainVideoView.SizeChanged += sizeChangedHandler;
-
-                _videoPlayerManager.PlayStateChanged += OnVideoPlayStateChanged;
-                _videoPlayerManager.MediaChanged += OnVideoMediaChanged;
-                _videoPlayerManager.MediaEnded += OnVideoMediaEnded;
-                _videoPlayerManager.ProgressUpdated += OnVideoProgressUpdated;
 
                 _videoPlayerManager.SetVolume(50);
                 VolumeSlider.Value = 50;

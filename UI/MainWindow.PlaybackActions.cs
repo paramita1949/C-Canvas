@@ -158,10 +158,10 @@ namespace ImageColorChanger.UI
             var timings = await _timingRepository.GetTimingSequenceAsync(_currentImageId);
             var timingList = timings?.ToList() ?? new System.Collections.Generic.List<Database.Models.DTOs.TimingSequenceDto>();
 
-            var scriptWindow = new ScriptEditWindow(_currentImageId, timingList)
-            {
-                Owner = this
-            };
+            var scriptWindow = _mainWindowServices
+                .GetRequired<Composition.ScriptEditWindowFactory>()
+                .CreateForKeyframe(_currentImageId, timingList);
+            scriptWindow.Owner = this;
 
             if (scriptWindow.ShowDialog() == true)
             {
@@ -193,10 +193,10 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var scriptWindow = new ScriptEditWindow(baseImageId.Value, timings)
-            {
-                Owner = this
-            };
+            var scriptWindow = _mainWindowServices
+                .GetRequired<Composition.ScriptEditWindowFactory>()
+                .CreateForOriginal(baseImageId.Value, timings);
+            scriptWindow.Owner = this;
 
             if (scriptWindow.ShowDialog() == true)
             {

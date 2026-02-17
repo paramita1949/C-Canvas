@@ -8,7 +8,6 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
-using System.Windows;
 
 namespace ImageColorChanger.Managers
 {
@@ -18,19 +17,12 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class SlideExportManager
     {
-        private readonly DatabaseManager _dbManager;
+        private readonly CanvasDbContext _dbContext;
+        public string LastError { get; private set; }
 
-        public SlideExportManager(DatabaseManager dbManager)
+        public SlideExportManager(CanvasDbContext dbContext)
         {
-            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
-        }
-
-        /// <summary>
-        /// 获取 DbContext
-        /// </summary>
-        private CanvasDbContext GetDbContext()
-        {
-            return _dbManager.GetDbContext();
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
 
         /// <summary>
@@ -40,9 +32,10 @@ namespace ImageColorChanger.Managers
         /// <returns>是否成功</returns>
         public async Task<bool> ExportProjectAsync(int projectId)
         {
+            LastError = null;
             try
             {
-                var dbContext = GetDbContext();
+                var dbContext = _dbContext;
                 
                 // 加载项目及其所有关联数据
                 var project = await dbContext.TextProjects
@@ -53,7 +46,7 @@ namespace ImageColorChanger.Managers
 
                 if (project == null)
                 {
-                    System.Windows.MessageBox.Show("项目不存在", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    LastError = "项目不存在";
                     return false;
                 }
 
@@ -83,8 +76,6 @@ namespace ImageColorChanger.Managers
                     });
 
                     await File.WriteAllTextAsync(saveFileDialog.FileName, json);
-                    System.Windows.MessageBox.Show($"项目已导出: {Path.GetFileName(saveFileDialog.FileName)}",
-                        "成功", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                     return true;
                 }
 
@@ -92,8 +83,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"导出失败: {ex.Message}", "错误",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                LastError = $"导出失败: {ex.Message}";
                 return false;
             }
         }
@@ -104,9 +94,10 @@ namespace ImageColorChanger.Managers
         /// <returns>是否成功</returns>
         public async Task<bool> ExportAllProjectsAsync()
         {
+            LastError = null;
             try
             {
-                var dbContext = GetDbContext();
+                var dbContext = _dbContext;
                 
                 // 加载所有项目及其关联数据
                 var projects = await dbContext.TextProjects
@@ -117,7 +108,7 @@ namespace ImageColorChanger.Managers
 
                 if (projects.Count == 0)
                 {
-                    System.Windows.MessageBox.Show("没有可导出的项目", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                    LastError = "没有可导出的项目";
                     return false;
                 }
 
@@ -147,8 +138,6 @@ namespace ImageColorChanger.Managers
                     });
 
                     await File.WriteAllTextAsync(saveFileDialog.FileName, json);
-                    System.Windows.MessageBox.Show($"已导出 {projects.Count} 个项目: {Path.GetFileName(saveFileDialog.FileName)}",
-                        "成功", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                     return true;
                 }
 
@@ -156,8 +145,7 @@ namespace ImageColorChanger.Managers
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"导出失败: {ex.Message}", "错误",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                LastError = $"导出失败: {ex.Message}";
                 return false;
             }
         }

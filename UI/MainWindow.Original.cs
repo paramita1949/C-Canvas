@@ -270,7 +270,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 根据ImageId查找路径并加载
-                        var dbContext = _dbManager?.GetDbContext();
+                        var dbContext = _dbContext;
                         if (dbContext != null)
                         {
                             var mediaFile = dbContext.MediaFiles.FirstOrDefault(m => m.Id == e.ImageId);

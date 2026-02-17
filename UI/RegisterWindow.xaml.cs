@@ -2,20 +2,23 @@ using System;
 using System.Text.RegularExpressions;
 using System.Windows;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.UI
 {
     public partial class RegisterWindow : Window
     {
+        private readonly IAuthFacade _authFacade;
         public bool RegisterSuccess { get; private set; }
 
-        public RegisterWindow()
+        public RegisterWindow(IAuthFacade authFacade)
         {
+            _authFacade = authFacade ?? throw new ArgumentNullException(nameof(authFacade));
             InitializeComponent();
             RegisterSuccess = false;
 
             // 订阅服务器切换事件
-            AuthService.Instance.ServerSwitching += OnServerSwitching;
+            _authFacade.ServerSwitching += OnServerSwitching;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -27,7 +30,7 @@ namespace ImageColorChanger.UI
         protected override void OnClosed(EventArgs e)
         {
             // 取消订阅事件
-            AuthService.Instance.ServerSwitching -= OnServerSwitching;
+            _authFacade.ServerSwitching -= OnServerSwitching;
             base.OnClosed(e);
         }
 
@@ -195,7 +198,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 设置超时：60秒
-                var registerTask = AuthService.Instance.RegisterAsync(
+                var registerTask = _authFacade.RegisterAsync(
                     username, 
                     password, 
                     email  // 邮箱必填

@@ -36,7 +36,7 @@ namespace ImageColorChanger.Core
             }
         }
         
-        private SkiaFontService()
+        public SkiaFontService()
         {
             _typefaceCache = new Dictionary<string, SKTypeface>();
         }
@@ -183,7 +183,7 @@ namespace ImageColorChanger.Core
                     
                     foreach (var pakPath in possiblePaths)
                     {
-                        var fontData = PakManager.Instance.GetResource(pakPath);
+                        var fontData = App.GetRequiredService<PakManager>()?.GetResource(pakPath);
                         
                         if (fontData != null && fontData.Length > 0)
                         {

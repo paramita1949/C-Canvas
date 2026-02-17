@@ -13,6 +13,12 @@ namespace ImageColorChanger.Core
     {
         private static bool _usePak = true;
         private static bool _pakInitialized = false;
+
+        private static PakManager GetPakManager()
+        {
+            return App.GetRequiredService<PakManager>()
+                ?? throw new InvalidOperationException("PakManager service is not available.");
+        }
         
         /// <summary>
         /// 是否使用PAK包（默认true）
@@ -37,7 +43,7 @@ namespace ImageColorChanger.Core
                 
             if (_usePak)
             {
-                var success = PakManager.Instance.LoadPak();
+                var success = GetPakManager().LoadPak();
                 if (!success)
                 {
                     System.Diagnostics.Debug.WriteLine("⚠️ [ResourceLoader] PAK包加载失败，回退到文件系统");
@@ -59,7 +65,7 @@ namespace ImageColorChanger.Core
             {
                 if (_usePak)
                 {
-                    var content = PakManager.Instance.GetResourceText(relativePath);
+                    var content = GetPakManager().GetResourceText(relativePath);
                     if (content != null)
                     {
                         //System.Diagnostics.Debug.WriteLine($"📦 [ResourceLoader] 从PAK加载: {relativePath}");
@@ -96,7 +102,7 @@ namespace ImageColorChanger.Core
             {
                 if (_usePak)
                 {
-                    var data = PakManager.Instance.GetResource(relativePath);
+                    var data = GetPakManager().GetResource(relativePath);
                     if (data != null)
                     {
                         //System.Diagnostics.Debug.WriteLine($"📦 [ResourceLoader] 从PAK加载: {relativePath}");
@@ -162,7 +168,7 @@ namespace ImageColorChanger.Core
             {
                 if (_usePak)
                 {
-                    var data = PakManager.Instance.GetResource(relativePath);
+                    var data = GetPakManager().GetResource(relativePath);
                     if (data != null)
                     {
                         // 从内存加载字体
@@ -209,7 +215,7 @@ namespace ImageColorChanger.Core
             
             if (_usePak)
             {
-                if (PakManager.Instance.ResourceExists(relativePath))
+                if (GetPakManager().ResourceExists(relativePath))
                     return true;
             }
             
@@ -222,7 +228,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         public static string GetResourcePath(string relativePath)
         {
-            if (_usePak && PakManager.Instance.ResourceExists(relativePath))
+            if (_usePak && GetPakManager().ResourceExists(relativePath))
             {
                 return $"pak://{relativePath}";
             }
