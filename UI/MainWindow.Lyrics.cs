@@ -46,6 +46,11 @@ namespace ImageColorChanger.UI
         private const string LyricsModeContentPrefix = "__LYRICS_MODE_V1__";
         private const string LyricsSplitContentPrefix = "__LYRICS_SPLIT_V1__";
         private const string LyricsPagesContentPrefix = "__LYRICS_PAGES_V2__";
+        private const double DefaultLyricsFontSize = 88;
+        private const double MinLyricsFontSize = 20;
+        private const double MaxLyricsFontSize = 250;
+        private const double LyricsFontWheelStep = 4;
+        private const double LyricsFontWheelFastStep = 8;
         private readonly List<LyricsSplitContentData> _lyricsSplitPages = new();
         private int _lyricsCurrentPageIndex = 0;
 
@@ -80,7 +85,7 @@ namespace ImageColorChanger.UI
 
         private sealed class LyricsSplitRegionStyle
         {
-            public double FontSize { get; set; } = 48;
+            public double FontSize { get; set; } = DefaultLyricsFontSize;
             public string TextAlign { get; set; } = "Center";
             public string ColorHex { get; set; } = "";
         }
@@ -371,7 +376,7 @@ namespace ImageColorChanger.UI
             for (int i = 0; i < splitEditors.Length; i++)
             {
                 var style = styles[i] ?? new LyricsSplitRegionStyle();
-                splitEditors[i].FontSize = style.FontSize > 0 ? style.FontSize : 48;
+                splitEditors[i].FontSize = style.FontSize > 0 ? style.FontSize : DefaultLyricsFontSize;
                 splitEditors[i].TextAlignment = ParseTextAlignmentOrDefault(style.TextAlign, TextAlignment.Center);
                 splitEditors[i].Foreground = new SolidColorBrush(HexToColor(
                     string.IsNullOrWhiteSpace(style.ColorHex) ? _configManager.DefaultLyricsColor : style.ColorHex));
@@ -699,45 +704,35 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsFontSizeDisplay_MouseWheel(object sender, MouseWheelEventArgs e)
         {
+            AdjustLyricsFontSizeByWheel(e, Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+        }
+
+        private void AdjustLyricsFontSizeByWheel(MouseWheelEventArgs e, bool fastMode)
+        {
+            double step = fastMode ? LyricsFontWheelFastStep : LyricsFontWheelStep;
+            double delta = e.Delta > 0 ? step : -step;
+            AdjustLyricsFontSize(delta);
+            e.Handled = true;
+        }
+
+        private void AdjustLyricsFontSize(double delta)
+        {
             var activeEditor = GetActiveLyricsEditor();
             double currentSize = activeEditor.FontSize;
-            
-            if (e.Delta > 0)
+            double newSize = Math.Clamp(currentSize + delta, MinLyricsFontSize, MaxLyricsFontSize);
+            if (Math.Abs(newSize - currentSize) < 0.001)
             {
-                // 向上滚动 - 增大字号
-                if (currentSize < 200)
-                {
-                    double newSize = Math.Min(200, currentSize + 4);
-                    ApplyLyricsEditorStyleToActiveEditor(tb => tb.FontSize = newSize);
-                    LyricsFontSizeDisplay.Text = newSize.ToString("0");
-
-//#if DEBUG
-//                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
-//#endif
-                }
+                return;
             }
-            else
-            {
-                // 向下滚动 - 减小字号
-                if (currentSize > 20)
-                {
-                    double newSize = Math.Max(20, currentSize - 4);
-                    ApplyLyricsEditorStyleToActiveEditor(tb => tb.FontSize = newSize);
-                    LyricsFontSizeDisplay.Text = newSize.ToString("0");
 
-//#if DEBUG
-//                    Debug.WriteLine($"[歌词] 滚轮调整字号到 {LyricsTextBox.FontSize}");
-//#endif
-                }
-            }
-            
-            e.Handled = true;
+            ApplyLyricsEditorStyleToActiveEditor(tb => tb.FontSize = newSize);
+            LyricsFontSizeDisplay.Text = newSize.ToString("0");
+
             if (_lyricsPagingMode && _lyricsSplitMode != (int)ViewSplitMode.Single)
             {
                 SyncSplitRegionFromPagingEditor();
             }
 
-            // 字号改变后，如果投影已开启，自动更新投影
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
                 RenderLyricsToProjection();
@@ -1126,8 +1121,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            // 在全图模式下，让滚轮事件冒泡到ScrollViewer
-            // 不需要特殊处理
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                AdjustLyricsFontSizeByWheel(e, fastMode: true);
+            }
         }
 
         /// <summary>
@@ -1495,7 +1492,7 @@ namespace ImageColorChanger.UI
                         Name = $"歌词_{imageName}",
                         ImageId = currentImageId,
                         CreatedTime = DateTime.Now,
-                        FontSize = 48,
+                        FontSize = DefaultLyricsFontSize,
                         TextAlign = "Center"
                     };
 
@@ -1510,8 +1507,8 @@ namespace ImageColorChanger.UI
                     LyricsSplitTextBox2.Text = "";
                     LyricsSplitTextBox3.Text = "";
                     LyricsSplitTextBox4.Text = "";
-                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = 48);
-                    LyricsFontSizeDisplay.Text = "48";
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = DefaultLyricsFontSize);
+                    LyricsFontSizeDisplay.Text = DefaultLyricsFontSize.ToString("0");
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
 
@@ -1543,7 +1540,7 @@ namespace ImageColorChanger.UI
                 Name = $"歌词_临时_{DateTime.Now:yyyyMMdd_HHmmss}",
                 ImageId = null,
                 CreatedTime = DateTime.Now,
-                FontSize = 48,
+                FontSize = DefaultLyricsFontSize,
                 TextAlign = "Center"
             };
 
@@ -1555,10 +1552,10 @@ namespace ImageColorChanger.UI
             LyricsSplitTextBox2.Text = "";
             LyricsSplitTextBox3.Text = "";
             LyricsSplitTextBox4.Text = "";
-            ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = 48);
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = DefaultLyricsFontSize);
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
-            LyricsFontSizeDisplay.Text = "48";
+            LyricsFontSizeDisplay.Text = DefaultLyricsFontSize.ToString("0");
             
             // 初始化对齐按钮状态
             UpdateAlignmentButtonsState(TextAlignment.Center);

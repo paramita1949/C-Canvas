@@ -253,38 +253,50 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 获取当前应用程序版本（从程序集属性读取）
+        /// 获取当前应用程序版本（最佳实践：优先产品版本 Version/InformationalVersion）
         /// </summary>
         public static string GetCurrentVersion()
         {
             try
             {
-                // 从程序集版本属性获取（由 .csproj 中的 Version 定义）
-                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                var version = assembly.GetName().Version;
-                
-                if (version != null)
+                // 优先使用产品版本（通常由 .csproj 的 <Version> 生成）
+                var assembly = System.Reflection.Assembly.GetEntryAssembly()
+                    ?? System.Reflection.Assembly.GetExecutingAssembly();
+
+                var infoVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                    .FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute;
+
+                if (infoVersionAttr != null && !string.IsNullOrWhiteSpace(infoVersionAttr.InformationalVersion))
                 {
-                    // 支持3位或4位版本号（例如：5.3.5 或 5.8.6.3）
-                    if (version.Revision > 0)
+                    // 去掉可能附带的 +commit/hash 等元数据
+                    var versionStr = infoVersionAttr.InformationalVersion.Split('+')[0].Trim();
+                    if (!string.IsNullOrWhiteSpace(versionStr))
                     {
-                        return $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
-                    }
-                    else
-                    {
-                        return $"{version.Major}.{version.Minor}.{version.Build}";
+                        return versionStr;
                     }
                 }
 
-                // 备用方案：尝试从 AssemblyInformationalVersion 获取
-                var infoVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                    .FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute;
-                
-                if (infoVersionAttr != null && !string.IsNullOrEmpty(infoVersionAttr.InformationalVersion))
+                // 次优先：文件版本（Windows 文件属性）
+                var fileVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyFileVersionAttribute), false)
+                    .FirstOrDefault() as System.Reflection.AssemblyFileVersionAttribute;
+                if (fileVersionAttr != null && !string.IsNullOrWhiteSpace(fileVersionAttr.Version))
                 {
-                    // 移除可能的版本后缀（如 +hash）
-                    var versionStr = infoVersionAttr.InformationalVersion.Split('+')[0];
-                    return versionStr;
+                    return fileVersionAttr.Version.Trim();
+                }
+
+                // 最后回退：程序集版本（更偏二进制兼容，不建议作为更新判断主键）
+                var assemblyVersion = assembly.GetName().Version;
+                if (assemblyVersion != null)
+                {
+                    // 支持3位或4位版本号（例如：5.3.5 或 5.8.6.3）
+                    if (assemblyVersion.Revision > 0)
+                    {
+                        return $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}.{assemblyVersion.Revision}";
+                    }
+                    else
+                    {
+                        return $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
+                    }
                 }
 
                 // 如果都失败，返回默认版本
