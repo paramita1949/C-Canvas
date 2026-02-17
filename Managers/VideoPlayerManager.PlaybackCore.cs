@@ -20,10 +20,11 @@ namespace ImageColorChanger.Managers
                     "--no-video-title-show",
                     "--verbose=2",
                     "--no-video-deco",
-                    "--vout=directdraw",
+                    "--vout=direct3d11",
                     "--aspect-ratio=",
                     "--autoscale",
-                    "--no-video-title"
+                    "--no-video-title",
+                    "--embedded-video"
                 );
             }
             catch (Exception ex)
@@ -36,12 +37,12 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                if (videoView.MediaPlayer != null)
+                if (videoView == null)
                 {
                     return;
                 }
 
-                if (videoView == null)
+                if (videoView.MediaPlayer != null)
                 {
                     return;
                 }
@@ -180,13 +181,43 @@ namespace ImageColorChanger.Managers
                     bool isVisible = targetVideoView.IsVisible;
                     if (_isProjectionEnabled && !isVisible && _mainVideoView != null)
                     {
-                        _projectionVideoView.MediaPlayer = null;
-                        _mainVideoView.MediaPlayer = null;
-                        DrainUi(DispatcherPriority.Render);
-                        _mainVideoView.MediaPlayer = _mediaPlayer;
-                        _isProjectionEnabled = false;
-                        targetVideoView = _mainVideoView;
-                        DrainUi(DispatcherPriority.Render);
+                        // 仅在投影视图确实不可用时回退主屏，避免切换瞬间误判导致弹小窗
+                        bool projectionUnavailable = _projectionVideoView == null ||
+                                                     (_projectionVideoView.ActualWidth <= 0 &&
+                                                      _projectionVideoView.ActualHeight <= 0);
+                        if (projectionUnavailable)
+                        {
+                            if (_projectionVideoView != null)
+                            {
+                                _projectionVideoView.MediaPlayer = null;
+                            }
+                            _mainVideoView.MediaPlayer = null;
+                            DrainUi(DispatcherPriority.Render);
+                            _mainVideoView.MediaPlayer = _mediaPlayer;
+                            _isProjectionEnabled = false;
+                            targetVideoView = _mainVideoView;
+                            DrainUi(DispatcherPriority.Render);
+                        }
+                    }
+                }
+
+                // 没有有效宿主时禁止直接播放，避免弹出独立小黑窗
+                if (targetVideoView == null)
+                {
+                    return false;
+                }
+
+                bool hostBound = targetVideoView.MediaPlayer != null &&
+                                 targetVideoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
+                if (!hostBound)
+                {
+                    targetVideoView.MediaPlayer = _mediaPlayer;
+                    DrainUi(DispatcherPriority.Render);
+                    hostBound = targetVideoView.MediaPlayer != null &&
+                                targetVideoView.MediaPlayer.GetHashCode() == _mediaPlayer.GetHashCode();
+                    if (!hostBound)
+                    {
+                        return false;
                     }
                 }
 
@@ -382,22 +413,6 @@ namespace ImageColorChanger.Managers
                     }
 
                     bool hasVideo = _mediaPlayer.VideoTrackCount > 0;
-                    if (hasVideo)
-                    {
-                    }
-                    else
-                    {
-                        if (_mainVideoView != null && _mainVideoView.MediaPlayer != null)
-                        {
-                            _mainVideoView.MediaPlayer = null;
-                        }
-
-                        if (_projectionVideoView != null && _projectionVideoView.MediaPlayer != null)
-                        {
-                            _projectionVideoView.MediaPlayer = null;
-                        }
-                    }
-
                     VideoTrackDetected?.Invoke(this, hasVideo);
                 }
                 catch (Exception)

@@ -2173,23 +2173,41 @@ namespace ImageColorChanger.Services
             if (elapsedMilliseconds < 0)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] TickCount 异常（可能系统重启），使用本地时间");
+                System.Diagnostics.Debug.WriteLine("⚠️ [AuthService] TickCount 异常（可能系统重启），执行基准重建");
                 #endif
-                // 降级到使用本地时间差（虽然不完美，但总比崩溃好）
+
+                // 降级到本地时间差估算一次，然后立即重建 TickCount 基准，避免后续反复报警
+                DateTime recoveredServerTime;
                 if (_lastLocalTime != null)
                 {
                     var localElapsed = DateTime.Now - _lastLocalTime.Value;
-                    // 防止用户回退时间
                     if (localElapsed.TotalSeconds < 0)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 检测到时间回退，强制使用正向流逝");
+                        System.Diagnostics.Debug.WriteLine("⚠️ [AuthService] 检测到时间回退，强制使用正向流逝");
                         #endif
                         localElapsed = TimeSpan.Zero;
                     }
-                    return _lastServerTime.Value + localElapsed;
+                    recoveredServerTime = _lastServerTime.Value + localElapsed;
                 }
-                return DateTime.Now;
+                else
+                {
+                    recoveredServerTime = DateTime.Now;
+                }
+
+                // 自愈：重建计时基准（TickCount/本地时间/服务器时间）
+                _lastServerTime = recoveredServerTime;
+                _lastLocalTime = DateTime.Now;
+                _lastTickCount = currentTick;
+
+                // 持久化新基准，避免重启后持续进入异常分支
+                _ = SaveAuthDataAsync();
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] TickCount 基准已重建: Tick={_lastTickCount}");
+                #endif
+
+                return recoveredServerTime;
             }
             
             // 估算当前的服务器时间

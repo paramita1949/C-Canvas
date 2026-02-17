@@ -315,6 +315,19 @@ namespace ImageColorChanger.Database
                     .HasConversion(new SqliteDateTimeConverter());
             });
 
+            // ========== 歌词项目表配置 ==========
+            modelBuilder.Entity<LyricsProject>(entity =>
+            {
+                // 图片ID索引
+                entity.HasIndex(e => e.ImageId).HasDatabaseName("idx_lyrics_projects_image");
+
+                // 外键关系：歌词项目 -> 媒体文件（可选，删除图片时自动置空）
+                entity.HasOne(e => e.MediaFile)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImageId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
             // ========== 文本元素表配置 ==========
             modelBuilder.Entity<TextElement>(entity =>
             {

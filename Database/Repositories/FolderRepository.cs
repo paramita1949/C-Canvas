@@ -70,12 +70,15 @@ namespace ImageColorChanger.Database.Repositories
                     {
                         if (fileIds.Count > 0)
                         {
-                            string fileIdList = string.Join(",", fileIds);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN ({0})", fileIdList);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN ({0})", fileIdList);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN ({0})", fileIdList);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN ({0})", fileIdList);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN ({0})", fileIdList);
+                            _context.Database.ExecuteSqlRaw(
+                                "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
+                                folderId
+                            );
+                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                            _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
                         }
 
                         _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
@@ -118,6 +121,17 @@ namespace ImageColorChanger.Database.Repositories
 
                 if (fileIds.Count > 0)
                 {
+                    var lyricsProjects = _context.LyricsProjects
+                        .Where(l => l.ImageId.HasValue && fileIds.Contains(l.ImageId.Value))
+                        .ToList();
+                    if (lyricsProjects.Count > 0)
+                    {
+                        foreach (var lyricsProject in lyricsProjects)
+                        {
+                            lyricsProject.ImageId = null;
+                        }
+                    }
+
                     var timings = _context.KeyframeTimings.Where(t => fileIds.Contains(t.ImageId)).ToList();
                     if (timings.Count > 0) _context.KeyframeTimings.RemoveRange(timings);
 

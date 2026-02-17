@@ -33,6 +33,7 @@ namespace ImageColorChanger.Services.Implementations
         private PlaybackSegment _currentSegment; // 当前正在播放的段
         private DateTime _currentSegmentStartTime; // 当前段开始时间
         private double _currentSegmentSpeed; // 当前段开始时的速度（用于重新计算剩余时间）
+        private double _currentSegmentPlayedOriginalTime; // 当前段已累计播放的原始时长
         private DateTime _pauseStartTime; // 暂停开始时间（用于恢复时剔除暂停时长）
 
         /// <summary>
@@ -44,6 +45,16 @@ namespace ImageColorChanger.Services.Implementations
         /// 是否正在播放
         /// </summary>
         public bool IsPlaying { get; private set; }
+
+        /// <summary>
+        /// 当前轮次实际起始位置（由服务计算）
+        /// </summary>
+        public double CurrentStartPosition { get; private set; }
+
+        /// <summary>
+        /// 当前轮次实际终点位置（由服务计算）
+        /// </summary>
+        public double CurrentEndPosition { get; private set; }
 
         /// <summary>
         /// 是否已暂停
@@ -339,6 +350,8 @@ namespace ImageColorChanger.Services.Implementations
             _pauseStartTime = default;
             CompletedPlayCount = 0;
             _cancellationTokenSource = new CancellationTokenSource();
+            CurrentStartPosition = _startPosition;
+            CurrentEndPosition = _endPosition;
 
             // 启动计时器
             _playbackStopwatch.Restart();
@@ -443,6 +456,7 @@ namespace ImageColorChanger.Services.Implementations
                         _currentSegment = segment;
                         _currentSegmentStartTime = DateTime.Now;
                         _currentSegmentSpeed = Speed; // 保存段开始时的速度
+                        _currentSegmentPlayedOriginalTime = 0;
                         
                         if (segment.Type == SegmentType.Scroll)
                         {
@@ -484,16 +498,17 @@ namespace ImageColorChanger.Services.Implementations
                                 SpeedRatio = Speed // 传递速度倍率给动画
                             });
                             
-                            // 触发进度更新（显示倒计时，显示原始时长）
+                            // 触发进度更新（显示倒计时，使用与实际等待一致的时长）
+                            double adjustedDuration = segment.Duration / Speed;
                             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
                             {
                                 CurrentIndex = CompletedPlayCount,
                                 TotalCount = PlayCount == -1 ? 999 : PlayCount,
-                                RemainingTime = segment.Duration, // 显示原始剩余时间
+                                RemainingTime = adjustedDuration,
                                 CurrentItemId = _currentImageId
                             });
                             
-                            // 等待滚动完成（使用原始时长，动画会以SpeedRatio速度播放）
+                            // 等待滚动完成（与倒计时一致）
                             await WaitWithSpeedAdjustment(segment.Duration, cancellationToken);
                         }
                         else if (segment.Type == SegmentType.Pause)
@@ -542,12 +557,8 @@ namespace ImageColorChanger.Services.Implementations
                     // 如果还要继续，跳回起始位置
                     if (PlayCount == -1 || CompletedPlayCount < PlayCount)
                     {
-                        // 🔧 每次新一轮播放开始时，重置速度为1.0（正常速度）
-                        Speed = 1.0;
-                        SpeedChanged?.Invoke(this, new SpeedChangedEventArgs { Speed = Speed });
-                        
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔄 新一轮播放开始，速度已重置为 1.0x");
+                        System.Diagnostics.Debug.WriteLine($"🔄 新一轮播放开始，保持当前速度 {Speed:F2}x");
                         #endif
                         
                         // 触发跳回起始位置的事件
@@ -556,7 +567,7 @@ namespace ImageColorChanger.Services.Implementations
                             StartPosition = _startPosition,
                             EndPosition = _startPosition,
                             Duration = 0, // 时长为0表示直接跳转，不滚动
-                            SpeedRatio = 1.0 // 重置速度
+                            SpeedRatio = Speed
                         });
                         
                         await Task.Delay(100, cancellationToken); // 短暂延迟，让跳转完成
@@ -619,8 +630,7 @@ namespace ImageColorChanger.Services.Implementations
             // 如果当前是滚动段，恢复时从当前位置继续滚动剩余时长
             if (_currentSegment != null && _currentSegment.Type == SegmentType.Scroll)
             {
-                double elapsedAdjustedTime = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
-                double elapsedOriginalTime = elapsedAdjustedTime * _currentSegmentSpeed;
+                double elapsedOriginalTime = GetCurrentSegmentElapsedOriginalTime();
                 double remainingOriginalTime = Math.Max(0, _currentSegment.Duration - elapsedOriginalTime);
 
                 if (remainingOriginalTime > 0.05)
@@ -775,8 +785,8 @@ namespace ImageColorChanger.Services.Implementations
                 // 计算已播放的时间（从段开始到现在）
                 double elapsedAdjustedTime = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
                 
-                // 计算已播放的原始时间（使用段开始时的速度）
-                double elapsedOriginalTime = elapsedAdjustedTime * _currentSegmentSpeed;
+                // 计算已播放的原始时间（包含历史切速累计）
+                double elapsedOriginalTime = GetCurrentSegmentElapsedOriginalTime();
                 
                 // 计算剩余原始时间
                 double remainingOriginalTime = Math.Max(0, _currentSegment.Duration - elapsedOriginalTime);
@@ -813,6 +823,7 @@ namespace ImageColorChanger.Services.Implementations
                     #endif
                     
                     // 更新段开始时间和速度（重新开始计时）
+                    _currentSegmentPlayedOriginalTime = elapsedOriginalTime;
                     _currentSegmentStartTime = DateTime.Now;
                     _currentSegmentSpeed = Speed;
                     
@@ -830,7 +841,7 @@ namespace ImageColorChanger.Services.Implementations
                     {
                         CurrentIndex = CompletedPlayCount,
                         TotalCount = PlayCount == -1 ? 999 : PlayCount,
-                        RemainingTime = remainingOriginalTime, // 显示原始剩余时间
+                        RemainingTime = remainingAdjustedTime, // 显示与实际等待一致的剩余时间
                         CurrentItemId = _currentImageId
                     });
                 }
@@ -864,11 +875,8 @@ namespace ImageColorChanger.Services.Implementations
 
                     if (_currentSegment != null)
                     {
-                        // 计算已播放的调整后时间（从段开始到现在）
-                        double elapsedAdjusted = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
-                        
-                        // 计算已播放的原始时间（使用段开始时的速度）
-                        double elapsedOriginal = elapsedAdjusted * _currentSegmentSpeed;
+                        // 计算已播放的原始时间（包含历史切速累计）
+                        double elapsedOriginal = GetCurrentSegmentElapsedOriginalTime();
                         
                         // 计算剩余原始时间
                         double remainingOriginal = Math.Max(0, _currentSegment.Duration - elapsedOriginal);
@@ -928,6 +936,21 @@ namespace ImageColorChanger.Services.Implementations
 
         // CheckAndAdjustTotalTimeAsync 已废弃：
         // 规则已改为仅允许下帧/PageDown手动覆盖TOTAL，不允许自动改写
+
+        /// <summary>
+        /// 计算当前段累计已播放的原始时长（秒）
+        /// </summary>
+        private double GetCurrentSegmentElapsedOriginalTime()
+        {
+            if (_currentSegmentStartTime == default)
+            {
+                return _currentSegmentPlayedOriginalTime;
+            }
+
+            double elapsedAdjusted = (DateTime.Now - _currentSegmentStartTime).TotalSeconds;
+            double elapsedCurrentWindowOriginal = elapsedAdjusted * _currentSegmentSpeed;
+            return _currentSegmentPlayedOriginalTime + elapsedCurrentWindowOriginal;
+        }
     }
 
     /// <summary>

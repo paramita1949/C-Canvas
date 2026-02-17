@@ -137,6 +137,15 @@ namespace ImageColorChanger.Managers
             SetElementVisibility(_projectionScrollViewer, showVideo ? Visibility.Collapsed : Visibility.Visible);
         }
 
+        /// <summary>
+        /// 当前是否处于视频投影模式
+        /// </summary>
+        public bool IsInVideoProjectionMode()
+        {
+            return _projectionVideoContainer != null &&
+                   _projectionVideoContainer.Visibility == Visibility.Visible;
+        }
+
         private static void SetElementVisibility(UIElement element, Visibility visibility)
         {
             if (element != null)

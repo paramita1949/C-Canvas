@@ -265,7 +265,6 @@ namespace ImageColorChanger.UI
                     if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
                     {
                         _videoPlayerManager.Stop();
-                        var _mainVideoView = this.FindName("MainVideoView") as LibVLCSharp.WPF.VideoView;
                         if (_mainVideoView != null)
                         {
                             _videoPlayerManager.SetMainVideoView(_mainVideoView);
@@ -276,6 +275,15 @@ namespace ImageColorChanger.UI
                     }
 
                     _videoPlayerManager?.ResetProjectionMode();
+
+                    // 无论当前是否播放，都确保投影结束后主屏 VideoView 与 MediaPlayer 重新绑定
+                    if (_videoPlayerManager != null)
+                    {
+                        if (_mainVideoView != null)
+                        {
+                            _videoPlayerManager.SetMainVideoView(_mainVideoView);
+                        }
+                    }
                 }
 
                 if (_isBibleMode)

@@ -204,6 +204,15 @@ namespace ImageColorChanger.Managers
                     _projectionVideoView.MediaPlayer = null;
                 }
 
+                // 强制回绑主屏，避免投影结束后播放器失去宿主而弹出独立小窗
+                if (_mainVideoView != null && _mediaPlayer != null)
+                {
+                    _mainVideoView.MediaPlayer = null;
+                    DrainUi(DispatcherPriority.Render);
+                    _mainVideoView.MediaPlayer = _mediaPlayer;
+                    _mainVideoView.Visibility = System.Windows.Visibility.Visible;
+                }
+
                 _isProjectionEnabled = false;
             }
             catch (Exception)

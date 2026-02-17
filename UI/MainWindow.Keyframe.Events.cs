@@ -590,7 +590,7 @@ namespace ImageColorChanger.UI
                 // 显示速度控制按钮
                 BtnCompositeSpeed.Visibility = Visibility.Visible;
                 UpdateSpeedButtonText(compositeService.Speed);
-                
+
                 ShowStatus("▶️ 开始合成播放");
             }
             catch (Exception ex)
@@ -1402,9 +1402,9 @@ namespace ImageColorChanger.UI
                 var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                     as Services.Implementations.CompositePlaybackService;
 
-                if (compositeService != null && compositeService.IsPlaying)
-                {
-                    await compositeService.StopPlaybackAsync();
+                    if (compositeService != null && compositeService.IsPlaying)
+                    {
+                        await compositeService.StopPlaybackAsync();
                     
                     // 更新UI（必须在UI线程）
                     if (Dispatcher.CheckAccess())
@@ -1417,9 +1417,9 @@ namespace ImageColorChanger.UI
                         
                         // 重置倒计时显示
                         CountdownText.Text = "倒: --";
-                        _countdownService?.Stop();
-                    }
-                    else
+                            _countdownService?.Stop();
+                        }
+                        else
                     {
                         await Dispatcher.InvokeAsync(() =>
                         {
@@ -1431,13 +1431,13 @@ namespace ImageColorChanger.UI
                             
                             // 重置倒计时显示
                             CountdownText.Text = "倒: --";
-                            _countdownService?.Stop();
-                        });
+                                _countdownService?.Stop();
+                            });
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+                catch (Exception ex)
+                {
                 System.Diagnostics.Debug.WriteLine($"⚠️ 停止合成播放失败: {ex.Message}");
             }
         }

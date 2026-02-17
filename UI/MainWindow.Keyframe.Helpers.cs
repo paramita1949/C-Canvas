@@ -88,10 +88,6 @@ namespace ImageColorChanger.UI
                     int _currentImageId = GetCurrentImageId();
                     if (_currentImageId <= 0) return;
 
-                    // 获取当前图片的所有关键帧
-                    var keyframes = _keyframeManager.GetKeyframesAsync(_currentImageId).Result;
-                    if (keyframes == null || !keyframes.Any()) return;
-
                     // 获取尺寸信息
                     double imageCanvasWidth = KeyframePreviewLinesCanvas.ActualWidth;
                     double imageCanvasHeight = KeyframePreviewLinesCanvas.ActualHeight;
@@ -99,6 +95,10 @@ namespace ImageColorChanger.UI
                     double viewportHeight = ImageScrollViewer.ViewportHeight;
                     
                     if (imageCanvasHeight <= 0 || scrollbarCanvasHeight <= 0) return;
+
+                    // 获取当前图片的所有关键帧
+                    var keyframes = _keyframeManager.GetKeyframesAsync(_currentImageId).Result;
+                    if (keyframes == null || !keyframes.Any()) return;
 
                     // 计算滚动范围
                     double scrollableHeight = Math.Max(0, imageCanvasHeight - viewportHeight);

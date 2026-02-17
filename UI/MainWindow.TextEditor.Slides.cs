@@ -41,14 +41,6 @@ namespace ImageColorChanger.UI
 
         private bool CanSwitchSlideWhileProjecting(bool showToast = true)
         {
-            if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
-            {
-                if (showToast)
-                {
-                    ShowToast("投影模式下请先开启“锁定投影”，再编辑其他幻灯片");
-                }
-                return false;
-            }
             return true;
         }
 
