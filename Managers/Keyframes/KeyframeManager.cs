@@ -15,7 +15,7 @@ namespace ImageColorChanger.Managers.Keyframes
     /// </summary>
         public class KeyframeManager
         {
-            private readonly KeyframeRepository _repository;
+            private readonly IKeyframeStore _repository;
             private readonly IKeyframeUiHost _uiHost;
             private KeyframeNavigator _navigator;
             private readonly Repositories.Interfaces.IMediaFileRepository _mediaFileRepository;
@@ -131,7 +131,7 @@ namespace ImageColorChanger.Managers.Keyframes
         /// 构造函数
         /// </summary>
         public KeyframeManager(
-            KeyframeRepository repository, 
+            IKeyframeStore repository, 
             IKeyframeUiHost uiHost,
             Repositories.Interfaces.IMediaFileRepository mediaFileRepository)
         {
@@ -140,7 +140,7 @@ namespace ImageColorChanger.Managers.Keyframes
             _mediaFileRepository = mediaFileRepository ?? throw new ArgumentNullException(nameof(mediaFileRepository));
 
             // 初始化导航器
-            _navigator = new KeyframeNavigator(this, _uiHost, repository);
+            _navigator = new KeyframeNavigator(this, _uiHost);
 
             // 初始化UI更新定时器
             InitializeUiUpdateTimer();
@@ -273,6 +273,14 @@ namespace ImageColorChanger.Managers.Keyframes
             }
 
             return success;
+        }
+
+        /// <summary>
+        /// 更新关键帧循环次数提示
+        /// </summary>
+        public async Task<bool> UpdateLoopCountAsync(int keyframeId, int? loopCount)
+        {
+            return await _repository.UpdateLoopCountAsync(keyframeId, loopCount);
         }
 
         #endregion

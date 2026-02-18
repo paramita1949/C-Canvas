@@ -56,7 +56,7 @@ namespace ImageColorChanger.Utils
                 // 🎬 每一帧记录FPS + 投影共享渲染（跟投影屏幕逻辑一样，直接调用方法）
                 var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
                 mainWindow?._fpsMonitor?.RecordMainFrame();
-                mainWindow?._projectionManager?.SyncSharedRendering();
+                mainWindow?.ProjectionManager?.SyncSharedRendering();
             }
         }
 

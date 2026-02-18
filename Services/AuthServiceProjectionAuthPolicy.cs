@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.Services
 {
@@ -8,9 +9,9 @@ namespace ImageColorChanger.Services
     /// </summary>
     public sealed class AuthServiceProjectionAuthPolicy : IProjectionAuthPolicy
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
 
-        public AuthServiceProjectionAuthPolicy(AuthService authService)
+        public AuthServiceProjectionAuthPolicy(IAuthService authService)
         {
             _authService = authService ?? throw new System.ArgumentNullException(nameof(authService));
         }

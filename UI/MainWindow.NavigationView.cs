@@ -28,19 +28,20 @@ namespace ImageColorChanger.UI
             if (_textProjectManager == null) return;
             try
             {
+                var dbManager = DatabaseManagerService;
                 _projectTreeItems.Clear();
 
-                var folders = _dbManager.GetAllFolders();
-                var rootFiles = _dbManager.GetRootMediaFiles();
-                var manualSortFolderIds = _dbManager.GetManualSortFolderIds();
+                var folders = dbManager.GetAllFolders();
+                var rootFiles = dbManager.GetRootMediaFiles();
+                var manualSortFolderIds = dbManager.GetManualSortFolderIds();
 
                 foreach (var folder in folders)
                 {
                     bool isManualSort = manualSortFolderIds.Contains(folder.Id);
-                    var files = _dbManager.GetMediaFilesByFolder(folder.Id);
+                    var files = dbManager.GetMediaFilesByFolder(folder.Id);
                     bool hasMediaFiles = files.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
-                    string folderPlayMode = _dbManager.GetFolderVideoPlayMode(folder.Id);
-                    bool hasColorEffectMark = _dbManager.HasFolderAutoColorEffect(folder.Id);
+                    string folderPlayMode = dbManager.GetFolderVideoPlayMode(folder.Id);
+                    bool hasColorEffectMark = dbManager.HasFolderAutoColorEffect(folder.Id);
 
                     string iconKind;
                     string iconColor;
@@ -258,11 +259,6 @@ namespace ImageColorChanger.UI
             {
                 if (_textProjectManager == null)
                 {
-                    if (_dbManager == null)
-                    {
-                        return;
-                    }
-
                     _textProjectManager = new TextProjectManager(_dbContext);
                 }
 
@@ -293,7 +289,6 @@ namespace ImageColorChanger.UI
             {
                 if (_textProjectManager == null)
                 {
-                    if (_dbManager == null) return;
                     _textProjectManager = new TextProjectManager(_dbContext);
                 }
 

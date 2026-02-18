@@ -24,14 +24,17 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.UI.Composition;
 using ImageColorChanger.UI.Modules;
-using LibVLCSharp.WPF;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.UI
 {
     public partial class MainWindow : Window, INotifyPropertyChanged, Managers.Keyframes.IKeyframeUiHost
     {
+        private bool _startupFirstActivationLogged;
+
         #region INotifyPropertyChanged 实现
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -127,22 +130,14 @@ namespace ImageColorChanger.UI
         private bool _isDragInProgress = false;
 
         // 数据库和管理器
-        private DatabaseManager _dbManager;
         private ConfigManager _configManager;
-        private ImportManager _importManager;
-        private ImageSaveManager _imageSaveManager;
-        private SearchManager _searchManager;
-        private SortManager _sortManager;
-        public ProjectionManager _projectionManager;  // ⚡ public for AnimationHelper access
+        private ProjectionManager _projectionManager;
         private OriginalManager _originalManager;
         private PreloadCacheManager _preloadCacheManager; // 智能预缓存管理器
-        private SlideExportManager _slideExportManager; // 幻灯片导出管理器
-        private SlideImportManager _slideImportManager; // 幻灯片导入管理器
         
         // 视频播放相关
         private VideoPlayerManager _videoPlayerManager;
         private IVideoBackgroundManager _videoBackgroundManager;
-        private VideoView _mainVideoView;
         private bool _isUpdatingProgress = false; // 防止进度条更新时触发事件
         private string _pendingProjectionVideoPath = null;
         private System.Windows.Threading.DispatcherTimer _projectionTimeoutTimer = null; // 待投影播放的视频路径
@@ -179,10 +174,12 @@ namespace ImageColorChanger.UI
         private SkiaFontService _skiaFontService;
 
         // 模块控制器
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
         private AuthModuleController _authModuleController;
         private BibleModuleController _bibleModuleController;
         private MediaModuleController _mediaModuleController;
+        private ProjectTreeSelectionStateController _projectTreeSelectionStateController;
+        private ProjectTreeFolderMenuStateController _projectTreeFolderMenuStateController;
         private MainWindowComposer _mainWindowComposer;
         private MainWindowServices _mainWindowServices;
 
@@ -205,44 +202,74 @@ namespace ImageColorChanger.UI
         /// </summary>
         public double FolderTagFontSize => _configManager?.FolderTagFontSize ?? 18.0;
 
+        internal ProjectionManager ProjectionManager => _projectionManager;
+        private DatabaseManager DatabaseManagerService => _mainWindowServices.GetRequired<DatabaseManager>();
+        private SortManager SortManagerService => _mainWindowServices.GetRequired<SortManager>();
+        private SearchManager SearchManagerService => _mainWindowServices.GetRequired<SearchManager>();
+        private ImportManager ImportManagerService => _mainWindowServices.GetRequired<ImportManager>();
+
         #endregion
 
         #region 初始化
 
         public MainWindow()
         {
+            StartupPerfLogger.Mark("MainWindow.Ctor.Begin");
             InitializeComponent();
+            StartupPerfLogger.Mark("MainWindow.InitializeComponent.Completed");
+
+            ContentRendered += MainWindow_ContentRendered;
+
+            InitializeBibleSectionBindings();
+            StartupPerfLogger.Mark("MainWindow.InitializeBibleSectionBindings.Completed");
+            InitializeLyricsSectionBindings();
+            StartupPerfLogger.Mark("MainWindow.InitializeLyricsSectionBindings.Completed");
+            InitializeMediaSectionBindings();
+            StartupPerfLogger.Mark("MainWindow.InitializeMediaSectionBindings.Completed");
+            InitializeTextEditorSectionBindings();
+            StartupPerfLogger.Mark("MainWindow.InitializeTextEditorSectionBindings.Completed");
 
             _mainWindowComposer = MainWindowComposer.CreateDefault();
+            StartupPerfLogger.Mark("MainWindow.MainWindowComposer.Created");
             _mainWindowServices = _mainWindowComposer.Compose();
-            _authService = _mainWindowServices.GetRequired<AuthService>();
+            StartupPerfLogger.Mark("MainWindow.MainWindowComposer.Composed");
+            _authService = _mainWindowServices.GetRequired<IAuthService>();
             _videoBackgroundManager = _mainWindowServices.GetRequired<IVideoBackgroundManager>();
             _gpuContext = _mainWindowServices.GetRequired<GPUContext>();
             _pakManager = _mainWindowServices.GetRequired<PakManager>();
             _skiaFontService = _mainWindowServices.GetRequired<SkiaFontService>();
+            StartupPerfLogger.Mark("MainWindow.CoreServices.Resolved");
             
             // 初始化GPU处理器
             InitializeGpuProcessor();
+            StartupPerfLogger.Mark("MainWindow.InitializeGpuProcessor.Completed");
             
             // 初始化UI
             InitializeUI();
+            StartupPerfLogger.Mark("MainWindow.InitializeUI.Completed");
             
             // 初始化新的PlaybackControlViewModel
             InitializePlaybackViewModel();
+            StartupPerfLogger.Mark("MainWindow.InitializePlaybackViewModel.Completed");
             
             // 🆕 初始化文本编辑器
             InitializeTextEditor();
+            StartupPerfLogger.Mark("MainWindow.InitializeTextEditor.Completed");
             
             // 初始化FPS监控器
             InitializeFpsMonitor();
+            StartupPerfLogger.Mark("MainWindow.InitializeFpsMonitor.Completed");
             
             // 🆕 监听主窗口失去焦点和状态变化，自动关闭圣经样式 Popup
             this.Deactivated += MainWindow_Deactivated;
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
+            StartupPerfLogger.Mark("MainWindow.PopupCloseEvents.Registered");
             
             // 🔐 初始化认证服务
             InitializeAuthService();
+            StartupPerfLogger.Mark("MainWindow.InitializeAuthService.Completed");
+            StartupPerfLogger.Mark("MainWindow.Ctor.End");
         }
         
         /// <summary>

@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using ImageColorChanger.Services.Auth;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.Services
 {
@@ -9,7 +10,7 @@ namespace ImageColorChanger.Services
     /// 网络验证服务（骨架）
     /// 具体实现已按职责拆分到 AuthService.*.cs 分部文件。
     /// </summary>
-    public partial class AuthService
+    public partial class AuthService : IAuthService
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 

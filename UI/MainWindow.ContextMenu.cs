@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -126,10 +127,27 @@ namespace ImageColorChanger.UI
             // 🔧 异步加载当前图片的合成标记状态
             _ = Task.Run(async () =>
             {
-                if (_keyframeManager != null && _currentImageId > 0)
+                try
                 {
-                    var isEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(_currentImageId);
-                    Dispatcher.Invoke(() => compositeMarkMenuItem.IsChecked = isEnabled);
+                    if (_keyframeManager != null && _currentImageId > 0)
+                    {
+                        var isEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(_currentImageId);
+                        Dispatcher.Invoke(() => compositeMarkMenuItem.IsChecked = isEnabled);
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("ℹ️ [合成标记] 状态读取被取消（非致命）");
+#endif
+                }
+                catch (Exception ex)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [合成标记] 状态读取异常: {ex.Message}");
+#else
+                    _ = ex;
+#endif
                 }
             });
 

@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Threading;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.UI.Modules
 {
@@ -9,19 +10,19 @@ namespace ImageColorChanger.UI.Modules
     /// </summary>
     public sealed class AuthModuleController : IDisposable
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
         private readonly Dispatcher _dispatcher;
         private readonly Action _onAuthenticationChanged;
-        private readonly Action<AuthService.UiMessageEventArgs> _onUiMessageRequested;
-        private readonly Action<AuthService.ClientNoticesEventArgs> _onClientNoticesRequested;
+        private readonly Action<UiMessageEventArgs> _onUiMessageRequested;
+        private readonly Action<ClientNoticesEventArgs> _onClientNoticesRequested;
         private bool _isStarted;
 
         public AuthModuleController(
-            AuthService authService,
+            IAuthService authService,
             Dispatcher dispatcher,
             Action onAuthenticationChanged,
-            Action<AuthService.UiMessageEventArgs> onUiMessageRequested,
-            Action<AuthService.ClientNoticesEventArgs> onClientNoticesRequested)
+            Action<UiMessageEventArgs> onUiMessageRequested,
+            Action<ClientNoticesEventArgs> onClientNoticesRequested)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -56,17 +57,17 @@ namespace ImageColorChanger.UI.Modules
             _isStarted = false;
         }
 
-        private void OnAuthenticationChanged(object sender, AuthService.AuthenticationChangedEventArgs e)
+        private void OnAuthenticationChanged(object sender, AuthenticationChangedEventArgs e)
         {
             _dispatcher.Invoke(_onAuthenticationChanged);
         }
 
-        private void OnUiMessageRequested(object sender, AuthService.UiMessageEventArgs e)
+        private void OnUiMessageRequested(object sender, UiMessageEventArgs e)
         {
             _dispatcher.Invoke(() => _onUiMessageRequested(e));
         }
 
-        private void OnClientNoticesRequested(object sender, AuthService.ClientNoticesEventArgs e)
+        private void OnClientNoticesRequested(object sender, ClientNoticesEventArgs e)
         {
             _dispatcher.Invoke(() => _onClientNoticesRequested(e));
         }

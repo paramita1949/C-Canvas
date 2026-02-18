@@ -163,7 +163,7 @@ namespace ImageColorChanger.UI
                 }
 
                 _pinyinService = new ImageColorChanger.Services.BiblePinyinService(_bibleService);
-                _pinyinInputManager = new ImageColorChanger.Services.BiblePinyinInputManager(
+                _pinyinInputManager = new ImageColorChanger.Managers.BiblePinyinInputManager(
                     _pinyinService,
                     OnPinyinLocationConfirmedAsync,
                     OnPinyinHintUpdateAsync,
@@ -844,7 +844,7 @@ namespace ImageColorChanger.UI
                 // 如果 Popup 不存在，创建新的
                 if (_bibleStylePopup == null)
                 {
-                    _bibleStylePopup = new BibleInsertStylePopup(_dbManager);
+                    _bibleStylePopup = new BibleInsertStylePopup(DatabaseManagerService);
                     
                     // 设置 Popup 的位置目标为工具栏按钮
                     _bibleStylePopup.PlacementTarget = sender as UIElement;

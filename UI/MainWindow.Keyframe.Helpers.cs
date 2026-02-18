@@ -477,13 +477,13 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_keyframeRepository == null)
+                if (_keyframeManager == null)
                 {
                     ShowStatus("❌ 关键帧系统未初始化");
                     return;
                 }
 
-                bool success = await _keyframeRepository.UpdateLoopCountAsync(keyframeId, loopCount);
+                bool success = await _keyframeManager.UpdateLoopCountAsync(keyframeId, loopCount);
                 
                 if (success)
                 {
@@ -873,7 +873,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 检查当前图片是否被标记为原图模式
-                if (_currentImageId == 0 || _dbManager == null)
+                if (_currentImageId == 0)
                     return false;
 
                 var dbContext = _dbContext;

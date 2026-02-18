@@ -23,14 +23,15 @@ namespace ImageColorChanger.Services
 #endif
 
                 var hardwareId = _authDeviceFingerprint.GetHardwareId();
+                var envPayload = BuildClientEnvironmentPayload();
                 var requestData = new
                 {
                     username = username,
                     password = password,
                     hardware_id = hardwareId,
-                    device_name = Environment.MachineName,
-                    os_version = Environment.OSVersion.ToString(),
-                    app_version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+                    device_name = envPayload.DeviceName,
+                    os_version = envPayload.OsVersion,
+                    app_version = envPayload.AppVersion
                 };
 
                 var jsonContent = JsonSerializer.Serialize(requestData);

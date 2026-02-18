@@ -136,7 +136,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleVerse_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not Border border || border.Tag is not BibleVerse clickedVerse)
+            var border = FindBibleVerseBorderFromEvent(e);
+            if (border?.Tag is not BibleVerse clickedVerse)
                 return;
 
             //#if DEBUG
@@ -303,6 +304,22 @@ namespace ImageColorChanger.UI
         private void ScrollToVerseAtIndex(int index)
         {
             ScrollToVerseInstant(index);
+        }
+
+        private Border FindBibleVerseBorderFromEvent(MouseButtonEventArgs e)
+        {
+            DependencyObject current = e.OriginalSource as DependencyObject;
+            while (current != null)
+            {
+                if (current is Border border && border.Tag is BibleVerse)
+                {
+                    return border;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
         }
 
         #endregion

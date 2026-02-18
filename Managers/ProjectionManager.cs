@@ -335,22 +335,36 @@ namespace ImageColorChanger.Managers
                                     // 🔒 后台静默记录验证结果，不影响试用
                                     // 验证目的：防止破解者绕过登录，但不阻止正常试用
                                 }
-                                catch
+                                catch (TaskCanceledException)
+                                {
+                                    // 超时或取消均视为“当前不可用网络探测”，非致命
+#if DEBUG
+                                    System.Diagnostics.Debug.WriteLine("ℹ️ [投影] 网络探测超时/取消，跳过后台验证");
+#endif
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    // 防御性分支：与 TaskCanceledException 含义一致，统一降级处理
+#if DEBUG
+                                    System.Diagnostics.Debug.WriteLine("ℹ️ [投影] 网络探测已取消，跳过后台验证");
+#endif
+                                }
+                                catch (System.Net.Http.HttpRequestException)
                                 {
                                     // 无网络，跳过验证
-                                    //#if DEBUG
-                                    //System.Diagnostics.Debug.WriteLine($"ℹ️ [投影] 无网络连接，跳过后台验证");
-                                    //#endif
+#if DEBUG
+                                    System.Diagnostics.Debug.WriteLine("ℹ️ [投影] 无网络连接，跳过后台验证");
+#endif
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
-                            //#else
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 后台验证异常: {ex.Message}");
+#else
                             _ = ex; // 避免未使用变量警告
-                            //#endif
+#endif
                         }
                     });
                     

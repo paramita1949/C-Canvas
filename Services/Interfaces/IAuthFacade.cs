@@ -8,7 +8,7 @@ namespace ImageColorChanger.Services.Interfaces
     /// </summary>
     public interface IAuthFacade
     {
-        event EventHandler<AuthService.ServerSwitchEventArgs> ServerSwitching;
+        event EventHandler<ServerSwitchEventArgs> ServerSwitching;
 
         string LastAuthFailureReason { get; }
 

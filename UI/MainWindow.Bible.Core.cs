@@ -59,7 +59,7 @@ namespace ImageColorChanger.UI
         
         // 拼音快速定位功能
         private ImageColorChanger.Services.BiblePinyinService _pinyinService;
-        private ImageColorChanger.Services.BiblePinyinInputManager _pinyinInputManager;
+        private ImageColorChanger.Managers.BiblePinyinInputManager _pinyinInputManager;
         
         // 🆕 导航栏同步标志（防止同步时触发不必要的事件）
         private bool _isNavigationSyncing = false;
@@ -1555,7 +1555,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var savedValue = _dbManager?.GetUISetting(BibleCopyHeaderStyleSettingKey, "Short");
+                var savedValue = DatabaseManagerService.GetUISetting(BibleCopyHeaderStyleSettingKey, "Short");
                 _bibleCopyHeaderStyle = savedValue switch
                 {
                     "Full" => BibleCopyHeaderStyle.Full,
@@ -1575,7 +1575,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                _dbManager?.SaveUISetting(BibleCopyHeaderStyleSettingKey, _bibleCopyHeaderStyle.ToString());
+                DatabaseManagerService.SaveUISetting(BibleCopyHeaderStyleSettingKey, _bibleCopyHeaderStyle.ToString());
             }
             catch
             {

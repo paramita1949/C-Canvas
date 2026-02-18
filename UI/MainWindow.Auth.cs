@@ -31,12 +31,12 @@ namespace ImageColorChanger.UI
             UpdateAuthUI();
         }
 
-        private void ShowAuthServiceUiMessage(AuthService.UiMessageEventArgs e)
+        private void ShowAuthServiceUiMessage(UiMessageEventArgs e)
         {
             var image = e.Level switch
             {
-                AuthService.UiMessageLevel.Error => MessageBoxImage.Error,
-                AuthService.UiMessageLevel.Warning => MessageBoxImage.Warning,
+                UiMessageLevel.Error => MessageBoxImage.Error,
+                UiMessageLevel.Warning => MessageBoxImage.Warning,
                 _ => MessageBoxImage.Information
             };
 
@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI
                 image);
         }
 
-        private void ShowAuthServiceClientNotices(AuthService.ClientNoticesEventArgs e)
+        private void ShowAuthServiceClientNotices(ClientNoticesEventArgs e)
         {
             if (e?.Items == null || e.Items.Count == 0)
             {

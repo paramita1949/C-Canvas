@@ -191,10 +191,6 @@ namespace ImageColorChanger.UI
             {
                 if (_textProjectManager == null)
                 {
-                    if (_dbManager == null)
-                    {
-                        return null;
-                    }
                     _textProjectManager = new Managers.TextProjectManager(_dbContext);
                 }
 
@@ -291,7 +287,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var mediaFile = _dbManager.GetMediaFileById(fileId);
+                var mediaFile = DatabaseManagerService.GetMediaFileById(fileId);
                 if (mediaFile == null)
                 {
                     ShowStatus("❌ 文件不存在");

@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Input;
 using SkiaSharp;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.UI
 {
@@ -38,6 +39,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void Window_Activated(object sender, EventArgs e)
         {
+            if (!_startupFirstActivationLogged)
+            {
+                _startupFirstActivationLogged = true;
+                StartupPerfLogger.Mark("MainWindow.WindowActivated.First");
+            }
+
             Focus();
         }
 

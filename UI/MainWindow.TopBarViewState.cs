@@ -19,7 +19,7 @@ namespace ImageColorChanger.UI
                 BtnSync.Content = "🔄 同步中...";
                 BtnSync.Background = new SolidColorBrush(Colors.LightGreen);
 
-                var (added, removed, updated) = _importManager.SyncAllFolders();
+                var (added, removed, updated) = ImportManagerService.SyncAllFolders();
 
                 LoadProjects();
                 LoadSearchScopes();

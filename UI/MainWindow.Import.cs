@@ -160,16 +160,16 @@ namespace ImageColorChanger.UI
 
             if (openFileDialog.ShowDialog() == true)
             {
-                var mediaFile = _importManager.ImportSingleFile(openFileDialog.FileName);
+                var mediaFile = ImportManagerService.ImportSingleFile(openFileDialog.FileName);
                 if (mediaFile != null)
                 {
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
                     ShowStatus($"✅ 已导入: {mediaFile.Name}");
                 }
-                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
-                    ShowStatus($"❌ {_importManager.LastError}");
+                    ShowStatus($"❌ {ImportManagerService.LastError}");
                 }
             }
         }
@@ -187,7 +187,7 @@ namespace ImageColorChanger.UI
 
             if (!string.IsNullOrEmpty(selectedPath))
             {
-                var (folder, newFiles, existingFiles) = _importManager.ImportFolder(selectedPath);
+                var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(selectedPath);
                 
                 if (folder != null)
                 {
@@ -207,9 +207,9 @@ namespace ImageColorChanger.UI
                     
                     ShowStatus($"✅ 已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
                 }
-                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
-                    ShowStatus($"❌ {_importManager.LastError}");
+                    ShowStatus($"❌ {ImportManagerService.LastError}");
                 }
             }
         }
@@ -219,13 +219,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SaveCurrentImage()
         {
-            if (_imageSaveManager != null)
+            if (_imageProcessor == null)
             {
-                var saved = _imageSaveManager.SaveEffectImage(_imagePath);
-                if (!saved && !string.IsNullOrWhiteSpace(_imageSaveManager.LastError))
-                {
-                    ShowStatus($"❌ {_imageSaveManager.LastError}");
-                }
+                return;
+            }
+
+            var imageSaveManager = new ImageSaveManager(_imageProcessor);
+            var saved = imageSaveManager.SaveEffectImage(_imagePath);
+            if (!saved && !string.IsNullOrWhiteSpace(imageSaveManager.LastError))
+            {
+                ShowStatus($"❌ {imageSaveManager.LastError}");
             }
         }
 
@@ -234,17 +237,18 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async System.Threading.Tasks.Task ImportSlideProjectsAsync()
         {
-            if (_slideImportManager != null)
+            var slideImportManager = _mainWindowServices.GetRequired<SlideImportManager>();
+            if (slideImportManager != null)
             {
-                int count = await _slideImportManager.ImportProjectsAsync();
+                int count = await slideImportManager.ImportProjectsAsync();
                 if (count > 0)
                 {
                     LoadProjects(); // 刷新项目树
                     ShowStatus($"✅ 已导入 {count} 个幻灯片项目");
                 }
-                else if (!string.IsNullOrWhiteSpace(_slideImportManager.LastError))
+                else if (!string.IsNullOrWhiteSpace(slideImportManager.LastError))
                 {
-                    ShowStatus($"❌ {_slideImportManager.LastError}");
+                    ShowStatus($"❌ {slideImportManager.LastError}");
                 }
             }
         }

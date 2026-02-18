@@ -24,41 +24,20 @@ namespace ImageColorChanger.UI
             LoadSettings();
             InitializeAdaptiveFontSystem();
 
-            _imageSaveManager = new ImageSaveManager(_imageProcessor);
-
-            _projectionManager = new ProjectionManager(
-                this,
-                ImageScrollViewer,
-                ImageDisplay,
-                _imageProcessor,
-                _gpuContext,
-                ScreenSelector,
-                new AuthServiceProjectionAuthPolicy(_authService),
-                new WpfProjectionUiNotifier(),
-                new DelegateProjectionHost(
-                    () => IsInLyricsMode,
-                    SwitchToPreviousSimilarImage,
-                    SwitchToNextSimilarImage,
-                    () => _fpsMonitor?.RecordProjectionSync(),
-                    ForwardProjectionKeyDownFromProjection),
-                new WpfProjectionWindowFactory(),
-                null);
+            _projectionManager = CreateProjectionManager();
 
             _projectionManager.ProjectionStateChanged += OnProjectionStateChanged;
             _projectionManager.ProjectionVideoViewLoaded += OnProjectionVideoViewLoaded;
 
-            _originalManager = new OriginalManager(_dbManager, this);
-            _preloadCacheManager = new PreloadCacheManager(_imageProcessor.GetMemoryCache(), _dbManager, _imageProcessor);
+            var dbManager = DatabaseManagerService;
+            _originalManager = new OriginalManager(dbManager, this);
+            _preloadCacheManager = new PreloadCacheManager(_imageProcessor.GetMemoryCache(), dbManager, _imageProcessor);
+            _projectTreeSelectionStateController = new Modules.ProjectTreeSelectionStateController(dbManager, _originalManager);
+            _projectTreeFolderMenuStateController = new Modules.ProjectTreeFolderMenuStateController(dbManager, _originalManager);
 
             InitializeVideoPlayer();
 
-            ProjectTree.ItemsSource = _filteredProjectTreeItems;
-            ProjectTree.PreviewMouseLeftButtonDown += ProjectTree_PreviewMouseLeftButtonDown;
-            ProjectTree.PreviewMouseMove += ProjectTree_PreviewMouseMove;
-            ProjectTree.Drop += ProjectTree_Drop;
-            ProjectTree.DragOver += ProjectTree_DragOver;
-            ProjectTree.DragLeave += ProjectTree_DragLeave;
-            ProjectTree.AllowDrop = true;
+            InitializeProjectTreeBootstrap();
 
             InitializeScreenSelector();
             ImageScrollViewer.ScrollChanged += ImageScrollViewer_ScrollChanged;

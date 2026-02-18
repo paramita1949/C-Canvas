@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
 using ImageColorChanger.Services;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.UI
 {
@@ -15,6 +16,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
+            StartupPerfLogger.Mark("MainWindow.WindowLoaded.Begin");
             // 🔍 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
             /*
             System.Diagnostics.Debug.WriteLine("========== 幻灯片按钮间距调试信息 ==========");
@@ -60,15 +62,17 @@ namespace ImageColorChanger.UI
             
             // 初始化圣经服务
             InitializeBibleService();
+            StartupPerfLogger.Mark("MainWindow.InitializeBibleService.Completed");
 
             // 🔄 静默同步所有文件夹（不显示状态提示）
             await Task.Run(() =>
             {
                 try
                 {
-                    if (_importManager != null)
+                    var importManager = ImportManagerService;
+                    if (importManager != null)
                     {
-                        _importManager.SyncAllFolders();
+                        importManager.SyncAllFolders();
 
                         // 在UI线程刷新项目树和搜索范围
                         Dispatcher.Invoke(() =>
@@ -86,10 +90,14 @@ namespace ImageColorChanger.UI
 #endif
                 }
             });
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed");
+            StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
 
             // 延迟5秒后检查更新，避免影响启动速度
             await Task.Delay(5000);
+            StartupPerfLogger.Mark("MainWindow.UpdateCheck.DelayElapsed");
             await CheckForUpdatesAsync();
+            StartupPerfLogger.Mark("MainWindow.UpdateCheck.Completed");
         }
 
         /// <summary>
@@ -148,13 +156,9 @@ namespace ImageColorChanger.UI
                 // 如果需要，应在订阅时保存匿名方法引用以便取消订阅
                 
                 // 停止并清理视频播放器
-                if (_videoPlayerManager != null)
-                {
-                    _videoPlayerManager.Stop();
-                    _mediaModuleController?.Dispose();
-                    _mediaModuleController = null;
-                    _videoPlayerManager.Dispose();
-                }
+                _mediaModuleController?.Shutdown();
+                _mediaModuleController = null;
+                _videoPlayerManager = null;
                 
                 // 关闭投影窗口
                 if (_projectionManager != null)
@@ -232,16 +236,13 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_dbManager != null)
+                try
                 {
-                    try
-                    {
-                        _dbManager.CheckpointAndCloseConnections();
-                    }
-                    catch (Exception)
-                    {
-                        // 忽略错误，不影响退出
-                    }
+                    DatabaseManagerService.CheckpointAndCloseConnections();
+                }
+                catch (Exception)
+                {
+                    // 忽略错误，不影响退出
                 }
 
                 // 释放UI持有的上下文引用（生命周期由 DatabaseManager 统一管理）

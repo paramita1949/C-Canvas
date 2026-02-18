@@ -492,8 +492,9 @@ namespace ImageColorChanger.UI
                 return;
 
             var popupName = popup.Name;
-            var savedX = _dbManager?.GetUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}");
-            var savedY = _dbManager?.GetUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}");
+            var dbManager = DatabaseManagerService;
+            var savedX = dbManager.GetUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}");
+            var savedY = dbManager.GetUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}");
 
             if (double.TryParse(savedX, NumberStyles.Float, CultureInfo.InvariantCulture, out var x))
             {
@@ -508,12 +509,13 @@ namespace ImageColorChanger.UI
 
         private void SaveSidePanelOffset(Popup popup)
         {
-            if (popup == null || _dbManager == null)
+            if (popup == null)
                 return;
 
             var popupName = popup.Name;
-            _dbManager.SaveUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}", popup.HorizontalOffset.ToString(CultureInfo.InvariantCulture));
-            _dbManager.SaveUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}", popup.VerticalOffset.ToString(CultureInfo.InvariantCulture));
+            var dbManager = DatabaseManagerService;
+            dbManager.SaveUISetting($"{SidePanelOffsetXKeyPrefix}{popupName}", popup.HorizontalOffset.ToString(CultureInfo.InvariantCulture));
+            dbManager.SaveUISetting($"{SidePanelOffsetYKeyPrefix}{popupName}", popup.VerticalOffset.ToString(CultureInfo.InvariantCulture));
         }
 
         private void BtnAlignLeft_Click(object sender, RoutedEventArgs e)

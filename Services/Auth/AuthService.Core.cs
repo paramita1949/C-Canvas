@@ -76,45 +76,6 @@ namespace ImageColorChanger.Services
             return _authDeviceFingerprint.GetHardwareId();
         }
 
-        public class AuthenticationChangedEventArgs : EventArgs
-        {
-            public bool IsAuthenticated { get; set; }
-            public bool IsAutoLogin { get; set; }
-        }
-
-        public enum UiMessageLevel
-        {
-            Info,
-            Warning,
-            Error
-        }
-
-        public class UiMessageEventArgs : EventArgs
-        {
-            public string Title { get; set; }
-            public string Message { get; set; }
-            public UiMessageLevel Level { get; set; } = UiMessageLevel.Info;
-        }
-
-        public class ClientNoticeDisplayItem
-        {
-            public string Title { get; set; }
-            public string Message { get; set; }
-        }
-
-        public class ClientNoticesEventArgs : EventArgs
-        {
-            public List<ClientNoticeDisplayItem> Items { get; set; } = new List<ClientNoticeDisplayItem>();
-        }
-
-        public class ServerSwitchEventArgs : EventArgs
-        {
-            public string ServerUrl { get; set; }
-            public int AttemptNumber { get; set; }
-            public int TotalServers { get; set; }
-            public string Message { get; set; }
-        }
-
         public event EventHandler<AuthenticationChangedEventArgs> AuthenticationChanged;
         public event EventHandler<UiMessageEventArgs> UiMessageRequested;
         public event EventHandler<ClientNoticesEventArgs> ClientNoticesRequested;

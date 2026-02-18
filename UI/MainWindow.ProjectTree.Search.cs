@@ -20,7 +20,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_searchManager == null) return;
+                var searchManager = SearchManagerService;
+                if (searchManager == null) return;
 
                 string searchTerm = SearchBox.Text?.Trim() ?? "";
                 string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
@@ -35,7 +36,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 执行搜索
-                var searchResults = _searchManager.SearchProjects(searchTerm, searchScope);
+                var searchResults = searchManager.SearchProjects(searchTerm, searchScope);
                 
                 // System.Diagnostics.Debug.WriteLine($"📊 搜索结果: {searchResults?.Count ?? 0} 项");
 
@@ -84,9 +85,10 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_searchManager == null) return;
+                var searchManager = SearchManagerService;
+                if (searchManager == null) return;
 
-                var scopes = _searchManager.GetSearchScopes();
+                var scopes = searchManager.GetSearchScopes();
                 SearchScope.Items.Clear();
                 
                 foreach (var scope in scopes)

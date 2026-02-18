@@ -20,7 +20,6 @@ namespace ImageColorChanger.UI
         #region 关键帧和播放字段
 
         private KeyframeManager _keyframeManager;
-        private KeyframeRepository _keyframeRepository; // 仅供 KeyframeManager 使用
         
         // 滚动速度设置（默认9秒）
         private double _scrollDuration = 9.0;
@@ -73,14 +72,14 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 创建关键帧仓库
-                _keyframeRepository = new KeyframeRepository(dbContext);
+                // 获取关键帧存储抽象（由 DI 装配）
+                var keyframeStore = _mainWindowServices.GetRequired<IKeyframeStore>();
 
                 // 获取MediaFileRepository
                 _mediaFileRepository ??= _mainWindowServices.GetRequired<Repositories.Interfaces.IMediaFileRepository>();
 
                 // 创建关键帧管理器
-                _keyframeManager = new KeyframeManager(_keyframeRepository, this, _mediaFileRepository);
+                _keyframeManager = new KeyframeManager(keyframeStore, this, _mediaFileRepository);
                 
                 // 从数据库加载滚动速度和缓动函数设置
                 LoadScrollSpeedSettings();

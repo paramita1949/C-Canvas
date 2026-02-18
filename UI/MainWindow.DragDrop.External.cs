@@ -158,7 +158,7 @@ namespace ImageColorChanger.UI
                                 System.Diagnostics.Debug.WriteLine($"📁 导入文件夹: {path}");
                                 #endif
 
-                                var (folder, newFiles, existingFiles) = _importManager.ImportFolder(path);
+                                var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(path);
                                 
                                 if (folder != null)
                                 {
@@ -169,9 +169,9 @@ namespace ImageColorChanger.UI
                                     System.Diagnostics.Debug.WriteLine($"✅ 文件夹导入成功: {folder.Name} (新增 {newFiles?.Count ?? 0} 个文件)");
                                     #endif
                                 }
-                                else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                                else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                                 {
-                                    lastError = _importManager.LastError;
+                                    lastError = ImportManagerService.LastError;
                                 }
                             }
                             else if (System.IO.File.Exists(path))
@@ -184,7 +184,7 @@ namespace ImageColorChanger.UI
                                     System.Diagnostics.Debug.WriteLine($"📄 导入文件: {path}");
                                     #endif
 
-                                    var mediaFile = _importManager.ImportSingleFile(path);
+                                    var mediaFile = ImportManagerService.ImportSingleFile(path);
                                     
                                     if (mediaFile != null)
                                     {
@@ -194,9 +194,9 @@ namespace ImageColorChanger.UI
                                         System.Diagnostics.Debug.WriteLine($"✅ 文件导入成功: {mediaFile.Name}");
                                         #endif
                                     }
-                                    else if (!string.IsNullOrWhiteSpace(_importManager.LastError))
+                                    else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                                     {
-                                        lastError = _importManager.LastError;
+                                        lastError = ImportManagerService.LastError;
                                     }
                                 }
                             }

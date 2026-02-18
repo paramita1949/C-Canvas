@@ -9,14 +9,14 @@ namespace ImageColorChanger.Services
     /// </summary>
     public sealed class AuthServiceFacade : IAuthFacade
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
 
-        public AuthServiceFacade(AuthService authService)
+        public AuthServiceFacade(IAuthService authService)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         }
 
-        public event EventHandler<AuthService.ServerSwitchEventArgs> ServerSwitching
+        public event EventHandler<ServerSwitchEventArgs> ServerSwitching
         {
             add => _authService.ServerSwitching += value;
             remove => _authService.ServerSwitching -= value;

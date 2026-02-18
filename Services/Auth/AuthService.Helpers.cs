@@ -227,10 +227,14 @@ namespace ImageColorChanger.Services
 
         private string BuildTokenHardwarePayloadJson()
         {
+            var envPayload = BuildClientEnvironmentPayload();
             var requestData = new
             {
                 token = _token,
-                hardware_id = _authDeviceFingerprint.GetHardwareId()
+                hardware_id = _authDeviceFingerprint.GetHardwareId(),
+                app_version = envPayload.AppVersion,
+                os_version = envPayload.OsVersion,
+                device_name = envPayload.DeviceName
             };
             return JsonSerializer.Serialize(requestData);
         }

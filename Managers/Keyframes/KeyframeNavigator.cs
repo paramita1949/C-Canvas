@@ -13,13 +13,10 @@ namespace ImageColorChanger.Managers.Keyframes
     {
         private readonly KeyframeManager _keyframeManager;
         private readonly IKeyframeUiHost _uiHost;
-        private readonly KeyframeRepository _repository;
-
-        public KeyframeNavigator(KeyframeManager keyframeManager, IKeyframeUiHost uiHost, KeyframeRepository repository)
+        public KeyframeNavigator(KeyframeManager keyframeManager, IKeyframeUiHost uiHost)
         {
             _keyframeManager = keyframeManager ?? throw new ArgumentNullException(nameof(keyframeManager));
             _uiHost = uiHost ?? throw new ArgumentNullException(nameof(uiHost));
-            _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
         /// <summary>

@@ -415,13 +415,13 @@ namespace ImageColorChanger.UI
                 // 如果有文件夹ID，标记为手动排序
                 if (sourceFolderId.HasValue)
                 {
-                    _dbManager.MarkFolderAsManualSort(sourceFolderId.Value);
+                    DatabaseManagerService.MarkFolderAsManualSort(sourceFolderId.Value);
                 }
 
                 // 获取文件夹中的所有文件
                 var files = sourceFolderId.HasValue 
-                    ? _dbManager.GetMediaFilesByFolder(sourceFolderId.Value)
-                    : _dbManager.GetRootMediaFiles();
+                    ? DatabaseManagerService.GetMediaFilesByFolder(sourceFolderId.Value)
+                    : DatabaseManagerService.GetRootMediaFiles();
 
                 // 找到源文件和目标文件的索引
                 int sourceIndex = files.FindIndex(f => f.Id == sourceItem.Id);
@@ -457,7 +457,7 @@ namespace ImageColorChanger.UI
                 RenameFilesWithSequenceNumbers(files, sourceFolderId);
 
                 // 保存更改
-                _dbManager.UpdateMediaFilesOrder(files);
+                DatabaseManagerService.UpdateMediaFilesOrder(files);
 
                 // 🔑 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
                 UpdateTreeItemOrder(sourceFolderId, files);
@@ -490,7 +490,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"🔄 [ReorderFolders] 开始文件夹拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
                 
                 // 获取所有文件夹
-                var folders = _dbManager.GetAllFolders();
+                var folders = DatabaseManagerService.GetAllFolders();
                 //System.Diagnostics.Debug.WriteLine($"📂 [ReorderFolders] 获取到 {folders.Count} 个文件夹");
                 
                 // 找到源文件夹和目标文件夹的索引
@@ -527,7 +527,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 保存更改到数据库
-                _dbManager.UpdateFoldersOrder(folders);
+                DatabaseManagerService.UpdateFoldersOrder(folders);
 
                 // 更新TreeView中的文件夹顺序
                 UpdateFolderTreeItemOrder(folders);
@@ -556,7 +556,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取所有文件夹
-                var folders = _dbManager.GetAllFolders();
+                var folders = DatabaseManagerService.GetAllFolders();
                 
                 // 找到当前文件夹的索引
                 int currentIndex = folders.FindIndex(f => f.Id == folderItem.Id);
@@ -586,7 +586,7 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 保存到数据库
-                _dbManager.UpdateFoldersOrder(folders);
+                DatabaseManagerService.UpdateFoldersOrder(folders);
                 
                 // 更新UI
                 UpdateFolderTreeItemOrder(folders);
@@ -610,7 +610,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取所有文件夹
-                var folders = _dbManager.GetAllFolders();
+                var folders = DatabaseManagerService.GetAllFolders();
                 
                 // 找到当前文件夹的索引
                 int currentIndex = folders.FindIndex(f => f.Id == folderItem.Id);
@@ -640,7 +640,7 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 保存到数据库
-                _dbManager.UpdateFoldersOrder(folders);
+                DatabaseManagerService.UpdateFoldersOrder(folders);
                 
                 // 更新UI
                 UpdateFolderTreeItemOrder(folders);
@@ -710,7 +710,7 @@ namespace ImageColorChanger.UI
                         // 更新文件夹图标
                         // 检查文件夹是否包含媒体文件
                         bool hasMediaFiles = sortedFiles.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
-                        string folderPlayMode = _dbManager.GetFolderVideoPlayMode(folderId.Value);
+                        string folderPlayMode = DatabaseManagerService.GetFolderVideoPlayMode(folderId.Value);
                         
                         string iconKind, iconColor;
                         if (hasMediaFiles)
@@ -912,7 +912,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_textProjectManager == null || _dbManager == null)
+                if (_textProjectManager == null || _dbContext == null)
                     return;
 
                 // 获取所有TextProject类型的项目节点

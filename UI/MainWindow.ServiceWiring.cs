@@ -46,12 +46,6 @@ namespace ImageColorChanger.UI
                     _projectionManager.ProjectionVideoViewLoaded -= OnProjectionVideoViewLoaded;
                 }
 
-                if (_videoPlayerManager != null)
-                {
-                    _videoPlayerManager.PlaybackError -= OnVideoPlaybackError;
-                    _mediaModuleController?.Detach();
-                }
-
                 // 清理视频背景管理器
                 _videoBackgroundManager?.Dispose();
             }

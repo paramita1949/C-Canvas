@@ -57,7 +57,7 @@ namespace ImageColorChanger.UI
                 if (_preloadCacheManager == null || _currentImageId <= 0)
                     return;
 
-                var currentFile = _dbManager.GetMediaFileById(_currentImageId);
+                var currentFile = DatabaseManagerService.GetMediaFileById(_currentImageId);
                 if (currentFile == null)
                     return;
 

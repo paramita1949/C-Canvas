@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 服务器切换事件处理
         /// </summary>
-        private void OnServerSwitching(object sender, AuthService.ServerSwitchEventArgs e)
+        private void OnServerSwitching(object sender, ServerSwitchEventArgs e)
         {
             // 在UI线程上更新状态
             Dispatcher.Invoke(() =>

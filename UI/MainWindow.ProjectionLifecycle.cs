@@ -265,9 +265,10 @@ namespace ImageColorChanger.UI
                     if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
                     {
                         _videoPlayerManager.Stop();
-                        if (_mainVideoView != null)
+                        var mainVideoView = _mediaModuleController?.MainVideoView;
+                        if (mainVideoView != null)
                         {
-                            _videoPlayerManager.SetMainVideoView(_mainVideoView);
+                            _videoPlayerManager.SetMainVideoView(mainVideoView);
                         }
                         MediaPlayerPanel.Visibility = Visibility.Collapsed;
                         VideoContainer.Visibility = Visibility.Collapsed;
@@ -279,9 +280,10 @@ namespace ImageColorChanger.UI
                     // 无论当前是否播放，都确保投影结束后主屏 VideoView 与 MediaPlayer 重新绑定
                     if (_videoPlayerManager != null)
                     {
-                        if (_mainVideoView != null)
+                        var mainVideoView = _mediaModuleController?.MainVideoView;
+                        if (mainVideoView != null)
                         {
-                            _videoPlayerManager.SetMainVideoView(_mainVideoView);
+                            _videoPlayerManager.SetMainVideoView(mainVideoView);
                         }
                     }
                 }

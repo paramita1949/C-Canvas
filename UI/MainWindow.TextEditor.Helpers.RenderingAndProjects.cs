@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Managers;
 using ImageColorChanger.UI.Controls;
 using SkiaSharp;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -265,16 +266,17 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_slideExportManager != null)
+                var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
+                if (slideExportManager != null)
                 {
-                    bool success = await _slideExportManager.ExportProjectAsync(item.Id);
+                    bool success = await slideExportManager.ExportProjectAsync(item.Id);
                     if (success)
                     {
                         ShowStatus($"✅ 已导出项目: {item.Name}");
                     }
-                    else if (!string.IsNullOrWhiteSpace(_slideExportManager.LastError))
+                    else if (!string.IsNullOrWhiteSpace(slideExportManager.LastError))
                     {
-                        ShowStatus($"❌ {_slideExportManager.LastError}");
+                        ShowStatus($"❌ {slideExportManager.LastError}");
                     }
                 }
             }
@@ -291,16 +293,17 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_slideExportManager != null)
+                var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
+                if (slideExportManager != null)
                 {
-                    bool success = await _slideExportManager.ExportAllProjectsAsync();
+                    bool success = await slideExportManager.ExportAllProjectsAsync();
                     if (success)
                     {
                         ShowStatus($"✅ 已导出所有项目");
                     }
-                    else if (!string.IsNullOrWhiteSpace(_slideExportManager.LastError))
+                    else if (!string.IsNullOrWhiteSpace(slideExportManager.LastError))
                     {
-                        ShowStatus($"❌ {_slideExportManager.LastError}");
+                        ShowStatus($"❌ {slideExportManager.LastError}");
                     }
                 }
             }

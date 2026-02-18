@@ -4,7 +4,6 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
-using LibVLCSharp.WPF;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ImageColorChanger.UI
@@ -18,19 +17,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                _configManager = new ConfigManager();
-                _dbManager = new DatabaseManager();
-                _dbContext = _dbManager.GetDbContext();
+                _configManager = _mainWindowServices.GetRequired<ConfigManager>();
+                var dbManager = DatabaseManagerService;
+                _dbContext = dbManager.GetDbContext();
                 using (var migrationRunner = new DatabaseMigrationRunner(_dbContext))
                 {
                     migrationRunner.RunStartupMigrations();
                 }
 
-                _sortManager = new SortManager();
-                _searchManager = new SearchManager(_dbManager, _configManager);
-                _importManager = new ImportManager(_dbManager, _sortManager);
-                _slideExportManager = new SlideExportManager(_dbContext);
-                _slideImportManager = new SlideImportManager(_dbContext);
 
                 // 显式注入设置存储，避免控件直接依赖 DatabaseManager
                 var uiSettingsStore = _mainWindowServices.GetRequired<Services.Interfaces.IUiSettingsStore>();
@@ -73,40 +67,11 @@ namespace ImageColorChanger.UI
                     OnVideoPlayStateChanged,
                     OnVideoMediaChanged,
                     OnVideoMediaEnded,
-                    OnVideoProgressUpdated);
+                    OnVideoProgressUpdated,
+                    OnVideoPlaybackError);
                 _mediaModuleController.Attach();
-                _videoPlayerManager.PlaybackError += OnVideoPlaybackError;
 
-                _mainVideoView = new VideoView
-                {
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
-                    Margin = new Thickness(0)
-                };
-
-                VideoContainer.Children.Add(_mainVideoView);
-
-                bool mediaPlayerInitialized = false;
-                SizeChangedEventHandler sizeChangedHandler = null;
-
-                sizeChangedHandler = (s, e) =>
-                {
-                    try
-                    {
-                        if (!mediaPlayerInitialized && _mainVideoView.ActualWidth > 0 && _mainVideoView.ActualHeight > 0)
-                        {
-                            _videoPlayerManager.InitializeMediaPlayer(_mainVideoView);
-                            _videoPlayerManager.SetMainVideoView(_mainVideoView);
-                            mediaPlayerInitialized = true;
-                            _mainVideoView.SizeChanged -= sizeChangedHandler;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                    }
-                };
-
-                _mainVideoView.SizeChanged += sizeChangedHandler;
+                _mediaModuleController.InitializeMainVideoView(VideoContainer);
 
                 _videoPlayerManager.SetVolume(50);
                 VolumeSlider.Value = 50;

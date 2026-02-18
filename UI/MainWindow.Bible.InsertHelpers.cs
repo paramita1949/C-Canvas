@@ -816,25 +816,26 @@ namespace ImageColorChanger.UI
         private BibleTextInsertConfig LoadBibleInsertConfigFromDatabase()
         {
             var config = new BibleTextInsertConfig();
+            var dbManager = DatabaseManagerService;
 
             // 从数据库加载配置
-            config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
-            config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
+            config.Style = (BibleTextInsertStyle)int.Parse(dbManager.GetBibleInsertConfigValue("style", "0"));
+            config.FontFamily = dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
 
-            config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
-            config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "50"));
-            config.TitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
+            config.TitleStyle.ColorHex = dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
+            config.TitleStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("title_size", "50"));
+            config.TitleStyle.IsBold = dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
 
-            config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#FF9A35");
-            config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "40"));
-            config.VerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
-            config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "1.2"));
+            config.VerseStyle.ColorHex = dbManager.GetBibleInsertConfigValue("verse_color", "#FF9A35");
+            config.VerseStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("verse_size", "40"));
+            config.VerseStyle.IsBold = dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
+            config.VerseStyle.VerseSpacing = float.Parse(dbManager.GetBibleInsertConfigValue("verse_spacing", "1.2"));
 
-            config.VerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_number_color", "#FFFF00");
-            config.VerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_number_size", "40"));
-            config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
+            config.VerseNumberStyle.ColorHex = dbManager.GetBibleInsertConfigValue("verse_number_color", "#FFFF00");
+            config.VerseNumberStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("verse_number_size", "40"));
+            config.VerseNumberStyle.IsBold = dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
 
-            config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
+            config.AutoHideNavigationAfterInsert = dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
             
             //#if DEBUG
             //Debug.WriteLine($"📝 [圣经插入] 从数据库加载配置");

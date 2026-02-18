@@ -718,7 +718,7 @@ namespace ImageColorChanger.UI
                             );
 
                             // 🎨 检查文件夹是否有变色标记
-                            bool hasColorEffectMark = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+                            bool hasColorEffectMark = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"   原图标记: {isOriginalFolder}");
@@ -1340,7 +1340,7 @@ namespace ImageColorChanger.UI
                             );
 
                             // 🎨 检查文件夹是否有变色标记
-                            shouldApplyColorEffect = _dbManager.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+                            shouldApplyColorEffect = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"   原图标记: {shouldUseStretch}");

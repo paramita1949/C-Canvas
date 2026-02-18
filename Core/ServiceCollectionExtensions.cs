@@ -81,9 +81,7 @@ namespace ImageColorChanger.Core
             services.AddScoped<Repositories.Interfaces.IOriginalModeRepository, Repositories.Implementations.OriginalModeRepositoryImpl>();
             services.AddScoped<Repositories.Interfaces.IMediaFileRepository, Repositories.Implementations.MediaFileRepositoryImpl>();
             services.AddScoped<Repositories.Interfaces.ICompositeScriptRepository, Repositories.Implementations.CompositeScriptRepository>();
-
-            // 保留旧的Repository（向后兼容）
-            services.AddScoped<ImageColorChanger.Managers.Keyframes.KeyframeRepository>();
+            services.AddScoped<Managers.Keyframes.IKeyframeStore, Managers.Keyframes.KeyframeStoreAdapter>();
 
             return services;
         }
@@ -100,11 +98,11 @@ namespace ImageColorChanger.Core
             services.AddSingleton<GPUContext>();
             services.AddSingleton<SkiaFontService>();
 
-            // 认证服务（通过 DI 获取单例，避免 UI 层直接引用 AuthService.Instance）
-            services.AddSingleton<AuthService>(_ => AuthService.Instance);
+            // 认证服务（仅暴露接口，避免上层依赖具体实现）
+            services.AddSingleton<IAuthService>(_ => AuthService.Instance);
 
             // 认证门面（窗口层使用，避免直接依赖 AuthService.Instance）
-            services.AddSingleton<IAuthFacade>(_ => new AuthServiceFacade(AuthService.Instance));
+            services.AddSingleton<IAuthFacade>(sp => new AuthServiceFacade(sp.GetRequiredService<IAuthService>()));
             services.AddSingleton<IUiSettingsStore, UiSettingsStore>();
             
             // 内存缓存（Singleton）- 圣经服务需要
@@ -156,8 +154,13 @@ namespace ImageColorChanger.Core
         /// </summary>
         private static IServiceCollection AddManagers(this IServiceCollection services)
         {
-            // 当前已有的Manager（这些依赖MainWindow，需要特殊处理）
-            // KeyframeManager, KeyframeNavigator等会在MainWindow创建时手动实例化
+            services.AddSingleton<SortManager>();
+            services.AddSingleton<SearchManager>();
+            services.AddSingleton<ImportManager>();
+            services.AddTransient<SlideExportManager>(sp =>
+                new SlideExportManager(sp.GetRequiredService<DatabaseManager>().GetDbContext()));
+            services.AddTransient<SlideImportManager>(sp =>
+                new SlideImportManager(sp.GetRequiredService<DatabaseManager>().GetDbContext()));
 
             return services;
         }

@@ -427,66 +427,18 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_videoPlayerManager == null || _dbManager == null) return;
-                
-                // 方法1: 通过路径在所有文件夹中查找
-                MediaFile currentMediaFile = null;
-                
-                // 先在根目录查找
-                var rootFiles = _dbManager.GetRootMediaFiles();
-                currentMediaFile = rootFiles.FirstOrDefault(f => f.Path == currentVideoPath);
-                
-                // 如果根目录没找到，遍历所有文件夹查找
-                if (currentMediaFile == null)
-                {
-                    var folders = _dbManager.GetAllFolders();
-                    foreach (var folder in folders)
-                    {
-                        var folderFiles = _dbManager.GetMediaFilesByFolder(folder.Id);
-                        currentMediaFile = folderFiles.FirstOrDefault(f => f.Path == currentVideoPath);
-                        if (currentMediaFile != null)
-                            break;
-                    }
-                }
-                
+                if (_videoPlayerManager == null) return;
+                var dbManager = DatabaseManagerService;
+                var rootFiles = dbManager.GetRootMediaFiles();
+                var currentMediaFile = FindCurrentMediaFileByPath(dbManager, rootFiles, currentVideoPath);
                 if (currentMediaFile == null)
                 {
                     //System.Diagnostics.Debug.WriteLine("❌ 未找到当前视频文件信息");
                     return;
                 }
-                
-                List<string> playlist = new List<string>();
-                
-                // 获取同一文件夹下的所有视频文件
-                if (currentMediaFile.FolderId.HasValue)
-                {
-                    var folderFiles = _dbManager.GetMediaFilesByFolder(currentMediaFile.FolderId.Value);
-                    
-                    // 筛选出视频文件
-                    var videoFiles = folderFiles
-                        .Where(f => f.FileType == FileType.Video)
-                        .OrderBy(f => f.OrderIndex ?? 0)
-                        .ThenBy(f => f.Name)
-                        .ToList();
-                    
-                    playlist = videoFiles.Select(f => f.Path).ToList();
-                    
-                    //System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 文件夹 [{currentMediaFile.Folder?.Name}] 中有 {playlist.Count} 个视频");
-                }
-                else
-                {
-                    // 根目录文件
-                    var videoFiles = rootFiles
-                        .Where(f => f.FileType == FileType.Video)
-                        .OrderBy(f => f.OrderIndex ?? 0)
-                        .ThenBy(f => f.Name)
-                        .ToList();
-                    
-                    playlist = videoFiles.Select(f => f.Path).ToList();
-                    
-                    //System.Diagnostics.Debug.WriteLine($"📋 构建播放列表: 根目录中有 {playlist.Count} 个视频");
-                }
-                
+
+                var playlist = BuildVideoPlaylistEntries(dbManager, rootFiles, currentMediaFile);
+
                 // 设置播放列表到VideoPlayerManager
                 if (playlist.Count > 0)
                 {
@@ -500,26 +452,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     // 根据文件夹标记自动设置播放模式
-                    if (currentMediaFile.FolderId.HasValue)
-                    {
-                        string folderPlayMode = _dbManager.GetFolderVideoPlayMode(currentMediaFile.FolderId.Value);
-                        if (!string.IsNullOrEmpty(folderPlayMode))
-                        {
-                            PlayMode mode = folderPlayMode switch
-                            {
-                                "sequential" => PlayMode.Sequential,
-                                "random" => PlayMode.Random,
-                                "loop_all" => PlayMode.LoopAll,
-                                _ => PlayMode.Sequential
-                            };
-                            
-                            _videoPlayerManager.SetPlayMode(mode);
-                            
-                            string[] modeNames = { "顺序", "随机", "单曲", "列表" };
-                            //System.Diagnostics.Debug.WriteLine($"🎵 根据文件夹标记自动设置播放模式: {modeNames[(int)mode]}");
-                            ShowStatus($"🎵 播放模式: {modeNames[(int)mode]}");
-                        }
-                    }
+                    ApplyFolderPlayModeIfNeeded(dbManager, currentMediaFile);
                 }
                 else
                 {
@@ -531,7 +464,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"❌ 构建播放列表失败: {ex.Message}");
             }
         }
-        
+
         /// <summary>
         /// 切换回图片显示模式
         /// </summary>

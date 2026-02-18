@@ -8,6 +8,7 @@ using System.Windows;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger
 {
@@ -28,14 +29,19 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnStartup(StartupEventArgs e)
         {
+            StartupPerfLogger.Initialize("App.OnStartup.Begin");
+
             // 🔧 在 WPF 初始化之前设置 Per-Monitor DPI Awareness
             SetProcessDpiAwareness();
+            StartupPerfLogger.Mark("App.DpiAwareness.Configured");
 
             base.OnStartup(e);
+            StartupPerfLogger.Mark("App.BaseOnStartup.Completed");
 
             // 🔒 检查是否已有实例在同一目录运行
             if (!CheckSingleInstance())
             {
+                StartupPerfLogger.Mark("App.SingleInstance.DuplicateDetected");
                 System.Windows.MessageBox.Show(
                     "程序已经启动,请勿重复启动！",
                     "咏慕投影",
@@ -44,6 +50,7 @@ namespace ImageColorChanger
                 Shutdown();
                 return;
             }
+            StartupPerfLogger.Mark("App.SingleInstance.Verified");
 
             try
             {
@@ -51,16 +58,20 @@ namespace ImageColorChanger
                 var services = new ServiceCollection();
                 ConfigureServices(services);
                 ServiceProvider = services.BuildServiceProvider();
+                StartupPerfLogger.Mark("App.DependencyInjection.Ready");
 
                 // 初始化资源加载器（检测PAK或使用文件系统）
                 ResourceLoader.Initialize();
+                StartupPerfLogger.Mark("App.ResourceLoader.Initialized");
 
                 // 全局异常处理
                 AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
                 DispatcherUnhandledException += OnDispatcherUnhandledException;
+                StartupPerfLogger.Mark("App.GlobalExceptionHandlers.Registered", $"LogFile={StartupPerfLogger.LogFilePath}");
             }
             catch (Exception ex)
             {
+                StartupPerfLogger.Error("App.OnStartup.Failed", ex);
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 应用程序启动失败: {ex.Message}");
                 #endif
@@ -87,6 +98,7 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnExit(ExitEventArgs e)
         {
+            StartupPerfLogger.Mark("App.OnExit");
             // 释放互斥锁
             _instanceMutex?.ReleaseMutex();
             _instanceMutex?.Dispose();
@@ -167,6 +179,7 @@ namespace ImageColorChanger
         {
             if (e.ExceptionObject is Exception ex)
             {
+                StartupPerfLogger.Error("AppDomain.UnhandledException", ex);
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
                 #endif
@@ -183,6 +196,7 @@ namespace ImageColorChanger
         /// </summary>
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            StartupPerfLogger.Error("Dispatcher.UnhandledException", e.Exception);
             #if DEBUG
             System.Diagnostics.Debug.WriteLine($"❌ [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
             #endif

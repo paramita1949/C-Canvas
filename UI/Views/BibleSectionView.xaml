@@ -1,0 +1,153 @@
+<UserControl x:Class="ImageColorChanger.UI.Views.BibleSectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls">
+    <Grid x:Name="BibleDisplayContainer" x:FieldModifier="public" Visibility="Collapsed">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0"
+                      x:Name="BibleVerseScrollViewer"
+                      x:FieldModifier="public"
+                      Background="#000000"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="0"
+                      Focusable="True"
+                      InputMethod.PreferredImeState="Off"
+                      InputMethod.IsInputMethodEnabled="False">
+            <ScrollViewer.ContextMenu>
+                <ContextMenu Style="{StaticResource NoBorderContextMenuStyle}">
+                    <MenuItem x:Name="MenuBibleCopyVerses"
+                              x:FieldModifier="public"
+                              Header="复制经文"/>
+                    <MenuItem Header="复制样式">
+                        <MenuItem x:Name="MenuBibleCopyStyleShort"
+                                  x:FieldModifier="public"
+                                  Header="简称样式  示例：[约1:1-2]"
+                                  Tag="Short"
+                                  IsCheckable="True"
+                                  IsChecked="True"
+                                  Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                        <MenuItem x:Name="MenuBibleCopyStyleFull"
+                                  x:FieldModifier="public"
+                                  Header="全称样式  示例：[约翰福音1:1-2]"
+                                  Tag="Full"
+                                  IsCheckable="True"
+                                  Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                        <MenuItem x:Name="MenuBibleCopyStyleChapter"
+                                  x:FieldModifier="public"
+                                  Header="章节样式  示例：[约翰福音1章1-2节]"
+                                  Tag="Chapter"
+                                  IsCheckable="True"
+                                  Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
+                    </MenuItem>
+                </ContextMenu>
+            </ScrollViewer.ContextMenu>
+            <StackPanel>
+                <Border x:Name="BibleChapterTitleBorder"
+                        x:FieldModifier="public"
+                        Background="#000000"
+                        Padding="20,15">
+                    <TextBlock x:Name="BibleChapterTitle"
+                               x:FieldModifier="public"
+                               Text=""
+                               FontSize="32"
+                               FontWeight="Bold"
+                               Foreground="#FF5722"/>
+                </Border>
+
+                <Border Height="20"/>
+
+                <ItemsControl x:Name="BibleVerseList"
+                              x:FieldModifier="public"
+                              Margin="20,0,20,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="Transparent"
+                                    Padding="2"
+                                    Cursor="Hand"
+                                    Tag="{Binding}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#2D2D30"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock x:Name="VerseTextBlock"
+                                           FontSize="20"
+                                           Foreground="White"
+                                           TextWrapping="Wrap"
+                                           IsHitTestVisible="False"/>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Height="20"/>
+
+                <Border x:Name="BibleBottomExtension"
+                        x:FieldModifier="public"
+                        Height="0"
+                        Background="Transparent"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <controls:BiblePinyinHintControl x:Name="BiblePinyinHintControl"
+                                         x:FieldModifier="public"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Panel.ZIndex="1000"/>
+
+        <Border Grid.Row="0"
+                x:Name="BibleVersionTriggerArea"
+                x:FieldModifier="public"
+                Height="20"
+                VerticalAlignment="Top"
+                Background="Transparent"
+                Panel.ZIndex="999"/>
+
+        <Border Grid.Row="0"
+                x:Name="BibleVersionToolbar"
+                x:FieldModifier="public"
+                Background="#2D2D30"
+                BorderBrush="#3E3E42"
+                BorderThickness="0,0,0,1"
+                Padding="10,8"
+                VerticalAlignment="Top"
+                Visibility="Collapsed"
+                Panel.ZIndex="1000">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <TextBlock Text="译本:" Foreground="#A0A0A0" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                <RadioButton x:Name="RadioBibleVersionSimplified"
+                             x:FieldModifier="public"
+                             Content="和合本"
+                             Tag="bible.db"
+                             GroupName="BibleVersion"
+                             IsChecked="True"
+                             Foreground="White"
+                             FontSize="12"
+                             VerticalAlignment="Center"
+                             Margin="0,0,15,0"
+                             Style="{StaticResource BibleVersionRadioStyle}"/>
+
+                <RadioButton x:Name="RadioBibleVersionTraditional"
+                             x:FieldModifier="public"
+                             Content="和合本繁体"
+                             Tag="hehebenfanti.db"
+                             GroupName="BibleVersion"
+                             Foreground="White"
+                             FontSize="12"
+                             VerticalAlignment="Center"
+                             Margin="0,0,0,0"
+                             Style="{StaticResource BibleVersionRadioStyle}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
