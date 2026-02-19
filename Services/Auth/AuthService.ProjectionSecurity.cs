@@ -79,7 +79,7 @@ namespace ImageColorChanger.Services
                 _lastServerTime = result.UpdatedLastServerTime;
                 _lastLocalTime = result.UpdatedLastLocalTime;
                 _lastTickCount = result.UpdatedLastTickCount;
-                _ = SaveAuthDataAsync();
+                RequestPersistAuthData();
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine($"✅ [AuthService] TickCount 基准已重建: Tick={_lastTickCount}");
 #endif

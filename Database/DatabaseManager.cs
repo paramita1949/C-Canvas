@@ -4,6 +4,7 @@ using System.IO;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Database.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Database
 {
@@ -13,6 +14,7 @@ namespace ImageColorChanger.Database
     /// </summary>
     public class DatabaseManager : IDisposable
     {
+        private readonly string _dbPath;
         private readonly CanvasDbContext _context;
         private readonly IFolderRepository _folderRepository;
         private readonly IMediaRepository _mediaRepository;
@@ -32,6 +34,7 @@ namespace ImageColorChanger.Database
             IDatabaseMaintenanceRepository databaseMaintenanceRepository)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _dbPath = _context.Database.GetDbConnection().DataSource;
             _folderRepository = folderRepository ?? throw new ArgumentNullException(nameof(folderRepository));
             _mediaRepository = mediaRepository ?? throw new ArgumentNullException(nameof(mediaRepository));
             _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
@@ -48,6 +51,7 @@ namespace ImageColorChanger.Database
                 dbPath = Path.Combine(appDirectory, "pyimages.db");
             }
 
+            _dbPath = dbPath;
             _context = new CanvasDbContext(dbPath);
             _context.InitializeDatabase();
 
@@ -63,7 +67,23 @@ namespace ImageColorChanger.Database
 
         public Folder ImportFolder(string folderPath, string folderName = null) => _folderRepository.ImportFolder(folderPath, folderName);
         public List<Folder> GetAllFolders() => _folderRepository.GetAllFolders();
-        public void DeleteFolder(int folderId, bool forceDelete = false) => _folderRepository.DeleteFolder(folderId, forceDelete);
+        public void DeleteFolder(int folderId, bool forceDelete = false)
+        {
+            // 隔离上下文执行删除，避免主上下文潜在悬挂事务影响 SQLite 提交行为。
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine(
+                $"[DatabaseManager] DeleteFolder使用隔离上下文: DbPath={_dbPath}, FolderId={folderId}, forceDelete={forceDelete}");
+#endif
+            using (var isolatedContext = new CanvasDbContext(_dbPath))
+            {
+                isolatedContext.InitializeDatabase();
+                var isolatedFolderRepository = new FolderRepository(isolatedContext);
+                isolatedFolderRepository.DeleteFolder(folderId, forceDelete);
+            }
+
+            // 清理主上下文跟踪缓存，避免读取到过期实体。
+            _context.ChangeTracker.Clear();
+        }
         public void UpdateFoldersOrder(List<Folder> folders) => _folderRepository.UpdateFoldersOrder(folders);
 
         #endregion
@@ -75,6 +95,7 @@ namespace ImageColorChanger.Database
         public List<MediaFile> GetMediaFilesByFolder(int folderId) => _mediaRepository.GetMediaFilesByFolder(folderId);
         public List<MediaFile> GetMediaFilesByFolder(int folderId, FileType? fileType = null) => _mediaRepository.GetMediaFilesByFolder(folderId, fileType);
         public List<MediaFile> GetRootMediaFiles() => _mediaRepository.GetRootMediaFiles();
+        public List<string> GetAllMediaPaths() => _mediaRepository.GetAllMediaPaths();
         public void DeleteMediaFile(int mediaFileId) => _mediaRepository.DeleteMediaFile(mediaFileId);
         public void UpdateMediaFilesOrder(List<MediaFile> mediaFiles) => _mediaRepository.UpdateMediaFilesOrder(mediaFiles);
 
@@ -162,6 +183,7 @@ namespace ImageColorChanger.Database
 
         #region 数据库上下文
 
+        public string GetDatabasePath() => _dbPath;
         public CanvasDbContext GetDbContext() => _context;
 
         #endregion

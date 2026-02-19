@@ -187,10 +187,17 @@ namespace ImageColorChanger.UI
 
             if (!string.IsNullOrEmpty(selectedPath))
             {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[ImportFolder] 用户选择路径: {selectedPath}");
+#endif
                 var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(selectedPath);
                 
                 if (folder != null)
                 {
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine(
+                        $"[ImportFolder] 导入完成: FolderId={folder.Id}, Name={folder.Name}, NewFiles={newFiles?.Count ?? 0}, ExistingFiles={existingFiles?.Count ?? 0}");
+#endif
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
                     
@@ -209,8 +216,17 @@ namespace ImageColorChanger.UI
                 }
                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine($"[ImportFolder] 导入失败: {ImportManagerService.LastError}");
+#endif
                     ShowStatus($"❌ {ImportManagerService.LastError}");
                 }
+#if DEBUG
+                else
+                {
+                    System.Diagnostics.Trace.WriteLine("[ImportFolder] 导入返回空结果，且 LastError 为空");
+                }
+#endif
             }
         }
 

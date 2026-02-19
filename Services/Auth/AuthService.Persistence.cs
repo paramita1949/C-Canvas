@@ -11,14 +11,87 @@ namespace ImageColorChanger.Services
     public partial class AuthService
     {
         #region 登录状态持久化
+        private readonly System.Threading.SemaphoreSlim _authStorageWriteLock = new System.Threading.SemaphoreSlim(1, 1);
+        private readonly object _authPersistScheduleLock = new object();
+        private Task _authPersistWorkerTask;
+        private bool _authPersistRequested;
+        private static readonly TimeSpan AuthPersistCoalesceWindow = TimeSpan.FromMilliseconds(500);
+
+        private void RequestPersistAuthData()
+        {
+            lock (_authPersistScheduleLock)
+            {
+                _authPersistRequested = true;
+                if (_authPersistWorkerTask == null || _authPersistWorkerTask.IsCompleted)
+                {
+                    _authPersistWorkerTask = Task.Run(PersistAuthDataWorkerAsync);
+                }
+            }
+        }
+
+        private async Task PersistAuthDataWorkerAsync()
+        {
+            while (true)
+            {
+                lock (_authPersistScheduleLock)
+                {
+                    if (!_authPersistRequested)
+                    {
+                        return;
+                    }
+                    _authPersistRequested = false;
+                }
+
+                await Task.Delay(AuthPersistCoalesceWindow).ConfigureAwait(false);
+                await SaveAuthDataAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task FlushPersistQueueAsync()
+        {
+            while (true)
+            {
+                Task workerTask;
+                lock (_authPersistScheduleLock)
+                {
+                    workerTask = _authPersistWorkerTask;
+                }
+
+                if (workerTask == null)
+                {
+                    return;
+                }
+
+                await workerTask.ConfigureAwait(false);
+
+                lock (_authPersistScheduleLock)
+                {
+                    // worker已结束且没有新请求，刷新完成
+                    if ((_authPersistWorkerTask == null || _authPersistWorkerTask.IsCompleted) && !_authPersistRequested)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// 保存登录状态到本地文件（带签名防篡改）
         /// </summary>
         private async Task SaveAuthDataAsync()
         {
+            bool lockTaken = false;
             try
             {
+                await _authStorageWriteLock.WaitAsync().ConfigureAwait(false);
+                lockTaken = true;
+
+                // 仅在已登录且凭证完整时持久化。
+                if (!_isAuthenticated || string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_token))
+                {
+                    return;
+                }
+
                 var nonce = Guid.NewGuid().ToString("N");
                 var saveTime = DateTime.Now.Ticks;
 
@@ -91,6 +164,13 @@ namespace ImageColorChanger.Services
                 _ = ex;
 #endif
             }
+            finally
+            {
+                if (lockTaken)
+                {
+                    _authStorageWriteLock.Release();
+                }
+            }
         }
 
         /// <summary>
@@ -121,6 +201,8 @@ namespace ImageColorChanger.Services
                     return;
                 }
 
+                var validSnapshots = new List<(string Path, Auth.AuthStateSnapshot Snapshot, DateTime LastWriteUtc)>();
+
                 foreach (var authFilePath in candidatePaths)
                 {
                     var loadResult = await _authStateStore.LoadSnapshotAsync(
@@ -145,43 +227,72 @@ namespace ImageColorChanger.Services
 #if DEBUG
                         System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地凭证无效: {authFilePath} ({loadResult.Error})");
 #endif
-                        _authStateStore.DeleteSnapshot(authFilePath);
+                        try
+                        {
+                            var badPath = _authStateStore.QuarantineSnapshot(authFilePath);
+#if DEBUG
+                            if (!string.IsNullOrWhiteSpace(badPath))
+                            {
+                                System.Diagnostics.Trace.WriteLine($"🧹 [AuthService] 已隔离损坏凭证: {badPath}");
+                            }
+#endif
+                        }
+                        catch
+                        {
+                            _authStateStore.DeleteSnapshot(authFilePath);
+                        }
                         continue;
                     }
 
-                    var authData = loadResult.Snapshot;
-                    ApplyPersistedSnapshot(authData);
-                    RebuildTokensForLoadedState();
+                    validSnapshots.Add((authFilePath, loadResult.Snapshot, File.GetLastWriteTimeUtc(authFilePath)));
+                }
 
-                    if (!ValidateAndTrackLoadedFileVersion(authData.FileVersion))
-                    {
-                        return;
-                    }
-
-                    if (!ValidateStartupOfflineWindow())
-                    {
-                        return;
-                    }
-
-                    _isAuthenticated = true;
-                    GenerateAuthTokens();
-
-                    if (CanUseProjection())
-                    {
-                        CompleteAutoLoginSuccess();
-                    }
-                    else
-                    {
-                        HandleAutoLoginExpired();
-                    }
-
-                    // 成功加载后，异步回写到所有凭证路径，修复“某一路径找不到凭证”场景
-                    _ = SaveAuthDataAsync();
+                if (!validSnapshots.Any())
+                {
+                    // 所有候选文件均无效（均已隔离/删除），直接返回未登录状态
                     return;
                 }
 
-                // 所有候选文件均无效，清理残留
-                DeleteAuthData();
+                // 关键修复：按 FileVersion 优先选择最新凭证，避免先命中旧文件触发“版本回滚误判”
+                var selected = validSnapshots
+                    .OrderByDescending(x => x.Snapshot.FileVersion)
+                    .ThenByDescending(x => x.LastWriteUtc)
+                    .First();
+
+                var authData = selected.Snapshot;
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"💾 [AuthService] 选择凭证: Path={selected.Path}, FileVersion={authData.FileVersion}, " +
+                    $"Candidates={validSnapshots.Count}");
+#endif
+                ApplyPersistedSnapshot(authData);
+                RebuildTokensForLoadedState();
+
+                if (!ValidateAndTrackLoadedFileVersion(authData.FileVersion))
+                {
+                    return;
+                }
+
+                if (!ValidateStartupOfflineWindow())
+                {
+                    return;
+                }
+
+                _isAuthenticated = true;
+                GenerateAuthTokens();
+
+                if (CanUseProjection())
+                {
+                    CompleteAutoLoginSuccess();
+                }
+                else
+                {
+                    HandleAutoLoginExpired();
+                }
+
+                // 成功加载后，异步回写到所有凭证路径，修复“某一路径找不到凭证”场景
+                RequestPersistAuthData();
+                return;
             }
             catch (Exception ex)
             {
@@ -190,7 +301,7 @@ namespace ImageColorChanger.Services
 #else
                 _ = ex;
 #endif
-                DeleteAuthData();
+                // 加载异常不主动删除凭证，避免瞬时IO问题导致用户被登出。
             }
         }
 
@@ -199,8 +310,11 @@ namespace ImageColorChanger.Services
         /// </summary>
         private void DeleteAuthData()
         {
+            bool lockTaken = false;
             try
             {
+                _authStorageWriteLock.Wait();
+                lockTaken = true;
                 foreach (var authFilePath in GetAuthDataFilePaths())
                 {
                     _authStateStore.DeleteSnapshot(authFilePath);
@@ -216,6 +330,13 @@ namespace ImageColorChanger.Services
 #else
                 _ = ex;
 #endif
+            }
+            finally
+            {
+                if (lockTaken)
+                {
+                    _authStorageWriteLock.Release();
+                }
             }
         }
 

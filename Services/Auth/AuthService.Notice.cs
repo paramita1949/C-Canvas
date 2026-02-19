@@ -133,7 +133,7 @@ namespace ImageColorChanger.Services
 
             if (_isAuthenticated && changedShownSet)
             {
-                _ = SaveAuthDataAsync();
+                RequestPersistAuthData();
             }
 
             ClientNoticesRequested?.Invoke(this, new ClientNoticesEventArgs

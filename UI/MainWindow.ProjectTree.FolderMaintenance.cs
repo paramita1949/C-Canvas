@@ -52,10 +52,10 @@ namespace ImageColorChanger.UI
             catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 数据库异常: {dbEx.Message}");
+                System.Diagnostics.Trace.WriteLine($"[删除文件夹] 数据库异常: {dbEx.Message}");
                 if (dbEx.InnerException != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[删除文件夹] 内部异常: {dbEx.InnerException.Message}");
+                    System.Diagnostics.Trace.WriteLine($"[删除文件夹] 内部异常: {dbEx.InnerException.Message}");
                 }
 #else
                 _ = dbEx;
@@ -102,8 +102,8 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 未知异常: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[删除文件夹] 堆栈: {ex.StackTrace}");
+                System.Diagnostics.Trace.WriteLine($"[删除文件夹] 未知异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[删除文件夹] 堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
 #endif

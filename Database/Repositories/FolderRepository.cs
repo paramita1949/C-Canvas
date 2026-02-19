@@ -51,116 +51,103 @@ namespace ImageColorChanger.Database.Repositories
             var folder = _context.Folders.Find(folderId);
             if (folder == null)
             {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 文件夹不存在: FolderId={folderId}");
+#endif
                 return;
             }
 
-            if (forceDelete)
+            bool foreignKeysDisabled = false;
+
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine(
+                $"[DeleteFolder] 开始: FolderId={folderId}, Name={folder.Name}, forceDelete={forceDelete}");
+#endif
+            try
             {
-                try
+                if (forceDelete)
+                {
+                    _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+                    foreignKeysDisabled = true;
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] forceDelete: foreign_keys=OFF");
+#endif
+
+                    _context.Database.ExecuteSqlRaw(
+                        "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
+                        folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
+                    int folderDeleted = _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
+                    if (folderDeleted <= 0)
+                    {
+                        throw new InvalidOperationException($"删除文件夹失败：folders 表未删除到记录（FolderId={folderId}）");
+                    }
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] forceDelete SQL执行完成");
+                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] forceDelete 删除folders行数: {folderDeleted}");
+#endif
+                }
+                else
                 {
                     var fileIds = _context.MediaFiles
                         .Where(f => f.FolderId == folderId)
                         .Select(f => f.Id)
                         .ToList();
 
-                    _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
-
-                    using var transaction = _context.Database.BeginTransaction();
-                    try
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 普通删除关联文件数: {fileIds.Count}");
+#endif
+                    // 避免 SaveChanges() 触发 EF 自动事务（该上下文在当前架构下可能与其他操作并发，导致 nested transaction）。
+                    _context.Database.ExecuteSqlRaw(
+                        "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
+                        folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
+                    _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
+                    int folderDeleted = _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
+                    if (folderDeleted <= 0)
                     {
-                        if (fileIds.Count > 0)
-                        {
-                            _context.Database.ExecuteSqlRaw(
-                                "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
-                                folderId
-                            );
-                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                            _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                        }
-
-                        _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
-                        _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
-                        transaction.Commit();
+                        throw new InvalidOperationException($"删除文件夹失败：folders 表未删除到记录（FolderId={folderId}）");
                     }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                    finally
-                    {
-                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
-                    }
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] 普通删除 SQL执行完成");
+                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 普通删除 删除folders行数: {folderDeleted}");
+#endif
                 }
-                catch
-                {
-                    try
-                    {
-                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
-                    }
-                    catch
-                    {
-                    }
-
-                    throw;
-                }
-
-                return;
             }
-
-            using var tx = _context.Database.BeginTransaction();
-            try
+            catch (Exception ex)
             {
-                var fileIds = _context.MediaFiles
-                    .Where(f => f.FolderId == folderId)
-                    .Select(f => f.Id)
-                    .ToList();
-
-                if (fileIds.Count > 0)
-                {
-                    var lyricsProjects = _context.LyricsProjects
-                        .Where(l => l.ImageId.HasValue && fileIds.Contains(l.ImageId.Value))
-                        .ToList();
-                    if (lyricsProjects.Count > 0)
-                    {
-                        foreach (var lyricsProject in lyricsProjects)
-                        {
-                            lyricsProject.ImageId = null;
-                        }
-                    }
-
-                    var timings = _context.KeyframeTimings.Where(t => fileIds.Contains(t.ImageId)).ToList();
-                    if (timings.Count > 0) _context.KeyframeTimings.RemoveRange(timings);
-
-                    var keyframes = _context.Keyframes.Where(k => fileIds.Contains(k.ImageId)).ToList();
-                    if (keyframes.Count > 0) _context.Keyframes.RemoveRange(keyframes);
-
-                    var displayLocations = _context.ImageDisplayLocations.Where(l => fileIds.Contains(l.ImageId)).ToList();
-                    if (displayLocations.Count > 0) _context.ImageDisplayLocations.RemoveRange(displayLocations);
-
-                    var compositeScripts = _context.CompositeScripts.Where(s => fileIds.Contains(s.ImageId)).ToList();
-                    if (compositeScripts.Count > 0) _context.CompositeScripts.RemoveRange(compositeScripts);
-
-                    var originalMarks = _context.OriginalMarks
-                        .Where(m => m.ItemTypeString == "image" && fileIds.Contains(m.ItemId))
-                        .ToList();
-                    if (originalMarks.Count > 0) _context.OriginalMarks.RemoveRange(originalMarks);
-
-                    var files = _context.MediaFiles.Where(f => fileIds.Contains(f.Id)).ToList();
-                    _context.MediaFiles.RemoveRange(files);
-                }
-
-                _context.Folders.Remove(folder);
-                _context.SaveChanges();
-                tx.Commit();
-            }
-            catch
-            {
-                tx.Rollback();
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 堆栈: {ex.StackTrace}");
+#else
+                _ = ex;
+#endif
                 throw;
+            }
+            finally
+            {
+                if (foreignKeysDisabled)
+                {
+                    try
+                    {
+                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine("[DeleteFolder] 已恢复 foreign_keys=ON");
+#endif
+                    }
+                    catch
+                    {
+                    }
+                }
             }
         }
 

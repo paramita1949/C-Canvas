@@ -103,6 +103,20 @@ namespace ImageColorChanger
         {
             StartupPerfLogger.Mark("App.OnExit");
 
+            // 兜底：确保认证状态在应用退出前尽量完成落盘。
+            try
+            {
+                ServiceProvider?
+                    .GetService<ImageColorChanger.Services.Interfaces.IAuthService>()?
+                    .FlushAuthStateAsync()
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch
+            {
+                // 忽略flush异常，不阻断退出
+            }
+
             if (_debugFileTraceListener != null)
             {
                 Trace.Listeners.Remove(_debugFileTraceListener);

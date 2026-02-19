@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 using System.Threading.Tasks;
 using ImageColorChanger.Services.Auth;
 
@@ -109,7 +110,7 @@ namespace ImageColorChanger.Services
             return (false, defaultMessage);
         }
 
-        private void ApplyLoginSuccess(string username, AuthResponse authResponse)
+        private async Task ApplyLoginSuccessAsync(string username, AuthResponse authResponse)
         {
             _lastAuthFailureReason = null;
             _lastPaymentInfo = null;
@@ -162,7 +163,8 @@ namespace ImageColorChanger.Services
             TryShowHolidayBonusNotification(authResponse.Data?.HolidayBonus);
             TryShowClientNotices(authResponse.Data, "login");
             StartHeartbeat();
-            _ = SaveAuthDataAsync();
+            // 登录成功后立即落盘一次，避免“登录后立刻退出”丢凭证。
+            await SaveAuthDataAsync().ConfigureAwait(false);
             AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs
             {
                 IsAuthenticated = true,
@@ -253,7 +255,7 @@ namespace ImageColorChanger.Services
 
             if (persistLocalCache)
             {
-                _ = SaveAuthDataAsync();
+                RequestPersistAuthData();
             }
         }
 
@@ -264,19 +266,19 @@ namespace ImageColorChanger.Services
 
             if (!string.IsNullOrWhiteSpace(authData.ExpiresAt))
             {
-                _expiresAt = DateTime.Parse(authData.ExpiresAt);
+                _expiresAt = TryParseSnapshotDateTime(authData.ExpiresAt);
             }
 
             _remainingDays = authData.RemainingDays;
 
             if (!string.IsNullOrWhiteSpace(authData.LastServerTime))
             {
-                _lastServerTime = DateTime.Parse(authData.LastServerTime);
+                _lastServerTime = TryParseSnapshotDateTime(authData.LastServerTime);
             }
 
             if (!string.IsNullOrWhiteSpace(authData.LastLocalTime))
             {
-                _lastLocalTime = DateTime.Parse(authData.LastLocalTime);
+                _lastLocalTime = TryParseSnapshotDateTime(authData.LastLocalTime);
             }
 
             _lastTickCount = authData.LastTickCount;
@@ -285,7 +287,7 @@ namespace ImageColorChanger.Services
 
             if (!string.IsNullOrWhiteSpace(authData.LastSuccessfulHeartbeat))
             {
-                _lastSuccessfulHeartbeat = DateTime.Parse(authData.LastSuccessfulHeartbeat);
+                _lastSuccessfulHeartbeat = TryParseSnapshotDateTime(authData.LastSuccessfulHeartbeat);
             }
 
             _deviceInfo = MapDeviceInfo(authData.DeviceInfo);
@@ -324,6 +326,31 @@ namespace ImageColorChanger.Services
             };
         }
 
+        private DateTime? TryParseSnapshotDateTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            if (DateTime.TryParseExact(
+                value,
+                "O",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var parsedRoundtrip))
+            {
+                return parsedRoundtrip;
+            }
+
+            if (DateTime.TryParse(value, out var parsedFallback))
+            {
+                return parsedFallback;
+            }
+
+            return null;
+        }
+
         private void RebuildTokensForLoadedState()
         {
             _isAuthenticated = true;
@@ -334,16 +361,15 @@ namespace ImageColorChanger.Services
         private bool ValidateAndTrackLoadedFileVersion(long fileVersion)
         {
             var maxVersion = GetMaxFileVersionFromRegistry();
+            // 桌面离线场景下，版本回滚检测误伤明显（多路径、复制部署、旧文件残留都会触发）。
+            // 这里改为仅记录，不再强制删除凭证或阻断自动登录。
             if (fileVersion > 0 && fileVersion < maxVersion)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 检测到文件回滚攻击！");
-                System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 文件版本: {fileVersion}");
-                System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 最大版本: {maxVersion}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 检测到旧凭证版本，已忽略阻断。");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 文件版本: {fileVersion}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 最大版本: {maxVersion}");
 #endif
-                DeleteAuthData();
-                RaiseUiMessage("安全警告", "检测到凭证文件异常，请重新登录。", UiMessageLevel.Warning);
-                return false;
             }
 
             if (fileVersion > maxVersion)

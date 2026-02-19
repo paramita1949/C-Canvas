@@ -17,6 +17,10 @@ namespace ImageColorChanger.UI
         private async void Window_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
             StartupPerfLogger.Mark("MainWindow.WindowLoaded.Begin");
+            await EnsureAuthInitializedAsync();
+            StartupPerfLogger.Mark(
+                "MainWindow.AuthInitialized",
+                $"IsAuthenticated={_authService.IsAuthenticated}; Username={_authService.Username ?? "<null>"}; RemainingDays={_authService.RemainingDays}");
             // 🔍 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
             /*
             System.Diagnostics.Debug.WriteLine("========== 幻灯片按钮间距调试信息 ==========");
@@ -64,32 +68,33 @@ namespace ImageColorChanger.UI
             InitializeBibleService();
             StartupPerfLogger.Mark("MainWindow.InitializeBibleService.Completed");
 
-            // 🔄 静默同步所有文件夹（不显示状态提示）
-            await Task.Run(() =>
+            // 🔄 静默同步所有文件夹（避免跨线程并发访问同一 DbContext）
+            try
             {
-                try
+                var importManager = ImportManagerService;
+                if (importManager != null)
                 {
-                    var importManager = ImportManagerService;
-                    if (importManager != null)
-                    {
-                        importManager.SyncAllFolders();
-
-                        // 在UI线程刷新项目树和搜索范围
-                        Dispatcher.Invoke(() =>
-                        {
-                            LoadProjects();
-                            LoadSearchScopes();
-                        });
-                    }
-                }
-                catch (Exception)
-                {
-                    // 静默失败，不影响用户使用
+                    var (added, removed, updated) = importManager.SyncAllFolders();
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] 启动时同步失败");
+                    System.Diagnostics.Trace.WriteLine(
+                        $"[MainWindow] 启动同步完成: added={added}, removed={removed}, updated={updated}");
 #endif
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                // 静默失败，不影响用户使用
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败堆栈: {ex.StackTrace}");
+#else
+                _ = ex;
+#endif
+            }
+
+            // 同步后刷新项目树和搜索范围
+            LoadProjects();
+            LoadSearchScopes();
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
 
@@ -147,6 +152,16 @@ namespace ImageColorChanger.UI
             {
                 // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
                 MainWindow_Closing(sender, e);
+
+                // 退出前等待认证状态落盘，避免“登录后重启又要登录”。
+                try
+                {
+                    _authService.FlushAuthStateAsync().GetAwaiter().GetResult();
+                }
+                catch (Exception)
+                {
+                    // 忽略flush异常，不阻断退出流程
+                }
                 
                 // 保存用户设置
                 SaveSettings();

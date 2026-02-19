@@ -71,6 +71,30 @@ namespace ImageColorChanger.Services
         public DeviceInfo DeviceBindingInfo => _deviceInfo;
         public int ResetDeviceCount => _resetDeviceCount;
 
+        public Task InitializeAsync()
+        {
+            lock (_authInitLock)
+            {
+                _authInitTask ??= InitializeInternalAsync();
+                return _authInitTask;
+            }
+        }
+
+        public Task FlushAuthStateAsync()
+        {
+            return FlushPersistQueueAsync();
+        }
+
+        private async Task InitializeInternalAsync()
+        {
+            await TryLoadAuthDataAsync().ConfigureAwait(false);
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine(
+                $"🔐 [AuthService] InitializeAsync完成: IsAuthenticated={_isAuthenticated}, " +
+                $"Username={_username ?? "null"}, RemainingDays={_remainingDays}");
+#endif
+        }
+
         public string GetCurrentHardwareId()
         {
             return _authDeviceFingerprint.GetHardwareId();

@@ -53,12 +53,39 @@ namespace ImageColorChanger.Database.Repositories
 
         public List<MediaFile> AddMediaFiles(IEnumerable<string> filePaths, int? folderId = null)
         {
+            var normalizedInputPaths = (filePaths ?? Enumerable.Empty<string>())
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(NormalizePath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (normalizedInputPaths.Count == 0)
+            {
+                return new List<MediaFile>();
+            }
+
+            // 全局去重（images.path 全库唯一）
+            var existingPaths = new HashSet<string>(
+                _context.MediaFiles
+                    .Where(m => normalizedInputPaths.Contains(m.Path))
+                    .Select(m => m.Path)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+            var candidatePaths = normalizedInputPaths
+                .Where(path => !existingPaths.Contains(path))
+                .ToList();
+
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine(
+                $"[MediaRepository] AddMediaFiles: input={normalizedInputPaths.Count}, existing={existingPaths.Count}, toInsert={candidatePaths.Count}, folderId={(folderId.HasValue ? folderId.Value.ToString() : "null")}");
+#endif
             var mediaFiles = new List<MediaFile>();
             int orderIndex = folderId.HasValue
                 ? _context.MediaFiles.Where(m => m.FolderId == folderId.Value).Max(m => (int?)m.OrderIndex) ?? 0
                 : _context.MediaFiles.Where(m => m.FolderId == null).Max(m => (int?)m.OrderIndex) ?? 0;
 
-            foreach (var filePath in filePaths)
+            foreach (var filePath in candidatePaths)
             {
                 var extension = Path.GetExtension(filePath).ToLower();
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
@@ -118,6 +145,13 @@ namespace ImageColorChanger.Database.Repositories
             return _context.MediaFiles
                 .Where(m => m.FolderId == null)
                 .OrderBy(m => m.OrderIndex)
+                .ToList();
+        }
+
+        public List<string> GetAllMediaPaths()
+        {
+            return _context.MediaFiles
+                .Select(m => m.Path)
                 .ToList();
         }
 
@@ -221,6 +255,18 @@ namespace ImageColorChanger.Database.Repositories
             }
 
             return FileType.Image;
+        }
+
+        private static string NormalizePath(string path)
+        {
+            try
+            {
+                return Path.GetFullPath(path);
+            }
+            catch
+            {
+                return path;
+            }
         }
     }
 }

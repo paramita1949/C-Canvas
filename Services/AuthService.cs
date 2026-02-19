@@ -85,6 +85,8 @@ namespace ImageColorChanger.Services
 
         private static AuthService _instance;
         private static readonly object _lock = new object();
+        private readonly object _authInitLock = new object();
+        private Task _authInitTask;
 
         public static AuthService Instance
         {
@@ -134,8 +136,6 @@ namespace ImageColorChanger.Services
                 _ = ex;
 #endif
             }
-
-            _ = TryLoadAuthDataAsync();
         }
     }
 }

@@ -52,6 +52,9 @@ namespace ImageColorChanger.Managers
         public MediaFile ImportSingleFile(string filePath)
         {
             LastError = null;
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 开始: {filePath}");
+#endif
             try
             {
                 if (!File.Exists(filePath))
@@ -76,12 +79,19 @@ namespace ImageColorChanger.Managers
                     //System.Diagnostics.Debug.WriteLine($"✅ 成功导入文件: {mediaFile.Name}");
                 }
 
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"[ImportManager] ImportSingleFile 完成: {(mediaFile != null ? mediaFile.Name : "<null>")}");
+#endif
                 return mediaFile;
             }
             catch (Exception ex)
             {
                 LastError = $"导入文件失败: {ex.Message}";
-                //System.Diagnostics.Debug.WriteLine($"导入文件失败: {ex}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 堆栈: {ex.StackTrace}");
+#endif
                 return null;
             }
         }
@@ -94,6 +104,10 @@ namespace ImageColorChanger.Managers
         public (Folder folder, List<MediaFile> newFiles, List<string> existingFiles) ImportFolder(string folderPath)
         {
             LastError = null;
+            folderPath = NormalizePath(folderPath);
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 开始: {folderPath}");
+#endif
             try
             {
                 if (!Directory.Exists(folderPath))
@@ -119,17 +133,22 @@ namespace ImageColorChanger.Managers
                 // 导入文件夹到数据库
                 var folder = _dbManager.ImportFolder(folderPath, folderName);
 
-                // 获取已存在的文件
-                var existingFiles = _dbManager.GetMediaFilesByFolder(folder.Id)
-                    .Select(m => m.Path)
-                    .ToList();
+                // 全局已存在路径（images.path 全库唯一）
+                var existingPathSet = new HashSet<string>(
+                    _dbManager.GetAllMediaPaths().Select(NormalizePath),
+                    StringComparer.OrdinalIgnoreCase);
 
                 // 过滤出新文件
-                var newFilePaths = mediaFiles.Where(f => !existingFiles.Contains(f)).ToList();
+                var normalizedMediaFiles = mediaFiles.Select(NormalizePath).ToList();
+                var newFilePaths = normalizedMediaFiles.Where(f => !existingPathSet.Contains(f)).ToList();
+                var existingFiles = normalizedMediaFiles.Where(f => existingPathSet.Contains(f)).ToList();
 
                 if (newFilePaths.Count == 0 && existingFiles.Count > 0)
                 {
                     LastError = "所有媒体文件都已存在";
+#if DEBUG
+                    System.Diagnostics.Trace.WriteLine("[ImportManager] ImportFolder: 所有媒体文件都已存在");
+#endif
                     return (folder, new List<MediaFile>(), existingFiles);
                 }
 
@@ -137,13 +156,20 @@ namespace ImageColorChanger.Managers
                 var newFiles = _dbManager.AddMediaFiles(newFilePaths, folder.Id);
 
                 // System.Diagnostics.Debug.WriteLine($"✅ 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"[ImportManager] ImportFolder 完成: FolderId={folder.Id}, NewFiles={newFiles.Count}, ExistingFiles={existingFiles.Count}");
+#endif
 
                 return (folder, newFiles, existingFiles);
             }
             catch (Exception ex)
             {
                 LastError = $"导入文件夹失败: {ex.Message}";
-                //System.Diagnostics.Debug.WriteLine($"导入文件夹失败: {ex}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 堆栈: {ex.StackTrace}");
+#endif
                 return (null, null, null);
             }
         }
@@ -197,6 +223,9 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public (int added, int removed, int updated) SyncFolder(int folderId)
         {
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 开始: FolderId={folderId}");
+#endif
             try
             {
                 var folders = _dbManager.GetAllFolders();
@@ -209,18 +238,24 @@ namespace ImageColorChanger.Managers
                 }
 
                 // 扫描当前文件系统中的文件
-                var currentFiles = ScanMediaFilesRecursively(folder.Path);
-                var currentFileSet = new HashSet<string>(currentFiles);
+                var currentFiles = ScanMediaFilesRecursively(folder.Path)
+                    .Select(NormalizePath)
+                    .ToList();
+                var currentFileSet = new HashSet<string>(currentFiles, StringComparer.OrdinalIgnoreCase);
 
                 // 获取数据库中的文件
                 var dbFiles = _dbManager.GetMediaFilesByFolder(folderId);
-                var dbFileSet = new HashSet<string>(dbFiles.Select(f => f.Path));
+                var globalExistingPathSet = new HashSet<string>(
+                    _dbManager.GetAllMediaPaths().Select(NormalizePath),
+                    StringComparer.OrdinalIgnoreCase);
 
                 // 计算新增的文件
-                var newFiles = currentFiles.Where(f => !dbFileSet.Contains(f)).ToList();
+                var newFiles = currentFiles
+                    .Where(f => !globalExistingPathSet.Contains(f))
+                    .ToList();
                 
                 // 计算已删除的文件
-                var deletedFiles = dbFiles.Where(f => !currentFileSet.Contains(f.Path)).ToList();
+                var deletedFiles = dbFiles.Where(f => !currentFileSet.Contains(NormalizePath(f.Path))).ToList();
 
                 // 添加新文件
                 if (newFiles.Count > 0)
@@ -241,12 +276,21 @@ namespace ImageColorChanger.Managers
                 }
 
                 //System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"[ImportManager] SyncFolder 完成: FolderId={folderId}, added={newFiles.Count}, removed={deletedFiles.Count}");
+#endif
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步文件夹失败: {ex}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 堆栈: {ex.StackTrace}");
+#else
+                _ = ex;
+#endif
                 return (0, 0, 0);
             }
         }
@@ -308,6 +352,9 @@ namespace ImageColorChanger.Managers
             int totalRemoved = 0;
             int totalUpdated = 0;
 
+#if DEBUG
+            System.Diagnostics.Trace.WriteLine("[ImportManager] SyncAllFolders 开始");
+#endif
             try
             {
                 var folders = _dbManager.GetAllFolders();
@@ -321,13 +368,34 @@ namespace ImageColorChanger.Managers
                 }
 
                 //System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"[ImportManager] SyncAllFolders 完成: added={totalAdded}, removed={totalRemoved}, updated={totalUpdated}");
+#endif
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"同步所有文件夹失败: {ex}");
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncAllFolders 异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncAllFolders 堆栈: {ex.StackTrace}");
+#else
+                _ = ex;
+#endif
             }
 
             return (totalAdded, totalRemoved, totalUpdated);
+        }
+
+        private static string NormalizePath(string path)
+        {
+            try
+            {
+                return Path.GetFullPath(path);
+            }
+            catch
+            {
+                return path;
+            }
         }
 
         /// <summary>

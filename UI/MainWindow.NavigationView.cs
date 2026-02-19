@@ -34,6 +34,14 @@ namespace ImageColorChanger.UI
                 var folders = dbManager.GetAllFolders();
                 var rootFiles = dbManager.GetRootMediaFiles();
                 var manualSortFolderIds = dbManager.GetManualSortFolderIds();
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(
+                    $"[LoadProjects] DbPath={dbManager.GetDatabasePath()}, folders={folders.Count}, rootFiles={rootFiles.Count}");
+                foreach (var f in folders)
+                {
+                    System.Diagnostics.Trace.WriteLine($"[LoadProjects] Folder: Id={f.Id}, Name={f.Name}, Path={f.Path}");
+                }
+#endif
 
                 foreach (var folder in folders)
                 {

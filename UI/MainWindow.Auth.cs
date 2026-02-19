@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using ImageColorChanger.Services;
@@ -28,6 +29,20 @@ namespace ImageColorChanger.UI
             _authModuleController.Start();
 
             // 初始化UI状态
+            UpdateAuthUI();
+        }
+
+        private async Task EnsureAuthInitializedAsync()
+        {
+            try
+            {
+                await _authService.InitializeAsync();
+            }
+            catch (Exception)
+            {
+                // 初始化失败时维持未登录UI，避免阻断主界面
+            }
+
             UpdateAuthUI();
         }
 

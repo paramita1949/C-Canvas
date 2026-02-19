@@ -32,6 +32,8 @@ namespace ImageColorChanger.Services.Interfaces
 
         #region 账号操作
 
+        Task InitializeAsync();
+        Task FlushAuthStateAsync();
         Task<(bool success, string message)> LoginAsync(string username, string password);
         Task<(bool success, string message)> SendVerificationCodeAsync(string username, string email);
         Task<(bool success, string message)> ResetPasswordAsync(string email, string code, string newPassword);

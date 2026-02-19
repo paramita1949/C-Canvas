@@ -64,7 +64,7 @@ namespace ImageColorChanger.Services
                     return BuildLoginFailure(authResponse, "账号无效");
                 }
 
-                ApplyLoginSuccess(username, authResponse);
+                await ApplyLoginSuccessAsync(username, authResponse);
                 return (true, $"登录成功！账号有效期剩余 {_remainingDays} 天");
             }
             catch (HttpRequestException ex)

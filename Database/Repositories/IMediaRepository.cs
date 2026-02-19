@@ -11,6 +11,7 @@ namespace ImageColorChanger.Database.Repositories
         List<MediaFile> GetMediaFilesByFolder(int folderId);
         List<MediaFile> GetMediaFilesByFolder(int folderId, FileType? fileType = null);
         List<MediaFile> GetRootMediaFiles();
+        List<string> GetAllMediaPaths();
         void DeleteMediaFile(int mediaFileId);
         void UpdateMediaFilesOrder(List<MediaFile> mediaFiles);
         MediaFile GetMediaFileById(int id);
