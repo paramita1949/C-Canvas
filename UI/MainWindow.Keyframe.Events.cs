@@ -388,15 +388,13 @@ namespace ImageColorChanger.UI
             
                 // 然后执行跳转
                 var navStart = sw.ElapsedMilliseconds;
-                bool shouldRecordTime = _keyframeManager.Navigator.StepToNextKeyframe().Result; // 同步等待结果
+                await _keyframeManager.Navigator.StepToNextKeyframe();
                 var navTime = sw.ElapsedMilliseconds - navStart;
                 //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
                 
                 sw.Stop();
                 //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 //System.Diagnostics.Debug.WriteLine($"");
-                
-                // shouldRecordTime 用于控制循环停止录制后是否继续记录（通常是false）
             }
             finally
             {

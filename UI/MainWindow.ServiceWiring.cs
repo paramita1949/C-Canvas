@@ -144,7 +144,14 @@ namespace ImageColorChanger.UI
                             {
                                 if (e.UseDirectJump)
                                 {
+                                    // 直接跳转前先停掉可能残留的滚动动画，避免继续套用缓动函数
+                                    _keyframeManager?.StopScrollAnimation();
+                                    StopCompositeScrollAnimation();
                                     ImageScrollViewer.ScrollToVerticalOffset(e.Position * ImageScrollViewer.ScrollableHeight);
+                                    if (IsProjectionEnabled)
+                                    {
+                                        UpdateProjection();
+                                    }
                                 }
                                 else
                                 {

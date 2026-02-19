@@ -43,7 +43,8 @@ namespace ImageColorChanger.Managers.Keyframes
                 }
 
                 // 计算目标索引
-                int targetIndex = _keyframeManager.CurrentKeyframeIndex - 1;
+                int currentIndex = _keyframeManager.CurrentKeyframeIndex;
+                int targetIndex = currentIndex - 1;
 
                 // 特殊处理：如果当前有滚动动画正在进行，立即停止并强制直接跳转
                 bool forceDirectJump = false;
@@ -54,19 +55,33 @@ namespace ImageColorChanger.Managers.Keyframes
                     forceDirectJump = true;
                 }
 
-                // 检测回跳
+                // 首次执行（索引未初始化）统一直接跳转，避免从任意位置触发平滑滚动
+                bool isFirstExecution = currentIndex < 0;
+                if (isFirstExecution)
+                {
+                    forceDirectJump = true;
+                }
+
+                // 处理循环
+                bool isLoopingBack = false;
+                if (targetIndex < 0)
+                {
+                    // 循环到最后一帧
+                    targetIndex = keyframes.Count - 1;
+                    isLoopingBack = currentIndex == 0 && keyframes.Count > 1;
+                    if (isLoopingBack)
+                    {
+                        // 回跳（首帧 -> 末帧）必须直接跳转，不参与滚动函数
+                        forceDirectJump = true;
+                    }
+                }
+
+                // 检测回跳（在循环处理后用最终目标索引判断）
                 bool isBackwardJump = _keyframeManager.IsBackwardJump(targetIndex);
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
                     //System.Diagnostics.Debug.WriteLine($"⬅️ [上一帧] 检测到回跳（从#{_keyframeManager.CurrentKeyframeIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
-                }
-
-                // 处理循环
-                if (targetIndex < 0)
-                {
-                    // 循环到最后一帧
-                    targetIndex = keyframes.Count - 1;
                 }
 
                 // 更新当前帧索引
@@ -77,7 +92,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 var targetPosition = targetKeyframe.Position;
 
                 // 判断是否使用直接跳转
-                bool useDirectJump = forceDirectJump || isBackwardJump || _keyframeManager.ScrollDuration == 0;
+                bool useDirectJump = forceDirectJump || isFirstExecution || isLoopingBack || isBackwardJump || _keyframeManager.ScrollDuration == 0;
 
                 if (useDirectJump)
                 {

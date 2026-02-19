@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
@@ -23,6 +24,7 @@ namespace ImageColorChanger
         /// 互斥锁，用于防止同一目录下启动多个实例
         /// </summary>
         private static Mutex _instanceMutex;
+        private static TextWriterTraceListener _debugFileTraceListener;
 
         /// <summary>
         /// 应用程序启动
@@ -30,6 +32,7 @@ namespace ImageColorChanger
         protected override void OnStartup(StartupEventArgs e)
         {
             StartupPerfLogger.Initialize("App.OnStartup.Begin");
+            InitializeDebugFileLogging();
 
             // 🔧 在 WPF 初始化之前设置 Per-Monitor DPI Awareness
             SetProcessDpiAwareness();
@@ -99,11 +102,47 @@ namespace ImageColorChanger
         protected override void OnExit(ExitEventArgs e)
         {
             StartupPerfLogger.Mark("App.OnExit");
+
+            if (_debugFileTraceListener != null)
+            {
+                Trace.Listeners.Remove(_debugFileTraceListener);
+                _debugFileTraceListener.Flush();
+                _debugFileTraceListener.Close();
+                _debugFileTraceListener = null;
+            }
+
             // 释放互斥锁
             _instanceMutex?.ReleaseMutex();
             _instanceMutex?.Dispose();
             
             base.OnExit(e);
+        }
+
+        private static void InitializeDebugFileLogging()
+        {
+            try
+            {
+                if (_debugFileTraceListener != null)
+                {
+                    return;
+                }
+
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug");
+                Directory.CreateDirectory(debugDir);
+
+                string logFilePath = Path.Combine(debugDir, $"debug-{DateTime.Now:yyyyMMdd}.log");
+                var stream = new FileStream(logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+                _debugFileTraceListener = new TextWriterTraceListener(writer, "DebugFileListener");
+
+                Trace.Listeners.Add(_debugFileTraceListener);
+                Trace.AutoFlush = true;
+
+                Trace.WriteLine($"✅ [日志] Debug日志已写入: {logFilePath}");
+            }
+            catch
+            {
+            }
         }
         
         /// <summary>

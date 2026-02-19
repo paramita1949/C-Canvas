@@ -17,7 +17,7 @@ namespace ImageColorChanger.Services
             if (!_authTokenGuard.Validate(_username, _token, _expiresAt, _authToken1, _authToken2, _authChecksum))
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌完整性验证失败");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 令牌完整性验证失败");
 #endif
                 return false;
             }
@@ -40,14 +40,14 @@ namespace ImageColorChanger.Services
 #if DEBUG
             if (decision.Reason == Auth.AuthProjectionAccessPolicy.DenyReason.TokenInvalid)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 令牌验证失败，拒绝投影");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 令牌验证失败，拒绝投影");
             }
 
             if (decision.Reason == Auth.AuthProjectionAccessPolicy.DenyReason.Expired)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 账号已过期");
-                System.Diagnostics.Debug.WriteLine($"   估算服务器时间: {estimatedServerTime}");
-                System.Diagnostics.Debug.WriteLine($"   过期时间: {_expiresAt}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 账号已过期");
+                System.Diagnostics.Trace.WriteLine($"   估算服务器时间: {estimatedServerTime}");
+                System.Diagnostics.Trace.WriteLine($"   过期时间: {_expiresAt}");
             }
 #endif
             return decision.Allowed;
@@ -58,7 +58,7 @@ namespace ImageColorChanger.Services
             if (_lastServerTime == null)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🕐 [AuthService] 无服务器时间记录，使用本地时间: {DateTime.Now}");
+                System.Diagnostics.Trace.WriteLine($"🕐 [AuthService] 无服务器时间记录，使用本地时间: {DateTime.Now}");
 #endif
                 return DateTime.Now;
             }
@@ -70,10 +70,10 @@ namespace ImageColorChanger.Services
             if (result.TickResetRecovered)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⚠️ [AuthService] TickCount 异常（可能系统重启），执行基准重建");
+                System.Diagnostics.Trace.WriteLine("⚠️ [AuthService] TickCount 异常（可能系统重启），执行基准重建");
                 if (result.LocalTimeRolledBack)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ [AuthService] 检测到时间回退，强制使用正向流逝");
+                    System.Diagnostics.Trace.WriteLine("⚠️ [AuthService] 检测到时间回退，强制使用正向流逝");
                 }
 #endif
                 _lastServerTime = result.UpdatedLastServerTime;
@@ -81,7 +81,7 @@ namespace ImageColorChanger.Services
                 _lastTickCount = result.UpdatedLastTickCount;
                 _ = SaveAuthDataAsync();
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] TickCount 基准已重建: Tick={_lastTickCount}");
+                System.Diagnostics.Trace.WriteLine($"✅ [AuthService] TickCount 基准已重建: Tick={_lastTickCount}");
 #endif
             }
 
@@ -89,10 +89,10 @@ namespace ImageColorChanger.Services
             if (result.LocalTickSkewDetected)
             {
                 var localElapsed = now - _lastLocalTime.Value;
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 检测到时间异常！");
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地时间流逝: {localElapsed.TotalSeconds:F1} 秒");
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] Tick流逝: {result.ElapsedByTick.TotalSeconds:F1} 秒");
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 差异: {result.LocalTickSkewSeconds:F1} 秒（可能本地时间被修改）");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 检测到时间异常！");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地时间流逝: {localElapsed.TotalSeconds:F1} 秒");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] Tick流逝: {result.ElapsedByTick.TotalSeconds:F1} 秒");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 差异: {result.LocalTickSkewSeconds:F1} 秒（可能本地时间被修改）");
             }
 #endif
 
@@ -135,3 +135,4 @@ namespace ImageColorChanger.Services
         }
     }
 }
+

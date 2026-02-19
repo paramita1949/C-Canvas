@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -50,16 +52,41 @@ namespace ImageColorChanger.Services
                         }
                 };
 
-                await _authStateStore.SaveSnapshotAsync(AUTH_DATA_FILE, snapshot, GenerateSignature);
+                bool savedAny = false;
+                Exception lastError = null;
+                foreach (var authFilePath in GetAuthDataFilePaths())
+                {
+                    try
+                    {
+                        await _authStateStore.SaveSnapshotAsync(
+                            authFilePath,
+                            snapshot,
+                            data => GenerateSignature(data, authFilePath));
+                        savedAny = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex;
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {authFilePath} -> {ex.Message}");
+#else
+                        _ = ex;
+#endif
+                    }
+                }
+
+                if (!savedAny)
+                {
+                    throw lastError ?? new InvalidOperationException("所有凭证路径写入失败");
+                }
 
                 SaveMaxFileVersionToRegistry(newVersion);
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 目标路径: {AUTH_DATA_FILE}");
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 异常详情: {ex}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 异常详情: {ex}");
 #else
                 _ = ex;
 #endif
@@ -73,58 +100,93 @@ namespace ImageColorChanger.Services
         {
             try
             {
+                var candidatePaths = GetAuthDataFilePaths()
+                    .Where(File.Exists)
+                    .OrderByDescending(path => File.GetLastWriteTimeUtc(path))
+                    .ToList();
+
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 尝试加载登录状态: {AUTH_DATA_FILE}");
+                System.Diagnostics.Trace.WriteLine("💾 [AuthService] 尝试加载登录状态（按时间倒序）:");
+                foreach (var path in candidatePaths)
+                {
+                    System.Diagnostics.Trace.WriteLine($"   - {path}");
+                }
 #endif
 
-                if (!System.IO.File.Exists(AUTH_DATA_FILE))
+                if (!candidatePaths.Any())
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 无本地登录状态文件");
+                    System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 无本地登录状态文件");
 #endif
                     return;
                 }
 
-                var loadResult = await _authStateStore.LoadSnapshotAsync(AUTH_DATA_FILE, GenerateSignature);
-                if (!loadResult.IsValid || loadResult.Snapshot == null)
+                foreach (var authFilePath in candidatePaths)
                 {
+                    var loadResult = await _authStateStore.LoadSnapshotAsync(
+                        authFilePath,
+                        data => GenerateSignature(data, authFilePath));
+
+                    // 兼容旧版本签名算法（5.9.9.8及更早版本）
+                    if (!loadResult.IsValid &&
+                        string.Equals(loadResult.Error, "signature_mismatch", StringComparison.Ordinal))
+                    {
+                        var legacyResult = await _authStateStore.LoadSnapshotAsync(
+                            authFilePath,
+                            data => GenerateSignatureLegacy(data, authFilePath));
+                        if (legacyResult.IsValid && legacyResult.Snapshot != null)
+                        {
+                            loadResult = legacyResult;
+                        }
+                    }
+
+                    if (!loadResult.IsValid || loadResult.Snapshot == null)
+                    {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 本地凭证无效: {loadResult.Error}");
+                        System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地凭证无效: {authFilePath} ({loadResult.Error})");
 #endif
-                    DeleteAuthData();
+                        _authStateStore.DeleteSnapshot(authFilePath);
+                        continue;
+                    }
+
+                    var authData = loadResult.Snapshot;
+                    ApplyPersistedSnapshot(authData);
+                    RebuildTokensForLoadedState();
+
+                    if (!ValidateAndTrackLoadedFileVersion(authData.FileVersion))
+                    {
+                        return;
+                    }
+
+                    if (!ValidateStartupOfflineWindow())
+                    {
+                        return;
+                    }
+
+                    _isAuthenticated = true;
+                    GenerateAuthTokens();
+
+                    if (CanUseProjection())
+                    {
+                        CompleteAutoLoginSuccess();
+                    }
+                    else
+                    {
+                        HandleAutoLoginExpired();
+                    }
+
+                    // 成功加载后，异步回写到所有凭证路径，修复“某一路径找不到凭证”场景
+                    _ = SaveAuthDataAsync();
                     return;
                 }
 
-                var authData = loadResult.Snapshot;
-                ApplyPersistedSnapshot(authData);
-                RebuildTokensForLoadedState();
-
-                if (!ValidateAndTrackLoadedFileVersion(authData.FileVersion))
-                {
-                    return;
-                }
-
-                if (!ValidateStartupOfflineWindow())
-                {
-                    return;
-                }
-
-                _isAuthenticated = true;
-                GenerateAuthTokens();
-
-                if (CanUseProjection())
-                {
-                    CompleteAutoLoginSuccess();
-                }
-                else
-                {
-                    HandleAutoLoginExpired();
-                }
+                // 所有候选文件均无效，清理残留
+                DeleteAuthData();
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 加载登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 加载登录状态失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -139,15 +201,18 @@ namespace ImageColorChanger.Services
         {
             try
             {
-                _authStateStore.DeleteSnapshot(AUTH_DATA_FILE);
+                foreach (var authFilePath in GetAuthDataFilePaths())
+                {
+                    _authStateStore.DeleteSnapshot(authFilePath);
+                }
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [AuthService] 本地登录状态已删除");
+                System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 本地登录状态已删除");
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 删除登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 删除登录状态失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -155,16 +220,30 @@ namespace ImageColorChanger.Services
         }
 
         /// <summary>
-        /// 生成数据签名（使用HMAC-SHA256 + 硬件ID + 文件路径作为密钥）
-        /// 防止数据被篡改和复制
+        /// 生成数据签名（稳定算法，绑定 MachineGuid + 文件路径）
+        /// 仅用于本地缓存防篡改，避免重启后硬件指纹抖动导致误判失效。
         /// </summary>
-        private string GenerateSignature(string data)
+        private string GenerateSignature(string data, string authFilePath)
+        {
+            var machineKey = GetStableMachineSignatureKey();
+            return GenerateSignatureCore(data, authFilePath, machineKey);
+        }
+
+        /// <summary>
+        /// 旧版本签名算法（绑定完整硬件指纹），用于兼容读取历史凭证。
+        /// </summary>
+        private string GenerateSignatureLegacy(string data, string authFilePath)
+        {
+            var legacyMachineKey = _authDeviceFingerprint.GetHardwareId();
+            return GenerateSignatureCore(data, authFilePath, legacyMachineKey);
+        }
+
+        private string GenerateSignatureCore(string data, string authFilePath, string machineKey)
         {
             try
             {
-                var hardwareId = _authDeviceFingerprint.GetHardwareId();
-                var filePath = System.IO.Path.GetFullPath(AUTH_DATA_FILE);
-                var key = $"{hardwareId}_{filePath}_CANVAS_CAST_SECRET_2024";
+                var filePath = Path.GetFullPath(authFilePath);
+                var key = $"{machineKey}_{filePath}_CANVAS_CAST_SECRET_2024";
                 var keyBytes = Encoding.UTF8.GetBytes(key);
                 var dataBytes = Encoding.UTF8.GetBytes(data);
 
@@ -176,15 +255,53 @@ namespace ImageColorChanger.Services
             }
             catch
             {
-                var filePath = System.IO.Path.GetFullPath(AUTH_DATA_FILE);
+                var filePath = Path.GetFullPath(authFilePath);
                 using (var sha256 = SHA256.Create())
                 {
-                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data + _authDeviceFingerprint.GetHardwareId() + filePath));
+                    var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data + machineKey + filePath));
                     return Convert.ToBase64String(hashBytes);
                 }
             }
         }
 
+        private string GetStableMachineSignatureKey()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                {
+                    var guid = key?.GetValue("MachineGuid")?.ToString();
+                    if (!string.IsNullOrWhiteSpace(guid))
+                    {
+                        return guid;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return Environment.MachineName ?? "unknown_machine";
+        }
+
+        private IEnumerable<string> GetAuthDataFilePaths()
+        {
+            string roamingPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                AUTH_DATA_DIR_NAME,
+                AUTH_DATA_FILE_NAME);
+
+            string localPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AUTH_DATA_DIR_NAME,
+                AUTH_DATA_FILE_NAME);
+
+            return new[] { roamingPath, localPath }
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
         #endregion
     }
 }
+

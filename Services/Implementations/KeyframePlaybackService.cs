@@ -249,6 +249,24 @@ namespace ImageColorChanger.Services.Implementations
                 //System.Diagnostics.Debug.WriteLine($"🔄 [播放] 循环回第一帧（第{CompletedPlayCount + 1}轮），直接跳转");
             }
 
+            // 3. 任意回跳：如果当前帧位置小于上一帧，强制直接跳转（不参与滚动函数）
+            // 典型场景：跳帧录制形成的时序如 12->13->14->13->14->15
+            if (!useDirectJump && _currentIndex > 0)
+            {
+                var previousTiming = _timingSequence[_currentIndex - 1];
+                bool isBackwardJump = currentTiming.YPosition < previousTiming.YPosition ||
+                                      currentTiming.Position < previousTiming.Position;
+                if (isBackwardJump)
+                {
+                    useDirectJump = true;
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine(
+                        $"⬅️ [播放] 检测到回跳（索引{_currentIndex - 1}->{_currentIndex}, " +
+                        $"Keyframe {previousTiming.KeyframeId}->{currentTiming.KeyframeId}），强制直接跳转");
+                    #endif
+                }
+            }
+
             // 跳转到关键帧
             //System.Diagnostics.Debug.WriteLine($"🎯 [播放跳转] UseDirectJump={useDirectJump}, 索引={_currentIndex}, KeyframeId={currentTiming.KeyframeId}, 完成轮数={CompletedPlayCount}");
             JumpToKeyframeRequested?.Invoke(this, new JumpToKeyframeEventArgs

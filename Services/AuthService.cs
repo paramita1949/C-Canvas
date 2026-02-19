@@ -38,11 +38,8 @@ namespace ImageColorChanger.Services
         private const string HEARTBEAT_ENDPOINT = "/api/auth/heartbeat";
         private const string NOTICE_ACK_ENDPOINT = "/api/auth/notice-ack";
 
-        private static readonly string AUTH_DATA_FILE = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "CanvasCast",
-            ".auth"
-        );
+        private const string AUTH_DATA_DIR_NAME = "CanvasCast";
+        private const string AUTH_DATA_FILE_NAME = ".auth";
 
         private string _username;
         private string _token;
@@ -121,18 +118,18 @@ namespace ImageColorChanger.Services
 #if DEBUG
                 if (!createdNew)
                 {
-                    System.Diagnostics.Debug.WriteLine("🔒 [AuthService] 检测到多开实例");
+                    System.Diagnostics.Trace.WriteLine("🔒 [AuthService] 检测到多开实例");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("🔒 [AuthService] 已创建全局互斥锁");
+                    System.Diagnostics.Trace.WriteLine("🔒 [AuthService] 已创建全局互斥锁");
                 }
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [AuthService] 创建互斥锁失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 创建互斥锁失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -142,3 +139,4 @@ namespace ImageColorChanger.Services
         }
     }
 }
+

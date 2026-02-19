@@ -19,7 +19,7 @@ namespace ImageColorChanger.Services
                 _lastPaymentInfo = null;
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 开始登录验证: {username}");
+                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 开始登录验证: {username}");
 #endif
 
                 var hardwareId = _authDeviceFingerprint.GetHardwareId();
@@ -45,7 +45,7 @@ namespace ImageColorChanger.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 服务器响应: {responseContent}");
+                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 服务器响应: {responseContent}");
 #endif
 
                 var authResponse = DeserializeAuthResponse(responseContent);
@@ -70,7 +70,7 @@ namespace ImageColorChanger.Services
             catch (HttpRequestException ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -79,7 +79,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 登录异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 登录异常: {ex.Message}");
 #endif
                 return (false, $"登录失败: {ex.Message}");
             }
@@ -93,7 +93,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📧 [AuthService] 发送验证码: {username}, {email}");
+                System.Diagnostics.Trace.WriteLine($"📧 [AuthService] 发送验证码: {username}, {email}");
 #endif
 
                 var requestData = new { username = username, email = email };
@@ -112,7 +112,7 @@ namespace ImageColorChanger.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📧 [AuthService] 服务器响应: {responseContent}");
+                System.Diagnostics.Trace.WriteLine($"📧 [AuthService] 服务器响应: {responseContent}");
 #endif
 
                 var result = DeserializeAuthResponse(responseContent);
@@ -127,14 +127,14 @@ namespace ImageColorChanger.Services
                 }
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 验证码发送成功");
+                System.Diagnostics.Trace.WriteLine($"✅ [AuthService] 验证码发送成功");
 #endif
                 return (true, result.Message ?? "验证码已发送");
             }
             catch (HttpRequestException ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -143,7 +143,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 发送验证码异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 发送验证码异常: {ex.Message}");
 #endif
                 return (false, $"发送失败: {ex.Message}");
             }
@@ -157,7 +157,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔑 [AuthService] 重置密码: {email}");
+                System.Diagnostics.Trace.WriteLine($"🔑 [AuthService] 重置密码: {email}");
 #endif
 
                 var requestData = new { email = email, code = code, new_password = newPassword };
@@ -176,7 +176,7 @@ namespace ImageColorChanger.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔑 [AuthService] 服务器响应: {responseContent}");
+                System.Diagnostics.Trace.WriteLine($"🔑 [AuthService] 服务器响应: {responseContent}");
 #endif
 
                 var result = DeserializeAuthResponse(responseContent);
@@ -191,14 +191,14 @@ namespace ImageColorChanger.Services
                 }
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 密码重置成功");
+                System.Diagnostics.Trace.WriteLine($"✅ [AuthService] 密码重置成功");
 #endif
                 return (true, result.Message ?? "密码重置成功");
             }
             catch (HttpRequestException ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -207,7 +207,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 重置密码异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 重置密码异常: {ex.Message}");
 #endif
                 return (false, $"重置失败: {ex.Message}");
             }
@@ -221,7 +221,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 开始注册: {username}");
+                System.Diagnostics.Trace.WriteLine($"📝 [AuthService] 开始注册: {username}");
 #endif
 
                 var fp = _authDeviceFingerprint.GetComponents();
@@ -253,7 +253,7 @@ namespace ImageColorChanger.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📝 [AuthService] 服务器响应: {responseContent}");
+                System.Diagnostics.Trace.WriteLine($"📝 [AuthService] 服务器响应: {responseContent}");
 #endif
 
                 var registerResponse = DeserializeAuthResponse(responseContent);
@@ -268,15 +268,15 @@ namespace ImageColorChanger.Services
                 }
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [AuthService] 注册成功: {username}");
+                System.Diagnostics.Trace.WriteLine($"✅ [AuthService] 注册成功: {username}");
                 if (registerResponse.Data != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"📝 [注册] 试用期: {registerResponse.Data.TrialDays}天");
-                    System.Diagnostics.Debug.WriteLine($"📝 [注册] 最大设备数: {registerResponse.Data.MaxDevices}");
+                    System.Diagnostics.Trace.WriteLine($"📝 [注册] 试用期: {registerResponse.Data.TrialDays}天");
+                    System.Diagnostics.Trace.WriteLine($"📝 [注册] 最大设备数: {registerResponse.Data.MaxDevices}");
                     if (registerResponse.Data.ExpiresAt.HasValue)
                     {
                         var expiresAt = DateTimeOffset.FromUnixTimeSeconds(registerResponse.Data.ExpiresAt.Value).LocalDateTime;
-                        System.Diagnostics.Debug.WriteLine($"📝 [注册] 过期时间: {expiresAt}");
+                        System.Diagnostics.Trace.WriteLine($"📝 [注册] 过期时间: {expiresAt}");
                     }
                 }
 #endif
@@ -286,7 +286,7 @@ namespace ImageColorChanger.Services
             catch (HttpRequestException ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 网络请求失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -295,7 +295,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [AuthService] 注册异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"❌ [AuthService] 注册异常: {ex.Message}");
 #endif
                 return (false, $"注册失败: {ex.Message}");
             }
@@ -323,8 +323,9 @@ namespace ImageColorChanger.Services
             });
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔐 [AuthService] 已退出登录");
+            System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 已退出登录");
 #endif
         }
     }
 }
+
