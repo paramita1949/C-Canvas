@@ -227,20 +227,10 @@ namespace ImageColorChanger.Services
 #if DEBUG
                         System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地凭证无效: {authFilePath} ({loadResult.Error})");
 #endif
-                        try
-                        {
-                            var badPath = _authStateStore.QuarantineSnapshot(authFilePath);
+                        _authStateStore.DeleteSnapshot(authFilePath);
 #if DEBUG
-                            if (!string.IsNullOrWhiteSpace(badPath))
-                            {
-                                System.Diagnostics.Trace.WriteLine($"🧹 [AuthService] 已隔离损坏凭证: {badPath}");
-                            }
+                        System.Diagnostics.Trace.WriteLine($"🧹 [AuthService] 已删除损坏凭证: {authFilePath}");
 #endif
-                        }
-                        catch
-                        {
-                            _authStateStore.DeleteSnapshot(authFilePath);
-                        }
                         continue;
                     }
 
@@ -407,17 +397,12 @@ namespace ImageColorChanger.Services
 
         private IEnumerable<string> GetAuthDataFilePaths()
         {
-            string roamingPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AUTH_DATA_DIR_NAME,
-                AUTH_DATA_FILE_NAME);
-
             string localPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 AUTH_DATA_DIR_NAME,
                 AUTH_DATA_FILE_NAME);
 
-            return new[] { roamingPath, localPath }
+            return new[] { localPath }
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }

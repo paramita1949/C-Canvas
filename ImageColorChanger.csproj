@@ -31,12 +31,10 @@
     <!-- 🔧 启用 Per-Monitor DPI Awareness -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-
   <!-- 🔧 禁用 WPF 自动 DPI 缩放 (.NET 8 配置方式) -->
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="Switch.System.Windows.DoNotScaleForDpiChanges" Value="true" />
   </ItemGroup>
-
   <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
   <ItemGroup>
     <Compile Remove="Canvas111\**" />
@@ -90,7 +88,6 @@
     <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
     <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
   </ItemGroup>
-  
   <!-- 🔧 排除不需要的依赖项 -->
   <ItemGroup>
     <!-- 排除不使用的数据库驱动 -->
@@ -152,7 +149,6 @@
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  
   <!-- 🔧 清理运行时输出 -->
   <Target Name="CleanupRuntimeOutput" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
     <Message Text="[清理] 移除不需要的运行时文件..." Importance="high" />
@@ -235,7 +231,6 @@
     <RemoveDir Directories="$(OutDir)libvlc\win-x86" ContinueOnError="true" />
     <Message Text="[清理] 清理完成" Importance="high" />
   </Target>
-  
   <!-- 🔧 发布后清理：确保删除win-x86的libvlc -->
   <Target Name="CleanupPublishOutput" AfterTargets="Publish" Condition="'$(Configuration)'=='Release'">
     <Message Text="[清理发布] 移除win-x86的libvlc..." Importance="high" />
@@ -255,4 +250,5 @@
     <Exec Command="dotnet BuildTools\bin\PackResources.dll . &quot;$(OutDir)Resources.pak&quot;" WorkingDirectory="$(ProjectDir)" />
     <Message Text="[PAK] Packed -&gt; $(OutDir)Resources.pak" Importance="high" />
   </Target>
+  <Import Project="ImageColorChanger.dotnet_reactor.targets" Condition="Exists('ImageColorChanger.dotnet_reactor.targets')" />
 </Project>
