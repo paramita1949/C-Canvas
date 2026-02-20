@@ -2,9 +2,11 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 
 namespace ImageColorChanger.Services.Auth
 {
@@ -20,21 +22,29 @@ namespace ImageColorChanger.Services.Auth
 
         private const string CurrentPrefix = "v2:";
         private const string LegacyPrefix = "v1:";
+        private const string EncryptionAlgorithmAesGcm = "A256GCM";
+        private const int AesKeySizeBytes = 32;
+        private const int AesNonceSizeBytes = 12;
+        private const int AesTagSizeBytes = 16;
+        private static readonly byte[] KeyDerivationSalt = Encoding.UTF8.GetBytes("CanvasCast.AuthStateStore.v2");
 
         public async Task SaveSnapshotAsync(string authFilePath, AuthStateSnapshot snapshot, Func<string, string> signFunc)
         {
             LogDebug($"[AuthStateStore.Save] Begin: Path={authFilePath}");
             string json = JsonSerializer.Serialize(snapshot);
-            var payloadData = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
             var payloadSignature = signFunc(json);
+            var encrypted = EncryptSnapshotJson(json);
             LogDebug(
-                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, DataLen={payloadData.Length}, SigLen={payloadSignature?.Length ?? 0}");
+                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, CipherLen={encrypted.CiphertextBase64.Length}, SigLen={payloadSignature?.Length ?? 0}");
 
             // 使用固定字面键，避免壳/混淆改名导致反序列化失效。
             var envelope = new Dictionary<string, object>
             {
                 ["Version"] = 2,
-                ["Data"] = payloadData,
+                ["Enc"] = EncryptionAlgorithmAesGcm,
+                ["Nonce"] = encrypted.NonceBase64,
+                ["Tag"] = encrypted.TagBase64,
+                ["Data"] = encrypted.CiphertextBase64,
                 ["Signature"] = payloadSignature
             };
 
@@ -91,7 +101,13 @@ namespace ImageColorChanger.Services.Auth
                 string signedJson = UnprotectPayload(raw);
                 LogDebug($"[AuthStateStore.Load] UnprotectOk: SignedLen={signedJson.Length}");
                 LogDebug($"[AuthStateStore.Load] SignedHead={signedJson.Substring(0, Math.Min(120, signedJson.Length))}");
-                if (!TryReadEnvelope(signedJson, out var payloadData, out var payloadSignature))
+                if (!TryReadEnvelope(
+                        signedJson,
+                        out var payloadData,
+                        out var payloadSignature,
+                        out var payloadEnc,
+                        out var payloadNonce,
+                        out var payloadTag))
                 {
                     try
                     {
@@ -109,18 +125,36 @@ namespace ImageColorChanger.Services.Auth
                     return new LoadResult { Exists = true, IsValid = false, Error = "invalid_signed_payload" };
                 }
 
-                byte[] dataBytes;
-                try
+                string json;
+                if (string.Equals(payloadEnc, EncryptionAlgorithmAesGcm, StringComparison.Ordinal))
                 {
-                    dataBytes = Convert.FromBase64String(payloadData);
+                    try
+                    {
+                        json = DecryptSnapshotJson(payloadData, payloadNonce, payloadTag);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogDebug($"[AuthStateStore.Load] DecryptFail: {ex.GetType().Name}: {ex.Message}");
+                        return new LoadResult { Exists = true, IsValid = false, Error = "decrypt_failed" };
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    LogDebug($"[AuthStateStore.Load] DataBase64DecodeFail: {ex.GetType().Name}: {ex.Message}");
-                    return new LoadResult { Exists = true, IsValid = false, Error = "invalid_data_base64" };
+                    // 兼容：历史 v2 明文 Data(Base64(JSON))
+                    byte[] dataBytes;
+                    try
+                    {
+                        dataBytes = Convert.FromBase64String(payloadData);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogDebug($"[AuthStateStore.Load] DataBase64DecodeFail: {ex.GetType().Name}: {ex.Message}");
+                        return new LoadResult { Exists = true, IsValid = false, Error = "invalid_data_base64" };
+                    }
+
+                    json = Encoding.UTF8.GetString(dataBytes);
                 }
-                var json = Encoding.UTF8.GetString(dataBytes);
-                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}");
+                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}, Enc={payloadEnc ?? "<legacy_plain>"}");
 
                 string expected = signFunc(json);
                 if (!string.Equals(payloadSignature, expected, StringComparison.Ordinal))
@@ -209,10 +243,19 @@ namespace ImageColorChanger.Services.Auth
             }
         }
 
-        private static bool TryReadEnvelope(string signedJson, out string data, out string signature)
+        private static bool TryReadEnvelope(
+            string signedJson,
+            out string data,
+            out string signature,
+            out string enc,
+            out string nonce,
+            out string tag)
         {
             data = null;
             signature = null;
+            enc = null;
+            nonce = null;
+            tag = null;
 
             try
             {
@@ -237,12 +280,125 @@ namespace ImageColorChanger.Services.Auth
 
                     data = dataElem.GetString();
                     signature = sigElem.GetString();
+
+                    if (doc.RootElement.TryGetProperty("Enc", out var encElem) &&
+                        encElem.ValueKind == JsonValueKind.String)
+                    {
+                        enc = encElem.GetString();
+                    }
+
+                    if (doc.RootElement.TryGetProperty("Nonce", out var nonceElem) &&
+                        nonceElem.ValueKind == JsonValueKind.String)
+                    {
+                        nonce = nonceElem.GetString();
+                    }
+
+                    if (doc.RootElement.TryGetProperty("Tag", out var tagElem) &&
+                        tagElem.ValueKind == JsonValueKind.String)
+                    {
+                        tag = tagElem.GetString();
+                    }
+
+                    if (string.Equals(enc, EncryptionAlgorithmAesGcm, StringComparison.Ordinal) &&
+                        (string.IsNullOrWhiteSpace(nonce) || string.IsNullOrWhiteSpace(tag)))
+                    {
+                        return false;
+                    }
+
                     return !string.IsNullOrWhiteSpace(data) && !string.IsNullOrWhiteSpace(signature);
                 }
             }
             catch
             {
                 return false;
+            }
+        }
+
+        private static (string CiphertextBase64, string NonceBase64, string TagBase64) EncryptSnapshotJson(string json)
+        {
+            var key = BuildEncryptionKey();
+            var plain = Encoding.UTF8.GetBytes(json);
+            var nonce = new byte[AesNonceSizeBytes];
+            var tag = new byte[AesTagSizeBytes];
+            var cipher = new byte[plain.Length];
+
+            RandomNumberGenerator.Fill(nonce);
+
+            using (var aes = new AesGcm(key, AesTagSizeBytes))
+            {
+                aes.Encrypt(nonce, plain, cipher, tag, null);
+            }
+
+            return (
+                Convert.ToBase64String(cipher),
+                Convert.ToBase64String(nonce),
+                Convert.ToBase64String(tag)
+            );
+        }
+
+        private static string DecryptSnapshotJson(string cipherBase64, string nonceBase64, string tagBase64)
+        {
+            var key = BuildEncryptionKey();
+            var cipher = Convert.FromBase64String(cipherBase64);
+            var nonce = Convert.FromBase64String(nonceBase64);
+            var tag = Convert.FromBase64String(tagBase64);
+            var plain = new byte[cipher.Length];
+
+            using (var aes = new AesGcm(key, AesTagSizeBytes))
+            {
+                aes.Decrypt(nonce, cipher, tag, plain, null);
+            }
+
+            return Encoding.UTF8.GetString(plain);
+        }
+
+        private static byte[] BuildEncryptionKey()
+        {
+            string machineGuid = null;
+            try
+            {
+                using (var key64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
+                           .OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                {
+                    machineGuid = key64?.GetValue("MachineGuid")?.ToString();
+                }
+            }
+            catch
+            {
+            }
+
+            if (string.IsNullOrWhiteSpace(machineGuid))
+            {
+                try
+                {
+                    using (var key32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32)
+                               .OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                    {
+                        machineGuid = key32?.GetValue("MachineGuid")?.ToString();
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(machineGuid))
+            {
+                machineGuid = Environment.MachineName ?? "unknown_machine";
+            }
+
+            var seed = $"{machineGuid}|CanvasCast.AuthStateStore.v2";
+            var seedBytes = Encoding.UTF8.GetBytes(seed);
+            var mixed = new byte[seedBytes.Length + KeyDerivationSalt.Length];
+            Buffer.BlockCopy(seedBytes, 0, mixed, 0, seedBytes.Length);
+            Buffer.BlockCopy(KeyDerivationSalt, 0, mixed, seedBytes.Length, KeyDerivationSalt.Length);
+
+            using (var sha = SHA256.Create())
+            {
+                var hash = sha.ComputeHash(mixed);
+                var key = new byte[AesKeySizeBytes];
+                Buffer.BlockCopy(hash, 0, key, 0, AesKeySizeBytes);
+                return key;
             }
         }
 
