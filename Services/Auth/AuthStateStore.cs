@@ -1,9 +1,9 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ImageColorChanger.Services.Auth
@@ -18,30 +18,27 @@ namespace ImageColorChanger.Services.Auth
             public AuthStateSnapshot Snapshot { get; init; }
         }
 
-        private sealed class SignedPayload
-        {
-            [JsonPropertyName("Data")]
-            public string Data { get; set; }
-
-            [JsonPropertyName("Signature")]
-            public string Signature { get; set; }
-        }
-
-        private const string EncryptedPrefix = "v1:";
+        private const string CurrentPrefix = "v2:";
+        private const string LegacyPrefix = "v1:";
 
         public async Task SaveSnapshotAsync(string authFilePath, AuthStateSnapshot snapshot, Func<string, string> signFunc)
         {
             LogDebug($"[AuthStateStore.Save] Begin: Path={authFilePath}");
             string json = JsonSerializer.Serialize(snapshot);
-            var payload = new SignedPayload
-            {
-                Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(json)),
-                Signature = signFunc(json)
-            };
+            var payloadData = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            var payloadSignature = signFunc(json);
             LogDebug(
-                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, DataLen={payload.Data.Length}, SigLen={payload.Signature?.Length ?? 0}");
+                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, DataLen={payloadData.Length}, SigLen={payloadSignature?.Length ?? 0}");
 
-            string signedJson = JsonSerializer.Serialize(payload);
+            // 使用固定字面键，避免壳/混淆改名导致反序列化失效。
+            var envelope = new Dictionary<string, object>
+            {
+                ["Version"] = 2,
+                ["Data"] = payloadData,
+                ["Signature"] = payloadSignature
+            };
+
+            string signedJson = JsonSerializer.Serialize(envelope);
             string protectedPayload = ProtectPayload(signedJson);
             LogDebug(
                 $"[AuthStateStore.Save] PayloadReady: SignedLen={signedJson.Length}, StoredLen={protectedPayload.Length}, Prefix={GetPrefixForLog(protectedPayload)}");
@@ -94,9 +91,7 @@ namespace ImageColorChanger.Services.Auth
                 string signedJson = UnprotectPayload(raw);
                 LogDebug($"[AuthStateStore.Load] UnprotectOk: SignedLen={signedJson.Length}");
                 LogDebug($"[AuthStateStore.Load] SignedHead={signedJson.Substring(0, Math.Min(120, signedJson.Length))}");
-                var payload = JsonSerializer.Deserialize<SignedPayload>(signedJson);
-
-                if (payload == null || string.IsNullOrEmpty(payload.Data) || string.IsNullOrEmpty(payload.Signature))
+                if (!TryReadEnvelope(signedJson, out var payloadData, out var payloadSignature))
                 {
                     try
                     {
@@ -117,7 +112,7 @@ namespace ImageColorChanger.Services.Auth
                 byte[] dataBytes;
                 try
                 {
-                    dataBytes = Convert.FromBase64String(payload.Data);
+                    dataBytes = Convert.FromBase64String(payloadData);
                 }
                 catch (Exception ex)
                 {
@@ -125,13 +120,13 @@ namespace ImageColorChanger.Services.Auth
                     return new LoadResult { Exists = true, IsValid = false, Error = "invalid_data_base64" };
                 }
                 var json = Encoding.UTF8.GetString(dataBytes);
-                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payload.Signature.Length}");
+                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}");
 
                 string expected = signFunc(json);
-                if (!string.Equals(payload.Signature, expected, StringComparison.Ordinal))
+                if (!string.Equals(payloadSignature, expected, StringComparison.Ordinal))
                 {
                     LogDebug(
-                        $"[AuthStateStore.Load] SignatureMismatch: FileSigLen={payload.Signature.Length}, ExpectedSigLen={expected?.Length ?? 0}");
+                        $"[AuthStateStore.Load] SignatureMismatch: FileSigLen={payloadSignature.Length}, ExpectedSigLen={expected?.Length ?? 0}");
                     return new LoadResult { Exists = true, IsValid = false, Error = "signature_mismatch" };
                 }
 
@@ -173,7 +168,7 @@ namespace ImageColorChanger.Services.Auth
         private static string ProtectPayload(string signedJson)
         {
             var bytes = Encoding.UTF8.GetBytes(signedJson);
-            return EncryptedPrefix + Convert.ToBase64String(bytes);
+            return CurrentPrefix + Convert.ToBase64String(bytes);
         }
 
         private static string UnprotectPayload(string raw)
@@ -183,25 +178,72 @@ namespace ImageColorChanger.Services.Auth
                 throw new InvalidDataException("empty_payload");
             }
 
-            // 仅支持新格式 v1(AES-GCM)；旧格式不再兼容。
-            if (!raw.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
+            // 优先新格式 v2，兼容旧 v1。
+            if (raw.StartsWith(CurrentPrefix, StringComparison.Ordinal))
             {
-                LogDebug($"[AuthStateStore.Unprotect] UnsupportedPrefix: Prefix={GetPrefixForLog(raw)}");
-                throw new InvalidDataException("unsupported_auth_payload_version");
+                string bodyV2 = raw.Substring(CurrentPrefix.Length);
+                return DecodeBase64Payload(bodyV2);
             }
 
-            string body = raw.Substring(EncryptedPrefix.Length);
-            byte[] bytes;
+            if (raw.StartsWith(LegacyPrefix, StringComparison.Ordinal))
+            {
+                string bodyV1 = raw.Substring(LegacyPrefix.Length);
+                return DecodeBase64Payload(bodyV1);
+            }
+
+            LogDebug($"[AuthStateStore.Unprotect] UnsupportedPrefix: Prefix={GetPrefixForLog(raw)}");
+            throw new InvalidDataException("unsupported_auth_payload_version");
+        }
+
+        private static string DecodeBase64Payload(string body)
+        {
             try
             {
-                bytes = Convert.FromBase64String(body);
+                var bytes = Convert.FromBase64String(body);
+                return Encoding.UTF8.GetString(bytes);
             }
             catch (Exception ex)
             {
                 LogDebug($"[AuthStateStore.Unprotect] Base64DecodeFail: {ex.GetType().Name}: {ex.Message}");
                 throw;
             }
-            return Encoding.UTF8.GetString(bytes);
+        }
+
+        private static bool TryReadEnvelope(string signedJson, out string data, out string signature)
+        {
+            data = null;
+            signature = null;
+
+            try
+            {
+                using (var doc = JsonDocument.Parse(signedJson))
+                {
+                    if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                    {
+                        return false;
+                    }
+
+                    if (!doc.RootElement.TryGetProperty("Data", out var dataElem) ||
+                        dataElem.ValueKind != JsonValueKind.String)
+                    {
+                        return false;
+                    }
+
+                    if (!doc.RootElement.TryGetProperty("Signature", out var sigElem) ||
+                        sigElem.ValueKind != JsonValueKind.String)
+                    {
+                        return false;
+                    }
+
+                    data = dataElem.GetString();
+                    signature = sigElem.GetString();
+                    return !string.IsNullOrWhiteSpace(data) && !string.IsNullOrWhiteSpace(signature);
+                }
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string GetPrefixForLog(string text)
