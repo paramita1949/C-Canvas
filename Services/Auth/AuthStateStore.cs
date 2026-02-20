@@ -736,7 +736,7 @@ namespace ImageColorChanger.Services.Auth
         [Conditional("DEBUG")]
         private static void LogDebug(string message)
         {
-            Trace.WriteLine(message);
+            // Trace.WriteLine(message);
         }
     }
 }
