@@ -63,9 +63,28 @@ namespace ImageColorChanger.UI
 
         private void ImageScrollViewer_RightClick(object sender, MouseButtonEventArgs e)
         {
-            // 如果没有加载图片，阻止显示右键菜单
+            bool hasCurrentPath = !string.IsNullOrWhiteSpace(_imagePath) &&
+                                  (System.IO.File.Exists(_imagePath) || System.IO.Directory.Exists(_imagePath));
+
+            // 如果没有加载图片，仅在存在当前媒体路径时显示“打开文件位置”菜单
             if (_imageProcessor.CurrentImage == null)
             {
+                if (hasCurrentPath)
+                {
+                    var simpleMenu = ImageScrollViewer.ContextMenu ?? new ContextMenu();
+                    simpleMenu.Style ??= (Style)FindResource("NoBorderContextMenuStyle");
+                    simpleMenu.Items.Clear();
+
+                    var openLocationItem = new MenuItem { Header = "打开文件位置" };
+                    openLocationItem.Click += (s, args) => OpenCurrentMediaFileLocation();
+                    simpleMenu.Items.Add(openLocationItem);
+
+                    ImageScrollViewer.ContextMenu = simpleMenu;
+                    simpleMenu.IsOpen = true;
+                    e.Handled = true;
+                    return;
+                }
+
                 e.Handled = true;
                 
                 // 确保菜单不会显示
@@ -329,8 +348,40 @@ namespace ImageColorChanger.UI
                 contextMenu.Items.Add(displayModeMenuItem);
             }
 
+            if (hasCurrentPath)
+            {
+                contextMenu.Items.Add(new Separator());
+                var openLocationItem = new MenuItem { Header = "打开文件位置" };
+                openLocationItem.Click += (s, args) => OpenCurrentMediaFileLocation();
+                contextMenu.Items.Add(openLocationItem);
+            }
+
             // 显示菜单
             contextMenu.IsOpen = true;
+        }
+
+        private void OpenCurrentMediaFileLocation()
+        {
+            if (string.IsNullOrWhiteSpace(_imagePath))
+            {
+                ShowStatus("❌ 当前未关联文件路径");
+                return;
+            }
+
+            if (!System.IO.File.Exists(_imagePath) && !System.IO.Directory.Exists(_imagePath))
+            {
+                ShowStatus("❌ 当前文件不存在");
+                return;
+            }
+
+            try
+            {
+                OpenPathInExplorer(_imagePath);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 打开文件位置失败: {ex.Message}");
+            }
         }
 
         #endregion

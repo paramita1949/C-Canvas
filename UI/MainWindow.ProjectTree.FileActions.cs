@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Diagnostics;
 using ImageColorChanger.Database.Models;
 
 using MessageBox = System.Windows.MessageBox;
@@ -31,6 +32,49 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 ShowStatus($"🗑️ 已删除文件: {item.Name}");
             }
+        }
+
+        /// <summary>
+        /// 打开文件所在位置并选中文件
+        /// </summary>
+        private void OpenFileLocation(ProjectTreeItem item)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.Path))
+            {
+                ShowStatus("❌ 文件路径无效");
+                return;
+            }
+
+            if (!System.IO.File.Exists(item.Path) && !System.IO.Directory.Exists(item.Path))
+            {
+                ShowStatus($"❌ 文件不存在: {item.Name}");
+                return;
+            }
+
+            try
+            {
+                OpenPathInExplorer(item.Path);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 打开文件位置失败: {ex.Message}");
+            }
+        }
+
+        private void OpenPathInExplorer(string path)
+        {
+            var selectTarget = path;
+            if (System.IO.Directory.Exists(path))
+            {
+                selectTarget = path.TrimEnd('\\');
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{selectTarget}\"",
+                UseShellExecute = true
+            });
         }
     }
 }
