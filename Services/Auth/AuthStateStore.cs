@@ -20,9 +20,11 @@ namespace ImageColorChanger.Services.Auth
             public AuthStateSnapshot Snapshot { get; init; }
         }
 
-        private const string CurrentPrefix = "v2:";
+        private const string CurrentPrefix = "v3:";
+        private const string PreviousPrefix = "v2:";
         private const string LegacyPrefix = "v1:";
         private const string EncryptionAlgorithmAesGcm = "A256GCM";
+        private const string CurrentKeyId = "k1";
         private const int AesKeySizeBytes = 32;
         private const int AesNonceSizeBytes = 12;
         private const int AesTagSizeBytes = 16;
@@ -34,19 +36,27 @@ namespace ImageColorChanger.Services.Auth
             string json = JsonSerializer.Serialize(snapshot);
             var payloadSignature = signFunc(json);
             var encrypted = EncryptSnapshotJson(json);
+            var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var maxSeenCounter = ReadMaxSeenCounter(authFilePath);
+            var counter = checked(maxSeenCounter + 1);
             LogDebug(
-                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, CipherLen={encrypted.CiphertextBase64.Length}, SigLen={payloadSignature?.Length ?? 0}");
+                $"[AuthStateStore.Save] SnapshotSerialized: JsonLen={json.Length}, CipherLen={encrypted.CiphertextBase64.Length}, SigLen={payloadSignature?.Length ?? 0}, Counter={counter}");
 
             // 使用固定字面键，避免壳/混淆改名导致反序列化失效。
             var envelope = new Dictionary<string, object>
             {
-                ["Version"] = 2,
+                ["Version"] = 3,
+                ["KeyId"] = CurrentKeyId,
+                ["Counter"] = counter,
+                ["CreatedAt"] = nowUnix,
+                ["UpdatedAt"] = nowUnix,
                 ["Enc"] = EncryptionAlgorithmAesGcm,
                 ["Nonce"] = encrypted.NonceBase64,
                 ["Tag"] = encrypted.TagBase64,
                 ["Data"] = encrypted.CiphertextBase64,
                 ["Signature"] = payloadSignature
             };
+            envelope["MetaMac"] = ComputeMetaMac(envelope, authFilePath);
 
             string signedJson = JsonSerializer.Serialize(envelope);
             string protectedPayload = ProtectPayload(signedJson);
@@ -71,6 +81,7 @@ namespace ImageColorChanger.Services.Auth
             {
                 await File.WriteAllTextAsync(tempPath, protectedPayload, Encoding.UTF8);
                 File.Move(tempPath, authFilePath, true);
+                WriteMaxSeenCounter(authFilePath, counter);
                 var fileInfo = new FileInfo(authFilePath);
                 LogDebug(
                     $"[AuthStateStore.Save] Success: Path={authFilePath}, Exists={File.Exists(authFilePath)}, Bytes={fileInfo.Length}");
@@ -102,12 +113,14 @@ namespace ImageColorChanger.Services.Auth
                 LogDebug($"[AuthStateStore.Load] UnprotectOk: SignedLen={signedJson.Length}");
                 LogDebug($"[AuthStateStore.Load] SignedHead={signedJson.Substring(0, Math.Min(120, signedJson.Length))}");
                 if (!TryReadEnvelope(
+                        authFilePath,
                         signedJson,
                         out var payloadData,
                         out var payloadSignature,
                         out var payloadEnc,
                         out var payloadNonce,
-                        out var payloadTag))
+                        out var payloadTag,
+                        out var payloadCounter))
                 {
                     try
                     {
@@ -154,7 +167,7 @@ namespace ImageColorChanger.Services.Auth
 
                     json = Encoding.UTF8.GetString(dataBytes);
                 }
-                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}, Enc={payloadEnc ?? "<legacy_plain>"}");
+                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}, Enc={payloadEnc ?? "<legacy_plain>"}, Counter={payloadCounter}");
 
                 string expected = signFunc(json);
                 if (!string.Equals(payloadSignature, expected, StringComparison.Ordinal))
@@ -162,6 +175,18 @@ namespace ImageColorChanger.Services.Auth
                     LogDebug(
                         $"[AuthStateStore.Load] SignatureMismatch: FileSigLen={payloadSignature.Length}, ExpectedSigLen={expected?.Length ?? 0}");
                     return new LoadResult { Exists = true, IsValid = false, Error = "signature_mismatch" };
+                }
+
+                if (payloadCounter > 0)
+                {
+                    var maxSeenCounter = ReadMaxSeenCounter(authFilePath);
+                    if (payloadCounter < maxSeenCounter)
+                    {
+                        LogDebug($"[AuthStateStore.Load] RollbackDetected: PayloadCounter={payloadCounter}, MaxSeen={maxSeenCounter}");
+                        return new LoadResult { Exists = true, IsValid = false, Error = "rollback_detected" };
+                    }
+
+                    WriteMaxSeenCounter(authFilePath, payloadCounter);
                 }
 
                 var snapshot = JsonSerializer.Deserialize<AuthStateSnapshot>(json);
@@ -212,10 +237,16 @@ namespace ImageColorChanger.Services.Auth
                 throw new InvalidDataException("empty_payload");
             }
 
-            // 优先新格式 v2，兼容旧 v1。
+            // 优先新格式 v3，兼容旧 v2/v1。
             if (raw.StartsWith(CurrentPrefix, StringComparison.Ordinal))
             {
-                string bodyV2 = raw.Substring(CurrentPrefix.Length);
+                string bodyV3 = raw.Substring(CurrentPrefix.Length);
+                return DecodeBase64Payload(bodyV3);
+            }
+
+            if (raw.StartsWith(PreviousPrefix, StringComparison.Ordinal))
+            {
+                string bodyV2 = raw.Substring(PreviousPrefix.Length);
                 return DecodeBase64Payload(bodyV2);
             }
 
@@ -244,18 +275,21 @@ namespace ImageColorChanger.Services.Auth
         }
 
         private static bool TryReadEnvelope(
+            string authFilePath,
             string signedJson,
             out string data,
             out string signature,
             out string enc,
             out string nonce,
-            out string tag)
+            out string tag,
+            out long counter)
         {
             data = null;
             signature = null;
             enc = null;
             nonce = null;
             tag = null;
+            counter = 0;
 
             try
             {
@@ -297,6 +331,38 @@ namespace ImageColorChanger.Services.Auth
                         tagElem.ValueKind == JsonValueKind.String)
                     {
                         tag = tagElem.GetString();
+                    }
+
+                    if (doc.RootElement.TryGetProperty("Counter", out var counterElem) &&
+                        counterElem.ValueKind == JsonValueKind.Number &&
+                        counterElem.TryGetInt64(out var parsedCounter))
+                    {
+                        counter = parsedCounter;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("Version", out var versionElem) &&
+                        versionElem.ValueKind == JsonValueKind.Number &&
+                        versionElem.TryGetInt32(out var version) &&
+                        version >= 3)
+                    {
+                        if (!doc.RootElement.TryGetProperty("MetaMac", out var macElem) ||
+                            macElem.ValueKind != JsonValueKind.String)
+                        {
+                            return false;
+                        }
+
+                        var keyId = doc.RootElement.TryGetProperty("KeyId", out var keyIdElem) &&
+                                    keyIdElem.ValueKind == JsonValueKind.String
+                            ? keyIdElem.GetString()
+                            : CurrentKeyId;
+
+                        var fileMac = macElem.GetString();
+                        var expectMac = ComputeMetaMac(doc.RootElement, keyId, authFilePath);
+                        if (!FixedTimeEquals(fileMac, expectMac))
+                        {
+                            LogDebug("[AuthStateStore.Load] MetaMacMismatch");
+                            return false;
+                        }
                     }
 
                     if (string.Equals(enc, EncryptionAlgorithmAesGcm, StringComparison.Ordinal) &&
@@ -354,6 +420,16 @@ namespace ImageColorChanger.Services.Auth
 
         private static byte[] BuildEncryptionKey()
         {
+            return BuildKeyMaterial(CurrentKeyId, "enc");
+        }
+
+        private static byte[] BuildMetaMacKey(string keyId)
+        {
+            return BuildKeyMaterial(keyId, "mac");
+        }
+
+        private static byte[] BuildKeyMaterial(string keyId, string purpose)
+        {
             string machineGuid = null;
             try
             {
@@ -387,7 +463,7 @@ namespace ImageColorChanger.Services.Auth
                 machineGuid = Environment.MachineName ?? "unknown_machine";
             }
 
-            var seed = $"{machineGuid}|CanvasCast.AuthStateStore.v2";
+            var seed = $"{machineGuid}|CanvasCast.AuthStateStore.v2|{keyId}|{purpose}";
             var seedBytes = Encoding.UTF8.GetBytes(seed);
             var mixed = new byte[seedBytes.Length + KeyDerivationSalt.Length];
             Buffer.BlockCopy(seedBytes, 0, mixed, 0, seedBytes.Length);
@@ -399,6 +475,155 @@ namespace ImageColorChanger.Services.Auth
                 var key = new byte[AesKeySizeBytes];
                 Buffer.BlockCopy(hash, 0, key, 0, AesKeySizeBytes);
                 return key;
+            }
+        }
+
+        private static string ComputeMetaMac(IDictionary<string, object> envelope, string authFilePath)
+        {
+            string keyId = envelope.TryGetValue("KeyId", out var keyIdObj) ? keyIdObj?.ToString() : CurrentKeyId;
+            string payload = BuildMetaMacPayload(
+                envelope.TryGetValue("Version", out var v) ? v?.ToString() : null,
+                keyId,
+                envelope.TryGetValue("Counter", out var c) ? c?.ToString() : null,
+                envelope.TryGetValue("CreatedAt", out var ca) ? ca?.ToString() : null,
+                envelope.TryGetValue("UpdatedAt", out var ua) ? ua?.ToString() : null,
+                envelope.TryGetValue("Enc", out var e) ? e?.ToString() : null,
+                envelope.TryGetValue("Nonce", out var n) ? n?.ToString() : null,
+                envelope.TryGetValue("Tag", out var t) ? t?.ToString() : null,
+                envelope.TryGetValue("Data", out var d) ? d?.ToString() : null,
+                envelope.TryGetValue("Signature", out var s) ? s?.ToString() : null,
+                authFilePath);
+
+            var macKey = BuildMetaMacKey(keyId ?? CurrentKeyId);
+            using (var hmac = new HMACSHA256(macKey))
+            {
+                return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+            }
+        }
+
+        private static string ComputeMetaMac(JsonElement root, string keyId, string authFilePath)
+        {
+            string payload = BuildMetaMacPayload(
+                root.TryGetProperty("Version", out var v) ? v.ToString() : null,
+                keyId,
+                root.TryGetProperty("Counter", out var c) ? c.ToString() : null,
+                root.TryGetProperty("CreatedAt", out var ca) ? ca.ToString() : null,
+                root.TryGetProperty("UpdatedAt", out var ua) ? ua.ToString() : null,
+                root.TryGetProperty("Enc", out var e) ? e.GetString() : null,
+                root.TryGetProperty("Nonce", out var n) ? n.GetString() : null,
+                root.TryGetProperty("Tag", out var t) ? t.GetString() : null,
+                root.TryGetProperty("Data", out var d) ? d.GetString() : null,
+                root.TryGetProperty("Signature", out var s) ? s.GetString() : null,
+                authFilePath);
+
+            var macKey = BuildMetaMacKey(keyId ?? CurrentKeyId);
+            using (var hmac = new HMACSHA256(macKey))
+            {
+                return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+            }
+        }
+
+        private static string BuildMetaMacPayload(
+            string version,
+            string keyId,
+            string counter,
+            string createdAt,
+            string updatedAt,
+            string enc,
+            string nonce,
+            string tag,
+            string data,
+            string signature,
+            string authFilePath)
+        {
+            return string.Join("|",
+                version ?? string.Empty,
+                keyId ?? string.Empty,
+                counter ?? string.Empty,
+                createdAt ?? string.Empty,
+                updatedAt ?? string.Empty,
+                enc ?? string.Empty,
+                nonce ?? string.Empty,
+                tag ?? string.Empty,
+                data ?? string.Empty,
+                signature ?? string.Empty,
+                authFilePath ?? string.Empty);
+        }
+
+        private static bool FixedTimeEquals(string a, string b)
+        {
+            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+            {
+                return false;
+            }
+
+            var left = Encoding.UTF8.GetBytes(a);
+            var right = Encoding.UTF8.GetBytes(b);
+            return CryptographicOperations.FixedTimeEquals(left, right);
+        }
+
+        private static string GetCounterStorePath(string authFilePath)
+        {
+            return authFilePath + ".ctr";
+        }
+
+        private static long ReadMaxSeenCounter(string authFilePath)
+        {
+            try
+            {
+                var path = GetCounterStorePath(authFilePath);
+                if (!File.Exists(path))
+                {
+                    return 0;
+                }
+
+                var raw = File.ReadAllText(path, Encoding.UTF8);
+                var parts = raw.Split('|');
+                if (parts.Length != 2 || !long.TryParse(parts[0], out var value))
+                {
+                    return 0;
+                }
+
+                var expectMac = ComputeCounterMac(value, authFilePath);
+                if (!FixedTimeEquals(parts[1], expectMac))
+                {
+                    return 0;
+                }
+
+                return value;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static void WriteMaxSeenCounter(string authFilePath, long value)
+        {
+            try
+            {
+                var path = GetCounterStorePath(authFilePath);
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var mac = ComputeCounterMac(value, authFilePath);
+                File.WriteAllText(path, $"{value}|{mac}", Encoding.UTF8);
+            }
+            catch
+            {
+            }
+        }
+
+        private static string ComputeCounterMac(long value, string authFilePath)
+        {
+            var key = BuildMetaMacKey(CurrentKeyId);
+            var payload = $"{value}|{authFilePath}";
+            using (var hmac = new HMACSHA256(key))
+            {
+                return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
             }
         }
 
