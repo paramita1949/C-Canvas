@@ -291,11 +291,13 @@ namespace ImageColorChanger.Services
             }
             catch (Exception ex)
             {
-                var offlineDecision = _authHeartbeatPolicy.EvaluateOffline(_lastSuccessfulHeartbeat, DateTime.Now, MAX_OFFLINE_DAYS);
+                var offlineBaseline = ResolveOfflineBaselineTime();
+                var offlineDecision = _authHeartbeatPolicy.EvaluateOffline(offlineBaseline, DateTime.Now, MAX_OFFLINE_DAYS);
                 if (offlineDecision.Exceeded)
                 {
                     _ = ex;
 #if DEBUG
+                    System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线基准时间: {offlineBaseline:O}");
                     System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，强制退出");
 #endif
                     Logout();

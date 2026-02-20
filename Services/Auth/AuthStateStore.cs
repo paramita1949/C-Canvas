@@ -24,7 +24,9 @@ namespace ImageColorChanger.Services.Auth
         private const string PreviousPrefix = "v2:";
         private const string LegacyPrefix = "v1:";
         private const string EncryptionAlgorithmAesGcm = "A256GCM";
-        private const string CurrentKeyId = "k1";
+        private const string CurrentKeyId = "k3";
+        private static readonly string[] DecryptWindowKeyIds = { "k3" };
+        private const int LegacyKeyDecryptWindowDays = 90;
         private const int AesKeySizeBytes = 32;
         private const int AesNonceSizeBytes = 12;
         private const int AesTagSizeBytes = 16;
@@ -35,7 +37,7 @@ namespace ImageColorChanger.Services.Auth
             LogDebug($"[AuthStateStore.Save] Begin: Path={authFilePath}");
             string json = JsonSerializer.Serialize(snapshot);
             var payloadSignature = signFunc(json);
-            var encrypted = EncryptSnapshotJson(json);
+            var encrypted = EncryptSnapshotJson(json, CurrentKeyId);
             var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var maxSeenCounter = ReadMaxSeenCounter(authFilePath);
             var counter = checked(maxSeenCounter + 1);
@@ -120,7 +122,9 @@ namespace ImageColorChanger.Services.Auth
                         out var payloadEnc,
                         out var payloadNonce,
                         out var payloadTag,
-                        out var payloadCounter))
+                        out var payloadCounter,
+                        out var payloadKeyId,
+                        out var payloadUpdatedAtUnix))
                 {
                     try
                     {
@@ -141,9 +145,16 @@ namespace ImageColorChanger.Services.Auth
                 string json;
                 if (string.Equals(payloadEnc, EncryptionAlgorithmAesGcm, StringComparison.Ordinal))
                 {
+                    if (IsLegacyKeyExpired(payloadKeyId, payloadUpdatedAtUnix))
+                    {
+                        LogDebug($"[AuthStateStore.Load] LegacyKeyExpired: KeyId={payloadKeyId}, UpdatedAt={payloadUpdatedAtUnix}, WindowDays={LegacyKeyDecryptWindowDays}");
+                        return new LoadResult { Exists = true, IsValid = false, Error = "legacy_key_expired" };
+                    }
+
                     try
                     {
-                        json = DecryptSnapshotJson(payloadData, payloadNonce, payloadTag);
+                        json = DecryptSnapshotJson(payloadData, payloadNonce, payloadTag, payloadKeyId, out var decryptKeyId);
+                        LogDebug($"[AuthStateStore.Load] DecryptKeyResolved: EnvelopeKeyId={payloadKeyId ?? "<null>"}, UsedKeyId={decryptKeyId}");
                     }
                     catch (Exception ex)
                     {
@@ -167,7 +178,7 @@ namespace ImageColorChanger.Services.Auth
 
                     json = Encoding.UTF8.GetString(dataBytes);
                 }
-                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}, Enc={payloadEnc ?? "<legacy_plain>"}, Counter={payloadCounter}");
+                LogDebug($"[AuthStateStore.Load] DataDecoded: JsonLen={json.Length}, SigLen={payloadSignature.Length}, Enc={payloadEnc ?? "<legacy_plain>"}, Counter={payloadCounter}, KeyId={payloadKeyId ?? "<legacy>"}");
 
                 string expected = signFunc(json);
                 if (!string.Equals(payloadSignature, expected, StringComparison.Ordinal))
@@ -282,7 +293,9 @@ namespace ImageColorChanger.Services.Auth
             out string enc,
             out string nonce,
             out string tag,
-            out long counter)
+            out long counter,
+            out string keyId,
+            out long updatedAtUnix)
         {
             data = null;
             signature = null;
@@ -290,6 +303,8 @@ namespace ImageColorChanger.Services.Auth
             nonce = null;
             tag = null;
             counter = 0;
+            keyId = null;
+            updatedAtUnix = 0;
 
             try
             {
@@ -340,6 +355,19 @@ namespace ImageColorChanger.Services.Auth
                         counter = parsedCounter;
                     }
 
+                    if (doc.RootElement.TryGetProperty("KeyId", out var keyIdElem) &&
+                        keyIdElem.ValueKind == JsonValueKind.String)
+                    {
+                        keyId = keyIdElem.GetString();
+                    }
+
+                    if (doc.RootElement.TryGetProperty("UpdatedAt", out var updatedAtElem) &&
+                        updatedAtElem.ValueKind == JsonValueKind.Number &&
+                        updatedAtElem.TryGetInt64(out var parsedUpdatedAt))
+                    {
+                        updatedAtUnix = parsedUpdatedAt;
+                    }
+
                     if (doc.RootElement.TryGetProperty("Version", out var versionElem) &&
                         versionElem.ValueKind == JsonValueKind.Number &&
                         versionElem.TryGetInt32(out var version) &&
@@ -351,13 +379,10 @@ namespace ImageColorChanger.Services.Auth
                             return false;
                         }
 
-                        var keyId = doc.RootElement.TryGetProperty("KeyId", out var keyIdElem) &&
-                                    keyIdElem.ValueKind == JsonValueKind.String
-                            ? keyIdElem.GetString()
-                            : CurrentKeyId;
+                        var macKeyId = string.IsNullOrWhiteSpace(keyId) ? CurrentKeyId : keyId;
 
                         var fileMac = macElem.GetString();
-                        var expectMac = ComputeMetaMac(doc.RootElement, keyId, authFilePath);
+                        var expectMac = ComputeMetaMac(doc.RootElement, macKeyId, authFilePath);
                         if (!FixedTimeEquals(fileMac, expectMac))
                         {
                             LogDebug("[AuthStateStore.Load] MetaMacMismatch");
@@ -380,9 +405,9 @@ namespace ImageColorChanger.Services.Auth
             }
         }
 
-        private static (string CiphertextBase64, string NonceBase64, string TagBase64) EncryptSnapshotJson(string json)
+        private static (string CiphertextBase64, string NonceBase64, string TagBase64) EncryptSnapshotJson(string json, string keyId)
         {
-            var key = BuildEncryptionKey();
+            var key = BuildEncryptionKey(keyId);
             var plain = Encoding.UTF8.GetBytes(json);
             var nonce = new byte[AesNonceSizeBytes];
             var tag = new byte[AesTagSizeBytes];
@@ -402,30 +427,84 @@ namespace ImageColorChanger.Services.Auth
             );
         }
 
-        private static string DecryptSnapshotJson(string cipherBase64, string nonceBase64, string tagBase64)
+        private static string DecryptSnapshotJson(
+            string cipherBase64,
+            string nonceBase64,
+            string tagBase64,
+            string envelopeKeyId,
+            out string usedKeyId)
         {
-            var key = BuildEncryptionKey();
             var cipher = Convert.FromBase64String(cipherBase64);
             var nonce = Convert.FromBase64String(nonceBase64);
             var tag = Convert.FromBase64String(tagBase64);
-            var plain = new byte[cipher.Length];
-
-            using (var aes = new AesGcm(key, AesTagSizeBytes))
+            foreach (var candidateKeyId in EnumerateDecryptKeyCandidates(envelopeKeyId))
             {
-                aes.Decrypt(nonce, cipher, tag, plain, null);
+                try
+                {
+                    var key = BuildEncryptionKey(candidateKeyId);
+                    var plain = new byte[cipher.Length];
+                    using (var aes = new AesGcm(key, AesTagSizeBytes))
+                    {
+                        aes.Decrypt(nonce, cipher, tag, plain, null);
+                    }
+
+                    usedKeyId = candidateKeyId;
+                    return Encoding.UTF8.GetString(plain);
+                }
+                catch (CryptographicException)
+                {
+                    // 继续尝试解密窗口中的其余 key。
+                }
             }
 
-            return Encoding.UTF8.GetString(plain);
+            usedKeyId = null;
+            throw new CryptographicException("decrypt_failed_all_keys");
         }
 
-        private static byte[] BuildEncryptionKey()
+        private static byte[] BuildEncryptionKey(string keyId)
         {
-            return BuildKeyMaterial(CurrentKeyId, "enc");
+            return BuildKeyMaterial(keyId, "enc");
         }
 
         private static byte[] BuildMetaMacKey(string keyId)
         {
             return BuildKeyMaterial(keyId, "mac");
+        }
+
+        private static IEnumerable<string> EnumerateDecryptKeyCandidates(string envelopeKeyId)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            if (!string.IsNullOrWhiteSpace(envelopeKeyId) && seen.Add(envelopeKeyId))
+            {
+                yield return envelopeKeyId;
+            }
+
+            foreach (var keyId in DecryptWindowKeyIds)
+            {
+                if (!string.IsNullOrWhiteSpace(keyId) && seen.Add(keyId))
+                {
+                    yield return keyId;
+                }
+            }
+        }
+
+        private static bool IsLegacyKeyExpired(string keyId, long updatedAtUnix)
+        {
+            if (string.IsNullOrWhiteSpace(keyId) ||
+                string.Equals(keyId, CurrentKeyId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (updatedAtUnix <= 0)
+            {
+                return true;
+            }
+
+            var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var ageSeconds = nowUnix - updatedAtUnix;
+            var maxAgeSeconds = LegacyKeyDecryptWindowDays * 24L * 60L * 60L;
+            return ageSeconds > maxAgeSeconds;
         }
 
         private static byte[] BuildKeyMaterial(string keyId, string purpose)
@@ -584,8 +663,7 @@ namespace ImageColorChanger.Services.Auth
                     return 0;
                 }
 
-                var expectMac = ComputeCounterMac(value, authFilePath);
-                if (!FixedTimeEquals(parts[1], expectMac))
+                if (!IsCounterMacValid(parts[1], value, authFilePath))
                 {
                     return 0;
                 }
@@ -609,7 +687,7 @@ namespace ImageColorChanger.Services.Auth
                     Directory.CreateDirectory(dir);
                 }
 
-                var mac = ComputeCounterMac(value, authFilePath);
+                var mac = ComputeCounterMac(value, authFilePath, CurrentKeyId);
                 File.WriteAllText(path, $"{value}|{mac}", Encoding.UTF8);
             }
             catch
@@ -617,9 +695,23 @@ namespace ImageColorChanger.Services.Auth
             }
         }
 
-        private static string ComputeCounterMac(long value, string authFilePath)
+        private static bool IsCounterMacValid(string fileMac, long value, string authFilePath)
         {
-            var key = BuildMetaMacKey(CurrentKeyId);
+            foreach (var keyId in EnumerateDecryptKeyCandidates(CurrentKeyId))
+            {
+                var expectMac = ComputeCounterMac(value, authFilePath, keyId);
+                if (FixedTimeEquals(fileMac, expectMac))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string ComputeCounterMac(long value, string authFilePath, string keyId)
+        {
+            var key = BuildMetaMacKey(keyId);
             var payload = $"{value}|{authFilePath}";
             using (var hmac = new HMACSHA256(key))
             {

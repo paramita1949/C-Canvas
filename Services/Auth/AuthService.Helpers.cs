@@ -280,6 +280,16 @@ namespace ImageColorChanger.Services
             {
                 _lastLocalTime = TryParseSnapshotDateTime(authData.LastLocalTime);
             }
+            else if (authData.SaveTime > 0)
+            {
+                try
+                {
+                    _lastLocalTime = new DateTime(authData.SaveTime, DateTimeKind.Local);
+                }
+                catch
+                {
+                }
+            }
 
             _lastTickCount = authData.LastTickCount;
             _resetDeviceCount = authData.ResetDeviceCount;
@@ -382,19 +392,41 @@ namespace ImageColorChanger.Services
 
         private bool ValidateStartupOfflineWindow()
         {
-            var startupOfflineDecision = _authHeartbeatPolicy.EvaluateOffline(_lastSuccessfulHeartbeat, DateTime.Now, MAX_OFFLINE_DAYS);
+            var offlineBaseline = ResolveOfflineBaselineTime();
+            var startupOfflineDecision = _authHeartbeatPolicy.EvaluateOffline(offlineBaseline, DateTime.Now, MAX_OFFLINE_DAYS);
             if (!startupOfflineDecision.Exceeded)
             {
                 return true;
             }
 
 #if DEBUG
+            System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线基准时间: {offlineBaseline:O}");
             System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 启动时离线时长检测: {startupOfflineDecision.OfflineDays:F1} 天");
             System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，清除登录状态");
 #endif
             DeleteAuthData();
             RaiseUiMessage("离线时间过长", $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。", UiMessageLevel.Warning);
             return false;
+        }
+
+        private DateTime? ResolveOfflineBaselineTime()
+        {
+            if (_lastSuccessfulHeartbeat.HasValue)
+            {
+                return _lastSuccessfulHeartbeat.Value;
+            }
+
+            if (_lastLocalTime.HasValue)
+            {
+                return _lastLocalTime.Value;
+            }
+
+            if (_lastServerTime.HasValue)
+            {
+                return _lastServerTime.Value;
+            }
+
+            return null;
         }
 
         private void CompleteAutoLoginSuccess()
