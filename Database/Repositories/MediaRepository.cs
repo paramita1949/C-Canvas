@@ -119,31 +119,19 @@ namespace ImageColorChanger.Database.Repositories
 
         public List<MediaFile> GetMediaFilesByFolder(int folderId)
         {
-            return _context.MediaFiles
-                .Where(m => m.FolderId == folderId)
-                .OrderBy(m => m.OrderIndex)
-                .ToList();
+            return GetMediaFilesByFolderCore(folderId, null);
         }
 
         public List<MediaFile> GetMediaFilesByFolder(int folderId, FileType? fileType = null)
         {
-            var allFiles = _context.MediaFiles
-                .Where(m => m.FolderId == folderId)
-                .OrderBy(m => m.OrderIndex)
-                .ToList();
-
-            if (fileType != null)
-            {
-                allFiles = allFiles.Where(m => m.FileType == fileType.Value).ToList();
-            }
-
-            return allFiles;
+            return GetMediaFilesByFolderCore(folderId, fileType);
         }
 
         public List<MediaFile> GetRootMediaFiles()
         {
             return _context.MediaFiles
-                .Where(m => m.FolderId == null)
+                .Where(m => m.FolderId == null &&
+                            !_context.FolderImages.Any(fi => fi.ImageId == m.Id))
                 .OrderBy(m => m.OrderIndex)
                 .ToList();
         }
@@ -182,22 +170,26 @@ namespace ImageColorChanger.Database.Repositories
 
         public MediaFile GetNextMediaFile(int folderId, int? currentOrderIndex, FileType? fileType = null)
         {
-            var allFiles = _context.MediaFiles
-                .Where(m => m.FolderId == folderId && m.OrderIndex > currentOrderIndex)
-                .OrderBy(m => m.OrderIndex)
-                .ToList();
+            var allFiles = GetMediaFilesByFolderCore(folderId, fileType);
+            if (allFiles.Count == 0)
+            {
+                return null;
+            }
 
-            return fileType != null ? allFiles.FirstOrDefault(m => m.FileType == fileType.Value) : allFiles.FirstOrDefault();
+            var idx = allFiles.FindIndex(f => f.OrderIndex == currentOrderIndex);
+            return idx >= 0 && idx + 1 < allFiles.Count ? allFiles[idx + 1] : allFiles.FirstOrDefault();
         }
 
         public MediaFile GetPreviousMediaFile(int folderId, int? currentOrderIndex, FileType? fileType = null)
         {
-            var allFiles = _context.MediaFiles
-                .Where(m => m.FolderId == folderId && m.OrderIndex < currentOrderIndex)
-                .OrderByDescending(m => m.OrderIndex)
-                .ToList();
+            var allFiles = GetMediaFilesByFolderCore(folderId, fileType);
+            if (allFiles.Count == 0)
+            {
+                return null;
+            }
 
-            return fileType != null ? allFiles.FirstOrDefault(m => m.FileType == fileType.Value) : allFiles.FirstOrDefault();
+            var idx = allFiles.FindIndex(f => f.OrderIndex == currentOrderIndex);
+            return idx > 0 ? allFiles[idx - 1] : allFiles.LastOrDefault();
         }
 
         public List<MediaFile> SearchFiles(string searchTerm, FileType? fileType = null)
@@ -218,18 +210,59 @@ namespace ImageColorChanger.Database.Repositories
 
         public List<MediaFile> SearchFilesInFolder(string searchTerm, int folderId, FileType? fileType = null)
         {
-            var allFiles = _context.MediaFiles
-                .Include(f => f.Folder)
-                .Where(f => f.FolderId == folderId && f.Name.ToLower().Contains(searchTerm.ToLower()))
-                .OrderBy(f => f.OrderIndex)
+            var folderFiles = GetMediaFilesByFolderCore(folderId, fileType);
+            return folderFiles
+                .Where(f => f.Name.ToLower().Contains(searchTerm.ToLower()))
                 .ToList();
+        }
+
+        private List<MediaFile> GetMediaFilesByFolderCore(int folderId, FileType? fileType)
+        {
+            if (!IsFolderSystemV2Enabled())
+            {
+                var legacy = _context.MediaFiles
+                    .Where(m => m.FolderId == folderId)
+                    .OrderBy(m => m.OrderIndex)
+                    .ToList();
+                if (fileType.HasValue)
+                {
+                    legacy = legacy.Where(m => m.FileType == fileType.Value).ToList();
+                }
+
+                return legacy;
+            }
+
+            // 优先采用 folder_images 映射，兼容旧数据时回退 folder_id。
+            var mapped = _context.FolderImages
+                .Where(fi => fi.FolderId == folderId)
+                .Join(_context.MediaFiles, fi => fi.ImageId, mf => mf.Id, (fi, mf) => new { fi, mf })
+                .OrderBy(x => x.fi.OrderIndex ?? int.MaxValue)
+                .ThenBy(x => x.mf.OrderIndex ?? int.MaxValue)
+                .Select(x => x.mf)
+                .ToList();
+
+            if (mapped.Count == 0)
+            {
+                mapped = _context.MediaFiles
+                    .Where(m => m.FolderId == folderId)
+                    .OrderBy(m => m.OrderIndex)
+                    .ToList();
+            }
 
             if (fileType.HasValue)
             {
-                allFiles = allFiles.Where(f => f.FileType == fileType.Value).ToList();
+                mapped = mapped.Where(m => m.FileType == fileType.Value).ToList();
             }
 
-            return allFiles;
+            return mapped;
+        }
+
+        private bool IsFolderSystemV2Enabled()
+        {
+            var setting = _context.Settings.FirstOrDefault(s => s.Key == "feature.folder_system_v2")?.Value;
+            return !string.Equals(setting, "0", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(setting, "false", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(setting, "off", StringComparison.OrdinalIgnoreCase);
         }
 
         private static FileType GetFileType(string extension)

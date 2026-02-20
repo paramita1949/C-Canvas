@@ -9,6 +9,8 @@ namespace ImageColorChanger.UI
 {
     public partial class MainWindow
     {
+        private const string BaseWindowTitle = "咏慕投影";
+        private VersionInfo _pendingTitleUpdateVersionInfo;
         #region 窗口生命周期事件
 
         /// <summary>
@@ -71,13 +73,20 @@ namespace ImageColorChanger.UI
             // 🔄 静默同步所有文件夹（避免跨线程并发访问同一 DbContext）
             try
             {
+                // 启动时先做一次映射对账，确保历史数据迁移后读路径稳定。
+                var reconcileResult = DatabaseManagerService.ReconcileFolderImageLinks();
+#if DEBUG
+                // System.Diagnostics.Trace.WriteLine(
+                //     $"[MainWindow] 启动对账: missingLinks={reconcileResult.missingLinks}, staleLinks={reconcileResult.staleLinks}, addedLinks={reconcileResult.addedLinks}, removedLinks={reconcileResult.removedLinks}");
+#endif
+
                 var importManager = ImportManagerService;
                 if (importManager != null)
                 {
                     var (added, removed, updated) = importManager.SyncAllFolders();
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine(
-                        $"[MainWindow] 启动同步完成: added={added}, removed={removed}, updated={updated}");
+                    // System.Diagnostics.Trace.WriteLine(
+                    //     $"[MainWindow] 启动同步完成: added={added}, removed={removed}, updated={updated}");
 #endif
                 }
             }
@@ -85,8 +94,8 @@ namespace ImageColorChanger.UI
             {
                 // 静默失败，不影响用户使用
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
 #endif
@@ -119,18 +128,18 @@ namespace ImageColorChanger.UI
                 
                 if (versionInfo != null)
                 {
-                    // 在UI线程显示更新窗口
-                    Dispatcher.Invoke(() =>
-                    {
-                        var updateWindow = new UpdateWindow(versionInfo);
-                        updateWindow.Owner = this;
-                        updateWindow.ShowDialog();
-                    });
+                    Dispatcher.Invoke(() => ShowTitleUpdateNotice(versionInfo));
                 }
 #if DEBUG
                 else
                 {
+                    Dispatcher.Invoke(HideTitleUpdateNotice);
                     System.Diagnostics.Debug.WriteLine("[MainWindow] 当前已是最新版本");
+                }
+#else
+                else
+                {
+                    Dispatcher.Invoke(HideTitleUpdateNotice);
                 }
 #endif
             }
@@ -139,7 +148,37 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //                System.Diagnostics.Debug.WriteLine("[MainWindow] 检查更新失败");
 //#endif
+                Dispatcher.Invoke(HideTitleUpdateNotice);
                 // 静默失败，不影响用户使用
+            }
+        }
+
+        private void ShowTitleUpdateNotice(VersionInfo versionInfo)
+        {
+            _pendingTitleUpdateVersionInfo = versionInfo;
+            RefreshWindowTitleByRuntimeState();
+        }
+
+        private void HideTitleUpdateNotice()
+        {
+            _pendingTitleUpdateVersionInfo = null;
+            RefreshWindowTitleByRuntimeState();
+        }
+
+        private void RefreshWindowTitleByRuntimeState()
+        {
+            if (_fpsMonitor?.IsMonitoring == true)
+            {
+                return;
+            }
+
+            if (_pendingTitleUpdateVersionInfo != null)
+            {
+                Title = $"{BaseWindowTitle} | 新版本 V{_pendingTitleUpdateVersionInfo.Version}";
+            }
+            else
+            {
+                Title = BaseWindowTitle;
             }
         }
 

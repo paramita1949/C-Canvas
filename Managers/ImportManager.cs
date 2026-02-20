@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
 {
@@ -13,6 +14,7 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class ImportManager
     {
+        private static readonly System.Threading.SemaphoreSlim WriteLock = new(1, 1);
         private readonly DatabaseManager _dbManager;
         private readonly SortManager _sortManager;
         public string LastError { get; private set; }
@@ -52,8 +54,10 @@ namespace ImageColorChanger.Managers
         public MediaFile ImportSingleFile(string filePath)
         {
             LastError = null;
+            WriteLock.Wait();
+            var operationId = Guid.NewGuid().ToString("N");
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 开始: {filePath}");
+            // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportSingleFile 开始: {filePath}");
 #endif
             try
             {
@@ -80,8 +84,8 @@ namespace ImageColorChanger.Managers
                 }
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine(
-                    $"[ImportManager] ImportSingleFile 完成: {(mediaFile != null ? mediaFile.Name : "<null>")}");
+                // System.Diagnostics.Trace.WriteLine(
+                //     $"[ImportManager] op={operationId} ImportSingleFile 完成: {(mediaFile != null ? mediaFile.Name : "<null>")}");
 #endif
                 return mediaFile;
             }
@@ -89,10 +93,14 @@ namespace ImageColorChanger.Managers
             {
                 LastError = $"导入文件失败: {ex.Message}";
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 异常: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportSingleFile 堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportSingleFile 异常: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportSingleFile 堆栈: {ex.StackTrace}");
 #endif
                 return null;
+            }
+            finally
+            {
+                WriteLock.Release();
             }
         }
 
@@ -105,8 +113,10 @@ namespace ImageColorChanger.Managers
         {
             LastError = null;
             folderPath = NormalizePath(folderPath);
+            WriteLock.Wait();
+            var operationId = Guid.NewGuid().ToString("N");
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 开始: {folderPath}");
+            // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportFolder 开始: {folderPath}");
 #endif
             try
             {
@@ -132,6 +142,8 @@ namespace ImageColorChanger.Managers
 
                 // 导入文件夹到数据库
                 var folder = _dbManager.ImportFolder(folderPath, folderName);
+                var context = _dbManager.GetDbContext();
+                bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
 
                 // 全局已存在路径（images.path 全库唯一）
                 var existingPathSet = new HashSet<string>(
@@ -142,23 +154,74 @@ namespace ImageColorChanger.Managers
                 var normalizedMediaFiles = mediaFiles.Select(NormalizePath).ToList();
                 var newFilePaths = normalizedMediaFiles.Where(f => !existingPathSet.Contains(f)).ToList();
                 var existingFiles = normalizedMediaFiles.Where(f => existingPathSet.Contains(f)).ToList();
-
-                if (newFilePaths.Count == 0 && existingFiles.Count > 0)
-                {
-                    LastError = "所有媒体文件都已存在";
+                var allFilesExisting = newFilePaths.Count == 0 && existingFiles.Count > 0;
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine("[ImportManager] ImportFolder: 所有媒体文件都已存在");
+                // if (allFilesExisting)
+                // {
+                //     System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportFolder: 所有媒体文件都已存在，继续建立目录映射");
+                // }
 #endif
-                    return (folder, new List<MediaFile>(), existingFiles);
-                }
 
                 // 批量添加新文件
                 var newFiles = _dbManager.AddMediaFiles(newFilePaths, folder.Id);
 
+                // 建立目录映射：新文件 + 已存在文件都映射到当前目录，支持父子目录重叠导入。
+                var linksToAdd = new List<FolderImage>();
+                if (folderV2Enabled)
+                {
+                    var linkPaths = normalizedMediaFiles;
+                    var imageIdMap = context.MediaFiles
+                        .Where(m => linkPaths.Contains(m.Path))
+                        .Select(m => new { m.Id, m.Path })
+                        .ToList()
+                        .GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                    var existingLinks = context.FolderImages
+                        .Where(fi => fi.FolderId == folder.Id)
+                        .Select(fi => fi.ImageId)
+                        .ToHashSet();
+
+                    int orderIndex = context.FolderImages
+                        .Where(fi => fi.FolderId == folder.Id)
+                        .Max(fi => (int?)fi.OrderIndex) ?? 0;
+
+                    foreach (var path in normalizedMediaFiles)
+                    {
+                        if (!imageIdMap.TryGetValue(path, out var imageId))
+                        {
+                            continue;
+                        }
+
+                        if (existingLinks.Contains(imageId))
+                        {
+                            continue;
+                        }
+
+                        linksToAdd.Add(new FolderImage
+                        {
+                            FolderId = folder.Id,
+                            ImageId = imageId,
+                            OrderIndex = ++orderIndex,
+                            RelativePath = GetRelativePathSafe(folder.Path, path),
+                            DiscoveredAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            IsHidden = false
+                        });
+                        existingLinks.Add(imageId);
+                    }
+
+                    if (linksToAdd.Count > 0)
+                    {
+                        context.FolderImages.AddRange(linksToAdd);
+                        context.SaveChanges();
+                    }
+                }
+
                 // System.Diagnostics.Debug.WriteLine($"✅ 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine(
-                    $"[ImportManager] ImportFolder 完成: FolderId={folder.Id}, NewFiles={newFiles.Count}, ExistingFiles={existingFiles.Count}");
+                // System.Diagnostics.Trace.WriteLine(
+                //     $"[ImportManager] op={operationId} ImportFolder 完成: FolderId={folder.Id}, NewFiles={newFiles.Count}, ExistingFiles={existingFiles.Count}, NewLinks={linksToAdd.Count}, AllExisting={allFilesExisting}");
 #endif
 
                 return (folder, newFiles, existingFiles);
@@ -167,10 +230,14 @@ namespace ImageColorChanger.Managers
             {
                 LastError = $"导入文件夹失败: {ex.Message}";
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 异常: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] ImportFolder 堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportFolder 异常: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} ImportFolder 堆栈: {ex.StackTrace}");
 #endif
                 return (null, null, null);
+            }
+            finally
+            {
+                WriteLock.Release();
             }
         }
 
@@ -223,8 +290,10 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public (int added, int removed, int updated) SyncFolder(int folderId)
         {
+            WriteLock.Wait();
+            var operationId = Guid.NewGuid().ToString("N");
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 开始: FolderId={folderId}");
+            // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncFolder 开始: FolderId={folderId}");
 #endif
             try
             {
@@ -258,15 +327,74 @@ namespace ImageColorChanger.Managers
                 var deletedFiles = dbFiles.Where(f => !currentFileSet.Contains(NormalizePath(f.Path))).ToList();
 
                 // 添加新文件
+                var context = _dbManager.GetDbContext();
                 if (newFiles.Count > 0)
                 {
                     _dbManager.AddMediaFiles(newFiles, folderId);
                 }
 
-                // 删除不存在的文件
-                foreach (var file in deletedFiles)
+                bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
+                // 映射新增：包括“原库已有但未映射到该目录”的路径
+                var mappedPathSet = new HashSet<string>(dbFiles.Select(f => NormalizePath(f.Path)), StringComparer.OrdinalIgnoreCase);
+                var pathsNeedingLink = currentFiles.Where(p => !mappedPathSet.Contains(p)).ToList();
+                if (folderV2Enabled && pathsNeedingLink.Count > 0)
                 {
-                    _dbManager.DeleteMediaFile(file.Id);
+                    var imageMap = context.MediaFiles
+                        .Where(m => pathsNeedingLink.Contains(m.Path))
+                        .Select(m => new { m.Id, m.Path })
+                        .ToList()
+                        .GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                    var existingLinks = context.FolderImages
+                        .Where(fi => fi.FolderId == folderId)
+                        .Select(fi => fi.ImageId)
+                        .ToHashSet();
+
+                    int orderIndex = context.FolderImages
+                        .Where(fi => fi.FolderId == folderId)
+                        .Max(fi => (int?)fi.OrderIndex) ?? 0;
+
+                    var linksToAdd = new List<FolderImage>();
+                    foreach (var path in pathsNeedingLink)
+                    {
+                        if (!imageMap.TryGetValue(path, out var imageId) || existingLinks.Contains(imageId))
+                        {
+                            continue;
+                        }
+
+                        linksToAdd.Add(new FolderImage
+                        {
+                            FolderId = folderId,
+                            ImageId = imageId,
+                            OrderIndex = ++orderIndex,
+                            RelativePath = GetRelativePathSafe(folder.Path, path),
+                            DiscoveredAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            IsHidden = false
+                        });
+                        existingLinks.Add(imageId);
+                    }
+
+                    if (linksToAdd.Count > 0)
+                    {
+                        context.FolderImages.AddRange(linksToAdd);
+                        context.SaveChanges();
+                    }
+                }
+
+                // 删除不存在的仅为“该目录映射”，素材主数据由引用关系决定
+                if (folderV2Enabled && deletedFiles.Count > 0)
+                {
+                    var deletedIds = deletedFiles.Select(f => f.Id).Distinct().ToList();
+                    var deleteLinks = context.FolderImages
+                        .Where(fi => fi.FolderId == folderId && deletedIds.Contains(fi.ImageId))
+                        .ToList();
+                    if (deleteLinks.Count > 0)
+                    {
+                        context.FolderImages.RemoveRange(deleteLinks);
+                        context.SaveChanges();
+                    }
                 }
 
                 // 🔑 关键修复：同步后重新应用排序规则
@@ -277,8 +405,8 @@ namespace ImageColorChanger.Managers
 
                 //System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine(
-                    $"[ImportManager] SyncFolder 完成: FolderId={folderId}, added={newFiles.Count}, removed={deletedFiles.Count}");
+                // System.Diagnostics.Trace.WriteLine(
+                //     $"[ImportManager] op={operationId} SyncFolder 完成: FolderId={folderId}, added={newFiles.Count}, removed={deletedFiles.Count}");
 #endif
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
@@ -286,12 +414,16 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 异常: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncFolder 堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncFolder 异常: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncFolder 堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
 #endif
                 return (0, 0, 0);
+            }
+            finally
+            {
+                WriteLock.Release();
             }
         }
 
@@ -351,9 +483,10 @@ namespace ImageColorChanger.Managers
             int totalAdded = 0;
             int totalRemoved = 0;
             int totalUpdated = 0;
+            var operationId = Guid.NewGuid().ToString("N");
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine("[ImportManager] SyncAllFolders 开始");
+            // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 开始");
 #endif
             try
             {
@@ -369,15 +502,15 @@ namespace ImageColorChanger.Managers
 
                 //System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine(
-                    $"[ImportManager] SyncAllFolders 完成: added={totalAdded}, removed={totalRemoved}, updated={totalUpdated}");
+                // System.Diagnostics.Trace.WriteLine(
+                //     $"[ImportManager] op={operationId} SyncAllFolders 完成: added={totalAdded}, removed={totalRemoved}, updated={totalUpdated}");
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncAllFolders 异常: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[ImportManager] SyncAllFolders 堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 异常: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
 #endif
@@ -395,6 +528,18 @@ namespace ImageColorChanger.Managers
             catch
             {
                 return path;
+            }
+        }
+
+        private static string GetRelativePathSafe(string rootPath, string fullPath)
+        {
+            try
+            {
+                return Path.GetRelativePath(rootPath, fullPath);
+            }
+            catch
+            {
+                return fullPath;
             }
         }
 

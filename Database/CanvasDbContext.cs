@@ -59,6 +59,11 @@ namespace ImageColorChanger.Database
         public DbSet<MediaFile> MediaFiles { get; set; }
 
         /// <summary>
+        /// 文件夹-素材映射表（folder_images）
+        /// </summary>
+        public DbSet<FolderImage> FolderImages { get; set; }
+
+        /// <summary>
         /// 通用设置表
         /// </summary>
         public DbSet<Setting> Settings { get; set; }
@@ -162,6 +167,8 @@ namespace ImageColorChanger.Database
             {
                 // 路径唯一索引
                 entity.HasIndex(e => e.Path).IsUnique();
+                // 规范化路径唯一索引（允许历史空值）
+                entity.HasIndex(e => e.NormalizedPath).IsUnique();
                 // 排序索引
                 entity.HasIndex(e => e.OrderIndex).HasDatabaseName("idx_order_folders");
             });
@@ -187,6 +194,27 @@ namespace ImageColorChanger.Database
                     .WithMany(f => f.MediaFiles)
                     .HasForeignKey(m => m.FolderId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ========== 文件夹-素材映射表配置 ==========
+            modelBuilder.Entity<FolderImage>(entity =>
+            {
+                entity.HasIndex(e => e.FolderId).HasDatabaseName("idx_folder_images_folder");
+                entity.HasIndex(e => e.ImageId).HasDatabaseName("idx_folder_images_image");
+                entity.HasIndex(e => new { e.FolderId, e.OrderIndex }).HasDatabaseName("idx_folder_images_folder_order");
+                entity.HasIndex(e => new { e.FolderId, e.ImageId })
+                    .IsUnique()
+                    .HasDatabaseName("uidx_folder_images_folder_image");
+
+                entity.HasOne(e => e.Folder)
+                    .WithMany(f => f.FolderImages)
+                    .HasForeignKey(e => e.FolderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.MediaFile)
+                    .WithMany(m => m.FolderImages)
+                    .HasForeignKey(e => e.ImageId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ========== 关键帧表配置 ==========
@@ -432,6 +460,9 @@ namespace ImageColorChanger.Database
                 Database.EnsureCreated();
                 // System.Diagnostics.Debug.WriteLine($"✅ Database.EnsureCreated() 完成");
 
+                // v2 文件夹映射层：建表 + 回填（兼容旧库）
+                EnsureFolderImagesSchemaExists();
+
                 // 检查并创建关键帧表（兼容旧数据库）
                 EnsureKeyframesTableExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
@@ -470,6 +501,56 @@ namespace ImageColorChanger.Database
                 // System.Diagnostics.Debug.WriteLine($"❌ 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// 确保 folder_images 及 folders 扩展字段存在，并从旧 folder_id 回填映射。
+        /// </summary>
+        private void EnsureFolderImagesSchemaExists()
+        {
+            try
+            {
+                Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS folder_images (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        folder_id INTEGER NOT NULL,
+                        image_id INTEGER NOT NULL,
+                        order_index INTEGER NULL,
+                        relative_path TEXT NULL,
+                        discovered_at TEXT NULL,
+                        updated_at TEXT NULL,
+                        is_hidden INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                    )");
+
+                Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS uidx_folder_images_folder_image ON folder_images(folder_id, image_id)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_folder_images_folder ON folder_images(folder_id)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_folder_images_image ON folder_images(image_id)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_folder_images_folder_order ON folder_images(folder_id, order_index)");
+
+                Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN normalized_path TEXT NULL");
+            }
+            catch
+            {
+                // 列已存在时 SQLite 会抛异常，忽略即可。
+            }
+
+            try { Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN scan_policy TEXT NULL"); } catch { }
+            try { Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN last_scan_time TEXT NULL"); } catch { }
+            try { Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN last_scan_status TEXT NULL"); } catch { }
+            try { Database.ExecuteSqlRaw("ALTER TABLE folders ADD COLUMN last_scan_error TEXT NULL"); } catch { }
+            try { Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS uidx_folders_normalized_path ON folders(normalized_path)"); } catch { }
+
+            // 规范化路径回填：先做基础标准化，避免旧数据全为空。
+            Database.ExecuteSqlRaw("UPDATE folders SET normalized_path = lower(path) WHERE normalized_path IS NULL OR normalized_path = ''");
+
+            // 从旧字段回填映射，确保历史数据在新读路径可见。
+            Database.ExecuteSqlRaw(@"
+                INSERT OR IGNORE INTO folder_images(folder_id, image_id, order_index, discovered_at, updated_at, is_hidden)
+                SELECT i.folder_id, i.id, i.order_index, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0
+                FROM images i
+                WHERE i.folder_id IS NOT NULL");
         }
 
         /// <summary>

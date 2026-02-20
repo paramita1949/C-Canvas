@@ -63,6 +63,36 @@ namespace ImageColorChanger.Database.Models
         public string HighlightColor { get; set; }
 
         /// <summary>
+        /// 规范化路径（用于路径唯一约束）
+        /// </summary>
+        [Column("normalized_path")]
+        public string NormalizedPath { get; set; }
+
+        /// <summary>
+        /// 扫描策略（full/incremental）
+        /// </summary>
+        [Column("scan_policy")]
+        public string ScanPolicy { get; set; }
+
+        /// <summary>
+        /// 最近一次扫描时间
+        /// </summary>
+        [Column("last_scan_time")]
+        public DateTime? LastScanTime { get; set; }
+
+        /// <summary>
+        /// 最近一次扫描状态（success/fail/running）
+        /// </summary>
+        [Column("last_scan_status")]
+        public string LastScanStatus { get; set; }
+
+        /// <summary>
+        /// 最近一次扫描错误信息
+        /// </summary>
+        [Column("last_scan_error")]
+        public string LastScanError { get; set; }
+
+        /// <summary>
         /// 导航属性：文件夹下的媒体文件
         /// </summary>
         public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
@@ -76,6 +106,11 @@ namespace ImageColorChanger.Database.Models
         /// 导航属性：原图标记
         /// </summary>
         public virtual ICollection<OriginalMark> OriginalMarks { get; set; } = new List<OriginalMark>();
+
+        /// <summary>
+        /// 导航属性：目录-素材映射
+        /// </summary>
+        public virtual ICollection<FolderImage> FolderImages { get; set; } = new List<FolderImage>();
     }
 }
 

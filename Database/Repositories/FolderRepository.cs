@@ -17,8 +17,12 @@ namespace ImageColorChanger.Database.Repositories
 
         public Folder ImportFolder(string folderPath, string folderName = null)
         {
+            folderPath = NormalizePath(folderPath);
             folderName ??= System.IO.Path.GetFileName(folderPath);
-            var existingFolder = _context.Folders.FirstOrDefault(f => f.Path == folderPath);
+            var normalizedPath = NormalizeNormalizedPath(folderPath);
+            var existingFolder = _context.Folders.FirstOrDefault(f =>
+                f.Path == folderPath ||
+                (!string.IsNullOrEmpty(f.NormalizedPath) && f.NormalizedPath == normalizedPath));
             if (existingFolder != null)
             {
                 return existingFolder;
@@ -29,8 +33,12 @@ namespace ImageColorChanger.Database.Repositories
             {
                 Name = folderName,
                 Path = folderPath,
+                NormalizedPath = normalizedPath,
                 OrderIndex = maxOrder + 1,
-                CreatedTime = DateTime.Now
+                CreatedTime = DateTime.Now,
+                ScanPolicy = "full",
+                LastScanTime = DateTime.Now,
+                LastScanStatus = "success"
             };
 
             _context.Folders.Add(folder);
@@ -48,108 +56,137 @@ namespace ImageColorChanger.Database.Repositories
 
         public void DeleteFolder(int folderId, bool forceDelete = false)
         {
+            var operationId = Guid.NewGuid().ToString("N");
             var folder = _context.Folders.Find(folderId);
             if (folder == null)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 文件夹不存在: FolderId={folderId}");
+                // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 文件夹不存在: FolderId={folderId}");
 #endif
                 return;
             }
 
-            bool foreignKeysDisabled = false;
-
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine(
-                $"[DeleteFolder] 开始: FolderId={folderId}, Name={folder.Name}, forceDelete={forceDelete}");
+            // System.Diagnostics.Trace.WriteLine(
+            //     $"[DeleteFolder] op={operationId} 开始: FolderId={folderId}, Name={folder.Name}, forceDelete={forceDelete}");
 #endif
             try
             {
-                if (forceDelete)
-                {
-                    _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
-                    foreignKeysDisabled = true;
-#if DEBUG
-                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] forceDelete: foreign_keys=OFF");
-#endif
+                // 先记录该目录当前映射素材，用于后续判断孤儿素材是否可清理。
+                var mappedImageIds = _context.FolderImages
+                    .Where(x => x.FolderId == folderId)
+                    .Select(x => x.ImageId)
+                    .Distinct()
+                    .ToList();
 
-                    _context.Database.ExecuteSqlRaw(
-                        "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
-                        folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
-                    int folderDeleted = _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
-                    if (folderDeleted <= 0)
-                    {
-                        throw new InvalidOperationException($"删除文件夹失败：folders 表未删除到记录（FolderId={folderId}）");
-                    }
-#if DEBUG
-                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] forceDelete SQL执行完成");
-                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] forceDelete 删除folders行数: {folderDeleted}");
-#endif
-                }
-                else
+                if (mappedImageIds.Count == 0)
                 {
-                    var fileIds = _context.MediaFiles
+                    // 兼容旧数据：无映射时回退到旧 folder_id 关系。
+                    mappedImageIds = _context.MediaFiles
                         .Where(f => f.FolderId == folderId)
                         .Select(f => f.Id)
                         .ToList();
+                }
 
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 普通删除关联文件数: {fileIds.Count}");
+                // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 关联素材数: {mappedImageIds.Count}");
 #endif
-                    // 避免 SaveChanges() 触发 EF 自动事务（该上下文在当前架构下可能与其他操作并发，导致 nested transaction）。
-                    _context.Database.ExecuteSqlRaw(
-                        "UPDATE lyrics_projects SET image_id = NULL WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})",
-                        folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframe_timings WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM keyframes WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM image_display_locations WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM composite_scripts WHERE image_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM original_marks WHERE item_type = 'image' AND item_id IN (SELECT id FROM images WHERE folder_id = {0})", folderId);
-                    _context.Database.ExecuteSqlRaw("DELETE FROM images WHERE folder_id = {0}", folderId);
-                    int folderDeleted = _context.Database.ExecuteSqlRaw("DELETE FROM folders WHERE id = {0}", folderId);
-                    if (folderDeleted <= 0)
-                    {
-                        throw new InvalidOperationException($"删除文件夹失败：folders 表未删除到记录（FolderId={folderId}）");
-                    }
-#if DEBUG
-                    System.Diagnostics.Trace.WriteLine("[DeleteFolder] 普通删除 SQL执行完成");
-                    System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 普通删除 删除folders行数: {folderDeleted}");
-#endif
+
+                // 删该目录映射关系
+                var links = _context.FolderImages.Where(x => x.FolderId == folderId).ToList();
+                if (links.Count > 0)
+                {
+                    _context.FolderImages.RemoveRange(links);
                 }
+
+                // 删除目录（images.folder_id 设置为 null 由 FK 策略处理）
+                _context.Folders.Remove(folder);
+                _context.SaveChanges();
+
+                // 按需清理“仅属于该目录且无业务引用”的孤儿素材。
+                if (mappedImageIds.Count > 0)
+                {
+                    DeleteOrphanImages(mappedImageIds, forceDelete, operationId);
+                }
+
+#if DEBUG
+                // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} v2删除完成");
+#endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 异常: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"[DeleteFolder] 堆栈: {ex.StackTrace}");
+                // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 异常: {ex.Message}");
+                // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
 #endif
                 throw;
             }
-            finally
+        }
+
+        private void DeleteOrphanImages(List<int> candidateImageIds, bool forceDelete, string operationId)
+        {
+            var linkedByOtherFolders = _context.FolderImages
+                .Where(x => candidateImageIds.Contains(x.ImageId))
+                .Select(x => x.ImageId)
+                .Distinct()
+                .ToHashSet();
+
+            var orphanIds = candidateImageIds
+                .Where(id => !linkedByOtherFolders.Contains(id))
+                .Distinct()
+                .ToList();
+
+            if (orphanIds.Count == 0)
             {
-                if (foreignKeysDisabled)
-                {
-                    try
-                    {
-                        _context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;");
+                return;
+            }
+
+            var hasReferences = _context.Keyframes.Where(k => orphanIds.Contains(k.ImageId)).Select(k => k.ImageId).Distinct()
+                .Concat(_context.KeyframeTimings.Where(t => orphanIds.Contains(t.ImageId)).Select(t => t.ImageId).Distinct())
+                .Concat(_context.ImageDisplayLocations.Where(l => orphanIds.Contains(l.ImageId)).Select(l => l.ImageId).Distinct())
+                .Concat(_context.CompositeScripts.Where(s => orphanIds.Contains(s.ImageId)).Select(s => s.ImageId).Distinct())
+                .Concat(_context.OriginalMarks.Where(m => m.ItemTypeString == "image" && orphanIds.Contains(m.ItemId)).Select(m => m.ItemId).Distinct())
+                .Concat(_context.LyricsProjects.Where(lp => lp.ImageId.HasValue && orphanIds.Contains(lp.ImageId.Value)).Select(lp => lp.ImageId.Value).Distinct())
+                .Distinct()
+                .ToHashSet();
+
+            var safeToDelete = forceDelete
+                ? orphanIds
+                : orphanIds.Where(id => !hasReferences.Contains(id)).ToList();
+
+            if (safeToDelete.Count == 0)
+            {
+                return;
+            }
+
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine("[DeleteFolder] 已恢复 foreign_keys=ON");
+            // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 清理孤儿素材: {safeToDelete.Count}");
 #endif
-                    }
-                    catch
-                    {
-                    }
-                }
+            var images = _context.MediaFiles.Where(f => safeToDelete.Contains(f.Id)).ToList();
+            _context.MediaFiles.RemoveRange(images);
+            _context.SaveChanges();
+        }
+
+        private static string NormalizePath(string path)
+        {
+            try
+            {
+                return System.IO.Path.GetFullPath(path);
+            }
+            catch
+            {
+                return path ?? string.Empty;
             }
         }
+
+        private static string NormalizeNormalizedPath(string path)
+        {
+            var full = NormalizePath(path);
+            return full.Replace('/', '\\').TrimEnd('\\').ToLowerInvariant();
+        }
+        
 
         public void UpdateFoldersOrder(List<Folder> folders)
         {

@@ -40,6 +40,7 @@ namespace ImageColorChanger.UI
             try
             {
                 _fpsMonitor?.StartMonitoring();
+                RefreshWindowTitleByRuntimeState();
             }
             catch (Exception ex)
             {
@@ -55,6 +56,7 @@ namespace ImageColorChanger.UI
             try
             {
                 _fpsMonitor?.StopMonitoring();
+                RefreshWindowTitleByRuntimeState();
             }
             catch (Exception ex)
             {

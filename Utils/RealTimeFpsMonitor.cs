@@ -31,6 +31,7 @@ namespace ImageColorChanger.Utils
         
         // 是否正在监控
         private bool _isMonitoring;
+        public bool IsMonitoring => _isMonitoring;
         
         // 原始标题
         private string _originalTitle;

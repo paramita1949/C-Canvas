@@ -69,10 +69,11 @@ namespace ImageColorChanger.Database
         public List<Folder> GetAllFolders() => _folderRepository.GetAllFolders();
         public void DeleteFolder(int folderId, bool forceDelete = false)
         {
+            var operationId = Guid.NewGuid().ToString("N");
             // 隔离上下文执行删除，避免主上下文潜在悬挂事务影响 SQLite 提交行为。
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine(
-                $"[DatabaseManager] DeleteFolder使用隔离上下文: DbPath={_dbPath}, FolderId={folderId}, forceDelete={forceDelete}");
+            // System.Diagnostics.Trace.WriteLine(
+            //     $"[DatabaseManager] op={operationId} DeleteFolder使用隔离上下文: DbPath={_dbPath}, FolderId={folderId}, forceDelete={forceDelete}");
 #endif
             using (var isolatedContext = new CanvasDbContext(_dbPath))
             {
@@ -185,6 +186,38 @@ namespace ImageColorChanger.Database
 
         public string GetDatabasePath() => _dbPath;
         public CanvasDbContext GetDbContext() => _context;
+        public bool IsFolderSystemV2Enabled()
+        {
+            var setting = _settingsRepository.GetSetting("feature.folder_system_v2", "1");
+            return !string.Equals(setting, "0", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(setting, "false", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(setting, "off", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public (int missingLinks, int staleLinks, int addedLinks, int removedLinks) ReconcileFolderImageLinks()
+        {
+            // 从旧 folder_id 补映射；清理指向不存在 folder/image 的陈旧映射。
+            int added = _context.Database.ExecuteSqlRaw(@"
+                INSERT OR IGNORE INTO folder_images(folder_id, image_id, order_index, discovered_at, updated_at, is_hidden)
+                SELECT i.folder_id, i.id, i.order_index, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0
+                FROM images i
+                WHERE i.folder_id IS NOT NULL");
+
+            int staleByFolder = _context.Database.ExecuteSqlRaw(@"
+                DELETE FROM folder_images
+                WHERE folder_id NOT IN (SELECT id FROM folders)");
+            int staleByImage = _context.Database.ExecuteSqlRaw(@"
+                DELETE FROM folder_images
+                WHERE image_id NOT IN (SELECT id FROM images)");
+
+            // 统计缺失映射数：旧字段有 folder_id 但未映射。
+            int missing = _context.MediaFiles
+                .Where(i => i.FolderId != null)
+                .Count(i => !_context.FolderImages.Any(fi => fi.FolderId == i.FolderId && fi.ImageId == i.Id));
+
+            int removed = staleByFolder + staleByImage;
+            return (missing, staleByFolder + staleByImage, added, removed);
+        }
 
         #endregion
 

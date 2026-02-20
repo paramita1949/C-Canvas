@@ -116,6 +116,11 @@ namespace ImageColorChanger.Database.Models
         /// 导航属性：显示位置
         /// </summary>
         public virtual ICollection<ImageDisplayLocation> DisplayLocations { get; set; } = new List<ImageDisplayLocation>();
+
+        /// <summary>
+        /// 导航属性：目录-素材映射
+        /// </summary>
+        public virtual ICollection<FolderImage> FolderImages { get; set; } = new List<FolderImage>();
     }
 }
 

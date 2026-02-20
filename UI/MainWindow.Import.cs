@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
 {
@@ -139,12 +140,47 @@ namespace ImageColorChanger.UI
 
             // 版本管理（放在字号设置下方，保持在文件菜单最底部）
             var versionManageItem = new MenuItem { Header = "版本管理" };
-            versionManageItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
+            var versionUpgradeItem = new MenuItem { Header = "检查升级" };
+            versionUpgradeItem.Click += async (s, args) => await OpenVersionUpgradeAsync();
+            versionManageItem.Items.Add(versionUpgradeItem);
+
+            var versionRollbackItem = new MenuItem { Header = "版本回退" };
+            versionRollbackItem.Click += (s, args) => BtnRollback_Click(this, new RoutedEventArgs());
+            versionManageItem.Items.Add(versionRollbackItem);
+
             contextMenu.Items.Add(versionManageItem);
 
             // 显示菜单
             contextMenu.PlacementTarget = BtnImport;
             contextMenu.IsOpen = true;
+        }
+
+        private async System.Threading.Tasks.Task OpenVersionUpgradeAsync()
+        {
+            try
+            {
+                var versionInfo = UpdateService.GetLastCheckedVersionInfo();
+                if (versionInfo == null)
+                {
+                    versionInfo = await UpdateService.CheckForUpdatesAsync();
+                }
+
+                if (versionInfo == null)
+                {
+                    ShowStatus("✅ 当前已是最新版本");
+                    return;
+                }
+
+                var updateWindow = new UpdateWindow(versionInfo)
+                {
+                    Owner = this
+                };
+                updateWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 检查更新失败: {ex.Message}");
+            }
         }
 
         /// <summary>
