@@ -41,13 +41,6 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            // 导入幻灯片
-            var importSlideItem = new MenuItem { Header = "导入幻灯片" };
-            importSlideItem.Click += async (s, args) => await ImportSlideProjectsAsync();
-            contextMenu.Items.Add(importSlideItem);
-
-            contextMenu.Items.Add(new Separator());
-
             // 另存图片
             var saveImageItem = new MenuItem { Header = "另存图片" };
             saveImageItem.Click += (s, args) => SaveCurrentImage();
@@ -55,8 +48,8 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            // 迁移数据库
-            var migrationItem = new MenuItem { Header = "迁移数据库" };
+            // 数据库
+            var migrationItem = new MenuItem { Header = "数据库" };
 
             // 导入数据库子菜单
             var importDbItem = new MenuItem { Header = "导入数据库" };
@@ -67,6 +60,11 @@ namespace ImageColorChanger.UI
             var exportDbItem = new MenuItem { Header = "导出数据库" };
             exportDbItem.Click += async (s, args) => await ExportDatabaseAsync();
             migrationItem.Items.Add(exportDbItem);
+
+            // 导入幻灯片子菜单
+            var importSlideItem = new MenuItem { Header = "导入幻灯片" };
+            importSlideItem.Click += async (s, args) => await ImportSlideProjectsAsync();
+            migrationItem.Items.Add(importSlideItem);
 
             if (IsLyricsTransferFeatureEnabled)
             {
@@ -245,17 +243,10 @@ namespace ImageColorChanger.UI
 
             if (!string.IsNullOrEmpty(selectedPath))
             {
-#if DEBUG
-                System.Diagnostics.Trace.WriteLine($"[ImportFolder] 用户选择路径: {selectedPath}");
-#endif
                 var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(selectedPath);
                 
                 if (folder != null)
                 {
-#if DEBUG
-                    System.Diagnostics.Trace.WriteLine(
-                        $"[ImportFolder] 导入完成: FolderId={folder.Id}, Name={folder.Name}, NewFiles={newFiles?.Count ?? 0}, ExistingFiles={existingFiles?.Count ?? 0}");
-#endif
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
                     
@@ -274,17 +265,8 @@ namespace ImageColorChanger.UI
                 }
                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
-#if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"[ImportFolder] 导入失败: {ImportManagerService.LastError}");
-#endif
                     ShowStatus($"❌ {ImportManagerService.LastError}");
                 }
-#if DEBUG
-                else
-                {
-                    System.Diagnostics.Trace.WriteLine("[ImportFolder] 导入返回空结果，且 LastError 为空");
-                }
-#endif
             }
         }
 

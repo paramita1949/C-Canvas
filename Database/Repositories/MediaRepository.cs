@@ -76,10 +76,6 @@ namespace ImageColorChanger.Database.Repositories
                 .Where(path => !existingPaths.Contains(path))
                 .ToList();
 
-#if DEBUG
-            System.Diagnostics.Trace.WriteLine(
-                $"[MediaRepository] AddMediaFiles: input={normalizedInputPaths.Count}, existing={existingPaths.Count}, toInsert={candidatePaths.Count}, folderId={(folderId.HasValue ? folderId.Value.ToString() : "null")}");
-#endif
             var mediaFiles = new List<MediaFile>();
             int orderIndex = folderId.HasValue
                 ? _context.MediaFiles.Where(m => m.FolderId == folderId.Value).Max(m => (int?)m.OrderIndex) ?? 0
