@@ -33,6 +33,7 @@ namespace ImageColorChanger.UI
                 TextColorSettingsPanel.SettingsStore = uiSettingsStore;
 
                 LoadSearchScopes();
+                UpdateSearchEntryModeVisual();
             }
             catch (Exception ex)
             {

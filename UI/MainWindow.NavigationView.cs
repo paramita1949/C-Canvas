@@ -264,6 +264,8 @@ namespace ImageColorChanger.UI
             BtnShowBible.Background = _currentViewMode == NavigationViewMode.Bible ? activeBackground : inactiveBackground;
             BtnShowBible.Foreground = _currentViewMode == NavigationViewMode.Bible ? activeForeground : inactiveForeground;
             BtnShowBible.BorderBrush = _currentViewMode == NavigationViewMode.Bible ? activeBorder : inactiveBorder;
+
+            UpdateSearchEntryModeVisual();
         }
 
         /// <summary>

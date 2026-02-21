@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -10,6 +11,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.Core;
+using TinyPinyin;
 
 namespace ImageColorChanger.Services.Implementations
 {
@@ -18,6 +20,12 @@ namespace ImageColorChanger.Services.Implementations
     /// </summary>
     public class BibleService : IBibleService
     {
+        private sealed class BiblePinyinSearchEntry
+        {
+            public BibleSearchResult Result { get; init; }
+            public string ScripturePinyin { get; init; }
+        }
+
         private readonly IMemoryCache _cache;
         private readonly ConfigManager _configManager;
         private string _currentDatabasePath;
@@ -486,6 +494,156 @@ namespace ImageColorChanger.Services.Implementations
                 throw;
             }
 #endif
+        }
+
+        /// <summary>
+        /// 按拼音搜索经文（例如：moxi -> 摩西）
+        /// </summary>
+        public async Task<List<BibleSearchResult>> SearchVersesByPinyinAsync(string pinyinKeyword, int? bookId = null)
+        {
+            if (string.IsNullOrWhiteSpace(pinyinKeyword))
+            {
+                return new List<BibleSearchResult>();
+            }
+
+            string normalizedKeyword = NormalizePinyinText(pinyinKeyword);
+            if (string.IsNullOrWhiteSpace(normalizedKeyword))
+            {
+                return new List<BibleSearchResult>();
+            }
+
+#if DEBUG
+            var sw = Stopwatch.StartNew();
+#endif
+
+            try
+            {
+                var entries = await GetPinyinSearchEntriesAsync();
+                IEnumerable<BiblePinyinSearchEntry> query = entries;
+
+                if (bookId.HasValue)
+                {
+                    query = query.Where(e => e.Result.Book == bookId.Value);
+                }
+
+                var results = query
+                    .Where(e => !string.IsNullOrWhiteSpace(e.ScripturePinyin) &&
+                                e.ScripturePinyin.Contains(normalizedKeyword, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(e => e.Result.Book)
+                    .ThenBy(e => e.Result.Chapter)
+                    .ThenBy(e => e.Result.Verse)
+                    .Take(100)
+                    .Select(e => new BibleSearchResult
+                    {
+                        Book = e.Result.Book,
+                        Chapter = e.Result.Chapter,
+                        Verse = e.Result.Verse,
+                        Scripture = e.Result.Scripture,
+                        BookName = e.Result.BookName,
+                        Reference = e.Result.Reference,
+                        VersionId = e.Result.VersionId
+                    })
+                    .ToList();
+
+#if DEBUG
+                sw.Stop();
+                //Debug.WriteLine($"[圣经服务] 拼音搜索 '{pinyinKeyword}': {sw.ElapsedMilliseconds}ms, 结果数: {results.Count}");
+#endif
+
+                return results;
+            }
+#if DEBUG
+            catch (Exception)
+            {
+                //Debug.WriteLine($"[圣经服务] 拼音搜索失败: {ex.Message}");
+                throw;
+            }
+#else
+            catch (Exception)
+            {
+                throw;
+            }
+#endif
+        }
+
+        private async Task<List<BiblePinyinSearchEntry>> GetPinyinSearchEntriesAsync()
+        {
+            string cacheKey = $"bible_pinyin_search_entries::{_currentDatabasePath}";
+
+            if (_cache.TryGetValue(cacheKey, out List<BiblePinyinSearchEntry> cachedEntries) && cachedEntries != null)
+            {
+                return cachedEntries;
+            }
+
+            using var context = CreateDbContext();
+            var rows = await context.Bible
+                .AsNoTracking()
+                .Select(v => new BibleSearchResult
+                {
+                    Book = v.Book,
+                    Chapter = v.Chapter,
+                    Verse = v.Verse,
+                    Scripture = v.Scripture,
+                    BookName = BibleBookConfig.GetBook(v.Book).Name,
+                    Reference = $"{BibleBookConfig.GetBook(v.Book).Name} {v.Chapter}:{v.Verse}"
+                })
+                .ToListAsync();
+
+            var entries = rows
+                .Select(r => new BiblePinyinSearchEntry
+                {
+                    Result = r,
+                    ScripturePinyin = NormalizePinyinText(ToPinyin(r.Scripture))
+                })
+                .ToList();
+
+            _cache.Set(cacheKey, entries, TimeSpan.FromMinutes(30));
+            return entries;
+        }
+
+        private static string ToPinyin(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(text.Length * 2);
+            foreach (var c in text)
+            {
+                if (PinyinHelper.IsChinese(c))
+                {
+                    var py = PinyinHelper.GetPinyin(c.ToString());
+                    if (!string.IsNullOrWhiteSpace(py))
+                    {
+                        sb.Append(py);
+                    }
+                    continue;
+                }
+
+                sb.Append(c);
+            }
+
+            return sb.ToString();
+        }
+
+        private static string NormalizePinyinText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(text.Length);
+            foreach (char c in text)
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    sb.Append(char.ToLowerInvariant(c));
+                }
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>

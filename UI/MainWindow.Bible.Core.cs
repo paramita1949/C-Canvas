@@ -213,6 +213,7 @@ namespace ImageColorChanger.UI
                     });
 
                 LoadBibleCopyStyleSetting();
+                EnsureBibleSearchComponentsInitialized();
             }
             catch (Exception ex)
             {

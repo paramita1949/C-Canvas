@@ -192,6 +192,7 @@ namespace ImageColorChanger.UI
             {
                 // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
                 MainWindow_Closing(sender, e);
+                DisposeBibleSearchComponents();
 
                 // 退出前等待认证状态落盘，避免“登录后重启又要登录”。
                 try

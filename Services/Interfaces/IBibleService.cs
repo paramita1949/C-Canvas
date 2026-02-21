@@ -40,6 +40,11 @@ namespace ImageColorChanger.Services.Interfaces
         Task<List<BibleSearchResult>> SearchVersesAsync(string keyword, int? bookId = null);
 
         /// <summary>
+        /// 按拼音搜索经文（例如：moxi -> 摩西）
+        /// </summary>
+        Task<List<BibleSearchResult>> SearchVersesByPinyinAsync(string pinyinKeyword, int? bookId = null);
+
+        /// <summary>
         /// 获取书卷章数
         /// </summary>
         int GetChapterCount(int book);

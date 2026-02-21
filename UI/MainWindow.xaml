@@ -165,10 +165,73 @@
                                  materialDesign:TextFieldAssist.UnderlineBrush="#2196F3"
                                  Style="{StaticResource MaterialDesignFilledTextBox}"
                                  TextChanged="SearchBox_TextChanged"
+                                 PreviewKeyDown="SearchBox_PreviewKeyDown"
                                  MouseDoubleClick="SearchBox_MouseDoubleClick"
                                  FontSize="14"
                                  Foreground="Black"
                                  VerticalContentAlignment="Center"/>
+
+                        <Popup x:Name="BibleSearchPopup"
+                               PlacementTarget="{Binding ElementName=SearchBox}"
+                               Placement="Bottom"
+                               StaysOpen="False"
+                               AllowsTransparency="True"
+                               PopupAnimation="Fade">
+                            <Border Background="#FFFFFF"
+                                    BorderBrush="#D6D6D6"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8"
+                                    MinWidth="420"
+                                    MaxWidth="620"
+                                    MaxHeight="420">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock x:Name="BibleSearchResultStatus"
+                                               Foreground="#666666"
+                                               FontSize="12"
+                                               Margin="2,0,2,6"/>
+
+                                    <ListBox x:Name="BibleSearchResultsList"
+                                             Grid.Row="1"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="6,4"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Reference}"
+                                                               Foreground="#0A58CA"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="13"/>
+                                                    <TextBlock Foreground="#222222"
+                                                               FontSize="12"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,2,0,0">
+                                                        <Run Text="{Binding SnippetPrefix}"/>
+                                                        <Run Text="{Binding SnippetMatch}"
+                                                             Foreground="#D32F2F"
+                                                             FontWeight="Bold"/>
+                                                        <Run Text="{Binding SnippetSuffix}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+                        </Popup>
 
                         <!-- 搜索范围 -->
                         <ComboBox x:Name="SearchScope" 

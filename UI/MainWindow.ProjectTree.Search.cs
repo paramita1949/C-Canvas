@@ -16,14 +16,23 @@ namespace ImageColorChanger.UI
     {
         #region 搜索功能
 
-        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        private async void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             try
             {
+                string searchTerm = SearchBox.Text?.Trim() ?? "";
+
+                if (_isBibleMode)
+                {
+                    await HandleBibleSearchInputChangedAsync(searchTerm);
+                    return;
+                }
+
+                HideBibleSearchResults();
+
                 var searchManager = SearchManagerService;
                 if (searchManager == null) return;
 
-                string searchTerm = SearchBox.Text?.Trim() ?? "";
                 string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
 
                 // System.Diagnostics.Debug.WriteLine($"🔍 搜索: 关键词='{searchTerm}', 范围='{searchScope}'");
@@ -72,8 +81,14 @@ namespace ImageColorChanger.UI
         {
             SearchBox.Clear();
             SearchBox.Focus();
-            
-            // 🆕 新增: 折叠所有展开的文件夹节点
+
+            if (_isBibleMode)
+            {
+                HideBibleSearchResults();
+                ShowStatus("✅ 已清除经文搜索");
+                return;
+            }
+
             CollapseAllFolders();
             ShowStatus("✅ 已清除搜索并折叠所有文件夹");
         }
