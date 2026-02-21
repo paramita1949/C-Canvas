@@ -149,5 +149,88 @@
                              Style="{StaticResource BibleVersionRadioStyle}"/>
             </StackPanel>
         </Border>
+
+        <Border Grid.Row="1"
+                x:Name="BibleEmbeddedSearchResultsContainer"
+                x:FieldModifier="public"
+                Visibility="Collapsed"
+                Background="#F7F7F7"
+                BorderBrush="#E2E2E2"
+                BorderThickness="1,1,0,0"
+                Padding="8,6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="72"/>
+                    <RowDefinition Height="420"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="BibleEmbeddedSearchResultStatus"
+                           x:FieldModifier="public"
+                           Foreground="#666666"
+                           FontSize="13"
+                           Margin="2,0,2,4"/>
+
+                <WrapPanel Grid.Row="1"
+                           x:Name="BibleEmbeddedSearchFilterTagsPanel"
+                           x:FieldModifier="public"
+                           Margin="0,0,0,4"/>
+
+                <ListBox Grid.Row="2"
+                         x:Name="BibleEmbeddedSearchResultsList"
+                         x:FieldModifier="public"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Height="420"
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                         ScrollViewer.HorizontalScrollBarVisibility="Hidden">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="2,2"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Foreground="#111111"
+                                       FontSize="15"
+                                       TextWrapping="Wrap">
+                                <Run Text="{Binding RowNumber}"/>
+                                <Run Text=". "/>
+                                <Run Text="["/>
+                                <Run Text="{Binding Reference}"/>
+                                <Run Text="] "/>
+                                <Run Text="{Binding FullPrefix}"/>
+                                <Run Text="{Binding FullMatch}"
+                                     Foreground="#1E88E5"
+                                     FontWeight="Bold"/>
+                                <Run Text="{Binding FullSuffix}"/>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="3"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,6,0,0">
+                    <Button x:Name="BibleEmbeddedSearchPrevPageButton"
+                            x:FieldModifier="public"
+                            Content="上一页"
+                            Padding="8,2"
+                            Margin="0,0,8,0"/>
+                    <TextBlock x:Name="BibleEmbeddedSearchPageInfoText"
+                               x:FieldModifier="public"
+                               VerticalAlignment="Center"
+                               Foreground="#666666"
+                               Margin="0,0,8,0"/>
+                    <Button x:Name="BibleEmbeddedSearchNextPageButton"
+                            x:FieldModifier="public"
+                            Content="下一页"
+                            Padding="8,2"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

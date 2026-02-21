@@ -6,14 +6,25 @@ namespace ImageColorChanger.UI.Modules
 {
     public sealed class BibleSearchHit
     {
+        public int RowNumber { get; init; }
         public int Book { get; init; }
         public int Chapter { get; init; }
         public int Verse { get; init; }
         public string Reference { get; init; }
+        public string Scripture { get; init; }
         public string Snippet { get; init; }
         public string SnippetPrefix { get; init; }
         public string SnippetMatch { get; init; }
         public string SnippetSuffix { get; init; }
+        public string FullPrefix { get; init; }
+        public string FullMatch { get; init; }
+        public string FullSuffix { get; init; }
+    }
+
+    public enum BibleSearchResultDisplayMode
+    {
+        Floating = 0,
+        Embedded = 1
     }
 
     public enum BibleHistorySlotWriteStatus
@@ -45,12 +56,15 @@ namespace ImageColorChanger.UI.Modules
     public interface IBibleSearchResultPresenter : IDisposable
     {
         event EventHandler<BibleSearchHit> HitSelected;
+        event EventHandler Dismissed;
 
         bool IsOpen { get; }
+        BibleSearchResultDisplayMode DisplayMode { get; set; }
         void ShowResults(IReadOnlyList<BibleSearchHit> hits);
         void ShowStatus(string message);
         void Hide();
         bool HandleSearchBoxKeyDown(System.Windows.Input.Key key);
+        bool HandleWindowPreviewMouseDown(System.Windows.DependencyObject source);
     }
 
     public interface IBibleHistorySlotWriter

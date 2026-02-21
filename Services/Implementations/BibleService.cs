@@ -463,7 +463,6 @@ namespace ImageColorChanger.Services.Implementations
                 query = query.Where(v => v.Scripture.Contains(keyword));
 
                 var results = await query
-                    .Take(100)
                     .Select(v => new BibleSearchResult
                     {
                         Book = v.Book,
@@ -475,17 +474,17 @@ namespace ImageColorChanger.Services.Implementations
                     })
                     .ToListAsync();
 
-                #if DEBUG
+#if DEBUG
                 sw.Stop();
-                Debug.WriteLine($"[圣经服务] 搜索 '{keyword}': {sw.ElapsedMilliseconds}ms, 结果数: {results.Count}");
-                #endif
+                //Debug.WriteLine($"[圣经服务] 搜索 '{keyword}': {sw.ElapsedMilliseconds}ms, 结果数: {results.Count}");
+#endif
 
                 return results;
             }
 #if DEBUG
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"[圣经服务] 搜索失败: {ex.Message}");
+                //Debug.WriteLine("[圣经服务] 搜索失败");
                 throw;
             }
 #else
@@ -532,7 +531,6 @@ namespace ImageColorChanger.Services.Implementations
                     .OrderBy(e => e.Result.Book)
                     .ThenBy(e => e.Result.Chapter)
                     .ThenBy(e => e.Result.Verse)
-                    .Take(100)
                     .Select(e => new BibleSearchResult
                     {
                         Book = e.Result.Book,
@@ -797,4 +795,5 @@ namespace ImageColorChanger.Services.Implementations
         }
     }
 }
+
 

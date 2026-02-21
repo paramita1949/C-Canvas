@@ -155,21 +155,55 @@
 
                     <!-- 搜索区域 -->
                     <StackPanel Grid.Row="0" Background="White" Margin="8">
-                        <!-- 搜索框 -->
-                        <TextBox x:Name="SearchBox"
-                                 Height="40"
-                                 Margin="0,4,0,8"
-                                 Padding="12,8"
-                                 materialDesign:HintAssist.Hint="搜索..."
-                                 materialDesign:HintAssist.Foreground="#666666"
-                                 materialDesign:TextFieldAssist.UnderlineBrush="#2196F3"
-                                 Style="{StaticResource MaterialDesignFilledTextBox}"
-                                 TextChanged="SearchBox_TextChanged"
-                                 PreviewKeyDown="SearchBox_PreviewKeyDown"
-                                 MouseDoubleClick="SearchBox_MouseDoubleClick"
-                                 FontSize="14"
-                                 Foreground="Black"
-                                 VerticalContentAlignment="Center"/>
+                        <Grid Margin="0,4,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 搜索框 -->
+                            <TextBox x:Name="SearchBox"
+                                     Grid.Column="0"
+                                     Height="40"
+                                     Margin="0"
+                                     Padding="12,8"
+                                     materialDesign:HintAssist.Hint="搜索..."
+                                     materialDesign:HintAssist.Foreground="#666666"
+                                     materialDesign:TextFieldAssist.UnderlineBrush="#2196F3"
+                                     Style="{StaticResource MaterialDesignFilledTextBox}"
+                                     TextChanged="SearchBox_TextChanged"
+                                     PreviewKeyDown="SearchBox_PreviewKeyDown"
+                                     MouseDoubleClick="SearchBox_MouseDoubleClick"
+                                     FontSize="14"
+                                     Foreground="Black"
+                                     VerticalContentAlignment="Center"/>
+
+                            <StackPanel x:Name="BibleSearchModePanel"
+                                        Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                <TextBlock x:Name="BibleSearchModeFloatingText"
+                                           Text="悬浮"
+                                           FontSize="18"
+                                           Cursor="Hand"
+                                           Margin="0,0,4,0"
+                                           VerticalAlignment="Center"
+                                           MouseLeftButtonDown="BibleSearchModeFloatingText_MouseLeftButtonDown"/>
+                                <TextBlock Text="|"
+                                           FontSize="18"
+                                           Foreground="#9E9E9E"
+                                           Margin="0,0,4,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="BibleSearchModeEmbeddedText"
+                                           Text="内嵌"
+                                           FontSize="18"
+                                           Cursor="Hand"
+                                           VerticalAlignment="Center"
+                                           MouseLeftButtonDown="BibleSearchModeEmbeddedText_MouseLeftButtonDown"/>
+                            </StackPanel>
+                        </Grid>
 
                         <Popup x:Name="BibleSearchPopup"
                                PlacementTarget="{Binding ElementName=SearchBox}"
@@ -183,12 +217,14 @@
                                     CornerRadius="6"
                                     Padding="8"
                                     MinWidth="420"
-                                    MaxWidth="620"
-                                    MaxHeight="420">
+                                    MaxWidth="980"
+                                    MaxHeight="720">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <TextBlock x:Name="BibleSearchResultStatus"
@@ -196,39 +232,58 @@
                                                FontSize="12"
                                                Margin="2,0,2,6"/>
 
+                                    <WrapPanel x:Name="BibleSearchFilterTagsPanel"
+                                               Grid.Row="1"
+                                               Margin="0,0,0,6"/>
+
                                     <ListBox x:Name="BibleSearchResultsList"
-                                             Grid.Row="1"
+                                             Grid.Row="2"
                                              Background="Transparent"
                                              BorderThickness="0"
-                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Hidden">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
-                                                <Setter Property="Padding" Value="6,4"/>
+                                                <Setter Property="Padding" Value="2,2"/>
                                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             </Style>
                                         </ListBox.ItemContainerStyle>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Reference}"
-                                                               Foreground="#0A58CA"
-                                                               FontWeight="SemiBold"
-                                                               FontSize="13"/>
-                                                    <TextBlock Foreground="#222222"
-                                                               FontSize="12"
-                                                               TextWrapping="Wrap"
-                                                               Margin="0,2,0,0">
-                                                        <Run Text="{Binding SnippetPrefix}"/>
-                                                        <Run Text="{Binding SnippetMatch}"
-                                                             Foreground="#D32F2F"
-                                                             FontWeight="Bold"/>
-                                                        <Run Text="{Binding SnippetSuffix}"/>
-                                                    </TextBlock>
-                                                </StackPanel>
+                                                <TextBlock Foreground="#111111"
+                                                           FontSize="15"
+                                                           TextWrapping="Wrap">
+                                                    <Run Text="{Binding RowNumber}"/>
+                                                    <Run Text=". "/>
+                                                    <Run Text="["/>
+                                                    <Run Text="{Binding Reference}"/>
+                                                    <Run Text="] "/>
+                                                    <Run Text="{Binding FullPrefix}"/>
+                                                    <Run Text="{Binding FullMatch}"
+                                                         Foreground="#1E88E5"
+                                                         FontWeight="Bold"/>
+                                                    <Run Text="{Binding FullSuffix}"/>
+                                                </TextBlock>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
+
+                                    <StackPanel Grid.Row="3"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                Margin="0,6,0,0">
+                                        <Button x:Name="BibleSearchPrevPageButton"
+                                                Content="上一页"
+                                                Padding="8,2"
+                                                Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="BibleSearchPageInfoText"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="#666666"
+                                                   Margin="0,0,8,0"/>
+                                        <Button x:Name="BibleSearchNextPageButton"
+                                                Content="下一页"
+                                                Padding="8,2"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </Popup>

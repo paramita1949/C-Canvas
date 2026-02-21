@@ -71,43 +71,65 @@ namespace ImageColorChanger.UI.Modules
                     .OrderBy(r => r.Book)
                     .ThenBy(r => r.Chapter)
                     .ThenBy(r => r.Verse)
-                    .Take(100)
-                    .Select(r =>
+                    .Select((r, index) =>
                     {
                         string scripture = r.Scripture ?? string.Empty;
                         string snippet = _summaryBuilder.BuildSnippet(scripture, keywords);
                         string prefix;
                         string match;
                         string suffix;
+                        string fullPrefix;
+                        string fullMatch;
+                        string fullSuffix;
 
                         if (pinyinMode)
                         {
-                            var pinyinHighlight = BuildPinyinHighlightSnippet(
-                                scripture,
-                                normalizedPinyinKeyword,
-                                fallbackSnippet: snippet);
-                            snippet = pinyinHighlight.snippet;
-                            prefix = pinyinHighlight.prefix;
-                            match = pinyinHighlight.match;
-                            suffix = pinyinHighlight.suffix;
+                            if (TryLocatePinyinMatchRange(scripture, normalizedPinyinKeyword, out int charStart, out int charEnd))
+                            {
+                                var pinyinHighlight = BuildSnippetFromMatchRange(
+                                    scripture,
+                                    charStart,
+                                    charEnd,
+                                    fallbackSnippet: snippet);
+                                snippet = pinyinHighlight.snippet;
+                                prefix = pinyinHighlight.prefix;
+                                match = pinyinHighlight.match;
+                                suffix = pinyinHighlight.suffix;
+                                (fullPrefix, fullMatch, fullSuffix) = SplitByCharRange(scripture, charStart, charEnd);
+                            }
+                            else
+                            {
+                                prefix = snippet;
+                                match = string.Empty;
+                                suffix = string.Empty;
+                                fullPrefix = scripture;
+                                fullMatch = string.Empty;
+                                fullSuffix = string.Empty;
+                            }
                         }
                         else
                         {
                             (prefix, match, suffix) = SplitHighlight(snippet, keywords);
+                            (fullPrefix, fullMatch, fullSuffix) = SplitHighlight(scripture, keywords);
                         }
 
                         return new BibleSearchHit
                         {
+                            RowNumber = index + 1,
                             Book = r.Book,
                             Chapter = r.Chapter,
                             Verse = r.Verse,
                             Reference = string.IsNullOrWhiteSpace(r.Reference)
                                 ? $"{BibleBookConfig.GetBook(r.Book)?.Name} {r.Chapter}:{r.Verse}"
                                 : r.Reference,
+                            Scripture = scripture,
                             Snippet = snippet,
                             SnippetPrefix = prefix,
                             SnippetMatch = match,
-                            SnippetSuffix = suffix
+                            SnippetSuffix = suffix,
+                            FullPrefix = fullPrefix,
+                            FullMatch = fullMatch,
+                            FullSuffix = fullSuffix
                         };
                     })
                     .ToList();
@@ -263,14 +285,18 @@ namespace ImageColorChanger.UI.Modules
             return (prefix, bestKeyword, suffix);
         }
 
-        private static (string snippet, string prefix, string match, string suffix) BuildPinyinHighlightSnippet(
+        private static bool TryLocatePinyinMatchRange(
             string scripture,
             string normalizedPinyinKeyword,
-            string fallbackSnippet)
+            out int charStart,
+            out int charEnd)
         {
+            charStart = -1;
+            charEnd = -1;
+
             if (string.IsNullOrWhiteSpace(scripture) || string.IsNullOrWhiteSpace(normalizedPinyinKeyword))
             {
-                return (fallbackSnippet ?? string.Empty, fallbackSnippet ?? string.Empty, string.Empty, string.Empty);
+                return false;
             }
 
             var pinyinBuilder = new StringBuilder(scripture.Length * 2);
@@ -292,20 +318,17 @@ namespace ImageColorChanger.UI.Modules
 
             if (segments.Count == 0)
             {
-                return (fallbackSnippet ?? string.Empty, fallbackSnippet ?? string.Empty, string.Empty, string.Empty);
+                return false;
             }
 
             string pinyinText = pinyinBuilder.ToString();
             int pinyinMatchStart = pinyinText.IndexOf(normalizedPinyinKeyword, StringComparison.OrdinalIgnoreCase);
             if (pinyinMatchStart < 0)
             {
-                return (fallbackSnippet ?? string.Empty, fallbackSnippet ?? string.Empty, string.Empty, string.Empty);
+                return false;
             }
 
             int pinyinMatchEndExclusive = pinyinMatchStart + normalizedPinyinKeyword.Length;
-            int charStart = -1;
-            int charEnd = -1;
-
             foreach (var segment in segments)
             {
                 bool intersects =
@@ -324,6 +347,20 @@ namespace ImageColorChanger.UI.Modules
             }
 
             if (charStart < 0 || charEnd < charStart)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static (string snippet, string prefix, string match, string suffix) BuildSnippetFromMatchRange(
+            string scripture,
+            int charStart,
+            int charEnd,
+            string fallbackSnippet)
+        {
+            if (string.IsNullOrWhiteSpace(scripture) || charStart < 0 || charEnd < charStart || charEnd >= scripture.Length)
             {
                 return (fallbackSnippet ?? string.Empty, fallbackSnippet ?? string.Empty, string.Empty, string.Empty);
             }
@@ -379,6 +416,20 @@ namespace ImageColorChanger.UI.Modules
 
             string snippet = prefix + match + suffix;
             return (snippet, prefix, match, suffix);
+        }
+
+        private static (string prefix, string match, string suffix) SplitByCharRange(string source, int start, int endInclusive)
+        {
+            if (string.IsNullOrEmpty(source) || start < 0 || endInclusive < start || endInclusive >= source.Length)
+            {
+                return (source ?? string.Empty, string.Empty, string.Empty);
+            }
+
+            int length = endInclusive - start + 1;
+            string prefix = source.Substring(0, start);
+            string match = source.Substring(start, length);
+            string suffix = source.Substring(start + length);
+            return (prefix, match, suffix);
         }
 
         private static string GetSearchTokenForChar(char current)

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using ImageColorChanger.UI.Modules;
 using MaterialDesignThemes.Wpf;
 
@@ -10,10 +11,13 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const int BibleSearchDebounceMilliseconds = 300;
+        private const string BibleSearchResultDisplayModeSettingKey = "BibleSearchResultDisplayMode";
 
         private IBibleSearchCoordinator _bibleSearchCoordinator;
         private IBibleSearchResultPresenter _bibleSearchResultPresenter;
         private IBibleHistorySlotWriter _bibleHistorySlotWriter;
+        private BibleSearchResultDisplayMode _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Floating;
+        private bool _bibleSearchDisplayModeLoaded;
         private bool _bibleSearchComponentsInitialized;
         private bool _isDisposingBibleSearchComponents;
 
@@ -24,17 +28,51 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (_bibleService == null || SearchBox == null || BibleSearchPopup == null || BibleSearchResultsList == null || BibleSearchResultStatus == null)
+            if (_bibleService == null ||
+                SearchBox == null ||
+                BibleSearchPopup == null ||
+                BibleSearchFilterTagsPanel == null ||
+                BibleSearchResultsList == null ||
+                BibleSearchPrevPageButton == null ||
+                BibleSearchPageInfoText == null ||
+                BibleSearchNextPageButton == null ||
+                BibleSearchResultStatus == null ||
+                BibleEmbeddedSearchResultsContainer == null ||
+                BibleEmbeddedSearchFilterTagsPanel == null ||
+                BibleEmbeddedSearchResultsList == null ||
+                BibleEmbeddedSearchPrevPageButton == null ||
+                BibleEmbeddedSearchPageInfoText == null ||
+                BibleEmbeddedSearchNextPageButton == null ||
+                BibleEmbeddedSearchResultStatus == null)
             {
                 return;
             }
 
+            EnsureBibleSearchDisplayModeLoaded();
             _bibleSearchCoordinator = new BibleSearchCoordinator(_bibleService, new BibleSearchSummaryBuilder());
-            _bibleSearchResultPresenter = new BibleSearchResultPresenter(BibleSearchPopup, BibleSearchResultsList, BibleSearchResultStatus, SearchBox);
+            _bibleSearchResultPresenter = new BibleSearchResultPresenter(
+                BibleSearchPopup,
+                BibleSearchFilterTagsPanel,
+                BibleSearchResultsList,
+                BibleSearchPrevPageButton,
+                BibleSearchPageInfoText,
+                BibleSearchNextPageButton,
+                BibleSearchResultStatus,
+                BibleEmbeddedSearchResultsContainer,
+                BibleEmbeddedSearchFilterTagsPanel,
+                BibleEmbeddedSearchResultsList,
+                BibleEmbeddedSearchPrevPageButton,
+                BibleEmbeddedSearchPageInfoText,
+                BibleEmbeddedSearchNextPageButton,
+                BibleEmbeddedSearchResultStatus,
+                SearchBox,
+                _bibleSearchDisplayMode);
             _bibleSearchResultPresenter.HitSelected += OnBibleSearchHitSelected;
+            _bibleSearchResultPresenter.Dismissed += OnBibleSearchPresenterDismissed;
             _bibleHistorySlotWriter = new BibleHistorySlotWriter();
-            BibleSearchPopup.Closed += BibleSearchPopup_Closed;
+            PreviewMouseDown += MainWindow_PreviewMouseDownForBibleSearchDismiss;
             _bibleSearchComponentsInitialized = true;
+            UpdateBibleSearchModeToggleState();
         }
 
         private async Task HandleBibleSearchInputChangedAsync(string searchTerm)
@@ -94,7 +132,7 @@ namespace ImageColorChanger.UI
             _bibleSearchResultPresenter?.Hide();
         }
 
-        private void BibleSearchPopup_Closed(object sender, EventArgs e)
+        private void OnBibleSearchPresenterDismissed(object sender, EventArgs e)
         {
             if (_isDisposingBibleSearchComponents || !_isBibleMode || SearchBox == null)
             {
@@ -121,8 +159,13 @@ namespace ImageColorChanger.UI
                 {
                     SearchScope.Visibility = Visibility.Collapsed;
                 }
+                if (BibleSearchModePanel != null)
+                {
+                    BibleSearchModePanel.Visibility = Visibility.Visible;
+                }
 
                 EnsureBibleSearchComponentsInitialized();
+                UpdateBibleSearchModeToggleState();
             }
             else
             {
@@ -130,6 +173,10 @@ namespace ImageColorChanger.UI
                 if (SearchScope != null)
                 {
                     SearchScope.Visibility = Visibility.Visible;
+                }
+                if (BibleSearchModePanel != null)
+                {
+                    BibleSearchModePanel.Visibility = Visibility.Collapsed;
                 }
 
                 HideBibleSearchResults();
@@ -149,20 +196,125 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void MainWindow_PreviewMouseDownForBibleSearchDismiss(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isBibleMode || _bibleSearchResultPresenter == null || e.OriginalSource is not DependencyObject source)
+            {
+                return;
+            }
+
+            _bibleSearchResultPresenter.HandleWindowPreviewMouseDown(source);
+        }
+
+        private void BibleSearchModeFloatingText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ApplyBibleSearchResultDisplayMode(BibleSearchResultDisplayMode.Floating, persist: true);
+        }
+
+        private void BibleSearchModeEmbeddedText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ApplyBibleSearchResultDisplayMode(BibleSearchResultDisplayMode.Embedded, persist: true);
+        }
+
+        private void EnsureBibleSearchDisplayModeLoaded()
+        {
+            if (_bibleSearchDisplayModeLoaded)
+            {
+                return;
+            }
+
+            _bibleSearchDisplayModeLoaded = true;
+            try
+            {
+                var savedValue = DatabaseManagerService.GetUISetting(
+                    BibleSearchResultDisplayModeSettingKey,
+                    BibleSearchResultDisplayMode.Floating.ToString());
+
+                if (!Enum.TryParse(savedValue, ignoreCase: true, out BibleSearchResultDisplayMode parsedMode))
+                {
+                    parsedMode = BibleSearchResultDisplayMode.Floating;
+                }
+
+                _bibleSearchDisplayMode = parsedMode;
+            }
+            catch
+            {
+                _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Floating;
+            }
+        }
+
+        private void ApplyBibleSearchResultDisplayMode(BibleSearchResultDisplayMode mode, bool persist)
+        {
+            EnsureBibleSearchDisplayModeLoaded();
+            if (_bibleSearchDisplayMode == mode)
+            {
+                UpdateBibleSearchModeToggleState();
+                return;
+            }
+
+            _bibleSearchDisplayMode = mode;
+            if (persist)
+            {
+                try
+                {
+                    DatabaseManagerService.SaveUISetting(BibleSearchResultDisplayModeSettingKey, mode.ToString());
+                }
+                catch
+                {
+                }
+            }
+
+            if (_bibleSearchResultPresenter != null)
+            {
+                _bibleSearchResultPresenter.DisplayMode = mode;
+                _bibleSearchResultPresenter.Hide();
+            }
+
+            UpdateBibleSearchModeToggleState();
+
+            if (_isBibleMode && !string.IsNullOrWhiteSpace(SearchBox?.Text))
+            {
+                _ = HandleBibleSearchInputChangedAsync(SearchBox.Text.Trim());
+            }
+        }
+
+        private void UpdateBibleSearchModeToggleState()
+        {
+            if (BibleSearchModeFloatingText == null || BibleSearchModeEmbeddedText == null)
+            {
+                return;
+            }
+
+            bool floatingActive = _bibleSearchDisplayMode == BibleSearchResultDisplayMode.Floating;
+            ApplySearchModeTextStyle(BibleSearchModeFloatingText, floatingActive);
+            ApplySearchModeTextStyle(BibleSearchModeEmbeddedText, !floatingActive);
+        }
+
+        private static void ApplySearchModeTextStyle(System.Windows.Controls.TextBlock textBlock, bool isActive)
+        {
+            if (textBlock == null)
+            {
+                return;
+            }
+
+            textBlock.Foreground = isActive
+                ? new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#5E35B1"))
+                : new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#757575"));
+            textBlock.FontWeight = isActive ? FontWeights.Bold : FontWeights.Normal;
+            textBlock.TextDecorations = isActive ? TextDecorations.Underline : null;
+        }
+
         private void DisposeBibleSearchComponents()
         {
             _isDisposingBibleSearchComponents = true;
+            PreviewMouseDown -= MainWindow_PreviewMouseDownForBibleSearchDismiss;
 
             if (_bibleSearchResultPresenter != null)
             {
                 _bibleSearchResultPresenter.HitSelected -= OnBibleSearchHitSelected;
+                _bibleSearchResultPresenter.Dismissed -= OnBibleSearchPresenterDismissed;
                 _bibleSearchResultPresenter.Dispose();
                 _bibleSearchResultPresenter = null;
-            }
-
-            if (BibleSearchPopup != null)
-            {
-                BibleSearchPopup.Closed -= BibleSearchPopup_Closed;
             }
 
             _bibleSearchCoordinator?.Dispose();

@@ -17,6 +17,13 @@ namespace ImageColorChanger.UI
         private BiblePinyinHintControl BiblePinyinHintControl => BibleSectionView?.BiblePinyinHintControl;
         private Border BibleVersionTriggerArea => BibleSectionView?.BibleVersionTriggerArea;
         private Border BibleVersionToolbar => BibleSectionView?.BibleVersionToolbar;
+        private Border BibleEmbeddedSearchResultsContainer => BibleSectionView?.BibleEmbeddedSearchResultsContainer;
+        private WrapPanel BibleEmbeddedSearchFilterTagsPanel => BibleSectionView?.BibleEmbeddedSearchFilterTagsPanel;
+        private System.Windows.Controls.ListBox BibleEmbeddedSearchResultsList => BibleSectionView?.BibleEmbeddedSearchResultsList;
+        private System.Windows.Controls.Button BibleEmbeddedSearchPrevPageButton => BibleSectionView?.BibleEmbeddedSearchPrevPageButton;
+        private TextBlock BibleEmbeddedSearchPageInfoText => BibleSectionView?.BibleEmbeddedSearchPageInfoText;
+        private System.Windows.Controls.Button BibleEmbeddedSearchNextPageButton => BibleSectionView?.BibleEmbeddedSearchNextPageButton;
+        private TextBlock BibleEmbeddedSearchResultStatus => BibleSectionView?.BibleEmbeddedSearchResultStatus;
         private System.Windows.Controls.RadioButton RadioBibleVersionSimplified => BibleSectionView?.RadioBibleVersionSimplified;
         private System.Windows.Controls.RadioButton RadioBibleVersionTraditional => BibleSectionView?.RadioBibleVersionTraditional;
         private MenuItem MenuBibleCopyStyleShort => BibleSectionView?.MenuBibleCopyStyleShort;
