@@ -32,6 +32,30 @@ namespace ImageColorChanger.Database.Models
         public int? ImageId { get; set; }
 
         /// <summary>
+        /// 所属歌词分组ID（可空：兼容历史数据）
+        /// </summary>
+        [Column("group_id")]
+        public int? GroupId { get; set; }
+
+        /// <summary>
+        /// 外部唯一标识（用于导入导出冲突匹配）
+        /// </summary>
+        [Column("external_id")]
+        public string ExternalId { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// 组内排序
+        /// </summary>
+        [Column("sort_order")]
+        public int SortOrder { get; set; } = 0;
+
+        /// <summary>
+        /// 来源类型（0=图片关联歌词，1=歌词库独立歌曲）
+        /// </summary>
+        [Column("source_type")]
+        public int SourceType { get; set; } = 0;
+
+        /// <summary>
         /// 歌词文本内容
         /// </summary>
         [Column("content")]
@@ -72,6 +96,12 @@ namespace ImageColorChanger.Database.Models
         /// </summary>
         [ForeignKey("ImageId")]
         public virtual MediaFile MediaFile { get; set; }
+
+        /// <summary>
+        /// 导航属性：所属歌词分组
+        /// </summary>
+        [ForeignKey("GroupId")]
+        public virtual LyricsGroup LyricsGroup { get; set; }
     }
 }
 

@@ -105,6 +105,8 @@ namespace ImageColorChanger.UI
                 {
                     modeData.ActiveMode = (int)ViewSplitMode.Single;
                 }
+                modeData.SliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 3);
+                modeData.SliceCurrentIndex = Math.Max(0, modeData.SliceCurrentIndex);
 
                 return true;
             }

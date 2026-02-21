@@ -233,6 +233,7 @@ namespace ImageColorChanger.UI
                 }
 
                 AutoExitTextEditorIfNeeded();
+                SetLyricsEntryByImage();
                 _currentImageId = item.Id;
                 _imagePath = item.Path;
 
@@ -253,6 +254,39 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"❌ [EnterLyricsModeFromFile] 失败: {ex.Message}");
 #endif
                 ShowStatus($"❌ 进入歌词模式失败: {ex.Message}");
+            }
+        }
+
+        private void EnterLyricsModeFromSong(int lyricsProjectId)
+        {
+            try
+            {
+                if (lyricsProjectId <= 0)
+                {
+                    return;
+                }
+
+                AutoExitTextEditorIfNeeded();
+                SetLyricsEntryBySong(lyricsProjectId);
+
+                if (_isLyricsMode)
+                {
+                    LoadOrCreateLyricsProject();
+                    if (_projectionManager != null && _projectionManager.IsProjecting)
+                    {
+                        RenderLyricsToProjection();
+                    }
+                }
+                else
+                {
+                    EnterLyricsMode();
+                }
+
+                ShowStatus("🎤 已进入歌词模式（独立歌曲）");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 打开歌曲歌词失败: {ex.Message}");
             }
         }
     }

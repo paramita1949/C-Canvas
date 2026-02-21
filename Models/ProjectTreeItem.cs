@@ -123,6 +123,9 @@ namespace ImageColorChanger.UI
         Video,
         Audio,
         TextProject,     // 文本项目
+        LyricsRoot,      // 歌词库根节点
+        LyricsGroup,     // 歌词分组
+        LyricsSong,      // 歌曲歌词
         BibleTestament,  // 圣经约（旧约/新约）
         BibleBook,       // 圣经书卷
         BibleChapter     // 圣经章节

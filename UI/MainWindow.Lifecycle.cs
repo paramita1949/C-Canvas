@@ -204,6 +204,20 @@ namespace ImageColorChanger.UI
                 
                 // 保存用户设置
                 SaveSettings();
+
+                // 兜底：如果仍在歌词模式，关闭窗口前强制保存一次
+                if (_isLyricsMode)
+                {
+                    try
+                    {
+                        StopAutoSaveTimer();
+                        SaveLyricsProject("Window_Closing", suppressUserError: true);
+                    }
+                    catch (Exception)
+                    {
+                        // 忽略歌词保存异常，不阻断退出
+                    }
+                }
                 
                 // 注意：PropertyChanged事件使用匿名方法订阅，无法直接取消订阅
                 // ViewModel会随窗口关闭自动释放

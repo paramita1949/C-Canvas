@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 
@@ -26,6 +28,22 @@ namespace ImageColorChanger.Managers
         public LyricsProject FindByImageId(int imageId)
         {
             return _dbContext.LyricsProjects.FirstOrDefault(p => p.ImageId == imageId);
+        }
+
+        public LyricsProject FindById(int id)
+        {
+            return _dbContext.LyricsProjects
+                .Include(p => p.LyricsGroup)
+                .FirstOrDefault(p => p.Id == id);
+        }
+
+        public List<LyricsProject> GetByGroupId(int? groupId)
+        {
+            return _dbContext.LyricsProjects
+                .Where(p => p.GroupId == groupId)
+                .OrderBy(p => p.SortOrder)
+                .ThenBy(p => p.Id)
+                .ToList();
         }
 
         public void Add(LyricsProject project)
@@ -55,6 +73,18 @@ namespace ImageColorChanger.Managers
                 _dbContext.LyricsProjects.Update(project);
             }
 
+            _dbContext.SaveChanges();
+        }
+
+        public void Delete(int id)
+        {
+            var project = _dbContext.LyricsProjects.FirstOrDefault(p => p.Id == id);
+            if (project == null)
+            {
+                return;
+            }
+
+            _dbContext.LyricsProjects.Remove(project);
             _dbContext.SaveChanges();
         }
     }

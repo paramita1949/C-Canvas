@@ -31,6 +31,19 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (IsLyricsLibraryFeatureEnabled && selectedItem.Type == TreeItemType.LyricsSong)
+            {
+                EnterLyricsModeFromSong(selectedItem.Id);
+                return;
+            }
+
+            if (IsLyricsLibraryFeatureEnabled && selectedItem.Type == TreeItemType.LyricsGroup)
+            {
+                selectedItem.IsExpanded = !selectedItem.IsExpanded;
+                e.Handled = true;
+                return;
+            }
+
             if (selectedItem.Type == TreeItemType.Folder)
             {
                 await HandleFolderNodeClickAsync(selectedItem, e);

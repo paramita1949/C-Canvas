@@ -48,9 +48,9 @@ namespace ImageColorChanger.UI
 
                 var textBlock = new TextBlock
                 {
-                    Text = LyricsTextBox.Text,
+                    Text = GetCurrentSingleLyricsProjectionText(),
                     FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = LyricsTextBox.FontSize * fontScale,
+                    FontSize = _lyricsProjectionFontSize * fontScale,
                     Foreground = LyricsTextBox.Foreground,
                     TextAlignment = LyricsTextBox.TextAlignment,
                     TextWrapping = TextWrapping.Wrap,
@@ -71,6 +71,7 @@ namespace ImageColorChanger.UI
                 Canvas.SetLeft(textBlock, 0);
                 Canvas.SetTop(textBlock, 0);
                 canvas.Children.Add(textBlock);
+                AddSongNameWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale);
 
                 canvas.Measure(new WpfSize(physicalWidth, actualHeight));
                 canvas.Arrange(new Rect(0, 0, physicalWidth, actualHeight));
@@ -150,6 +151,7 @@ namespace ImageColorChanger.UI
             }
 
             AddSplitOverlayForProjection(canvas, physicalWidth, physicalHeight);
+            AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
             canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
@@ -187,6 +189,7 @@ namespace ImageColorChanger.UI
             var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
             double fontScale = physicalWidth / wpfWidth;
             AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale);
+            AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
             canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
@@ -217,9 +220,9 @@ namespace ImageColorChanger.UI
             {
                 Text = text ?? "",
                 FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                FontSize = editor.FontSize * fontScale,
-                Foreground = editor.Foreground,
-                TextAlignment = editor.TextAlignment,
+                FontSize = _lyricsProjectionFontSize * fontScale,
+                Foreground = editor?.Foreground ?? LyricsTextBox.Foreground ?? WpfBrushes.White,
+                TextAlignment = editor?.TextAlignment ?? TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
@@ -321,6 +324,43 @@ namespace ImageColorChanger.UI
             Canvas.SetTop(label, y);
             Canvas.SetZIndex(label, 1000);
             canvas.Children.Add(label);
+        }
+
+        private void AddSongNameWatermarkToProjection(Canvas canvas, double width, double height, double fontScale)
+        {
+            string watermark = GetCurrentLyricsSongWatermarkText();
+            if (string.IsNullOrWhiteSpace(watermark))
+            {
+                return;
+            }
+
+            double padX = Math.Max(18, 16 * fontScale);
+            double padY = Math.Max(10, 8 * fontScale);
+            double marginX = Math.Max(22, 18 * fontScale);
+            double marginY = Math.Max(18, 14 * fontScale);
+            double fontSize = Math.Max(32, 28 * fontScale);
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(WpfColor.FromArgb(130, 0, 0, 0)),
+                CornerRadius = new CornerRadius(Math.Max(8, 6 * fontScale)),
+                Padding = new Thickness(padX, padY, padX, padY),
+                IsHitTestVisible = false,
+                Child = new TextBlock
+                {
+                    Text = watermark,
+                    FontSize = fontSize,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(WpfColor.FromArgb(180, 255, 255, 255))
+                }
+            };
+
+            border.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
+            var size = border.DesiredSize;
+            Canvas.SetLeft(border, marginX);
+            Canvas.SetTop(border, Math.Max(0, height - size.Height - marginY));
+            Canvas.SetZIndex(border, 1200);
+            canvas.Children.Add(border);
         }
 
         private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text)> GetSplitRenderRegions(double width, double height)

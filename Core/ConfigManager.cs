@@ -429,6 +429,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 歌词投影字号（仅影响投影，不影响主屏编辑字号）
+        /// </summary>
+        public double LyricsProjectionFontSize
+        {
+            get => _config.LyricsProjectionFontSize;
+            set
+            {
+                if (Math.Abs(_config.LyricsProjectionFontSize - value) > 0.001)
+                {
+                    _config.LyricsProjectionFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 圣经译本
         /// </summary>
         public string BibleVersion
@@ -1066,6 +1082,11 @@ namespace ImageColorChanger.Core
         /// 全局默认歌词颜色（默认：#FFFFFF 白色）
         /// </summary>
         public string DefaultLyricsColor { get; set; } = "#FFFFFF";
+
+        /// <summary>
+        /// 歌词投影字号（默认：88）
+        /// </summary>
+        public double LyricsProjectionFontSize { get; set; } = 88.0;
 
         /// <summary>
         /// 圣经译本（默认：和合本）

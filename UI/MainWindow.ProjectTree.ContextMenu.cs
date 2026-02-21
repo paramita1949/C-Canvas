@@ -2,6 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System;
+using System.Linq;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.UI.Modules;
@@ -26,7 +28,7 @@ namespace ImageColorChanger.UI
                 // 🆕 如果点击在空白区域（没有TreeViewItem），只在幻灯片项目模式显示新建项目菜单
                 if (treeViewItem == null)
                 {
-                    TryShowProjectsRootContextMenu(sender as UIElement, e);
+                    TryShowRootBlankAreaContextMenu(sender as UIElement, e);
                     return;
                 }
 
@@ -52,6 +54,27 @@ namespace ImageColorChanger.UI
                     case TreeItemType.TextProject:
                         BuildTextProjectContextMenu(contextMenu, item);
                         break;
+                    case TreeItemType.LyricsRoot:
+                        if (!IsLyricsLibraryFeatureEnabled)
+                        {
+                            return;
+                        }
+                        BuildLyricsRootContextMenu(contextMenu);
+                        break;
+                    case TreeItemType.LyricsGroup:
+                        if (!IsLyricsLibraryFeatureEnabled)
+                        {
+                            return;
+                        }
+                        BuildLyricsGroupContextMenu(contextMenu, item);
+                        break;
+                    case TreeItemType.LyricsSong:
+                        if (!IsLyricsLibraryFeatureEnabled)
+                        {
+                            return;
+                        }
+                        BuildLyricsSongContextMenu(contextMenu, item);
+                        break;
                     default:
                         return;
                 }
@@ -69,8 +92,26 @@ namespace ImageColorChanger.UI
             return contextMenu;
         }
 
-        private void TryShowProjectsRootContextMenu(UIElement placementTarget, MouseButtonEventArgs e)
+        private void TryShowRootBlankAreaContextMenu(UIElement placementTarget, MouseButtonEventArgs e)
         {
+            if (_currentViewMode == NavigationViewMode.Files && IsLyricsLibraryFeatureEnabled)
+            {
+                var filesMenu = CreateNoBorderContextMenu();
+
+                var newLibraryItem = new MenuItem { Header = "🎵 新建歌词库" };
+                newLibraryItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
+                newLibraryItem.Foreground = Brushes.White;
+                newLibraryItem.BorderThickness = new Thickness(0);
+                newLibraryItem.BorderBrush = Brushes.Transparent;
+                newLibraryItem.Click += (s, args) => CreateLyricsLibrary();
+                filesMenu.Items.Add(newLibraryItem);
+
+                filesMenu.IsOpen = true;
+                filesMenu.PlacementTarget = placementTarget;
+                e.Handled = true;
+                return;
+            }
+
             if (_currentViewMode != NavigationViewMode.Projects)
             {
                 return;
@@ -302,5 +343,6 @@ namespace ImageColorChanger.UI
             deleteItem.Click += async (s, args) => await DeleteTextProjectAsync(item);
             contextMenu.Items.Add(deleteItem);
         }
+
     }
 }

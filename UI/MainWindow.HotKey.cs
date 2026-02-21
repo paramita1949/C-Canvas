@@ -57,7 +57,10 @@ namespace ImageColorChanger.UI
                 {
                     Dispatcher.InvokeAsync(() =>
                     {
-                        _shortcutActionHandler.HandlePageUpKey();
+                        if (!TryHandleLyricsNavigationHotKeys(Key.PageUp, ModifierKeys.None))
+                        {
+                            _shortcutActionHandler.HandlePageUpKey();
+                        }
                     });
                 });
 
@@ -68,7 +71,10 @@ namespace ImageColorChanger.UI
                 {
                     Dispatcher.InvokeAsync(() =>
                     {
-                        _shortcutActionHandler.HandlePageDownKey();
+                        if (!TryHandleLyricsNavigationHotKeys(Key.PageDown, ModifierKeys.None))
+                        {
+                            _shortcutActionHandler.HandlePageDownKey();
+                        }
                     });
                 });
 

@@ -15,6 +15,14 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnLyricsAlignCenterButton => BtnLyricsAlignCenter;
         public System.Windows.Controls.Button BtnLyricsAlignRightButton => BtnLyricsAlignRight;
         public System.Windows.Controls.Button BtnLyricsClearButton => BtnLyricsClear;
+        public System.Windows.Controls.Button BtnLyricsSliceToggleButton => BtnLyricsSliceToggle;
+        public System.Windows.Controls.Button BtnLyricsSliceRule1Button => BtnLyricsSliceRule1;
+        public System.Windows.Controls.Button BtnLyricsSliceRule2Button => BtnLyricsSliceRule2;
+        public System.Windows.Controls.Button BtnLyricsSliceRule3Button => BtnLyricsSliceRule3;
+        public System.Windows.Controls.Border LyricsSlicePanelHost => LyricsSlicePanel;
+        public System.Windows.Controls.ListBox LyricsSliceListHost => LyricsSliceList;
+        public System.Windows.Controls.Button BtnLyricsSlicePrevButton => BtnLyricsSlicePrev;
+        public System.Windows.Controls.Button BtnLyricsSliceNextButton => BtnLyricsSliceNext;
         public System.Windows.Controls.StackPanel LyricsPageNavPanelContainer => LyricsPageNavPanel;
         public System.Windows.Controls.Button BtnLyricsPagingToggleButton => BtnLyricsPagingToggle;
         public System.Windows.Controls.Button BtnLyricsPageUpButton => BtnLyricsPageUp;

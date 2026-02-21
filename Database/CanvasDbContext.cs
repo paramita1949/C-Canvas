@@ -114,6 +114,11 @@ namespace ImageColorChanger.Database
         public DbSet<LyricsProject> LyricsProjects { get; set; }
 
         /// <summary>
+        /// 歌词分组表
+        /// </summary>
+        public DbSet<LyricsGroup> LyricsGroups { get; set; }
+
+        /// <summary>
         /// 文本元素表
         /// </summary>
         public DbSet<TextElement> TextElements { get; set; }
@@ -348,12 +353,38 @@ namespace ImageColorChanger.Database
             {
                 // 图片ID索引
                 entity.HasIndex(e => e.ImageId).HasDatabaseName("idx_lyrics_projects_image");
+                entity.HasIndex(e => e.Name).HasDatabaseName("idx_lyrics_projects_name");
+                entity.HasIndex(e => e.SourceType).HasDatabaseName("idx_lyrics_projects_source_type");
+                entity.HasIndex(e => new { e.GroupId, e.SortOrder }).HasDatabaseName("idx_lyrics_projects_group_sort");
+                entity.HasIndex(e => e.ExternalId).HasDatabaseName("idx_lyrics_projects_external_id");
 
                 // 外键关系：歌词项目 -> 媒体文件（可选，删除图片时自动置空）
                 entity.HasOne(e => e.MediaFile)
                     .WithMany()
                     .HasForeignKey(e => e.ImageId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                // 外键关系：歌词项目 -> 歌词分组（可选，删除分组时置空）
+                entity.HasOne(e => e.LyricsGroup)
+                    .WithMany()
+                    .HasForeignKey(e => e.GroupId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ========== 歌词分组表配置 ==========
+            modelBuilder.Entity<LyricsGroup>(entity =>
+            {
+                entity.HasIndex(e => e.SortOrder).HasDatabaseName("idx_lyrics_groups_sort");
+                entity.HasIndex(e => e.Name).HasDatabaseName("idx_lyrics_groups_name");
+                entity.HasIndex(e => e.ExternalId).HasDatabaseName("idx_lyrics_groups_external_id");
+
+                entity.Property(e => e.CreatedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
+
+                entity.Property(e => e.ModifiedTime)
+                    .HasColumnType("TEXT")
+                    .HasConversion(new SqliteDateTimeConverter());
             });
 
             // ========== 文本元素表配置 ==========
@@ -478,6 +509,9 @@ namespace ImageColorChanger.Database
                 // 检查并添加歌词项目的图片关联字段（兼容旧数据库）
                 EnsureLyricsImageIdColumnExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
+
+                // 歌词库Schema（分组+扩展列）兼容升级
+                EnsureLyricsLibrarySchemaExists();
 
                 // 🆕 检查并添加文本项目的排序字段（兼容旧数据库）
                 EnsureTextProjectSortOrderColumnExists();
@@ -803,6 +837,186 @@ namespace ImageColorChanger.Database
                 System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 image_id 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
+        }
+
+        /// <summary>
+        /// 确保歌词库 Schema 存在（lyrics_groups + lyrics_projects扩展列 + 历史回填）。
+        /// </summary>
+        private void EnsureLyricsLibrarySchemaExists()
+        {
+            try
+            {
+                EnsureLyricsGroupsTableExists();
+                EnsureLyricsProjectsExtendedColumnsExist();
+                EnsureLyricsLibraryIndexesExist();
+                SeedLyricsSystemGroupsAndBackfill();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ EnsureLyricsLibrarySchemaExists 失败: {ex.Message}");
+                // 兼容升级逻辑不阻断启动
+            }
+        }
+
+        private void EnsureLyricsGroupsTableExists()
+        {
+            try
+            {
+                var connection = Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='lyrics_groups'";
+                    var exists = command.ExecuteScalar() != null;
+                    if (exists)
+                    {
+                        return;
+                    }
+                }
+
+                Database.ExecuteSqlRaw(@"
+                    CREATE TABLE lyrics_groups (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        external_id TEXT NULL,
+                        sort_order INTEGER NOT NULL DEFAULT 0,
+                        created_time TEXT NULL,
+                        modified_time TEXT NULL,
+                        is_system INTEGER NOT NULL DEFAULT 0
+                    )");
+
+                System.Diagnostics.Debug.WriteLine("✅ 已创建 lyrics_groups 表");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 创建 lyrics_groups 表失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureLyricsProjectsExtendedColumnsExist()
+        {
+            try
+            {
+                EnsureColumnExists("lyrics_projects", "group_id", "INTEGER NULL");
+                EnsureColumnExists("lyrics_projects", "external_id", "TEXT NULL");
+                EnsureColumnExists("lyrics_projects", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumnExists("lyrics_projects", "source_type", "INTEGER NOT NULL DEFAULT 0");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 扩展 lyrics_projects 列失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureLyricsLibraryIndexesExist()
+        {
+            try
+            {
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_lyrics_groups_sort ON lyrics_groups(sort_order)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_lyrics_groups_name ON lyrics_groups(name)");
+                Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS idx_lyrics_groups_external_id ON lyrics_groups(external_id)");
+
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_lyrics_projects_name ON lyrics_projects(name)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_lyrics_projects_source_type ON lyrics_projects(source_type)");
+                Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS idx_lyrics_projects_group_sort ON lyrics_projects(group_id, sort_order)");
+                Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS idx_lyrics_projects_external_id ON lyrics_projects(external_id)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 创建歌词库索引失败: {ex.Message}");
+            }
+        }
+
+        private void SeedLyricsSystemGroupsAndBackfill()
+        {
+            try
+            {
+                const string ungroupedExternalId = "sys-lyrics-ungrouped";
+                const string imageBoundExternalId = "sys-lyrics-image-bound";
+
+                Database.ExecuteSqlRaw(@"
+                    INSERT OR IGNORE INTO lyrics_groups(name, external_id, sort_order, created_time, modified_time, is_system)
+                    VALUES('未分组', {0}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)", ungroupedExternalId);
+
+                Database.ExecuteSqlRaw(@"
+                    INSERT OR IGNORE INTO lyrics_groups(name, external_id, sort_order, created_time, modified_time, is_system)
+                    VALUES('图片关联歌词', {0}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)", imageBoundExternalId);
+
+                // 回填 external_id（生成GUID-like文本）
+                Database.ExecuteSqlRaw(@"
+                    UPDATE lyrics_projects
+                    SET external_id = lower(hex(randomblob(4))) || '-' ||
+                                     lower(hex(randomblob(2))) || '-' ||
+                                     lower(hex(randomblob(2))) || '-' ||
+                                     lower(hex(randomblob(2))) || '-' ||
+                                     lower(hex(randomblob(6)))
+                    WHERE external_id IS NULL OR external_id = ''");
+
+                // 回填 source_type
+                Database.ExecuteSqlRaw(@"
+                    UPDATE lyrics_projects
+                    SET source_type = CASE WHEN image_id IS NULL THEN 1 ELSE 0 END
+                    WHERE source_type IS NULL");
+
+                // 回填 group_id（先写图片关联歌词）
+                Database.ExecuteSqlRaw(@"
+                    UPDATE lyrics_projects
+                    SET group_id = (SELECT id FROM lyrics_groups WHERE external_id = {0} LIMIT 1)
+                    WHERE image_id IS NOT NULL AND (group_id IS NULL OR group_id = 0)", imageBoundExternalId);
+
+                // 回填独立歌词到未分组
+                Database.ExecuteSqlRaw(@"
+                    UPDATE lyrics_projects
+                    SET group_id = (SELECT id FROM lyrics_groups WHERE external_id = {0} LIMIT 1)
+                    WHERE image_id IS NULL AND (group_id IS NULL OR group_id = 0)", ungroupedExternalId);
+
+                // 回填排序：组内按创建时间递增
+                Database.ExecuteSqlRaw(@"
+                    UPDATE lyrics_projects
+                    SET sort_order = COALESCE((
+                        SELECT COUNT(*) - 1
+                        FROM lyrics_projects lp2
+                        WHERE lp2.group_id = lyrics_projects.group_id
+                          AND COALESCE(lp2.created_time, '') <= COALESCE(lyrics_projects.created_time, '')
+                    ), 0)
+                    WHERE sort_order IS NULL OR sort_order = 0");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 歌词库系统分组回填失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureColumnExists(string tableName, string columnName, string columnSqlType)
+        {
+            var connection = Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open)
+            {
+                connection.Open();
+            }
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = $"PRAGMA table_info({tableName})";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (reader["name"].ToString() == columnName)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            string sql = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnSqlType;
+            Database.ExecuteSqlRaw(sql);
+            System.Diagnostics.Debug.WriteLine($"✅ 已添加列: {tableName}.{columnName}");
         }
 
         /// <summary>

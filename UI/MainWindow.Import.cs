@@ -47,15 +47,26 @@ namespace ImageColorChanger.UI
             // 迁移数据库
             var migrationItem = new MenuItem { Header = "迁移数据库" };
 
+            // 导入数据库子菜单
+            var importDbItem = new MenuItem { Header = "导入数据库(含歌词库)" };
+            importDbItem.Click += async (s, args) => await ImportDatabaseAsync();
+            migrationItem.Items.Add(importDbItem);
+
             // 导出数据库子菜单
-            var exportDbItem = new MenuItem { Header = "导出数据库" };
+            var exportDbItem = new MenuItem { Header = "导出数据库(含歌词库)" };
             exportDbItem.Click += async (s, args) => await ExportDatabaseAsync();
             migrationItem.Items.Add(exportDbItem);
 
-            // 导入数据库子菜单
-            var importDbItem = new MenuItem { Header = "导入数据库" };
-            importDbItem.Click += async (s, args) => await ImportDatabaseAsync();
-            migrationItem.Items.Add(importDbItem);
+            if (IsLyricsTransferFeatureEnabled)
+            {
+                var exportLyricsItem = new MenuItem { Header = "导出歌词(.lyr)" };
+                exportLyricsItem.Click += async (s, args) => await ExportLyricsLibraryPackageAsync();
+                migrationItem.Items.Add(exportLyricsItem);
+
+                var importLyricsItem = new MenuItem { Header = "导入歌词(.lyr)" };
+                importLyricsItem.Click += async (s, args) => await ImportLyricsPackageAsync();
+                migrationItem.Items.Add(importLyricsItem);
+            }
 
             contextMenu.Items.Add(migrationItem);
 
@@ -386,6 +397,204 @@ namespace ImageColorChanger.UI
                 System.Windows.MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
             }
+        }
+
+        private Services.LyricsTransferService CreateLyricsTransferService()
+        {
+            return new Services.LyricsTransferService(_dbContext);
+        }
+
+        internal async System.Threading.Tasks.Task ExportLyricsSongPackageAsync(int songId)
+        {
+            if (!IsLyricsTransferFeatureEnabled)
+            {
+                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                return;
+            }
+
+            try
+            {
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "导出歌曲歌词",
+                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
+                    DefaultExt = ".lyr",
+                    FileName = $"song_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                };
+                if (saveDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                var service = CreateLyricsTransferService();
+                var result = await service.ExportSongAsync(songId, saveDialog.FileName);
+                ShowStatus(result.Success ? "✅ 歌曲歌词导出成功" : $"❌ {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导出歌曲歌词失败: {ex.Message}");
+            }
+        }
+
+        internal async System.Threading.Tasks.Task ExportLyricsGroupPackageAsync(int groupId)
+        {
+            if (!IsLyricsTransferFeatureEnabled)
+            {
+                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                return;
+            }
+
+            try
+            {
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "导出歌词分组",
+                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
+                    DefaultExt = ".lyr",
+                    FileName = $"group_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                };
+                if (saveDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                var service = CreateLyricsTransferService();
+                var result = await service.ExportGroupAsync(groupId, saveDialog.FileName);
+                ShowStatus(result.Success ? "✅ 分组歌词导出成功" : $"❌ {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导出分组歌词失败: {ex.Message}");
+            }
+        }
+
+        internal async System.Threading.Tasks.Task ExportLyricsLibraryPackageAsync()
+        {
+            if (!IsLyricsTransferFeatureEnabled)
+            {
+                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                return;
+            }
+
+            try
+            {
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "导出歌词库",
+                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
+                    DefaultExt = ".lyr",
+                    FileName = $"lyrics_library_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                };
+                if (saveDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                var service = CreateLyricsTransferService();
+                var result = await service.ExportLibraryAsync(saveDialog.FileName);
+                ShowStatus(result.Success ? "✅ 歌词库导出成功" : $"❌ {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导出歌词库失败: {ex.Message}");
+            }
+        }
+
+        internal async System.Threading.Tasks.Task ImportLyricsPackageAsync()
+        {
+            if (!IsLyricsTransferFeatureEnabled)
+            {
+                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                return;
+            }
+
+            try
+            {
+                var openDialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "导入歌词包",
+                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
+                    DefaultExt = ".lyr"
+                };
+                if (openDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                var strategy = SelectLyricsImportStrategy();
+                if (!strategy.HasValue)
+                {
+                    return;
+                }
+
+                var service = CreateLyricsTransferService();
+                var result = await service.ImportAsync(openDialog.FileName, strategy.Value);
+                if (result.Success)
+                {
+                    LoadProjects();
+                }
+                ShowStatus(result.Success ? $"✅ {result.Message}" : $"❌ {result.Message}");
+                System.Windows.MessageBox.Show(
+                    result.Message,
+                    result.Success ? "歌词导入结果" : "歌词导入失败",
+                    System.Windows.MessageBoxButton.OK,
+                    result.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 导入歌词包失败: {ex.Message}");
+            }
+        }
+
+        private Services.LyricsImportConflictStrategy? SelectLyricsImportStrategy()
+        {
+            var dialog = new Window
+            {
+                Title = "选择冲突策略",
+                Width = 420,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.ToolWindow
+            };
+
+            Services.LyricsImportConflictStrategy? result = null;
+
+            var grid = new Grid { Margin = new Thickness(16) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(16) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var tip = new TextBlock
+            {
+                Text = "检测到同名/同ID歌曲时，选择导入策略：",
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap
+            };
+            Grid.SetRow(tip, 0);
+            grid.Children.Add(tip);
+
+            var panel = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+            };
+            var skip = new System.Windows.Controls.Button { Content = "跳过", Width = 96, Height = 34, Margin = new Thickness(0, 0, 8, 0) };
+            var overwrite = new System.Windows.Controls.Button { Content = "覆盖", Width = 96, Height = 34, Margin = new Thickness(0, 0, 8, 0) };
+            var copy = new System.Windows.Controls.Button { Content = "另存副本", Width = 96, Height = 34 };
+            skip.Click += (_, __) => { result = Services.LyricsImportConflictStrategy.Skip; dialog.DialogResult = true; dialog.Close(); };
+            overwrite.Click += (_, __) => { result = Services.LyricsImportConflictStrategy.Overwrite; dialog.DialogResult = true; dialog.Close(); };
+            copy.Click += (_, __) => { result = Services.LyricsImportConflictStrategy.SaveAsCopy; dialog.DialogResult = true; dialog.Close(); };
+            panel.Children.Add(skip);
+            panel.Children.Add(overwrite);
+            panel.Children.Add(copy);
+            Grid.SetRow(panel, 2);
+            grid.Children.Add(panel);
+
+            dialog.Content = grid;
+            dialog.ShowDialog();
+            return result;
         }
 
         private void ShowMigrationResult(Services.DatabaseMigrationResult result)

@@ -136,6 +136,10 @@ namespace ImageColorChanger.UI
                     });
                 }
 
+                if (IsLyricsLibraryFeatureEnabled)
+                {
+                    LoadLyricsLibraryToTree();
+                }
                 LoadTextProjectsToTree();
                 FilterProjectTree();
             }
@@ -156,6 +160,10 @@ namespace ImageColorChanger.UI
                 foreach (var item in _projectTreeItems)
                 {
                     if (item.Type == TreeItemType.Folder || item.Type == TreeItemType.File)
+                    {
+                        _filteredProjectTreeItems.Add(item);
+                    }
+                    else if (IsLyricsLibraryFeatureEnabled && item.Type == TreeItemType.LyricsGroup)
                     {
                         _filteredProjectTreeItems.Add(item);
                     }
@@ -287,6 +295,62 @@ namespace ImageColorChanger.UI
                 }
             }
             catch (Exception)
+            {
+            }
+        }
+
+        private void LoadLyricsLibraryToTree()
+        {
+            try
+            {
+                if (_dbContext == null)
+                {
+                    return;
+                }
+
+                var groups = _dbContext.LyricsGroups
+                    .Where(g => !g.IsSystem)
+                    .OrderBy(g => g.SortOrder)
+                    .ThenBy(g => g.Id)
+                    .ToList();
+
+                var songs = _dbContext.LyricsProjects
+                    .OrderBy(p => p.SortOrder)
+                    .ThenBy(p => p.Id)
+                    .ToList();
+
+                foreach (var group in groups)
+                {
+                    var groupItem = new ProjectTreeItem
+                    {
+                        Id = group.Id,
+                        Name = group.Name,
+                        Icon = "FolderMusic",
+                        IconKind = "FolderMusic",
+                        IconColor = group.IsSystem ? "#9E9E9E" : "#4CAF50",
+                        Type = TreeItemType.LyricsGroup,
+                        Tag = group,
+                        Children = new ObservableCollection<ProjectTreeItem>()
+                    };
+
+                    foreach (var song in songs.Where(s => s.GroupId == group.Id))
+                    {
+                        groupItem.Children.Add(new ProjectTreeItem
+                        {
+                            Id = song.Id,
+                            Name = song.Name,
+                            Icon = "MusicNote",
+                            IconKind = "MusicNote",
+                            IconColor = "#FFC107",
+                            Type = TreeItemType.LyricsSong,
+                            Tag = song
+                        });
+                    }
+
+                    _projectTreeItems.Add(groupItem);
+                }
+            }
+            catch
             {
             }
         }

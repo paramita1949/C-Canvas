@@ -20,6 +20,12 @@ namespace ImageColorChanger.UI
 
             SyncProjectionNavigationHotKeys();
 
+            if (TryHandleLyricsNavigationHotKeys(e))
+            {
+                e.Handled = true;
+                return;
+            }
+
             if (_keyboardShortcutManager != null && _keyboardShortcutManager.ShouldTextEditorHandle(e.Key))
             {
                 return;

@@ -43,7 +43,7 @@ namespace ImageColorChanger.UI
                 Dispatcher,
                 () => _isLyricsMode,
                 () => _projectionManager != null && _projectionManager.IsProjecting,
-                SaveLyricsProject,
+                () => SaveLyricsProject("ModuleController"),
                 LoadOrCreateLyricsProject,
                 RenderLyricsToProjection,
                 () => _projectionManager?.ClearImageState());

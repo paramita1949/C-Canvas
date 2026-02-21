@@ -133,6 +133,54 @@
                                     Style="{StaticResource RecordButtonStyle}"
                                     ToolTip="清空所有内容"/>
 
+                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
+                                       Margin="0,0,12,0"/>
+
+                            <StackPanel x:Name="LyricsSliceToolbar"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Button x:Name="BtnLyricsSliceToggle"
+                                        Content="切片"
+                                        Width="82" Height="40"
+                                        Margin="0,0,8,0"
+                                        FontSize="16"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        ToolTip="启用/关闭切片模式"/>
+                                <Button x:Name="BtnLyricsSliceRule1"
+                                        Content="1行"
+                                        Width="56" Height="40"
+                                        Margin="0,0,6,0"
+                                        FontSize="15"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        ToolTip="每1行切片"/>
+                                <Button x:Name="BtnLyricsSliceRule2"
+                                        Content="2行"
+                                        Width="56" Height="40"
+                                        Margin="0,0,6,0"
+                                        FontSize="15"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        ToolTip="每2行切片"/>
+                                <Button x:Name="BtnLyricsSliceRule3"
+                                        Content="3行"
+                                        Width="56" Height="40"
+                                        Margin="0,0,6,0"
+                                        FontSize="15"
+                                        Foreground="White"
+                                        Background="#2C2C2C"
+                                        BorderBrush="#444444"
+                                        BorderThickness="1"
+                                        ToolTip="每3行切片"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="LyricsPageNavPanel"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
@@ -194,9 +242,15 @@
 
                     <!-- 编辑区域 - 黑色背景，白色文字 -->
                     <Grid Grid.Row="1" Background="#000000">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="280"/>
+                        </Grid.ColumnDefinitions>
+
                         <!-- 可滚动的编辑区域 -->
                         <ScrollViewer x:Name="LyricsScrollViewer"
-                                      VerticalScrollBarVisibility="Auto"
+                                      Grid.Column="0"
+                                      VerticalScrollBarVisibility="Disabled"
                                       HorizontalScrollBarVisibility="Disabled"
                                       Background="#000000"
                                       Padding="60,40"
@@ -405,6 +459,91 @@
                                 </Grid>
                             </Grid>
                         </ScrollViewer>
+
+                        <Border x:Name="LyricsSlicePanel"
+                                Grid.Column="1"
+                                Background="#161616"
+                                BorderBrush="#2F2F2F"
+                                BorderThickness="1,0,0,0"
+                                Padding="10"
+                                Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="8"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="8"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Text="切片列表"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="White"/>
+                                <StackPanel Grid.Row="2"
+                                            Orientation="Horizontal"
+                                            HorizontalAlignment="Left">
+                                    <Button x:Name="BtnLyricsSlicePrev"
+                                            Content="◀"
+                                            Width="56" Height="34"
+                                            Margin="0,0,6,0"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Background="#2C2C2C"
+                                            BorderBrush="#444444"
+                                            BorderThickness="1"
+                                            ToolTip="上一片"/>
+                                    <Button x:Name="BtnLyricsSliceNext"
+                                            Content="▶"
+                                            Width="56" Height="34"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Background="#2C2C2C"
+                                            BorderBrush="#444444"
+                                            BorderThickness="1"
+                                            ToolTip="下一片"/>
+                                </StackPanel>
+
+                                <ListBox x:Name="LyricsSliceList"
+                                         Grid.Row="4"
+                                         Background="#1F1F1F"
+                                         BorderBrush="#333333"
+                                         BorderThickness="1"
+                                         Foreground="White"
+                                         FontSize="14"
+                                         ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Header}"
+                                                           FontWeight="Bold"
+                                                           Foreground="#E0E0E0"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="{Binding Text}"
+                                                           TextWrapping="Wrap"
+                                                           Foreground="White"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="Margin" Value="0,0,0,4"/>
+                                            <Setter Property="Background" Value="#252525"/>
+                                            <Setter Property="BorderBrush" Value="#333333"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#2F5D2F"/>
+                                                    <Setter Property="BorderBrush" Value="#66BB6A"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                </ListBox>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Grid>
 </UserControl>
