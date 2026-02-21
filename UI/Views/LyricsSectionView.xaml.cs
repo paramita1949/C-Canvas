@@ -11,6 +11,7 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.TextBlock LyricsFontSizeDisplayLabel => LyricsFontSizeDisplay;
         public System.Windows.Controls.Button BtnCloseLyricsEditorButton => BtnCloseLyricsEditor;
         public System.Windows.Controls.Button BtnLyricsTextColorButton => BtnLyricsTextColor;
+        public System.Windows.Controls.Button BtnLyricsWatermarkButton => BtnLyricsWatermark;
         public System.Windows.Controls.Button BtnLyricsAlignLeftButton => BtnLyricsAlignLeft;
         public System.Windows.Controls.Button BtnLyricsAlignCenterButton => BtnLyricsAlignCenter;
         public System.Windows.Controls.Button BtnLyricsAlignRightButton => BtnLyricsAlignRight;
@@ -19,6 +20,7 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnLyricsSliceRule1Button => BtnLyricsSliceRule1;
         public System.Windows.Controls.Button BtnLyricsSliceRule2Button => BtnLyricsSliceRule2;
         public System.Windows.Controls.Button BtnLyricsSliceRule3Button => BtnLyricsSliceRule3;
+        public System.Windows.Controls.StackPanel LyricsSliceToolbarContainer => LyricsSliceToolbar;
         public System.Windows.Controls.Border LyricsSlicePanelHost => LyricsSlicePanel;
         public System.Windows.Controls.ListBox LyricsSliceListHost => LyricsSliceList;
         public System.Windows.Controls.Button BtnLyricsSlicePrevButton => BtnLyricsSlicePrev;

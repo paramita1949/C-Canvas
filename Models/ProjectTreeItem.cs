@@ -50,6 +50,23 @@ namespace ImageColorChanger.UI
                 } 
             } 
         }
+
+        private string _iconImagePath;
+        public string IconImagePath
+        {
+            get => _iconImagePath;
+            set
+            {
+                if (_iconImagePath != value)
+                {
+                    _iconImagePath = value;
+                    OnPropertyChanged(nameof(IconImagePath));
+                    OnPropertyChanged(nameof(HasIconImagePath));
+                }
+            }
+        }
+
+        public bool HasIconImagePath => !string.IsNullOrWhiteSpace(_iconImagePath);
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }

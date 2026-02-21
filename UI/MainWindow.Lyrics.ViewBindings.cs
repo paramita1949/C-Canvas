@@ -10,6 +10,7 @@ namespace ImageColorChanger.UI
         private System.Windows.Controls.TextBlock LyricsFontSizeDisplay => LyricsSectionView?.LyricsFontSizeDisplayLabel;
         private System.Windows.Controls.Button BtnCloseLyricsEditor => LyricsSectionView?.BtnCloseLyricsEditorButton;
         private System.Windows.Controls.Button BtnLyricsTextColor => LyricsSectionView?.BtnLyricsTextColorButton;
+        private System.Windows.Controls.Button BtnLyricsWatermark => LyricsSectionView?.BtnLyricsWatermarkButton;
         private System.Windows.Controls.Button BtnLyricsAlignLeft => LyricsSectionView?.BtnLyricsAlignLeftButton;
         private System.Windows.Controls.Button BtnLyricsAlignCenter => LyricsSectionView?.BtnLyricsAlignCenterButton;
         private System.Windows.Controls.Button BtnLyricsAlignRight => LyricsSectionView?.BtnLyricsAlignRightButton;
@@ -18,6 +19,7 @@ namespace ImageColorChanger.UI
         private System.Windows.Controls.Button BtnLyricsSliceRule1 => LyricsSectionView?.BtnLyricsSliceRule1Button;
         private System.Windows.Controls.Button BtnLyricsSliceRule2 => LyricsSectionView?.BtnLyricsSliceRule2Button;
         private System.Windows.Controls.Button BtnLyricsSliceRule3 => LyricsSectionView?.BtnLyricsSliceRule3Button;
+        private System.Windows.Controls.StackPanel LyricsSliceToolbar => LyricsSectionView?.LyricsSliceToolbarContainer;
         private System.Windows.Controls.TextBlock LyricsSliceStateText => null;
         private System.Windows.Controls.Border LyricsSlicePanel => LyricsSectionView?.LyricsSlicePanelHost;
         private System.Windows.Controls.ListBox LyricsSliceList => LyricsSectionView?.LyricsSliceListHost;
@@ -50,6 +52,7 @@ namespace ImageColorChanger.UI
             if (BtnCloseLyricsEditor != null) BtnCloseLyricsEditor.Click += BtnCloseLyricsEditor_Click;
             if (LyricsFontSizeDisplay != null) LyricsFontSizeDisplay.MouseWheel += LyricsFontSizeDisplay_MouseWheel;
             if (BtnLyricsTextColor != null) BtnLyricsTextColor.Click += BtnLyricsTextColor_Click;
+            if (BtnLyricsWatermark != null) BtnLyricsWatermark.Click += BtnLyricsWatermark_Click;
             if (BtnLyricsAlignLeft != null) BtnLyricsAlignLeft.Click += BtnLyricsAlignLeft_Click;
             if (BtnLyricsAlignCenter != null) BtnLyricsAlignCenter.Click += BtnLyricsAlignCenter_Click;
             if (BtnLyricsAlignRight != null) BtnLyricsAlignRight.Click += BtnLyricsAlignRight_Click;

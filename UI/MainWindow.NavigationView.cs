@@ -163,7 +163,7 @@ namespace ImageColorChanger.UI
                     {
                         _filteredProjectTreeItems.Add(item);
                     }
-                    else if (IsLyricsLibraryFeatureEnabled && item.Type == TreeItemType.LyricsGroup)
+                    else if (IsLyricsLibraryFeatureEnabled && (item.Type == TreeItemType.LyricsGroup || item.Type == TreeItemType.LyricsSong))
                     {
                         _filteredProjectTreeItems.Add(item);
                     }
@@ -321,24 +321,38 @@ namespace ImageColorChanger.UI
 
                 foreach (var group in groups)
                 {
+                    string lyricsGroupIconPath = ResolveLyricsGroupIconPath();
+                    string groupHighlightColor = ResolveLyricsGroupTreeColor(group);
+                    var groupSongs = songs
+                        .Where(s => s.GroupId == group.Id)
+                        .OrderBy(s => s.SortOrder)
+                        .ThenBy(s => s.Id)
+                        .ToList();
                     var groupItem = new ProjectTreeItem
                     {
                         Id = group.Id,
                         Name = group.Name,
                         Icon = "FolderMusic",
                         IconKind = "FolderMusic",
-                        IconColor = group.IsSystem ? "#9E9E9E" : "#4CAF50",
+                        IconColor = group.IsSystem ? "#9E9E9E" : groupHighlightColor,
+                        IconImagePath = lyricsGroupIconPath,
                         Type = TreeItemType.LyricsGroup,
                         Tag = group,
                         Children = new ObservableCollection<ProjectTreeItem>()
                     };
-
-                    foreach (var song in songs.Where(s => s.GroupId == group.Id))
+                    if (string.IsNullOrWhiteSpace(groupItem.IconKind))
                     {
+                        groupItem.IconKind = "FolderMusic";
+                        groupItem.IconColor = "#4CAF50";
+                    }
+
+                    for (int i = 0; i < groupSongs.Count; i++)
+                    {
+                        var song = groupSongs[i];
                         groupItem.Children.Add(new ProjectTreeItem
                         {
                             Id = song.Id,
-                            Name = song.Name,
+                            Name = BuildLyricsSongDisplayName(i + 1, song.Name),
                             Icon = "MusicNote",
                             IconKind = "MusicNote",
                             IconColor = "#FFC107",
@@ -349,9 +363,77 @@ namespace ImageColorChanger.UI
 
                     _projectTreeItems.Add(groupItem);
                 }
+
+                // 兼容历史数据：未分组歌曲也需要在文件视图中可见（顶层歌曲节点）
+                var ungroupedSongs = songs
+                    .Where(s => !s.GroupId.HasValue)
+                    .OrderBy(s => s.SortOrder)
+                    .ThenBy(s => s.Id)
+                    .ToList();
+                for (int i = 0; i < ungroupedSongs.Count; i++)
+                {
+                    var song = ungroupedSongs[i];
+                    _projectTreeItems.Add(new ProjectTreeItem
+                    {
+                        Id = song.Id,
+                        Name = BuildLyricsSongDisplayName(i + 1, song.Name),
+                        Icon = "MusicNote",
+                        IconKind = "MusicNote",
+                        IconColor = "#FFC107",
+                        Type = TreeItemType.LyricsSong,
+                        Tag = song
+                    });
+                }
             }
             catch
             {
+            }
+        }
+
+        private static string BuildLyricsSongDisplayName(int index, string rawName)
+        {
+            string name = string.IsNullOrWhiteSpace(rawName) ? "未命名" : rawName.Trim();
+            return $"{index}.{name}";
+        }
+
+        private string ResolveLyricsGroupTreeColor(LyricsGroup group)
+        {
+            try
+            {
+                if (group == null)
+                {
+                    return "#4CAF50";
+                }
+
+                if (_configManager != null)
+                {
+                    return _configManager.GetFolderColor(group.Id, group.HighlightColor);
+                }
+
+                return string.IsNullOrWhiteSpace(group.HighlightColor) ? "#4CAF50" : group.HighlightColor;
+            }
+            catch
+            {
+                return "#4CAF50";
+            }
+        }
+
+        private string ResolveLyricsGroupIconPath()
+        {
+            try
+            {
+                string pngPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "icon", "geci.png");
+                if (System.IO.File.Exists(pngPath))
+                {
+                    return pngPath;
+                }
+
+                string icoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "icon", "geci.ico");
+                return System.IO.File.Exists(icoPath) ? icoPath : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 

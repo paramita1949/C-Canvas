@@ -13,6 +13,7 @@ using WpfFontFamily = System.Windows.Media.FontFamily;
 using WpfSize = System.Windows.Size;
 using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfMessageBox = System.Windows.MessageBox;
+using WpfImage = System.Windows.Controls.Image;
 
 namespace ImageColorChanger.UI
 {
@@ -23,6 +24,12 @@ namespace ImageColorChanger.UI
     {
         private void RenderLyricsToProjection()
         {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(RenderLyricsToProjection), System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
+
             Action caretRestore = () => { };
             try
             {
@@ -39,7 +46,7 @@ namespace ImageColorChanger.UI
                 {
                     Width = physicalWidth,
                     Height = physicalHeight,
-                    Background = WpfBrushes.Black
+                    Background = new SolidColorBrush(GetCurrentLyricsThemeBackgroundColor())
                 };
 
                 double actualHeight = physicalHeight;
@@ -71,6 +78,7 @@ namespace ImageColorChanger.UI
                 Canvas.SetLeft(textBlock, 0);
                 Canvas.SetTop(textBlock, 0);
                 canvas.Children.Add(textBlock);
+                AddImageWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale);
                 AddSongNameWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale);
 
                 canvas.Measure(new WpfSize(physicalWidth, actualHeight));
@@ -140,17 +148,19 @@ namespace ImageColorChanger.UI
             {
                 Width = physicalWidth,
                 Height = physicalHeight,
-                Background = WpfBrushes.Black
+                Background = new SolidColorBrush(GetCurrentLyricsThemeBackgroundColor())
             };
 
             var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
             double fontScale = physicalWidth / wpfWidth;
             foreach (var region in GetSplitRenderRegions(physicalWidth, physicalHeight))
             {
-                AddSplitRegionTextElement(canvas, region.Rect, region.Editor, region.Text, fontScale);
+                double regionFontSize = GetSplitProjectionFontSizeForRegion(region.RegionIndex);
+                AddSplitRegionTextElement(canvas, region.Rect, region.Editor, region.Text, fontScale, regionFontSize);
             }
 
             AddSplitOverlayForProjection(canvas, physicalWidth, physicalHeight);
+            AddImageWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
             AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
@@ -183,12 +193,14 @@ namespace ImageColorChanger.UI
             {
                 Width = physicalWidth,
                 Height = physicalHeight,
-                Background = WpfBrushes.Black
+                Background = new SolidColorBrush(GetCurrentLyricsThemeBackgroundColor())
             };
 
             var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
             double fontScale = physicalWidth / wpfWidth;
-            AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale);
+            double regionFontSize = GetSplitProjectionFontSizeForRegion(current.RegionIndex);
+            AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale, regionFontSize);
+            AddImageWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
             AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
@@ -207,7 +219,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale)
+        private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale, double regionFontSize)
         {
             var host = new Grid
             {
@@ -220,7 +232,7 @@ namespace ImageColorChanger.UI
             {
                 Text = text ?? "",
                 FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                FontSize = _lyricsProjectionFontSize * fontScale,
+                FontSize = regionFontSize * fontScale,
                 Foreground = editor?.Foreground ?? LyricsTextBox.Foreground ?? WpfBrushes.White,
                 TextAlignment = editor?.TextAlignment ?? TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
@@ -334,36 +346,81 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            double padX = Math.Max(18, 16 * fontScale);
-            double padY = Math.Max(10, 8 * fontScale);
             double marginX = Math.Max(22, 18 * fontScale);
             double marginY = Math.Max(18, 14 * fontScale);
             double fontSize = Math.Max(32, 28 * fontScale);
 
-            var border = new Border
+            var text = new TextBlock
             {
-                Background = new SolidColorBrush(WpfColor.FromArgb(130, 0, 0, 0)),
-                CornerRadius = new CornerRadius(Math.Max(8, 6 * fontScale)),
-                Padding = new Thickness(padX, padY, padX, padY),
-                IsHitTestVisible = false,
-                Child = new TextBlock
-                {
-                    Text = watermark,
-                    FontSize = fontSize,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(WpfColor.FromArgb(180, 255, 255, 255))
-                }
+                Text = watermark,
+                FontSize = fontSize,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(WpfColor.FromArgb(190, 255, 255, 255)),
+                IsHitTestVisible = false
             };
 
-            border.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
-            var size = border.DesiredSize;
-            Canvas.SetLeft(border, marginX);
-            Canvas.SetTop(border, Math.Max(0, height - size.Height - marginY));
-            Canvas.SetZIndex(border, 1200);
-            canvas.Children.Add(border);
+            text.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
+            var size = text.DesiredSize;
+            Canvas.SetLeft(text, marginX);
+            Canvas.SetTop(text, Math.Max(0, height - size.Height - marginY));
+            Canvas.SetZIndex(text, 1200);
+            canvas.Children.Add(text);
         }
 
-        private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text)> GetSplitRenderRegions(double width, double height)
+        private void AddImageWatermarkToProjection(Canvas canvas, double width, double height, double fontScale)
+        {
+            string imagePath = GetCurrentLyricsWatermarkImagePath();
+            if (string.IsNullOrWhiteSpace(imagePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                if (bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0)
+                {
+                    return;
+                }
+
+                double maxWidth = Math.Max(180, width * 0.16);
+                double maxHeight = Math.Max(90, height * 0.12);
+                double scale = Math.Min(maxWidth / bitmap.PixelWidth, maxHeight / bitmap.PixelHeight);
+                scale = Math.Min(1.0, Math.Max(0.05, scale));
+
+                double drawWidth = bitmap.PixelWidth * scale;
+                double drawHeight = bitmap.PixelHeight * scale;
+                double marginX = Math.Max(24, 20 * fontScale);
+                double marginY = Math.Max(18, 14 * fontScale);
+
+                var image = new WpfImage
+                {
+                    Source = bitmap,
+                    Width = drawWidth,
+                    Height = drawHeight,
+                    Stretch = Stretch.Fill,
+                    Opacity = 0.95,
+                    IsHitTestVisible = false
+                };
+
+                Canvas.SetLeft(image, Math.Max(0, width - drawWidth - marginX));
+                Canvas.SetTop(image, Math.Max(0, height - drawHeight - marginY));
+                Canvas.SetZIndex(image, 1300);
+                canvas.Children.Add(image);
+            }
+            catch
+            {
+                // 水印加载失败不影响歌词投影
+            }
+        }
+
+        private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text, int RegionIndex)> GetSplitRenderRegions(double width, double height)
         {
             double halfWidth = width / 2.0;
             double halfHeight = height / 2.0;
@@ -371,23 +428,23 @@ namespace ImageColorChanger.UI
             switch ((ViewSplitMode)_lyricsSplitMode)
             {
                 case ViewSplitMode.Horizontal:
-                    yield return (new Rect(0, 0, halfWidth, height), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    yield return (new Rect(0, 0, halfWidth, height), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "", 0);
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "", 1);
                     break;
                 case ViewSplitMode.Vertical:
-                    yield return (new Rect(0, 0, width, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(0, halfHeight, width, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
+                    yield return (new Rect(0, 0, width, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "", 0);
+                    yield return (new Rect(0, halfHeight, width, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "", 1);
                     break;
                 case ViewSplitMode.TripleSplit:
-                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
+                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "", 0);
+                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "", 1);
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, height), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "", 2);
                     break;
                 case ViewSplitMode.Quad:
-                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "");
-                    yield return (new Rect(halfWidth, 0, width - halfWidth, halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "");
-                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "");
-                    yield return (new Rect(halfWidth, halfHeight, width - halfWidth, height - halfHeight), LyricsSplitTextBox4, LyricsSplitTextBox4.Text ?? "");
+                    yield return (new Rect(0, 0, halfWidth, halfHeight), LyricsSplitTextBox1, LyricsSplitTextBox1.Text ?? "", 0);
+                    yield return (new Rect(halfWidth, 0, width - halfWidth, halfHeight), LyricsSplitTextBox2, LyricsSplitTextBox2.Text ?? "", 1);
+                    yield return (new Rect(0, halfHeight, halfWidth, height - halfHeight), LyricsSplitTextBox3, LyricsSplitTextBox3.Text ?? "", 2);
+                    yield return (new Rect(halfWidth, halfHeight, width - halfWidth, height - halfHeight), LyricsSplitTextBox4, LyricsSplitTextBox4.Text ?? "", 3);
                     break;
             }
         }

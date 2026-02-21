@@ -73,6 +73,9 @@ namespace ImageColorChanger.UI
             // 🔄 静默同步所有文件夹（避免跨线程并发访问同一 DbContext）
             try
             {
+                // 清理旧版“图片绑定歌词”残留，歌词模块仅保留独立歌曲数据。
+                PurgeLegacyImageLinkedLyricsProjects();
+
                 // 启动时先做一次映射对账，确保历史数据迁移后读路径稳定。
                 var reconcileResult = DatabaseManagerService.ReconcileFolderImageLinks();
 #if DEBUG
@@ -90,14 +93,12 @@ namespace ImageColorChanger.UI
 #endif
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // 静默失败，不影响用户使用
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败: {ex.Message}");
                 // System.Diagnostics.Trace.WriteLine($"[MainWindow] 启动时同步失败堆栈: {ex.StackTrace}");
-#else
-                _ = ex;
 #endif
             }
 

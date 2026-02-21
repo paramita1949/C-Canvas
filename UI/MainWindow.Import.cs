@@ -8,6 +8,17 @@ namespace ImageColorChanger.UI
 {
     public partial class MainWindow
     {
+        private const string ImportExportLogPrefix = "[导入导出UI]";
+        private static void LogImportExportInfo(string message)
+        {
+            // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} {message}");
+        }
+
+        private static void LogImportExportError(string message)
+        {
+            // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} [ERROR] {message}");
+        }
+
         #region 导入文件相关
 
         private void BtnImport_Click(object sender, RoutedEventArgs e)
@@ -48,22 +59,22 @@ namespace ImageColorChanger.UI
             var migrationItem = new MenuItem { Header = "迁移数据库" };
 
             // 导入数据库子菜单
-            var importDbItem = new MenuItem { Header = "导入数据库(含歌词库)" };
+            var importDbItem = new MenuItem { Header = "导入数据库" };
             importDbItem.Click += async (s, args) => await ImportDatabaseAsync();
             migrationItem.Items.Add(importDbItem);
 
             // 导出数据库子菜单
-            var exportDbItem = new MenuItem { Header = "导出数据库(含歌词库)" };
+            var exportDbItem = new MenuItem { Header = "导出数据库" };
             exportDbItem.Click += async (s, args) => await ExportDatabaseAsync();
             migrationItem.Items.Add(exportDbItem);
 
             if (IsLyricsTransferFeatureEnabled)
             {
-                var exportLyricsItem = new MenuItem { Header = "导出歌词(.lyr)" };
+                var exportLyricsItem = new MenuItem { Header = "导出歌词" };
                 exportLyricsItem.Click += async (s, args) => await ExportLyricsLibraryPackageAsync();
                 migrationItem.Items.Add(exportLyricsItem);
 
-                var importLyricsItem = new MenuItem { Header = "导入歌词(.lyr)" };
+                var importLyricsItem = new MenuItem { Header = "导入歌词" };
                 importLyricsItem.Click += async (s, args) => await ImportLyricsPackageAsync();
                 migrationItem.Items.Add(importLyricsItem);
             }
@@ -323,6 +334,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                LogImportExportInfo("[ExportDB-Begin] open save dialog");
                 // 创建保存文件对话框
                 var saveDialog = new Microsoft.Win32.SaveFileDialog
                 {
@@ -334,15 +346,17 @@ namespace ImageColorChanger.UI
 
                 if (saveDialog.ShowDialog() == true)
                 {
+                    LogImportExportInfo($"[ExportDB-Select] target={saveDialog.FileName}");
                     var migrationService = new Services.DatabaseMigrationService();
                     var result = await migrationService.ExportDatabaseAsync(saveDialog.FileName);
+                    LogImportExportInfo($"[ExportDB-End] success={result?.Success}, title={result?.Title}");
                     ShowMigrationResult(result);
                 }
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"导出数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"❌ 导出数据库异常: {ex}");
+                LogImportExportError($"[ExportDB-Fail] {ex}");
             }
         }
 
@@ -353,6 +367,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                LogImportExportInfo("[ImportDB-Begin] open file dialog");
                 // 创建打开文件对话框
                 var openDialog = new Microsoft.Win32.OpenFileDialog
                 {
@@ -363,6 +378,7 @@ namespace ImageColorChanger.UI
 
                 if (openDialog.ShowDialog() == true)
                 {
+                    LogImportExportInfo($"[ImportDB-Select] source={openDialog.FileName}");
                     // 确认导入操作
                     var confirmResult = System.Windows.MessageBox.Show(
                         "导入数据库将覆盖当前数据库（会自动备份当前数据库和缩略图）。\n\n确定要继续吗？",
@@ -372,8 +388,10 @@ namespace ImageColorChanger.UI
 
                     if (confirmResult == System.Windows.MessageBoxResult.Yes)
                     {
+                        LogImportExportInfo("[ImportDB-Confirm] user confirmed import");
                         var migrationService = new Services.DatabaseMigrationService();
                         var result = await migrationService.ImportDatabaseAsync(openDialog.FileName);
+                        LogImportExportInfo($"[ImportDB-End] success={result?.Success}, requiresRestart={result?.RequiresRestart}");
                         ShowMigrationResult(result);
 
                         if (result.Success && result.RequiresRestart)
@@ -395,7 +413,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"导入数据库时发生错误：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"❌ 导入数据库异常: {ex}");
+                LogImportExportError($"[ImportDB-Fail] {ex}");
             }
         }
 
@@ -414,24 +432,28 @@ namespace ImageColorChanger.UI
 
             try
             {
+                LogImportExportInfo($"[ExportLyrSong-Begin] songId={songId}");
                 var saveDialog = new Microsoft.Win32.SaveFileDialog
                 {
                     Title = "导出歌曲歌词",
-                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
-                    DefaultExt = ".lyr",
-                    FileName = $"song_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                    Filter = "歌词包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
+                    DefaultExt = ".zip",
+                    FileName = $"song_{DateTime.Now:yyyyMMdd_HHmmss}.zip"
                 };
                 if (saveDialog.ShowDialog() != true)
                 {
                     return;
                 }
 
+                LogImportExportInfo($"[ExportLyrSong-Select] target={saveDialog.FileName}");
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportSongAsync(songId, saveDialog.FileName);
+                LogImportExportInfo($"[ExportLyrSong-End] success={result?.Success}, msg={result?.Message}");
                 ShowStatus(result.Success ? "✅ 歌曲歌词导出成功" : $"❌ {result.Message}");
             }
             catch (Exception ex)
             {
+                LogImportExportError($"[ExportLyrSong-Fail] songId={songId}, err={ex}");
                 ShowStatus($"❌ 导出歌曲歌词失败: {ex.Message}");
             }
         }
@@ -446,26 +468,78 @@ namespace ImageColorChanger.UI
 
             try
             {
+                LogImportExportInfo($"[ExportLyrGroup-Begin] groupId={groupId}");
+                string defaultBaseName = $"group_{DateTime.Now:yyyyMMdd_HHmmss}";
+                try
+                {
+                    string groupName = _dbContext?.LyricsGroups
+                        .Where(g => g.Id == groupId)
+                        .Select(g => g.Name)
+                        .FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(groupName))
+                    {
+                        defaultBaseName = SanitizeExportBaseName(groupName);
+                    }
+                }
+                catch
+                {
+                    // 读取分组名失败时回退时间戳文件名
+                }
+
                 var saveDialog = new Microsoft.Win32.SaveFileDialog
                 {
                     Title = "导出歌词分组",
-                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
-                    DefaultExt = ".lyr",
-                    FileName = $"group_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                    Filter = "歌词包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
+                    DefaultExt = ".zip",
+                    FileName = $"{defaultBaseName}.zip"
                 };
                 if (saveDialog.ShowDialog() != true)
                 {
                     return;
                 }
 
+                LogImportExportInfo($"[ExportLyrGroup-Select] target={saveDialog.FileName}");
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportGroupAsync(groupId, saveDialog.FileName);
+                LogImportExportInfo($"[ExportLyrGroup-End] success={result?.Success}, msg={result?.Message}");
                 ShowStatus(result.Success ? "✅ 分组歌词导出成功" : $"❌ {result.Message}");
             }
             catch (Exception ex)
             {
+                LogImportExportError($"[ExportLyrGroup-Fail] groupId={groupId}, err={ex}");
                 ShowStatus($"❌ 导出分组歌词失败: {ex.Message}");
             }
+        }
+
+        private static string SanitizeExportBaseName(string rawName)
+        {
+            if (string.IsNullOrWhiteSpace(rawName))
+            {
+                return $"group_{DateTime.Now:yyyyMMdd_HHmmss}";
+            }
+
+            string trimmed = rawName.Trim();
+            var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+            var buffer = new System.Text.StringBuilder(trimmed.Length);
+            foreach (char c in trimmed)
+            {
+                bool invalid = false;
+                for (int i = 0; i < invalidChars.Length; i++)
+                {
+                    if (c == invalidChars[i])
+                    {
+                        invalid = true;
+                        break;
+                    }
+                }
+
+                buffer.Append(invalid ? '_' : c);
+            }
+
+            string sanitized = buffer.ToString().Trim().TrimEnd('.');
+            return string.IsNullOrWhiteSpace(sanitized)
+                ? $"group_{DateTime.Now:yyyyMMdd_HHmmss}"
+                : sanitized;
         }
 
         internal async System.Threading.Tasks.Task ExportLyricsLibraryPackageAsync()
@@ -478,24 +552,28 @@ namespace ImageColorChanger.UI
 
             try
             {
+                LogImportExportInfo("[ExportLyrLib-Begin]");
                 var saveDialog = new Microsoft.Win32.SaveFileDialog
                 {
                     Title = "导出歌词库",
-                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
-                    DefaultExt = ".lyr",
-                    FileName = $"lyrics_library_{DateTime.Now:yyyyMMdd_HHmmss}.lyr"
+                    Filter = "歌词包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
+                    DefaultExt = ".zip",
+                    FileName = $"lyrics_library_{DateTime.Now:yyyyMMdd_HHmmss}.zip"
                 };
                 if (saveDialog.ShowDialog() != true)
                 {
                     return;
                 }
 
+                LogImportExportInfo($"[ExportLyrLib-Select] target={saveDialog.FileName}");
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportLibraryAsync(saveDialog.FileName);
+                LogImportExportInfo($"[ExportLyrLib-End] success={result?.Success}, msg={result?.Message}");
                 ShowStatus(result.Success ? "✅ 歌词库导出成功" : $"❌ {result.Message}");
             }
             catch (Exception ex)
             {
+                LogImportExportError($"[ExportLyrLib-Fail] {ex}");
                 ShowStatus($"❌ 导出歌词库失败: {ex.Message}");
             }
         }
@@ -510,29 +588,44 @@ namespace ImageColorChanger.UI
 
             try
             {
+                LogImportExportInfo("[ImportLyr-Begin] open file dialog");
                 var openDialog = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "导入歌词包",
-                    Filter = "歌词包 (*.lyr)|*.lyr|所有文件 (*.*)|*.*",
-                    DefaultExt = ".lyr"
+                    Filter = "歌词包 (*.zip)|*.zip",
+                    DefaultExt = ".zip"
                 };
                 if (openDialog.ShowDialog() != true)
                 {
                     return;
                 }
 
-                var strategy = SelectLyricsImportStrategy();
-                if (!strategy.HasValue)
+                var service = CreateLyricsTransferService();
+                int conflictCount = await service.CountConflictsAsync(openDialog.FileName);
+                Services.LyricsImportConflictStrategy strategy;
+                if (conflictCount > 0)
                 {
-                    return;
+                    var selected = SelectLyricsImportStrategy();
+                    if (!selected.HasValue)
+                    {
+                        return;
+                    }
+
+                    strategy = selected.Value;
+                }
+                else
+                {
+                    strategy = Services.LyricsImportConflictStrategy.Skip;
+                    LogImportExportInfo("[ImportLyr-Precheck] no conflicts, strategy dialog skipped");
                 }
 
-                var service = CreateLyricsTransferService();
-                var result = await service.ImportAsync(openDialog.FileName, strategy.Value);
+                LogImportExportInfo($"[ImportLyr-Select] source={openDialog.FileName}, conflicts={conflictCount}, strategy={strategy}");
+                var result = await service.ImportAsync(openDialog.FileName, strategy);
                 if (result.Success)
                 {
                     LoadProjects();
                 }
+                LogImportExportInfo($"[ImportLyr-End] success={result?.Success}, imported={result?.Imported}, overwritten={result?.Overwritten}, copied={result?.Copied}, skipped={result?.Skipped}, failed={result?.Failed}");
                 ShowStatus(result.Success ? $"✅ {result.Message}" : $"❌ {result.Message}");
                 System.Windows.MessageBox.Show(
                     result.Message,
@@ -542,6 +635,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                LogImportExportError($"[ImportLyr-Fail] {ex}");
                 ShowStatus($"❌ 导入歌词包失败: {ex.Message}");
             }
         }

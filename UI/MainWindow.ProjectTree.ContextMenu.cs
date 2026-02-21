@@ -299,14 +299,6 @@ namespace ImageColorChanger.UI
             };
             contextMenu.Items.Add(createSplitMenuItem);
 
-            var lyricsModeMenuItem = new MenuItem
-            {
-                Header = "歌词模式",
-                FontSize = 14
-            };
-            lyricsModeMenuItem.Click += (s, args) => EnterLyricsModeFromFile(item);
-            contextMenu.Items.Add(lyricsModeMenuItem);
-
             var addToSlideMenuItem = new MenuItem
             {
                 Header = "添加到幻灯片",

@@ -30,8 +30,10 @@ namespace ImageColorChanger.Database.Models
         [Column("modified_time")]
         public DateTime? ModifiedTime { get; set; }
 
+        [Column("highlight_color")]
+        public string HighlightColor { get; set; }
+
         [Column("is_system")]
         public bool IsSystem { get; set; }
     }
 }
-

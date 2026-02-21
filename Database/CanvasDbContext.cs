@@ -847,6 +847,7 @@ namespace ImageColorChanger.Database
             try
             {
                 EnsureLyricsGroupsTableExists();
+                EnsureColumnExists("lyrics_groups", "highlight_color", "TEXT NULL");
                 EnsureLyricsProjectsExtendedColumnsExist();
                 EnsureLyricsLibraryIndexesExist();
                 SeedLyricsSystemGroupsAndBackfill();
@@ -886,6 +887,7 @@ namespace ImageColorChanger.Database
                         sort_order INTEGER NOT NULL DEFAULT 0,
                         created_time TEXT NULL,
                         modified_time TEXT NULL,
+                        highlight_color TEXT NULL,
                         is_system INTEGER NOT NULL DEFAULT 0
                     )");
 
@@ -905,6 +907,7 @@ namespace ImageColorChanger.Database
                 EnsureColumnExists("lyrics_projects", "external_id", "TEXT NULL");
                 EnsureColumnExists("lyrics_projects", "sort_order", "INTEGER NOT NULL DEFAULT 0");
                 EnsureColumnExists("lyrics_projects", "source_type", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumnExists("lyrics_projects", "projection_watermark_path", "TEXT NULL");
             }
             catch (Exception ex)
             {

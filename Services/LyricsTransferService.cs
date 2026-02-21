@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
@@ -32,6 +33,22 @@ namespace ImageColorChanger.Services
     public sealed class LyricsTransferService
     {
         private readonly CanvasDbContext _dbContext;
+        private const string LogPrefix = "[歌词导入导出]";
+
+        private static void LogInfo(string message)
+        {
+            // System.Diagnostics.Debug.WriteLine($"{LogPrefix} {message}");
+        }
+
+        private static void LogWarn(string message)
+        {
+            // System.Diagnostics.Debug.WriteLine($"{LogPrefix} [WARN] {message}");
+        }
+
+        private static void LogError(string message)
+        {
+            // System.Diagnostics.Debug.WriteLine($"{LogPrefix} [ERROR] {message}");
+        }
 
         public LyricsTransferService(CanvasDbContext dbContext)
         {
@@ -40,9 +57,11 @@ namespace ImageColorChanger.Services
 
         public Task<LyricsTransferResult> ExportSongAsync(int songId, string targetPath)
         {
+            LogInfo($"[ExportSong-Begin] songId={songId}, target={targetPath}");
             var song = _dbContext.LyricsProjects.FirstOrDefault(s => s.Id == songId);
             if (song == null)
             {
+                LogWarn($"[ExportSong-Skip] song not found, songId={songId}");
                 return Task.FromResult(new LyricsTransferResult { Success = false, Message = "歌曲不存在" });
             }
 
@@ -52,36 +71,44 @@ namespace ImageColorChanger.Services
 
             var manifest = BuildManifest("single", group == null ? new List<LyricsGroup>() : new List<LyricsGroup> { group }, new List<LyricsProject> { song });
             WriteLyrPackage(targetPath, manifest);
+            LogInfo($"[ExportSong-End] songId={songId}, songs=1, group={(group == null ? 0 : 1)}");
             return Task.FromResult(new LyricsTransferResult { Success = true, Message = "导出成功", Imported = 1 });
         }
 
         public Task<LyricsTransferResult> ExportGroupAsync(int groupId, string targetPath)
         {
+            LogInfo($"[ExportGroup-Begin] groupId={groupId}, target={targetPath}");
             var group = _dbContext.LyricsGroups.FirstOrDefault(g => g.Id == groupId);
             if (group == null)
             {
+                LogWarn($"[ExportGroup-Skip] group not found, groupId={groupId}");
                 return Task.FromResult(new LyricsTransferResult { Success = false, Message = "分组不存在" });
             }
 
             var songs = _dbContext.LyricsProjects.Where(s => s.GroupId == groupId).OrderBy(s => s.SortOrder).ToList();
             var manifest = BuildManifest("library", new List<LyricsGroup> { group }, songs);
             WriteLyrPackage(targetPath, manifest);
+            LogInfo($"[ExportGroup-End] groupId={groupId}, songs={songs.Count}");
             return Task.FromResult(new LyricsTransferResult { Success = true, Message = "导出成功", Imported = songs.Count });
         }
 
         public Task<LyricsTransferResult> ExportLibraryAsync(string targetPath)
         {
+            LogInfo($"[ExportLibrary-Begin] target={targetPath}");
             var groups = _dbContext.LyricsGroups.OrderBy(g => g.SortOrder).ToList();
             var songs = _dbContext.LyricsProjects.OrderBy(s => s.SortOrder).ToList();
             var manifest = BuildManifest("library", groups, songs);
             WriteLyrPackage(targetPath, manifest);
+            LogInfo($"[ExportLibrary-End] groups={groups.Count}, songs={songs.Count}");
             return Task.FromResult(new LyricsTransferResult { Success = true, Message = "导出成功", Imported = songs.Count });
         }
 
         public async Task<LyricsTransferResult> ImportAsync(string sourcePath, LyricsImportConflictStrategy strategy)
         {
+            LogInfo($"[Import-Begin] source={sourcePath}, strategy={strategy}");
             if (!File.Exists(sourcePath))
             {
+                LogWarn($"[Import-Skip] source file missing: {sourcePath}");
                 return new LyricsTransferResult { Success = false, Message = "文件不存在" };
             }
 
@@ -89,16 +116,21 @@ namespace ImageColorChanger.Services
             try
             {
                 manifest = ReadLyrPackage(sourcePath);
+                LogInfo($"[Import-Manifest] format={manifest?.Format}, schema={manifest?.SchemaVersion}, groups={manifest?.Groups?.Count ?? 0}, songs={manifest?.Songs?.Count ?? 0}");
             }
             catch (Exception ex)
             {
+                LogError($"[Import-ParseFail] {ex}");
                 return new LyricsTransferResult { Success = false, Message = $"解析失败: {ex.Message}" };
             }
 
-            if (!string.Equals(manifest.Format, "canvas.lyr", StringComparison.OrdinalIgnoreCase))
+            if (!IsSupportedLyricsManifest(manifest))
             {
+                LogWarn($"[Import-Unsupported] format={manifest?.Format ?? "(null)"}");
                 return new LyricsTransferResult { Success = false, Message = "不支持的歌词包格式" };
             }
+
+            manifest = ResolveImportedWatermarkFiles(manifest, sourcePath);
 
             var result = new LyricsTransferResult();
             await using var tx = await _dbContext.Database.BeginTransactionAsync();
@@ -115,12 +147,43 @@ namespace ImageColorChanger.Services
                             Name = string.IsNullOrWhiteSpace(g.Name) ? "未命名分组" : g.Name,
                             ExternalId = string.IsNullOrWhiteSpace(g.ExternalId) ? Guid.NewGuid().ToString() : g.ExternalId,
                             SortOrder = g.SortOrder,
+                            HighlightColor = g.HighlightColor,
                             IsSystem = false,
                             CreatedTime = DateTime.Now
                         };
                         _dbContext.LyricsGroups.Add(existing);
                         await _dbContext.SaveChangesAsync();
                     }
+                    else
+                    {
+                        bool changed = false;
+                        if (!string.IsNullOrWhiteSpace(g.Name) && !string.Equals(existing.Name, g.Name, StringComparison.Ordinal))
+                        {
+                            existing.Name = g.Name;
+                            changed = true;
+                        }
+
+                        if (existing.SortOrder != g.SortOrder)
+                        {
+                            existing.SortOrder = g.SortOrder;
+                            changed = true;
+                        }
+
+                        string incomingColor = g.HighlightColor ?? string.Empty;
+                        string currentColor = existing.HighlightColor ?? string.Empty;
+                        if (!string.Equals(currentColor, incomingColor, StringComparison.Ordinal))
+                        {
+                            existing.HighlightColor = incomingColor;
+                            changed = true;
+                        }
+
+                        if (changed)
+                        {
+                            existing.ModifiedTime = DateTime.Now;
+                            await _dbContext.SaveChangesAsync();
+                        }
+                    }
+
                     groupMap[g.ExternalId ?? ""] = existing.Id;
                 }
 
@@ -155,8 +218,9 @@ namespace ImageColorChanger.Services
                                 break;
                         }
                     }
-                    catch
+                    catch (Exception exSong)
                     {
+                        LogError($"[Import-SongFail] name={s?.Name ?? "(null)"}, externalId={s?.ExternalId ?? "(null)"}, err={exSong.Message}");
                         result.Failed++;
                     }
                 }
@@ -165,13 +229,41 @@ namespace ImageColorChanger.Services
                 await tx.CommitAsync();
                 result.Success = true;
                 result.Message = $"导入完成：新增{result.Imported}，覆盖{result.Overwritten}，副本{result.Copied}，跳过{result.Skipped}，失败{result.Failed}";
+                LogInfo($"[Import-End] success=true, imported={result.Imported}, overwritten={result.Overwritten}, copied={result.Copied}, skipped={result.Skipped}, failed={result.Failed}");
                 return result;
             }
             catch (Exception ex)
             {
                 await tx.RollbackAsync();
+                LogError($"[Import-Fail] {ex}");
                 return new LyricsTransferResult { Success = false, Message = $"导入失败: {ex.Message}" };
             }
+        }
+
+        public Task<int> CountConflictsAsync(string sourcePath)
+        {
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException("文件不存在", sourcePath);
+            }
+
+            var manifest = ReadLyrPackage(sourcePath);
+            if (!IsSupportedLyricsManifest(manifest))
+            {
+                throw new InvalidOperationException("不支持的歌词包格式");
+            }
+
+            int count = 0;
+            foreach (var s in manifest.Songs ?? new List<LyricsSongDto>())
+            {
+                if (FindSongConflict(s.ExternalId, s.Name) != null)
+                {
+                    count++;
+                }
+            }
+
+            LogInfo($"[Import-Precheck] source={sourcePath}, songs={manifest.Songs?.Count ?? 0}, conflicts={count}");
+            return Task.FromResult(count);
         }
 
         private LyricsProject BuildSongFromDto(LyricsSongDto s, Dictionary<string, int> groupMap)
@@ -188,9 +280,10 @@ namespace ImageColorChanger.Services
                 GroupId = groupId,
                 ExternalId = string.IsNullOrWhiteSpace(s.ExternalId) ? Guid.NewGuid().ToString() : s.ExternalId,
                 Content = s.Content ?? "",
-                FontSize = s.FontSize <= 0 ? 88 : s.FontSize,
+                FontSize = s.FontSize <= 0 ? 60 : s.FontSize,
                 TextAlign = string.IsNullOrWhiteSpace(s.TextAlign) ? "Center" : s.TextAlign,
                 ViewMode = s.ViewMode,
+                ProjectionWatermarkPath = s.ProjectionWatermarkPath ?? "",
                 SourceType = s.SourceType,
                 SortOrder = s.SortOrder,
                 ImageId = null,
@@ -215,6 +308,7 @@ namespace ImageColorChanger.Services
             target.FontSize = source.FontSize <= 0 ? target.FontSize : source.FontSize;
             target.TextAlign = string.IsNullOrWhiteSpace(source.TextAlign) ? target.TextAlign : source.TextAlign;
             target.ViewMode = source.ViewMode;
+            target.ProjectionWatermarkPath = source.ProjectionWatermarkPath ?? "";
             target.SourceType = source.SourceType;
             target.SortOrder = source.SortOrder;
             target.ModifiedTime = DateTime.Now;
@@ -259,7 +353,7 @@ namespace ImageColorChanger.Services
         {
             return new LyricsPackageManifest
             {
-                Format = "canvas.lyr",
+                Format = "canvas.zip",
                 SchemaVersion = 1,
                 PackageType = packageType,
                 ExportedAt = DateTime.UtcNow,
@@ -268,7 +362,8 @@ namespace ImageColorChanger.Services
                 {
                     ExternalId = g.ExternalId,
                     Name = g.Name,
-                    SortOrder = g.SortOrder
+                    SortOrder = g.SortOrder,
+                    HighlightColor = g.HighlightColor
                 }).ToList(),
                 Songs = songs.Select(s => new LyricsSongDto
                 {
@@ -279,6 +374,7 @@ namespace ImageColorChanger.Services
                     FontSize = s.FontSize,
                     TextAlign = s.TextAlign,
                     ViewMode = s.ViewMode,
+                    ProjectionWatermarkPath = s.ProjectionWatermarkPath ?? "",
                     SourceType = s.SourceType,
                     SortOrder = s.SortOrder,
                     ModifiedTime = s.ModifiedTime
@@ -288,6 +384,12 @@ namespace ImageColorChanger.Services
 
         private static void WriteLyrPackage(string targetPath, LyricsPackageManifest manifest)
         {
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("歌词清单为空，无法导出");
+            }
+
+            LogInfo($"[Package-Write-Begin] target={targetPath}, songs={manifest?.Songs?.Count ?? 0}");
             var dir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
             {
@@ -299,55 +401,295 @@ namespace ImageColorChanger.Services
                 File.Delete(targetPath);
             }
 
-            using var fs = File.Create(targetPath);
-            using var zip = new ZipArchive(fs, ZipArchiveMode.Create);
-            var entry = zip.CreateEntry("manifest.json");
-            using var stream = entry.Open();
-            using var writer = new StreamWriter(stream);
-            string json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
-            writer.Write(json);
+            using (var fs = File.Create(targetPath))
+            using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+            {
+                var watermarkMapped = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var song in manifest.Songs ?? new List<LyricsSongDto>())
+                {
+                    if (string.IsNullOrWhiteSpace(song.ProjectionWatermarkPath))
+                    {
+                        continue;
+                    }
+
+                    string sourcePath = song.ProjectionWatermarkPath;
+                    if (!Path.IsPathRooted(sourcePath))
+                    {
+                        sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, sourcePath);
+                    }
+
+                    if (!File.Exists(sourcePath))
+                    {
+                        song.ProjectionWatermarkPath = "";
+                        continue;
+                    }
+
+                    if (!watermarkMapped.TryGetValue(sourcePath, out var packagePath))
+                    {
+                        string ext = Path.GetExtension(sourcePath);
+                        string stem = Path.GetFileNameWithoutExtension(sourcePath);
+                        if (string.IsNullOrWhiteSpace(ext))
+                        {
+                            ext = ".png";
+                        }
+                        if (string.IsNullOrWhiteSpace(stem))
+                        {
+                            stem = "watermark";
+                        }
+
+                        string candidate = $"watermarks/{stem}{ext}";
+                        int n = 1;
+                        while (zip.GetEntry(candidate) != null)
+                        {
+                            n++;
+                            candidate = $"watermarks/{stem}_{n}{ext}";
+                        }
+
+                        zip.CreateEntryFromFile(sourcePath, candidate, CompressionLevel.Optimal);
+                        packagePath = candidate;
+                        watermarkMapped[sourcePath] = packagePath;
+                    }
+
+                    song.ProjectionWatermarkPath = packagePath;
+                }
+
+                var entry = zip.CreateEntry("manifest.json");
+                using var stream = entry.Open();
+                using var writer = new StreamWriter(stream);
+            string json = JsonSerializer.Serialize(
+                manifest,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+                writer.Write(json);
+                LogInfo("[Package-Write-End] manifest.json written");
+            }
+
+            // 导出后立即自检，避免出现“空zip”而UI仍显示成功
+            ValidateLyrPackageFile(targetPath);
+        }
+
+        private static LyricsPackageManifest ResolveImportedWatermarkFiles(LyricsPackageManifest manifest, string sourcePath)
+        {
+            if (manifest?.Songs == null || manifest.Songs.Count == 0 || !File.Exists(sourcePath))
+            {
+                return manifest;
+            }
+
+            string targetDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "watermarks");
+            Directory.CreateDirectory(targetDirectory);
+
+            using var fs = File.OpenRead(sourcePath);
+            using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
+            var extracted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            int remapped = 0;
+            int missing = 0;
+            foreach (var song in manifest.Songs)
+            {
+                string packagePath = song.ProjectionWatermarkPath ?? "";
+                if (string.IsNullOrWhiteSpace(packagePath))
+                {
+                    continue;
+                }
+
+                if (!packagePath.StartsWith("watermarks/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!extracted.TryGetValue(packagePath, out var relativePath))
+                {
+                    var entry = zip.GetEntry(packagePath);
+                    if (entry == null)
+                    {
+                        song.ProjectionWatermarkPath = "";
+                        missing++;
+                        continue;
+                    }
+
+                    string fileName = Path.GetFileName(packagePath);
+                    string stem = Path.GetFileNameWithoutExtension(fileName);
+                    string ext = Path.GetExtension(fileName);
+                    if (string.IsNullOrWhiteSpace(stem))
+                    {
+                        stem = "watermark";
+                    }
+                    if (string.IsNullOrWhiteSpace(ext))
+                    {
+                        ext = ".png";
+                    }
+
+                    string targetPath = Path.Combine(targetDirectory, $"{stem}{ext}");
+                    int n = 1;
+                    while (File.Exists(targetPath))
+                    {
+                        n++;
+                        targetPath = Path.Combine(targetDirectory, $"{stem}_{n}{ext}");
+                    }
+
+                    using (var inStream = entry.Open())
+                    using (var outStream = File.Create(targetPath))
+                    {
+                        inStream.CopyTo(outStream);
+                    }
+
+                    relativePath = Path.Combine("data", "watermarks", Path.GetFileName(targetPath)).Replace('\\', '/');
+                    extracted[packagePath] = relativePath;
+                }
+
+                song.ProjectionWatermarkPath = relativePath;
+                remapped++;
+            }
+
+            LogInfo($"[Watermark-Resolve] source={sourcePath}, remapped={remapped}, missing={missing}");
+
+            return manifest;
         }
 
         private static LyricsPackageManifest ReadLyrPackage(string sourcePath)
         {
-            using var fs = File.OpenRead(sourcePath);
+            LogInfo($"[Package-Read-Begin] source={sourcePath}");
+
+            try
+            {
+                using var fs = File.OpenRead(sourcePath);
+                using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
+
+                if (zip.Entries.Count == 0)
+                {
+                    throw new InvalidOperationException("歌词包为空（未包含任何文件）");
+                }
+
+                var entry = zip.GetEntry("manifest.json");
+                if (entry == null)
+                {
+                    throw new InvalidOperationException("歌词包缺少清单文件（manifest.json）");
+                }
+
+                using var stream = entry.Open();
+                using var reader = new StreamReader(stream);
+                string json = reader.ReadToEnd();
+                var manifest = JsonSerializer.Deserialize<LyricsPackageManifest>(json, CreateManifestJsonOptions())
+                    ?? throw new InvalidOperationException("manifest.json 解析失败");
+                LogInfo($"[Package-Read-End] mode=zip, entry={entry.FullName}, format={manifest.Format}, schema={manifest.SchemaVersion}, groups={manifest.Groups?.Count ?? 0}, songs={manifest.Songs?.Count ?? 0}");
+                return manifest;
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidOperationException("仅支持 ZIP 歌词包（.zip）", ex);
+            }
+        }
+
+        private static void ValidateLyrPackageFile(string path)
+        {
+            if (!File.Exists(path))
+            {
+                throw new InvalidOperationException("导出后未找到歌词包文件");
+            }
+
+            using var fs = File.OpenRead(path);
             using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
-            var entry = zip.GetEntry("manifest.json") ?? throw new InvalidOperationException("manifest.json 不存在");
-            using var stream = entry.Open();
+            if (zip.Entries.Count == 0)
+            {
+                throw new InvalidOperationException("导出失败：歌词包为空");
+            }
+
+            var manifest = zip.GetEntry("manifest.json");
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("导出失败：歌词包缺少manifest");
+            }
+
+            using var stream = manifest.Open();
             using var reader = new StreamReader(stream);
             string json = reader.ReadToEnd();
-            return JsonSerializer.Deserialize<LyricsPackageManifest>(json) ?? throw new InvalidOperationException("manifest.json 解析失败");
+            var manifestObject = JsonSerializer.Deserialize<LyricsPackageManifest>(json, CreateManifestJsonOptions())
+                ?? throw new InvalidOperationException("导出失败：manifest解析失败");
+            if (!IsSupportedLyricsManifest(manifestObject))
+            {
+                throw new InvalidOperationException("导出失败：manifest格式无效");
+            }
+        }
+
+        private static JsonSerializerOptions CreateManifestJsonOptions()
+        {
+            return new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+        }
+
+        private static bool IsSupportedLyricsManifest(LyricsPackageManifest manifest)
+        {
+            if (manifest == null)
+            {
+                return false;
+            }
+
+            string format = (manifest.Format ?? string.Empty).Trim();
+            if (string.Equals(format, "canvas.zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return false;
         }
 
         private sealed class LyricsPackageManifest
         {
+            [JsonPropertyName("format")]
             public string Format { get; set; } = "";
+            [JsonPropertyName("schemaVersion")]
             public int SchemaVersion { get; set; }
+            [JsonPropertyName("packageType")]
             public string PackageType { get; set; } = "";
+            [JsonPropertyName("exportedAt")]
             public DateTime ExportedAt { get; set; }
+            [JsonPropertyName("appVersion")]
             public string AppVersion { get; set; } = "";
+            [JsonPropertyName("groups")]
             public List<LyricsGroupDto> Groups { get; set; } = new();
+            [JsonPropertyName("songs")]
             public List<LyricsSongDto> Songs { get; set; } = new();
         }
 
         private sealed class LyricsGroupDto
         {
+            [JsonPropertyName("externalId")]
             public string ExternalId { get; set; } = "";
+            [JsonPropertyName("name")]
             public string Name { get; set; } = "";
+            [JsonPropertyName("sortOrder")]
             public int SortOrder { get; set; }
+            [JsonPropertyName("highlightColor")]
+            public string HighlightColor { get; set; } = "";
         }
 
         private sealed class LyricsSongDto
         {
+            [JsonPropertyName("externalId")]
             public string ExternalId { get; set; } = "";
+            [JsonPropertyName("name")]
             public string Name { get; set; } = "";
+            [JsonPropertyName("groupExternalId")]
             public string GroupExternalId { get; set; } = "";
+            [JsonPropertyName("content")]
             public string Content { get; set; } = "";
+            [JsonPropertyName("fontSize")]
             public double FontSize { get; set; }
+            [JsonPropertyName("textAlign")]
             public string TextAlign { get; set; } = "";
+            [JsonPropertyName("viewMode")]
             public int ViewMode { get; set; }
+            [JsonPropertyName("projectionWatermarkPath")]
+            public string ProjectionWatermarkPath { get; set; } = "";
+            [JsonPropertyName("sourceType")]
             public int SourceType { get; set; }
+            [JsonPropertyName("sortOrder")]
             public int SortOrder { get; set; }
+            [JsonPropertyName("modifiedTime")]
             public DateTime? ModifiedTime { get; set; }
         }
     }

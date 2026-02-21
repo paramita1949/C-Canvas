@@ -5,6 +5,7 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
         xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls"
+        xmlns:converters="clr-namespace:ImageColorChanger.UI.Converters"
         xmlns:views="clr-namespace:ImageColorChanger.UI.Views"
         Title="咏慕投影"
         Height="1004" Width="1600"
@@ -633,6 +634,23 @@
                                 <StackPanel Orientation="Vertical" Margin="0,2">
                                     <!-- 第一行：图标 + 文件/文件夹名称 -->
                                     <StackPanel Orientation="Horizontal">
+                                        <Image Source="{Binding IconImagePath, Converter={StaticResource ThumbnailPathToImageSourceConverter}}"
+                                               Width="18"
+                                               Height="18"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center">
+                                            <Image.Style>
+                                                <Style TargetType="Image">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasIconImagePath}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+
                                         <materialDesign:PackIcon Kind="{Binding IconKind}" 
                                                                 Foreground="{Binding IconColor}"
                                                                 Width="18" 
@@ -652,6 +670,9 @@
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IconKind}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding HasIconImagePath}" Value="True">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>

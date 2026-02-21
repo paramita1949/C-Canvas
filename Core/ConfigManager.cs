@@ -54,6 +54,14 @@ namespace ImageColorChanger.Core
             new ColorPreset { Name = "纯白", R = 255, G = 255, B = 255 }
         };
 
+        private static readonly List<LyricsThemePreset> BuiltInLyricsThemePresets = new List<LyricsThemePreset>
+        {
+            new LyricsThemePreset { Name = "黑色", BackgroundHex = "#000000" },
+            new LyricsThemePreset { Name = "白色", BackgroundHex = "#FFFFFF" },
+            new LyricsThemePreset { Name = "深绿", BackgroundHex = "#0B3D2E" },
+            new LyricsThemePreset { Name = "深蓝", BackgroundHex = "#102A43" }
+        };
+
         /// <summary>
         /// 文件夹标记颜色池（明亮且易区分的颜色）
         /// </summary>
@@ -439,6 +447,39 @@ namespace ImageColorChanger.Core
                 if (Math.Abs(_config.LyricsProjectionFontSize - value) > 0.001)
                 {
                     _config.LyricsProjectionFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词主屏字号（仅影响主屏编辑，不影响投影字号）
+        /// </summary>
+        public double LyricsMainScreenFontSize
+        {
+            get => _config.LyricsMainScreenFontSize;
+            set
+            {
+                if (Math.Abs(_config.LyricsMainScreenFontSize - value) > 0.001)
+                {
+                    _config.LyricsMainScreenFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 应用最后一次运行版本（用于一次性升级任务判定）
+        /// </summary>
+        public string LastRunAppVersion
+        {
+            get => _config.LastRunAppVersion ?? string.Empty;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (!string.Equals(_config.LastRunAppVersion ?? string.Empty, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LastRunAppVersion = next;
                     SaveConfig();
                 }
             }
@@ -853,6 +894,75 @@ namespace ImageColorChanger.Core
 
         #endregion
 
+        #region 歌词主题预设管理
+
+        public List<LyricsThemePreset> GetAllLyricsThemePresets()
+        {
+            var allPresets = new List<LyricsThemePreset>(BuiltInLyricsThemePresets);
+
+            if (_config.LyricsThemeCustomPresets != null && _config.LyricsThemeCustomPresets.Count > 0)
+            {
+                foreach (var preset in _config.LyricsThemeCustomPresets)
+                {
+                    if (preset == null || string.IsNullOrWhiteSpace(preset.Name) || string.IsNullOrWhiteSpace(preset.BackgroundHex))
+                    {
+                        continue;
+                    }
+
+                    if (!allPresets.Any(p => p.Name == preset.Name))
+                    {
+                        allPresets.Add(new LyricsThemePreset
+                        {
+                            Name = preset.Name,
+                            BackgroundHex = preset.BackgroundHex
+                        });
+                    }
+                }
+            }
+
+            return allPresets;
+        }
+
+        public bool AddCustomLyricsThemePreset(string name, string backgroundHex)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(backgroundHex))
+                {
+                    return false;
+                }
+
+                string normalizedName = name.Trim();
+                string normalizedHex = backgroundHex.Trim().ToUpperInvariant();
+
+                var allPresets = GetAllLyricsThemePresets();
+                if (allPresets.Any(p => p.Name.Equals(normalizedName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+
+                if (_config.LyricsThemeCustomPresets == null)
+                {
+                    _config.LyricsThemeCustomPresets = new List<LyricsThemePreset>();
+                }
+
+                _config.LyricsThemeCustomPresets.Add(new LyricsThemePreset
+                {
+                    Name = normalizedName,
+                    BackgroundHex = normalizedHex
+                });
+
+                SaveConfig();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
+
         #region 文件夹颜色管理
 
         /// <summary>
@@ -938,6 +1048,11 @@ namespace ImageColorChanger.Core
         /// 自定义颜色预设列表
         /// </summary>
         public List<ColorPreset> CustomColorPresets { get; set; } = new List<ColorPreset>();
+
+        /// <summary>
+        /// 歌词主题自定义预设列表
+        /// </summary>
+        public List<LyricsThemePreset> LyricsThemeCustomPresets { get; set; } = new List<LyricsThemePreset>();
 
         /// <summary>
         /// 边框设置面板最近使用颜色（最多6个）
@@ -1084,9 +1199,19 @@ namespace ImageColorChanger.Core
         public string DefaultLyricsColor { get; set; } = "#FFFFFF";
 
         /// <summary>
-        /// 歌词投影字号（默认：88）
+        /// 歌词投影字号（默认：60）
         /// </summary>
-        public double LyricsProjectionFontSize { get; set; } = 88.0;
+        public double LyricsProjectionFontSize { get; set; } = 60.0;
+
+        /// <summary>
+        /// 歌词主屏字号（默认：40）
+        /// </summary>
+        public double LyricsMainScreenFontSize { get; set; } = 40.0;
+
+        /// <summary>
+        /// 应用最后一次运行版本（默认：空）
+        /// </summary>
+        public string LastRunAppVersion { get; set; } = "";
 
         /// <summary>
         /// 圣经译本（默认：和合本）
@@ -1198,6 +1323,12 @@ namespace ImageColorChanger.Core
         /// 是否为内置预设（只读）
         /// </summary>
         public bool IsBuiltIn { get; set; } = false;
+    }
+
+    public class LyricsThemePreset
+    {
+        public string Name { get; set; } = "";
+        public string BackgroundHex { get; set; } = "#000000";
     }
 }
 

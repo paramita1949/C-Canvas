@@ -28,8 +28,31 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private readonly struct LyricsLogicalLine
+        {
+            public LyricsLogicalLine(int start, int contentEnd, int breakEnd, bool isContent)
+            {
+                Start = start;
+                ContentEnd = contentEnd;
+                BreakEnd = breakEnd;
+                IsContent = isContent;
+            }
+
+            public int Start { get; }
+            public int ContentEnd { get; }
+            public int BreakEnd { get; }
+            public bool IsContent { get; }
+        }
+
         private void UpdateLyricsSliceUiState()
         {
+            if (LyricsSliceToolbar != null)
+            {
+                LyricsSliceToolbar.Visibility = _lyricsSplitMode == (int)ViewSplitMode.Single
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+
             if (LyricsSlicePanel != null)
             {
                 LyricsSlicePanel.Visibility = (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
@@ -100,12 +123,19 @@ namespace ImageColorChanger.UI
             {
                 if (LyricsTextBox != null)
                 {
-                    var lines = (LyricsTextBox.Text ?? string.Empty)
-                        .Replace("\r\n", "\n")
-                        .Replace('\r', '\n')
-                        .Split('\n')
-                        .Where(line => !string.IsNullOrWhiteSpace(line));
-                    LyricsTextBox.Text = string.Join(Environment.NewLine, lines);
+                    // 退出切片时恢复纯歌词（不带编号与视觉空行）
+                    string plain = BuildPlainLyricsTextFromSliceItems();
+                    if (string.IsNullOrWhiteSpace(plain))
+                    {
+                        var lines = (LyricsTextBox.Text ?? string.Empty)
+                            .Replace("\r\n", "\n")
+                            .Replace('\r', '\n')
+                            .Split('\n')
+                            .Where(line => !string.IsNullOrWhiteSpace(line));
+                        plain = string.Join(Environment.NewLine, lines);
+                    }
+
+                    LyricsTextBox.Text = plain;
                 }
 
                 _lyricsSliceItems.Clear();
@@ -148,7 +178,8 @@ namespace ImageColorChanger.UI
             var rows = raw.Replace("\r\n", "\n").Replace('\r', '\n')
                 .Split('\n')
                 .Where(line => !string.IsNullOrWhiteSpace(line))
-                .Select(line => line.Trim())
+                .Select(line => RemoveSliceNumberPrefix(line.Trim()))
+                .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToList();
 
             int desiredIndex = preserveIndex ? _lyricsCurrentSliceIndex : 0;
@@ -186,7 +217,6 @@ namespace ImageColorChanger.UI
             }
 
             UpdateLyricsSliceStateText();
-            HighlightCurrentSliceInMainEditor();
             if (applyMainScreenSpacing)
             {
                 ApplySliceSpacingToMainScreenText();
@@ -219,8 +249,15 @@ namespace ImageColorChanger.UI
                 }
             }
             UpdateLyricsSliceStateText();
-            MoveLyricsEditorCaretToSliceStart(_lyricsCurrentSliceIndex);
-            HighlightCurrentSliceInMainEditor();
+            try
+            {
+                _isUpdatingSliceFromCaret = true;
+                MoveLyricsEditorCaretToSliceStart(_lyricsCurrentSliceIndex);
+            }
+            finally
+            {
+                _isUpdatingSliceFromCaret = false;
+            }
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
@@ -233,10 +270,59 @@ namespace ImageColorChanger.UI
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single && _lyricsSliceItems.Count > 0)
             {
                 int index = Math.Clamp(_lyricsCurrentSliceIndex, 0, _lyricsSliceItems.Count - 1);
-                return _lyricsSliceItems[index].Text ?? "";
+                return StripSliceVisualNumbering(_lyricsSliceItems[index].Text ?? "");
             }
 
-            return LyricsTextBox?.Text ?? "";
+            string text = LyricsTextBox?.Text ?? "";
+            if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return StripSliceVisualNumbering(text);
+            }
+
+            return text;
+        }
+
+        private static string StripSliceVisualNumbering(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var normalized = lines
+                .Select(line => line?.Trim() ?? string.Empty)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(RemoveSliceNumberPrefix);
+
+            return string.Join(Environment.NewLine, normalized);
+        }
+
+        private static string RemoveSliceNumberPrefix(string line)
+        {
+            if (string.IsNullOrEmpty(line))
+            {
+                return string.Empty;
+            }
+
+            int i = 0;
+            while (i < line.Length && char.IsDigit(line[i]))
+            {
+                i++;
+            }
+
+            if (i <= 0 || i >= line.Length || line[i] != '.')
+            {
+                return line;
+            }
+
+            int next = i + 1;
+            while (next < line.Length && char.IsWhiteSpace(line[next]))
+            {
+                next++;
+            }
+
+            return next < line.Length ? line.Substring(next) : string.Empty;
         }
 
         private void BtnLyricsSliceToggle_Click(object sender, RoutedEventArgs e)
@@ -336,17 +422,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            int lineIndex;
-            try
-            {
-                lineIndex = LyricsTextBox.GetLineIndexFromCharacterIndex(LyricsTextBox.CaretIndex);
-            }
-            catch
-            {
-                return;
-            }
-
-            int line = GetContentLineNumberFromDisplayLineIndex(lineIndex);
+            int line = GetContentLineNumberFromCaretIndex(LyricsTextBox.CaretIndex);
             if (line <= 0)
             {
                 return;
@@ -380,8 +456,6 @@ namespace ImageColorChanger.UI
                 }
 
                 UpdateLyricsSliceStateText();
-                HighlightCurrentSliceInMainEditor();
-
                 if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
                 {
                     RenderLyricsToProjection();
@@ -396,58 +470,23 @@ namespace ImageColorChanger.UI
 
         private void HighlightCurrentSliceInMainEditor()
         {
-            if (LyricsTextBox == null || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || _lyricsSliceItems.Count == 0)
+            if (LyricsTextBox == null)
             {
                 return;
             }
 
-            int index = Math.Clamp(_lyricsCurrentSliceIndex, 0, _lyricsSliceItems.Count - 1);
-            int startContentLine = Math.Max(1, _lyricsSliceItems[index].StartLine);
-            int endContentLine = Math.Max(startContentLine, _lyricsSliceItems[index].EndLine);
-
-            int startLine = GetDisplayLineIndexFromContentLineNumber(startContentLine);
-            int endLine = GetDisplayLineIndexFromContentLineNumber(endContentLine);
-            if (startLine < 0 || endLine < startLine)
-            {
-                return;
-            }
-
-            int startChar;
-            int endChar;
+            // 取消 TextBox 选区高亮方案，避免触发 Selection/文本容器重入问题。
+            // 当前仅保留右侧切片列表高亮与切片定位能力。
             try
             {
-                startChar = LyricsTextBox.GetCharacterIndexFromLineIndex(startLine);
-                int nextLine = endLine + 1;
-                if (nextLine < LyricsTextBox.LineCount)
+                if (LyricsTextBox.SelectionLength > 0)
                 {
-                    endChar = LyricsTextBox.GetCharacterIndexFromLineIndex(nextLine);
-                }
-                else
-                {
-                    endChar = LyricsTextBox.Text?.Length ?? 0;
+                    LyricsTextBox.SelectionLength = 0;
                 }
             }
             catch
             {
-                return;
-            }
-
-            int length = Math.Max(0, endChar - startChar);
-            if (startChar < 0)
-            {
-                return;
-            }
-
-            LyricsTextBox.SelectionBrush = new SolidColorBrush(WpfColor.FromRgb(255, 152, 0));
-            LyricsTextBox.SelectionOpacity = 0.35;
-            try
-            {
-                LyricsTextBox.Focus();
-                LyricsTextBox.Select(startChar, length);
-            }
-            catch
-            {
-                // 仅跳过本次高亮，避免影响歌词主流程（加载/保存/投影）
+                // 安全兜底：不影响切片主流程
             }
         }
 
@@ -459,21 +498,22 @@ namespace ImageColorChanger.UI
             }
 
             int index = Math.Clamp(sliceIndex, 0, _lyricsSliceItems.Count - 1);
-            int lineIndex = GetDisplayLineIndexFromContentLineNumber(Math.Max(1, _lyricsSliceItems[index].StartLine));
-            if (lineIndex < 0)
+            int targetContentLine = Math.Max(1, _lyricsSliceItems[index].StartLine);
+            if (!TryGetCharRangeForContentLines(targetContentLine, targetContentLine, out int startChar, out _))
             {
-                lineIndex = 0;
+                return;
             }
+
             try
             {
-                LyricsTextBox.GetCharacterIndexFromLineIndex(lineIndex);
+                LyricsTextBox.Focus();
+                LyricsTextBox.CaretIndex = Math.Clamp(startChar, 0, (LyricsTextBox.Text ?? string.Empty).Length);
+                LyricsTextBox.SelectionLength = 0;
             }
             catch
             {
-                lineIndex = 0;
+                // 忽略一次失败，避免影响切片切换主流程
             }
-
-            LyricsTextBox.ScrollToLine(lineIndex);
         }
 
         private void ApplySliceSpacingToMainScreenText()
@@ -483,7 +523,14 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string spaced = string.Join(Environment.NewLine + Environment.NewLine, _lyricsSliceItems.Select(x => x.Text ?? string.Empty));
+            // 主屏显示编号，仅用于定位；投影与持久化在其他流程中会清洗掉编号前缀。
+            string spaced = string.Join(
+                Environment.NewLine + Environment.NewLine,
+                _lyricsSliceItems.Select((x, i) =>
+                {
+                    string body = x.Text ?? string.Empty;
+                    return $"{i + 1}. {body}";
+                }));
             if (string.Equals(LyricsTextBox.Text ?? string.Empty, spaced, StringComparison.Ordinal))
             {
                 return;
@@ -500,49 +547,157 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private int GetDisplayLineIndexFromContentLineNumber(int contentLineNumber)
+        internal string BuildPlainLyricsTextFromSliceItems()
         {
-            if (LyricsTextBox == null || LyricsTextBox.LineCount <= 0 || contentLineNumber <= 0)
+            if (_lyricsSliceItems.Count == 0)
             {
-                return -1;
+                return string.Empty;
             }
 
-            int count = 0;
-            for (int i = 0; i < LyricsTextBox.LineCount; i++)
+            var lines = _lyricsSliceItems
+                .SelectMany(item => (item.Text ?? string.Empty)
+                    .Replace("\r\n", "\n")
+                    .Replace('\r', '\n')
+                    .Split('\n'))
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim());
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private bool TryGetCharRangeForContentLines(int startContentLine, int endContentLine, out int startChar, out int endChar)
+        {
+            startChar = -1;
+            endChar = -1;
+            if (LyricsTextBox == null || startContentLine <= 0 || endContentLine < startContentLine)
             {
-                string line = LyricsTextBox.GetLineText(i);
-                if (!string.IsNullOrWhiteSpace(line))
+                return false;
+            }
+
+            string text = LyricsTextBox.Text ?? string.Empty;
+            var lines = GetLyricsLogicalLines(text);
+            int count = 0;
+            foreach (var line in lines)
+            {
+                if (!line.IsContent)
                 {
-                    count++;
-                    if (count == contentLineNumber)
-                    {
-                        return i;
-                    }
+                    continue;
+                }
+
+                count++;
+                if (count == startContentLine)
+                {
+                    startChar = line.Start;
+                }
+
+                if (count == endContentLine)
+                {
+                    endChar = line.ContentEnd;
+                    break;
                 }
             }
 
-            return LyricsTextBox.LineCount - 1;
+            if (startChar < 0)
+            {
+                return false;
+            }
+
+            if (endChar < startChar)
+            {
+                endChar = startChar;
+            }
+
+            return true;
         }
 
-        private int GetContentLineNumberFromDisplayLineIndex(int displayLineIndex)
+        private int GetContentLineNumberFromCaretIndex(int caretIndex)
         {
-            if (LyricsTextBox == null || LyricsTextBox.LineCount <= 0 || displayLineIndex < 0)
+            if (LyricsTextBox == null)
             {
                 return 0;
             }
 
-            int count = 0;
-            int last = Math.Min(displayLineIndex, LyricsTextBox.LineCount - 1);
-            for (int i = 0; i <= last; i++)
+            string text = LyricsTextBox.Text ?? string.Empty;
+            int clampedCaret = Math.Clamp(caretIndex, 0, text.Length);
+            var lines = GetLyricsLogicalLines(text);
+            int contentLineCount = 0;
+            foreach (var line in lines)
             {
-                string line = LyricsTextBox.GetLineText(i);
-                if (!string.IsNullOrWhiteSpace(line))
+                if (line.IsContent)
                 {
-                    count++;
+                    contentLineCount++;
+                }
+
+                if (clampedCaret <= line.BreakEnd)
+                {
+                    return contentLineCount;
                 }
             }
 
-            return count;
+            return contentLineCount;
+        }
+
+        private static List<LyricsLogicalLine> GetLyricsLogicalLines(string text)
+        {
+            var result = new List<LyricsLogicalLine>();
+            string source = text ?? string.Empty;
+            if (source.Length == 0)
+            {
+                result.Add(new LyricsLogicalLine(0, 0, 0, false));
+                return result;
+            }
+
+            int i = 0;
+            while (i < source.Length)
+            {
+                int start = i;
+                while (i < source.Length && source[i] != '\r' && source[i] != '\n')
+                {
+                    i++;
+                }
+
+                int contentEnd = i;
+                bool isContent = IsNonWhitespaceSegment(source, start, contentEnd);
+
+                if (i < source.Length)
+                {
+                    if (source[i] == '\r' && i + 1 < source.Length && source[i + 1] == '\n')
+                    {
+                        i += 2;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+
+                int breakEnd = i;
+                result.Add(new LyricsLogicalLine(start, contentEnd, breakEnd, isContent));
+            }
+
+            if (source.Length > 0)
+            {
+                char last = source[source.Length - 1];
+                if (last == '\r' || last == '\n')
+                {
+                    result.Add(new LyricsLogicalLine(source.Length, source.Length, source.Length, false));
+                }
+            }
+
+            return result;
+        }
+
+        private static bool IsNonWhitespaceSegment(string text, int start, int end)
+        {
+            for (int i = start; i < end; i++)
+            {
+                if (!char.IsWhiteSpace(text[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

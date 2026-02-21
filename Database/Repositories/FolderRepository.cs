@@ -113,13 +113,11 @@ namespace ImageColorChanger.Database.Repositories
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} v2删除完成");
 #endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 异常: {ex.Message}");
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 堆栈: {ex.StackTrace}");
-#else
-                _ = ex;
 #endif
                 throw;
             }

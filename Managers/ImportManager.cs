@@ -411,13 +411,11 @@ namespace ImageColorChanger.Managers
                 
                 return (newFiles.Count, deletedFiles.Count, 0);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncFolder 异常: {ex.Message}");
                 // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncFolder 堆栈: {ex.StackTrace}");
-#else
-                _ = ex;
 #endif
                 return (0, 0, 0);
             }
@@ -506,13 +504,11 @@ namespace ImageColorChanger.Managers
                 //     $"[ImportManager] op={operationId} SyncAllFolders 完成: added={totalAdded}, removed={totalRemoved}, updated={totalUpdated}");
 #endif
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 异常: {ex.Message}");
                 // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 堆栈: {ex.StackTrace}");
-#else
-                _ = ex;
 #endif
             }
 

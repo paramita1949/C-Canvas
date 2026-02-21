@@ -52,6 +52,9 @@ namespace ImageColorChanger
             }
             StartupPerfLogger.Mark("App.SingleInstance.Verified");
 
+            ApplyPendingDatabaseImportIfExists();
+            StartupPerfLogger.Mark("App.PendingDatabaseImport.Checked");
+
             try
             {
                 // 配置依赖注入
@@ -198,7 +201,7 @@ namespace ImageColorChanger
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
                 #endif
-                System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}", 
+                System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}\n\n根因：{GetRootExceptionSummary(ex)}", 
                     "严重错误", MessageBoxButton.OK, MessageBoxImage.Error);
 
                 // 非UI线程未处理异常通常不可恢复，统一退出避免进入脏状态
@@ -225,7 +228,7 @@ namespace ImageColorChanger
             }
 
             System.Windows.MessageBox.Show(
-                $"发生严重错误，程序将退出以保护数据。\n\n{e.Exception.Message}",
+                $"发生严重错误，程序将退出以保护数据。\n\n{e.Exception.Message}\n\n根因：{GetRootExceptionSummary(e.Exception)}",
                 "严重错误",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -242,6 +245,22 @@ namespace ImageColorChanger
             return ex is InvalidOperationException
                 || ex is ArgumentException
                 || ex is IOException;
+        }
+
+        private static string GetRootExceptionSummary(Exception ex)
+        {
+            if (ex == null)
+            {
+                return "(null)";
+            }
+
+            Exception root = ex;
+            while (root.InnerException != null)
+            {
+                root = root.InnerException;
+            }
+
+            return $"{root.GetType().Name}: {root.Message}";
         }
 
         /// <summary>
@@ -354,6 +373,63 @@ namespace ImageColorChanger
 #else
                 _ = ex; // 避免编译警告
 #endif
+            }
+        }
+
+        private static void ApplyPendingDatabaseImportIfExists()
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string dbPath = Path.Combine(baseDir, "pyimages.db");
+                string pendingPath = Path.Combine(baseDir, "pyimages.db.import_pending");
+
+                if (!File.Exists(pendingPath))
+                {
+                    return;
+                }
+
+                try
+                {
+                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                }
+                catch
+                {
+                }
+
+                CleanupSqliteSidecars(dbPath);
+                if (File.Exists(dbPath))
+                {
+                    File.Delete(dbPath);
+                }
+
+                File.Move(pendingPath, dbPath, overwrite: true);
+                CleanupSqliteSidecars(dbPath);
+                StartupPerfLogger.Mark("App.PendingDatabaseImport.Applied", dbPath);
+            }
+            catch (Exception ex)
+            {
+                StartupPerfLogger.Error("App.PendingDatabaseImport.Failed", ex);
+            }
+        }
+
+        private static void CleanupSqliteSidecars(string dbPath)
+        {
+            if (string.IsNullOrWhiteSpace(dbPath))
+            {
+                return;
+            }
+
+            string walPath = dbPath + "-wal";
+            string shmPath = dbPath + "-shm";
+            if (File.Exists(walPath))
+            {
+                File.Delete(walPath);
+            }
+
+            if (File.Exists(shmPath))
+            {
+                File.Delete(shmPath);
             }
         }
 

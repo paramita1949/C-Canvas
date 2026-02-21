@@ -145,6 +145,16 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Link>data\assets\hehebenfanti.db</Link>
     </None>
+    <None Include="data\icon\geci.ico" Condition="Exists('data\icon\geci.ico')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>data\icon\geci.ico</Link>
+    </None>
+    <None Include="data\icon\geci.png" Condition="Exists('data\icon\geci.png')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>data\icon\geci.png</Link>
+    </None>
   </ItemGroup>
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

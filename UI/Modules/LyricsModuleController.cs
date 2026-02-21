@@ -15,6 +15,7 @@ namespace ImageColorChanger.UI.Modules
         private readonly Action _loadOrCreateLyricsProject;
         private readonly Action _renderLyricsToProjection;
         private readonly Action _clearProjectionImageState;
+        private int _imageSwitchVersion;
 
         public LyricsModuleController(
             Dispatcher dispatcher,
@@ -36,17 +37,12 @@ namespace ImageColorChanger.UI.Modules
 
         public void OnImageChanged()
         {
-            if (!_isLyricsMode())
-            {
-                return;
-            }
-
-            SwitchLyricsAndRefreshProjection();
+            // 歌词模块已独立于图片，图片切换不再触发歌词切换。
         }
 
         public void OnImageChangedInLyricsMode()
         {
-            SwitchLyricsAndRefreshProjection();
+            // 歌词模块已独立于图片，图片切换不再触发歌词切换。
         }
 
         public void OnProjectionStateChanged(bool isProjecting)
@@ -73,13 +69,26 @@ namespace ImageColorChanger.UI.Modules
 
         private void SwitchLyricsAndRefreshProjection()
         {
+            // 先保存当前项目，避免在图片切换过程中丢失编辑态。
             _saveLyricsProject();
-            _loadOrCreateLyricsProject();
 
-            if (_isProjectionActive())
+            int version = ++_imageSwitchVersion;
+
+            // 延后到UI消息队列，确保当前图片/选中状态已完成切换，再加载歌词与更新投影。
+            _dispatcher.BeginInvoke(new Action(() =>
             {
-                _renderLyricsToProjection();
-            }
+                if (version != _imageSwitchVersion)
+                {
+                    return;
+                }
+
+                _loadOrCreateLyricsProject();
+
+                if (_isProjectionActive())
+                {
+                    _renderLyricsToProjection();
+                }
+            }), DispatcherPriority.Background);
         }
     }
 }

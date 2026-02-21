@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -6,6 +7,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.UI;
 using ImageColorChanger.Core;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
 {
@@ -39,56 +41,56 @@ namespace ImageColorChanger.Managers
                 return null; // 返回null表示重新加载所有项目
             }
 
-            // 解析搜索范围
-            int? searchFolderId = null;
-            if (searchScope != "全部")
+            ParseSearchScope(searchScope, out int? searchFolderId, out int? searchLyricsGroupId);
+
+            // 图片文件搜索（选择歌词库范围时，不参与文件搜索）
+            if (!searchLyricsGroupId.HasValue)
             {
-                // 从范围中提取文件夹ID (格式: "文件夹名 (ID:123)")
-                var match = Regex.Match(searchScope, @"\(ID:(\d+)\)$");
-                if (match.Success && int.TryParse(match.Groups[1].Value, out int folderId))
+                var files = searchFolderId == null
+                    ? _dbManager.SearchFiles(searchTerm, FileType.Image)
+                    : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
+
+                foreach (var file in files)
                 {
-                    searchFolderId = folderId;
+                    var folderName = file.Folder?.Name ?? "根目录";
+                    var folderId = file.FolderId ?? 0;
+
+                    // 获取文件夹颜色（优先使用自定义颜色）
+                    string folderColor = "#666666";
+                    if (_configManager != null && folderId > 0)
+                    {
+                        string customColor = _dbManager.GetFolderHighlightColor(folderId);
+                        folderColor = _configManager.GetFolderColor(folderId, customColor);
+                    }
+
+                    results.Add(new ProjectTreeItem
+                    {
+                        Name = file.Name,
+                        Icon = "",
+                        IconKind = "Image",
+                        IconColor = "#95E1D3",
+                        Type = TreeItemType.File,
+                        Id = file.Id,
+                        Path = file.Path,
+                        FileType = file.FileType,
+                        FolderName = folderName,
+                        FolderColor = folderColor,
+                        ShowFolderTag = true
+                    });
                 }
             }
 
-            // 搜索数据库 - 只搜索图片文件
-            var files = searchFolderId == null
-                ? _dbManager.SearchFiles(searchTerm, FileType.Image)
-                : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
-
-            // System.Diagnostics.Debug.WriteLine($"📁 数据库返回 {files.Count} 个文件");
-
-            // 将搜索结果转换为树项
-            foreach (var file in files)
+            // 歌词搜索策略：
+            // 1) 全部范围：同时搜索文件与歌词库
+            // 2) 文件夹范围(ID): 仅搜索该文件夹文件
+            // 3) 歌词库范围(LID): 仅搜索该歌词库
+            if (searchLyricsGroupId.HasValue)
             {
-                var folderName = file.Folder?.Name ?? "根目录";
-                var folderId = file.FolderId ?? 0;
-                
-                // 获取文件夹颜色（优先使用自定义颜色）
-                string folderColor = "#666666"; // 默认颜色
-                if (_configManager != null && folderId > 0)
-                {
-                    // 从数据库获取自定义颜色
-                    string customColor = _dbManager.GetFolderHighlightColor(folderId);
-                    folderColor = _configManager.GetFolderColor(folderId, customColor);
-                }
-
-                results.Add(new ProjectTreeItem
-                {
-                    Name = file.Name,  // 只显示文件名，不包含文件夹信息
-                    Icon = "", // 搜索结果不显示图标
-                    IconKind = "Image", // 设置为图片图标
-                    IconColor = "#95E1D3", // 图片图标颜色
-                    Type = TreeItemType.File,
-                    Id = file.Id,
-                    Path = file.Path,
-                    FileType = file.FileType,
-                    
-                    // 文件夹标签信息
-                    FolderName = folderName,
-                    FolderColor = folderColor,
-                    ShowFolderTag = true  // 在搜索结果中始终显示文件夹标签
-                });
+                AppendLyricsSearchResults(results, searchTerm, searchLyricsGroupId);
+            }
+            else if (!searchFolderId.HasValue)
+            {
+                AppendLyricsSearchResults(results, searchTerm, null);
             }
 
             return results;
@@ -108,7 +110,190 @@ namespace ImageColorChanger.Managers
                 scopes.Add($"{folder.Name} (ID:{folder.Id})");
             }
 
+            try
+            {
+                var groups = _dbManager.GetDbContext().LyricsGroups
+                    .AsNoTracking()
+                    .Where(g => !g.IsSystem)
+                    .OrderBy(g => g.SortOrder)
+                    .ThenBy(g => g.Id)
+                    .Select(g => new { g.Id, g.Name })
+                    .ToList();
+
+                foreach (var group in groups)
+                {
+                    scopes.Add($"{group.Name} (LID:{group.Id})");
+                }
+            }
+            catch
+            {
+            }
+
             return scopes;
+        }
+
+        private void ParseSearchScope(string searchScope, out int? folderId, out int? lyricsGroupId)
+        {
+            folderId = null;
+            lyricsGroupId = null;
+
+            if (string.IsNullOrWhiteSpace(searchScope) || searchScope == "全部")
+            {
+                return;
+            }
+
+            var folderMatch = Regex.Match(searchScope, @"\(ID:(\d+)\)$", RegexOptions.IgnoreCase);
+            if (folderMatch.Success && int.TryParse(folderMatch.Groups[1].Value, out int fId))
+            {
+                folderId = fId;
+                return;
+            }
+
+            var lyricsMatch = Regex.Match(searchScope, @"\(LID:(\d+)\)$", RegexOptions.IgnoreCase);
+            if (lyricsMatch.Success && int.TryParse(lyricsMatch.Groups[1].Value, out int lId))
+            {
+                lyricsGroupId = lId;
+            }
+        }
+
+        private void AppendLyricsSearchResults(ObservableCollection<ProjectTreeItem> results, string searchTerm, int? lyricsGroupId)
+        {
+            try
+            {
+                var db = _dbManager.GetDbContext();
+                if (db == null)
+                {
+                    return;
+                }
+
+                var groupQuery = db.LyricsGroups
+                    .AsNoTracking()
+                    .Where(g => !g.IsSystem);
+
+                if (lyricsGroupId.HasValue)
+                {
+                    groupQuery = groupQuery.Where(g => g.Id == lyricsGroupId.Value);
+                }
+
+                var groups = groupQuery
+                    .Select(g => new { g.Id, g.Name, g.HighlightColor })
+                    .ToList();
+                if (groups.Count == 0)
+                {
+                    return;
+                }
+
+                var groupMap = groups.ToDictionary(g => g.Id, g => g);
+                var matchedGroupIds = groups
+                    .Where(g => ContainsIgnoreCase(g.Name, searchTerm))
+                    .Select(g => g.Id)
+                    .ToHashSet();
+
+                var songQuery = db.LyricsProjects.AsNoTracking();
+                if (lyricsGroupId.HasValue)
+                {
+                    songQuery = songQuery.Where(s => s.GroupId == lyricsGroupId.Value);
+                }
+                else
+                {
+                    songQuery = songQuery.Where(s => s.SourceType == 1 || s.GroupId != null);
+                }
+
+                var songs = songQuery
+                    .OrderBy(s => s.SortOrder)
+                    .ThenBy(s => s.Id)
+                    .ToList();
+
+                var hitGroupIds = new HashSet<int>();
+                foreach (var song in songs)
+                {
+                    int gid = song.GroupId ?? 0;
+                    string groupName = gid > 0 && groupMap.TryGetValue(gid, out var groupInfo) ? groupInfo.Name : "未分组";
+                    string lyricsGroupLabel = BuildLyricsSearchTag(groupName);
+                    bool nameMatch = ContainsIgnoreCase(song.Name, searchTerm);
+                    bool contentMatch = ContainsIgnoreCase(song.Content, searchTerm);
+                    bool groupMatch = gid > 0 && matchedGroupIds.Contains(gid);
+
+                    if (!nameMatch && !contentMatch && !groupMatch)
+                    {
+                        continue;
+                    }
+
+                    if (gid > 0)
+                    {
+                        hitGroupIds.Add(gid);
+                    }
+
+                    results.Add(new ProjectTreeItem
+                    {
+                        Id = song.Id,
+                        Name = song.Name,
+                        Icon = "",
+                        IconKind = "MusicNote",
+                        IconColor = "#FFC107",
+                        Type = TreeItemType.LyricsSong,
+                        FolderName = lyricsGroupLabel,
+                        FolderColor = ResolveLyricsGroupColor(gid, gid > 0 && groupMap.TryGetValue(gid, out var c) ? c.HighlightColor : null),
+                        ShowFolderTag = true
+                    });
+                }
+
+                // 当命中歌词库名称但库里歌曲为空时，仍显示该歌词库节点，确保“歌词库可被搜索定位”。
+                foreach (int gid in matchedGroupIds)
+                {
+                    if (hitGroupIds.Contains(gid) || !groupMap.TryGetValue(gid, out var group))
+                    {
+                        continue;
+                    }
+
+                    results.Add(new ProjectTreeItem
+                    {
+                        Id = group.Id,
+                        Name = BuildLyricsSearchTag(group.Name),
+                        Icon = "",
+                        IconKind = "FolderMusic",
+                        IconColor = ResolveLyricsGroupColor(group.Id, group.HighlightColor),
+                        Type = TreeItemType.LyricsGroup,
+                        FolderName = "歌词库",
+                        FolderColor = ResolveLyricsGroupColor(group.Id, group.HighlightColor),
+                        ShowFolderTag = true
+                    });
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private string ResolveLyricsGroupColor(int groupId, string customColor)
+        {
+            if (_configManager != null && groupId > 0)
+            {
+                return _configManager.GetFolderColor(groupId, customColor);
+            }
+
+            return string.IsNullOrWhiteSpace(customColor) ? "#4CAF50" : customColor;
+        }
+
+        private static bool ContainsIgnoreCase(string text, string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return true;
+            }
+
+            return (text ?? string.Empty).IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string BuildLyricsSearchTag(string name)
+        {
+            string safeName = string.IsNullOrWhiteSpace(name) ? "未分组" : name.Trim();
+            if (safeName.EndsWith("[歌词]", StringComparison.Ordinal) || safeName.EndsWith("（歌词）", StringComparison.Ordinal))
+            {
+                return safeName;
+            }
+
+            return $"{safeName} [歌词]";
         }
     }
 }

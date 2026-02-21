@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -32,12 +33,6 @@ namespace ImageColorChanger.UI
     {
         private LyricsModuleController _lyricsModuleController;
 
-        private enum LyricsEntryMode
-        {
-            ByImage = 0,
-            BySong = 1
-        }
-
         // ============================================
         // 字段
         // ============================================
@@ -45,7 +40,6 @@ namespace ImageColorChanger.UI
         private bool _isLyricsMode = false; // 是否处于歌词模式
         private LyricsProject _currentLyricsProject = null; // 当前歌词项目
         private int _currentLyricsProjectId = 0; // 当前歌词项目ID（独立歌曲入口）
-        private LyricsEntryMode _lyricsEntryMode = LyricsEntryMode.ByImage; // 进入模式（按图片/按歌曲）
         private System.Windows.Threading.DispatcherTimer _lyricsAutoSaveTimer; // 自动保存计时器
         private System.Windows.Threading.DispatcherTimer _lyricsTypingSaveTimer; // 输入防抖自动保存（兼容旧逻辑，当前未启用）
         private int _lyricsSplitMode = (int)ViewSplitMode.Single; // 歌词分割模式
@@ -64,18 +58,27 @@ namespace ImageColorChanger.UI
         private const string LyricsModeContentPrefix = "__LYRICS_MODE_V1__";
         private const string LyricsSplitContentPrefix = "__LYRICS_SPLIT_V1__";
         private const string LyricsPagesContentPrefix = "__LYRICS_PAGES_V2__";
-        private const double DefaultLyricsFontSize = 88;
-        private const double FixedMainLyricsFontSize = 40;
+        private const double DefaultLyricsFontSize = 60;
+        private const double DefaultMainLyricsFontSize = 40;
+        private const double MinMainLyricsFontSize = 20;
+        private const double MaxMainLyricsFontSize = 120;
         private const double MinLyricsFontSize = 20;
         private const double MaxLyricsFontSize = 250;
         private const double LyricsFontWheelStep = 4;
         private const double LyricsFontWheelFastStep = 8;
         private const int LyricsTypingSaveDelayMs = 800;
+        private const string LyricsWatermarkRelativeDirectory = "data\\watermarks";
         private readonly List<LyricsSplitContentData> _lyricsSplitPages = new();
         private int _lyricsCurrentPageIndex = 0;
         private bool _isLoadingLyricsProject = false; // 防止加载过程触发即时保存
         private bool _isNormalizingLyricsWhitespaceLine = false; // 防止清理空白行时触发递归 TextChanged
         private bool _isApplyingSliceVisualSpacing = false; // 防止切片视觉空行应用时递归触发
+        private bool _lyricsWhitespaceNormalizeQueued = false; // 防止空白行规范化重复排队
+        private bool _lyricsSliceRegenerateQueued = false; // 防止切片重算重复排队
+        private readonly double[] _lyricsSplitProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize };
+        private double _lyricsMainScreenFontSize = DefaultMainLyricsFontSize;
+        private string _lyricsThemeName = "黑色";
+        private string _lyricsThemeBackgroundHex = "#000000";
 
         // ============================================
         // 公共属性
@@ -86,15 +89,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         public bool IsInLyricsMode => _isLyricsMode;
 
-        internal void SetLyricsEntryByImage()
-        {
-            _lyricsEntryMode = LyricsEntryMode.ByImage;
-            _currentLyricsProjectId = 0;
-        }
-
         internal void SetLyricsEntryBySong(int lyricsProjectId)
         {
-            _lyricsEntryMode = LyricsEntryMode.BySong;
             _currentLyricsProjectId = lyricsProjectId;
         }
 
@@ -119,6 +115,10 @@ namespace ImageColorChanger.UI
             public bool SliceModeEnabled { get; set; } = false;
             public int SliceLinesPerPage { get; set; } = 2;
             public int SliceCurrentIndex { get; set; } = 0;
+            public double MainScreenFontSize { get; set; } = DefaultMainLyricsFontSize;
+            public int ThemeMode { get; set; } = 0; // 0=黑底白字, 1=白底黑字
+            public string ThemeName { get; set; } = "黑色";
+            public string ThemeBackgroundHex { get; set; } = "#000000";
         }
 
         public sealed class LyricsSplitRegionStyle
@@ -214,7 +214,7 @@ namespace ImageColorChanger.UI
             {
                 _isSyncingPagingEditor = true;
                 LyricsTextBox.Text = source.Text ?? "";
-                LyricsTextBox.FontSize = FixedMainLyricsFontSize;
+                LyricsTextBox.FontSize = _lyricsMainScreenFontSize;
                 LyricsTextBox.TextAlignment = source.TextAlignment;
                 LyricsTextBox.Foreground = source.Foreground;
                 LyricsTextBox.Visibility = Visibility.Visible;
@@ -266,8 +266,237 @@ namespace ImageColorChanger.UI
             {
                 if (textBox != null)
                 {
-                    textBox.FontSize = FixedMainLyricsFontSize;
+                    textBox.FontSize = _lyricsMainScreenFontSize;
                 }
+            }
+        }
+
+        private void ApplyLyricsTheme(string themeName, string backgroundHex, bool showStatus = true)
+        {
+            string safeName = string.IsNullOrWhiteSpace(themeName) ? "黑色" : themeName.Trim();
+            string safeHex = string.IsNullOrWhiteSpace(backgroundHex) ? "#000000" : backgroundHex.Trim();
+            WpfColor backgroundColor;
+            try
+            {
+                backgroundColor = HexToColor(safeHex);
+            }
+            catch
+            {
+                safeHex = "#000000";
+                backgroundColor = HexToColor(safeHex);
+            }
+
+            _lyricsThemeName = safeName;
+            _lyricsThemeBackgroundHex = safeHex.ToUpperInvariant();
+
+            var backgroundBrush = new SolidColorBrush(backgroundColor);
+            bool darkBackground = IsDarkColor(backgroundColor);
+            var foregroundBrush = darkBackground ? WpfBrushes.White : WpfBrushes.Black;
+            var caretBrush = foregroundBrush;
+
+            if (LyricsEditorPanel != null)
+            {
+                LyricsEditorPanel.Background = backgroundBrush;
+            }
+
+            if (LyricsScrollViewer != null)
+            {
+                LyricsScrollViewer.Background = backgroundBrush;
+            }
+
+            if (LyricsSplitGrid != null)
+            {
+                LyricsSplitGrid.Background = backgroundBrush;
+            }
+
+            ApplyLyricsEditorStyleToCurrentMode(tb =>
+            {
+                tb.Background = WpfBrushes.Transparent;
+                tb.Foreground = foregroundBrush;
+                tb.CaretBrush = caretBrush;
+            });
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+
+            if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
+            {
+                SaveLyricsProject("ThemeChanged", suppressUserError: true);
+            }
+
+            if (showStatus)
+            {
+                ShowStatus($"✅ 主题: {safeName}");
+            }
+        }
+
+        private static bool IsDarkColor(WpfColor color)
+        {
+            double luminance = (0.299 * color.R) + (0.587 * color.G) + (0.114 * color.B);
+            return luminance < 140;
+        }
+
+        private WpfColor GetCurrentLyricsThemeBackgroundColor()
+        {
+            try
+            {
+                return HexToColor(_lyricsThemeBackgroundHex);
+            }
+            catch
+            {
+                return WpfColor.FromRgb(0, 0, 0);
+            }
+        }
+
+        private List<Core.LyricsThemePreset> GetLyricsThemePresets()
+        {
+            if (_configManager == null)
+            {
+                return new List<Core.LyricsThemePreset>
+                {
+                    new Core.LyricsThemePreset { Name = "黑色", BackgroundHex = "#000000" },
+                    new Core.LyricsThemePreset { Name = "白色", BackgroundHex = "#FFFFFF" },
+                    new Core.LyricsThemePreset { Name = "深绿", BackgroundHex = "#0B3D2E" },
+                    new Core.LyricsThemePreset { Name = "深蓝", BackgroundHex = "#102A43" }
+                };
+            }
+
+            return _configManager.GetAllLyricsThemePresets();
+        }
+
+        private void AddLyricsThemePreset()
+        {
+            var colorDialog = new System.Windows.Forms.ColorDialog
+            {
+                AllowFullOpen = true,
+                FullOpen = true,
+                Color = System.Drawing.Color.Black
+            };
+
+            if (colorDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            {
+                return;
+            }
+
+            string hex = $"#{colorDialog.Color.R:X2}{colorDialog.Color.G:X2}{colorDialog.Color.B:X2}";
+            string defaultName = $"主题{DateTime.Now:HHmmss}";
+
+            var inputDialog = new Window
+            {
+                Title = "新增主题",
+                Width = 380,
+                Height = 170,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stackPanel = new StackPanel { Margin = new Thickness(15) };
+            var label = new TextBlock
+            {
+                Text = $"请输入主题名称\n背景色: {hex}",
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                Margin = new Thickness(0, 0, 0, 10),
+                FontSize = 14,
+                Text = defaultName
+            };
+            var buttonPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var okButton = new System.Windows.Controls.Button
+            {
+                Content = "确定",
+                Width = 70,
+                Height = 30,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsDefault = true
+            };
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "取消",
+                Width = 70,
+                Height = 30,
+                IsCancel = true
+            };
+
+            bool? dialogResult = null;
+            okButton.Click += (_, _) => { dialogResult = true; inputDialog.Close(); };
+            cancelButton.Click += (_, _) => { dialogResult = false; inputDialog.Close(); };
+
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+            stackPanel.Children.Add(label);
+            stackPanel.Children.Add(textBox);
+            stackPanel.Children.Add(buttonPanel);
+            inputDialog.Content = stackPanel;
+            inputDialog.Loaded += (_, _) => textBox.Focus();
+            inputDialog.ShowDialog();
+
+            if (dialogResult != true)
+            {
+                return;
+            }
+
+            string name = textBox.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                ShowStatus("⚠️ 主题名称不能为空");
+                return;
+            }
+
+            if (_configManager == null || !_configManager.AddCustomLyricsThemePreset(name, hex))
+            {
+                ShowStatus("⚠️ 主题名称已存在或保存失败");
+                return;
+            }
+
+            ApplyLyricsTheme(name, hex);
+            ShowStatus($"✅ 已新增主题: {name}");
+        }
+
+        private double ResolveMainLyricsFontSize()
+        {
+            double configured = _configManager?.LyricsMainScreenFontSize ?? DefaultMainLyricsFontSize;
+            return Math.Clamp(configured, MinMainLyricsFontSize, MaxMainLyricsFontSize);
+        }
+
+        private double ResolveMainLyricsFontSizeForProject(double persistedValue)
+        {
+            if (persistedValue > 0)
+            {
+                return Math.Clamp(persistedValue, MinMainLyricsFontSize, MaxMainLyricsFontSize);
+            }
+
+            return ResolveMainLyricsFontSize();
+        }
+
+        private void SetMainLyricsFontSize(double value)
+        {
+            double next = Math.Clamp(value, MinMainLyricsFontSize, MaxMainLyricsFontSize);
+            if (Math.Abs(next - _lyricsMainScreenFontSize) < 0.001)
+            {
+                return;
+            }
+
+            _lyricsMainScreenFontSize = next;
+            if (_configManager != null)
+            {
+                _configManager.LyricsMainScreenFontSize = next;
+            }
+
+            EnforceMainLyricsEditorFontSize();
+            ShowStatus($"✅ 主屏字号: {next:0}");
+
+            if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
+            {
+                SaveLyricsProject("MainScreenFontSizeChanged", suppressUserError: true);
             }
         }
 
@@ -275,14 +504,192 @@ namespace ImageColorChanger.UI
         {
             if (LyricsFontSizeDisplay != null)
             {
-                LyricsFontSizeDisplay.Text = _lyricsProjectionFontSize.ToString("0");
+                if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+                {
+                    int index = GetActiveSplitRegionIndex();
+                    double local = GetSplitProjectionFontSizeForRegion(index);
+                    LyricsFontSizeDisplay.Text = local.ToString("0");
+                }
+                else
+                {
+                    LyricsFontSizeDisplay.Text = _lyricsProjectionFontSize.ToString("0");
+                }
             }
+        }
+
+        private int GetActiveSplitRegionIndex()
+        {
+            if (_activeLyricsEditor == LyricsSplitTextBox2) return 1;
+            if (_activeLyricsEditor == LyricsSplitTextBox3) return 2;
+            if (_activeLyricsEditor == LyricsSplitTextBox4) return 3;
+            return 0;
+        }
+
+        private bool TryGetFocusedSplitRegionIndex(out int index)
+        {
+            index = 0;
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+            {
+                return false;
+            }
+
+            if (_lyricsPagingMode && LyricsTextBox.IsKeyboardFocusWithin)
+            {
+                index = ClampPagingRegionIndex(_lyricsCurrentPageIndex);
+                return true;
+            }
+
+            if (LyricsSplitTextBox1.IsKeyboardFocusWithin)
+            {
+                index = 0;
+                return true;
+            }
+
+            if (LyricsSplitTextBox2.IsKeyboardFocusWithin)
+            {
+                index = 1;
+                return true;
+            }
+
+            if (LyricsSplitTextBox3.IsKeyboardFocusWithin)
+            {
+                index = 2;
+                return true;
+            }
+
+            if (LyricsSplitTextBox4.IsKeyboardFocusWithin)
+            {
+                index = 3;
+                return true;
+            }
+
+            return false;
+        }
+
+        private double GetSplitProjectionFontSizeForRegion(int index)
+        {
+            int i = Math.Clamp(index, 0, _lyricsSplitProjectionFontSizes.Length - 1);
+            double value = _lyricsSplitProjectionFontSizes[i];
+            if (value <= 0)
+            {
+                value = _lyricsProjectionFontSize;
+            }
+            return Math.Clamp(value, MinLyricsFontSize, MaxLyricsFontSize);
+        }
+
+        private void SetSplitProjectionFontSizeForRegion(int index, double value)
+        {
+            int i = Math.Clamp(index, 0, _lyricsSplitProjectionFontSizes.Length - 1);
+            _lyricsSplitProjectionFontSizes[i] = Math.Clamp(value, MinLyricsFontSize, MaxLyricsFontSize);
         }
 
         private string GetCurrentLyricsSongWatermarkText()
         {
-            var name = _currentLyricsProject?.Name?.Trim();
+            string name = ResolveCurrentLyricsWatermarkDisplayName();
             return string.IsNullOrWhiteSpace(name) ? string.Empty : $"《{name}》";
+        }
+
+        private string ResolveCurrentLyricsWatermarkDisplayName()
+        {
+            string projectName = NormalizeLyricsProjectName(_currentLyricsProject?.Name);
+            if (!string.IsNullOrWhiteSpace(projectName))
+            {
+                return projectName;
+            }
+
+            return ResolveCurrentImageDisplayName();
+        }
+
+        private string ResolveCurrentImageDisplayName()
+        {
+            try
+            {
+                string imagePath = _imagePath?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    imagePath = _imageProcessor?.CurrentImagePath?.Trim() ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    return string.Empty;
+                }
+
+                return Path.GetFileNameWithoutExtension(imagePath)?.Trim() ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string NormalizeLyricsProjectName(string rawName)
+        {
+            string name = rawName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return string.Empty;
+            }
+
+            string[] prefixes = { "歌词_", "新歌曲_" };
+            foreach (string prefix in prefixes)
+            {
+                if (name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    name = name.Substring(prefix.Length).Trim();
+                    break;
+                }
+            }
+
+            // 去掉自动序号前缀（如: 1.歌名 / 12、歌名 / 3-歌名）
+            int idx = 0;
+            while (idx < name.Length && char.IsDigit(name[idx]))
+            {
+                idx++;
+            }
+
+            if (idx > 0 && idx < name.Length)
+            {
+                char marker = name[idx];
+                if (marker == '.' || marker == '、' || marker == '-' || marker == '_' || marker == ' ')
+                {
+                    name = name[(idx + 1)..].Trim();
+                }
+            }
+
+            return name;
+        }
+
+        private double ResolveProjectionFontSizeForProject(LyricsProject project)
+        {
+            double projectSize = project?.FontSize ?? 0;
+            if (projectSize > 0)
+            {
+                return Math.Clamp(projectSize, MinLyricsFontSize, MaxLyricsFontSize);
+            }
+
+            return Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
+        }
+
+        private string GetCurrentLyricsWatermarkImagePath()
+        {
+            string raw = _currentLyricsProject?.ProjectionWatermarkPath?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                string absolute = Path.IsPathRooted(raw)
+                    ? raw
+                    : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, raw));
+                return File.Exists(absolute) ? absolute : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
 
         private TextAlignment ParseTextAlignmentOrDefault(string value, TextAlignment fallback = TextAlignment.Center)
@@ -400,9 +807,9 @@ namespace ImageColorChanger.UI
             };
 
             var splitEditors = new[] { LyricsSplitTextBox1, LyricsSplitTextBox2, LyricsSplitTextBox3, LyricsSplitTextBox4 };
-            page.RegionStyles = splitEditors.Select(tb => new LyricsSplitRegionStyle
+            page.RegionStyles = splitEditors.Select((tb, i) => new LyricsSplitRegionStyle
             {
-                FontSize = tb.FontSize,
+                FontSize = GetSplitProjectionFontSizeForRegion(i),
                 TextAlign = tb.TextAlignment.ToString(),
                 ColorHex = ColorToHex((tb.Foreground as SolidColorBrush)?.Color ?? HexToColor(_configManager.DefaultLyricsColor))
             }).ToArray();
@@ -439,7 +846,8 @@ namespace ImageColorChanger.UI
             for (int i = 0; i < splitEditors.Length; i++)
             {
                 var style = styles[i] ?? new LyricsSplitRegionStyle();
-                splitEditors[i].FontSize = FixedMainLyricsFontSize;
+                splitEditors[i].FontSize = _lyricsMainScreenFontSize;
+                SetSplitProjectionFontSizeForRegion(i, style.FontSize > 0 ? style.FontSize : _lyricsProjectionFontSize);
                 splitEditors[i].TextAlignment = ParseTextAlignmentOrDefault(style.TextAlign, TextAlignment.Center);
                 splitEditors[i].Foreground = new SolidColorBrush(HexToColor(
                     string.IsNullOrWhiteSpace(style.ColorHex) ? _configManager.DefaultLyricsColor : style.ColorHex));
@@ -533,6 +941,7 @@ namespace ImageColorChanger.UI
             }
 
             UpdatePagingNavVisibility();
+            UpdateSplitActiveRegionHighlight();
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
@@ -628,6 +1037,7 @@ namespace ImageColorChanger.UI
             {
                 _activeLyricsEditor?.Focus();
             }
+            UpdateSplitActiveRegionHighlight();
             ShowSplitPageStatus();
             UpdatePagingNavVisibility();
             EnforceMainLyricsEditorFontSize();
@@ -650,6 +1060,37 @@ namespace ImageColorChanger.UI
             if (LyricsSplitRegion2.Visibility == Visibility.Visible) LyricsSplitRegion2.BorderThickness = visibleThickness;
             if (LyricsSplitRegion3.Visibility == Visibility.Visible) LyricsSplitRegion3.BorderThickness = visibleThickness;
             if (LyricsSplitRegion4.Visibility == Visibility.Visible) LyricsSplitRegion4.BorderThickness = visibleThickness;
+            UpdateSplitActiveRegionHighlight();
+        }
+
+        private void UpdateSplitActiveRegionHighlight()
+        {
+            if (_lyricsSplitMode == (int)ViewSplitMode.Single || _lyricsPagingMode)
+            {
+                return;
+            }
+
+            var inactiveBorder = new SolidColorBrush(WpfColor.FromRgb(255, 59, 48));
+            var activeBorder = new SolidColorBrush(WpfColor.FromRgb(255, 196, 0));
+            var activeBackground = new SolidColorBrush(WpfColor.FromArgb(45, 255, 196, 0));
+            var regions = new[] { LyricsSplitRegion1, LyricsSplitRegion2, LyricsSplitRegion3, LyricsSplitRegion4 };
+            int activeIndex = GetActiveSplitRegionIndex();
+            int visibleCount = GetCurrentSplitRegionCount();
+            var borderThickness = _lyricsSplitBorderVisible ? new Thickness(1) : new Thickness(0);
+
+            for (int i = 0; i < regions.Length; i++)
+            {
+                var region = regions[i];
+                if (region == null || region.Visibility != Visibility.Visible || i >= visibleCount)
+                {
+                    continue;
+                }
+
+                bool isActive = i == activeIndex;
+                region.BorderThickness = borderThickness;
+                region.BorderBrush = isActive ? activeBorder : inactiveBorder;
+                region.Background = isActive ? activeBackground : WpfBrushes.Transparent;
+            }
         }
 
         // ============================================
@@ -674,6 +1115,7 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //            Debug.WriteLine("[歌词] 进入歌词模式");
 //#endif
+            _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
 
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -776,19 +1218,76 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsFontSizeDisplay_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            AdjustLyricsFontSizeByWheel(e, Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+            AdjustLyricsFontSizeByWheel(e);
         }
 
-        private void AdjustLyricsFontSizeByWheel(MouseWheelEventArgs e, bool fastMode)
+        private void AdjustLyricsFontSizeByWheel(MouseWheelEventArgs e)
         {
+            bool fastMode = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
             double step = fastMode ? LyricsFontWheelFastStep : LyricsFontWheelStep;
             double delta = e.Delta > 0 ? step : -step;
-            AdjustLyricsFontSize(delta);
+            bool applyGlobal = false;
+            int targetRegionIndex = GetActiveSplitRegionIndex();
+
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                if (TryGetFocusedSplitRegionIndex(out int focusedIndex))
+                {
+                    targetRegionIndex = focusedIndex;
+                }
+                else
+                {
+                    applyGlobal = true;
+                }
+            }
+
+            AdjustLyricsFontSize(delta, applyGlobal, targetRegionIndex);
             e.Handled = true;
         }
 
-        private void AdjustLyricsFontSize(double delta)
+        private void AdjustLyricsFontSize(double delta, bool applyGlobal, int targetRegionIndex = -1)
         {
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                if (applyGlobal)
+                {
+                    double newGlobal = Math.Clamp(_lyricsProjectionFontSize + delta, MinLyricsFontSize, MaxLyricsFontSize);
+                    if (Math.Abs(newGlobal - _lyricsProjectionFontSize) < 0.001)
+                    {
+                        return;
+                    }
+
+                    _lyricsProjectionFontSize = newGlobal;
+                    _configManager.LyricsProjectionFontSize = newGlobal;
+                    for (int i = 0; i < _lyricsSplitProjectionFontSizes.Length; i++)
+                    {
+                        SetSplitProjectionFontSizeForRegion(i, newGlobal);
+                    }
+                    ShowStatus($"✅ 分割投影全局字号: {newGlobal:0}");
+                }
+                else
+                {
+                    int index = targetRegionIndex >= 0 ? targetRegionIndex : GetActiveSplitRegionIndex();
+                    double current = GetSplitProjectionFontSizeForRegion(index);
+                    double next = Math.Clamp(current + delta, MinLyricsFontSize, MaxLyricsFontSize);
+                    if (Math.Abs(next - current) < 0.001)
+                    {
+                        return;
+                    }
+
+                    SetSplitProjectionFontSizeForRegion(index, next);
+                    ShowStatus($"✅ 分区{index + 1}投影字号: {next:0}");
+                }
+
+                SaveCurrentSplitPageFromUi();
+                UpdateLyricsProjectionFontSizeDisplay();
+                if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+                {
+                    RenderLyricsToProjection();
+                }
+                return;
+            }
+
             double currentSize = _lyricsProjectionFontSize;
             double newSize = Math.Clamp(currentSize + delta, MinLyricsFontSize, MaxLyricsFontSize);
             if (Math.Abs(newSize - currentSize) < 0.001)
@@ -816,6 +1315,201 @@ namespace ImageColorChanger.UI
         private void BtnLyricsTextColor_Click(object sender, RoutedEventArgs e)
         {
             OpenLyricsCustomColorPicker();
+        }
+
+        private void BtnLyricsWatermark_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement anchor)
+            {
+                ShowLyricsWatermarkMenu(anchor);
+            }
+        }
+
+        private void ShowLyricsWatermarkMenu(FrameworkElement placementTarget)
+        {
+            var menu = new ContextMenu();
+            menu.Style = (Style)FindResource("NoBorderContextMenuStyle");
+
+            var importItem = new MenuItem { Header = "导入" };
+            importItem.Click += (s, e) => ImportLyricsWatermarkForCurrentSong();
+            menu.Items.Add(importItem);
+
+            var openFolderItem = new MenuItem { Header = "打开位置" };
+            openFolderItem.Click += (s, e) => OpenPathInExplorer(GetLyricsWatermarkDirectoryPath());
+            menu.Items.Add(openFolderItem);
+
+            menu.PlacementTarget = placementTarget;
+            menu.IsOpen = true;
+        }
+
+        private void ImportLyricsWatermarkForCurrentSong()
+        {
+            if (_currentLyricsProject == null)
+            {
+                ShowStatus("⚠️ 请先打开一首歌词再设置水印");
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选择水印图片",
+                Filter = "图片文件|*.png;*.jpg;*.jpeg;*.bmp;*.webp|所有文件|*.*"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                string sourcePath = dialog.FileName;
+                string ext = Path.GetExtension(sourcePath);
+                if (string.IsNullOrWhiteSpace(ext))
+                {
+                    ext = ".png";
+                }
+
+                string targetDirectory = GetLyricsWatermarkDirectoryPath();
+                string targetName = Path.GetFileName(sourcePath);
+                if (string.IsNullOrWhiteSpace(targetName))
+                {
+                    targetName = $"watermark{ext}";
+                }
+                string targetPath = Path.Combine(targetDirectory, targetName);
+                string sourceFullPath = Path.GetFullPath(sourcePath);
+                string targetFullPath = Path.GetFullPath(targetPath);
+                if (!string.Equals(sourceFullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(sourcePath, targetPath, overwrite: true);
+                }
+
+                string relative = GetLyricsWatermarkRelativePath(targetPath);
+                BindLyricsWatermarkToCurrentSong(relative);
+                ShowStatus($"✅ 水印已导入并绑定: {targetName}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"❌ 水印导入失败: {ex.Message}");
+            }
+        }
+
+        private void BindLyricsWatermarkToCurrentSong(string relativePath)
+        {
+            if (_currentLyricsProject == null)
+            {
+                ShowStatus("⚠️ 当前没有可绑定的歌词项目");
+                return;
+            }
+
+            _currentLyricsProject.ProjectionWatermarkPath = relativePath ?? string.Empty;
+            SaveLyricsProject("WatermarkChanged", suppressUserError: true);
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+        }
+
+        private void ClearLyricsWatermarkForCurrentSong()
+        {
+            if (_currentLyricsProject == null)
+            {
+                return;
+            }
+
+            _currentLyricsProject.ProjectionWatermarkPath = string.Empty;
+            SaveLyricsProject("WatermarkCleared", suppressUserError: true);
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+
+            ShowStatus("✅ 已清除当前歌曲水印");
+        }
+
+        private IEnumerable<string> EnumerateLyricsWatermarkFiles()
+        {
+            string directory = GetLyricsWatermarkDirectoryPath();
+            if (!Directory.Exists(directory))
+            {
+                yield break;
+            }
+
+            string[] allowed = { ".png", ".jpg", ".jpeg", ".bmp", ".webp" };
+            foreach (var file in Directory.EnumerateFiles(directory))
+            {
+                string ext = Path.GetExtension(file) ?? string.Empty;
+                if (allowed.Any(x => string.Equals(x, ext, StringComparison.OrdinalIgnoreCase)))
+                {
+                    yield return file;
+                }
+            }
+        }
+
+        private string GetLyricsWatermarkDirectoryPath()
+        {
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LyricsWatermarkRelativeDirectory);
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        private string GetLyricsWatermarkRelativePath(string absolutePath)
+        {
+            if (string.IsNullOrWhiteSpace(absolutePath))
+            {
+                return string.Empty;
+            }
+
+            string fullPath = Path.GetFullPath(absolutePath);
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return fullPath.Substring(baseDir.Length).TrimStart('\\', '/');
+            }
+
+            return absolutePath;
+        }
+
+        private void AddWatermarkSelectionItemsToContextMenu(ContextMenu contextMenu)
+        {
+            string current = _currentLyricsProject?.ProjectionWatermarkPath ?? string.Empty;
+
+            var selectWatermarkItem = new MenuItem
+            {
+                Header = "选择水印",
+                Height = 36
+            };
+
+            var noneItem = new MenuItem
+            {
+                Header = "无水印",
+                IsCheckable = true,
+                IsChecked = string.IsNullOrWhiteSpace(current)
+            };
+            noneItem.Click += (s, e) => ClearLyricsWatermarkForCurrentSong();
+            selectWatermarkItem.Items.Add(noneItem);
+
+            var watermarks = EnumerateLyricsWatermarkFiles()
+                .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var path in watermarks)
+            {
+                string relative = GetLyricsWatermarkRelativePath(path);
+                string displayName = Path.GetFileNameWithoutExtension(path);
+                var item = new MenuItem
+                {
+                    Header = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileName(path) : displayName,
+                    IsCheckable = true,
+                    IsChecked = string.Equals(current, relative, StringComparison.OrdinalIgnoreCase)
+                };
+                item.Click += (s, e) => BindLyricsWatermarkToCurrentSong(relative);
+                selectWatermarkItem.Items.Add(item);
+            }
+
+            contextMenu.Items.Add(selectWatermarkItem);
         }
 
         /// <summary>
@@ -1050,7 +1744,7 @@ namespace ImageColorChanger.UI
 
             if (sender == LyricsTextBox && _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
             {
-                GenerateLyricsSlicesFromSingleText(preserveIndex: true, applyMainScreenSpacing: false);
+                QueueLyricsSliceRegeneration();
             }
 
             if (_isLyricsMode && !_isLoadingLyricsProject)
@@ -1093,30 +1787,88 @@ namespace ImageColorChanger.UI
             }
 
             var lines = original.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-            if (!lines.Any(string.IsNullOrWhiteSpace))
+            bool hasWhitespaceOnlyLine = lines.Any(line =>
+                line.Length > 0 &&
+                line.All(char.IsWhiteSpace));
+            if (!hasWhitespaceOnlyLine)
             {
                 return false;
             }
 
-            string normalized = string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+            // 仅清理“由空格/Tab构成”的行，保留用户按回车产生的真正空行，避免光标被拉回上一行。
+            string normalized = string.Join(
+                Environment.NewLine,
+                lines.Where(line => !(line.Length > 0 && line.All(char.IsWhiteSpace))));
             if (normalized == original)
             {
                 return false;
             }
 
-            int caret = textBox.CaretIndex;
-            try
+            if (_lyricsWhitespaceNormalizeQueued)
             {
-                _isNormalizingLyricsWhitespaceLine = true;
-                textBox.Text = normalized;
-                textBox.CaretIndex = Math.Clamp(caret, 0, normalized.Length);
-            }
-            finally
-            {
-                _isNormalizingLyricsWhitespaceLine = false;
+                return true;
             }
 
+            int caret = textBox.CaretIndex;
+            _lyricsWhitespaceNormalizeQueued = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _lyricsWhitespaceNormalizeQueued = false;
+                if (textBox == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    string current = textBox.Text ?? string.Empty;
+                    if (!string.Equals(current, original, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    _isNormalizingLyricsWhitespaceLine = true;
+                    textBox.Text = normalized;
+                    textBox.CaretIndex = Math.Clamp(caret, 0, normalized.Length);
+                }
+                catch
+                {
+                    // 文本容器处于不稳定期时跳过本次规范化，避免影响主流程
+                }
+                finally
+                {
+                    _isNormalizingLyricsWhitespaceLine = false;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+
             return true;
+        }
+
+        private void QueueLyricsSliceRegeneration()
+        {
+            if (_lyricsSliceRegenerateQueued)
+            {
+                return;
+            }
+
+            _lyricsSliceRegenerateQueued = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _lyricsSliceRegenerateQueued = false;
+                if (!_isLyricsMode || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || LyricsTextBox == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    GenerateLyricsSlicesFromSingleText(preserveIndex: true, applyMainScreenSpacing: false);
+                }
+                catch
+                {
+                    // 切片重算失败不阻断文本编辑与保存
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void ClearCurrentLyricsRegion()
@@ -1163,6 +1915,7 @@ namespace ImageColorChanger.UI
                 _activeLyricsEditor = textBox;
                 UpdateLyricsProjectionFontSizeDisplay();
                 UpdateAlignmentButtonsState(textBox.TextAlignment);
+                UpdateSplitActiveRegionHighlight();
             }
         }
 
@@ -1313,9 +2066,15 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                AdjustLyricsFontSizeByWheel(e);
+                return;
+            }
+
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
-                AdjustLyricsFontSizeByWheel(e, fastMode: true);
+                AdjustLyricsFontSizeByWheel(e);
                 return;
             }
 
@@ -1385,6 +2144,40 @@ namespace ImageColorChanger.UI
             splitMenuItem.Items.Add(borderToggleItem);
 
             contextMenu.Items.Add(splitMenuItem);
+
+            var themeMenuItem = new MenuItem
+            {
+                Header = "主题",
+                Height = 36
+            };
+
+            var themePresets = GetLyricsThemePresets();
+            foreach (var preset in themePresets)
+            {
+                var item = new MenuItem
+                {
+                    Header = preset.Name,
+                    Height = 36,
+                    IsCheckable = true,
+                    IsChecked = string.Equals((_lyricsThemeName ?? "").Trim(), (preset.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                };
+
+                string presetName = preset.Name ?? "主题";
+                string presetHex = string.IsNullOrWhiteSpace(preset.BackgroundHex) ? "#000000" : preset.BackgroundHex;
+                item.Click += (s, args) => ApplyLyricsTheme(presetName, presetHex);
+                themeMenuItem.Items.Add(item);
+            }
+
+            themeMenuItem.Items.Add(new Separator());
+            var addThemeItem = new MenuItem
+            {
+                Header = "新增主题...",
+                Height = 36
+            };
+            addThemeItem.Click += (s, args) => AddLyricsThemePreset();
+            themeMenuItem.Items.Add(addThemeItem);
+
+            contextMenu.Items.Add(themeMenuItem);
             
             // 颜色菜单（第一位）
             var colorMenuItem = new MenuItem 
@@ -1447,39 +2240,47 @@ namespace ImageColorChanger.UI
             colorMenuItem.Items.Add(customColorItem);
 
             contextMenu.Items.Add(colorMenuItem);
+            AddMainLyricsFontItemsToContextMenu(contextMenu);
 
-            contextMenu.Items.Add(new Separator());
-
-            var clearCurrentRegionItem = new MenuItem
-            {
-                Header = _lyricsSplitMode == (int)ViewSplitMode.Single ? "清空歌词" : "清空当前分区",
-                Height = 36
-            };
-            clearCurrentRegionItem.Click += (s, args) => ClearCurrentLyricsRegion();
-            contextMenu.Items.Add(clearCurrentRegionItem);
-
-            var clearAllRegionsItem = new MenuItem
-            {
-                Header = _lyricsSplitMode == (int)ViewSplitMode.Single ? "清空歌词(确认)" : "清空全部分区",
-                Height = 36
-            };
-            clearAllRegionsItem.Click += (s, args) => ClearAllLyricsRegions();
-            contextMenu.Items.Add(clearAllRegionsItem);
-            
-            // 退出歌词模式选项
-            var exitLyricsItem = new MenuItem 
-            { 
-                Header = "退出歌词",
-                Height = 36
-            };
-            exitLyricsItem.Click += (s, args) => ExitLyricsMode();
-            contextMenu.Items.Add(exitLyricsItem);
+            AddWatermarkSelectionItemsToContextMenu(contextMenu);
             
             // 显示菜单
             contextMenu.PlacementTarget = LyricsScrollViewer;
             contextMenu.IsOpen = true;
             
             e.Handled = true;
+        }
+
+        private void AddMainLyricsFontItemsToContextMenu(ContextMenu contextMenu)
+        {
+            if (contextMenu == null)
+            {
+                return;
+            }
+
+            var fontMenuItem = new MenuItem
+            {
+                Header = "主屏字号",
+                Height = 36
+            };
+
+            int[] candidates = { 20, 30, 40, 50, 60 };
+            foreach (int size in candidates)
+            {
+                var item = new MenuItem
+                {
+                    Header = size.ToString(),
+                    Height = 36,
+                    IsCheckable = true,
+                    IsChecked = Math.Abs(_lyricsMainScreenFontSize - size) < 0.001
+                };
+
+                int selected = size;
+                item.Click += (s, e) => SetMainLyricsFontSize(selected);
+                fontMenuItem.Items.Add(item);
+            }
+
+            contextMenu.Items.Add(fontMenuItem);
         }
 
         private void AddSplitMenuItem(MenuItem parent, string title, ViewSplitMode mode)
@@ -1546,35 +2347,22 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadOrCreateLyricsProject()
         {
-            _isLoadingLyricsProject = true;
+                _isLoadingLyricsProject = true;
             try
             {
+                _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                 EnsureLyricsProjectManager();
-                LogLyricsSaveDebug($"[Load-Begin] entryMode={_lyricsEntryMode}, targetProjectId={_currentLyricsProjectId}, currentImageId={_currentImageId}, db={GetLyricsDbPathSafe()}");
+                LogLyricsSaveDebug($"[Load-Begin] targetProjectId={_currentLyricsProjectId}, db={GetLyricsDbPathSafe()}");
 
-                int currentImageId = _currentImageId;
-
-                // 独立歌曲入口优先（不依赖图片）
-                if (_lyricsEntryMode == LyricsEntryMode.BySong && _currentLyricsProjectId > 0)
+                if (_currentLyricsProjectId <= 0)
                 {
-                    _lyricsProjectManager.ClearTracking();
-                    _currentLyricsProject = _lyricsProjectManager.FindById(_currentLyricsProjectId);
+                    // 未指定歌曲ID时，进入独立临时编辑态。
+                    CreateTempLyricsProject();
+                    return;
                 }
-                else
-                {
-                    if (currentImageId == 0)
-                    {
-                        // 创建临时项目（不关联图片）
-                        CreateTempLyricsProject();
-                        return;
-                    }
 
-                    // 🔧 强制刷新数据库上下文（确保查询到最新数据）
-                    _lyricsProjectManager.ClearTracking();
-
-                    // 尝试加载当前图片对应的歌词项目
-                    _currentLyricsProject = _lyricsProjectManager.FindByImageId(currentImageId);
-                }
+                _lyricsProjectManager.ClearTracking();
+                _currentLyricsProject = _lyricsProjectManager.FindById(_currentLyricsProjectId);
                     
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
@@ -1582,6 +2370,8 @@ namespace ImageColorChanger.UI
 
                 if (_currentLyricsProject != null)
                 {
+                    string loadedThemeName = "黑色";
+                    string loadedThemeHex = "#000000";
                     _currentLyricsProjectId = _currentLyricsProject.Id;
                     LogLyricsSaveDebug($"[Load-Hit] projectId={_currentLyricsProject.Id}, name={_currentLyricsProject.Name}, contentLen={(_currentLyricsProject.Content ?? "").Length}, db={GetLyricsDbPathSafe()}");
                     // 加载现有项目
@@ -1615,6 +2405,11 @@ namespace ImageColorChanger.UI
                         _lyricsSliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 3);
                         _lyricsCurrentSliceIndex = Math.Max(0, modeData.SliceCurrentIndex);
                         _lyricsSliceModeEnabled = modeData.SliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single;
+                        _lyricsMainScreenFontSize = ResolveMainLyricsFontSizeForProject(modeData.MainScreenFontSize);
+                        loadedThemeName = string.IsNullOrWhiteSpace(modeData.ThemeName) ? "黑色" : modeData.ThemeName;
+                        loadedThemeHex = string.IsNullOrWhiteSpace(modeData.ThemeBackgroundHex)
+                            ? (modeData.ThemeMode == 1 ? "#FFFFFF" : "#000000")
+                            : modeData.ThemeBackgroundHex;
                     }
                     else if (TryParsePagesLyricsContent(content, out var pagesData))
                     {
@@ -1625,6 +2420,9 @@ namespace ImageColorChanger.UI
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
+                        loadedThemeName = "黑色";
+                        loadedThemeHex = "#000000";
                         LogPagingDebug("[Load] legacy pages content detected, collapsed to single split data");
                     }
                     else if (TryParseSplitLyricsContent(content, out var splitData))
@@ -1635,6 +2433,9 @@ namespace ImageColorChanger.UI
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
+                        loadedThemeName = "黑色";
+                        loadedThemeHex = "#000000";
                     }
                     else
                     {
@@ -1647,17 +2448,19 @@ namespace ImageColorChanger.UI
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
+                        loadedThemeName = "黑色";
+                        loadedThemeHex = "#000000";
                     }
 
+                    _lyricsProjectionFontSize = ResolveProjectionFontSizeForProject(_currentLyricsProject);
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                     {
-                        _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
-                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = FixedMainLyricsFontSize);
+                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
                         UpdateLyricsProjectionFontSizeDisplay();
                     }
                     else
                     {
-                        _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
                         UpdateLyricsProjectionFontSizeDisplay();
                     }
 
@@ -1683,6 +2486,8 @@ namespace ImageColorChanger.UI
                         UpdateAlignmentButtonsState(GetActiveLyricsEditor().TextAlignment);
                     }
 
+                    ApplyLyricsTheme(loadedThemeName, loadedThemeHex, showStatus: false);
+
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词] 加载项目完成: {_currentLyricsProject.Name}");
 //                    Debug.WriteLine($"[歌词] TextBox当前文本长度: {LyricsTextBox.Text.Length}");
@@ -1690,32 +2495,13 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 按歌曲入口找不到时：创建独立歌词；按图片入口找不到时：创建图片关联歌词
-                    string imageName;
-                    int? bindImageId;
-                    int sourceType;
-                    if (_lyricsEntryMode == LyricsEntryMode.BySong)
-                    {
-                        imageName = $"新歌曲_{DateTime.Now:HHmmss}";
-                        bindImageId = null;
-                        sourceType = 1;
-                    }
-                    else
-                    {
-                        var currentImagePath = _imageProcessor?.CurrentImagePath ?? "";
-                        imageName = string.IsNullOrEmpty(currentImagePath)
-                            ? "未命名"
-                            : System.IO.Path.GetFileNameWithoutExtension(currentImagePath);
-                        bindImageId = currentImageId;
-                        sourceType = 0;
-                    }
-
-                    // 创建新项目（关联到当前图片）
+                    // 指定歌曲ID不存在时创建独立歌词项目（不关联图片）
+                    string songName = $"新歌曲_{DateTime.Now:HHmmss}";
                     _currentLyricsProject = new LyricsProject
                     {
-                        Name = $"歌词_{imageName}",
-                        ImageId = bindImageId,
-                        SourceType = sourceType,
+                        Name = $"歌词_{songName}",
+                        ImageId = null,
+                        SourceType = 1,
                         CreatedTime = DateTime.Now,
                         FontSize = DefaultLyricsFontSize,
                         TextAlign = "Center"
@@ -1734,7 +2520,7 @@ namespace ImageColorChanger.UI
                     LyricsSplitTextBox2.Text = "";
                     LyricsSplitTextBox3.Text = "";
                     LyricsSplitTextBox4.Text = "";
-                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = FixedMainLyricsFontSize);
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
                     _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
                     UpdateLyricsProjectionFontSizeDisplay();
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
@@ -1742,7 +2528,10 @@ namespace ImageColorChanger.UI
                     _lyricsSliceModeEnabled = false;
                     _lyricsSliceLinesPerPage = 2;
                     _lyricsCurrentSliceIndex = 0;
+                    _lyricsThemeName = "黑色";
+                    _lyricsThemeBackgroundHex = "#000000";
                     EnforceMainLyricsEditorFontSize();
+                    ApplyLyricsTheme("黑色", "#000000", showStatus: false);
 
                     // 初始化对齐按钮状态
                     UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -1808,12 +2597,15 @@ namespace ImageColorChanger.UI
             _lyricsSliceModeEnabled = false;
             _lyricsSliceLinesPerPage = 2;
             _lyricsCurrentSliceIndex = 0;
-            ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = FixedMainLyricsFontSize);
+            _lyricsThemeName = "黑色";
+            _lyricsThemeBackgroundHex = "#000000";
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
             _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
             UpdateLyricsProjectionFontSizeDisplay();
             EnforceMainLyricsEditorFontSize();
+            ApplyLyricsTheme("黑色", "#000000", showStatus: false);
             
             // 初始化对齐按钮状态
             UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -1862,7 +2654,11 @@ namespace ImageColorChanger.UI
                     ActiveMode = _lyricsSplitMode,
                     SliceModeEnabled = _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single,
                     SliceLinesPerPage = Math.Clamp(_lyricsSliceLinesPerPage, 1, 3),
-                    SliceCurrentIndex = Math.Max(0, _lyricsCurrentSliceIndex)
+                    SliceCurrentIndex = Math.Max(0, _lyricsCurrentSliceIndex),
+                    MainScreenFontSize = Math.Clamp(_lyricsMainScreenFontSize, MinMainLyricsFontSize, MaxMainLyricsFontSize),
+                    ThemeMode = string.Equals(_lyricsThemeName, "白色", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
+                    ThemeName = string.IsNullOrWhiteSpace(_lyricsThemeName) ? "黑色" : _lyricsThemeName,
+                    ThemeBackgroundHex = string.IsNullOrWhiteSpace(_lyricsThemeBackgroundHex) ? "#000000" : _lyricsThemeBackgroundHex
                 };
                 string serializedModeData = JsonSerializer.Serialize(modeData);
                 string expectedContent = LyricsModeContentPrefix + serializedModeData;
@@ -1930,6 +2726,12 @@ namespace ImageColorChanger.UI
                 return text;
             }
 
+            string plain = BuildPlainLyricsTextFromSliceItems();
+            if (!string.IsNullOrWhiteSpace(plain))
+            {
+                return plain;
+            }
+
             var lines = text.Replace("\r\n", "\n").Replace('\r', '\n')
                 .Split('\n')
                 .Where(line => !string.IsNullOrWhiteSpace(line));
@@ -1946,6 +2748,72 @@ namespace ImageColorChanger.UI
             {
                 return $"(db-path-error: {ex.Message})";
             }
+        }
+
+        /// <summary>
+        /// 仅在跨过版本阈值（6.0.1.5）时执行一次清理：删除旧版图片关联歌词。
+        /// </summary>
+        private void PurgeLegacyImageLinkedLyricsProjects()
+        {
+            const string thresholdVersion = "6.0.1.5";
+            try
+            {
+                if (_dbContext == null || _configManager == null)
+                {
+                    return;
+                }
+
+                string currentVersion = Services.UpdateService.GetCurrentVersion() ?? string.Empty;
+                string lastRunVersion = _configManager.LastRunAppVersion ?? string.Empty;
+
+                // 仅当“上次版本 < 阈值 && 当前版本 >= 阈值”时触发清理。
+                bool crossedThreshold =
+                    CompareSimpleVersion(lastRunVersion, thresholdVersion) < 0 &&
+                    CompareSimpleVersion(currentVersion, thresholdVersion) >= 0;
+                if (!crossedThreshold)
+                {
+                    if (!string.IsNullOrWhiteSpace(currentVersion))
+                    {
+                        _configManager.LastRunAppVersion = currentVersion;
+                    }
+                    return;
+                }
+
+                var legacyItems = _dbContext.LyricsProjects
+                    .Where(p => p.ImageId != null || p.SourceType == 0)
+                    .ToList();
+                int removed = legacyItems.Count;
+                if (removed > 0)
+                {
+                    var removedIds = legacyItems.Select(x => x.Id).ToHashSet();
+                    _dbContext.LyricsProjects.RemoveRange(legacyItems);
+                    _dbContext.SaveChanges();
+
+                    if (_currentLyricsProject != null && removedIds.Contains(_currentLyricsProject.Id))
+                    {
+                        _currentLyricsProject = null;
+                        _currentLyricsProjectId = 0;
+                    }
+                }
+
+                _configManager.LastRunAppVersion = string.IsNullOrWhiteSpace(currentVersion) ? thresholdVersion : currentVersion;
+                LogLyricsSaveDebug($"[Legacy-Purge] threshold={thresholdVersion}, removed={removed}, lastRun={_configManager.LastRunAppVersion}, db={GetLyricsDbPathSafe()}");
+            }
+            catch (Exception ex)
+            {
+                LogLyricsSaveDebug($"[Legacy-Purge-Error] {ex.Message}");
+            }
+        }
+
+        private static int CompareSimpleVersion(string left, string right)
+        {
+            if (Version.TryParse(string.IsNullOrWhiteSpace(left) ? "0.0.0.0" : left, out var lv) &&
+                Version.TryParse(string.IsNullOrWhiteSpace(right) ? "0.0.0.0" : right, out var rv))
+            {
+                return lv.CompareTo(rv);
+            }
+
+            return string.Compare(left ?? string.Empty, right ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
 
         private void EnsureLyricsProjectManager()

@@ -80,6 +80,12 @@ namespace ImageColorChanger.Database.Models
         public int ViewMode { get; set; } = 0;
 
         /// <summary>
+        /// 投影Logo水印路径（相对应用目录，如 data/watermarks/a.png）
+        /// </summary>
+        [Column("projection_watermark_path")]
+        public string ProjectionWatermarkPath { get; set; } = "";
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         [Column("created_time")]

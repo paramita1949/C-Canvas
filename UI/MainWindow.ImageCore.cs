@@ -78,11 +78,6 @@ namespace ImageColorChanger.UI
                             _originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe);
                     }
 
-                    if (_isLyricsMode)
-                    {
-                        OnImageChangedInLyricsMode();
-                    }
-
                     sw.Stop();
                     ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
                 }

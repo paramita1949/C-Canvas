@@ -35,7 +35,7 @@ namespace ImageColorChanger.Utils
                 return;
             }
 
-            Write("ERROR", phase, $"{exception.GetType().Name}: {exception.Message}");
+            Write("ERROR", phase, exception.ToString());
         }
 
         private static void Write(string level, string phase, string detail)

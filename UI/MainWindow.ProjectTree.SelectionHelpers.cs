@@ -89,10 +89,7 @@ namespace ImageColorChanger.UI
 
             if (_isLyricsMode)
             {
-                _currentImageId = fileId;
-                _imagePath = selectedItem.Path;
-                OnImageChangedInLyricsMode();
-                ShowStatus($"🎤 已切换到: {selectedItem.Name} 的歌词");
+                ShowStatus("🎤 歌词模块已独立，图片切换不影响当前歌词");
                 return;
             }
 
@@ -209,52 +206,6 @@ namespace ImageColorChanger.UI
             BtnColorEffect.Background = enabled
                 ? new SolidColorBrush(Color.FromRgb(255, 215, 0))
                 : Brushes.Transparent;
-        }
-
-        private void EnterLyricsModeFromFile(ProjectTreeItem item)
-        {
-            try
-            {
-                if (item == null || item.Type != TreeItemType.File)
-                {
-                    return;
-                }
-
-                if (item.FileType != FileType.Image)
-                {
-                    ShowStatus("⚠️ 歌词模式仅支持图片文件");
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(item.Path) || !System.IO.File.Exists(item.Path))
-                {
-                    ShowStatus($"❌ 文件不存在: {item?.Name}");
-                    return;
-                }
-
-                AutoExitTextEditorIfNeeded();
-                SetLyricsEntryByImage();
-                _currentImageId = item.Id;
-                _imagePath = item.Path;
-
-                if (_isLyricsMode)
-                {
-                    OnImageChangedInLyricsMode();
-                }
-                else
-                {
-                    EnterLyricsMode();
-                }
-
-                ShowStatus($"🎤 已进入歌词模式: {item.Name}");
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [EnterLyricsModeFromFile] 失败: {ex.Message}");
-#endif
-                ShowStatus($"❌ 进入歌词模式失败: {ex.Message}");
-            }
         }
 
         private void EnterLyricsModeFromSong(int lyricsProjectId)
