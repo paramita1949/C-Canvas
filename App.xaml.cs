@@ -4,11 +4,14 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
+using ImageColorChanger.Database;
 
 namespace ImageColorChanger
 {
@@ -18,6 +21,7 @@ namespace ImageColorChanger
         /// 依赖注入服务提供者
         /// </summary>
         public static IServiceProvider ServiceProvider { get; private set; }
+        public static Task DatabaseWarmupTask { get; private set; }
 
         /// <summary>
         /// 互斥锁，用于防止同一目录下启动多个实例
@@ -62,6 +66,22 @@ namespace ImageColorChanger
                 ConfigureServices(services);
                 ServiceProvider = services.BuildServiceProvider();
                 StartupPerfLogger.Mark("App.DependencyInjection.Ready");
+
+                // 预热数据库单例：与资源加载/窗口构造并行，减少首屏阶段等待。
+                DatabaseWarmupTask = Task.Run(() =>
+                {
+                    var sw = Stopwatch.StartNew();
+                    StartupPerfLogger.Mark("App.DatabaseWarmup.Begin");
+                    try
+                    {
+                        _ = ServiceProvider.GetRequiredService<DatabaseManager>();
+                        StartupPerfLogger.Mark("App.DatabaseWarmup.Completed", $"ElapsedMs={sw.ElapsedMilliseconds}");
+                    }
+                    catch (Exception ex)
+                    {
+                        StartupPerfLogger.Error("App.DatabaseWarmup.Failed", ex);
+                    }
+                });
 
                 // 初始化资源加载器（检测PAK或使用文件系统）
                 ResourceLoader.Initialize();

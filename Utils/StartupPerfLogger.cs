@@ -10,6 +10,10 @@ namespace ImageColorChanger.Utils
     /// </summary>
     public static class StartupPerfLogger
     {
+        // 封存开关：暂时禁用启动日志落盘（不再创建 debug 目录、不再写文件）。
+        // 可通过 AppContext.SetSwitch("Canvas.StartupPerfLogger.Enabled", true) 临时恢复。
+        private static readonly bool DisableFileLogging = !AppContext.TryGetSwitch("Canvas.StartupPerfLogger.Enabled", out bool enabled) || !enabled;
+
         private static readonly object SyncRoot = new();
         private static readonly Stopwatch StartupStopwatch = Stopwatch.StartNew();
         private static string _logFilePath;
@@ -40,6 +44,11 @@ namespace ImageColorChanger.Utils
 
         private static void Write(string level, string phase, string detail)
         {
+            if (DisableFileLogging)
+            {
+                return;
+            }
+
             try
             {
                 lock (SyncRoot)

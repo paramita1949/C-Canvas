@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ImageColorChanger.Database.Models;
+using System;
+using System.Data;
+using System.IO;
 
 namespace ImageColorChanger.Database
 {
@@ -34,6 +37,10 @@ namespace ImageColorChanger.Database
     /// </summary>
     public class CanvasDbContext : DbContext
     {
+        private const string StartupSchemaBootstrapStampKey = "db.schema.bootstrap.version";
+        private const string StartupSchemaBootstrapVersion = "2026-02-22.1";
+        private const int StartupSchemaBootstrapUserVersion = 202602221;
+
         /// <summary>
         /// 数据库文件路径
         /// </summary>
@@ -486,47 +493,78 @@ namespace ImageColorChanger.Database
             try
             {
                 // System.Diagnostics.Debug.WriteLine($"🔧 开始初始化数据库: {_dbPath}");
-                
+
+                bool dbFileExists = File.Exists(_dbPath);
+                bool hasBootstrapStamp = false;
+
+                if (dbFileExists)
+                {
+                    // 首选 SQLite user_version（单次 PRAGMA，避免每次走 settings 查询）。
+                    hasBootstrapStamp = HasStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
+
+                    // 兼容旧版本：若 user_version 未写入，则回退读取 settings 版本戳并回填 user_version。
+                    if (!hasBootstrapStamp)
+                    {
+                        hasBootstrapStamp = HasStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
+                        if (hasBootstrapStamp)
+                        {
+                            SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
+                        }
+                    }
+                }
+
+                if (hasBootstrapStamp)
+                {
+                    // 快速路径：数据库文件与 schema 版本戳均已就绪，跳过 EnsureCreated/兼容检查。
+                    EnsureDefaultProjectExists();
+                    ApplyStartupPragmas();
+                    return;
+                }
+
                 // 确保数据库已创建
                 Database.EnsureCreated();
                 // System.Diagnostics.Debug.WriteLine($"✅ Database.EnsureCreated() 完成");
 
-                // v2 文件夹映射层：建表 + 回填（兼容旧库）
-                EnsureFolderImagesSchemaExists();
+                // schema 兼容升级采用“版本戳”路径：
+                // - 首次/版本变更：执行全量兼容检查
+                // - 常规启动：可回到快速路径
+                if (!hasBootstrapStamp)
+                {
+                    // v2 文件夹映射层：建表 + 回填（兼容旧库）
+                    EnsureFolderImagesSchemaExists();
 
-                // 检查并创建关键帧表（兼容旧数据库）
-                EnsureKeyframesTableExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
+                    // 检查并创建关键帧表（兼容旧数据库）
+                    EnsureKeyframesTableExists();
+                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
 
-                // 检查并添加合成播放标记字段（兼容旧数据库）
-                EnsureCompositePlaybackColumnExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositePlaybackColumnExists() 完成");
+                    // 检查并添加合成播放标记字段（兼容旧数据库）
+                    EnsureCompositePlaybackColumnExists();
+                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositePlaybackColumnExists() 完成");
 
-                // 检查并创建合成播放脚本表（兼容旧数据库）
-                EnsureCompositeScriptTableExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositeScriptTableExists() 完成");
+                    // 检查并创建合成播放脚本表（兼容旧数据库）
+                    EnsureCompositeScriptTableExists();
+                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositeScriptTableExists() 完成");
 
-                // 检查并添加歌词项目的图片关联字段（兼容旧数据库）
-                EnsureLyricsImageIdColumnExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
+                    // 检查并添加歌词项目的图片关联字段（兼容旧数据库）
+                    EnsureLyricsImageIdColumnExists();
+                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
 
-                // 歌词库Schema（分组+扩展列）兼容升级
-                EnsureLyricsLibrarySchemaExists();
+                    // 歌词库Schema（分组+扩展列）兼容升级
+                    EnsureLyricsLibrarySchemaExists();
 
-                // 🆕 检查并添加文本项目的排序字段（兼容旧数据库）
-                EnsureTextProjectSortOrderColumnExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureTextProjectSortOrderColumnExists() 完成");
+                    // 🆕 检查并添加文本项目的排序字段（兼容旧数据库）
+                    EnsureTextProjectSortOrderColumnExists();
+                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureTextProjectSortOrderColumnExists() 完成");
+
+                    SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
+                    SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
+                }
 
                 // 🆕 确保默认项目存在
                 EnsureDefaultProjectExists();
                 // System.Diagnostics.Debug.WriteLine($"✅ EnsureDefaultProjectExists() 完成");
 
-                // 执行SQLite性能优化配置
-                Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-                Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
-                Database.ExecuteSqlRaw("PRAGMA cache_size=-10000;");
-                Database.ExecuteSqlRaw("PRAGMA foreign_keys=ON;");
-                Database.ExecuteSqlRaw("PRAGMA temp_store=MEMORY;");
+                ApplyStartupPragmas();
                 
                 // System.Diagnostics.Debug.WriteLine($"✅ 数据库初始化完成");
             }
@@ -534,6 +572,174 @@ namespace ImageColorChanger.Database
             {
                 // System.Diagnostics.Debug.WriteLine($"❌ 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
+            }
+        }
+
+        private void ApplyStartupPragmas()
+        {
+            // 连接级设置：每次新连接都应设置，成本较低。
+            Database.ExecuteSqlRaw(@"
+                PRAGMA journal_mode=WAL;
+                PRAGMA synchronous=NORMAL;
+                PRAGMA cache_size=-10000;
+                PRAGMA foreign_keys=ON;
+                PRAGMA temp_store=MEMORY;");
+        }
+
+        private bool HasStartupSchemaBootstrapUserVersion(int expectedVersion)
+        {
+            var connection = Database.GetDbConnection();
+            bool closeAfterRead = false;
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                    closeAfterRead = true;
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "PRAGMA user_version";
+                    var value = command.ExecuteScalar();
+                    int currentVersion = Convert.ToInt32(value ?? 0);
+                    return currentVersion == expectedVersion;
+                }
+            }
+            catch
+            {
+                // 读取失败时回退到 settings 版本戳检查。
+                return false;
+            }
+            finally
+            {
+                if (closeAfterRead && connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        private void SaveStartupSchemaBootstrapUserVersion(int version)
+        {
+            var connection = Database.GetDbConnection();
+            bool closeAfterWrite = false;
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                    closeAfterWrite = true;
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = $"PRAGMA user_version = {version}";
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch
+            {
+                // 写入失败不阻断启动，下次仍可回退到 settings 版本戳路径。
+            }
+            finally
+            {
+                if (closeAfterWrite && connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        private bool HasStartupSchemaBootstrapStamp(string expectedVersion)
+        {
+            var connection = Database.GetDbConnection();
+            bool closeAfterRead = false;
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                    closeAfterRead = true;
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings' LIMIT 1";
+                    var tableExists = command.ExecuteScalar() != null;
+                    if (!tableExists)
+                    {
+                        return false;
+                    }
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SELECT value FROM settings WHERE key = @key LIMIT 1";
+                    var keyParam = command.CreateParameter();
+                    keyParam.ParameterName = "@key";
+                    keyParam.Value = StartupSchemaBootstrapStampKey;
+                    command.Parameters.Add(keyParam);
+
+                    var value = command.ExecuteScalar()?.ToString();
+                    return string.Equals(value, expectedVersion, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch
+            {
+                // 读取版本戳失败时走完整检查，优先保证兼容升级正确性。
+                return false;
+            }
+            finally
+            {
+                if (closeAfterRead && connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        private void SaveStartupSchemaBootstrapStamp(string version)
+        {
+            var connection = Database.GetDbConnection();
+            bool closeAfterWrite = false;
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                    closeAfterWrite = true;
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = @"
+                        INSERT INTO settings(key, value) VALUES(@key, @value)
+                        ON CONFLICT(key) DO UPDATE SET value = excluded.value";
+
+                    var keyParam = command.CreateParameter();
+                    keyParam.ParameterName = "@key";
+                    keyParam.Value = StartupSchemaBootstrapStampKey;
+                    command.Parameters.Add(keyParam);
+
+                    var valueParam = command.CreateParameter();
+                    valueParam.ParameterName = "@value";
+                    valueParam.Value = version ?? string.Empty;
+                    command.Parameters.Add(valueParam);
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch
+            {
+                // 版本戳写入失败不阻断启动，下次会回到完整检查路径。
+            }
+            finally
+            {
+                if (closeAfterWrite && connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
             }
         }
 
@@ -1084,7 +1290,13 @@ namespace ImageColorChanger.Database
         {
             try
             {
-                // 检查是否已有项目
+                // 常规启动快速路径：先用轻量 SQL 检查，避免每次都走 EF 查询管线。
+                if (HasAnyTextProject())
+                {
+                    return;
+                }
+
+                // 检查是否已有项目（兜底，防止连接读取异常导致误判）
                 if (!TextProjects.Any())
                 {
                     #if DEBUG
@@ -1093,7 +1305,7 @@ namespace ImageColorChanger.Database
 
                     // 检查是否是首次初始化（通过 Settings 表中的标记判断）
                     const string INIT_FLAG_KEY = "first_initialization_completed";
-                    var initFlag = Settings.FirstOrDefault(s => s.Key == INIT_FLAG_KEY);
+                    var initFlag = Settings.Find(INIT_FLAG_KEY);
                     bool isFirstTime = (initFlag == null);
 
                     #if DEBUG
@@ -1190,6 +1402,37 @@ namespace ImageColorChanger.Database
                 _ = ex;  // 防止未使用变量警告
                 #endif
                 // 不抛出异常，因为这不是致命错误
+            }
+        }
+
+        private bool HasAnyTextProject()
+        {
+            var connection = Database.GetDbConnection();
+            bool closeAfterRead = false;
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                    closeAfterRead = true;
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SELECT 1 FROM text_projects LIMIT 1";
+                    return command.ExecuteScalar() != null;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (closeAfterRead && connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
             }
         }
     }

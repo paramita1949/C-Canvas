@@ -38,6 +38,7 @@ namespace ImageColorChanger.Managers
         /// 所有支持的扩展名
         /// </summary>
         public static readonly string[] AllExtensions = ImageExtensions.Concat(VideoExtensions).Concat(AudioExtensions).ToArray();
+        private static readonly HashSet<string> AllExtensionsSet = new HashSet<string>(AllExtensions, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// 构造函数
@@ -130,7 +131,7 @@ namespace ImageColorChanger.Managers
                 // System.Diagnostics.Debug.WriteLine($"📁 开始导入文件夹: {folderName}");
 
                 // 递归扫描所有支持的媒体文件
-                var mediaFiles = ScanMediaFilesRecursively(folderPath);
+                var mediaFiles = ScanMediaFilesRecursively(folderPath, sortForImport: true);
                 
                 if (mediaFiles.Count == 0)
                 {
@@ -246,32 +247,32 @@ namespace ImageColorChanger.Managers
         /// </summary>
         /// <param name="folderPath">文件夹路径</param>
         /// <returns>媒体文件路径列表</returns>
-        private List<string> ScanMediaFilesRecursively(string folderPath)
+        private List<string> ScanMediaFilesRecursively(string folderPath, bool sortForImport)
         {
             var mediaFiles = new List<string>();
 
             try
             {
-                // 使用Directory.EnumerateFiles递归搜索
-                // SearchOption.AllDirectories 等同于 Python 的 rglob("*")
-                foreach (var extension in AllExtensions)
+                foreach (var file in Directory.EnumerateFiles(folderPath, "*.*", SearchOption.AllDirectories))
                 {
-                    var pattern = $"*{extension}";
-                    var files = Directory.EnumerateFiles(folderPath, pattern, SearchOption.AllDirectories);
-                    mediaFiles.AddRange(files);
+                    var extension = Path.GetExtension(file);
+                    if (!string.IsNullOrWhiteSpace(extension) && AllExtensionsSet.Contains(extension))
+                    {
+                        mediaFiles.Add(file);
+                    }
                 }
 
-                // 使用智能排序（支持中文拼音和数字混合排序）
-                // 优化：只计算一次排序键，避免重复计算
-                var filesWithKeys = mediaFiles
-                    .Select(f => new { File = f, SortKey = _sortManager.GetSortKey(f) })
-                    .OrderBy(x => x.SortKey.prefixNumber)
-                    .ThenBy(x => x.SortKey.pinyinPart)
-                    .ThenBy(x => x.SortKey.suffixNumber)
-                    .Select(x => x.File)
-                    .ToList();
-                
-                mediaFiles = filesWithKeys;
+                if (sortForImport)
+                {
+                    // 导入阶段需要稳定排序；同步阶段禁用排序可显著降低冷启动扫描成本。
+                    mediaFiles = mediaFiles
+                        .Select(f => new { File = f, SortKey = _sortManager.GetSortKey(f) })
+                        .OrderBy(x => x.SortKey.prefixNumber)
+                        .ThenBy(x => x.SortKey.pinyinPart)
+                        .ThenBy(x => x.SortKey.suffixNumber)
+                        .Select(x => x.File)
+                        .ToList();
+                }
             }
             catch (UnauthorizedAccessException)
             {
@@ -299,117 +300,16 @@ namespace ImageColorChanger.Managers
             {
                 var folders = _dbManager.GetAllFolders();
                 var folder = folders.FirstOrDefault(f => f.Id == folderId);
-                
-                if (folder == null || !Directory.Exists(folder.Path))
-                {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 文件夹不存在: ID={folderId}");
-                    return (0, 0, 0);
-                }
-
-                // 扫描当前文件系统中的文件
-                var currentFiles = ScanMediaFilesRecursively(folder.Path)
-                    .Select(NormalizePath)
-                    .ToList();
-                var currentFileSet = new HashSet<string>(currentFiles, StringComparer.OrdinalIgnoreCase);
-
-                // 获取数据库中的文件
-                var dbFiles = _dbManager.GetMediaFilesByFolder(folderId);
                 var globalExistingPathSet = new HashSet<string>(
                     _dbManager.GetAllMediaPaths().Select(NormalizePath),
                     StringComparer.OrdinalIgnoreCase);
 
-                // 计算新增的文件
-                var newFiles = currentFiles
-                    .Where(f => !globalExistingPathSet.Contains(f))
-                    .ToList();
-                
-                // 计算已删除的文件
-                var deletedFiles = dbFiles.Where(f => !currentFileSet.Contains(NormalizePath(f.Path))).ToList();
-
-                // 添加新文件
-                var context = _dbManager.GetDbContext();
-                if (newFiles.Count > 0)
-                {
-                    _dbManager.AddMediaFiles(newFiles, folderId);
-                }
-
-                bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
-                // 映射新增：包括“原库已有但未映射到该目录”的路径
-                var mappedPathSet = new HashSet<string>(dbFiles.Select(f => NormalizePath(f.Path)), StringComparer.OrdinalIgnoreCase);
-                var pathsNeedingLink = currentFiles.Where(p => !mappedPathSet.Contains(p)).ToList();
-                if (folderV2Enabled && pathsNeedingLink.Count > 0)
-                {
-                    var imageMap = context.MediaFiles
-                        .Where(m => pathsNeedingLink.Contains(m.Path))
-                        .Select(m => new { m.Id, m.Path })
-                        .ToList()
-                        .GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
-
-                    var existingLinks = context.FolderImages
-                        .Where(fi => fi.FolderId == folderId)
-                        .Select(fi => fi.ImageId)
-                        .ToHashSet();
-
-                    int orderIndex = context.FolderImages
-                        .Where(fi => fi.FolderId == folderId)
-                        .Max(fi => (int?)fi.OrderIndex) ?? 0;
-
-                    var linksToAdd = new List<FolderImage>();
-                    foreach (var path in pathsNeedingLink)
-                    {
-                        if (!imageMap.TryGetValue(path, out var imageId) || existingLinks.Contains(imageId))
-                        {
-                            continue;
-                        }
-
-                        linksToAdd.Add(new FolderImage
-                        {
-                            FolderId = folderId,
-                            ImageId = imageId,
-                            OrderIndex = ++orderIndex,
-                            RelativePath = GetRelativePathSafe(folder.Path, path),
-                            DiscoveredAt = DateTime.Now,
-                            UpdatedAt = DateTime.Now,
-                            IsHidden = false
-                        });
-                        existingLinks.Add(imageId);
-                    }
-
-                    if (linksToAdd.Count > 0)
-                    {
-                        context.FolderImages.AddRange(linksToAdd);
-                        context.SaveChanges();
-                    }
-                }
-
-                // 删除不存在的仅为“该目录映射”，素材主数据由引用关系决定
-                if (folderV2Enabled && deletedFiles.Count > 0)
-                {
-                    var deletedIds = deletedFiles.Select(f => f.Id).Distinct().ToList();
-                    var deleteLinks = context.FolderImages
-                        .Where(fi => fi.FolderId == folderId && deletedIds.Contains(fi.ImageId))
-                        .ToList();
-                    if (deleteLinks.Count > 0)
-                    {
-                        context.FolderImages.RemoveRange(deleteLinks);
-                        context.SaveChanges();
-                    }
-                }
-
-                // 🔑 关键修复：同步后重新应用排序规则
-                if (newFiles.Count > 0 || deletedFiles.Count > 0)
-                {
-                    ReapplySortRuleForFolder(folderId);
-                }
-
-                //System.Diagnostics.Debug.WriteLine($"🔄 同步完成: 新增 {newFiles.Count}, 删除 {deletedFiles.Count}");
+                var result = SyncFolderCore(folder, globalExistingPathSet);
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
-                //     $"[ImportManager] op={operationId} SyncFolder 完成: FolderId={folderId}, added={newFiles.Count}, removed={deletedFiles.Count}");
+                //     $"[ImportManager] op={operationId} SyncFolder 完成: FolderId={folderId}, added={result.added}, removed={result.removed}, updated={result.updated}");
 #endif
-                
-                return (newFiles.Count, deletedFiles.Count, 0);
+                return result;
             }
             catch (Exception)
             {
@@ -478,6 +378,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public (int added, int removed, int updated) SyncAllFolders()
         {
+            WriteLock.Wait();
             int totalAdded = 0;
             int totalRemoved = 0;
             int totalUpdated = 0;
@@ -489,10 +390,13 @@ namespace ImageColorChanger.Managers
             try
             {
                 var folders = _dbManager.GetAllFolders();
+                var globalExistingPathSet = new HashSet<string>(
+                    _dbManager.GetAllMediaPaths().Select(NormalizePath),
+                    StringComparer.OrdinalIgnoreCase);
 
                 foreach (var folder in folders)
                 {
-                    var (added, removed, updated) = SyncFolder(folder.Id);
+                    var (added, removed, updated) = SyncFolderCore(folder, globalExistingPathSet);
                     totalAdded += added;
                     totalRemoved += removed;
                     totalUpdated += updated;
@@ -511,8 +415,117 @@ namespace ImageColorChanger.Managers
                 // System.Diagnostics.Trace.WriteLine($"[ImportManager] op={operationId} SyncAllFolders 堆栈: {ex.StackTrace}");
 #endif
             }
+            finally
+            {
+                WriteLock.Release();
+            }
 
             return (totalAdded, totalRemoved, totalUpdated);
+        }
+
+        private (int added, int removed, int updated) SyncFolderCore(
+            Folder folder,
+            HashSet<string> globalExistingPathSet)
+        {
+            if (folder == null || !Directory.Exists(folder.Path))
+            {
+                return (0, 0, 0);
+            }
+
+            // 同步阶段优先速度，不做拼音排序。
+            var currentFiles = ScanMediaFilesRecursively(folder.Path, sortForImport: false)
+                .Select(NormalizePath)
+                .ToList();
+            var currentFileSet = new HashSet<string>(currentFiles, StringComparer.OrdinalIgnoreCase);
+
+            var dbFiles = _dbManager.GetMediaFilesByFolder(folder.Id);
+
+            var newFiles = currentFiles
+                .Where(f => !globalExistingPathSet.Contains(f))
+                .ToList();
+
+            var deletedFiles = dbFiles
+                .Where(f => !currentFileSet.Contains(NormalizePath(f.Path)))
+                .ToList();
+
+            var context = _dbManager.GetDbContext();
+            if (newFiles.Count > 0)
+            {
+                _dbManager.AddMediaFiles(newFiles, folder.Id);
+                foreach (var file in newFiles)
+                {
+                    globalExistingPathSet.Add(file);
+                }
+            }
+
+            bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
+            var mappedPathSet = new HashSet<string>(dbFiles.Select(f => NormalizePath(f.Path)), StringComparer.OrdinalIgnoreCase);
+            var pathsNeedingLink = currentFiles.Where(p => !mappedPathSet.Contains(p)).ToList();
+            if (folderV2Enabled && pathsNeedingLink.Count > 0)
+            {
+                var imageMap = context.MediaFiles
+                    .Where(m => pathsNeedingLink.Contains(m.Path))
+                    .Select(m => new { m.Id, m.Path })
+                    .ToList()
+                    .GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                var existingLinks = context.FolderImages
+                    .Where(fi => fi.FolderId == folder.Id)
+                    .Select(fi => fi.ImageId)
+                    .ToHashSet();
+
+                int orderIndex = context.FolderImages
+                    .Where(fi => fi.FolderId == folder.Id)
+                    .Max(fi => (int?)fi.OrderIndex) ?? 0;
+
+                var linksToAdd = new List<FolderImage>();
+                foreach (var path in pathsNeedingLink)
+                {
+                    if (!imageMap.TryGetValue(path, out var imageId) || existingLinks.Contains(imageId))
+                    {
+                        continue;
+                    }
+
+                    linksToAdd.Add(new FolderImage
+                    {
+                        FolderId = folder.Id,
+                        ImageId = imageId,
+                        OrderIndex = ++orderIndex,
+                        RelativePath = GetRelativePathSafe(folder.Path, path),
+                        DiscoveredAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now,
+                        IsHidden = false
+                    });
+                    existingLinks.Add(imageId);
+                }
+
+                if (linksToAdd.Count > 0)
+                {
+                    context.FolderImages.AddRange(linksToAdd);
+                    context.SaveChanges();
+                }
+            }
+
+            if (folderV2Enabled && deletedFiles.Count > 0)
+            {
+                var deletedIds = deletedFiles.Select(f => f.Id).Distinct().ToList();
+                var deleteLinks = context.FolderImages
+                    .Where(fi => fi.FolderId == folder.Id && deletedIds.Contains(fi.ImageId))
+                    .ToList();
+                if (deleteLinks.Count > 0)
+                {
+                    context.FolderImages.RemoveRange(deleteLinks);
+                    context.SaveChanges();
+                }
+            }
+
+            if (newFiles.Count > 0 || deletedFiles.Count > 0)
+            {
+                ReapplySortRuleForFolder(folder.Id);
+            }
+
+            return (newFiles.Count, deletedFiles.Count, 0);
         }
 
         private static string NormalizePath(string path)

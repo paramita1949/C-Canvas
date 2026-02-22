@@ -15,16 +15,51 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private const string StartupMigrationStampKey = "startup.migration.runner.version";
+
         private void InitializeDatabase()
         {
             try
             {
+                var warmupTask = App.DatabaseWarmupTask;
+                if (warmupTask != null && !warmupTask.IsCompleted)
+                {
+                    var waitSw = Stopwatch.StartNew();
+                    StartupPerfLogger.Mark("MainWindow.InitializeUI.DatabaseWarmup.Wait.Begin");
+                    warmupTask.GetAwaiter().GetResult();
+                    StartupPerfLogger.Mark("MainWindow.InitializeUI.DatabaseWarmup.Wait.Completed", $"ElapsedMs={waitSw.ElapsedMilliseconds}");
+                }
+
                 _configManager = _mainWindowServices.GetRequired<ConfigManager>();
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
-                using (var migrationRunner = new DatabaseMigrationRunner(_dbContext))
+
+                // 迁移只在版本变化时执行，避免每次启动重复跑 schema 检查。
+                var currentVersion = Services.UpdateService.GetCurrentVersion() ?? "0.0.0.0";
+                var lastMigratedVersion = dbManager.GetSetting(StartupMigrationStampKey, string.Empty) ?? string.Empty;
+                bool shouldRunStartupMigrations = !string.Equals(
+                    lastMigratedVersion,
+                    currentVersion,
+                    StringComparison.OrdinalIgnoreCase);
+
+                if (shouldRunStartupMigrations)
                 {
-                    migrationRunner.RunStartupMigrations();
+                    var migrationSw = Stopwatch.StartNew();
+                    using (var migrationRunner = new DatabaseMigrationRunner(_dbContext))
+                    {
+                        migrationRunner.RunStartupMigrations();
+                    }
+
+                    dbManager.SaveSetting(StartupMigrationStampKey, currentVersion);
+                    StartupPerfLogger.Mark(
+                        "MainWindow.InitializeUI.Database.Migrations.Completed",
+                        $"ElapsedMs={migrationSw.ElapsedMilliseconds}; Version={currentVersion}");
+                }
+                else
+                {
+                    StartupPerfLogger.Mark(
+                        "MainWindow.InitializeUI.Database.Migrations.Skipped",
+                        $"Version={currentVersion}");
                 }
 
 
@@ -34,8 +69,7 @@ namespace ImageColorChanger.UI
                 BorderSettingsPanel.SettingsStore = uiSettingsStore;
                 TextColorSettingsPanel.SettingsStore = uiSettingsStore;
 
-                LoadSearchScopes();
-                UpdateSearchEntryModeVisual();
+                // 搜索范围在 Window_Loaded 的项目树刷新后统一加载，避免启动阶段重复查询。
             }
             catch (Exception ex)
             {

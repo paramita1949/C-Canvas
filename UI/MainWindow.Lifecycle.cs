@@ -11,6 +11,7 @@ namespace ImageColorChanger.UI
     {
         private const string BaseWindowTitle = "咏慕投影";
         private VersionInfo _pendingTitleUpdateVersionInfo;
+        private bool _startupFolderSyncDeferredQueued;
         #region 窗口生命周期事件
 
         /// <summary>
@@ -71,7 +72,7 @@ namespace ImageColorChanger.UI
             InitializeBibleService();
             StartupPerfLogger.Mark("MainWindow.InitializeBibleService.Completed", $"ElapsedMs={bibleInitSw.ElapsedMilliseconds}");
 
-            // 🔄 静默同步所有文件夹（避免跨线程并发访问同一 DbContext）
+            // 启动关键路径：只做轻量对账，不做全量磁盘扫描。
             var startupSyncSw = System.Diagnostics.Stopwatch.StartNew();
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Begin");
             try
@@ -92,19 +93,6 @@ namespace ImageColorChanger.UI
                 //     $"[MainWindow] 启动对账: missingLinks={reconcileResult.missingLinks}, staleLinks={reconcileResult.staleLinks}, addedLinks={reconcileResult.addedLinks}, removedLinks={reconcileResult.removedLinks}");
 #endif
 
-                var importManager = ImportManagerService;
-                if (importManager != null)
-                {
-                    var syncSw = System.Diagnostics.Stopwatch.StartNew();
-                    var (added, removed, updated) = importManager.SyncAllFolders();
-                    StartupPerfLogger.Mark(
-                        "MainWindow.StartupFolderSync.SyncAllFolders.Completed",
-                        $"ElapsedMs={syncSw.ElapsedMilliseconds}; Added={added}; Removed={removed}; Updated={updated}");
-#if DEBUG
-                    // System.Diagnostics.Trace.WriteLine(
-                    //     $"[MainWindow] 启动同步完成: added={added}, removed={removed}, updated={updated}");
-#endif
-                }
             }
             catch (Exception)
             {
@@ -117,7 +105,7 @@ namespace ImageColorChanger.UI
 
             // 同步后刷新项目树和搜索范围
             var refreshTreeSw = System.Diagnostics.Stopwatch.StartNew();
-            LoadProjects();
+            LoadProjects(enableDetailedIcons: false);
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadProjects.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
 
             refreshTreeSw.Restart();
@@ -126,12 +114,76 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
             StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=OnDemandOnly");
+            QueueDeferredStartupFolderSync();
 
             // 延迟5秒后检查更新，避免影响启动速度
             await Task.Delay(5000);
             StartupPerfLogger.Mark("MainWindow.UpdateCheck.DelayElapsed");
             await CheckForUpdatesAsync();
             StartupPerfLogger.Mark("MainWindow.UpdateCheck.Completed");
+        }
+
+        private void QueueDeferredStartupFolderSync()
+        {
+            if (_startupFolderSyncDeferredQueued)
+            {
+                return;
+            }
+
+            _startupFolderSyncDeferredQueued = true;
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Queued", "Reason=AfterStartupCoreReady");
+            Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                new Action(RunDeferredStartupFolderSync));
+        }
+
+        private void RunDeferredStartupFolderSync()
+        {
+            if (_startupDeferredWorkCts.IsCancellationRequested)
+            {
+                StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Cancelled");
+                return;
+            }
+
+            try
+            {
+                var importManager = ImportManagerService;
+                if (importManager == null)
+                {
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Skipped", "Reason=ImportManagerUnavailable");
+                    return;
+                }
+
+                var totalSw = System.Diagnostics.Stopwatch.StartNew();
+                var syncSw = System.Diagnostics.Stopwatch.StartNew();
+                var (added, removed, updated) = importManager.SyncAllFolders();
+                StartupPerfLogger.Mark(
+                    "MainWindow.StartupFolderSync.Deferred.SyncAllFolders.Completed",
+                    $"ElapsedMs={syncSw.ElapsedMilliseconds}; Added={added}; Removed={removed}; Updated={updated}");
+
+                if (_startupDeferredWorkCts.IsCancellationRequested)
+                {
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Cancelled");
+                    return;
+                }
+
+                var refreshSw = System.Diagnostics.Stopwatch.StartNew();
+                LoadProjects(enableDetailedIcons: true);
+                StartupPerfLogger.Mark(
+                    "MainWindow.StartupFolderSync.Deferred.LoadProjects.Completed",
+                    $"ElapsedMs={refreshSw.ElapsedMilliseconds}");
+
+                refreshSw.Restart();
+                LoadSearchScopes();
+                StartupPerfLogger.Mark(
+                    "MainWindow.StartupFolderSync.Deferred.LoadSearchScopes.Completed",
+                    $"ElapsedMs={refreshSw.ElapsedMilliseconds}");
+                StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Completed", $"ElapsedMs={totalSw.ElapsedMilliseconds}");
+            }
+            catch (Exception ex)
+            {
+                StartupPerfLogger.Error("MainWindow.StartupFolderSync.Deferred.Failed", ex);
+            }
         }
 
         /// <summary>

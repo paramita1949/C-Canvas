@@ -117,6 +117,8 @@ namespace ImageColorChanger.UI
                 {
                     SearchScope.SelectedIndex = 0;
                 }
+
+                UpdateSearchEntryModeVisual();
             }
             catch (Exception)
             {

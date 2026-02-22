@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using Microsoft.EntityFrameworkCore;
 using Color = System.Windows.Media.Color;
 using ColorConverter = System.Windows.Media.ColorConverter;
 
@@ -23,7 +26,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 从数据库加载项目树
         /// </summary>
-        private void LoadProjects()
+        private void LoadProjects(bool enableDetailedIcons = true)
         {
             if (_textProjectManager == null) return;
             try
@@ -32,8 +35,10 @@ namespace ImageColorChanger.UI
                 _projectTreeItems.Clear();
 
                 var folders = dbManager.GetAllFolders();
-                var rootFiles = dbManager.GetRootMediaFiles();
-                var manualSortFolderIds = dbManager.GetManualSortFolderIds();
+                var rootFiles = BuildRootMediaFiles(dbManager);
+                var folderMediaLookup = BuildFolderMediaLookup(dbManager, folders);
+                var manualSortFolderIds = dbManager.GetManualSortFolderIds().ToHashSet();
+                BuildOriginalMarkLookup(enableDetailedIcons, out var markedFolderIds, out var folderSequenceIds, out var markedImageIds);
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
                 //     $"[LoadProjects] DbPath={dbManager.GetDatabasePath()}, folders={folders.Count}, rootFiles={rootFiles.Count}");
@@ -46,10 +51,14 @@ namespace ImageColorChanger.UI
                 foreach (var folder in folders)
                 {
                     bool isManualSort = manualSortFolderIds.Contains(folder.Id);
-                    var files = dbManager.GetMediaFilesByFolder(folder.Id);
+                    if (!folderMediaLookup.TryGetValue(folder.Id, out var files))
+                    {
+                        files = new List<MediaFile>();
+                    }
+
                     bool hasMediaFiles = files.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
-                    string folderPlayMode = dbManager.GetFolderVideoPlayMode(folder.Id);
-                    bool hasColorEffectMark = dbManager.HasFolderAutoColorEffect(folder.Id);
+                    string folderPlayMode = folder.VideoPlayMode;
+                    bool hasColorEffectMark = folder.AutoColorEffect == 1;
 
                     string iconKind;
                     string iconColor;
@@ -74,7 +83,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        (iconKind, iconColor) = _originalManager.GetFolderIconKind(folder.Id, isManualSort);
+                        (iconKind, iconColor) = ResolveFolderIcon(folder.Id, isManualSort, enableDetailedIcons, markedFolderIds, folderSequenceIds);
                     }
 
                     var folderItem = new ProjectTreeItem
@@ -95,7 +104,8 @@ namespace ImageColorChanger.UI
                         string fileIconColor = "#95E1D3";
                         if (file.FileType == FileType.Image)
                         {
-                            (fileIconKind, fileIconColor) = _originalManager.GetImageIconKind(file.Id);
+                            bool imageMarked = enableDetailedIcons && markedImageIds != null && markedImageIds.Contains(file.Id);
+                            (fileIconKind, fileIconColor) = imageMarked ? ("Star", "#FFD700") : ("Image", "#95E1D3");
                         }
 
                         folderItem.Children.Add(new ProjectTreeItem
@@ -120,7 +130,8 @@ namespace ImageColorChanger.UI
                     string rootFileIconColor = "#95E1D3";
                     if (file.FileType == FileType.Image)
                     {
-                        (rootFileIconKind, rootFileIconColor) = _originalManager.GetImageIconKind(file.Id);
+                        bool imageMarked = enableDetailedIcons && markedImageIds != null && markedImageIds.Contains(file.Id);
+                        (rootFileIconKind, rootFileIconColor) = imageMarked ? ("Star", "#FFD700") : ("Image", "#95E1D3");
                     }
 
                     _projectTreeItems.Add(new ProjectTreeItem
@@ -146,6 +157,146 @@ namespace ImageColorChanger.UI
             catch (Exception)
             {
             }
+        }
+
+        private void BuildOriginalMarkLookup(
+            bool enableDetailedIcons,
+            out HashSet<int> markedFolderIds,
+            out HashSet<int> folderSequenceIds,
+            out HashSet<int> markedImageIds)
+        {
+            markedFolderIds = null;
+            folderSequenceIds = null;
+            markedImageIds = null;
+
+            if (!enableDetailedIcons || _dbContext == null)
+            {
+                return;
+            }
+
+            var markRows = _dbContext.OriginalMarks
+                .AsNoTracking()
+                .Select(m => new { m.ItemTypeString, m.ItemId, m.MarkTypeString })
+                .ToList();
+
+            markedFolderIds = markRows
+                .Where(m => string.Equals(m.ItemTypeString, "folder", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.ItemId)
+                .ToHashSet();
+
+            folderSequenceIds = markRows
+                .Where(m =>
+                    string.Equals(m.ItemTypeString, "folder", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(m.MarkTypeString, "sequence", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.ItemId)
+                .ToHashSet();
+
+            markedImageIds = markRows
+                .Where(m => string.Equals(m.ItemTypeString, "image", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.ItemId)
+                .ToHashSet();
+        }
+
+        private static (string iconKind, string iconColor) ResolveFolderIcon(
+            int folderId,
+            bool isManualSort,
+            bool enableDetailedIcons,
+            HashSet<int> markedFolderIds,
+            HashSet<int> folderSequenceIds)
+        {
+            if (!enableDetailedIcons || markedFolderIds == null || !markedFolderIds.Contains(folderId))
+            {
+                return (isManualSort ? "FolderCog" : "Folder", "#FDB44B");
+            }
+
+            bool isSequence = folderSequenceIds != null && folderSequenceIds.Contains(folderId);
+            if (isSequence)
+            {
+                return isManualSort ? ("FolderDownload", "#FF6B35") : ("ArrowDownward", "#FF6B35");
+            }
+
+            return isManualSort ? ("FolderSync", "#4ECDC4") : ("Repeat", "#4ECDC4");
+        }
+
+        private Dictionary<int, List<MediaFile>> BuildFolderMediaLookup(DatabaseManager dbManager, List<Folder> folders)
+        {
+            var result = new Dictionary<int, List<MediaFile>>();
+            if (_dbContext == null || folders == null || folders.Count == 0)
+            {
+                return result;
+            }
+
+            var folderIds = folders.Select(f => f.Id).Distinct().ToList();
+            var folderIdSet = folderIds.ToHashSet();
+
+            var legacyFiles = _dbContext.MediaFiles
+                .AsNoTracking()
+                .Where(m => m.FolderId.HasValue && folderIdSet.Contains(m.FolderId.Value))
+                .OrderBy(m => m.FolderId)
+                .ThenBy(m => m.OrderIndex ?? int.MaxValue)
+                .ToList();
+
+            var legacyLookup = legacyFiles
+                .GroupBy(m => m.FolderId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            if (!dbManager.IsFolderSystemV2Enabled())
+            {
+                return legacyLookup;
+            }
+
+            var mappedRows = (from fi in _dbContext.FolderImages.AsNoTracking()
+                              join mf in _dbContext.MediaFiles.AsNoTracking() on fi.ImageId equals mf.Id
+                              where folderIdSet.Contains(fi.FolderId)
+                              orderby fi.FolderId, fi.OrderIndex, mf.OrderIndex
+                              select new { fi.FolderId, MediaFile = mf })
+                .ToList();
+
+            var mappedLookup = mappedRows
+                .GroupBy(r => r.FolderId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.MediaFile).ToList());
+
+            foreach (var folderId in folderIds)
+            {
+                if (mappedLookup.TryGetValue(folderId, out var mappedFiles) && mappedFiles.Count > 0)
+                {
+                    result[folderId] = mappedFiles;
+                }
+                else if (legacyLookup.TryGetValue(folderId, out var fallbackFiles))
+                {
+                    result[folderId] = fallbackFiles;
+                }
+                else
+                {
+                    result[folderId] = new List<MediaFile>();
+                }
+            }
+
+            return result;
+        }
+
+        private List<MediaFile> BuildRootMediaFiles(DatabaseManager dbManager)
+        {
+            if (_dbContext == null)
+            {
+                return dbManager.GetRootMediaFiles();
+            }
+
+            if (!dbManager.IsFolderSystemV2Enabled())
+            {
+                return _dbContext.MediaFiles
+                    .AsNoTracking()
+                    .Where(m => m.FolderId == null)
+                    .OrderBy(m => m.OrderIndex ?? int.MaxValue)
+                    .ToList();
+            }
+
+            return _dbContext.MediaFiles
+                .AsNoTracking()
+                .Where(m => m.FolderId == null &&
+                            !_dbContext.FolderImages.Any(fi => fi.ImageId == m.Id))
+                .OrderBy(m => m.OrderIndex ?? int.MaxValue)
+                .ToList();
         }
 
         /// <summary>

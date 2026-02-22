@@ -49,8 +49,8 @@ namespace ImageColorChanger.Database.Repositories
         public List<Folder> GetAllFolders()
         {
             return _context.Folders
+                .AsNoTracking()
                 .OrderBy(f => f.OrderIndex)
-                .Include(f => f.MediaFiles)
                 .ToList();
         }
 
