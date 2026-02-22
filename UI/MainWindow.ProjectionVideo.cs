@@ -108,6 +108,12 @@ namespace ImageColorChanger.UI
                 if (string.IsNullOrEmpty(_pendingProjectionVideoPath))
                     return;
 
+                if (!EnsureVideoPlayerInitialized("PlayPendingProjectionVideo"))
+                {
+                    ShowStatus("❌ 媒体播放器初始化失败");
+                    return;
+                }
+
                 string videoPath = _pendingProjectionVideoPath;
                 _pendingProjectionVideoPath = null;
 

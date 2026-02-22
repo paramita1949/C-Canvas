@@ -1,9 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Utils;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ImageColorChanger.UI
@@ -54,6 +56,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (_videoPlayerManager != null)
+                {
+                    return;
+                }
+
                 _videoPlayerManager = new VideoPlayerManager(this);
 
                 if (_projectionManager != null)
@@ -83,6 +90,28 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 MessageBox.Show($"视频播放器初始化失败: {ex.Message}\n\n部分功能可能无法使用。", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private bool EnsureVideoPlayerInitialized(string reason = null)
+        {
+            if (_videoPlayerManager != null)
+            {
+                return true;
+            }
+
+            var sw = Stopwatch.StartNew();
+            StartupPerfLogger.Mark("MainWindow.VideoPlayer.LazyInit.Begin", $"Reason={reason ?? "Unknown"}");
+            try
+            {
+                InitializeVideoPlayer();
+                StartupPerfLogger.Mark("MainWindow.VideoPlayer.LazyInit.Completed", $"ElapsedMs={sw.ElapsedMilliseconds}; Success={_videoPlayerManager != null}");
+                return _videoPlayerManager != null;
+            }
+            catch (Exception ex)
+            {
+                StartupPerfLogger.Error("MainWindow.VideoPlayer.LazyInit.Failed", ex);
+                return false;
             }
         }
     }

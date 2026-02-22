@@ -240,6 +240,12 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!EnsureVideoPlayerInitialized("LoadAndDisplayVideoOnProjection"))
+                {
+                    ShowStatus("❌ 媒体播放器初始化失败");
+                    return;
+                }
+
                 //System.Diagnostics.Debug.WriteLine($"📹 ===== LoadAndDisplayVideoOnProjection 开始 =====");
                 //System.Diagnostics.Debug.WriteLine($"📹 文件: {System.IO.Path.GetFileName(videoPath)}");
                 
@@ -382,6 +388,12 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!EnsureVideoPlayerInitialized("LoadAndDisplayVideo"))
+                {
+                    ShowStatus("❌ 媒体播放器初始化失败");
+                    return;
+                }
+
                 // 显示视频播放区域
                 VideoContainer.Visibility = Visibility.Visible;
                 

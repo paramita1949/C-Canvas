@@ -63,9 +63,7 @@ namespace ImageColorChanger.UI
             _projectTreeFolderMenuStateController = new Modules.ProjectTreeFolderMenuStateController(dbManager, _originalManager);
             StartupPerfLogger.Mark("MainWindow.InitializeUI.Controllers.Ready", $"ElapsedMs={stepSw.ElapsedMilliseconds}");
 
-            stepSw.Restart();
-            InitializeVideoPlayer();
-            StartupPerfLogger.Mark("MainWindow.InitializeUI.VideoPlayer.Initialized", $"ElapsedMs={stepSw.ElapsedMilliseconds}");
+            StartupPerfLogger.Mark("MainWindow.InitializeUI.VideoPlayer.Deferred", "Reason=Cold-start video stack initialization can be expensive");
 
             stepSw.Restart();
             InitializeProjectTreeBootstrap();
@@ -119,6 +117,26 @@ namespace ImageColorChanger.UI
                 sw.Restart();
                 InitializeShortcutManagers();
                 StartupPerfLogger.Mark("MainWindow.InitializeUI.DeferredInit.ShortcutManagers.Initialized", $"ElapsedMs={sw.ElapsedMilliseconds}");
+            }));
+        }
+
+        private void StartDeferredVideoPlayerInitialization()
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                if (_startupDeferredWorkCts.IsCancellationRequested)
+                {
+                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
+                    return;
+                }
+
+                if (_videoPlayerManager != null)
+                {
+                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=AlreadyInitialized");
+                    return;
+                }
+
+                EnsureVideoPlayerInitialized("DeferredAfterStartupCoreReady");
             }));
         }
 

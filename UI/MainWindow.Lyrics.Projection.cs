@@ -154,8 +154,6 @@ namespace ImageColorChanger.UI
             }
 
             AddSplitOverlayForProjection(canvas, physicalWidth, physicalHeight);
-            AddImageWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
-            AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
             canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
@@ -194,8 +192,6 @@ namespace ImageColorChanger.UI
             double fontScale = physicalWidth / wpfWidth;
             double regionFontSize = GetSplitProjectionFontSizeForRegion(current.RegionIndex);
             AddSplitRegionTextElement(canvas, new Rect(0, 0, physicalWidth, physicalHeight), current.Editor, current.Text, fontScale, regionFontSize);
-            AddImageWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
-            AddSongNameWatermarkToProjection(canvas, physicalWidth, physicalHeight, fontScale);
 
             canvas.Measure(new WpfSize(physicalWidth, physicalHeight));
             canvas.Arrange(new Rect(0, 0, physicalWidth, physicalHeight));
@@ -342,7 +338,7 @@ namespace ImageColorChanger.UI
 
             double marginX = Math.Max(22, 18 * fontScale);
             double marginY = Math.Max(18, 14 * fontScale);
-            double fontSize = Math.Max(32, 28 * fontScale);
+            double fontSize = Math.Max(60, 60 * fontScale);
 
             var text = new TextBlock
             {

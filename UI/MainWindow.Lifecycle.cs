@@ -125,6 +125,7 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadSearchScopes.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
+            StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=OnDemandOnly");
 
             // 延迟5秒后检查更新，避免影响启动速度
             await Task.Delay(5000);

@@ -74,6 +74,10 @@ namespace ImageColorChanger.UI
         private bool _isApplyingSliceVisualSpacing = false; // 防止切片视觉空行应用时递归触发
         private bool _lyricsWhitespaceNormalizeQueued = false; // 防止空白行规范化重复排队
         private bool _lyricsSliceRegenerateQueued = false; // 防止切片重算重复排队
+        private bool _lyricsProjectionRenderQueued = false; // 防止文本输入时重复触发投影渲染
+        private string _lyricsClipboardFallbackText = string.Empty; // 系统剪贴板不可用时的兜底缓冲
+        private string _lyricsPendingClipboardText = string.Empty;
+        private bool _lyricsClipboardUpdateQueued;
         private readonly double[] _lyricsSplitProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize };
         private double _lyricsMainScreenFontSize = DefaultMainLyricsFontSize;
         private string _lyricsThemeName = "黑色";
@@ -1726,8 +1730,8 @@ namespace ImageColorChanger.UI
 
             if (_isLyricsMode && !_isLoadingLyricsProject)
             {
-                // 与旧图片歌词一致：文本变化后立即落盘
-                SaveLyricsProject("TextChanged", suppressUserError: true);
+                // 文本输入走防抖保存，避免每个按键都同步写库造成卡顿。
+                RestartLyricsTypingSaveTimer();
             }
 
             // 如果投影已开启，自动更新投影
@@ -1737,11 +1741,35 @@ namespace ImageColorChanger.UI
             
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
-//#if DEBUG
-//                Debug.WriteLine("[歌词] 文字改变，触发投影更新");
-//#endif
-                RenderLyricsToProjection();
+                QueueLyricsProjectionRender();
             }
+        }
+
+        private void QueueLyricsProjectionRender()
+        {
+            if (_lyricsProjectionRenderQueued)
+            {
+                return;
+            }
+
+            _lyricsProjectionRenderQueued = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _lyricsProjectionRenderQueued = false;
+                if (!_isLyricsMode || _projectionManager == null || !_projectionManager.IsProjecting)
+                {
+                    return;
+                }
+
+                try
+                {
+                    RenderLyricsToProjection();
+                }
+                catch
+                {
+                    // 输入时的投影刷新失败不影响主编辑流程
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private bool TryNormalizeWhitespaceOnlyLines(WpfTextBox textBox)
@@ -1922,8 +1950,19 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
+            var key = ResolveEffectiveKey(e);
+
+            if (Keyboard.Modifiers == ModifierKeys.Control && sender is WpfTextBox editor)
+            {
+                if (HandleLyricsEditorClipboardHotKeys(editor, key))
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             // Ctrl+S 保存
-            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            if (key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 SaveLyricsProject("Ctrl+S");
                 ShowToast("歌词已保存");
@@ -1931,36 +1970,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (Keyboard.Modifiers == ModifierKeys.Control && sender is WpfTextBox textBox)
-            {
-                if (e.Key == Key.C)
-                {
-                    textBox.Copy();
-                    e.Handled = true;
-                    return;
-                }
-
-                if (e.Key == Key.X)
-                {
-                    textBox.Cut();
-                    e.Handled = true;
-                    return;
-                }
-
-                if (e.Key == Key.V)
-                {
-                    textBox.Paste();
-                    e.Handled = true;
-                    return;
-                }
-
-                if (e.Key == Key.A)
-                {
-                    textBox.SelectAll();
-                    e.Handled = true;
-                    return;
-                }
-            }
+            // Ctrl+C/X/V/A 已在当前 TextBox 入口统一处理。
 
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single && Keyboard.Modifiers == ModifierKeys.None)
             {
@@ -1979,6 +1989,190 @@ namespace ImageColorChanger.UI
                 }
             }
 
+        }
+
+        private bool HandleLyricsEditorClipboardHotKeys(WpfTextBox editor, Key key)
+        {
+            if (!_isLyricsMode || editor == null)
+            {
+                return false;
+            }
+
+            if (key != Key.C && key != Key.X && key != Key.V && key != Key.A)
+            {
+                return false;
+            }
+
+            try
+            {
+                switch (key)
+                {
+                    case Key.C:
+                        if (editor.SelectionLength > 0 && !string.IsNullOrEmpty(editor.SelectedText))
+                        {
+                            int copyStart = editor.SelectionStart;
+                            int copyLen = editor.SelectionLength;
+                            _lyricsClipboardFallbackText = editor.SelectedText;
+                            QueueLyricsClipboardUpdate(_lyricsClipboardFallbackText);
+                            CollapseLyricsEditorSelection(editor, copyStart + copyLen);
+                        }
+                        return true;
+
+                    case Key.X:
+                        if (editor.SelectionLength <= 0 || string.IsNullOrEmpty(editor.SelectedText))
+                        {
+                            return true;
+                        }
+
+                        int cutStart = editor.SelectionStart;
+                        string selected = editor.SelectedText;
+                        _lyricsClipboardFallbackText = selected;
+                        QueueLyricsClipboardUpdate(selected);
+                        editor.SelectedText = string.Empty;
+                        CollapseLyricsEditorSelection(editor, cutStart);
+                        return true;
+
+                    case Key.V:
+                        string paste = null;
+                        if (!TryGetLyricsClipboardText(out paste))
+                        {
+                            paste = _lyricsClipboardFallbackText;
+                        }
+
+                        if (string.IsNullOrEmpty(paste))
+                        {
+                            return true;
+                        }
+
+                        int pasteStart = editor.SelectionStart;
+                        editor.SelectedText = paste;
+                        CollapseLyricsEditorSelection(editor, pasteStart + paste.Length);
+                        return true;
+
+                    case Key.A:
+                        editor.SelectAll();
+                        return true;
+                }
+            }
+            catch (Exception)
+            {
+                // 回退到原生命令路径
+                return false;
+            }
+
+            return false;
+        }
+
+        private static bool TrySetLyricsClipboardText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(text);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void QueueLyricsClipboardUpdate(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            _lyricsPendingClipboardText = text;
+            if (_lyricsClipboardUpdateQueued)
+            {
+                return;
+            }
+
+            _lyricsClipboardUpdateQueued = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _lyricsClipboardUpdateQueued = false;
+                string pending = _lyricsPendingClipboardText;
+                _lyricsPendingClipboardText = string.Empty;
+                if (string.IsNullOrEmpty(pending))
+                {
+                    return;
+                }
+
+                TrySetLyricsClipboardText(pending);
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private void CollapseLyricsEditorSelection(WpfTextBox editor, int desiredCaret)
+        {
+            if (editor == null)
+            {
+                return;
+            }
+
+            int caret = Math.Clamp(desiredCaret, 0, editor.Text?.Length ?? 0);
+            editor.SelectionStart = caret;
+            editor.SelectionLength = 0;
+            editor.CaretIndex = caret;
+
+            // 某些输入链路会在当前按键结束后重设选区，下一帧再收口一次。
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (editor == null)
+                {
+                    return;
+                }
+
+                int nextCaret = Math.Clamp(caret, 0, editor.Text?.Length ?? 0);
+                editor.SelectionStart = nextCaret;
+                editor.SelectionLength = 0;
+                editor.CaretIndex = nextCaret;
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
+        private static bool TryGetLyricsClipboardText(out string text)
+        {
+            text = null;
+            try
+            {
+                if (!System.Windows.Clipboard.ContainsText())
+                {
+                    return false;
+                }
+
+                text = System.Windows.Clipboard.GetText();
+                return !string.IsNullOrEmpty(text);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static Key ResolveEffectiveKey(System.Windows.Input.KeyEventArgs e)
+        {
+            if (e == null)
+            {
+                return Key.None;
+            }
+
+            if (e.Key == Key.System)
+            {
+                return e.SystemKey;
+            }
+
+            if (e.Key == Key.ImeProcessed)
+            {
+                return e.ImeProcessedKey;
+            }
+
+            return e.Key;
         }
 
         internal bool TryHandleLyricsNavigationHotKeys(System.Windows.Input.KeyEventArgs e)

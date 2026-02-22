@@ -14,7 +14,7 @@ namespace ImageColorChanger.UI
 
         private void BtnMediaPrev_Click(object sender, RoutedEventArgs e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnMediaPrev_Click")) return;
             
             // 防抖动：防止重复点击
             var now = DateTime.Now;
@@ -30,7 +30,7 @@ namespace ImageColorChanger.UI
 
         private void BtnMediaPlayPause_Click(object sender, RoutedEventArgs e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnMediaPlayPause_Click")) return;
             
             if (_videoPlayerManager.IsPlaying && !_videoPlayerManager.IsPaused)
             {
@@ -44,7 +44,7 @@ namespace ImageColorChanger.UI
 
         private void BtnMediaNext_Click(object sender, RoutedEventArgs e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnMediaNext_Click")) return;
             
             // 防抖动：防止重复点击
             var now = DateTime.Now;
@@ -60,7 +60,7 @@ namespace ImageColorChanger.UI
 
         private void BtnMediaStop_Click(object sender, RoutedEventArgs e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnMediaStop_Click")) return;
             
             _videoPlayerManager.Stop();
             MediaProgressSlider.Value = 0;
@@ -69,7 +69,8 @@ namespace ImageColorChanger.UI
 
         private void MediaProgressSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_videoPlayerManager == null || _isUpdatingProgress) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("MediaProgressSlider_ValueChanged")) return;
+            if (_isUpdatingProgress) return;
             
             float position = (float)(e.NewValue / 100.0);
             _videoPlayerManager.SetPosition(position);
@@ -77,7 +78,7 @@ namespace ImageColorChanger.UI
 
         private void BtnPlayMode_Click(object sender, RoutedEventArgs e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnPlayMode_Click")) return;
             
             // 防抖动：防止重复点击
             var now = DateTime.Now;
@@ -125,7 +126,7 @@ namespace ImageColorChanger.UI
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_videoPlayerManager == null) return;
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("VolumeSlider_ValueChanged")) return;
             
             int volume = (int)e.NewValue;
             _videoPlayerManager.SetVolume(volume);
