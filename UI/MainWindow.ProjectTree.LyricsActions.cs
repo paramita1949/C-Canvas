@@ -300,7 +300,7 @@ namespace ImageColorChanger.UI
                 SortOrder = nextOrder,
                 CreatedTime = DateTime.Now,
                 ModifiedTime = DateTime.Now,
-                FontSize = 88,
+                FontSize = 60,
                 TextAlign = "Center",
                 Content = ""
             };

@@ -39,8 +39,8 @@ namespace ImageColorChanger.Services.Implementations
             _currentDatabasePath = GetDatabasePath();
 
             #if DEBUG
-            Debug.WriteLine($"[圣经服务] 数据库路径: {_currentDatabasePath}");
-            Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_currentDatabasePath)}");
+            // Debug.WriteLine($"[圣经服务] 数据库路径: {_currentDatabasePath}");
+            // Debug.WriteLine($"[圣经服务] 数据库存在: {File.Exists(_currentDatabasePath)}");
             #endif
         }
 
@@ -57,7 +57,7 @@ namespace ImageColorChanger.Services.Implementations
                 "data", "assets", dbFileName);
 
             #if DEBUG
-            Debug.WriteLine($"[圣经服务] 选择数据库: {dbFileName}");
+            // Debug.WriteLine($"[圣经服务] 选择数据库: {dbFileName}");
             #endif
 
             return path;
@@ -80,7 +80,7 @@ namespace ImageColorChanger.Services.Implementations
                 }
 
                 #if DEBUG
-                Debug.WriteLine($"[圣经服务] 切换数据库: {_currentDatabasePath}");
+                // Debug.WriteLine($"[圣经服务] 切换数据库: {_currentDatabasePath}");
                 #endif
             }
         }
@@ -137,7 +137,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                _ = ex;
                 throw;
             }
 #else
@@ -191,7 +192,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 查询失败: {ex.Message}");
+                _ = ex;
                 throw;
             }
 #else
@@ -389,7 +391,7 @@ namespace ImageColorChanger.Services.Implementations
                     .ToListAsync();
 
                 #if DEBUG
-                Debug.WriteLine($"[圣经服务] 查询标题: 结果数: {titles.Count}");
+                // Debug.WriteLine($"[圣经服务] 查询标题: 结果数: {titles.Count}");
                 #endif
 
                 // 缓存30分钟
@@ -400,7 +402,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 查询标题失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 查询标题失败: {ex.Message}");
+                _ = ex;
                 return new List<BibleTitle>();
             }
 #else
@@ -682,7 +685,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 批量获取节数失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 批量获取节数失败: {ex.Message}");
+                _ = ex;
                 return new Dictionary<(int, int), int>();
             }
 #else
@@ -719,7 +723,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 获取节数失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 获取节数失败: {ex.Message}");
+                _ = ex;
                 return 0;
             }
 #else
@@ -740,7 +745,7 @@ namespace ImageColorChanger.Services.Implementations
                 if (!File.Exists(_currentDatabasePath))
                 {
                     #if DEBUG
-                    Debug.WriteLine($"[圣经服务] 数据库文件不存在: {_currentDatabasePath}");
+                    // Debug.WriteLine($"[圣经服务] 数据库文件不存在: {_currentDatabasePath}");
                     #endif
                     return false;
                 }
@@ -757,7 +762,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 数据库检查失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 数据库检查失败: {ex.Message}");
+                _ = ex;
                 return false;
             }
 #else
@@ -783,7 +789,8 @@ namespace ImageColorChanger.Services.Implementations
 #if DEBUG
             catch (Exception ex)
             {
-                Debug.WriteLine($"[圣经服务] 获取元数据失败: {ex.Message}");
+                // Debug.WriteLine($"[圣经服务] 获取元数据失败: {ex.Message}");
+                _ = ex;
                 return new Dictionary<string, string>();
             }
 #else

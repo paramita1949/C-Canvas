@@ -710,6 +710,38 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经搜索结果悬浮模式字号
+        /// </summary>
+        public double BibleSearchFloatingFontSize
+        {
+            get => _config.BibleSearchFloatingFontSize;
+            set
+            {
+                if (Math.Abs(_config.BibleSearchFloatingFontSize - value) > 0.001)
+                {
+                    _config.BibleSearchFloatingFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经搜索结果内嵌模式字号
+        /// </summary>
+        public double BibleSearchEmbeddedFontSize
+        {
+            get => _config.BibleSearchEmbeddedFontSize;
+            set
+            {
+                if (Math.Abs(_config.BibleSearchEmbeddedFontSize - value) > 0.001)
+                {
+                    _config.BibleSearchEmbeddedFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 圣经设置窗口X坐标（null表示使用自动计算位置）
         /// </summary>
         public double? BibleSettingsWindowLeft
@@ -1282,6 +1314,16 @@ namespace ImageColorChanger.Core
         /// 圣经节间距（节与节之间的间距，默认：15）
         /// </summary>
         public double BibleVerseSpacing { get; set; } = 15.0;
+
+        /// <summary>
+        /// 圣经搜索结果悬浮模式字号（默认：15）
+        /// </summary>
+        public double BibleSearchFloatingFontSize { get; set; } = 15.0;
+
+        /// <summary>
+        /// 圣经搜索结果内嵌模式字号（默认：15）
+        /// </summary>
+        public double BibleSearchEmbeddedFontSize { get; set; } = 15.0;
 
         /// <summary>
         /// 圣经设置窗口X坐标（默认：null，使用自动计算位置）

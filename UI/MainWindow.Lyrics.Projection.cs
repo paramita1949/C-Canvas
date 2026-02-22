@@ -133,12 +133,6 @@ namespace ImageColorChanger.UI
 
         private void RenderSplitLyricsToProjection(double physicalWidth, double physicalHeight)
         {
-            if (_lyricsPagingMode)
-            {
-                RenderPagingRegionToProjection(physicalWidth, physicalHeight);
-                return;
-            }
-
             if (LyricsSplitGrid == null || LyricsSplitGrid.ActualWidth <= 0 || LyricsSplitGrid.ActualHeight <= 0)
             {
                 return;

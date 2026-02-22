@@ -60,6 +60,7 @@ namespace ImageColorChanger.UI.Modules
 
         bool IsOpen { get; }
         BibleSearchResultDisplayMode DisplayMode { get; set; }
+        void SetResultFontSizes(double floatingFontSize, double embeddedFontSize);
         void ShowResults(IReadOnlyList<BibleSearchHit> hits);
         void ShowStatus(string message);
         void Hide();

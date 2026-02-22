@@ -66,13 +66,22 @@ namespace ImageColorChanger.UI
                 BibleEmbeddedSearchNextPageButton,
                 BibleEmbeddedSearchResultStatus,
                 SearchBox,
-                _bibleSearchDisplayMode);
+                _bibleSearchDisplayMode,
+                _configManager.BibleSearchFloatingFontSize,
+                _configManager.BibleSearchEmbeddedFontSize);
             _bibleSearchResultPresenter.HitSelected += OnBibleSearchHitSelected;
             _bibleSearchResultPresenter.Dismissed += OnBibleSearchPresenterDismissed;
             _bibleHistorySlotWriter = new BibleHistorySlotWriter();
             PreviewMouseDown += MainWindow_PreviewMouseDownForBibleSearchDismiss;
             _bibleSearchComponentsInitialized = true;
             UpdateBibleSearchModeToggleState();
+        }
+
+        private void ApplyBibleSearchResultFontSizes()
+        {
+            _bibleSearchResultPresenter?.SetResultFontSizes(
+                _configManager.BibleSearchFloatingFontSize,
+                _configManager.BibleSearchEmbeddedFontSize);
         }
 
         private async Task HandleBibleSearchInputChangedAsync(string searchTerm)

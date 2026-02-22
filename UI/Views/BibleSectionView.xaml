@@ -194,7 +194,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Foreground="#111111"
-                                       FontSize="15"
+                                       FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                        TextWrapping="Wrap">
                                 <Run Text="{Binding RowNumber}"/>
                                 <Run Text=". "/>

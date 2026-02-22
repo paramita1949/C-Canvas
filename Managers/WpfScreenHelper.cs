@@ -135,13 +135,13 @@ namespace ImageColorChanger.Managers
             if (preferred.Count > 0)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("ℹ️ [WpfScreenHelper] 使用 EnumDisplayDevices 作为主检测结果");
+                // System.Diagnostics.Debug.WriteLine("ℹ️ [WpfScreenHelper] 使用 EnumDisplayDevices 作为主检测结果");
 #endif
                 return preferred;
             }
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine("⚠️ [WpfScreenHelper] EnumDisplayDevices 未返回有效结果，回退到 Screen API");
+            // System.Diagnostics.Debug.WriteLine("⚠️ [WpfScreenHelper] EnumDisplayDevices 未返回有效结果，回退到 Screen API");
 #endif
 
             var screens = new List<WpfScreenInfo>();
@@ -170,7 +170,8 @@ namespace ImageColorChanger.Managers
                 catch (Exception ex)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 获取 {deviceName} 的 DPI 失败: {ex.Message}，使用默认值 96");
+                    // System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 获取 {deviceName} 的 DPI 失败: {ex.Message}，使用默认值 96");
+                    _ = ex;
 #else
                     _ = ex; // 避免编译警告
 #endif
@@ -197,10 +198,10 @@ namespace ImageColorChanger.Managers
                 };
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📺 [Screen API] {(wpfScreen.IsPrimary ? "主" : "扩展")} - {deviceName}");
-                System.Diagnostics.Debug.WriteLine($"   物理分辨率: {screen.Bounds.Width}×{screen.Bounds.Height} (Screen.Bounds)");
-                System.Diagnostics.Debug.WriteLine($"   真实 DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%)");
-                System.Diagnostics.Debug.WriteLine($"   WPF 单位: {wpfScreen.WpfWidth:F0}×{wpfScreen.WpfHeight:F0}");
+                // System.Diagnostics.Debug.WriteLine($"📺 [Screen API] {(wpfScreen.IsPrimary ? "主" : "扩展")} - {deviceName}");
+                // System.Diagnostics.Debug.WriteLine($"   物理分辨率: {screen.Bounds.Width}×{screen.Bounds.Height} (Screen.Bounds)");
+                // System.Diagnostics.Debug.WriteLine($"   真实 DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%)");
+                // System.Diagnostics.Debug.WriteLine($"   WPF 单位: {wpfScreen.WpfWidth:F0}×{wpfScreen.WpfHeight:F0}");
 #endif
 
                 screens.Add(wpfScreen);
@@ -210,7 +211,7 @@ namespace ImageColorChanger.Managers
             screens.Sort((a, b) => b.IsPrimary.CompareTo(a.IsPrimary));
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [Screen API] 共检测到 {screens.Count} 个显示器");
+            // System.Diagnostics.Debug.WriteLine($"✅ [Screen API] 共检测到 {screens.Count} 个显示器");
 #endif
 
             return screens;
@@ -295,11 +296,12 @@ namespace ImageColorChanger.Managers
                         };
 
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📺 [EnumDisplayDevices] {(screen.IsPrimary ? "主" : "扩展")} - {d.DeviceString}");
-                        System.Diagnostics.Debug.WriteLine($"   设备: {d.DeviceName}");
-                        System.Diagnostics.Debug.WriteLine($"   物理分辨率: {dm.dmPelsWidth}×{dm.dmPelsHeight} @ {dm.dmDisplayFrequency}Hz (EnumDisplaySettings)");
-                        System.Diagnostics.Debug.WriteLine($"   DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%) {(dpiFromMonitor ? "[GetDpiForMonitor]" : "[默认值]")}");
-                        System.Diagnostics.Debug.WriteLine($"   WPF 单位: {screen.WpfWidth}×{screen.WpfHeight}");
+                        // System.Diagnostics.Debug.WriteLine($"📺 [EnumDisplayDevices] {(screen.IsPrimary ? "主" : "扩展")} - {d.DeviceString}");
+                        // System.Diagnostics.Debug.WriteLine($"   设备: {d.DeviceName}");
+                        // System.Diagnostics.Debug.WriteLine($"   物理分辨率: {dm.dmPelsWidth}×{dm.dmPelsHeight} @ {dm.dmDisplayFrequency}Hz (EnumDisplaySettings)");
+                        // System.Diagnostics.Debug.WriteLine($"   DPI: {dpiX}×{dpiY} ({dpiX / 96.0 * 100:F0}%) {(dpiFromMonitor ? "[GetDpiForMonitor]" : "[默认值]")}");
+                        // System.Diagnostics.Debug.WriteLine($"   WPF 单位: {screen.WpfWidth}×{screen.WpfHeight}");
+                        _ = dpiFromMonitor;
 #else
                         _ = dpiFromMonitor; // 避免 Release 模式下的未使用变量警告
 #endif
@@ -313,7 +315,7 @@ namespace ImageColorChanger.Managers
             screens.Sort((a, b) => b.IsPrimary.CompareTo(a.IsPrimary));
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [EnumDisplayDevices] 共检测到 {screens.Count} 个显示器");
+            // System.Diagnostics.Debug.WriteLine($"✅ [EnumDisplayDevices] 共检测到 {screens.Count} 个显示器");
 #endif
 
             return screens;

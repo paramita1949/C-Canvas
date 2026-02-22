@@ -59,7 +59,9 @@ namespace ImageColorChanger.UI.Modules
             WpfButton embeddedNextPageButton,
             WpfTextBlock embeddedStatusText,
             WpfTextBox searchBox,
-            BibleSearchResultDisplayMode initialMode = BibleSearchResultDisplayMode.Floating)
+            BibleSearchResultDisplayMode initialMode = BibleSearchResultDisplayMode.Floating,
+            double floatingFontSize = 15.0,
+            double embeddedFontSize = 15.0)
         {
             _popupSurface = new BiblePopupSearchResultSurface(
                 popup ?? throw new ArgumentNullException(nameof(popup)),
@@ -87,8 +89,15 @@ namespace ImageColorChanger.UI.Modules
             _embeddedSurface.Dismissed += Surface_Dismissed;
 
             _displayMode = initialMode;
+            SetResultFontSizes(floatingFontSize, embeddedFontSize);
             _popupSurface.Hide();
             _embeddedSurface.Hide();
+        }
+
+        public void SetResultFontSizes(double floatingFontSize, double embeddedFontSize)
+        {
+            _popupSurface.SetResultFontSize(NormalizeResultFontSize(floatingFontSize));
+            _embeddedSurface.SetResultFontSize(NormalizeResultFontSize(embeddedFontSize));
         }
 
         public void ShowResults(IReadOnlyList<BibleSearchHit> hits)
@@ -306,6 +315,16 @@ namespace ImageColorChanger.UI.Modules
             return null;
         }
 
+        private static double NormalizeResultFontSize(double size)
+        {
+            if (double.IsNaN(size) || double.IsInfinity(size) || size <= 0)
+            {
+                return 15.0;
+            }
+
+            return Math.Max(10.0, Math.Min(72.0, size));
+        }
+
         private sealed class BiblePopupSearchResultSurface : IBibleSearchResultSurface
         {
             private readonly Popup _popup;
@@ -413,6 +432,11 @@ namespace ImageColorChanger.UI.Modules
                 _popup.Closed -= Popup_Closed;
                 _prevPageButton.Click -= PrevPageButton_Click;
                 _nextPageButton.Click -= NextPageButton_Click;
+            }
+
+            public void SetResultFontSize(double fontSize)
+            {
+                _listBox.FontSize = fontSize;
             }
 
             private bool CloseByEscape()
@@ -691,6 +715,11 @@ namespace ImageColorChanger.UI.Modules
                 _listBox.MouseLeftButtonUp -= ListBox_MouseLeftButtonUp;
                 _prevPageButton.Click -= PrevPageButton_Click;
                 _nextPageButton.Click -= NextPageButton_Click;
+            }
+
+            public void SetResultFontSize(double fontSize)
+            {
+                _listBox.FontSize = fontSize;
             }
 
             private bool CloseByEscape()

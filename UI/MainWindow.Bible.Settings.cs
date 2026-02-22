@@ -60,6 +60,7 @@ namespace ImageColorChanger.UI
                         
                         // 应用设置
                         ApplyBibleSettings();
+                        ApplyBibleSearchResultFontSizes();
 
                         // 🔄 重新加载当前章节
                         if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
@@ -92,6 +93,7 @@ namespace ImageColorChanger.UI
                         
                         // 应用设置
                         ApplyBibleSettings();
+                        ApplyBibleSearchResultFontSizes();
                         
                         // 如果投影已开启，重新渲染投影（保持当前经文和高亮状态）
                         if (_projectionManager != null && _projectionManager.IsProjecting)

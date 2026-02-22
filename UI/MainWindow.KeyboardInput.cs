@@ -17,6 +17,14 @@ namespace ImageColorChanger.UI
 #if DEBUG
             // System.Diagnostics.Debug.WriteLine($"⌨️ [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
 #endif
+            if (_isLyricsMode && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Key == Key.C || e.Key == Key.X || e.Key == Key.V || e.Key == Key.A)
+                {
+                    // 放行给歌词编辑框自身处理，避免被全局快捷键拦截。
+                    return;
+                }
+            }
 
             SyncProjectionNavigationHotKeys();
 

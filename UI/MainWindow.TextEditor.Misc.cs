@@ -396,14 +396,15 @@ namespace ImageColorChanger.UI
                     BibleToolbar.VerticalOffset = offset;
 
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔧 [工具栏位置] 画布高度={canvasHeight}, VerticalOffset={offset:F0}");
+                    // System.Diagnostics.Debug.WriteLine($"🔧 [工具栏位置] 画布高度={canvasHeight}, VerticalOffset={offset:F0}");
 #endif
                 }
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [更新工具栏位置] 失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($"❌ [更新工具栏位置] 失败: {ex.Message}");
+                _ = ex;
 #else
                 _ = ex;
 #endif

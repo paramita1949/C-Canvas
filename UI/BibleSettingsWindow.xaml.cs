@@ -240,6 +240,18 @@ namespace ImageColorChanger.UI
                     SelectComboBoxItem(CmbVerseSpacing, displayValue.ToString("0"));
                 }
 
+                // 搜索结果字号（悬浮）
+                if (CmbSearchFloatingFontSize != null && _configManager.BibleSearchFloatingFontSize > 0)
+                {
+                    SelectComboBoxItem(CmbSearchFloatingFontSize, _configManager.BibleSearchFloatingFontSize.ToString("0"));
+                }
+
+                // 搜索结果字号（内嵌）
+                if (CmbSearchEmbeddedFontSize != null && _configManager.BibleSearchEmbeddedFontSize > 0)
+                {
+                    SelectComboBoxItem(CmbSearchEmbeddedFontSize, _configManager.BibleSearchEmbeddedFontSize.ToString("0"));
+                }
+
                 // 更新颜色预览
                 if (BorderBackgroundColor != null && !string.IsNullOrEmpty(_configManager.BibleBackgroundColor))
                 {
@@ -342,6 +354,26 @@ namespace ImageColorChanger.UI
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// 从 ComboBox 读取数值（优先 SelectedItem，其次 Text）
+        /// </summary>
+        private static bool TryGetComboBoxNumericValue(System.Windows.Controls.ComboBox comboBox, out double value)
+        {
+            value = 0;
+            if (comboBox == null)
+            {
+                return false;
+            }
+
+            if (comboBox.SelectedItem is System.Windows.Controls.ComboBoxItem selectedItem &&
+                double.TryParse(selectedItem.Content?.ToString(), out value))
+            {
+                return true;
+            }
+
+            return double.TryParse(comboBox.Text, out value);
         }
 
 
@@ -545,6 +577,18 @@ namespace ImageColorChanger.UI
                     //#if DEBUG
                     //Debug.WriteLine($"[圣经设置] 保存节间距: 显示值={displayValue}, 实际值={displayValue * 10}");
                     //#endif
+                }
+
+                // 保存搜索结果字号（悬浮）
+                if (TryGetComboBoxNumericValue(CmbSearchFloatingFontSize, out var floatingFontSize))
+                {
+                    _configManager.BibleSearchFloatingFontSize = floatingFontSize;
+                }
+
+                // 保存搜索结果字号（内嵌）
+                if (TryGetComboBoxNumericValue(CmbSearchEmbeddedFontSize, out var embeddedFontSize))
+                {
+                    _configManager.BibleSearchEmbeddedFontSize = embeddedFontSize;
                 }
 
                 // 保存颜色

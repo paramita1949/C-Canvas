@@ -77,29 +77,56 @@ namespace ImageColorChanger.UI
                 }
 
                 modeData.SingleContent ??= "";
-                modeData.SplitContent ??= CreateDefaultSplitPage(ViewSplitMode.Horizontal);
-
-                var split = modeData.SplitContent;
-                if (split.Regions == null || split.Regions.Length < 4)
+                modeData.SplitContents ??= new List<LyricsSplitContentData>();
+                if (modeData.SplitContents.Count == 0)
                 {
-                    split.Regions = (split.Regions ?? Array.Empty<string>())
-                        .Concat(Enumerable.Repeat(string.Empty, 4))
-                        .Take(4)
+                    modeData.SplitContent ??= CreateDefaultSplitPage(ViewSplitMode.Horizontal);
+                    modeData.SplitContents.Add(modeData.SplitContent);
+                }
+
+                var normalizedSplits = new Dictionary<int, LyricsSplitContentData>();
+                foreach (var split in modeData.SplitContents.Where(s => s != null))
+                {
+                    if (split.SplitMode < (int)ViewSplitMode.Horizontal || split.SplitMode > (int)ViewSplitMode.Quad)
+                    {
+                        split.SplitMode = (int)ViewSplitMode.Horizontal;
+                    }
+
+                    if (split.Regions == null || split.Regions.Length < 4)
+                    {
+                        split.Regions = (split.Regions ?? Array.Empty<string>())
+                            .Concat(Enumerable.Repeat(string.Empty, 4))
+                            .Take(4)
+                            .ToArray();
+                    }
+
+                    var styles = split.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
+                    if (styles.Length < 4)
+                    {
+                        styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
+                            .Select(_ => new LyricsSplitRegionStyle())).ToArray();
+                    }
+
+                    split.RegionStyles = styles.Take(4)
+                        .Select(s => s ?? new LyricsSplitRegionStyle())
                         .ToArray();
+
+                    if (!normalizedSplits.ContainsKey(split.SplitMode))
+                    {
+                        normalizedSplits[split.SplitMode] = split;
+                    }
                 }
 
-                var styles = split.RegionStyles ?? Array.Empty<LyricsSplitRegionStyle>();
-                if (styles.Length < 4)
+                foreach (var mode in new[] { ViewSplitMode.Horizontal, ViewSplitMode.Vertical, ViewSplitMode.TripleSplit, ViewSplitMode.Quad })
                 {
-                    styles = styles.Concat(Enumerable.Range(0, 4 - styles.Length)
-                        .Select(_ => new LyricsSplitRegionStyle())).ToArray();
+                    if (!normalizedSplits.ContainsKey((int)mode))
+                    {
+                        normalizedSplits[(int)mode] = CreateDefaultSplitPage(mode);
+                    }
                 }
-                split.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
 
-                if (split.SplitMode < (int)ViewSplitMode.Horizontal || split.SplitMode > (int)ViewSplitMode.Quad)
-                {
-                    split.SplitMode = (int)ViewSplitMode.Horizontal;
-                }
+                modeData.SplitContents = normalizedSplits.Values.OrderBy(s => s.SplitMode).ToList();
+                modeData.SplitContent = modeData.SplitContents.FirstOrDefault() ?? CreateDefaultSplitPage(ViewSplitMode.Horizontal);
 
                 if (modeData.ActiveMode < (int)ViewSplitMode.Single || modeData.ActiveMode > (int)ViewSplitMode.Quad)
                 {

@@ -96,6 +96,48 @@ namespace ImageColorChanger.UI
             textBox.PreviewKeyDown += LyricsTextBox_PreviewKeyDown;
             textBox.PreviewMouseWheel += LyricsTextBox_PreviewMouseWheel;
             textBox.GotFocus += LyricsEditor_GotFocus;
+            AttachLyricsEditorContextMenu(textBox);
+        }
+
+        private void AttachLyricsEditorContextMenu(System.Windows.Controls.TextBox textBox)
+        {
+            if (textBox == null || textBox.ContextMenu != null)
+            {
+                return;
+            }
+
+            var menu = new System.Windows.Controls.ContextMenu
+            {
+                Style = (System.Windows.Style)FindResource("NoBorderContextMenuStyle")
+            };
+
+            menu.Items.Add(new System.Windows.Controls.MenuItem
+            {
+                Header = "剪切",
+                Command = ApplicationCommands.Cut,
+                CommandTarget = textBox
+            });
+            menu.Items.Add(new System.Windows.Controls.MenuItem
+            {
+                Header = "复制",
+                Command = ApplicationCommands.Copy,
+                CommandTarget = textBox
+            });
+            menu.Items.Add(new System.Windows.Controls.MenuItem
+            {
+                Header = "粘贴",
+                Command = ApplicationCommands.Paste,
+                CommandTarget = textBox
+            });
+            menu.Items.Add(new System.Windows.Controls.Separator());
+            menu.Items.Add(new System.Windows.Controls.MenuItem
+            {
+                Header = "全选",
+                Command = ApplicationCommands.SelectAll,
+                CommandTarget = textBox
+            });
+
+            textBox.ContextMenu = menu;
         }
     }
 }
