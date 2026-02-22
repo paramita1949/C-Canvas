@@ -44,11 +44,11 @@ namespace ImageColorChanger.UI
                     _currentFolderId = item.Id;
                     _imageProcessor.UpdateImage();
                     UpdateProjection();
-                    ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色（当前图片已应用变色效果）");
+                    ShowStatus($"已标记文件夹 [{item.Name}] 自动变色（当前图片已应用变色效果）");
                 }
                 else
                 {
-                    ShowStatus($"✅ 已标记文件夹 [{item.Name}] 自动变色（点击图片时将自动应用）");
+                    ShowStatus($"已标记文件夹 [{item.Name}] 自动变色（点击图片时将自动应用）");
                 }
             }
             catch (Exception)
@@ -85,11 +85,11 @@ namespace ImageColorChanger.UI
                     BtnColorEffect.Background = Brushes.Transparent;
                     _imageProcessor.UpdateImage();
                     UpdateProjection();
-                    ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记（当前图片已恢复正常）");
+                    ShowStatus($"已取消文件夹 [{item.Name}] 的变色标记（当前图片已恢复正常）");
                 }
                 else
                 {
-                    ShowStatus($"✅ 已取消文件夹 [{item.Name}] 的变色标记");
+                    ShowStatus($"已取消文件夹 [{item.Name}] 的变色标记");
                 }
             }
             catch (Exception)
@@ -107,12 +107,12 @@ namespace ImageColorChanger.UI
             if (success)
             {
                 string modeText = markType == MarkType.Loop ? "循环" : "顺序";
-                ShowStatus($"✅ 已标记文件夹为原图({modeText}): {item.Name}");
+                ShowStatus($"已标记文件夹为原图({modeText}): {item.Name}");
                 LoadProjects();
             }
             else
             {
-                ShowStatus($"❌ 标记文件夹失败: {item.Name}");
+                ShowStatus($"标记文件夹失败: {item.Name}");
             }
         }
 
@@ -125,12 +125,12 @@ namespace ImageColorChanger.UI
 
             if (success)
             {
-                ShowStatus($"✅ 已取消文件夹原图标记: {item.Name}");
+                ShowStatus($"已取消文件夹原图标记: {item.Name}");
                 LoadProjects();
             }
             else
             {
-                ShowStatus($"❌ 取消文件夹标记失败: {item.Name}");
+                ShowStatus($"取消文件夹标记失败: {item.Name}");
             }
         }
 
@@ -143,12 +143,12 @@ namespace ImageColorChanger.UI
 
             if (!success)
             {
-                ShowStatus($"❌ 标记失败: {item.Name}");
+                ShowStatus($"标记失败: {item.Name}");
                 return;
             }
 
             string modeText = markType == MarkType.Loop ? "循环" : "顺序";
-            ShowStatus($"✅ 已标记为原图({modeText}): {item.Name}");
+            ShowStatus($"已标记为原图({modeText}): {item.Name}");
             LoadProjects();
 
             if (_currentImageId == item.Id && !_originalMode)
@@ -159,7 +159,7 @@ namespace ImageColorChanger.UI
                 _originalManager.FindSimilarImages(_currentImageId);
                 _imageProcessor.UpdateImage();
                 UpdateProjection();
-                ShowStatus("✅ 已自动启用原图模式");
+                ShowStatus("已自动启用原图模式");
             }
         }
 
@@ -172,11 +172,11 @@ namespace ImageColorChanger.UI
 
             if (!success)
             {
-                ShowStatus($"❌ 取消标记失败: {item.Name}");
+                ShowStatus($"取消标记失败: {item.Name}");
                 return;
             }
 
-            ShowStatus($"✅ 已取消原图标记: {item.Name}");
+            ShowStatus($"已取消原图标记: {item.Name}");
             LoadProjects();
 
             if (_currentImageId == item.Id && _originalMode)
@@ -186,8 +186,10 @@ namespace ImageColorChanger.UI
                 BtnOriginal.Background = Brushes.Transparent;
                 _imageProcessor.UpdateImage();
                 UpdateProjection();
-                ShowStatus("✅ 已自动关闭原图模式");
+                ShowStatus("已自动关闭原图模式");
             }
         }
     }
 }
+
+

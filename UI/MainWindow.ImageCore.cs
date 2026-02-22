@@ -49,7 +49,7 @@ namespace ImageColorChanger.UI
                             _originalMode = true;
                             _imageProcessor.OriginalMode = true;
                             BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144));
-                            ShowStatus("✅ 已自动启用原图模式");
+                            ShowStatus("已自动启用原图模式");
                         }
 
                         if (_originalMode)
@@ -79,7 +79,7 @@ namespace ImageColorChanger.UI
                     }
 
                     sw.Stop();
-                    ShowStatus($"✅ 已加载：{Path.GetFileName(path)}");
+                    ShowStatus($"已加载：{Path.GetFileName(path)}");
                 }
                 else
                 {
@@ -89,7 +89,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 MessageBox.Show($"无法打开图片: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                ShowStatus("❌ 加载失败");
+                ShowStatus("加载失败");
             }
         }
 
@@ -136,12 +136,12 @@ namespace ImageColorChanger.UI
                 ScrollbarIndicatorsCanvas.Children.Clear();
                 UpdateFloatingCompositePlayButton();
 
-                ShowStatus("✅ 已清空图片显示");
+                ShowStatus("已清空图片显示");
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 清空图片显示失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 清空图片显示失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
 #else
                 _ = ex;
@@ -150,3 +150,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

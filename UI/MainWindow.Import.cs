@@ -26,7 +26,7 @@ namespace ImageColorChanger.UI
             // 创建导入菜单
             var contextMenu = new ContextMenu();
             
-            // 🔑 应用自定义样式
+            // 应用自定义样式
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 导入单个文件
@@ -144,10 +144,10 @@ namespace ImageColorChanger.UI
             }
 
 
-            // 🆕 添加分隔符
+            // 添加分隔符
             menuFontSizeItem.Items.Add(new Separator());
 
-            // 🆕 自定义字号选项（下拉框，步长 0.5）
+            // 自定义字号选项（下拉框，步长 0.5）
             var customFontSizeItem = new MenuItem { Header = "自定义..." };
             customFontSizeItem.Click += (s, args) => ShowCustomMenuFontSizeComboBox();
             menuFontSizeItem.Items.Add(customFontSizeItem);
@@ -155,6 +155,11 @@ namespace ImageColorChanger.UI
             fontSizeItem.Items.Add(menuFontSizeItem);
 
             contextMenu.Items.Add(fontSizeItem);
+
+            contextMenu.Items.Add(new Separator());
+
+            // 主题设置
+            contextMenu.Items.Add(BuildThemeMenuItem());
 
             contextMenu.Items.Add(new Separator());
 
@@ -187,7 +192,7 @@ namespace ImageColorChanger.UI
 
                 if (versionInfo == null)
                 {
-                    ShowStatus("✅ 当前已是最新版本");
+                    ShowStatus("当前已是最新版本");
                     return;
                 }
 
@@ -199,7 +204,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 检查更新失败: {ex.Message}");
+                ShowStatus($"检查更新失败: {ex.Message}");
             }
         }
 
@@ -221,11 +226,11 @@ namespace ImageColorChanger.UI
                 {
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
-                    ShowStatus($"✅ 已导入: {mediaFile.Name}");
+                    ShowStatus($"已导入: {mediaFile.Name}");
                 }
                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
-                    ShowStatus($"❌ {ImportManagerService.LastError}");
+                    ShowStatus($"{ImportManagerService.LastError}");
                 }
             }
         }
@@ -250,22 +255,22 @@ namespace ImageColorChanger.UI
                     LoadProjects(); // 刷新项目树
                     LoadSearchScopes(); // 刷新搜索范围
                     
-                    // 🔧 清除缓存，确保使用最新的数据库数据
+                    // 清除缓存，确保使用最新的数据库数据
                     _originalManager?.ClearCache();
                     
-                    // ⚡ 清除图片LRU缓存
+                    //  清除图片LRU缓存
                     _imageProcessor?.ClearImageCache();
                     
-                    // ⚡ 清除投影缓存
+                    //  清除投影缓存
                     _projectionManager?.ClearProjectionCache();
                     
-                    //System.Diagnostics.Debug.WriteLine("🔄 文件夹导入完成，已清除所有缓存");
+                    //System.Diagnostics.Debug.WriteLine(" 文件夹导入完成，已清除所有缓存");
                     
-                    ShowStatus($"✅ 已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
+                    ShowStatus($"已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
                 }
                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {
-                    ShowStatus($"❌ {ImportManagerService.LastError}");
+                    ShowStatus($"{ImportManagerService.LastError}");
                 }
             }
         }
@@ -284,7 +289,7 @@ namespace ImageColorChanger.UI
             var saved = imageSaveManager.SaveEffectImage(_imagePath);
             if (!saved && !string.IsNullOrWhiteSpace(imageSaveManager.LastError))
             {
-                ShowStatus($"❌ {imageSaveManager.LastError}");
+                ShowStatus($"{imageSaveManager.LastError}");
             }
         }
 
@@ -300,11 +305,11 @@ namespace ImageColorChanger.UI
                 if (count > 0)
                 {
                     LoadProjects(); // 刷新项目树
-                    ShowStatus($"✅ 已导入 {count} 个幻灯片项目");
+                    ShowStatus($"已导入 {count} 个幻灯片项目");
                 }
                 else if (!string.IsNullOrWhiteSpace(slideImportManager.LastError))
                 {
-                    ShowStatus($"❌ {slideImportManager.LastError}");
+                    ShowStatus($"{slideImportManager.LastError}");
                 }
             }
         }
@@ -408,7 +413,7 @@ namespace ImageColorChanger.UI
         {
             if (!IsLyricsTransferFeatureEnabled)
             {
-                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                ShowStatus("歌词导入导出功能已关闭");
                 return;
             }
 
@@ -431,12 +436,12 @@ namespace ImageColorChanger.UI
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportSongAsync(songId, saveDialog.FileName);
                 LogImportExportInfo($"[ExportLyrSong-End] success={result?.Success}, msg={result?.Message}");
-                ShowStatus(result.Success ? "✅ 歌曲歌词导出成功" : $"❌ {result.Message}");
+                ShowStatus(result.Success ? " 歌曲歌词导出成功" : $" {result.Message}");
             }
             catch (Exception ex)
             {
                 LogImportExportError($"[ExportLyrSong-Fail] songId={songId}, err={ex}");
-                ShowStatus($"❌ 导出歌曲歌词失败: {ex.Message}");
+                ShowStatus($"导出歌曲歌词失败: {ex.Message}");
             }
         }
 
@@ -444,7 +449,7 @@ namespace ImageColorChanger.UI
         {
             if (!IsLyricsTransferFeatureEnabled)
             {
-                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                ShowStatus("歌词导入导出功能已关闭");
                 return;
             }
 
@@ -484,12 +489,12 @@ namespace ImageColorChanger.UI
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportGroupAsync(groupId, saveDialog.FileName);
                 LogImportExportInfo($"[ExportLyrGroup-End] success={result?.Success}, msg={result?.Message}");
-                ShowStatus(result.Success ? "✅ 分组歌词导出成功" : $"❌ {result.Message}");
+                ShowStatus(result.Success ? " 分组歌词导出成功" : $" {result.Message}");
             }
             catch (Exception ex)
             {
                 LogImportExportError($"[ExportLyrGroup-Fail] groupId={groupId}, err={ex}");
-                ShowStatus($"❌ 导出分组歌词失败: {ex.Message}");
+                ShowStatus($"导出分组歌词失败: {ex.Message}");
             }
         }
 
@@ -528,7 +533,7 @@ namespace ImageColorChanger.UI
         {
             if (!IsLyricsTransferFeatureEnabled)
             {
-                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                ShowStatus("歌词导入导出功能已关闭");
                 return;
             }
 
@@ -551,12 +556,12 @@ namespace ImageColorChanger.UI
                 var service = CreateLyricsTransferService();
                 var result = await service.ExportLibraryAsync(saveDialog.FileName);
                 LogImportExportInfo($"[ExportLyrLib-End] success={result?.Success}, msg={result?.Message}");
-                ShowStatus(result.Success ? "✅ 歌词库导出成功" : $"❌ {result.Message}");
+                ShowStatus(result.Success ? " 歌词库导出成功" : $" {result.Message}");
             }
             catch (Exception ex)
             {
                 LogImportExportError($"[ExportLyrLib-Fail] {ex}");
-                ShowStatus($"❌ 导出歌词库失败: {ex.Message}");
+                ShowStatus($"导出歌词库失败: {ex.Message}");
             }
         }
 
@@ -564,7 +569,7 @@ namespace ImageColorChanger.UI
         {
             if (!IsLyricsTransferFeatureEnabled)
             {
-                ShowStatus("⚠️ 歌词导入导出功能已关闭");
+                ShowStatus("歌词导入导出功能已关闭");
                 return;
             }
 
@@ -608,7 +613,7 @@ namespace ImageColorChanger.UI
                     LoadProjects();
                 }
                 LogImportExportInfo($"[ImportLyr-End] success={result?.Success}, imported={result?.Imported}, overwritten={result?.Overwritten}, copied={result?.Copied}, skipped={result?.Skipped}, failed={result?.Failed}");
-                ShowStatus(result.Success ? $"✅ {result.Message}" : $"❌ {result.Message}");
+                ShowStatus(result.Success ? $" {result.Message}" : $" {result.Message}");
                 System.Windows.MessageBox.Show(
                     result.Message,
                     result.Success ? "歌词导入结果" : "歌词导入失败",
@@ -618,7 +623,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 LogImportExportError($"[ImportLyr-Fail] {ex}");
-                ShowStatus($"❌ 导入歌词包失败: {ex.Message}");
+                ShowStatus($"导入歌词包失败: {ex.Message}");
             }
         }
 
@@ -841,11 +846,15 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 显示自定义字号下拉框异常: {ex}");
+                System.Diagnostics.Debug.WriteLine($" 显示自定义字号下拉框异常: {ex}");
             }
         }
 
         #endregion
     }
 }
+
+
+
+
 

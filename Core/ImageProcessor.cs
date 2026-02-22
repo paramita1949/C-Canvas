@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -45,8 +45,8 @@ namespace ImageColorChanger.Core
         
         // 缓存管理
         private readonly Dictionary<string, BitmapSource> imageCache = new Dictionary<string, BitmapSource>();
-        private readonly Dictionary<string, DateTime> imageCacheAccessTime = new Dictionary<string, DateTime>(); // ⚡ LRU访问时间
-        private readonly IMemoryCache _imageMemoryCache; // ⚡ LRU图片缓存
+        private readonly Dictionary<string, DateTime> imageCacheAccessTime = new Dictionary<string, DateTime>(); //  LRU访问时间
+        private readonly IMemoryCache _imageMemoryCache; //  LRU图片缓存
         
         // 性能优化
         private DateTime lastUpdateTime = DateTime.MinValue;
@@ -69,7 +69,7 @@ namespace ImageColorChanger.Core
             this.imageControl = imageControl;
             this.imageContainer = imageContainer;
             
-            // ⚡ 初始化LRU图片缓存
+            //  初始化LRU图片缓存
             _imageMemoryCache = new MemoryCache(new MemoryCacheOptions
             {
                 SizeLimit = 100, // 最多缓存100张图片（基于权重计算）
@@ -209,20 +209,20 @@ namespace ImageColorChanger.Core
                 if (Math.Abs(zoomRatio - newZoom) > 0.001)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
+                    //System.Diagnostics.Debug.WriteLine($" [ImageProcessor] ZoomRatio变化: {zoomRatio:F2} -> {newZoom:F2}, 原图模式: {originalMode}");
                     //#endif
                     zoomRatio = newZoom;
                     if (currentImage != null && !originalMode)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 触发UpdateImage()更新主屏显示");
+                        //System.Diagnostics.Debug.WriteLine($" [ImageProcessor] 触发UpdateImage()更新主屏显示");
                         //#endif
                         UpdateImage();
                     }
                     else if (originalMode)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔍 [ImageProcessor] 原图模式下不更新（正常模式才支持缩放）");
+                        System.Diagnostics.Debug.WriteLine($" [ImageProcessor] 原图模式下不更新（正常模式才支持缩放）");
                         #endif
                     }
                 }
@@ -271,10 +271,10 @@ namespace ImageColorChanger.Core
                 // 清除当前图片（不清除缓存，只清除当前引用）
                 ClearCurrentImageOnly();
                 
-                // ⚡ 先检查LRU缓存
+                //  先检查LRU缓存
                 if (_imageMemoryCache.TryGetValue(path, out SKBitmap cachedImage))
                 {
-                    // 🔧 性能优化：直接共享引用，不克隆（节省时间）
+                    //  性能优化：直接共享引用，不克隆（节省时间）
                     originalImage = cachedImage;
                     currentImage = cachedImage; // 直接共享，不Clone
                     currentImagePath = path;
@@ -284,10 +284,10 @@ namespace ImageColorChanger.Core
                     // 缓存未命中，从磁盘加载
                     originalImage = LoadImageOptimized(path);
                     
-                    currentImage = originalImage; // 🔧 也不Clone，直接共享
+                    currentImage = originalImage; //  也不Clone，直接共享
                     currentImagePath = path;
                     
-                    // ⚡ 加入LRU缓存
+                    //  加入LRU缓存
                     var entryOptions = new MemoryCacheEntryOptions
                     {
                         // 按图片大小计算权重（1MB = 1权重单位）
@@ -299,7 +299,7 @@ namespace ImageColorChanger.Core
                     _imageMemoryCache.Set(path, originalImage, entryOptions);
                 }
                 
-                // 🔧 重置节流时间戳，确保新图片能立即显示（不受节流限制）
+                //  重置节流时间戳，确保新图片能立即显示（不受节流限制）
                 lastUpdateTime = DateTime.MinValue;
                 
                 // 更新显示
@@ -311,7 +311,7 @@ namespace ImageColorChanger.Core
                     scrollViewer.ScrollToTop();
                     scrollViewer.ScrollToLeftEnd();
                     
-                    // 🔧 重置关键帧索引（参考Python版本）
+                    //  重置关键帧索引（参考Python版本）
                     _host?.ResetKeyframeIndex();
                     
                     sw.Stop();
@@ -376,7 +376,7 @@ namespace ImageColorChanger.Core
                 int targetWidth = (int)(canvasWidth * 1.5);
                 int targetHeight = (int)(canvasHeight * 1.5);
                 
-                // ⚡ 直接加载图片
+                //  直接加载图片
                 var image = SKBitmap.Decode(path);
                 
                 if (image == null)
@@ -410,7 +410,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 优化加载失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 优化加载失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
@@ -423,11 +423,11 @@ namespace ImageColorChanger.Core
         /// </summary>
         private void ClearCurrentImageOnly()
         {
-            // ⚠️ 性能优化后的逻辑：
+            //  性能优化后的逻辑：
             // - originalImage 和 currentImage 现在共享同一个引用（指向缓存中的图片）
             // - 不能 Dispose 它们，因为会破坏缓存中的图片
             // - 只需清空引用即可，由LRU缓存管理生命周期
-            // - ⚡ 重要：不清除 imageCache（渲染缓存），保持渲染结果的缓存！
+            // -  重要：不清除 imageCache（渲染缓存），保持渲染结果的缓存！
             
             // 清空引用（不Dispose，交给缓存管理）
             originalImage = null;
@@ -437,7 +437,7 @@ namespace ImageColorChanger.Core
             
             imageControl.Source = null;
             
-            // ⚡ 性能优化：不清除 imageCache（保持渲染缓存）
+            //  性能优化：不清除 imageCache（保持渲染缓存）
         }
         
         /// <summary>
@@ -613,7 +613,7 @@ namespace ImageColorChanger.Core
             // 检查缓存
             if (imageCache.TryGetValue(cacheKey, out var cachedPhoto))
             {
-                // ⚡ 更新LRU访问时间
+                //  更新LRU访问时间
                 imageCacheAccessTime[cacheKey] = DateTime.Now;
                 return cachedPhoto;
             }
@@ -630,7 +630,7 @@ namespace ImageColorChanger.Core
             if (photo != null)
             {
                 imageCache[cacheKey] = photo;
-                imageCacheAccessTime[cacheKey] = DateTime.Now; // ⚡ 记录访问时间
+                imageCacheAccessTime[cacheKey] = DateTime.Now; //  记录访问时间
                 
                 // 限制缓存大小
                 if (imageCache.Count > Constants.RenderCacheCleanupThreshold)
@@ -682,13 +682,13 @@ namespace ImageColorChanger.Core
             
             try
             {
-                // 🎮 使用GPU加速缩放（如果GPU不可用，自动降级到CPU）
+                //  使用GPU加速缩放（如果GPU不可用，自动降级到CPU）
                 return _gpuContext.ScaleImageGpu(source, targetWidth, targetHeight, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [ImageProcessor] 缩放失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ImageProcessor] 缩放失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
@@ -866,7 +866,7 @@ namespace ImageColorChanger.Core
                 {
                     unsafe
                     {
-                        // ⚡ 直接复制像素数据，超快！无需编码/解码
+                        //  直接复制像素数据，超快！无需编码/解码
                         var src = skBitmap.GetPixels();
                         var dst = wb.BackBuffer;
                         var size = skBitmap.ByteCount;
@@ -1047,7 +1047,7 @@ namespace ImageColorChanger.Core
             
             try
             {
-                // ⚡ LRU策略：删除最久未使用的50%缓存
+                //  LRU策略：删除最久未使用的50%缓存
                 int targetSize = Constants.RenderCacheSize;
                 int toRemove = imageCache.Count - targetSize;
                 
@@ -1131,4 +1131,5 @@ namespace ImageColorChanger.Core
         #endregion
     }
 }
+
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
@@ -66,7 +66,7 @@ namespace ImageColorChanger.UI.Controls
 
                 _richTextBox.IsReadOnly = false;
 
-                _richTextBox.IsHitTestVisible = true;  // 🔧 编辑模式下允许接收鼠标事件
+                _richTextBox.IsHitTestVisible = true;  // 编辑模式下允许接收鼠标事件
 
                 _richTextBox.Focus();
                 UpdateCaretBrushForCurrentPosition();
@@ -124,7 +124,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 退出编辑前，提取并保存富文本样式到 Data.RichTextSpans
+            // 退出编辑前，提取并保存富文本样式到 Data.RichTextSpans
 
             // 这样可以保留用户修改的局部字体、颜色等样式
 
@@ -142,11 +142,11 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                    System.Diagnostics.Debug.WriteLine($"💾 [ExitEditMode] 提取了 {richTextSpans.Count} 个富文本片段");
+//                    System.Diagnostics.Debug.WriteLine($"[ExitEditMode] 提取了 {richTextSpans.Count} 个富文本片段");
 
 //#endif
 
-                    // 🔧 修复：退出编辑模式后，重新渲染文本以确保样式正确应用
+                    // 修复：退出编辑模式后，重新渲染文本以确保样式正确应用
 
                     SyncTextToRichTextBox();
 
@@ -166,7 +166,7 @@ namespace ImageColorChanger.UI.Controls
 
                 _richTextBox.IsReadOnly = true;
 
-                _richTextBox.IsHitTestVisible = false;  // 🔧 只读模式下不拦截鼠标事件
+                _richTextBox.IsHitTestVisible = false;  // 只读模式下不拦截鼠标事件
 
                 //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] RichTextBox状态: IsReadOnly={_richTextBox.IsReadOnly}, IsHitTestVisible={_richTextBox.IsHitTestVisible}");
 
@@ -218,3 +218,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

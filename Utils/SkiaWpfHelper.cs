@@ -18,7 +18,7 @@ namespace ImageColorChanger.Utils
             if (skBitmap == null)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⚠️ [SkiaWpfHelper] SKBitmap为空，返回null");
+                System.Diagnostics.Debug.WriteLine(" [SkiaWpfHelper] SKBitmap为空，返回null");
 #endif
                 return null;
             }
@@ -33,14 +33,14 @@ namespace ImageColorChanger.Utils
                 bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                 bitmapImage.StreamSource = data.AsStream();
                 bitmapImage.EndInit();
-                bitmapImage.Freeze(); // 🔧 线程安全：冻结对象，允许跨线程访问
+                bitmapImage.Freeze(); //  线程安全：冻结对象，允许跨线程访问
                 
                 return bitmapImage;
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SkiaWpfHelper] 转换失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [SkiaWpfHelper] 转换失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -56,7 +56,7 @@ namespace ImageColorChanger.Utils
             if (bitmapSource == null)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("⚠️ [SkiaWpfHelper] BitmapSource为空，返回null");
+                System.Diagnostics.Debug.WriteLine(" [SkiaWpfHelper] BitmapSource为空，返回null");
 #endif
                 return null;
             }
@@ -77,7 +77,7 @@ namespace ImageColorChanger.Utils
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SkiaWpfHelper] 转换失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [SkiaWpfHelper] 转换失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -139,4 +139,5 @@ namespace ImageColorChanger.Utils
         }
     }
 }
+
 

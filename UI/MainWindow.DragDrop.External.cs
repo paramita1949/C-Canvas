@@ -141,7 +141,7 @@ namespace ImageColorChanger.UI
                     if (paths != null && paths.Length > 0)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📁 拖拽导入 {paths.Length} 个项目");
+                        System.Diagnostics.Debug.WriteLine($"拖拽导入 {paths.Length} 个项目");
                         #endif
 
                         int importedFolderCount = 0;
@@ -155,7 +155,7 @@ namespace ImageColorChanger.UI
                             {
                                 // 导入文件夹
                                 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"📁 导入文件夹: {path}");
+                                System.Diagnostics.Debug.WriteLine($"导入文件夹: {path}");
                                 #endif
 
                                 var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(path);
@@ -166,7 +166,7 @@ namespace ImageColorChanger.UI
                                     totalNewFiles += newFiles?.Count ?? 0;
                                     
                                     #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"✅ 文件夹导入成功: {folder.Name} (新增 {newFiles?.Count ?? 0} 个文件)");
+                                    System.Diagnostics.Debug.WriteLine($" 文件夹导入成功: {folder.Name} (新增 {newFiles?.Count ?? 0} 个文件)");
                                     #endif
                                 }
                                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
@@ -181,7 +181,7 @@ namespace ImageColorChanger.UI
                                 if (Managers.ImportManager.AllExtensions.Contains(extension))
                                 {
                                     #if DEBUG
-                                    System.Diagnostics.Debug.WriteLine($"📄 导入文件: {path}");
+                                    System.Diagnostics.Debug.WriteLine($"导入文件: {path}");
                                     #endif
 
                                     var mediaFile = ImportManagerService.ImportSingleFile(path);
@@ -191,7 +191,7 @@ namespace ImageColorChanger.UI
                                         importedFileCount++;
                                         
                                         #if DEBUG
-                                        System.Diagnostics.Debug.WriteLine($"✅ 文件导入成功: {mediaFile.Name}");
+                                        System.Diagnostics.Debug.WriteLine($" 文件导入成功: {mediaFile.Name}");
                                         #endif
                                     }
                                     else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
@@ -208,32 +208,32 @@ namespace ImageColorChanger.UI
                             LoadProjects(); // 刷新项目树
                             LoadSearchScopes(); // 刷新搜索范围
                             
-                            // 🔧 清除缓存，确保使用最新的数据库数据
+                            // 清除缓存，确保使用最新的数据库数据
                             _originalManager?.ClearCache();
                             
-                            // ⚡ 清除图片LRU缓存
+                            //  清除图片LRU缓存
                             _imageProcessor?.ClearImageCache();
                             
-                            // ⚡ 清除投影缓存
+                            //  清除投影缓存
                             _projectionManager?.ClearProjectionCache();
 
                             // 显示导入结果
                             if (importedFolderCount > 0 && importedFileCount > 0)
                             {
-                                ShowStatus($"✅ 已导入 {importedFolderCount} 个文件夹和 {importedFileCount} 个文件 (共 {totalNewFiles + importedFileCount} 个新文件)");
+                                ShowStatus($"已导入 {importedFolderCount} 个文件夹和 {importedFileCount} 个文件 (共 {totalNewFiles + importedFileCount} 个新文件)");
                             }
                             else if (importedFolderCount > 0)
                             {
-                                ShowStatus($"✅ 已导入 {importedFolderCount} 个文件夹 (共 {totalNewFiles} 个新文件)");
+                                ShowStatus($"已导入 {importedFolderCount} 个文件夹 (共 {totalNewFiles} 个新文件)");
                             }
                             else
                             {
-                                ShowStatus($"✅ 已导入 {importedFileCount} 个文件");
+                                ShowStatus($"已导入 {importedFileCount} 个文件");
                             }
                         }
                         else
                         {
-                            ShowStatus(!string.IsNullOrWhiteSpace(lastError) ? $"❌ {lastError}" : "❌ 没有导入任何文件");
+                            ShowStatus(!string.IsNullOrWhiteSpace(lastError) ? $" {lastError}" : " 没有导入任何文件");
                         }
                     }
                 }
@@ -243,12 +243,16 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 外部拖拽导入失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 外部拖拽导入失败: {ex.Message}");
                 #endif
-                ShowStatus($"❌ 导入失败: {ex.Message}");
+                ShowStatus($"导入失败: {ex.Message}");
             }
         }
 
         #endregion
     }
 }
+
+
+
+

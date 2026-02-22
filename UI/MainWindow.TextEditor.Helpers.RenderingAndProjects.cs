@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI
         
         /// <summary>
         /// 将UI元素渲染为位图（旧方法，已被ComposeCanvasWithSkia替代）
-        /// 🚀 优化策略：先渲染到Canvas原始尺寸（快），后续用GPU缩放到投影分辨率（快）
+        /// 优化策略：先渲染到Canvas原始尺寸（快），后续用GPU缩放到投影分辨率（快）
         /// </summary>
         private RenderTargetBitmap RenderCanvasToBitmap(UIElement element)
         {
@@ -60,7 +60,7 @@ namespace ImageColorChanger.UI
                 height = frameworkElement.ActualHeight > 0 ? frameworkElement.ActualHeight : frameworkElement.Height;
             }
             
-            // 🚀 新策略：渲染到Canvas原始尺寸，避免DrawingVisual缩放带来的性能损失
+            // 新策略：渲染到Canvas原始尺寸，避免DrawingVisual缩放带来的性能损失
             // 后续会用GPU快速缩放到投影分辨率
             int renderWidth = (int)Math.Ceiling(width);
             int renderHeight = (int)Math.Ceiling(height);
@@ -112,16 +112,16 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 将图像缩放到投影屏幕尺寸，拉伸填满整个屏幕
-        /// 🚀 优化：使用GPU加速缩放，性能提升10倍
+        /// 优化：使用GPU加速缩放，性能提升10倍
         /// </summary>
         private SKBitmap ScaleImageForProjection(SKBitmap sourceImage, int targetWidth, int targetHeight)
         {
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] 输入: {sourceImage.Width}×{sourceImage.Height}, 输出: {targetWidth}×{targetHeight}");
+            //System.Diagnostics.Debug.WriteLine($"[GPU缩放] 输入: {sourceImage.Width}×{sourceImage.Height}, 输出: {targetWidth}×{targetHeight}");
             var sw = System.Diagnostics.Stopwatch.StartNew();
             #endif
 
-            // 🚀 使用GPU加速缩放（与普通图片投影保持一致）
+            // 使用GPU加速缩放（与普通图片投影保持一致）
             var scaled = _gpuContext.ScaleImageGpu(
                 sourceImage, 
                 targetWidth, 
@@ -129,7 +129,7 @@ namespace ImageColorChanger.UI
             
             #if DEBUG
             sw.Stop();
-            //System.Diagnostics.Debug.WriteLine($"🎨 [GPU缩放] GPUContext.ScaleImageGpu 实际耗时: {sw.ElapsedMilliseconds}ms");
+            //System.Diagnostics.Debug.WriteLine($"[GPU缩放] GPUContext.ScaleImageGpu 实际耗时: {sw.ElapsedMilliseconds}ms");
             #endif
 
             return scaled;
@@ -146,7 +146,7 @@ namespace ImageColorChanger.UI
                 // 获取投影屏幕分辨率
                 var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionSize() ?? (1920, 1080);
 
-                // 🔧 使用实际画布尺寸（而非硬编码）
+                // 使用实际画布尺寸（而非硬编码）
                 double canvasWidth = EditorCanvas?.ActualWidth ?? 1600.0;
                 double canvasHeight = EditorCanvas?.ActualHeight ?? 900.0;
 
@@ -161,7 +161,7 @@ namespace ImageColorChanger.UI
                 scale = Math.Max(1.0, Math.Min(4.0, scale));
 
                 #if DEBUG
-                // //System.Diagnostics.Debug.WriteLine($"🎨 [RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
+                // //System.Diagnostics.Debug.WriteLine($"[RenderScale] 投影屏={projWidth}×{projHeight}, 画布={canvasWidth}×{canvasHeight}, 缩放={scale:F2}");
                 #endif
 
                 return scale;
@@ -180,11 +180,11 @@ namespace ImageColorChanger.UI
         {
             if (item == null || item.Type != TreeItemType.TextProject)
             {
-                //System.Diagnostics.Debug.WriteLine($"⚠️ 无法重命名: item null 或类型不匹配");
+                //System.Diagnostics.Debug.WriteLine($" 无法重命名: item null 或类型不匹配");
                 return;
             }
 
-            //System.Diagnostics.Debug.WriteLine($"📝 进入编辑模式: ID={item.Id}, Name={item.Name}");
+            //System.Diagnostics.Debug.WriteLine($"进入编辑模式: ID={item.Id}, Name={item.Name}");
             
             // 保存原始名称
             item.OriginalName = item.Name;
@@ -192,7 +192,7 @@ namespace ImageColorChanger.UI
             // 进入编辑模式
             item.IsEditing = true;
             
-            //System.Diagnostics.Debug.WriteLine($"✅ IsEditing 已设置为 true, OriginalName={item.OriginalName}");
+            //System.Diagnostics.Debug.WriteLine($" IsEditing 已设置为 true, OriginalName={item.OriginalName}");
         }
 
         /// <summary>
@@ -202,12 +202,12 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"💾 完成重命名: OriginalName={item.OriginalName}, CurrentName={item.Name}, NewName={newName}");
+                //System.Diagnostics.Debug.WriteLine($"完成重命名: OriginalName={item.OriginalName}, CurrentName={item.Name}, NewName={newName}");
                 
                 // 如果取消或输入为空，恢复原始名称
                 if (string.IsNullOrWhiteSpace(newName))
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 名称为空，恢复原始名称");
+                    //System.Diagnostics.Debug.WriteLine($" 名称为空，恢复原始名称");
                     item.Name = item.OriginalName;
                     item.IsEditing = false;
                     return;
@@ -216,18 +216,18 @@ namespace ImageColorChanger.UI
                 // 如果名称未改变，直接返回
                 if (newName.Trim() == item.OriginalName)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 名称未改变，取消编辑");
+                    //System.Diagnostics.Debug.WriteLine($" 名称未改变，取消编辑");
                     item.IsEditing = false;
                     return;
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"🔄 开始保存项目: ID={item.Id}, {item.OriginalName} -> {newName.Trim()}");
+                //System.Diagnostics.Debug.WriteLine($" 开始保存项目: ID={item.Id}, {item.OriginalName} -> {newName.Trim()}");
                 
                 // 加载并更新项目
                 var project = await _textProjectManager.LoadProjectAsync(item.Id);
                 if (project != null)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"✅ 项目加载成功，更新名称");
+                    //System.Diagnostics.Debug.WriteLine($" 项目加载成功，更新名称");
                     
                     project.Name = newName.Trim();
                     await _textProjectManager.SaveProjectAsync(project);
@@ -236,20 +236,20 @@ namespace ImageColorChanger.UI
                     item.OriginalName = newName.Trim();
                     item.IsEditing = false;
                     
-                    ShowStatus($"✅ 项目已重命名: {newName}");
-                    //System.Diagnostics.Debug.WriteLine($"✅ 项目已重命名: ID={item.Id}, NewName={newName}");
+                    ShowStatus($"项目已重命名: {newName}");
+                    //System.Diagnostics.Debug.WriteLine($" 项目已重命名: ID={item.Id}, NewName={newName}");
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine($"❌ 项目加载失败: ID={item.Id}，恢复原始名称");
+                    //System.Diagnostics.Debug.WriteLine($" 项目加载失败: ID={item.Id}，恢复原始名称");
                     item.Name = item.OriginalName;
                     item.IsEditing = false;
                 }
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 重命名项目失败: {ex.Message}");
-                //System.Diagnostics.Debug.WriteLine($"❌ 堆栈跟踪: {ex.StackTrace}");
+                //System.Diagnostics.Debug.WriteLine($" 重命名项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 堆栈跟踪: {ex.StackTrace}");
                 
                 // 恢复原始名称
                 item.Name = item.OriginalName;
@@ -272,17 +272,17 @@ namespace ImageColorChanger.UI
                     bool success = await slideExportManager.ExportProjectAsync(item.Id);
                     if (success)
                     {
-                        ShowStatus($"✅ 已导出项目: {item.Name}");
+                        ShowStatus($"已导出项目: {item.Name}");
                     }
                     else if (!string.IsNullOrWhiteSpace(slideExportManager.LastError))
                     {
-                        ShowStatus($"❌ {slideExportManager.LastError}");
+                        ShowStatus($"{slideExportManager.LastError}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 导出项目失败: {ex.Message}");
+                ShowStatus($"导出项目失败: {ex.Message}");
             }
         }
 
@@ -299,17 +299,17 @@ namespace ImageColorChanger.UI
                     bool success = await slideExportManager.ExportAllProjectsAsync();
                     if (success)
                     {
-                        ShowStatus($"✅ 已导出所有项目");
+                        ShowStatus($"已导出所有项目");
                     }
                     else if (!string.IsNullOrWhiteSpace(slideExportManager.LastError))
                     {
-                        ShowStatus($"❌ {slideExportManager.LastError}");
+                        ShowStatus($"{slideExportManager.LastError}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 导出所有项目失败: {ex.Message}");
+                ShowStatus($"导出所有项目失败: {ex.Message}");
             }
         }
 
@@ -340,13 +340,13 @@ namespace ImageColorChanger.UI
                     // 刷新项目树
                     LoadProjects();
 
-                    ShowStatus($"✅ 已删除项目: {item.Name}");
-                    //System.Diagnostics.Debug.WriteLine($"✅ 已删除项目: ID={item.Id}, Name={item.Name}");
+                    ShowStatus($"已删除项目: {item.Name}");
+                    //System.Diagnostics.Debug.WriteLine($" 已删除项目: ID={item.Id}, Name={item.Name}");
                 }
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 删除项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 删除项目失败: {ex.Message}");
                 WpfMessageBox.Show($"删除项目失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -466,3 +466,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

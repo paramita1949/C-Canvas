@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -35,14 +35,14 @@ namespace ImageColorChanger
         {
             StartupPerfLogger.Initialize("App.OnStartup.Begin");
 
-            // 🔧 在 WPF 初始化之前设置 Per-Monitor DPI Awareness
+            //  在 WPF 初始化之前设置 Per-Monitor DPI Awareness
             SetProcessDpiAwareness();
             StartupPerfLogger.Mark("App.DpiAwareness.Configured");
 
             base.OnStartup(e);
             StartupPerfLogger.Mark("App.BaseOnStartup.Completed");
 
-            // 🔒 检查是否已有实例在同一目录运行
+            //  检查是否已有实例在同一目录运行
             if (!CheckSingleInstance())
             {
                 StartupPerfLogger.Mark("App.SingleInstance.DuplicateDetected");
@@ -96,7 +96,7 @@ namespace ImageColorChanger
             {
                 StartupPerfLogger.Error("App.OnStartup.Failed", ex);
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 应用程序启动失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [FATAL] 应用程序启动失败: {ex.Message}");
                 #endif
                 System.Windows.MessageBox.Show($"应用程序启动失败：{ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
@@ -159,8 +159,8 @@ namespace ImageColorChanger
                 string mutexName = GenerateMutexName(currentDirectory);
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 当前目录: {currentDirectory}");
-                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 互斥锁名称: {mutexName}");
+                System.Diagnostics.Debug.WriteLine($" [单实例检查] 当前目录: {currentDirectory}");
+                System.Diagnostics.Debug.WriteLine($" [单实例检查] 互斥锁名称: {mutexName}");
                 #endif
                 
                 // 尝试创建互斥锁
@@ -171,13 +171,13 @@ namespace ImageColorChanger
                 {
                     // 互斥锁已存在，说明该目录下已有实例在运行
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 检测到重复实例");
+                    System.Diagnostics.Debug.WriteLine($" [单实例检查] 检测到重复实例");
                     #endif
                     return false;
                 }
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 首次启动，创建互斥锁成功");
+                System.Diagnostics.Debug.WriteLine($" [单实例检查] 首次启动，创建互斥锁成功");
                 #endif
                 
                 return true;
@@ -189,7 +189,7 @@ namespace ImageColorChanger
                 )
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔒 [单实例检查] 异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [单实例检查] 异常: {ex.Message}");
                 #endif
                 // 如果出现异常，允许启动（避免因检查失败而无法启动）
                 return true;
@@ -219,7 +219,7 @@ namespace ImageColorChanger
             {
                 StartupPerfLogger.Error("AppDomain.UnhandledException", ex);
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($" [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
                 #endif
                 System.Windows.MessageBox.Show($"发生严重错误：{ex.Message}\n\n根因：{GetRootExceptionSummary(ex)}", 
                     "严重错误", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -236,7 +236,7 @@ namespace ImageColorChanger
         {
             StartupPerfLogger.Error("Dispatcher.UnhandledException", e.Exception);
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"❌ [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
+            System.Diagnostics.Debug.WriteLine($" [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
             #endif
 
             if (IsRecoverableUiException(e.Exception))
@@ -365,7 +365,7 @@ namespace ImageColorChanger
                             SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.Process_Per_Monitor_DPI_Aware);
                         }
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 Per-Monitor DPI Aware V2");
+                        System.Diagnostics.Debug.WriteLine(" [DPI] 已设置为 Per-Monitor DPI Aware V2");
 #endif
                     }
                     else
@@ -373,7 +373,7 @@ namespace ImageColorChanger
                         // Windows 8.1 - 10（Creators Update 之前）
                         SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.Process_Per_Monitor_DPI_Aware);
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 Per-Monitor DPI Aware");
+                        System.Diagnostics.Debug.WriteLine(" [DPI] 已设置为 Per-Monitor DPI Aware");
 #endif
                     }
                 }
@@ -382,14 +382,14 @@ namespace ImageColorChanger
                     // Windows 7 及更早版本
                     SetProcessDPIAware();
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("✅ [DPI] 已设置为 System DPI Aware");
+                    System.Diagnostics.Debug.WriteLine(" [DPI] 已设置为 System DPI Aware");
 #endif
                 }
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [DPI] 设置 DPI Awareness 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [DPI] 设置 DPI Awareness 失败: {ex.Message}");
 #else
                 _ = ex; // 避免编译警告
 #endif
@@ -456,4 +456,5 @@ namespace ImageColorChanger
         #endregion
     }
 }
+
 

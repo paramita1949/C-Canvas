@@ -35,7 +35,7 @@ namespace ImageColorChanger.UI
             this.Opened += BibleInsertStylePopup_Opened;
             
             //#if DEBUG
-            //Debug.WriteLine($"✅ [BibleInsertStylePopup] 初始化完成");
+            //Debug.WriteLine($" [BibleInsertStylePopup] 初始化完成");
             //#endif
         }
         
@@ -57,7 +57,7 @@ namespace ImageColorChanger.UI
                         window.Topmost = false;
                         
                         //#if DEBUG
-                        //Debug.WriteLine($"✅ [BibleInsertStylePopup] 已设置 Popup 窗口不置顶");
+                        //Debug.WriteLine($" [BibleInsertStylePopup] 已设置 Popup 窗口不置顶");
                         //#endif
                     }
                 }
@@ -65,7 +65,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"⚠️ [BibleInsertStylePopup] 设置窗口属性失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 设置窗口属性失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -99,7 +99,7 @@ namespace ImageColorChanger.UI
             _config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
             
             //#if DEBUG
-            //Debug.WriteLine($"📝 [BibleInsertStylePopup] 从数据库加载配置");
+            //Debug.WriteLine($"[BibleInsertStylePopup] 从数据库加载配置");
             //Debug.WriteLine($"   字体: {_config.FontFamily}");
             //Debug.WriteLine($"   样式: {_config.Style}");
             //Debug.WriteLine($"   标题字体大小（显示值）: {_config.TitleStyle.FontSize}");
@@ -119,7 +119,7 @@ namespace ImageColorChanger.UI
             var fontService = FontService.Instance;
             var fontConfig = fontService.GetFontConfig();
             
-            // 🆕 使用字典存储：显示名（中文） -> FontFamily（英文）
+            // 使用字典存储：显示名（中文） -> FontFamily（英文）
             _fontDisplayMap = new Dictionary<string, string>();
             if (fontConfig != null && fontConfig.FontCategories != null)
             {
@@ -144,7 +144,7 @@ namespace ImageColorChanger.UI
             
             CmbFont.ItemsSource = fontDisplayNames;
             
-            // 🆕 根据配置的 FontFamily（英文）找到对应的中文显示名
+            // 根据配置的 FontFamily（英文）找到对应的中文显示名
             string selectedDisplayName = null;
             foreach (var kvp in _fontDisplayMap)
             {
@@ -219,7 +219,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"⚠️ [BibleInsertStylePopup] 设置颜色按钮失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 设置颜色按钮失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -276,7 +276,7 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("style", tag);
                 }
                 
-                // 🆕 更新统一字体（将中文显示名转换为英文 FontFamily）
+                // 更新统一字体（将中文显示名转换为英文 FontFamily）
                 if (CmbFont.SelectedItem is string fontDisplayName && 
                     _fontDisplayMap != null && 
                     _fontDisplayMap.TryGetValue(fontDisplayName, out string fontFamily))
@@ -285,7 +285,7 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("font_family", fontFamily);
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"📝 [BibleInsertStylePopup] 更新字体配置: {fontDisplayName} -> {fontFamily}");
+                    //Debug.WriteLine($"[BibleInsertStylePopup] 更新字体配置: {fontDisplayName} -> {fontFamily}");
                     //#endif
                 }
                 
@@ -320,7 +320,7 @@ namespace ImageColorChanger.UI
                 _dbManager.SetBibleInsertConfigValue("verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0");
 
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [BibleInsertStylePopup] 配置已保存到数据库");
+                //Debug.WriteLine($" [BibleInsertStylePopup] 配置已保存到数据库");
                 //Debug.WriteLine($"   样式布局: {_config.Style}");
                 //Debug.WriteLine($"   统一字体: {_config.FontFamily}");
                 //Debug.WriteLine($"   标题: {_config.TitleStyle.FontSize}pt, 粗体={_config.TitleStyle.IsBold}");
@@ -331,7 +331,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [BibleInsertStylePopup] 更新配置失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 更新配置失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -359,14 +359,14 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("title_color", _config.TitleStyle.ColorHex);
                     
                     #if DEBUG
-                    Debug.WriteLine($"✅ [BibleInsertStylePopup] 标题颜色已更改: {_config.TitleStyle.ColorHex}");
+                    Debug.WriteLine($" [BibleInsertStylePopup] 标题颜色已更改: {_config.TitleStyle.ColorHex}");
                     #endif
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择标题颜色失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 选择标题颜色失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -393,14 +393,14 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("verse_color", _config.VerseStyle.ColorHex);
 
                     #if DEBUG
-                    Debug.WriteLine($"✅ [BibleInsertStylePopup] 经文颜色已更改: {_config.VerseStyle.ColorHex}");
+                    Debug.WriteLine($" [BibleInsertStylePopup] 经文颜色已更改: {_config.VerseStyle.ColorHex}");
                     #endif
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择经文颜色失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 选择经文颜色失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -427,14 +427,14 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("verse_number_color", _config.VerseNumberStyle.ColorHex);
 
                     #if DEBUG
-                    Debug.WriteLine($"✅ [BibleInsertStylePopup] 节号颜色已更改: {_config.VerseNumberStyle.ColorHex}");
+                    Debug.WriteLine($" [BibleInsertStylePopup] 节号颜色已更改: {_config.VerseNumberStyle.ColorHex}");
                     #endif
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [BibleInsertStylePopup] 选择节号颜色失败: {ex.Message}");
+                Debug.WriteLine($" [BibleInsertStylePopup] 选择节号颜色失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -454,3 +454,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

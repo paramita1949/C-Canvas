@@ -350,11 +350,11 @@ namespace ImageColorChanger.UI
             // 如果滚动位置在标题区域，返回第一节
             if (currentOffset < headerHeight)
             {
-                // Debug.WriteLine($"  📍 在标题区域，返回节1");
+                // Debug.WriteLine($"  在标题区域，返回节1");
                 return 0;
             }
 
-            // 🔧 新策略：使用 CalculateVerseOffset 来计算每一节的精确位置
+            // 新策略：使用 CalculateVerseOffset 来计算每一节的精确位置
             // 这样即使节未渲染（Container为null），也能正确判断
             int totalVerses = BibleVerseList.Items.Count;
             
@@ -364,13 +364,13 @@ namespace ImageColorChanger.UI
                 double verseOffset = CalculateVerseOffset(i);
                 if (currentOffset >= verseOffset)
                 {
-                    // Debug.WriteLine($"  ✅ 找到节{i + 1}，起始位置: {verseOffset:F1}px，当前位置: {currentOffset:F1}px");
+                    // Debug.WriteLine($"   找到节{i + 1}，起始位置: {verseOffset:F1}px，当前位置: {currentOffset:F1}px");
                     return i;
                 }
             }
 
             // 理论上不应该到这里，返回第一节
-            // Debug.WriteLine($"  ⚠️ 未找到匹配，返回第一节");
+            // Debug.WriteLine($"   未找到匹配，返回第一节");
             return 0;
         }
 
@@ -494,7 +494,7 @@ namespace ImageColorChanger.UI
 #if DEBUG
             if (nullCount > 0)
             {
-                Debug.WriteLine($"⚠️ [经文对齐] 节{verseIndex + 1} 前有{nullCount}个节未渲染，位置可能不准: {accumulatedHeight:F1}px");
+                Debug.WriteLine($" [经文对齐] 节{verseIndex + 1} 前有{nullCount}个节未渲染，位置可能不准: {accumulatedHeight:F1}px");
             }
 #endif
 
@@ -567,7 +567,7 @@ namespace ImageColorChanger.UI
             try
             {
                 var book = BibleBookConfig.GetBook(bookId);
-                // 🔧 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
+                // 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
                 string displayText = $"{book?.Name}{chapter}章{verseText}";
 
@@ -617,7 +617,7 @@ namespace ImageColorChanger.UI
                     }
                 }
 
-                // 🆕 取消其他槽位的勾选，勾选新填充的槽位
+                // 取消其他槽位的勾选，勾选新填充的槽位
                 if (targetSlot != null)
                 {
                     foreach (var slot in _historySlots)
@@ -626,7 +626,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
+                    //System.Diagnostics.Debug.WriteLine($" [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
                     //#endif
                 }
 
@@ -661,7 +661,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"💾 [保存历史] 开始保存圣经历史记录到数据库");
+                //System.Diagnostics.Debug.WriteLine($"[保存历史] 开始保存圣经历史记录到数据库");
                 //System.Diagnostics.Debug.WriteLine($"   _historySlots: {_historySlots?.Count ?? 0} 个槽位");
                 //#endif
                 
@@ -679,7 +679,7 @@ namespace ImageColorChanger.UI
                     db.BibleHistory.RemoveRange(oldRecords);
 
                     // 保存所有20个槽位（包括空槽位）
-                    // 🔧 不保存锁定状态，退出时锁定状态会被清除
+                    // 不保存锁定状态，退出时锁定状态会被清除
                     foreach (var slot in _historySlots)
                     {
                         var record = new Database.Models.BibleHistoryRecord
@@ -691,7 +691,7 @@ namespace ImageColorChanger.UI
                             StartVerse = slot.StartVerse,
                             EndVerse = slot.EndVerse,
                             IsChecked = slot.IsChecked,
-                            IsLocked = false,  // 🔧 不保存锁定状态
+                            IsLocked = false,  // 不保存锁定状态
                             UpdatedTime = DateTime.Now
                         };
                         
@@ -704,7 +704,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [保存历史] 保存历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [保存历史] 保存历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #else
                 _ = ex;  // 防止未使用变量警告
@@ -720,7 +720,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📂 [加载历史] 开始从数据库加载圣经历史记录");
+                //System.Diagnostics.Debug.WriteLine($"[加载历史] 开始从数据库加载圣经历史记录");
                 //#endif
                 
                 // 使用与DatabaseManager相同的默认路径
@@ -735,9 +735,9 @@ namespace ImageColorChanger.UI
                     }
 
                     // 恢复历史记录到槽位
-                    // 🔧 不恢复锁定状态，退出时锁定状态会被清除
+                    // 不恢复锁定状态，退出时锁定状态会被清除
                     
-                    // 🔧 临时取消订阅事件，避免触发增量更新
+                    // 临时取消订阅事件，避免触发增量更新
                     BibleHistoryItem.OnLockedStateChanged -= UpdateClearButtonStyle;
                     
                     foreach (var record in historyRecords)
@@ -751,20 +751,20 @@ namespace ImageColorChanger.UI
                             slot.StartVerse = record.StartVerse;
                             slot.EndVerse = record.EndVerse;
                             slot.IsChecked = record.IsChecked;
-                            slot.IsLocked = false;  // 🔧 不恢复锁定状态
+                            slot.IsLocked = false;  // 不恢复锁定状态
                         }
                     }
                     
-                    // 🔧 重新订阅事件
+                    // 重新订阅事件
                     BibleHistoryItem.OnLockedStateChanged += UpdateClearButtonStyle;
                     
-                    // 🔧 不再检查锁定记录，因为锁定状态不会被保存和恢复
+                    // 不再检查锁定记录，因为锁定状态不会被保存和恢复
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [加载历史] 加载历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [加载历史] 加载历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #else
                 _ = ex;  // 防止未使用变量警告
@@ -805,13 +805,13 @@ namespace ImageColorChanger.UI
                 }
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine("🗑️ [清空历史] 已清空所有历史记录（内存+数据库）");
+                //System.Diagnostics.Debug.WriteLine(" [清空历史] 已清空所有历史记录（内存+数据库）");
                 //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [清空历史] 清空历史记录失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [清空历史] 清空历史记录失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #else
                 _ = ex;  // 防止未使用变量警告
@@ -836,7 +836,7 @@ namespace ImageColorChanger.UI
                     _bibleStylePopup.IsOpen = false;
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [圣经插入] 样式设置 Popup 已关闭");
+                    //Debug.WriteLine($" [圣经插入] 样式设置 Popup 已关闭");
                     //#endif
                     return;
                 }
@@ -854,7 +854,7 @@ namespace ImageColorChanger.UI
                     _bibleStylePopup.Closed += (s, args) =>
                     {
                         //#if DEBUG
-                        //Debug.WriteLine($"🔄 [圣经插入] Popup 已关闭");
+                        //Debug.WriteLine($" [圣经插入] Popup 已关闭");
                         //#endif
                     };
                 }
@@ -863,13 +863,13 @@ namespace ImageColorChanger.UI
                 _bibleStylePopup.IsOpen = true;
                 
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [圣经插入] 样式设置 Popup 已打开");
+                //Debug.WriteLine($" [圣经插入] 样式设置 Popup 已打开");
                 //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经插入] 切换样式设置 Popup 失败: {ex.Message}");
+                Debug.WriteLine($" [圣经插入] 切换样式设置 Popup 失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -882,3 +882,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

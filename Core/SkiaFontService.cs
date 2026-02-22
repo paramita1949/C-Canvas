@@ -59,7 +59,7 @@ namespace ImageColorChanger.Core
             string cacheKey = $"{fontFamilyName}_{isBold}_{isItalic}";
             
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🔍 [SkiaFontService] GetTypeface 调用: {fontFamilyName} (粗体:{isBold}, 斜体:{isItalic})");
+//            System.Diagnostics.Debug.WriteLine($" [SkiaFontService] GetTypeface 调用: {fontFamilyName} (粗体:{isBold}, 斜体:{isItalic})");
 //#endif
             
             // 从缓存中查找
@@ -67,13 +67,13 @@ namespace ImageColorChanger.Core
             {
 //#if DEBUG
 //                var cachedTypeface = _typefaceCache[cacheKey];
-//                System.Diagnostics.Debug.WriteLine($"  ✅ [SkiaFontService] 缓存命中: {cacheKey} -> {cachedTypeface.FamilyName}");
+//                System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 缓存命中: {cacheKey} -> {cachedTypeface.FamilyName}");
 //#endif
                 return _typefaceCache[cacheKey];
             }
             
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"  ⚠️ [SkiaFontService] 缓存未命中，开始加载字体");
+//            System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 缓存未命中，开始加载字体");
 //#endif
             
             // 加载字体
@@ -96,7 +96,7 @@ namespace ImageColorChanger.Core
             try
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"    📂 [SkiaFontService] LoadTypeface 开始: {fontFamilyName}, 加粗:{isBold}, 斜体:{isItalic}");
+//                System.Diagnostics.Debug.WriteLine($"     [SkiaFontService] LoadTypeface 开始: {fontFamilyName}, 加粗:{isBold}, 斜体:{isItalic}");
 //#endif
                 
                 // 1. 尝试从FontService获取字体配置
@@ -114,14 +114,14 @@ namespace ImageColorChanger.Core
                                 font.Name.Equals(fontFamilyName, StringComparison.OrdinalIgnoreCase))
                             {
 //#if DEBUG
-//                                System.Diagnostics.Debug.WriteLine($"    ✅ [SkiaFontService] 找到字体配置: {font.Name} (Family:{font.Family}, File:{font.File})");
+//                                System.Diagnostics.Debug.WriteLine($"     [SkiaFontService] 找到字体配置: {font.Name} (Family:{font.Family}, File:{font.File})");
 //#endif
                                 // 找到字体配置
                                 if (font.File == "system")
                                 {
                                     // 系统字体
 //#if DEBUG
-//                                    System.Diagnostics.Debug.WriteLine($"    🎯 [SkiaFontService] 系统字体，将应用加粗样式: {isBold}");
+//                                    System.Diagnostics.Debug.WriteLine($"     [SkiaFontService] 系统字体，将应用加粗样式: {isBold}");
 //#endif
                                     return GetDefaultTypeface(isBold, isItalic, fontFamilyName);
                                 }
@@ -129,7 +129,7 @@ namespace ImageColorChanger.Core
                                 {
                                     // 自定义字体文件
 //#if DEBUG
-//                                    System.Diagnostics.Debug.WriteLine($"    ⚠️ [SkiaFontService] 自定义字体，加载字体文件（注意：加粗参数isBold={isBold}未传递到LoadTypefaceFromFile）");
+//                                    System.Diagnostics.Debug.WriteLine($"     [SkiaFontService] 自定义字体，加载字体文件（注意：加粗参数isBold={isBold}未传递到LoadTypefaceFromFile）");
 //#endif
                                     return LoadTypefaceFromFile(font.File, fontFamilyName);
                                 }
@@ -139,7 +139,7 @@ namespace ImageColorChanger.Core
                 }
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"    ⚠️ [SkiaFontService] 未找到字体配置，回退到系统字体");
+//                System.Diagnostics.Debug.WriteLine($"     [SkiaFontService] 未找到字体配置，回退到系统字体");
 //#endif
                 
                 // 2. 如果FontService找不到，尝试作为系统字体加载
@@ -148,7 +148,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SkiaFontService] 字体加载失败 [{fontFamilyName}]: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [SkiaFontService] 字体加载失败 [{fontFamilyName}]: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -166,7 +166,7 @@ namespace ImageColorChanger.Core
                 string fontRelativePath = $"Fonts/{fontFileName}";
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"🔍 [SkiaFontService] 尝试加载字体: {fontRelativePath}");
+//                System.Diagnostics.Debug.WriteLine($" [SkiaFontService] 尝试加载字体: {fontRelativePath}");
 //#endif
                 
                 // 1. 尝试从PAK加载
@@ -195,7 +195,7 @@ namespace ImageColorChanger.Core
                             if (typeface != null)
                             {
 //#if DEBUG
-//                                System.Diagnostics.Debug.WriteLine($"  ✅ [SkiaFontService] 从PAK加载成功: {pakPath}");
+//                                System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 从PAK加载成功: {pakPath}");
 //                                System.Diagnostics.Debug.WriteLine($"     请求字体族: {fontFamilyName}");
 //                                System.Diagnostics.Debug.WriteLine($"     实际字体族: {typeface.FamilyName}");
 //                                System.Diagnostics.Debug.WriteLine($"     字形数量: {typeface.GetGlyphs("测试文字").Length}");
@@ -218,7 +218,7 @@ namespace ImageColorChanger.Core
                     var typeface = SKTypeface.FromFile(fullPath);
                     
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  ✅ [SkiaFontService] 从文件加载: {fullPath}");
+//                    System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 从文件加载: {fullPath}");
 //                    System.Diagnostics.Debug.WriteLine($"     请求字体族: {fontFamilyName}");
 //                    System.Diagnostics.Debug.WriteLine($"     实际字体族: {typeface.FamilyName}");
 //                    System.Diagnostics.Debug.WriteLine($"     字形数量: {typeface.GetGlyphs("测试文字").Length}");
@@ -234,7 +234,7 @@ namespace ImageColorChanger.Core
                     var typeface = SKTypeface.FromFile(tempPath);
                     
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"  ✅ [SkiaFontService] 从临时目录加载: {tempPath}");
+//                    System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 从临时目录加载: {tempPath}");
 //                    System.Diagnostics.Debug.WriteLine($"     请求字体族: {fontFamilyName}");
 //                    System.Diagnostics.Debug.WriteLine($"     实际字体族: {typeface.FamilyName}");
 //                    System.Diagnostics.Debug.WriteLine($"     字形数量: {typeface.GetGlyphs("测试文字").Length}");
@@ -243,14 +243,14 @@ namespace ImageColorChanger.Core
                 }
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"  ⚠️ [SkiaFontService] 字体文件不存在: {fontRelativePath}");
+//                System.Diagnostics.Debug.WriteLine($"   [SkiaFontService] 字体文件不存在: {fontRelativePath}");
 //#endif
                 return null;
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [SkiaFontService] 字体文件加载失败 [{fontFileName}]: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [SkiaFontService] 字体文件加载失败 [{fontFileName}]: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -311,4 +311,5 @@ namespace ImageColorChanger.Core
         }
     }
 }
+
 

@@ -11,6 +11,8 @@
         WindowStyle="None">
 
     <Window.Resources>
+        <Style x:Key="IconPathStyle" TargetType="Path" BasedOn="{StaticResource CommonIconPathStyle}"/>
+
         <!-- 主按钮样式 -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Height" Value="44"/>
@@ -19,7 +21,7 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Background" Value="{StaticResource BrushDialogBrandPrimary}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
@@ -32,7 +34,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1976D2"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BrushDialogBrandHover}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#BDBDBD"/>
@@ -83,10 +85,10 @@
             </Grid.RowDefinitions>
 
             <!-- 顶部标题栏 -->
-            <Border Grid.Row="0" Background="#2196F3" CornerRadius="12,12,0,0" Padding="24,18">
+            <Border Grid.Row="0" Background="{StaticResource BrushDialogBrandPrimary}" CornerRadius="12,12,0,0" Padding="24,18">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="🚀" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <StackPanel>
                             <TextBlock Text="发现新版本" FontSize="18" FontWeight="Bold" Foreground="White"/>
                             <TextBlock x:Name="VersionText" Text="" FontSize="13" Foreground="#E3F2FD" Margin="0,2,0,0"/>
@@ -94,7 +96,7 @@
                     </StackPanel>
                     
                     <!-- 关闭按钮 -->
-                    <Button x:Name="CloseButton" Content="✕" 
+                    <Button x:Name="CloseButton" 
                             HorizontalAlignment="Right" VerticalAlignment="Top"
                             Width="28" Height="28"
                             Background="Transparent"
@@ -103,6 +105,9 @@
                             FontSize="16"
                             Cursor="Hand"
                             Click="CloseButton_Click">
+                        <Path Data="M18 6L6 18 M6 6L18 18"
+                              Style="{StaticResource IconPathStyle}"
+                              Margin="0"/>
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
@@ -114,7 +119,7 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#1976D2"/>
+                                                    <Setter TargetName="border" Property="Background" Value="{StaticResource BrushDialogBrandHover}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -197,15 +202,29 @@
             <Border Grid.Row="2" Background="#FAFAFA" CornerRadius="0,0,12,12" 
                     Padding="24,14" BorderBrush="#F0F0F0" BorderThickness="0,1,0,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="SkipButton" Content="稍后提醒" 
+                    <Button x:Name="SkipButton" 
                             Click="SkipButton_Click" 
-                            Style="{StaticResource SecondaryButton}"/>
-                    <Button x:Name="UpdateButton" Content="立即更新" 
+                            Style="{StaticResource SecondaryButton}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Data="M12 5A7 7 0 1 0 12 19A7 7 0 1 0 12 5 M12 8V12H15"
+                                  Style="{StaticResource IconPathStyle}"/>
+                            <TextBlock Text="稍后提醒" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="UpdateButton" 
                             Click="UpdateButton_Click"
-                            Style="{StaticResource PrimaryButton}"/>
+                            Style="{StaticResource PrimaryButton}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Data="M12 16V4 M7 9L12 4L17 9 M4 20H20"
+                                  Style="{StaticResource IconPathStyle}"/>
+                            <TextBlock Text="立即更新" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Border>
         </Grid>
     </Border>
 </Window>
+
+
 

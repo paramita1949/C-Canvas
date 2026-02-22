@@ -110,7 +110,7 @@ namespace ImageColorChanger.UI
 
                 if (!EnsureVideoPlayerInitialized("PlayPendingProjectionVideo"))
                 {
-                    ShowStatus("❌ 媒体播放器初始化失败");
+                    ShowStatus("媒体播放器初始化失败");
                     return;
                 }
 
@@ -121,7 +121,7 @@ namespace ImageColorChanger.UI
                 BuildVideoPlaylist(videoPath);
                 _videoPlayerManager.Play(videoPath);
 
-                ShowStatus($"🎬 正在投影播放: {System.IO.Path.GetFileName(videoPath)}");
+                ShowStatus($"正在投影播放: {System.IO.Path.GetFileName(videoPath)}");
             }
             catch (Exception)
             {
@@ -129,3 +129,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

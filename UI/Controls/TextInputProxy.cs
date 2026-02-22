@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI.Controls
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.NoWrap,
 
-                // 🔧 调整尺寸：足够大以接收输入事件
+                // 调整尺寸：足够大以接收输入事件
                 Width = 100,
                 Height = 50,
 
@@ -60,7 +60,7 @@ namespace ImageColorChanger.UI.Controls
             // 设置附加属性（不能在对象初始化器中设置）
             System.Windows.Input.InputMethod.SetIsInputMethodEnabled(_hiddenTextBox, true);
             System.Windows.Controls.SpellCheck.SetIsEnabled(_hiddenTextBox, false);
-            System.Windows.Controls.Panel.SetZIndex(_hiddenTextBox, 999); // 🔧 提高层级，确保在最上层
+            System.Windows.Controls.Panel.SetZIndex(_hiddenTextBox, 999); // 提高层级，确保在最上层
 
             // 监听文本改变
             _hiddenTextBox.TextChanged += OnTextBoxTextChanged;
@@ -130,7 +130,7 @@ namespace ImageColorChanger.UI.Controls
                 return;
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📝 [TextInputProxy] 文本改变: '{_hiddenTextBox.Text}'");
+            System.Diagnostics.Debug.WriteLine($"[TextInputProxy] 文本改变: '{_hiddenTextBox.Text}'");
 #endif
 
             TextChanged?.Invoke(this, _hiddenTextBox.Text);
@@ -142,7 +142,7 @@ namespace ImageColorChanger.UI.Controls
                 return;
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎯 [TextInputProxy] 光标位置: {_hiddenTextBox.SelectionStart}");
+            System.Diagnostics.Debug.WriteLine($"[TextInputProxy] 光标位置: {_hiddenTextBox.SelectionStart}");
 #endif
 
             SelectionChanged?.Invoke(this, _hiddenTextBox.SelectionStart);
@@ -151,11 +151,14 @@ namespace ImageColorChanger.UI.Controls
         private void OnTextBoxPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
 //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"⌨️ [TextInputProxy] 按键: {e.Key}");
+            //System.Diagnostics.Debug.WriteLine($" [TextInputProxy] 按键: {e.Key}");
 //#endif
             // 特殊按键可以在这里处理
             // 例如：Esc 退出编辑模式
         }
     }
 }
+
+
+
 

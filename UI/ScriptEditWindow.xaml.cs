@@ -95,7 +95,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 加载总时间失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 加载总时间失败: {ex.Message}");
                 TotalDurationTextBox.Text = "120";
             }
         }
@@ -127,7 +127,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 获取关键帧映射失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 获取关键帧映射失败: {ex.Message}");
             }
             
             return mapping;
@@ -418,7 +418,7 @@ namespace ImageColorChanger.UI
                             KeyframeId = keyframeId,
                             Duration = duration,
                             SequenceOrder = sequenceOrder
-                            // ❌ 不要设置CreatedAt，让数据库自动处理
+                            //  不要设置CreatedAt，让数据库自动处理
                         });
                     }
 
@@ -426,7 +426,7 @@ namespace ImageColorChanger.UI
                     await context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    //System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的时间数据，共 {newTimings.Count} 条记录");
+                    //System.Diagnostics.Debug.WriteLine($" 已更新图片 {_imageId} 的时间数据，共 {newTimings.Count} 条记录");
                     return true;
                 }
                 catch
@@ -437,7 +437,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 更新时间数据失败: {ex.Message}");
                 return false;
             }
         }
@@ -480,7 +480,7 @@ namespace ImageColorChanger.UI
                     await context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    //System.Diagnostics.Debug.WriteLine($"✅ 已更新图片 {_imageId} 的原图模式时间数据，共 {newTimings.Count} 条记录");
+                    //System.Diagnostics.Debug.WriteLine($" 已更新图片 {_imageId} 的原图模式时间数据，共 {newTimings.Count} 条记录");
                     return true;
                 }
                 catch
@@ -491,7 +491,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新原图模式时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 更新原图模式时间数据失败: {ex.Message}");
                 return false;
             }
         }
@@ -518,14 +518,15 @@ namespace ImageColorChanger.UI
                 await _compositeScriptRepo.CreateOrUpdateAsync(_imageId, totalDuration, autoCalculate: hasKeyframes);
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 已保存TOTAL时间: {totalDuration:F2}秒, AutoCalculate={hasKeyframes}");
+                System.Diagnostics.Debug.WriteLine($" 已保存TOTAL时间: {totalDuration:F2}秒, AutoCalculate={hasKeyframes}");
                 #endif
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 保存TOTAL时间失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 保存TOTAL时间失败: {ex.Message}");
             }
         }
     }
 }
+
 

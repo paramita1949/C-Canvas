@@ -69,12 +69,12 @@ namespace ImageColorChanger.Core
 
             try
             {
-                //Debug.WriteLine("🎮 [GPUContext] 开始初始化GPU加速...");
+                //Debug.WriteLine(" [GPUContext] 开始初始化GPU加速...");
                 //Debug.WriteLine("   环境: WPF应用");
                 //Debug.WriteLine("   说明: WPF默认无OpenGL上下文，GPU加速受限");
                 //Debug.WriteLine("   策略: 使用CPU高性能优化方案");
 
-                // ⚠️ WPF环境说明：
+                //  WPF环境说明：
                 // WPF应用默认没有OpenGL渲染上下文，SkiaSharp的GPU加速需要：
                 // 1. OpenGL上下文（需要GLControl或自定义窗口）
                 // 2. Vulkan后端（需要额外配置）
@@ -108,7 +108,7 @@ namespace ImageColorChanger.Core
                         {
                             _isGpuAvailable = true;
                             _gpuInfo = GetGpuInfoString();
-                            //Debug.WriteLine($"✅ [GPUContext] SkiaSharp GPU加速已启用");
+                            //Debug.WriteLine($" [GPUContext] SkiaSharp GPU加速已启用");
                             //Debug.WriteLine($"   GPU信息: {_gpuInfo}");
                             //Debug.WriteLine($"   后端: OpenGL");
                             return;
@@ -121,7 +121,7 @@ namespace ImageColorChanger.Core
                 }
 
                 // 降级到CPU高性能模式
-                //Debug.WriteLine("ℹ️ [GPUContext] 使用CPU高性能模式");
+                //Debug.WriteLine(" [GPUContext] 使用CPU高性能模式");
                 //Debug.WriteLine("   优势: CPU ScalePixels已高度优化（SIMD并行）");
                 //Debug.WriteLine("   优势: WPF自动使用GPU合成渲染结果");
                 //Debug.WriteLine("   优势: 避免CPU↔GPU数据传输开销");
@@ -129,7 +129,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                //Debug.WriteLine($"❌ [GPUContext] GPU初始化异常: {ex.Message}");
+                //Debug.WriteLine($" [GPUContext] GPU初始化异常: {ex.Message}");
                 FallbackToCpu();
             }
             finally
@@ -145,7 +145,7 @@ namespace ImageColorChanger.Core
         {
             _isGpuAvailable = false;
             _gpuInfo = "CPU高性能模式（SIMD优化 + WPF GPU合成）";
-            //Debug.WriteLine("✅ [GPUContext] CPU高性能模式已就绪");
+            //Debug.WriteLine(" [GPUContext] CPU高性能模式已就绪");
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace ImageColorChanger.Core
                 if (surface == null)
                 {
 #if DEBUG
-                    Debug.WriteLine("⚠️ [GPUContext] GPU表面创建失败，降级到CPU");
+                    Debug.WriteLine(" [GPUContext] GPU表面创建失败，降级到CPU");
 #endif
                     return ScaleImageCpu(source, targetWidth, targetHeight, sampling);
                 }
@@ -226,7 +226,7 @@ namespace ImageColorChanger.Core
 
                 sw.Stop();
 #if DEBUG
-                Debug.WriteLine($"🎮 [GPUContext] GPU缩放完成: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
+                Debug.WriteLine($" [GPUContext] GPU缩放完成: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
 #endif
 
                 return result;
@@ -234,7 +234,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
 #if DEBUG
-                Debug.WriteLine($"❌ [GPUContext] GPU缩放失败: {ex.Message}，降级到CPU");
+                Debug.WriteLine($" [GPUContext] GPU缩放失败: {ex.Message}，降级到CPU");
 #else
                 _ = ex; // 避免未使用变量警告
 #endif
@@ -255,7 +255,7 @@ namespace ImageColorChanger.Core
                 var info = new SKImageInfo(targetWidth, targetHeight, source.ColorType, source.AlphaType);
                 var result = new SKBitmap(info);
 
-                // 🚀 使用高性能缩放
+                //  使用高性能缩放
                 // ScalePixels内部使用SIMD指令（SSE2/AVX）并行处理像素
                 // 这是SkiaSharp在CPU上的最优方案
                 source.ScalePixels(result, sampling);
@@ -266,7 +266,7 @@ namespace ImageColorChanger.Core
                 // 只在耗时较长时输出日志（减少日志噪音）
                 //if (sw.ElapsedMilliseconds > 10)
                 //{
-                //    Debug.WriteLine($"⚡ [CPU] 缩放: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
+                //    Debug.WriteLine($" [CPU] 缩放: {source.Width}x{source.Height} -> {targetWidth}x{targetHeight}, 耗时: {sw.ElapsedMilliseconds}ms");
                 //}
 #endif
 
@@ -275,7 +275,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
 #if DEBUG
-                Debug.WriteLine($"❌ [GPUContext] CPU缩放失败: {ex.Message}");
+                Debug.WriteLine($" [GPUContext] CPU缩放失败: {ex.Message}");
 #else
                 _ = ex; // 避免未使用变量警告
 #endif
@@ -291,7 +291,7 @@ namespace ImageColorChanger.Core
             if (_grContext != null)
             {
 #if DEBUG
-                Debug.WriteLine("🎮 [GPUContext] 释放GPU上下文");
+                Debug.WriteLine(" [GPUContext] 释放GPU上下文");
 #endif
                 _grContext.Dispose();
                 _grContext = null;
@@ -304,7 +304,7 @@ namespace ImageColorChanger.Core
         public void Reset()
         {
 #if DEBUG
-            Debug.WriteLine("🔄 [GPUContext] 重置GPU上下文");
+            Debug.WriteLine(" [GPUContext] 重置GPU上下文");
 #endif
             _isInitialized = false;
             
@@ -326,7 +326,7 @@ namespace ImageColorChanger.Core
             catch (Exception ex)
             {
 #if DEBUG
-                Debug.WriteLine($"⚠️ [GPUContext] Flush失败: {ex.Message}");
+                Debug.WriteLine($" [GPUContext] Flush失败: {ex.Message}");
 #else
                 _ = ex; // 避免未使用变量警告
 #endif
@@ -344,29 +344,29 @@ namespace ImageColorChanger.Core
                 int renderingTier = (System.Windows.Media.RenderCapability.Tier >> 16);
                 
                 #if DEBUG
-                //Debug.WriteLine($"🎮 [GPU验证] WPF渲染层级: Tier {renderingTier}");
+                //Debug.WriteLine($" [GPU验证] WPF渲染层级: Tier {renderingTier}");
                 //Debug.WriteLine($"   Tier 0 = 软件渲染（无GPU）");
                 //Debug.WriteLine($"   Tier 1 = 部分GPU加速");
-                //Debug.WriteLine($"   Tier 2 = 完全GPU加速 ✅");
+                //Debug.WriteLine($"   Tier 2 = 完全GPU加速 ");
                 #endif
                 
                 if (renderingTier < 2)
                 {
                     #if DEBUG
-                    //Debug.WriteLine($"⚠️ [GPU警告] 当前未完全启用GPU加速！建议检查显卡驱动。");
+                    //Debug.WriteLine($" [GPU警告] 当前未完全启用GPU加速！建议检查显卡驱动。");
                     #endif
                     return false;
                 }
                 
                 #if DEBUG
-                //Debug.WriteLine($"✅ [GPU验证] WPF硬件加速已完全启用");
+                //Debug.WriteLine($" [GPU验证] WPF硬件加速已完全启用");
                 #endif
                 return true;
             }
             catch
             {
                 #if DEBUG
-                //Debug.WriteLine($"❌ [GPU验证] 检测失败");
+                //Debug.WriteLine($" [GPU验证] 检测失败");
                 #endif
                 return false;
             }
@@ -384,13 +384,13 @@ namespace ImageColorChanger.Core
                     System.Windows.Interop.RenderMode.Default;
                 
                 #if DEBUG
-                //Debug.WriteLine($"✅ [GPU] 已设置硬件加速为默认模式（自动优化）");
+                //Debug.WriteLine($" [GPU] 已设置硬件加速为默认模式（自动优化）");
                 #endif
             }
             catch
             {
                 #if DEBUG
-                //Debug.WriteLine($"⚠️ [GPU] 设置硬件加速失败");
+                //Debug.WriteLine($" [GPU] 设置硬件加速失败");
                 #endif
             }
         }
@@ -436,13 +436,13 @@ namespace ImageColorChanger.Core
                 );
                 
                 #if DEBUG
-                //Debug.WriteLine($"✅ [GPU] 已为元素启用位图缓存（高质量={enableHighQuality}）");
+                //Debug.WriteLine($" [GPU] 已为元素启用位图缓存（高质量={enableHighQuality}）");
                 #endif
             }
             catch
             {
                 #if DEBUG
-                //Debug.WriteLine($"⚠️ [GPU] 启用位图缓存失败");
+                //Debug.WriteLine($" [GPU] 启用位图缓存失败");
                 #endif
             }
         }
@@ -484,4 +484,5 @@ namespace ImageColorChanger.Core
         }
     }
 }
+
 

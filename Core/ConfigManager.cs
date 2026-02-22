@@ -102,7 +102,7 @@ namespace ImageColorChanger.Core
                 _configFilePath = configFilePath;
             }
             
-            // Debug.WriteLine($"📁 配置文件路径: {_configFilePath}");
+            // Debug.WriteLine($" 配置文件路径: {_configFilePath}");
             LoadConfig();
         }
 
@@ -118,16 +118,16 @@ namespace ImageColorChanger.Core
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
                     
-                    // ✅ 确保最近颜色列表不为 null
+                    //  确保最近颜色列表不为 null
                     
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"💾 [ConfigManager] 配置文件已加载: {_configFilePath}");
+                    System.Diagnostics.Debug.WriteLine($" [ConfigManager] 配置文件已加载: {_configFilePath}");
 #endif
                 }
                 else
                 {
                     #if DEBUG
-                    Debug.WriteLine($"⚠️ [ConfigManager] 配置文件不存在，使用默认配置");
+                    Debug.WriteLine($" [ConfigManager] 配置文件不存在，使用默认配置");
                     #endif
                     _config = new AppConfig();
                     SaveConfig();
@@ -140,7 +140,7 @@ namespace ImageColorChanger.Core
             )
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [ConfigManager] 加载配置文件失败: {ex.Message}");
+                Debug.WriteLine($" [ConfigManager] 加载配置文件失败: {ex.Message}");
                 #endif
                 _config = new AppConfig();
             }
@@ -163,7 +163,7 @@ namespace ImageColorChanger.Core
                 File.WriteAllText(_configFilePath, json);
                 
                 //#if DEBUG
-                //Debug.WriteLine($"💾 [ConfigManager] 配置文件已保存: {_configFilePath}");
+                //Debug.WriteLine($" [ConfigManager] 配置文件已保存: {_configFilePath}");
                 //#endif
             }
             catch (Exception
@@ -173,7 +173,7 @@ namespace ImageColorChanger.Core
             )
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [ConfigManager] 保存配置文件失败: {ex.Message}");
+                Debug.WriteLine($" [ConfigManager] 保存配置文件失败: {ex.Message}");
                 #endif
             }
         }
@@ -835,14 +835,14 @@ namespace ImageColorChanger.Core
                 var allPresets = GetAllColorPresets();
                 if (allPresets.Any(p => p.Name == name))
                 {
-                    // Debug.WriteLine($"⚠️ 颜色预设已存在: {name}");
+                    // Debug.WriteLine($" 颜色预设已存在: {name}");
                     return false;
                 }
 
                 // 检查是否已存在相同颜色
                 if (allPresets.Any(p => p.R == r && p.G == g && p.B == b))
                 {
-                    // Debug.WriteLine($"⚠️ 该颜色已在预设中: RGB({r}, {g}, {b})");
+                    // Debug.WriteLine($" 该颜色已在预设中: RGB({r}, {g}, {b})");
                     return false;
                 }
 
@@ -860,12 +860,12 @@ namespace ImageColorChanger.Core
                 });
                 
                 SaveConfig();
-                // Debug.WriteLine($"✅ 已添加自定义颜色预设: {name} RGB({r}, {g}, {b})");
+                // Debug.WriteLine($" 已添加自定义颜色预设: {name} RGB({r}, {g}, {b})");
                 return true;
             }
             catch (Exception)
             {
-                // Debug.WriteLine($"❌ 添加自定义颜色预设失败: {ex.Message}");
+                // Debug.WriteLine($" 添加自定义颜色预设失败: {ex.Message}");
                 return false;
             }
         }
@@ -885,7 +885,7 @@ namespace ImageColorChanger.Core
                 {
                     _config.CustomColorPresets.Remove(preset);
                     SaveConfig();
-                    // Debug.WriteLine($"✅ 已删除自定义颜色预设: {name}");
+                    // Debug.WriteLine($" 已删除自定义颜色预设: {name}");
                     return true;
                 }
                 
@@ -893,7 +893,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception)
             {
-                // Debug.WriteLine($"❌ 删除自定义颜色预设失败: {ex.Message}");
+                // Debug.WriteLine($" 删除自定义颜色预设失败: {ex.Message}");
                 return false;
             }
         }
@@ -1373,4 +1373,5 @@ namespace ImageColorChanger.Core
         public string BackgroundHex { get; set; } = "#000000";
     }
 }
+
 

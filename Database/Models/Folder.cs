@@ -45,7 +45,7 @@ namespace ImageColorChanger.Database.Models
         public DateTime CreatedTime { get; set; } = DateTime.Now;
         
         /// <summary>
-        /// 视频播放模式: sequential/random/loop_all (null表示使用默认模式)
+        /// 视频播放模式: sequential/random/loop_one/loop_all
         /// </summary>
         [Column("video_play_mode")]
         public string VideoPlayMode { get; set; }

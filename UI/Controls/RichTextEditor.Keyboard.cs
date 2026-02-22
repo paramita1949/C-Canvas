@@ -18,7 +18,7 @@ namespace ImageColorChanger.UI.Controls
         public void HandleKeyDown(System.Windows.Input.KeyEventArgs e)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⌨️ [KeyDown] Key={e.Key}, Modifiers={Keyboard.Modifiers}, Handled={e.Handled}");
+            System.Diagnostics.Debug.WriteLine($" [KeyDown] Key={e.Key}, Modifiers={Keyboard.Modifiers}, Handled={e.Handled}");
 #endif
 
             if (!_isEditing)
@@ -33,7 +33,7 @@ namespace ImageColorChanger.UI.Controls
                         SelectAll();
                         e.Handled = true;
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [KeyDown] Ctrl+A 全选");
+                        System.Diagnostics.Debug.WriteLine($" [KeyDown] Ctrl+A 全选");
 #endif
                         return;
                     case Key.C:  // 复制
@@ -93,31 +93,31 @@ namespace ImageColorChanger.UI.Controls
                     return;
             }
 
-            // 🔧 空格键特殊处理：直接插入，不等待 TextInput
+            // 空格键特殊处理：直接插入，不等待 TextInput
             // 原因：在某些输入法状态下，空格键的 TextInput 事件可能不触发
             if (e.Key == Key.Space)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚡ [KeyDown] 空格键直接插入");
+                System.Diagnostics.Debug.WriteLine($" [KeyDown] 空格键直接插入");
 #endif
                 InsertText(" ");
                 e.Handled = true;
                 return;
             }
 
-            // 🔧 其他可打印字符：阻止 KeyDown 默认行为，等待 TextInput 事件处理
+            // 其他可打印字符：阻止 KeyDown 默认行为，等待 TextInput 事件处理
             // 这样可以正确处理 IME 输入（中文、日文等）
             if (IsTextInputKey(e.Key))
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🚫 [KeyDown] 可打印字符被拦截: Key={e.Key}, 等待 TextInput 事件处理");
+                System.Diagnostics.Debug.WriteLine($"[KeyDown] 可打印字符被拦截: Key={e.Key}, 等待 TextInput 事件处理");
 #endif
                 e.Handled = true;
                 return;
             }
 
 //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"⚠️ [KeyDown] 未处理的按键: Key={e.Key}");
+            //System.Diagnostics.Debug.WriteLine($" [KeyDown] 未处理的按键: Key={e.Key}");
 //#endif
         }
 
@@ -152,7 +152,7 @@ namespace ImageColorChanger.UI.Controls
         public void HandleTextInput(TextCompositionEventArgs e)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✍️ [HandleTextInput] Text='{e.Text}', Length={e.Text?.Length}, IsEditing={_isEditing}");
+            System.Diagnostics.Debug.WriteLine($"✍ [HandleTextInput] Text='{e.Text}', Length={e.Text?.Length}, IsEditing={_isEditing}");
             if (!string.IsNullOrEmpty(e.Text))
             {
                 foreach (char c in e.Text)
@@ -165,7 +165,7 @@ namespace ImageColorChanger.UI.Controls
             if (!_isEditing || string.IsNullOrEmpty(e.Text))
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [HandleTextInput] 被忽略: IsEditing={_isEditing}, TextEmpty={string.IsNullOrEmpty(e.Text)}");
+                System.Diagnostics.Debug.WriteLine($" [HandleTextInput] 被忽略: IsEditing={_isEditing}, TextEmpty={string.IsNullOrEmpty(e.Text)}");
 #endif
                 return;
             }
@@ -174,7 +174,7 @@ namespace ImageColorChanger.UI.Controls
             e.Handled = true;
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ [HandleTextInput] 已插入文本，光标位置: {_cursorPosition}");
+            System.Diagnostics.Debug.WriteLine($" [HandleTextInput] 已插入文本，光标位置: {_cursorPosition}");
 #endif
         }
 
@@ -268,3 +268,6 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+
+

@@ -154,13 +154,13 @@ namespace ImageColorChanger.Services.Implementations
         /// <summary>
         /// 播放下一帧
         /// 参考Python版本：keytime.py 行1708-1828
-        /// 🎯 修正：每次只处理一帧，返回到主循环
+        ///  修正：每次只处理一帧，返回到主循环
         /// </summary>
         private async Task PlayNextFrameAsync(CancellationToken cancellationToken)
         {
             // 调试信息已注释（播放过程过于频繁）
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"\n🎞️ [原图播放] ========== PlayNextFrameAsync 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"\n [原图播放] ========== PlayNextFrameAsync 开始 ==========");
             //System.Diagnostics.Debug.WriteLine($"   进入时 _currentIndex: {_currentIndex}");
             //System.Diagnostics.Debug.WriteLine($"   进入时 CompletedPlayCount: {CompletedPlayCount}");
             //System.Diagnostics.Debug.WriteLine($"   序列总数: {_timingSequence.Count}");
@@ -169,7 +169,7 @@ namespace ImageColorChanger.Services.Implementations
             if (_currentIndex >= _timingSequence.Count)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [原图播放] _currentIndex >= Count，返回");
+                System.Diagnostics.Debug.WriteLine($" [原图播放] _currentIndex >= Count，返回");
                 #endif
                 return;
             }
@@ -181,7 +181,7 @@ namespace ImageColorChanger.Services.Implementations
 
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📋 [原图播放] 当前帧信息");
+            //System.Diagnostics.Debug.WriteLine($" [原图播放] 当前帧信息");
             //System.Diagnostics.Debug.WriteLine($"   索引: {_currentIndex}");
             //System.Diagnostics.Debug.WriteLine($"   FromImageId: {fromImageId}");
             //System.Diagnostics.Debug.WriteLine($"   ToImageId: {toImageId}");
@@ -192,13 +192,13 @@ namespace ImageColorChanger.Services.Implementations
             _totalPauseDuration = 0.0;
             _currentFrameStartTime = DateTime.Now;
 
-            // 🎯 第一帧特殊处理（参考Python: 行1750-1763）
+            //  第一帧特殊处理（参考Python: 行1750-1763）
             if (_currentIndex == 0 && CompletedPlayCount == 0)
             {
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎬 [原图播放] 第一帧特殊处理 (首次播放)");
-                //System.Diagnostics.Debug.WriteLine($"   1️⃣ 切换到 FromImageId: {fromImageId}");
+                //System.Diagnostics.Debug.WriteLine($" [原图播放] 第一帧特殊处理 (首次播放)");
+                //System.Diagnostics.Debug.WriteLine($"   1⃣ 切换到 FromImageId: {fromImageId}");
                 //#endif
                     
                 // 首次播放：切到FromImageId，等待Duration，然后切到ToImageId
@@ -210,7 +210,7 @@ namespace ImageColorChanger.Services.Implementations
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   2️⃣ 触发 ProgressUpdated 事件");
+                //System.Diagnostics.Debug.WriteLine($"   2⃣ 触发 ProgressUpdated 事件");
                 //#endif
 
                 ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
@@ -223,13 +223,13 @@ namespace ImageColorChanger.Services.Implementations
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   3️⃣ 等待 Duration: {duration:F2}s");
+                //System.Diagnostics.Debug.WriteLine($"   3⃣ 等待 Duration: {duration:F2}s");
                 //#endif
                 await WaitForDurationAsync(duration, cancellationToken);
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   4️⃣ 切换到 ToImageId: {toImageId}");
+                //System.Diagnostics.Debug.WriteLine($"   4⃣ 切换到 ToImageId: {toImageId}");
                 //#endif
                 
                 SwitchImageRequested?.Invoke(this, new SwitchImageEventArgs
@@ -242,7 +242,7 @@ namespace ImageColorChanger.Services.Implementations
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [原图播放] 第一帧处理完成");
+                //System.Diagnostics.Debug.WriteLine($" [原图播放] 第一帧处理完成");
                 //System.Diagnostics.Debug.WriteLine($"   _currentIndex 已递增为: {_currentIndex}");
                 //System.Diagnostics.Debug.WriteLine($"========== PlayNextFrameAsync 结束 (第一帧) ==========\n");
                 //#endif
@@ -250,12 +250,12 @@ namespace ImageColorChanger.Services.Implementations
                 return;
             }
 
-            // 🎯 最后一帧特殊处理（参考Python: 行1766-1817）
+            //  最后一帧特殊处理（参考Python: 行1766-1817）
             if (_currentIndex == _timingSequence.Count - 1)
             {
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🏁 [原图播放] 最后一帧特殊处理");
+                //System.Diagnostics.Debug.WriteLine($" [原图播放] 最后一帧特殊处理");
                 //#endif
                     
                 var firstImageId = _timingSequence[0].FromImageId;
@@ -272,12 +272,12 @@ namespace ImageColorChanger.Services.Implementations
                 
                 if (shouldContinue)
                 {
-                    // 🎯 优化：如果最后一帧的ToImageId就是第一张图，跳过切换
+                    //  优化：如果最后一帧的ToImageId就是第一张图，跳过切换
                     if (toImageId == firstImageId)
                     {
                         // 调试信息已注释
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ♻️ 最后一帧ToImageId == FirstImageId，直接循环");
+                        //System.Diagnostics.Debug.WriteLine($"    最后一帧ToImageId == FirstImageId，直接循环");
                         //#endif
 
                         CompletedPlayCount++;
@@ -296,7 +296,7 @@ namespace ImageColorChanger.Services.Implementations
                     {
                         // 调试信息已注释
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ♻️ 切换到 ToImageId 后循环");
+                        //System.Diagnostics.Debug.WriteLine($"    切换到 ToImageId 后循环");
                         //#endif
                         
                         // 正常切换到ToImageId，然后开始新一轮
@@ -323,7 +323,7 @@ namespace ImageColorChanger.Services.Implementations
                 {
                     // 调试信息已注释
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   ⏹️ 不需要循环，显示最后一帧然后结束");
+                    //System.Diagnostics.Debug.WriteLine($"    不需要循环，显示最后一帧然后结束");
                     //#endif
                     
                     // 不需要循环，显示最后一帧然后结束
@@ -346,14 +346,14 @@ namespace ImageColorChanger.Services.Implementations
                 }
             }
 
-            // 🎯 普通帧处理（参考Python: 行1819-1828）
+            //  普通帧处理（参考Python: 行1819-1828）
             // 当前已经在FromImageId上（上一帧切换过来的）
             // 显示进度，等待Duration，然后切到ToImageId
             
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"▶️ [原图播放] 普通帧处理");
-            //System.Diagnostics.Debug.WriteLine($"   1️⃣ 触发 ProgressUpdated 事件");
+            //System.Diagnostics.Debug.WriteLine($" [原图播放] 普通帧处理");
+            //System.Diagnostics.Debug.WriteLine($"   1⃣ 触发 ProgressUpdated 事件");
             //#endif
             
             ProgressUpdated?.Invoke(this, new PlaybackProgressEventArgs
@@ -366,7 +366,7 @@ namespace ImageColorChanger.Services.Implementations
             
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"   2️⃣ 等待 Duration: {duration:F2}s");
+            //System.Diagnostics.Debug.WriteLine($"   2⃣ 等待 Duration: {duration:F2}s");
             //#endif
             
             // 等待Duration
@@ -374,7 +374,7 @@ namespace ImageColorChanger.Services.Implementations
             
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"   3️⃣ 切换到 ToImageId: {toImageId}");
+            //System.Diagnostics.Debug.WriteLine($"   3⃣ 切换到 ToImageId: {toImageId}");
             //#endif
             
             // 切换到ToImageId
@@ -388,7 +388,7 @@ namespace ImageColorChanger.Services.Implementations
             
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"✅ [原图播放] 普通帧处理完成");
+            //System.Diagnostics.Debug.WriteLine($" [原图播放] 普通帧处理完成");
             //System.Diagnostics.Debug.WriteLine($"   _currentIndex 已递增为: {_currentIndex}");
             //System.Diagnostics.Debug.WriteLine($"========== PlayNextFrameAsync 结束 (普通帧) ==========\n");
             //#endif
@@ -401,7 +401,7 @@ namespace ImageColorChanger.Services.Implementations
         {
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"⏱️ [原图播放] WaitForDurationAsync 开始，目标时长: {duration:F2}s");
+            //System.Diagnostics.Debug.WriteLine($"⏱ [原图播放] WaitForDurationAsync 开始，目标时长: {duration:F2}s");
             //#endif
 
             _stopwatch.Restart();
@@ -411,7 +411,7 @@ namespace ImageColorChanger.Services.Implementations
                 if (cancellationToken.IsCancellationRequested)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [原图播放] WaitForDurationAsync 被取消");
+                    System.Diagnostics.Debug.WriteLine($" [原图播放] WaitForDurationAsync 被取消");
                     #endif
                     return;
                 }
@@ -420,7 +420,7 @@ namespace ImageColorChanger.Services.Implementations
                 {
                     _skipToNextFrame = false;
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⏭️ [原图播放] WaitForDurationAsync 跳过 (skipToNextFrame=true)");
+                    System.Diagnostics.Debug.WriteLine($" [原图播放] WaitForDurationAsync 跳过 (skipToNextFrame=true)");
                     #endif
                     break;
                 }
@@ -435,7 +435,7 @@ namespace ImageColorChanger.Services.Implementations
 
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"✅ [原图播放] WaitForDurationAsync 完成，实际等待: {_stopwatch.Elapsed.TotalSeconds:F2}s");
+            //System.Diagnostics.Debug.WriteLine($" [原图播放] WaitForDurationAsync 完成，实际等待: {_stopwatch.Elapsed.TotalSeconds:F2}s");
             //#endif
         }
 
@@ -464,7 +464,7 @@ namespace ImageColorChanger.Services.Implementations
 
             var currentTime = DateTime.Now;
             
-            // 🎯 计算暂停时长并累加
+            //  计算暂停时长并累加
             if (_pauseStartTime > 0 && _currentIndex < _timingSequence.Count && _currentSimilarImageId > 0)
             {
                 // 计算本次暂停时长（使用真实时间差，参考Python版本：keytime.py 行1566）
@@ -476,7 +476,7 @@ namespace ImageColorChanger.Services.Implementations
 
                 // 最终时间 = 已播放时间 + 总暂停时间
                 var finalDisplayTime = playedDuration + _totalPauseDuration;
-                // 🎯 异步更新数据库中的时间记录（Fire-and-forget模式）
+                //  异步更新数据库中的时间记录（Fire-and-forget模式）
                 _ = Task.Run(async () =>
                 {
                     try
@@ -495,7 +495,7 @@ namespace ImageColorChanger.Services.Implementations
 
             _isPaused = false;
             
-            // 🎯 修复BUG：暂停增加时间后，应该立即跳到下一张图，而不是继续倒计时
+            //  修复BUG：暂停增加时间后，应该立即跳到下一张图，而不是继续倒计时
             // 设置标志让播放循环立即跳到下一帧（参考Python版本：keytime.py 行1617-1629）
             _skipToNextFrame = true;            
             // 重置当前帧开始时间
@@ -538,7 +538,7 @@ namespace ImageColorChanger.Services.Implementations
             {
                 var actualDuration = (currentTime - _currentFrameStartTime).TotalSeconds;
 
-                // 🎯 获取当前播放序列中的正确 FromImageId 和 ToImageId
+                //  获取当前播放序列中的正确 FromImageId 和 ToImageId
                 // 注意：在等待期间_currentIndex还没有递增，所以直接使用_currentIndex（不是_currentIndex-1）
                 var currentTiming = _timingSequence[_currentIndex];
                 var correctFromId = currentTiming.FromImageId;
@@ -568,7 +568,7 @@ namespace ImageColorChanger.Services.Implementations
             _currentFrameStartTime = currentTime;
             _lastManualOperationTime = currentTime;
 
-            // 🎯 手动跳转后需要重新启动倒计时，立即播放下一帧
+            //  手动跳转后需要重新启动倒计时，立即播放下一帧
             // 设置标志让播放循环立即跳到下一帧，这样会触发ProgressUpdated事件，重新启动倒计时
             _skipToNextFrame = true;
             _totalPauseDuration = 0.0;  // 重置暂停时长（新的一帧）
@@ -609,4 +609,6 @@ namespace ImageColorChanger.Services.Implementations
         public string ImagePath { get; set; }
     }
 }
+
+
 

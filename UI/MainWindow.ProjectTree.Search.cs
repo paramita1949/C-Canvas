@@ -35,7 +35,7 @@ namespace ImageColorChanger.UI
 
                 string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
 
-                // System.Diagnostics.Debug.WriteLine($"🔍 搜索: 关键词='{searchTerm}', 范围='{searchScope}'");
+                // System.Diagnostics.Debug.WriteLine($"搜索: 关键词='{searchTerm}', 范围='{searchScope}'");
 
                 // 如果搜索词为空，重新加载所有项目
                 if (string.IsNullOrWhiteSpace(searchTerm))
@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI
                 // 执行搜索
                 var searchResults = searchManager.SearchProjects(searchTerm, searchScope);
                 
-                // System.Diagnostics.Debug.WriteLine($"📊 搜索结果: {searchResults?.Count ?? 0} 项");
+                // System.Diagnostics.Debug.WriteLine($"搜索结果: {searchResults?.Count ?? 0} 项");
 
                 if (searchResults == null)
                 {
@@ -55,21 +55,21 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🔧 修复：搜索结果需要同时更新 _projectTreeItems 和 _filteredProjectTreeItems
+                // 修复：搜索结果需要同时更新 _projectTreeItems 和 _filteredProjectTreeItems
                 _projectTreeItems.Clear();
                 _filteredProjectTreeItems.Clear();
                 
                 foreach (var item in searchResults)
                 {
                     _projectTreeItems.Add(item);
-                    _filteredProjectTreeItems.Add(item); // 🔑 关键：搜索结果直接显示，不需要过滤
+                    _filteredProjectTreeItems.Add(item); // 关键：搜索结果直接显示，不需要过滤
                 }
 
                 // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 搜索失败: {ex}");
+                //System.Diagnostics.Debug.WriteLine($" 搜索失败: {ex}");
                 MessageBox.Show($"搜索失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -85,12 +85,12 @@ namespace ImageColorChanger.UI
             if (_isBibleMode)
             {
                 HideBibleSearchResults();
-                ShowStatus("✅ 已清除经文搜索");
+                ShowStatus("已清除经文搜索");
                 return;
             }
 
             CollapseAllFolders();
-            ShowStatus("✅ 已清除搜索并折叠所有文件夹");
+            ShowStatus("已清除搜索并折叠所有文件夹");
         }
 
         /// <summary>
@@ -129,3 +129,6 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
+

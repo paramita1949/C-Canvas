@@ -38,7 +38,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🎯 根据缩放比例计算物理像素尺寸（用于高清投影）
+            // 根据缩放比例计算物理像素尺寸（用于高清投影）
 
             int physicalWidth = (int)Math.Ceiling(ActualWidth * scaleX);
 
@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 如果缩放比例为1.0，使用简单渲染（向后兼容）
+            // 如果缩放比例为1.0，使用简单渲染（向后兼容）
 
             if (Math.Abs(scaleX - 1.0) < 0.01 && Math.Abs(scaleY - 1.0) < 0.01)
 
@@ -70,7 +70,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // � 高清渲染模式：使用 DrawingVisual 进行缩放渲染
+            // 高清渲染模式：使用 DrawingVisual 进行缩放渲染
 
             var drawingVisual = new System.Windows.Media.DrawingVisual();
 
@@ -108,7 +108,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 渲染到高分辨率位图（DPI 仍然标记为 96，避免 WPF 自动缩放）
+            // 渲染到高分辨率位图（DPI 仍然标记为 96，避免 WPF 自动缩放）
 
             var renderTargetHD = new System.Windows.Media.Imaging.RenderTargetBitmap(
 
@@ -116,7 +116,7 @@ namespace ImageColorChanger.UI.Controls
 
                 physicalHeight,
 
-                96, 96,  // ✅ 固定 96 DPI，避免 DPI 元数据导致的缩放问题
+                96, 96,  //  固定 96 DPI，避免 DPI 元数据导致的缩放问题
 
                 System.Windows.Media.PixelFormats.Pbgra32);
 
@@ -131,3 +131,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

@@ -42,11 +42,11 @@ namespace ImageColorChanger.UI
 
                 if (forceDelete)
                 {
-                    ShowStatus($"🔥 已强制删除文件夹: {item.Name}");
+                    ShowStatus($"已强制删除文件夹: {item.Name}");
                 }
                 else
                 {
-                    ShowStatus($"🗑️ 已删除文件夹: {item.Name}");
+                    ShowStatus($"已删除文件夹: {item.Name}");
                 }
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx)
@@ -69,7 +69,7 @@ namespace ImageColorChanger.UI
                         $"1. 文件夹中存在其他电脑导入的文件\n" +
                         $"2. 数据库状态不同步\n\n" +
                         $"是否强制删除？\n" +
-                        $"⚠️ 警告：强制删除会忽略所有约束，直接清除数据库记录",
+                        $" 警告：强制删除会忽略所有约束，直接清除数据库记录",
                         "删除失败 - 是否强制删除？",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Warning
@@ -81,7 +81,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        ShowStatus($"❌ 取消删除文件夹: {item.Name}");
+                        ShowStatus($"取消删除文件夹: {item.Name}");
                     }
                 }
                 else
@@ -96,7 +96,7 @@ namespace ImageColorChanger.UI
                         MessageBoxImage.Error
                     );
 
-                    ShowStatus($"❌ 强制删除失败: {item.Name}");
+                    ShowStatus($"强制删除失败: {item.Name}");
                 }
             }
             catch (Exception ex)
@@ -115,7 +115,7 @@ namespace ImageColorChanger.UI
                     MessageBoxImage.Error
                 );
 
-                ShowStatus($"❌ 删除文件夹失败: {item.Name}");
+                ShowStatus($"删除文件夹失败: {item.Name}");
             }
         }
 
@@ -126,7 +126,7 @@ namespace ImageColorChanger.UI
         {
             var (added, removed, _) = ImportManagerService.SyncFolder(item.Id);
             LoadProjects();
-            ShowStatus($"🔄 同步完成: {item.Name} (新增 {added}, 删除 {removed})");
+            ShowStatus($"同步完成: {item.Name} (新增 {added}, 删除 {removed})");
         }
 
         /// <summary>
@@ -138,17 +138,18 @@ namespace ImageColorChanger.UI
             {
                 DatabaseManagerService.SetFolderVideoPlayMode(item.Id, playMode);
 
-                string[] modeNames = { "顺序播放", "随机播放", "列表循环" };
+                string[] modeNames = { "顺序", "随机", "循环", "单曲" };
                 string modeName = playMode switch
                 {
                     "sequential" => modeNames[0],
                     "random" => modeNames[1],
                     "loop_all" => modeNames[2],
+                    "loop_one" => modeNames[3],
                     _ => "未知"
                 };
 
                 LoadProjects();
-                ShowStatus($"✅ 已设置文件夹 [{item.Name}] 的播放模式: {modeName}");
+                ShowStatus($"已设置文件夹 [{item.Name}] 的播放模式: {modeName}");
             }
             catch (Exception ex)
             {
@@ -159,21 +160,8 @@ namespace ImageColorChanger.UI
                     MessageBoxImage.Error);
             }
         }
-
-        /// <summary>
-        /// 清除文件夹的视频播放模式
-        /// </summary>
-        private void ClearFolderPlayMode(ProjectTreeItem item)
-        {
-            try
-            {
-                DatabaseManagerService.ClearFolderVideoPlayMode(item.Id);
-                LoadProjects();
-                ShowStatus($"✅ 已清除文件夹 [{item.Name}] 的播放模式");
-            }
-            catch (Exception)
-            {
-            }
-        }
     }
 }
+
+
+

@@ -24,7 +24,7 @@ namespace ImageColorChanger.UI
             {
                 double newWidth = NavigationPanelColumn.ActualWidth;
                 _configManager.NavigationPanelWidth = newWidth;
-                // System.Diagnostics.Debug.WriteLine($"✅ 导航栏宽度已保存: {newWidth}");
+                // System.Diagnostics.Debug.WriteLine($" 导航栏宽度已保存: {newWidth}");
             }
         }
 
@@ -40,7 +40,7 @@ namespace ImageColorChanger.UI
                 {
                     _configManager.BibleHistoryRowHeight = newHeight;
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 圣经历史记录+按钮区域高度已保存: {newHeight}");
+                    System.Diagnostics.Debug.WriteLine($" 圣经历史记录+按钮区域高度已保存: {newHeight}");
 #endif
                 }
             }
@@ -101,7 +101,7 @@ namespace ImageColorChanger.UI
             {
                 contextMenu = new ContextMenu();
                 
-                // 🔑 应用自定义样式
+                // 应用自定义样式
                 contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
                 
                 ImageScrollViewer.ContextMenu = contextMenu;
@@ -135,7 +135,7 @@ namespace ImageColorChanger.UI
             };
             contextMenu.Items.Add(lyricsMenuItem);
 
-            // 🎬 合成标记菜单（第二位）
+            //  合成标记菜单（第二位）
             var compositeMarkMenuItem = new MenuItem 
             { 
                 Header = "合成标记",
@@ -143,7 +143,7 @@ namespace ImageColorChanger.UI
                 IsChecked = false // 默认未选中，异步加载真实状态
             };
             
-            // 🔧 异步加载当前图片的合成标记状态
+            // 异步加载当前图片的合成标记状态
             _ = Task.Run(async () =>
             {
                 try
@@ -157,13 +157,13 @@ namespace ImageColorChanger.UI
                 catch (TaskCanceledException)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("ℹ️ [合成标记] 状态读取被取消（非致命）");
+                    System.Diagnostics.Debug.WriteLine(" [合成标记] 状态读取被取消（非致命）");
 #endif
                 }
                 catch (Exception ex)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [合成标记] 状态读取异常: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($" [合成标记] 状态读取异常: {ex.Message}");
 #else
                     _ = ex;
 #endif
@@ -174,24 +174,24 @@ namespace ImageColorChanger.UI
             {
                 if (_keyframeManager != null && _currentImageId > 0)
                 {
-                    // 🔧 MenuItem的IsChecked会在Click事件中自动切换，所以这里读取的是切换后的值
+                    // MenuItem的IsChecked会在Click事件中自动切换，所以这里读取的是切换后的值
                     bool newState = compositeMarkMenuItem.IsChecked;
                     bool success = await _keyframeManager.SetCompositePlaybackEnabledAsync(_currentImageId, newState);
                     
                     if (success)
                     {
                         ShowStatus(newState 
-                            ? "✅ 已启用合成标记：录制完成后自动播放合成" 
-                            : "✅ 已关闭合成标记：录制完成后播放普通模式");
+                            ? " 已启用合成标记：录制完成后自动播放合成" 
+                            : " 已关闭合成标记：录制完成后播放普通模式");
                         
-                        // 🎨 立刻更新合成播放按钮颜色
+                        // 立刻更新合成播放按钮颜色
                         SetCompositeButtonColor(newState);
                     }
                     else
                     {
                         // 如果保存失败，恢复原状态
                         compositeMarkMenuItem.IsChecked = !newState;
-                        ShowStatus("❌ 更新合成标记失败");
+                        ShowStatus("更新合成标记失败");
                     }
                 }
             };
@@ -243,7 +243,7 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            // 🎨 变色颜色菜单（无分隔线）
+            // 变色颜色菜单（无分隔线）
             var colorMenuItem = new MenuItem { Header = "变色颜色" };
 
             // 从 ConfigManager 获取所有颜色预设
@@ -320,7 +320,7 @@ namespace ImageColorChanger.UI
                         _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
                         _imageProcessor.UpdateImage();
                         UpdateProjection();
-                        ShowStatus("✅ 原图模式: 拉伸显示");
+                        ShowStatus("原图模式: 拉伸显示");
                     }
                 };
                 displayModeMenuItem.Items.Add(stretchItem);
@@ -340,7 +340,7 @@ namespace ImageColorChanger.UI
                         _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
                         _imageProcessor.UpdateImage();
                         UpdateProjection();
-                        ShowStatus("✅ 原图模式: 适中显示");
+                        ShowStatus("原图模式: 适中显示");
                     }
                 };
                 displayModeMenuItem.Items.Add(fitItem);
@@ -364,13 +364,13 @@ namespace ImageColorChanger.UI
         {
             if (string.IsNullOrWhiteSpace(_imagePath))
             {
-                ShowStatus("❌ 当前未关联文件路径");
+                ShowStatus("当前未关联文件路径");
                 return;
             }
 
             if (!System.IO.File.Exists(_imagePath) && !System.IO.Directory.Exists(_imagePath))
             {
-                ShowStatus("❌ 当前文件不存在");
+                ShowStatus("当前文件不存在");
                 return;
             }
 
@@ -380,10 +380,14 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 打开文件位置失败: {ex.Message}");
+                ShowStatus($"打开文件位置失败: {ex.Message}");
             }
         }
 
         #endregion
     }
 }
+
+
+
+

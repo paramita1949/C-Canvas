@@ -24,7 +24,7 @@ namespace ImageColorChanger.Managers
         private List<(int id, string name, string path)> _similarImages = new List<(int, string, string)>();
         private int _currentSimilarIndex = 0;
         
-        // 🔧 性能优化：文件夹图片列表缓存
+        //  性能优化：文件夹图片列表缓存
         private int? _cachedFolderId = null;
         private List<MediaFile> _cachedFolderImages = null;
         private MediaFile _cachedCurrentFile = null;
@@ -130,7 +130,7 @@ namespace ImageColorChanger.Managers
                 if (CheckOriginalMark(ItemType.Image, imageId))
                     return true;
 
-                // 🔧 性能优化：使用缓存的文件信息，避免重复数据库查询
+                //  性能优化：使用缓存的文件信息，避免重复数据库查询
                 MediaFile mediaFile;
                 if (_cachedCurrentFile != null && _cachedCurrentFile.Id == imageId)
                 {
@@ -196,9 +196,9 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine($"🔍 FindSimilarImages: imageId={imageId}");
+                // System.Diagnostics.Debug.WriteLine($" FindSimilarImages: imageId={imageId}");
                 
-                // 🔧 性能优化：使用缓存避免重复数据库查询
+                //  性能优化：使用缓存避免重复数据库查询
                 MediaFile currentFile;
                 
                 // 检查是否是缓存的当前文件
@@ -215,19 +215,19 @@ namespace ImageColorChanger.Managers
                 
                 if (currentFile == null || currentFile.FolderId == null)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"❌ 无法找到图片或文件夹: imageId={imageId}");
+                    // System.Diagnostics.Debug.WriteLine($" 无法找到图片或文件夹: imageId={imageId}");
                     _similarImages.Clear();
                     _currentSimilarIndex = 0;
                     return false;
                 }
 
-                // System.Diagnostics.Debug.WriteLine($"📁 当前文件: {currentFile.Name}, FolderId={currentFile.FolderId}");
+                // System.Diagnostics.Debug.WriteLine($" 当前文件: {currentFile.Name}, FolderId={currentFile.FolderId}");
 
                 // 提取基本名称
                 string baseName = ExtractBaseName(currentFile.Name);
-                // System.Diagnostics.Debug.WriteLine($"📝 基本名称: {baseName}");
+                // System.Diagnostics.Debug.WriteLine($" 基本名称: {baseName}");
 
-                // 🔧 性能优化：检查文件夹图片列表缓存
+                //  性能优化：检查文件夹图片列表缓存
                 List<MediaFile> allImages;
                 
                 if (_cachedFolderId == currentFile.FolderId && _cachedFolderImages != null)
@@ -243,7 +243,7 @@ namespace ImageColorChanger.Managers
                     _cachedFolderImages = allImages;
                 }
                 
-                // System.Diagnostics.Debug.WriteLine($"📂 文件夹中共有 {allImages.Count} 张图片 (缓存命中: {_cachedFolderId == currentFile.FolderId})");
+                // System.Diagnostics.Debug.WriteLine($" 文件夹中共有 {allImages.Count} 张图片 (缓存命中: {_cachedFolderId == currentFile.FolderId})");
 
                 // 筛选出名称相似的图片
                 _similarImages = allImages
@@ -252,7 +252,7 @@ namespace ImageColorChanger.Managers
                     .Select(img => (img.Id, img.Name, img.Path))
                     .ToList();
                 
-                // System.Diagnostics.Debug.WriteLine($"🔎 筛选后找到 {_similarImages.Count} 张相似图片");
+                // System.Diagnostics.Debug.WriteLine($" 筛选后找到 {_similarImages.Count} 张相似图片");
 
                 if (_similarImages.Count > 0)
                 {
@@ -266,7 +266,7 @@ namespace ImageColorChanger.Managers
                         }
                     }
 
-                    // System.Diagnostics.Debug.WriteLine($"✅ 找到 {_similarImages.Count} 张相似图片, 当前索引: {_currentSimilarIndex}");
+                    // System.Diagnostics.Debug.WriteLine($" 找到 {_similarImages.Count} 张相似图片, 当前索引: {_currentSimilarIndex}");
                     return true;
                 }
 
@@ -289,7 +289,7 @@ namespace ImageColorChanger.Managers
         /// <returns>返回元组：(成功标志, 新图片ID, 新图片路径, 是否循环完成)</returns>
         public (bool success, int? newImageId, string newImagePath, bool isLoopCompleted) SwitchSimilarImage(bool isNext, int currentImageId)
         {
-            // System.Diagnostics.Debug.WriteLine($"🔍 SwitchSimilarImage: isNext={isNext}, currentImageId={currentImageId}");
+            // System.Diagnostics.Debug.WriteLine($" SwitchSimilarImage: isNext={isNext}, currentImageId={currentImageId}");
             
             try
             {
@@ -316,7 +316,7 @@ namespace ImageColorChanger.Managers
                     }
                 }
 
-                // System.Diagnostics.Debug.WriteLine($"📷 切换模式: {(switchMode == MarkType.Loop ? "循环" : "顺序")}");
+                // System.Diagnostics.Debug.WriteLine($" 切换模式: {(switchMode == MarkType.Loop ? "循环" : "顺序")}");
 
                 // 顺序模式：在文件夹所有图片中按顺序切换
                 if (switchMode == MarkType.Sequence)
@@ -345,7 +345,7 @@ namespace ImageColorChanger.Managers
                 var currentFile = _dbManager.GetMediaFileById(currentImageId);
                 if (currentFile == null || !currentFile.FolderId.HasValue)
                 {
-                    //System.Diagnostics.Debug.WriteLine("❌ 当前图片不在文件夹中");
+                    //System.Diagnostics.Debug.WriteLine(" 当前图片不在文件夹中");
                     return (false, null, null);
                 }
 
@@ -361,7 +361,7 @@ namespace ImageColorChanger.Managers
 
                 if (allImages.Count == 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine("❌ 文件夹中没有图片");
+                    //System.Diagnostics.Debug.WriteLine(" 文件夹中没有图片");
                     return (false, null, null);
                 }
 
@@ -369,7 +369,7 @@ namespace ImageColorChanger.Managers
                 int currentIndex = allImages.FindIndex(f => f.Id == currentImageId);
                 if (currentIndex == -1)
                 {
-                    //System.Diagnostics.Debug.WriteLine("❌ 未找到当前图片在列表中的位置");
+                    //System.Diagnostics.Debug.WriteLine(" 未找到当前图片在列表中的位置");
                     return (false, null, null);
                 }
 
@@ -378,12 +378,12 @@ namespace ImageColorChanger.Managers
                 
                 if (newIndex < 0 || newIndex >= allImages.Count)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"⚠️ 顺序模式已到达边界 (当前索引: {currentIndex}, 总数: {allImages.Count})");
+                    // System.Diagnostics.Debug.WriteLine($" 顺序模式已到达边界 (当前索引: {currentIndex}, 总数: {allImages.Count})");
                     return (false, null, null);
                 }
 
                 var targetImage = allImages[newIndex];
-                // System.Diagnostics.Debug.WriteLine($"📷 顺序切换: {targetImage.Name} (索引 {newIndex + 1}/{allImages.Count})");
+                // System.Diagnostics.Debug.WriteLine($" 顺序切换: {targetImage.Name} (索引 {newIndex + 1}/{allImages.Count})");
 
                 return (true, targetImage.Id, targetImage.Path);
             }
@@ -404,16 +404,16 @@ namespace ImageColorChanger.Managers
                 // 如果相似图片列表为空，先查找相似图片
                 if (_similarImages.Count == 0)
                 {
-                    // System.Diagnostics.Debug.WriteLine("⚠️ 相似图片列表为空，自动查找相似图片...");
+                    // System.Diagnostics.Debug.WriteLine(" 相似图片列表为空，自动查找相似图片...");
                     bool found = FindSimilarImages(currentImageId);
                     
                     if (!found || _similarImages.Count == 0)
                     {
-                        // System.Diagnostics.Debug.WriteLine("❌ 没有相似图片,无法切换");
+                        // System.Diagnostics.Debug.WriteLine(" 没有相似图片,无法切换");
                         return (false, null, null, false);
                     }
                     
-                    // System.Diagnostics.Debug.WriteLine($"✅ 已找到 {_similarImages.Count} 张相似图片");
+                    // System.Diagnostics.Debug.WriteLine($" 已找到 {_similarImages.Count} 张相似图片");
                 }
 
                 // 保存当前索引，用于检测循环完成
@@ -430,12 +430,12 @@ namespace ImageColorChanger.Managers
                     newIndex = (_currentSimilarIndex - 1 + _similarImages.Count) % _similarImages.Count;
                 }
 
-                // 🎯 检测循环完成：向下切换且回到第一张（索引0）
+                //  检测循环完成：向下切换且回到第一张（索引0）
                 bool isLoopCompleted = isNext && newIndex == 0 && _similarImages.Count > 1;
                 
                 if (isLoopCompleted)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"🔄 检测到循环完成: 从索引{oldIndex}回到索引0");
+                    // System.Diagnostics.Debug.WriteLine($" 检测到循环完成: 从索引{oldIndex}回到索引0");
                 }
 
                 // 更新当前索引
@@ -443,7 +443,7 @@ namespace ImageColorChanger.Managers
 
                 var (targetId, targetName, targetPath) = _similarImages[newIndex];
                 
-                // System.Diagnostics.Debug.WriteLine($"📷 循环切换: {targetName} (索引 {newIndex + 1}/{_similarImages.Count})");
+                // System.Diagnostics.Debug.WriteLine($" 循环切换: {targetName} (索引 {newIndex + 1}/{_similarImages.Count})");
 
                 return (true, targetId, targetPath, isLoopCompleted);
             }
@@ -480,12 +480,12 @@ namespace ImageColorChanger.Managers
 
                 if (targetFile != null)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"📷 切换到不同系列: {targetFile.Name}");
+                    //System.Diagnostics.Debug.WriteLine($" 切换到不同系列: {targetFile.Name}");
                     return (true, targetFile.Id, targetFile.Path);
                 }
 
                 string directionText = isNext ? "下一张" : "上一张";
-                //System.Diagnostics.Debug.WriteLine($"⚠️ 没有找到{directionText}图片");
+                //System.Diagnostics.Debug.WriteLine($" 没有找到{directionText}图片");
                 return (false, null, null);
             }
             catch (Exception)
@@ -592,13 +592,13 @@ namespace ImageColorChanger.Managers
                     var markType = GetOriginalMarkType(ItemType.Folder, folderId);
                     if (markType == MarkType.Sequence)
                     {
-                        // 顺序原图标记 - 使用 ArrowDownward 图标（向下箭头，表示从上到下的顺序）
-                        return isManualSort ? ("FolderDownload", "#FF6B35") : ("ArrowDownward", "#FF6B35");
+                        // 顺序原图标记 - 文件夹带顺序
+                        return ("FolderDownload", "#FF6B35");
                     }
                     else
                     {
-                        // 循环原图标记 - 使用 Repeat 图标
-                        return isManualSort ? ("FolderSync", "#4ECDC4") : ("Repeat", "#4ECDC4");
+                        // 循环原图标记 - 文件夹带循环
+                        return ("FolderSync", "#4ECDC4");
                     }
                 }
                 else
@@ -648,4 +648,6 @@ namespace ImageColorChanger.Managers
         #endregion
     }
 }
+
+
 

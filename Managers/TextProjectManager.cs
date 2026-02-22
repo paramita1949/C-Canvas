@@ -48,7 +48,7 @@ namespace ImageColorChanger.Managers
             dbContext.TextProjects.Add(project);
             await dbContext.SaveChangesAsync();
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: ID={project.Id}, Name={project.Name}");
+            //System.Diagnostics.Debug.WriteLine($" 创建文本项目成功: ID={project.Id}, Name={project.Name}");
             return project;
         }
 
@@ -62,13 +62,13 @@ namespace ImageColorChanger.Managers
             var dbContext = _dbContext;
             var project = await dbContext.TextProjects
                 .Include(p => p.Elements)
-                    .ThenInclude(e => e.RichTextSpans)  // 🔧 加载富文本片段
+                    .ThenInclude(e => e.RichTextSpans)  //  加载富文本片段
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
             if (project == null)
                 throw new InvalidOperationException($"项目不存在: ID={projectId}");
 
-            // 🔧 手动排序（EF Core 不支持在 Include 中使用 OrderBy）
+            //  手动排序（EF Core 不支持在 Include 中使用 OrderBy）
             if (project.Elements != null)
             {
                 project.Elements = project.Elements.OrderBy(e => e.ZIndex).ToList();
@@ -83,7 +83,7 @@ namespace ImageColorChanger.Managers
 
 //#if DEBUG
 //            int totalSpans = project.Elements.Sum(e => e.RichTextSpans?.Count ?? 0);
-//            System.Diagnostics.Debug.WriteLine($"✅ [加载项目] ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}, RichTextSpans={totalSpans}");
+//            System.Diagnostics.Debug.WriteLine($" [加载项目] ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}, RichTextSpans={totalSpans}");
 //#endif
             return project;
         }
@@ -115,7 +115,7 @@ namespace ImageColorChanger.Managers
             dbContext.TextProjects.Update(project);
             await dbContext.SaveChangesAsync();
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 保存文本项目成功: ID={project.Id}, Name={project.Name}");
+            //System.Diagnostics.Debug.WriteLine($" 保存文本项目成功: ID={project.Id}, Name={project.Name}");
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace ImageColorChanger.Managers
             dbContext.TextProjects.Remove(project);
             await dbContext.SaveChangesAsync();
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 删除文本项目成功: ID={projectId}");
+            //System.Diagnostics.Debug.WriteLine($" 删除文本项目成功: ID={projectId}");
         }
 
         /// <summary>
@@ -151,7 +151,7 @@ namespace ImageColorChanger.Managers
             project.ModifiedTime = DateTime.Now;
             await dbContext.SaveChangesAsync();
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
+            //System.Diagnostics.Debug.WriteLine($" 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
         }
 
         #endregion
@@ -398,7 +398,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
+            //System.Diagnostics.Debug.WriteLine($" 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
             return element;
         }
 
@@ -425,7 +425,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 更新文本元素成功: ID={element.Id}");
+            //System.Diagnostics.Debug.WriteLine($" 更新文本元素成功: ID={element.Id}");
         }
 
         /// <summary>
@@ -551,7 +551,7 @@ namespace ImageColorChanger.Managers
                     await UpdateProjectModifiedTimeAsync(slide.ProjectId);
             }
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 删除文本元素成功: ID={elementId}");
+            //System.Diagnostics.Debug.WriteLine($" 删除文本元素成功: ID={elementId}");
         }
 
         /// <summary>
@@ -570,7 +570,7 @@ namespace ImageColorChanger.Managers
                 dbContext.TextElements.RemoveRange(elements);
                 await dbContext.SaveChangesAsync();
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
+                //System.Diagnostics.Debug.WriteLine($" 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
             }
         }
 
@@ -670,5 +670,6 @@ namespace ImageColorChanger.Managers
         #endregion
     }
 }
+
 
 

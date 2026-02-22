@@ -178,7 +178,7 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"登录异常：{ex.Message}", isError: true);
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [登录] 未知异常: {ex}");
+                System.Diagnostics.Debug.WriteLine($" [登录] 未知异常: {ex}");
                 #endif
             }
             finally
@@ -287,4 +287,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
 

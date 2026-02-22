@@ -70,7 +70,7 @@
                            HorizontalAlignment="Center"/>
                 
                 <!-- 关闭按钮 -->
-                <Button Content="✕" 
+                <Button 
                         Width="30" 
                         Height="30" 
                         HorizontalAlignment="Right"
@@ -82,6 +82,16 @@
                         FontWeight="Bold"
                         Cursor="Hand"
                         Click="CloseButton_Click">
+                    <Path Data="M18 6L6 18 M6 6L18 18"
+                          Width="14"
+                          Height="14"
+                          Stretch="Uniform"
+                          Stroke="White"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          StrokeLineJoin="Round"/>
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Background" Value="Transparent"/>

@@ -176,7 +176,7 @@ namespace ImageColorChanger.Services.Implementations
                     .OrderBy(v => v.Verse)
                     .ToListAsync();
 
-                // 🔧 处理只有"-"符号的节，合并到前一节
+                //  处理只有"-"符号的节，合并到前一节
                 var processedVerses = ProcessDashOnlyVerses(verses);
 
                 //#if DEBUG
@@ -247,7 +247,7 @@ namespace ImageColorChanger.Services.Implementations
                         foreach (var dashVerse in dashVerseNumbers)
                         {
                             mergedVerseNumbers += $"、{dashVerse}";
-                            // 🔧 建立映射："-"节号 -> 前一节的经文
+                            //  建立映射："-"节号 -> 前一节的经文
                             verseMap[dashVerse] = previousVerse;
                         }
                         
@@ -267,7 +267,7 @@ namespace ImageColorChanger.Services.Implementations
                         foreach (var dashVerse in dashVerseNumbers)
                         {
                             mergedVerseNumbers = $"{dashVerse}、" + mergedVerseNumbers;
-                            // 🔧 建立映射："-"节号 -> 当前节的经文
+                            //  建立映射："-"节号 -> 当前节的经文
                             verseMap[dashVerse] = currentVerse;
                         }
                         
@@ -280,7 +280,7 @@ namespace ImageColorChanger.Services.Implementations
                         dashVerseNumbers.Clear();
                     }
                     
-                    // 🔧 建立映射：正常节号 -> 自己
+                    //  建立映射：正常节号 -> 自己
                     verseMap[currentVerse.Verse] = currentVerse;
                     
                     // 添加当前正常经文
@@ -296,7 +296,7 @@ namespace ImageColorChanger.Services.Implementations
                 foreach (var dashVerse in dashVerseNumbers)
                 {
                     mergedVerseNumbers += $"、{dashVerse}";
-                    // 🔧 建立映射：末尾"-"节号 -> 最后一节的经文
+                    //  建立映射：末尾"-"节号 -> 最后一节的经文
                     verseMap[dashVerse] = lastVerse;
                 }
                 lastVerse.DisplayVerseNumber = mergedVerseNumbers;
@@ -802,5 +802,6 @@ namespace ImageColorChanger.Services.Implementations
         }
     }
 }
+
 
 

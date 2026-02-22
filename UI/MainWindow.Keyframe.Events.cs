@@ -50,7 +50,7 @@ namespace ImageColorChanger.UI
 
                 if (success)
                 {
-                    ShowStatus($"✅ 已添加关键帧");
+                    ShowStatus($"已添加关键帧");
                     UpdatePreviewLines();
                     
                     // 如果正在录制，获取最新的关键帧ID并记录时间（使用新架构）
@@ -69,12 +69,12 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    ShowStatus("❌ 添加关键帧失败（该位置附近已存在关键帧）");
+                    ShowStatus("添加关键帧失败（该位置附近已存在关键帧）");
                 }
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 添加关键帧出错: {ex.Message}");
+                ShowStatus($"添加关键帧出错: {ex.Message}");
                 // System.Diagnostics.Debug.WriteLine($"添加关键帧异常: {ex}");
             }
         }
@@ -107,17 +107,17 @@ namespace ImageColorChanger.UI
                 try
                 {
                     await _keyframeManager.ClearKeyframesAsync(_currentImageId);
-                    ShowStatus("✅ 已清除所有关键帧");
+                    ShowStatus("已清除所有关键帧");
                     UpdatePreviewLines();
                 }
                 catch (Exception ex)
                 {
-                    ShowStatus($"❌ 清除关键帧出错: {ex.Message}");
+                    ShowStatus($"清除关键帧出错: {ex.Message}");
                 }
             }
         }
 
-        // 🛡️ 防重入标志：防止快速点击导致并发执行
+        // 防重入标志：防止快速点击导致并发执行
         private volatile bool _isNavigatingKeyframe = false;
 
         /// <summary>
@@ -125,11 +125,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnPrevKeyframe_Click(object sender, RoutedEventArgs e)
         {
-            // 🛡️ 防重入：如果上一次操作还没完成，直接返回
+            // 防重入：如果上一次操作还没完成，直接返回
             if (_isNavigatingKeyframe)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [防重入] 上一帧操作正在执行中，忽略本次点击");
+                System.Diagnostics.Debug.WriteLine($" [防重入] 上一帧操作正在执行中，忽略本次点击");
                 #endif
                 return;
             }
@@ -137,25 +137,25 @@ namespace ImageColorChanger.UI
             _isNavigatingKeyframe = true;
             try
             {
-                // ⏱️ 性能调试：测量关键帧切换总耗时
+                // ⏱ 性能调试：测量关键帧切换总耗时
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 //System.Diagnostics.Debug.WriteLine($"");
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始上一帧操作 ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 开始上一帧操作 ==========");
                 
-                // 🎯 模式-1：圣经模式（向上滚动经文）
+                // 模式-1：圣经模式（向上滚动经文）
                 if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
                 {
                     BtnBiblePrevVerse_Click(sender, e);
                     return;
                 }
                 
-                // 🎯 模式0：文本编辑器模式（切换幻灯片）
+                // 模式0：文本编辑器模式（切换幻灯片）
                 if (TextEditorPanel.Visibility == Visibility.Visible)
                 {
-                    //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到上一张幻灯片");
+                    //System.Diagnostics.Debug.WriteLine("文本编辑器模式，切换到上一张幻灯片");
                     NavigateToPreviousSlide();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
                 
@@ -165,34 +165,34 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🎯 模式1：媒体播放模式（视频/音频）
+                // 模式1：媒体播放模式（视频/音频）
                 if (IsMediaPlaybackMode())
                 {
                     await SwitchToPreviousMediaFile();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
 
-                // 🎯 模式2：原图标记模式（切换相似图片）
+                // 模式2：原图标记模式（切换相似图片）
                 if (IsOriginalMarkMode())
                 {
                     SwitchToPreviousSimilarImage();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
 
-                // 🎯 模式3：关键帧模式（默认）
+                // 模式3：关键帧模式（默认）
                 if (_keyframeManager == null)
                 {
                     ShowStatus("关键帧系统未初始化");
                     return;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：上一帧");
+                //System.Diagnostics.Debug.WriteLine(" 关键帧模式：上一帧");
 
-                // 🔧 修复：在跳转前保存当前索引，避免StepToPrevKeyframe()更新索引后导致记录错误
+                // 修复：在跳转前保存当前索引，避免StepToPrevKeyframe()更新索引后导致记录错误
                 int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
 
                 // 如果正在录制，先记录当前帧的时间（跳转前）
@@ -204,7 +204,7 @@ namespace ImageColorChanger.UI
                         var currentKeyframe = keyframes[currentIndexBeforeJump];
                         _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📝 [上一帧-录制] 离开关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id})，记录停留时间");
+                        System.Diagnostics.Debug.WriteLine($"[上一帧-录制] 离开关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id})，记录停留时间");
                         #endif
                     }
                 }
@@ -222,12 +222,12 @@ namespace ImageColorChanger.UI
                         if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                         {
                             _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                            //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
+                            //System.Diagnostics.Debug.WriteLine($"[手动跳转] 播放中点击上一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
                             
                             // 跳过当前等待，立即播放下一帧（参考Python版本：keyframe_navigation.py 第157-167行）
                             // 注意：上一帧总是回跳，会被Navigator强制直接跳转，所以这里跳过等待是安全的
                             kfService.SkipCurrentWaitAndPlayNext();
-                            //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 点击上一帧，跳过当前等待");
+                            //System.Diagnostics.Debug.WriteLine($" [手动跳转] 点击上一帧，跳过当前等待");
                         }
                     }
                 }
@@ -236,10 +236,10 @@ namespace ImageColorChanger.UI
                 var navStart = sw.ElapsedMilliseconds;
                 _keyframeManager.Navigator.StepToPrevKeyframe();
                 var navTime = sw.ElapsedMilliseconds - navStart;
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToPrevKeyframe: {navTime}ms");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [手动跳转] Navigator.StepToPrevKeyframe: {navTime}ms");
                 
                 sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 //System.Diagnostics.Debug.WriteLine($"");
             }
             finally
@@ -253,11 +253,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnNextKeyframe_Click(object sender, RoutedEventArgs e)
         {
-            // 🛡️ 防重入：如果上一次操作还没完成，直接返回
+            // 防重入：如果上一次操作还没完成，直接返回
             if (_isNavigatingKeyframe)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [防重入] 下一帧操作正在执行中，忽略本次点击");
+                System.Diagnostics.Debug.WriteLine($" [防重入] 下一帧操作正在执行中，忽略本次点击");
                 #endif
                 return;
             }
@@ -265,25 +265,25 @@ namespace ImageColorChanger.UI
             _isNavigatingKeyframe = true;
             try
             {
-                // ⏱️ 性能调试：测量关键帧切换总耗时
+                // ⏱ 性能调试：测量关键帧切换总耗时
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 //System.Diagnostics.Debug.WriteLine($"");
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 开始下一帧操作 ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 开始下一帧操作 ==========");
                 
-                // 🎯 模式-1：圣经模式（向下滚动经文）
+                // 模式-1：圣经模式（向下滚动经文）
                 if (_isBibleMode && BibleVerseScrollViewer.Visibility == Visibility.Visible)
                 {
                     BtnBibleNextVerse_Click(sender, e);
                     return;
                 }
                 
-                // 🎯 模式0：文本编辑器模式（切换幻灯片）
+                // 模式0：文本编辑器模式（切换幻灯片）
                 if (TextEditorPanel.Visibility == Visibility.Visible)
                 {
-                    //System.Diagnostics.Debug.WriteLine("📖 文本编辑器模式，切换到下一张幻灯片");
+                    //System.Diagnostics.Debug.WriteLine("文本编辑器模式，切换到下一张幻灯片");
                     NavigateToNextSlide();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 幻灯片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
                 
@@ -293,38 +293,38 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🎯 模式1：媒体播放模式（视频/音频）
+                // 模式1：媒体播放模式（视频/音频）
                 if (IsMediaPlaybackMode())
                 {
                     await SwitchToNextMediaFile();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
 
-                // 🎯 模式2：原图标记模式（切换相似图片）
+                // 模式2：原图标记模式（切换相似图片）
                 if (IsOriginalMarkMode())
                 {
                     SwitchToNextSimilarImage();
                     sw.Stop();
-                    //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                    //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 相似图片切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
 
-                // 🎯 模式3：关键帧模式（默认）
+                // 模式3：关键帧模式（默认）
                 if (_keyframeManager == null)
                 {
                     ShowStatus("关键帧系统未初始化");
                     return;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine("🎬 关键帧模式：下一帧");
+                //System.Diagnostics.Debug.WriteLine(" 关键帧模式：下一帧");
 
-                // 🔧 修复：在跳转前保存当前索引，避免StepToNextKeyframe()更新索引后导致记录错误
+                // 修复：在跳转前保存当前索引，避免StepToNextKeyframe()更新索引后导致记录错误
                 int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔍 [下一帧-调试] 保存的索引: currentIndexBeforeJump={currentIndexBeforeJump}, CurrentKeyframeIndex={_keyframeManager.CurrentKeyframeIndex}");
+                System.Diagnostics.Debug.WriteLine($"[下一帧-调试] 保存的索引: currentIndexBeforeJump={currentIndexBeforeJump}, CurrentKeyframeIndex={_keyframeManager.CurrentKeyframeIndex}");
                 #endif
                 
                 // 如果正在录制，先记录当前帧的时间（跳转前）
@@ -335,22 +335,22 @@ namespace ImageColorChanger.UI
                 {
                     var currentKeyframe = keyframes[currentIndexBeforeJump];
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📹 [下一帧-录制] 准备记录关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 的停留时间");
+                    System.Diagnostics.Debug.WriteLine($" [下一帧-录制] 准备记录关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 的停留时间");
                     #endif
                     _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📝 [下一帧-录制] 已调用RecordKeyframeTimeAsync，离开关键帧 #{currentIndexBeforeJump + 1}，记录停留时间");
+                    System.Diagnostics.Debug.WriteLine($"[下一帧-录制] 已调用RecordKeyframeTimeAsync，离开关键帧 #{currentIndexBeforeJump + 1}，记录停留时间");
                     #endif
                 }
                 else
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [下一帧-录制] 无法记录：currentIndexBeforeJump={currentIndexBeforeJump}, keyframes.Count={keyframes?.Count ?? 0}");
+                    System.Diagnostics.Debug.WriteLine($" [下一帧-录制] 无法记录：currentIndexBeforeJump={currentIndexBeforeJump}, keyframes.Count={keyframes?.Count ?? 0}");
                     #endif
                 }
             }
             
-            // 🎯 合成播放中：更新TOTAL时间并重新开始循环
+            // 合成播放中：更新TOTAL时间并重新开始循环
             var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite) 
                 as Services.Implementations.CompositePlaybackService;
             
@@ -358,7 +358,7 @@ namespace ImageColorChanger.UI
             {
                 // 合成播放中：更新TOTAL时间为当前已播放时间，并重新开始循环
                 await compositeService.UpdateTotalAndRestartAsync();
-                ShowStatus($"✅ 已更新TOTAL时间为 {compositeService.GetElapsedSeconds():F1}秒，重新开始循环");
+                ShowStatus($"已更新TOTAL时间为 {compositeService.GetElapsedSeconds():F1}秒，重新开始循环");
                 sw.Stop();
                 return;
             }
@@ -376,12 +376,12 @@ namespace ImageColorChanger.UI
                     if (playbackService is Services.Implementations.KeyframePlaybackService kfService)
                     {
                         _ = kfService.RecordManualOperationAsync(currentKeyframe.Id); // 异步执行不等待
-                        //System.Diagnostics.Debug.WriteLine($"🕐 [手动跳转] 播放中点击下一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
+                        //System.Diagnostics.Debug.WriteLine($"[手动跳转] 播放中点击下一帧，记录修正时间: 关键帧#{currentIndexBeforeJump + 1}");
                         
-                        // 🔧 跳过当前等待，立即结束当前帧（参考Python版本：keyframe_navigation.py 第157-167行）
+                        // 跳过当前等待，立即结束当前帧（参考Python版本：keyframe_navigation.py 第157-167行）
                         // 播放循环会基于实际关键帧数量判断循环，不会进入错误数据
                         kfService.SkipCurrentWaitAndPlayNext();
-                        //System.Diagnostics.Debug.WriteLine($"🔄 [手动跳转] 跳过当前等待，让播放循环立即进入下一帧判断");
+                        //System.Diagnostics.Debug.WriteLine($" [手动跳转] 跳过当前等待，让播放循环立即进入下一帧判断");
                     }
                 }
             }
@@ -390,10 +390,10 @@ namespace ImageColorChanger.UI
                 var navStart = sw.ElapsedMilliseconds;
                 await _keyframeManager.Navigator.StepToNextKeyframe();
                 var navTime = sw.ElapsedMilliseconds - navStart;
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [手动跳转] Navigator.StepToNextKeyframe: {navTime}ms");
                 
                 sw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 关键帧切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                 //System.Diagnostics.Debug.WriteLine($"");
             }
             finally
@@ -431,7 +431,7 @@ namespace ImageColorChanger.UI
 
                 if (compositeService == null)
                 {
-                    ShowStatus("❌ 合成播放服务未初始化");
+                    ShowStatus("合成播放服务未初始化");
                     return;
                 }
 
@@ -439,7 +439,7 @@ namespace ImageColorChanger.UI
                 if (compositeService.IsPlaying)
                 {
                     await compositeService.StopPlaybackAsync();
-                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                    SetCompositePlayButtonContent(false);
                     
                     // 隐藏速度控制按钮
                     BtnCompositeSpeed.Visibility = Visibility.Collapsed;
@@ -452,12 +452,12 @@ namespace ImageColorChanger.UI
                     CountdownText.Text = "倒: --";
                     _countdownService?.Stop();
                     
-                    //System.Diagnostics.Debug.WriteLine("🛑 [合成播放] 已停止滚动动画和倒计时");
-                    ShowStatus("⏹️ 已停止合成播放");
+                    //System.Diagnostics.Debug.WriteLine("[合成播放] 已停止滚动动画和倒计时");
+                    ShowStatus("已停止合成播放");
                     return;
                 }
 
-                // 🔧 获取关键帧（可以为空或少于2个，支持无关键帧播放）
+                // 获取关键帧（可以为空或少于2个，支持无关键帧播放）
                 // 注意：即使没有录制数据（时间数据）也允许播放
                 // - 有关键帧（>=2）：使用TOTAL时间从第一帧滚动到最后一帧
                 // - 无关键帧：使用TOTAL时间从顶部滚动到底部
@@ -498,12 +498,12 @@ namespace ImageColorChanger.UI
                 // 设置播放次数（使用当前的播放次数设置）
                 compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
                 
-                // 🔧 每次开始新一轮播放时，重置速度为1.0（正常速度）
+                // 每次开始新一轮播放时，重置速度为1.0（正常速度）
                 compositeService.SetSpeed(1.0);
 
-                // 🔧 在开始播放前，根据情况跳转到起始位置
+                // 在开始播放前，根据情况跳转到起始位置
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== 开始播放前检查 ==========");
+                //System.Diagnostics.Debug.WriteLine($" [合成播放] ========== 开始播放前检查 ==========");
                 //System.Diagnostics.Debug.WriteLine($"   当前关键帧索引: {_keyframeManager.CurrentKeyframeIndex}");
                 //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {ImageScrollViewer.VerticalOffset:F1}");
                 //#endif
@@ -521,28 +521,28 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"   位置差值: {Math.Abs(currentOffset - targetOffset):F1}");
                     //#endif
 
-                    // 🔧 如果当前已经在第一个关键帧位置，且位置也一致，就不需要跳转
+                    // 如果当前已经在第一个关键帧位置，且位置也一致，就不需要跳转
                     bool isAtFirstKeyframe = _keyframeManager.CurrentKeyframeIndex == 0;
                     bool isAtTargetPosition = Math.Abs(currentOffset - targetOffset) <= 1;
                     
                     if (isAtFirstKeyframe && isAtTargetPosition)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在第一个关键帧位置，跳过跳转，直接播放");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放] 已在第一个关键帧位置，跳过跳转，直接播放");
                         //#endif
                         // 不执行跳转，直接开始播放
                     }
                     else if (Math.Abs(currentOffset - targetOffset) > 1)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放] 执行跳转到第一帧: {currentOffset:F1} -> {targetOffset:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放] 执行跳转到第一帧: {currentOffset:F1} -> {targetOffset:F1}");
                         //#endif
                         ImageScrollViewer.ScrollToVerticalOffset(targetOffset);
                     }
                     else
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在第一帧位置，不跳转");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放] 已在第一帧位置，不跳转");
                         //#endif
                     }
                 }
@@ -560,41 +560,41 @@ namespace ImageColorChanger.UI
                     if (currentOffset > 1)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放] 执行跳转到顶部: {currentOffset:F1} -> 0");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放] 执行跳转到顶部: {currentOffset:F1} -> 0");
                         //#endif
                         ImageScrollViewer.ScrollToVerticalOffset(0);
                     }
                     else
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放] 已在顶部，不跳转");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放] 已在顶部，不跳转");
                         //#endif
                     }
                 }
 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"   跳转后滚动位置: {ImageScrollViewer.VerticalOffset:F1}");
-                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== 开始调用 StartPlaybackAsync ==========");
+                //System.Diagnostics.Debug.WriteLine($" [合成播放] ========== 开始调用 StartPlaybackAsync ==========");
                 //#endif
 
                 // 开始播放
                 await compositeService.StartPlaybackAsync(_currentImageId);
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎬 [合成播放] ========== StartPlaybackAsync 调用完成 ==========");
+                //System.Diagnostics.Debug.WriteLine($" [合成播放] ========== StartPlaybackAsync 调用完成 ==========");
                 //#endif
-                BtnFloatingCompositePlay.Content = "⏹ 停止";
+                SetCompositePlayButtonContent(true);
                 
                 // 显示速度控制按钮
                 BtnCompositeSpeed.Visibility = Visibility.Visible;
                 UpdateSpeedButtonText(compositeService.Speed);
 
-                ShowStatus("▶️ 开始合成播放");
+                ShowStatus("开始合成播放");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 合成播放失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 合成播放异常: {ex}");
+                ShowStatus($"合成播放失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 合成播放异常: {ex}");
             }
         }
 
@@ -620,7 +620,7 @@ namespace ImageColorChanger.UI
                 // 标题项
                 var titleItem = new MenuItem 
                 { 
-                    Header = "⏱️ 快捷设置总时长",
+                    Header = "快捷设置总时长",
                     IsEnabled = false,
                     FontWeight = FontWeights.Bold
                 };
@@ -649,17 +649,17 @@ namespace ImageColorChanger.UI
                 contextMenu.Items.Add(new Separator());
 
                 // 自定义时长选项
-                var customItem = new MenuItem { Header = "⚙️ 自定义时长..." };
+                var customItem = new MenuItem { Header = "自定义时长..." };
                 customItem.Click += (s, args) => OpenScriptEditWindow();
                 contextMenu.Items.Add(customItem);
 
                 contextMenu.Items.Add(new Separator());
 
-                // 🆕 全局默认时间设定
+                // 全局默认时间设定
                 var currentDefaultDuration = _configManager?.CompositePlaybackDefaultDuration ?? 105.0;
                 var globalDefaultItem = new MenuItem 
                 { 
-                    Header = $"🌐 全局默认时间: {currentDefaultDuration:F0} 秒"
+                    Header = $"全局默认时间: {currentDefaultDuration:F0} 秒"
                 };
                 globalDefaultItem.Click += (s, args) => OpenGlobalDefaultDurationDialog();
                 contextMenu.Items.Add(globalDefaultItem);
@@ -671,7 +671,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 显示右键菜单失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 显示右键菜单失败: {ex.Message}");
             }
         }
 
@@ -689,16 +689,16 @@ namespace ImageColorChanger.UI
                 // 更新TOTAL时长
                 await compositeScriptRepo.CreateOrUpdateAsync(_currentImageId, duration, autoCalculate: false);
                 
-                ShowStatus($"✅ 总时长已设置为 {duration} 秒");
+                ShowStatus($"总时长已设置为 {duration} 秒");
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 总时长已设置: {duration}秒 (图片ID: {_currentImageId})");
+                System.Diagnostics.Debug.WriteLine($" 总时长已设置: {duration}秒 (图片ID: {_currentImageId})");
                 #endif
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 设置时长失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 设置总时长失败: {ex}");
+                ShowStatus($"设置时长失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 设置总时长失败: {ex}");
             }
         }
 
@@ -711,7 +711,7 @@ namespace ImageColorChanger.UI
             {
                 if (_configManager == null)
                 {
-                    ShowStatus("❌ 配置管理器未初始化");
+                    ShowStatus("配置管理器未初始化");
                     return;
                 }
 
@@ -786,7 +786,7 @@ namespace ImageColorChanger.UI
                         if (duration > 0 && duration <= 600) // 限制在1-600秒之间
                         {
                             _configManager.CompositePlaybackDefaultDuration = duration;
-                            ShowStatus($"✅ 全局默认时间已设置为 {duration:F0} 秒");
+                            ShowStatus($"全局默认时间已设置为 {duration:F0} 秒");
                             inputDialog.DialogResult = true;
                             inputDialog.Close();
                         }
@@ -824,8 +824,8 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 打开设置对话框失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 打开全局默认时间设置对话框失败: {ex}");
+                ShowStatus($"打开设置对话框失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 打开全局默认时间设置对话框失败: {ex}");
             }
         }
 
@@ -864,8 +864,8 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 打开脚本窗口失败: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ 打开脚本窗口失败: {ex}");
+                ShowStatus($"打开脚本窗口失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 打开脚本窗口失败: {ex}");
             }
         }
 
@@ -883,7 +883,7 @@ namespace ImageColorChanger.UI
 
                     //#if DEBUG
                     //var currentOffsetBefore = scrollViewer.VerticalOffset;
-                    //System.Diagnostics.Debug.WriteLine($"📜 [合成播放滚动] ========== 收到滚动请求 ==========");
+                    //System.Diagnostics.Debug.WriteLine($"[合成播放滚动] ========== 收到滚动请求 ==========");
                     //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {currentOffsetBefore:F1}");
                     //System.Diagnostics.Debug.WriteLine($"   起始位置: {e.StartPosition:F1}");
                     //System.Diagnostics.Debug.WriteLine($"   结束位置: {e.EndPosition:F1}");
@@ -897,21 +897,21 @@ namespace ImageColorChanger.UI
                     // 停止之前的合成滚动动画（如果有）
                     StopCompositeScrollAnimation();
 
-                    // 🔧 如果时长为0，表示直接跳转，不滚动
+                    // 如果时长为0，表示直接跳转，不滚动
                     if (e.Duration <= 0)
                     {
-                        // 🔧 如果目标位置和当前位置一致（容差1像素），就不需要跳转
+                        // 如果目标位置和当前位置一致（容差1像素），就不需要跳转
                         if (Math.Abs(currentOffsetBefore - e.EndPosition) <= 1)
                         {
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放滚动] 已在目标位置，跳过跳转");
+                            //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 已在目标位置，跳过跳转");
                             //#endif
                             
                             // 更新投影
                             if (IsProjectionEnabled)
                             {
                                 //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                                //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 更新投影");
                                 //#endif
                                 UpdateProjection();
                             }
@@ -919,7 +919,7 @@ namespace ImageColorChanger.UI
                         }
                         
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放滚动] 执行直接跳转: {currentOffsetBefore:F1} -> {e.EndPosition:F1}");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 执行直接跳转: {currentOffsetBefore:F1} -> {e.EndPosition:F1}");
                         //#endif
                         scrollViewer.ScrollToVerticalOffset(e.EndPosition);
                         
@@ -931,36 +931,36 @@ namespace ImageColorChanger.UI
                         if (IsProjectionEnabled)
                         {
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                            //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 更新投影");
                             //#endif
                             UpdateProjection();
                         }
                         return;
                     }
 
-                    // 🔧 检查当前位置和起始位置
+                    // 检查当前位置和起始位置
                     bool isAtStartPosition = Math.Abs(currentOffsetBefore - e.StartPosition) <= 1;
                     bool isStartEndSame = Math.Abs(e.StartPosition - e.EndPosition) <= 1;
                     
-                    // 🔧 如果已在起始位置且起始和结束位置相同，不需要滚动
+                    // 如果已在起始位置且起始和结束位置相同，不需要滚动
                     if (isAtStartPosition && isStartEndSame)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放滚动] 已在起始位置且无需滚动，跳过滚动动画");
+                        //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 已在起始位置且无需滚动，跳过滚动动画");
                         //#endif
                         
                         // 更新投影
                         if (IsProjectionEnabled)
                         {
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 更新投影");
+                            //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 更新投影");
                             //#endif
                             UpdateProjection();
                         }
                         return;
                     }
                     
-                    // 🔧 如果当前位置和起始位置不同，但当前位置已经在第一个关键帧位置，调整起始位置为当前位置
+                    // 如果当前位置和起始位置不同，但当前位置已经在第一个关键帧位置，调整起始位置为当前位置
                     // 这样可以避免从当前位置跳转到起始位置再开始滚动
                     double actualStartPosition = e.StartPosition;
                     if (!isAtStartPosition && _keyframeManager != null && _keyframeManager.CurrentKeyframeIndex == 0)
@@ -973,7 +973,7 @@ namespace ImageColorChanger.UI
                             {
                                 actualStartPosition = currentOffsetBefore;
                                 //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"   🔧 [合成播放滚动] 已在第一个关键帧位置，调整起始位置为当前位置");
+                                //System.Diagnostics.Debug.WriteLine($"   [合成播放滚动] 已在第一个关键帧位置，调整起始位置为当前位置");
                                 //System.Diagnostics.Debug.WriteLine($"      原始起始位置: {e.StartPosition:F1}, 调整后: {actualStartPosition:F1}");
                                 //#endif
                             }
@@ -984,7 +984,7 @@ namespace ImageColorChanger.UI
                     StartFpsMonitoring();
 
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   ▶️ [合成播放滚动] 开始滚动动画");
+                    //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 开始滚动动画");
                     //System.Diagnostics.Debug.WriteLine($"      从 {actualStartPosition:F1} 滚动到 {e.EndPosition:F1}");
                     //#endif
 
@@ -999,14 +999,14 @@ namespace ImageColorChanger.UI
                             // 滚动完成回调
                             _compositeScrollStoryboard = null; // 清除引用
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"✅ [合成播放滚动] 滚动完成，最终位置: {scrollViewer.VerticalOffset:F1}");
+                            //System.Diagnostics.Debug.WriteLine($" [合成播放滚动] 滚动完成，最终位置: {scrollViewer.VerticalOffset:F1}");
                             //#endif
                             
                             // 更新投影
                             if (IsProjectionEnabled)
                             {
                                 //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"   🔄 [合成播放滚动] 滚动完成后更新投影");
+                                //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 滚动完成后更新投影");
                                 //#endif
                                 UpdateProjection();
                             }
@@ -1094,8 +1094,8 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.Invoke(() =>
             {
-                BtnFloatingCompositePlay.Content = "🎬 合成播放";
-                ShowStatus("✅ 合成播放完成");
+                SetCompositePlayButtonContent(false);
+                ShowStatus("合成播放完成");
                 
                 // 停止倒计时显示
                 _countdownService?.Stop();
@@ -1130,7 +1130,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateSpeedButtonText(double speed)
         {
-            BtnCompositeSpeed.Content = $"⚡ {speed:F2}x";
+            SetCompositeSpeedButtonContent(speed);
         }
         
         /// <summary>
@@ -1173,7 +1173,7 @@ namespace ImageColorChanger.UI
                 menuItem.Click += (s, args) =>
                 {
                     compositeService.SetSpeed(speed);
-                    ShowStatus($"⚡ 播放速度已设置为 {speed:F2}x");
+                    ShowStatus($"播放速度已设置为 {speed:F2}x");
                 };
                 
                 contextMenu.Items.Add(menuItem);
@@ -1196,7 +1196,7 @@ namespace ImageColorChanger.UI
                 {
                     //#if DEBUG
                     //var currentOffset = ImageScrollViewer?.VerticalOffset ?? 0;
-                    //System.Diagnostics.Debug.WriteLine($"🎯 [合成播放关键帧变化] ========== 关键帧变化事件 ==========");
+                    //System.Diagnostics.Debug.WriteLine($"[合成播放关键帧变化] ========== 关键帧变化事件 ==========");
                     //System.Diagnostics.Debug.WriteLine($"   关键帧ID: {e.KeyframeId}");
                     //System.Diagnostics.Debug.WriteLine($"   关键帧位置: {e.YPosition:F1}");
                     //System.Diagnostics.Debug.WriteLine($"   当前滚动位置: {currentOffset:F1}");
@@ -1208,12 +1208,12 @@ namespace ImageColorChanger.UI
                     UpdateCompositePlaybackIndicator(e.KeyframeId, e.YPosition);
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放关键帧变化] 指示块更新完成");
+                    //System.Diagnostics.Debug.WriteLine($"    [合成播放关键帧变化] 指示块更新完成");
                     //#endif
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 更新合成播放指示块失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($" 更新合成播放指示块失败: {ex.Message}");
                 }
             });
         }
@@ -1240,7 +1240,7 @@ namespace ImageColorChanger.UI
                 #if DEBUG
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 获取当前滚动位置失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($" 获取当前滚动位置失败: {ex.Message}");
                     e.CurrentScrollPosition = 0;
                 }
                 #else
@@ -1268,7 +1268,7 @@ namespace ImageColorChanger.UI
                     double scrollableHeight = ImageScrollViewer.ScrollableHeight;
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📏 ScrollViewer信息:");
+                    //System.Diagnostics.Debug.WriteLine($"ScrollViewer信息:");
                     //System.Diagnostics.Debug.WriteLine($"   ExtentHeight: {ImageScrollViewer.ExtentHeight}");
                     //System.Diagnostics.Debug.WriteLine($"   ViewportHeight: {ImageScrollViewer.ViewportHeight}");
                     //System.Diagnostics.Debug.WriteLine($"   ScrollableHeight: {scrollableHeight}");
@@ -1279,7 +1279,7 @@ namespace ImageColorChanger.UI
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ 获取可滚动高度失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($" 获取可滚动高度失败: {ex.Message}");
                     e.ScrollableHeight = 0; // 失败时返回0，使用默认值
                 }
             });
@@ -1290,7 +1290,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateFloatingCompositePlayButton()
         {
-            // 🔧 简化逻辑：只判断是否是正常图片文件
+            // 简化逻辑：只判断是否是正常图片文件
             // 原图模式 → 隐藏
             // 媒体文件 → 隐藏
             // 歌词模式 → 隐藏
@@ -1325,7 +1325,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 🔧 幻灯片状态且非分割模式：隐藏按钮面板
+            // 幻灯片状态且非分割模式：隐藏按钮面板
             if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null && !IsInSplitMode())
             {
                 // 幻灯片状态但非分割模式（正常文本编辑），隐藏按钮面板
@@ -1336,7 +1336,7 @@ namespace ImageColorChanger.UI
             // 正常文件夹的图片，显示按钮面板
             CompositePlaybackPanel.Visibility = Visibility.Visible;
             
-            // 🎨 异步加载合成标记状态并设置按钮颜色
+            // 异步加载合成标记状态并设置按钮颜色
             _ = UpdateCompositeButtonColorAsync();
         }
 
@@ -1359,7 +1359,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 更新按钮颜色失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 更新按钮颜色失败: {ex.Message}");
                 SetCompositeButtonColor(false);
             }
         }
@@ -1407,7 +1407,7 @@ namespace ImageColorChanger.UI
                     // 更新UI（必须在UI线程）
                     if (Dispatcher.CheckAccess())
                     {
-                        BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                        SetCompositePlayButtonContent(false);
                         
                         // 停止滚动动画
                         _keyframeManager?.StopScrollAnimation();
@@ -1421,7 +1421,7 @@ namespace ImageColorChanger.UI
                     {
                         await Dispatcher.InvokeAsync(() =>
                         {
-                            BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                            SetCompositePlayButtonContent(false);
                             
                             // 停止滚动动画
                             _keyframeManager?.StopScrollAnimation();
@@ -1436,7 +1436,7 @@ namespace ImageColorChanger.UI
                 }
                 catch (Exception ex)
                 {
-                System.Diagnostics.Debug.WriteLine($"⚠️ 停止合成播放失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 停止合成播放失败: {ex.Message}");
             }
         }
 
@@ -1451,7 +1451,7 @@ namespace ImageColorChanger.UI
 
                 //#if DEBUG
                 //var childrenCountBefore = ScrollbarIndicatorsCanvas.Children.Count;
-                //System.Diagnostics.Debug.WriteLine($"🎨 [合成播放指示块] ========== 更新指示块 ==========");
+                //System.Diagnostics.Debug.WriteLine($"[合成播放指示块] ========== 更新指示块 ==========");
                 //System.Diagnostics.Debug.WriteLine($"   当前关键帧ID: {currentKeyframeId}");
                 //System.Diagnostics.Debug.WriteLine($"   关键帧位置: {yPosition:F1}");
                 //System.Diagnostics.Debug.WriteLine($"   清除前指示块数量: {childrenCountBefore}");
@@ -1461,7 +1461,7 @@ namespace ImageColorChanger.UI
                 ScrollbarIndicatorsCanvas.Children.Clear();
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   ⚠️ [合成播放指示块] 已清除所有指示块");
+                //System.Diagnostics.Debug.WriteLine($"    [合成播放指示块] 已清除所有指示块");
                 //#endif
 
                 // 获取当前图片的所有关键帧
@@ -1527,7 +1527,7 @@ namespace ImageColorChanger.UI
                 }
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   ✅ [合成播放指示块] 指示块更新完成，共绘制 {keyframes.Count} 个指示块");
+                //System.Diagnostics.Debug.WriteLine($"    [合成播放指示块] 指示块更新完成，共绘制 {keyframes.Count} 个指示块");
                 //System.Diagnostics.Debug.WriteLine($"   最终指示块数量: {ScrollbarIndicatorsCanvas.Children.Count}");
                 //#endif
 
@@ -1565,7 +1565,7 @@ namespace ImageColorChanger.UI
             {
                 _playbackViewModel.CurrentImageId = _currentImageId;
                 await _playbackViewModel.ClearTimingDataCommand.ExecuteAsync(null);
-                ShowStatus("✅ 已清除时间数据");
+                ShowStatus("已清除时间数据");
             }
         }
 
@@ -1574,3 +1574,9 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+
+
+
+

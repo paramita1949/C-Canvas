@@ -16,7 +16,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🆕 如果是圣经模式，处理圣经投影
+                // 如果是圣经模式，处理圣经投影
                 if (BibleVerseScrollViewer.Visibility == Visibility.Visible && _isBibleMode)
                 {
                     if (!_projectionManager.IsProjectionActive)
@@ -35,7 +35,7 @@ namespace ImageColorChanger.UI
                         _projectionManager.ToggleProjection();
                     }
                 }
-                // 🆕 如果是歌词模式，处理歌词投影
+                // 如果是歌词模式，处理歌词投影
                 else if (LyricsEditorPanel.Visibility == Visibility.Visible)
                 {
                     if (!_projectionManager.IsProjectionActive)
@@ -54,7 +54,7 @@ namespace ImageColorChanger.UI
                         _projectionManager.ToggleProjection();
                     }
                 }
-                // 🆕 如果是文本编辑器模式，先更新投影内容
+                // 如果是文本编辑器模式，先更新投影内容
                 else if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
                 {
                     if (!_projectionManager.IsProjectionActive)
@@ -90,11 +90,11 @@ namespace ImageColorChanger.UI
             {
                 if (isActive)
                 {
-                    BtnProjection.Content = "🖥 结束";
+                    SetProjectionButtonContent(true);
                     BtnProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(144, 238, 144)); // 淡绿色
-                    ShowStatus("✅ 投影已开启");
+                    ShowStatus("投影已开启");
 
-                    // 🎯 投影时自动停止原图/关键帧播放并重置倒计时
+                    // 投影时自动停止原图/关键帧播放并重置倒计时
                     if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
                     {
                         _ = Task.Run(async () =>
@@ -104,19 +104,19 @@ namespace ImageColorChanger.UI
                                 if (_playbackViewModel.CurrentMode == PlaybackMode.Original)
                                 {
                                     await StopOriginalModePlaybackAsync();
-                                    System.Diagnostics.Debug.WriteLine("📺 [投影] 已自动停止原图播放");
+                                    System.Diagnostics.Debug.WriteLine("[投影] 已自动停止原图播放");
                                 }
                                 else
                                 {
                                     await _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
-                                    System.Diagnostics.Debug.WriteLine("📺 [投影] 已自动停止关键帧播放");
+                                    System.Diagnostics.Debug.WriteLine("[投影] 已自动停止关键帧播放");
                                 }
 
                                 Dispatcher.Invoke(() =>
                                 {
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    System.Diagnostics.Debug.WriteLine("🛑 [投影] 已停止滚动动画");
+                                    System.Diagnostics.Debug.WriteLine("[投影] 已停止滚动动画");
                                 });
 
                                 Dispatcher.Invoke(() =>
@@ -127,12 +127,12 @@ namespace ImageColorChanger.UI
                             }
                             catch (Exception ex)
                             {
-                                System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 停止播放失败: {ex.Message}");
+                                System.Diagnostics.Debug.WriteLine($" [投影] 停止播放失败: {ex.Message}");
                             }
                         });
                     }
 
-                    // 🎯 投影时自动停止合成播放并重置倒计时
+                    // 投影时自动停止合成播放并重置倒计时
                     _ = Task.Run(async () =>
                     {
                         try
@@ -143,23 +143,23 @@ namespace ImageColorChanger.UI
                             if (compositeService != null && compositeService.IsPlaying)
                             {
                                 await compositeService.StopPlaybackAsync();
-                                System.Diagnostics.Debug.WriteLine("🎬 [投影] 已自动停止合成播放");
+                                System.Diagnostics.Debug.WriteLine(" [投影] 已自动停止合成播放");
 
                                 Dispatcher.Invoke(() =>
                                 {
-                                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                                    SetCompositePlayButtonContent(false);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                     CountdownText.Text = "倒: --";
                                     CountdownText.ToolTip = null;
                                     _countdownService?.Stop();
-                                    System.Diagnostics.Debug.WriteLine("🛑 [投影] 已停止合成播放的滚动动画和倒计时");
+                                    System.Diagnostics.Debug.WriteLine("[投影] 已停止合成播放的滚动动画和倒计时");
                                 });
                             }
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [投影] 停止合成播放失败: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($" [投影] 停止合成播放失败: {ex.Message}");
                         }
                     });
 
@@ -185,13 +185,13 @@ namespace ImageColorChanger.UI
                             string fileName = Path.GetFileName(_imagePath);
                             _projectionManager.SetProjectionMediaFileName(fileName, false);
                             _pendingProjectionVideoPath = _imagePath;
-                            ShowStatus($"🎬 准备投影播放: {fileName}");
+                            ShowStatus($"准备投影播放: {fileName}");
                         }
                     }
                 }
                 else
                 {
-                    BtnProjection.Content = "🖥 投影";
+                    SetProjectionButtonContent(false);
                     BtnProjection.Background = System.Windows.Media.Brushes.Transparent;
                     DisableGlobalHotKeys();
 
@@ -230,7 +230,7 @@ namespace ImageColorChanger.UI
                             }
                             catch (Exception ex)
                             {
-                                System.Diagnostics.Debug.WriteLine($"⚠️ [结束投影] 停止播放失败: {ex.Message}");
+                                System.Diagnostics.Debug.WriteLine($" [结束投影] 停止播放失败: {ex.Message}");
                             }
                         });
                     }
@@ -247,7 +247,7 @@ namespace ImageColorChanger.UI
                                 await compositeService.StopPlaybackAsync();
                                 Dispatcher.Invoke(() =>
                                 {
-                                    BtnFloatingCompositePlay.Content = "🎬 合成播放";
+                                    SetCompositePlayButtonContent(false);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                     CountdownText.Text = "倒: --";
@@ -258,7 +258,7 @@ namespace ImageColorChanger.UI
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [结束投影] 停止合成播放失败: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($" [结束投影] 停止合成播放失败: {ex.Message}");
                         }
                     });
 
@@ -272,7 +272,7 @@ namespace ImageColorChanger.UI
                         }
                         MediaPlayerPanel.Visibility = Visibility.Collapsed;
                         VideoContainer.Visibility = Visibility.Collapsed;
-                        ShowStatus("⏹ 视频播放已停止");
+                        ShowStatus("视频播放已停止");
                     }
 
                     _videoPlayerManager?.ResetProjectionMode();
@@ -301,3 +301,6 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+
+

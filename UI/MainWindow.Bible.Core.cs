@@ -61,7 +61,7 @@ namespace ImageColorChanger.UI
         private ImageColorChanger.Services.BiblePinyinService _pinyinService;
         private ImageColorChanger.Managers.BiblePinyinInputManager _pinyinInputManager;
         
-        // 🆕 导航栏同步标志（防止同步时触发不必要的事件）
+        // 导航栏同步标志（防止同步时触发不必要的事件）
         private bool _isNavigationSyncing = false;
         
         // 圣经样式设置 Popup（复用实例）
@@ -267,11 +267,11 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"   当前视图模式: {_currentViewMode}");
             //#endif
 
-            // 🆕 如果在幻灯片编辑模式下，只切换左侧导航面板
+            // 如果在幻灯片编辑模式下，只切换左侧导航面板
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式下，切换左侧导航面板");
+                //Debug.WriteLine($" [圣经] 在幻灯片编辑模式下，切换左侧导航面板");
                 //#endif
                 
                 // 切换左侧导航面板：ProjectTree <-> BibleNavigationPanel
@@ -281,10 +281,10 @@ namespace ImageColorChanger.UI
                     BibleNavigationPanel.Visibility = Visibility.Collapsed;
                     ProjectTree.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Projects;
-                    _isBibleMode = false;  // 🔧 退出圣经模式
+                    _isBibleMode = false;  // 退出圣经模式
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [圣经] 切换到项目树");
+                    //Debug.WriteLine($" [圣经] 切换到项目树");
                     //#endif
                 }
                 else
@@ -293,7 +293,7 @@ namespace ImageColorChanger.UI
                     ProjectTree.Visibility = Visibility.Collapsed;
                     BibleNavigationPanel.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Bible;
-                    _isBibleMode = true;  // 🔧 进入圣经模式（关键修复！）
+                    _isBibleMode = true;  // 进入圣经模式（关键修复！）
                     
                     // 如果还未初始化，则初始化
                     if (!_bibleNavigationInitialized)
@@ -302,7 +302,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [圣经] 切换到圣经导航");
+                    //Debug.WriteLine($" [圣经] 切换到圣经导航");
                     //#endif
                 }
                 
@@ -323,7 +323,7 @@ namespace ImageColorChanger.UI
             // 清空图片显示（包括合成播放按钮）
             ClearImageDisplay();
             
-            // 🆕 更新合成播放按钮显示状态（隐藏按钮）
+            // 更新合成播放按钮显示状态（隐藏按钮）
             UpdateFloatingCompositePlayButton();
 
             // 隐藏ProjectTree，显示圣经导航面板
@@ -333,30 +333,30 @@ namespace ImageColorChanger.UI
             //#if DEBUG
             //Debug.WriteLine($"[圣经] 导航切换完成, ProjectTree={ProjectTree.Visibility}, BiblePanel={BibleNavigationPanel.Visibility}");
             //
-            ////// 🔍 打印导航栏宽度信息（异步调试输出，不需要等待）
+            ////// 打印导航栏宽度信息（异步调试输出，不需要等待）
             ////_ = Dispatcher.InvokeAsync(() =>
             ////{
             ////    if (NavigationPanelColumn != null)
             ////    {
             ////        Debug.WriteLine($"");
-            ////        Debug.WriteLine($"🔍 ===== 圣经导航栏宽度信息 =====");
-            ////        Debug.WriteLine($"📐 [导航栏] 设定宽度: {NavigationPanelColumn.Width}");
-            ////        Debug.WriteLine($"📐 [导航栏] 实际宽度: {NavigationPanelColumn.ActualWidth:F2}");
+            ////        Debug.WriteLine($"===== 圣经导航栏宽度信息 =====");
+            ////        Debug.WriteLine($" [导航栏] 设定宽度: {NavigationPanelColumn.Width}");
+            ////        Debug.WriteLine($" [导航栏] 实际宽度: {NavigationPanelColumn.ActualWidth:F2}");
             ////    }
             ////    
             ////    if (BibleNavigationPanel != null)
             ////    {
-            ////        Debug.WriteLine($"📐 [圣经面板] 实际宽度: {BibleNavigationPanel.ActualWidth:F2}");
+            ////        Debug.WriteLine($" [圣经面板] 实际宽度: {BibleNavigationPanel.ActualWidth:F2}");
             ////    }
             ////    
             ////    // 打印5列的宽度设置
-            ////    Debug.WriteLine($"📊 [表格列宽] 第1列(分类): 70");
-            ////    Debug.WriteLine($"📊 [表格列宽] 第2列(书卷): 120");
-            ////    Debug.WriteLine($"📊 [表格列宽] 第3列(章): 60");
-            ////    Debug.WriteLine($"📊 [表格列宽] 第4列(起始节): 60");
-            ////    Debug.WriteLine($"📊 [表格列宽] 第5列(结束节): 60");
-            ////    Debug.WriteLine($"📊 [表格列宽] 总计: 370");
-            ////    Debug.WriteLine($"⚠️  [结论] 导航栏宽度需要390以上才能完整显示5列！");
+            ////    Debug.WriteLine($"[表格列宽] 第1列(分类): 70");
+            ////    Debug.WriteLine($"[表格列宽] 第2列(书卷): 120");
+            ////    Debug.WriteLine($"[表格列宽] 第3列(章): 60");
+            ////    Debug.WriteLine($"[表格列宽] 第4列(起始节): 60");
+            ////    Debug.WriteLine($"[表格列宽] 第5列(结束节): 60");
+            ////    Debug.WriteLine($"[表格列宽] 总计: 370");
+            ////    Debug.WriteLine($"  [结论] 导航栏宽度需要390以上才能完整显示5列！");
             ////    Debug.WriteLine($"");
             ////}, System.Windows.Threading.DispatcherPriority.Loaded);
             //#endif
@@ -364,9 +364,9 @@ namespace ImageColorChanger.UI
             // 加载圣经数据
             await LoadBibleNavigationDataAsync();
             
-            // 🔧 如果启用了保存历史记录，且有勾选或锁定的槽位，自动加载经文
+            // 如果启用了保存历史记录，且有勾选或锁定的槽位，自动加载经文
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔍 [启动加载] 检查自动加载条件:");
+            //System.Diagnostics.Debug.WriteLine($"[启动加载] 检查自动加载条件:");
             //System.Diagnostics.Debug.WriteLine($"   SaveBibleHistory: {_configManager.SaveBibleHistory}");
             //System.Diagnostics.Debug.WriteLine($"   _historySlots != null: {_historySlots != null}");
             //System.Diagnostics.Debug.WriteLine($"   _historySlots.Count: {_historySlots?.Count ?? 0}");
@@ -384,7 +384,7 @@ namespace ImageColorChanger.UI
                 if (lockedSlots.Count > 0)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📖 [启动加载] 发现 {lockedSlots.Count} 个锁定记录，加载到主屏幕");
+                    //System.Diagnostics.Debug.WriteLine($"[启动加载] 发现 {lockedSlots.Count} 个锁定记录，加载到主屏幕");
                     //#endif
                     
                     foreach (var lockedSlot in lockedSlots)
@@ -417,7 +417,7 @@ namespace ImageColorChanger.UI
                     if (checkedSlot != null)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📖 [启动加载] 自动加载勾选的槽位{checkedSlot.Index}的经文: {checkedSlot.DisplayText}");
+                        //System.Diagnostics.Debug.WriteLine($"[启动加载] 自动加载勾选的槽位{checkedSlot.Index}的经文: {checkedSlot.DisplayText}");
                         //#endif
                         
                         await LoadVerseRangeAsync(checkedSlot.BookId, checkedSlot.Chapter, checkedSlot.StartVerse, checkedSlot.EndVerse);
@@ -427,14 +427,14 @@ namespace ImageColorChanger.UI
             else
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   ⚠️ 不满足自动加载条件，跳过");
+                //System.Diagnostics.Debug.WriteLine($"    不满足自动加载条件，跳过");
                 //#endif
             }
             
             // 初始化拼音快速定位服务
             InitializePinyinService();
             
-            // 🆕 更新译本选择按钮状态
+            // 更新译本选择按钮状态
             UpdateBibleVersionRadioButtons();
             
             // 显示圣经视图区域，隐藏其他区域
@@ -443,10 +443,10 @@ namespace ImageColorChanger.UI
             TextEditorPanel.Visibility = Visibility.Collapsed;
             BibleDisplayContainer.Visibility = Visibility.Visible;
             
-            // 🔧 确保 BibleVerseScrollViewer 可见（关键修复！）
+            // 确保 BibleVerseScrollViewer 可见（关键修复！）
             BibleVerseScrollViewer.Visibility = Visibility.Visible;
             
-            // 🔧 如果有经文内容，确保列表可见
+            // 如果有经文内容，确保列表可见
             if (BibleVerseList.ItemsSource != null && 
                 BibleVerseList.ItemsSource is System.Collections.IEnumerable enumerable &&
                 enumerable.Cast<object>().Any())
@@ -510,7 +510,7 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 加载圣经导航数据（历史记录 + 经文表格）
-        /// 🔧 优化：只在首次加载时初始化，后续切换回来时保留用户选择状态
+        /// 优化：只在首次加载时初始化，后续切换回来时保留用户选择状态
         /// </summary>
         private Task LoadBibleNavigationDataAsync()
         {
@@ -520,7 +520,7 @@ namespace ImageColorChanger.UI
                 //var sw = Stopwatch.StartNew();
                 //#endif
 
-                // 🔧 只在首次加载时初始化
+                // 只在首次加载时初始化
                 if (!_bibleNavigationInitialized)
                 {
                     // 初始化20个历史槽位
@@ -613,7 +613,7 @@ namespace ImageColorChanger.UI
                 var bookInfo = BibleBookConfig.GetBook(book);
                 
                 // ========================================
-                // 📌 统一数据源方案：始终更新 _mergedVerses
+                // 统一数据源方案：始终更新 _mergedVerses
                 // ========================================
                 // 确保绑定
                 if (BibleVerseList.ItemsSource != _mergedVerses)
@@ -631,19 +631,19 @@ namespace ImageColorChanger.UI
                     return; // 锁定模式下，不允许通过导航加载新内容
                 }
                 
-                // 🔧 获取该章总节数，显示完整范围（如"创世记3章1-24节"）
+                // 获取该章总节数，显示完整范围（如"创世记3章1-24节"）
                 int verseCount = await _bibleService.GetVerseCountAsync(book, chapter);
                 
-                // 🆕 非锁定模式：同步导航栏状态
+                // 非锁定模式：同步导航栏状态
                 SyncNavigationToRecord(book, chapter, 1, verseCount > 0 ? verseCount : 1);
                 
-                // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
+                // 非锁定模式：清空并添加新经文到 _mergedVerses
                 string verseText = (verseCount > 1) ? $"1-{verseCount}节" : "1节";
                 BibleChapterTitle.Text = $"{bookInfo?.Name}{chapter}章{verseText}";
                 BibleChapterTitleBorder.Visibility = Visibility.Visible;
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📌 [非锁定模式] 加载章节: {verses.Count}条经文，{bookInfo?.Name}{chapter}章");
+                //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载章节: {verses.Count}条经文，{bookInfo?.Name}{chapter}章");
                 //#endif
                 
                 // 清空并添加新数据
@@ -778,7 +778,7 @@ namespace ImageColorChanger.UI
         // 第3列:章选择事件（单击只加载节号列表，不显示经文）
         private async void BibleChapter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 🔧 如果正在同步导航栏，跳过事件处理
+            // 如果正在同步导航栏，跳过事件处理
             if (_isNavigationSyncing) return;
             
             if (BibleChapterList.SelectedItem is not string chapterStr)
@@ -794,7 +794,7 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"[圣经-节数获取] 选中章: BookId={bookId}, Chapter={chapter}");
             //#endif
 
-            // 🔧 BUG修复：获取原始节数（包含"-"节），而不是处理后的列表长度
+            // BUG修复：获取原始节数（包含"-"节），而不是处理后的列表长度
             // 原因：GetChapterVersesAsync会合并"-"节，导致返回的列表长度小于实际节数
             // 例如：约书亚记3章有17节（包含"-"节），但处理后只有16个元素
             int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
@@ -805,7 +805,7 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"[圣经-节数获取] 原始节数: {verseCount}, 处理后列表长度: {processedCount}");
             //if (verseCount != processedCount)
             //{
-            //    Debug.WriteLine($"[圣经-节数获取] ⚠️ 检测到节数差异！该章可能包含精简的'-'节");
+            //    Debug.WriteLine($"[圣经-节数获取]  检测到节数差异！该章可能包含精简的'-'节");
             //}
             //#endif
             
@@ -822,7 +822,7 @@ namespace ImageColorChanger.UI
                 BibleEndVerse.SelectedIndex = -1;
                 
                 // ========================================
-                // 📌 统一数据源方案：不需要手动清空
+                // 统一数据源方案：不需要手动清空
                 // ========================================
                 // 主屏幕始终绑定到 _mergedVerses，由加载函数负责清空和添加
 
@@ -844,7 +844,7 @@ namespace ImageColorChanger.UI
             if (BibleChapterList.Tag is not int bookId)
                 return;
 
-            // 🔧 优化：检查是否已经加载了该章的完整内容，避免重复刷新
+            // 优化：检查是否已经加载了该章的完整内容，避免重复刷新
             int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
             
             // 检查当前是否已经是这一章的完整范围（1到最后一节）
@@ -885,22 +885,22 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"[圣经-节数获取] 双击加载整章，节范围: 1-{verseCount}");
                 //#endif
                 
-                // 🆕 如果在幻灯片编辑模式，双击章节自动插入整章经文
+                // 如果在幻灯片编辑模式，双击章节自动插入整章经文
                 if (TextEditorPanel.Visibility == Visibility.Visible)
                 {
                     #if DEBUG
-                    Debug.WriteLine($"✅ [圣经双击] 双击章节，自动插入整章: BookId={bookId}, Chapter={chapter}, 节范围: 1-{verseCount}");
+                    Debug.WriteLine($" [圣经双击] 双击章节，自动插入整章: BookId={bookId}, Chapter={chapter}, 节范围: 1-{verseCount}");
                     #endif
                     
                     await CreateBibleTextElements(bookId, chapter, 1, verseCount);
                 }
                 else
                 {
-                    // 🔧 非编辑模式：加载经文到投影区（与双击开始节行为一致）
+                    // 非编辑模式：加载经文到投影区（与双击开始节行为一致）
                     await LoadVerseRangeAsync(bookId, chapter, 1, verseCount);
                 }
                 
-                // 🔧 更新历史槽位
+                // 更新历史槽位
                 AddToHistory(bookId, chapter, 1, verseCount);
             }
         }
@@ -914,7 +914,7 @@ namespace ImageColorChanger.UI
             if (!int.TryParse(BibleStartVerse.SelectedItem.ToString(), out int startVerse))
                 return;
 
-            // 🔧 优化：自动滚动结束节列表到起始节位置，并自动选中结束节为起始节
+            // 优化：自动滚动结束节列表到起始节位置，并自动选中结束节为起始节
             // 但是不加载经文，要等用户选择结束节（或双击开始节）才加载
             ScrollAndSelectEndVerseWithoutLoad(startVerse);
         }
@@ -941,7 +941,7 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"[圣经] 双击起始节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
             //#endif
 
-            // 🔧 双击起始节：将结束节也设置为起始节（表示只要一节）
+            // 双击起始节：将结束节也设置为起始节（表示只要一节）
             // 先设置结束节选择（不触发加载，避免重复）
             if (BibleEndVerse.Items.Count > 0 && startVerse > 0 && startVerse <= BibleEndVerse.Items.Count)
             {
@@ -951,11 +951,11 @@ namespace ImageColorChanger.UI
                 BibleEndVerse.SelectionChanged += BibleEndVerse_SelectionChanged;
             }
             
-            // 🆕 如果在幻灯片编辑模式，双击起始节自动插入该节经文
+            // 如果在幻灯片编辑模式，双击起始节自动插入该节经文
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
+                //Debug.WriteLine($" [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
                 //#endif
                 
                 await CreateBibleTextElements(bookId, chapter, startVerse, startVerse);
@@ -985,12 +985,12 @@ namespace ImageColorChanger.UI
             // verseNumber是从1开始的，所以索引是verseNumber-1
             int targetIndex = verseNumber - 1;
 
-            // 🔧 临时取消事件处理，避免触发加载
+            // 临时取消事件处理，避免触发加载
             BibleEndVerse.SelectionChanged -= BibleEndVerse_SelectionChanged;
             BibleEndVerse.SelectedIndex = targetIndex;
             BibleEndVerse.SelectionChanged += BibleEndVerse_SelectionChanged;
             
-            // 🔧 延迟滚动：使用LineUp/LineDown的方式精确滚动
+            // 延迟滚动：使用LineUp/LineDown的方式精确滚动
             _ = Dispatcher.InvokeAsync(() =>
             {
                 try
@@ -1002,7 +1002,7 @@ namespace ImageColorChanger.UI
                     var scrollViewer = FindVisualChild<ScrollViewer>(BibleEndVerse);
                     if (scrollViewer != null)
                     {
-                        // 🔧 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
+                        // 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
                         scrollViewer.ScrollToTop();
                         
                         // 使用LineDown滚动到目标索引（每次滚动一行）
@@ -1036,10 +1036,10 @@ namespace ImageColorChanger.UI
             // verseNumber是从1开始的，所以索引是verseNumber-1
             int targetIndex = verseNumber - 1;
 
-            // 🔧 立即选中（触发加载经文）
+            // 立即选中（触发加载经文）
             BibleEndVerse.SelectedIndex = targetIndex;
             
-            // 🔧 延迟滚动：使用LineUp/LineDown的方式精确滚动
+            // 延迟滚动：使用LineUp/LineDown的方式精确滚动
             _ = Dispatcher.InvokeAsync(() =>
             {
                 try
@@ -1051,7 +1051,7 @@ namespace ImageColorChanger.UI
                     var scrollViewer = FindVisualChild<ScrollViewer>(BibleEndVerse);
                     if (scrollViewer != null)
                     {
-                        // 🔧 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
+                        // 方案1：先滚动到顶部，然后使用LineDown精确滚动到目标行
                         scrollViewer.ScrollToTop();
                         
                         // 使用LineDown滚动到目标索引（每次滚动一行）
@@ -1080,7 +1080,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BibleEndVerse_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 🔧 如果正在同步导航栏，跳过事件处理（防止重复加载）
+            // 如果正在同步导航栏，跳过事件处理（防止重复加载）
             if (_isNavigationSyncing) return;
 
             if (BibleStartVerse.SelectedItem == null || BibleEndVerse.SelectedItem == null)
@@ -1106,11 +1106,11 @@ namespace ImageColorChanger.UI
             //Debug.WriteLine($"   TextEditorPanel 可见性: {TextEditorPanel.Visibility}");
             //#endif
 
-            // 🆕 如果在幻灯片编辑模式，自动创建文本框元素
+            // 如果在幻灯片编辑模式，自动创建文本框元素
             if (TextEditorPanel.Visibility == Visibility.Visible)
             {
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [圣经] 在幻灯片编辑模式，自动创建文本框元素");
+                //Debug.WriteLine($" [圣经] 在幻灯片编辑模式，自动创建文本框元素");
                 //#endif
 
                 await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
@@ -1119,7 +1119,7 @@ namespace ImageColorChanger.UI
 
             // 否则，加载到投影记录（圣经浏览模式）
             //#if DEBUG
-            //Debug.WriteLine($"✅ [圣经] 在圣经浏览模式，加载到投影记录");
+            //Debug.WriteLine($" [圣经] 在圣经浏览模式，加载到投影记录");
             //#endif
 
             // 重新加载指定范围的经文
@@ -1136,7 +1136,7 @@ namespace ImageColorChanger.UI
         private async Task LoadVerseRangeAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📖 [加载经文] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"[加载经文] ========== 开始 ==========");
             //System.Diagnostics.Debug.WriteLine($"   参数: BookId={bookId}, Chapter={chapter}, Verse={startVerse}-{endVerse}");
             //#endif
 
@@ -1146,15 +1146,15 @@ namespace ImageColorChanger.UI
                 _currentChapter = chapter;
                 _currentVerse = startVerse;
 
-                // 🔧 使用新的智能方法，自动处理"-"节的情况
+                // 使用新的智能方法，自动处理"-"节的情况
                 var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
 
                 var book = BibleBookConfig.GetBook(bookId);
-                // 🔧 如果开始节和结束节相同，只显示一个节号（如"18节"），否则显示范围（如"18-25节"）
+                // 如果开始节和结束节相同，只显示一个节号（如"18节"），否则显示范围（如"18-25节"）
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
 
                 // ========================================
-                // 📌 统一数据源方案：始终更新 _mergedVerses
+                // 统一数据源方案：始终更新 _mergedVerses
                 // ========================================
                 // 确保绑定
                 if (BibleVerseList.ItemsSource != _mergedVerses)
@@ -1172,15 +1172,15 @@ namespace ImageColorChanger.UI
                     return; // 锁定模式下，不允许通过导航加载新内容
                 }
 
-                // 🆕 非锁定模式：同步导航栏状态
+                // 非锁定模式：同步导航栏状态
                 SyncNavigationToRecord(bookId, chapter, startVerse, endVerse);
 
-                // 📌 非锁定模式：清空并添加新经文到 _mergedVerses
+                // 非锁定模式：清空并添加新经文到 _mergedVerses
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {verseText}";
                 BibleChapterTitleBorder.Visibility = Visibility.Visible;
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📌 [非锁定模式] 加载经文: {verses.Count}条，{book?.Name}{chapter}:{startVerse}-{endVerse}");
+                //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载经文: {verses.Count}条，{book?.Name}{chapter}:{startVerse}-{endVerse}");
                 //#endif
 
                 // 清空并添加新数据
@@ -1193,25 +1193,25 @@ namespace ImageColorChanger.UI
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
 
-                // 🔧 设置主屏幕底部扩展空间（等于视口高度,支持底部内容向上拉）
+                // 设置主屏幕底部扩展空间（等于视口高度,支持底部内容向上拉）
                 UpdateMainScreenBottomExtension();
 
-                // 🔧 应用样式后再更新投影（确保高度计算完成）
+                // 应用样式后再更新投影（确保高度计算完成）
                 _ = Dispatcher.InvokeAsync(() =>
                 {
                     ApplyBibleSettings();
 
-                    // 🆕 样式应用完成后，更新投影
+                    // 样式应用完成后，更新投影
                     if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
                     {
                         // 检查是否有锁定记录
                         if (_historySlots.Any(x => x.IsLocked))
                         {
-                            // 📌 锁定模式：加载新章节时，不更新投影（保持锁定记录投影）
+                            // 锁定模式：加载新章节时，不更新投影（保持锁定记录投影）
                         }
                         else
                         {
-                            // 📌 非锁定模式：样式应用后更新投影
+                            // 非锁定模式：样式应用后更新投影
                             RenderBibleToProjection();
                         }
                     }
@@ -1237,7 +1237,7 @@ namespace ImageColorChanger.UI
             try
             {
                 var book = BibleBookConfig.GetBook(bookId);
-                // 🔧 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
+                // 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
                 string displayText = $"{book?.Name}{chapter}章{verseText}";
 
@@ -1253,10 +1253,10 @@ namespace ImageColorChanger.UI
                 }
 
                 // 只更新勾选的槽位（可能有多个）
-                // ⚠️ 锁定的槽位不允许更新
+                //  锁定的槽位不允许更新
                 foreach (var slot in checkedSlots)
                 {
-                    // 📌 跳过已锁定的槽位
+                    // 跳过已锁定的槽位
                     if (slot.IsLocked)
                     {
                         //#if DEBUG
@@ -1292,7 +1292,7 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 🆕 同步导航栏状态到投影记录（非锁定模式）
+        /// 同步导航栏状态到投影记录（非锁定模式）
         /// 功能：根据投影记录自动选择对应的书卷、章节、起始节和结束节，并将书卷滚动到第一位
         /// </summary>
         private void SyncNavigationToRecord(int bookId, int chapter, int startVerse, int endVerse)
@@ -1302,7 +1302,7 @@ namespace ImageColorChanger.UI
                 var book = BibleBookConfig.GetBook(bookId);
                 if (book == null) return;
 
-                // 🔧 设置同步标志，防止触发选择事件
+                // 设置同步标志，防止触发选择事件
                 _isNavigationSyncing = true;
 
                 //#if DEBUG
@@ -1345,7 +1345,7 @@ namespace ImageColorChanger.UI
                         {
                             BibleBookList.SelectedItem = targetBook;
                             
-                            // 🆕 将选中的书卷滚动到第一位（顶部）
+                            // 将选中的书卷滚动到第一位（顶部）
                             BibleBookList.ScrollIntoView(targetBook);
                             
                             //#if DEBUG
@@ -1365,14 +1365,14 @@ namespace ImageColorChanger.UI
                         {
                             BibleChapterList.SelectedItem = targetChapter;
                             
-                            // 🆕 将选中的章节滚动到第一位（顶部）
+                            // 将选中的章节滚动到第一位（顶部）
                             BibleChapterList.ScrollIntoView(targetChapter);
                             
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"[圣经导航同步] 已选择章节: {chapter}章，并滚动到顶部");
                             //#endif
                             
-                            // 🔧 手动加载节号列表（因为选择事件被标志阻止了）
+                            // 手动加载节号列表（因为选择事件被标志阻止了）
                             int verseCount = await _bibleService.GetVerseCountAsync(bookId, chapter);
                             if (verseCount > 0)
                             {
@@ -1380,7 +1380,7 @@ namespace ImageColorChanger.UI
                                 BibleStartVerse.ItemsSource = verseNumbers;
                                 BibleEndVerse.ItemsSource = verseNumbers;
                                 
-                                // 🔧 等待UI更新完成
+                                // 等待UI更新完成
                                 await System.Threading.Tasks.Task.Delay(10);
                                 
                                 // 第4步：选择起始节和结束节（确保节号列表已加载）
@@ -1389,7 +1389,7 @@ namespace ImageColorChanger.UI
                                 {
                                     BibleStartVerse.SelectedItem = targetStartVerse;
                                     
-                                    // 🆕 将选中的起始节滚动到第一位（顶部）
+                                    // 将选中的起始节滚动到第一位（顶部）
                                     BibleStartVerse.ScrollIntoView(targetStartVerse);
                                     
                                     //#if DEBUG
@@ -1402,7 +1402,7 @@ namespace ImageColorChanger.UI
                                 {
                                     BibleEndVerse.SelectedItem = targetEndVerse;
                                     
-                                    // 🆕 将选中的结束节滚动到第一位（顶部）
+                                    // 将选中的结束节滚动到第一位（顶部）
                                     BibleEndVerse.ScrollIntoView(targetEndVerse);
                                     
                                     //#if DEBUG
@@ -1415,18 +1415,18 @@ namespace ImageColorChanger.UI
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [圣经导航同步] 同步完成: {book.Name}{chapter}章{startVerse}-{endVerse}节");
+                //System.Diagnostics.Debug.WriteLine($" [圣经导航同步] 同步完成: {book.Name}{chapter}章{startVerse}-{endVerse}节");
                 //#endif
             }
             catch (Exception)
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [圣经导航同步] 同步失败");
+                //System.Diagnostics.Debug.WriteLine($" [圣经导航同步] 同步失败");
                 //#endif
             }
             finally
             {
-                // 🔧 延迟重置同步标志，确保所有异步操作完成
+                // 延迟重置同步标志，确保所有异步操作完成
                 _ = Dispatcher.InvokeAsync(async () =>
                 {
                     await System.Threading.Tasks.Task.Delay(10);
@@ -1481,8 +1481,8 @@ namespace ImageColorChanger.UI
                         BibleBottomExtension.Height = viewportHeight;
                         
                         //#if DEBUG
-                        //Debug.WriteLine($"🔧 [主屏扩展] 设置底部扩展高度: {viewportHeight:F2}");
-                        //Debug.WriteLine($"🔧 [主屏扩展] 说明: 主屏幕和投影的底部扩展高度必须一致(=屏幕/视口高度)，以确保顶部对齐");
+                        //Debug.WriteLine($"[主屏扩展] 设置底部扩展高度: {viewportHeight:F2}");
+                        //Debug.WriteLine($"[主屏扩展] 说明: 主屏幕和投影的底部扩展高度必须一致(=屏幕/视口高度)，以确保顶部对齐");
                         //#endif
                     }
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
@@ -1501,7 +1501,7 @@ namespace ImageColorChanger.UI
             // 如果投影已开启且在圣经模式，同步滚动位置
             if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
-                // 🔧 直接偏移滚动同步：主屏幕和投影屏幕使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
+                // 直接偏移滚动同步：主屏幕和投影屏幕使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
                 double mainScrollOffset = BibleVerseScrollViewer.VerticalOffset;
                 
                 //#if DEBUG
@@ -1512,41 +1512,41 @@ namespace ImageColorChanger.UI
                 ////if (shouldDebug)
                 ////{
                 ////    Debug.WriteLine($"");
-                ////    Debug.WriteLine($"🔍 ===== 圣经滚动详细调试 =====");
+                ////    Debug.WriteLine($"===== 圣经滚动详细调试 =====");
                 ////    
                 ////    // 获取主屏幕DPI
                 ////    var mainDpi = VisualTreeHelper.GetDpi(BibleVerseScrollViewer);
-                ////    Debug.WriteLine($"📐 [主屏幕] DPI: {mainDpi.PixelsPerInchX} x {mainDpi.PixelsPerInchY}");
-                ////    Debug.WriteLine($"📐 [主屏幕] DPI缩放: {mainDpi.DpiScaleX:F2} x {mainDpi.DpiScaleY:F2}");
+                ////    Debug.WriteLine($" [主屏幕] DPI: {mainDpi.PixelsPerInchX} x {mainDpi.PixelsPerInchY}");
+                ////    Debug.WriteLine($" [主屏幕] DPI缩放: {mainDpi.DpiScaleX:F2} x {mainDpi.DpiScaleY:F2}");
                 ////    
-                ////    Debug.WriteLine($"📊 [主屏幕] 滚动偏移: {mainScrollOffset:F2} (将传给投影)");
-                ////    Debug.WriteLine($"📊 [主屏幕] 可滚动高度: {BibleVerseScrollViewer.ScrollableHeight:F2}");
-                ////    Debug.WriteLine($"📊 [主屏幕] 视口高度: {BibleVerseScrollViewer.ViewportHeight:F2}");
-                ////    Debug.WriteLine($"📊 [主屏幕] 内容总高度: {BibleVerseScrollViewer.ExtentHeight:F2}");
+                ////    Debug.WriteLine($"[主屏幕] 滚动偏移: {mainScrollOffset:F2} (将传给投影)");
+                ////    Debug.WriteLine($"[主屏幕] 可滚动高度: {BibleVerseScrollViewer.ScrollableHeight:F2}");
+                ////    Debug.WriteLine($"[主屏幕] 视口高度: {BibleVerseScrollViewer.ViewportHeight:F2}");
+                ////    Debug.WriteLine($"[主屏幕] 内容总高度: {BibleVerseScrollViewer.ExtentHeight:F2}");
                 ////    
                 ////    if (BibleChapterTitle != null)
                 ////    {
-                ////        Debug.WriteLine($"📊 [主屏幕] 标题实际高度: {BibleChapterTitle.ActualHeight:F2}");
+                ////        Debug.WriteLine($"[主屏幕] 标题实际高度: {BibleChapterTitle.ActualHeight:F2}");
                 ////        var titleBorder = BibleChapterTitle.Parent as Border;
                 ////        if (titleBorder != null)
                 ////        {
-                ////            Debug.WriteLine($"📊 [主屏幕] 标题Border总高度: {titleBorder.ActualHeight:F2} (含Padding)");
+                ////            Debug.WriteLine($"[主屏幕] 标题Border总高度: {titleBorder.ActualHeight:F2} (含Padding)");
                 ////        }
                 ////    }
                 ////    
                 ////    if (BibleVerseList != null)
                 ////    {
-                ////        Debug.WriteLine($"📊 [主屏幕] 经文列表高度: {BibleVerseList.ActualHeight:F2}");
+                ////        Debug.WriteLine($"[主屏幕] 经文列表高度: {BibleVerseList.ActualHeight:F2}");
                 ////    }
                 ////    
                 ////    if (BibleBottomExtension != null)
                 ////    {
-                ////        Debug.WriteLine($"📊 [主屏幕] 底部扩展高度: {BibleBottomExtension.ActualHeight:F2}");
+                ////        Debug.WriteLine($"[主屏幕] 底部扩展高度: {BibleBottomExtension.ActualHeight:F2}");
                 ////    }
                 ////}
                 //#endif
 
-                // 🔧 圣经滚动同步：直接使用主屏滚动位置（与歌词投影完全一致）
+                // 圣经滚动同步：直接使用主屏滚动位置（与歌词投影完全一致）
                 // 因为两者使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
                 _projectionManager.SyncBibleScroll(BibleVerseScrollViewer);
             }
@@ -1605,7 +1605,7 @@ namespace ImageColorChanger.UI
             {
                 if (_mergedVerses == null || _mergedVerses.Count == 0)
                 {
-                    ShowStatus("⚠️ 当前没有可复制的经文");
+                    ShowStatus("当前没有可复制的经文");
                     return;
                 }
 
@@ -1614,7 +1614,7 @@ namespace ImageColorChanger.UI
 
                 if (verses.Count == 0)
                 {
-                    ShowStatus("⚠️ 当前没有可复制的经文");
+                    ShowStatus("当前没有可复制的经文");
                     return;
                 }
 
@@ -1649,11 +1649,11 @@ namespace ImageColorChanger.UI
 
                 var text = string.Join(Environment.NewLine, lines);
                 System.Windows.Clipboard.SetText(text);
-                ShowStatus("✅ 经文已复制");
+                ShowStatus("经文已复制");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 复制经文失败: {ex.Message}");
+                ShowStatus($"复制经文失败: {ex.Message}");
             }
         }
 
@@ -1677,7 +1677,7 @@ namespace ImageColorChanger.UI
             UpdateBibleCopyStyleMenuChecks();
             SaveBibleCopyStyleSetting();
 
-            ShowStatus("✅ 复制样式已切换");
+            ShowStatus("复制样式已切换");
         }
         
 //#if DEBUG
@@ -1688,3 +1688,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

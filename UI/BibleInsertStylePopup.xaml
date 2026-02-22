@@ -35,12 +35,14 @@
                 </Grid.RowDefinitions>
                 
                 <!-- 标题 -->
-                <TextBlock Grid.Row="0" 
-                           Text="📐 经文样式设置" 
-                           FontSize="14" 
-                           FontWeight="Bold"
-                           Foreground="White"
-                           Margin="0,0,0,5"/>
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Margin="0,0,0,5">
+                    <TextBlock Text="经文样式设置"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="White"/>
+                </StackPanel>
                 
                 <!-- 样式布局 + 统一字体（紧凑布局） -->
                 <Border Grid.Row="2" 
@@ -94,11 +96,12 @@
                         CornerRadius="4"
                         Padding="10">
                     <StackPanel>
-                        <TextBlock Text="🎨 标题样式" 
-                                   FontSize="12" 
-                                   Foreground="#CCCCCC"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,5"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="标题样式"
+                                       FontSize="12"
+                                       Foreground="#CCCCCC"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -156,11 +159,12 @@
                         CornerRadius="4"
                         Padding="10">
                     <StackPanel>
-                        <TextBlock Text="📖 经文样式"
-                                   FontSize="12"
-                                   Foreground="#CCCCCC"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,5"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="经文样式"
+                                       FontSize="12"
+                                       Foreground="#CCCCCC"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -234,7 +238,7 @@
                         CornerRadius="4"
                         Padding="10">
                     <StackPanel>
-                        <TextBlock Text="🔢 节号样式"
+                        <TextBlock Text="节号样式"
                                    FontSize="12"
                                    Foreground="#CCCCCC"
                                    FontWeight="Bold"
@@ -293,3 +297,4 @@
         </ScrollViewer>
     </Border>
 </Popup>
+

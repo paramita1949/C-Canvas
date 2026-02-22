@@ -19,7 +19,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ FPS监控器初始化失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" FPS监控器初始化失败: {ex.Message}");
             }
         }
 
@@ -60,13 +60,16 @@ namespace ImageColorChanger.UI
             {
                 if (gpuContext.IsGpuAvailable)
                 {
-                    ShowStatus($"🎮 GPU加速已启用 - {gpuContext.GpuInfo}");
+                    ShowStatus($"GPU加速已启用 - {gpuContext.GpuInfo}");
                 }
                 else
                 {
-                    ShowStatus("⚠️ GPU不可用，已降级到CPU渲染");
+                    ShowStatus("GPU不可用，已降级到CPU渲染");
                 }
             });
         }
     }
 }
+
+
+

@@ -28,24 +28,24 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [圣经插入] 开始创建圣经文本元素: BookId={bookId}, Chapter={chapter}, StartVerse={startVerse}, EndVerse={endVerse}");
+                //Debug.WriteLine($"[圣经插入] 开始创建圣经文本元素: BookId={bookId}, Chapter={chapter}, StartVerse={startVerse}, EndVerse={endVerse}");
                 //#endif
 
                 // 1. 获取经文内容
                 var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
 
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [圣经插入] 获取到经文数量: {verses?.Count ?? 0}");
+                //Debug.WriteLine($"[圣经插入] 获取到经文数量: {verses?.Count ?? 0}");
                 //if (verses != null && verses.Count > 0)
                 //{
                 //    foreach (var v in verses)
                 //    {
-                //        Debug.WriteLine($"🔍 [圣经插入] Verse={v.Verse}, DisplayVerseNumber={v.DisplayVerseNumber}, Scripture={v.Scripture?.Substring(0, Math.Min(20, v.Scripture?.Length ?? 0))}...");
+                //        Debug.WriteLine($"[圣经插入] Verse={v.Verse}, DisplayVerseNumber={v.DisplayVerseNumber}, Scripture={v.Scripture?.Substring(0, Math.Min(20, v.Scripture?.Length ?? 0))}...");
                 //    }
                 //}
                 //else
                 //{
-                //    Debug.WriteLine($"❌ [圣经插入] 经文列表为空或null");
+                //    Debug.WriteLine($" [圣经插入] 经文列表为空或null");
                 //}
                 //#endif
                 
@@ -62,7 +62,7 @@ namespace ImageColorChanger.UI
                 var config = LoadBibleInsertConfigFromDatabase();
                 
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [圣经创建] 开始创建文本框元素");
+                //Debug.WriteLine($" [圣经创建] 开始创建文本框元素");
                 //Debug.WriteLine($"   引用: {reference}");
                 //Debug.WriteLine($"   经文数: {verses.Count}");
                 //Debug.WriteLine($"   样式布局: {config.Style}");
@@ -169,14 +169,14 @@ namespace ImageColorChanger.UI
                     UpdateViewModeButtons();
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [圣经创建] 已自动隐藏圣经导航栏，切换到幻灯片模式");
+                    //Debug.WriteLine($" [圣经创建] 已自动隐藏圣经导航栏，切换到幻灯片模式");
                     //#endif
                 }
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 创建文本框元素失败: {ex.Message}");
+                Debug.WriteLine($" [圣经创建] 创建文本框元素失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -188,14 +188,14 @@ namespace ImageColorChanger.UI
         
         /// <summary>
         /// 格式化经文（带节号）
-        /// 🔧 支持"-"节的合并显示（使用DisplayVerseNumber）
+        /// 支持"-"节的合并显示（使用DisplayVerseNumber）
         /// </summary>
         private string FormatVerseWithNumbers(List<BibleVerse> verses)
         {
             var lines = new List<string>();
             foreach (var verse in verses)
             {
-                // 🔧 优先使用DisplayVerseNumber（处理"-"节合并后的节号，如"10、11"）
+                // 优先使用DisplayVerseNumber（处理"-"节合并后的节号，如"10、11"）
                 // 注意：需要检查空字符串，不仅仅是null
                 var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
                     ? verse.Verse.ToString()
@@ -225,7 +225,7 @@ namespace ImageColorChanger.UI
             if (_currentSlide == null)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 当前没有选中的幻灯片");
+                Debug.WriteLine($" [圣经创建] 当前没有选中的幻灯片");
                 #endif
                 return;
             }
@@ -272,7 +272,7 @@ namespace ImageColorChanger.UI
                     MarkContentAsModified();
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [圣经创建] 文本框已添加到画布");
+                    //Debug.WriteLine($" [圣经创建] 文本框已添加到画布");
                     //Debug.WriteLine($"   内容: {content}");
                     //Debug.WriteLine($"   位置: ({x}, {y})");
                     //Debug.WriteLine($"   尺寸: {textBox.Width} x {textBox.Height}");
@@ -288,7 +288,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 创建单个文本框失败: {ex.Message}");
+                Debug.WriteLine($" [圣经创建] 创建单个文本框失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -305,7 +305,7 @@ namespace ImageColorChanger.UI
             BibleTextInsertConfig config)
         {
             //#if DEBUG
-            //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 开始创建富文本经文元素");
+            //Debug.WriteLine($"[CreateRichTextVerseElement] 开始创建富文本经文元素");
             //Debug.WriteLine($"   参数: verses.Count={verses?.Count ?? 0}, x={x}, y={y}");
             //Debug.WriteLine($"   配置: FontFamily={config?.FontFamily}, VerseSize={config?.VerseStyle?.FontSize}, VerseColor={config?.VerseStyle?.ColorHex}");
             //Debug.WriteLine($"   配置: NumberSize={config?.VerseNumberStyle?.FontSize}, NumberColor={config?.VerseNumberStyle?.ColorHex}");
@@ -315,7 +315,7 @@ namespace ImageColorChanger.UI
             if (_currentSlide == null || verses == null || verses.Count == 0)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 当前没有选中的幻灯片或经文为空");
+                Debug.WriteLine($" [圣经创建] 当前没有选中的幻灯片或经文为空");
                 Debug.WriteLine($"   _currentSlide == null: {_currentSlide == null}");
                 Debug.WriteLine($"   verses == null: {verses == null}");
                 Debug.WriteLine($"   verses.Count: {verses?.Count ?? 0}");
@@ -350,7 +350,7 @@ namespace ImageColorChanger.UI
                 float estimatedHeight = lineCount * config.VerseStyle.FontSize * (float)lineSpacing;
 
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 行间距={lineSpacing:F1}");
+                //Debug.WriteLine($"[CreateRichTextVerseElement] 行间距={lineSpacing:F1}");
                 //#endif
 
                 // 创建文本元素
@@ -378,7 +378,7 @@ namespace ImageColorChanger.UI
                 int spanOrder = 0;
 
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 开始创建富文本片段，经文数量: {verses.Count}");
+                //Debug.WriteLine($"[CreateRichTextVerseElement] 开始创建富文本片段，经文数量: {verses.Count}");
                 //#endif
 
                 foreach (var verse in verses)
@@ -387,7 +387,7 @@ namespace ImageColorChanger.UI
                     //Debug.WriteLine($"   处理第 {verse.Verse} 节: {verse.Scripture?.Substring(0, Math.Min(20, verse.Scripture?.Length ?? 0))}...");
                     //#endif
 
-                    // 🔧 节号片段（优先使用DisplayVerseNumber，支持"-"节合并显示）
+                    // 节号片段（优先使用DisplayVerseNumber，支持"-"节合并显示）
                     var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
                         ? verse.Verse.ToString()
                         : verse.DisplayVerseNumber;
@@ -445,7 +445,7 @@ namespace ImageColorChanger.UI
 
                 // 保存富文本片段到数据库
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 保存 {richTextSpans.Count} 个富文本片段到数据库");
+                //Debug.WriteLine($"[CreateRichTextVerseElement] 保存 {richTextSpans.Count} 个富文本片段到数据库");
                 //#endif
 
                 foreach (var span in richTextSpans)
@@ -454,14 +454,14 @@ namespace ImageColorChanger.UI
                 }
 
                 //#if DEBUG
-                //Debug.WriteLine($"✅ [CreateRichTextVerseElement] 富文本片段保存完成");
+                //Debug.WriteLine($" [CreateRichTextVerseElement] 富文本片段保存完成");
                 //#endif
 
                 // 将富文本片段关联到文本元素
                 textElement.RichTextSpans = richTextSpans;
 
                 //#if DEBUG
-                //Debug.WriteLine($"🔍 [CreateRichTextVerseElement] 创建 DraggableTextBox 并添加到画布");
+                //Debug.WriteLine($"[CreateRichTextVerseElement] 创建 DraggableTextBox 并添加到画布");
                 //Debug.WriteLine($"   TextElement.Id={textElement.Id}, Content长度={textElement.Content?.Length ?? 0}");
                 //Debug.WriteLine($"   RichTextSpans数量={textElement.RichTextSpans?.Count ?? 0}");
                 //#endif
@@ -474,14 +474,14 @@ namespace ImageColorChanger.UI
                     MarkContentAsModified();
 
                     //#if DEBUG
-                    //Debug.WriteLine($"✅ [CreateRichTextVerseElement] 文本框已添加到画布");
+                    //Debug.WriteLine($" [CreateRichTextVerseElement] 文本框已添加到画布");
                     //#endif
                 });
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 创建富文本经文元素失败: {ex.Message}");
+                Debug.WriteLine($" [圣经创建] 创建富文本经文元素失败: {ex.Message}");
                 #else
                 _ = ex;
                 #endif
@@ -548,7 +548,7 @@ namespace ImageColorChanger.UI
 
                 foreach (var verse in verses)
                 {
-                    // 🔧 节号（优先使用DisplayVerseNumber，支持"-"节合并显示）
+                    // 节号（优先使用DisplayVerseNumber，支持"-"节合并显示）
                     var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
                         ? verse.Verse.ToString()
                         : verse.DisplayVerseNumber;
@@ -634,7 +634,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"❌ [圣经创建] 创建富文本经文+标题元素失败: {ex.Message}");
+                Debug.WriteLine($" [圣经创建] 创建富文本经文+标题元素失败: {ex.Message}");
                 #else
                 _ = ex;
                 #endif
@@ -755,7 +755,7 @@ namespace ImageColorChanger.UI
             if (_textBoxes.Count == 0)
             {
                 //#if DEBUG
-                //Debug.WriteLine($"📍 [智能插入] Canvas为空，插入到左上角: ({margin}, {margin})");
+                //Debug.WriteLine($"[智能插入] Canvas为空，插入到左上角: ({margin}, {margin})");
                 //#endif
                 
                 return new System.Windows.Point(margin, margin);
@@ -790,7 +790,7 @@ namespace ImageColorChanger.UI
                     }
                     
                     //#if DEBUG
-                    //Debug.WriteLine($"📍 [智能插入] 在最后元素下方: ({newX:F0}, {newY:F0})");
+                    //Debug.WriteLine($"[智能插入] 在最后元素下方: ({newX:F0}, {newY:F0})");
                     //Debug.WriteLine($"   最后元素位置: ({lastX:F0}, {lastY:F0}), 高度: {lastHeight:F0}");
                     //#endif
                     
@@ -800,7 +800,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"⚠️ [智能插入] 计算位置失败: {ex.Message}，使用默认位置");
+                Debug.WriteLine($" [智能插入] 计算位置失败: {ex.Message}，使用默认位置");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -838,7 +838,7 @@ namespace ImageColorChanger.UI
             config.AutoHideNavigationAfterInsert = dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
             
             //#if DEBUG
-            //Debug.WriteLine($"📝 [圣经插入] 从数据库加载配置");
+            //Debug.WriteLine($"[圣经插入] 从数据库加载配置");
             //Debug.WriteLine($"   字体: {config.FontFamily}");
             //Debug.WriteLine($"   标题字体大小（实际值 = 显示值×2）: {config.TitleStyle.FontSize}");
             //Debug.WriteLine($"   经文字体大小（实际值 = 显示值×2）: {config.VerseStyle.FontSize}");
@@ -849,3 +849,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

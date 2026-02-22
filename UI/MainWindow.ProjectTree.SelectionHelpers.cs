@@ -29,7 +29,7 @@ namespace ImageColorChanger.UI
                 {
                     ClearImageDisplay();
                 }
-                ShowStatus($"✅ 已启用原图模式: {selectedItem.Name}(黄色)");
+                ShowStatus($"已启用原图模式: {selectedItem.Name}(黄色)");
             }
             else if (folderDecision.DisableOriginalMode)
             {
@@ -38,18 +38,18 @@ namespace ImageColorChanger.UI
                 {
                     ClearImageDisplay();
                 }
-                ShowStatus($"✅ 已关闭原图模式: {selectedItem.Name}");
+                ShowStatus($"已关闭原图模式: {selectedItem.Name}");
             }
 
             if (folderDecision.EnableColorEffect)
             {
                 ApplyColorEffectUiState(true);
-                ShowStatus($"✅ 已切换到变色文件夹: {selectedItem.Name}");
+                ShowStatus($"已切换到变色文件夹: {selectedItem.Name}");
             }
             else if (folderDecision.DisableColorEffect)
             {
                 ApplyColorEffectUiState(false);
-                ShowStatus($"✅ 已切换到无变色文件夹: {selectedItem.Name}");
+                ShowStatus($"已切换到无变色文件夹: {selectedItem.Name}");
             }
 
             _currentFolderId = folderDecision.NewCurrentFolderId;
@@ -83,19 +83,19 @@ namespace ImageColorChanger.UI
             if (TextEditorPanel.Visibility == Visibility.Visible && IsInSplitMode())
             {
                 await LoadImageToSplitRegion(selectedItem.Path);
-                ShowStatus($"📷 已加载: {selectedItem.Name}");
+                ShowStatus($"已加载: {selectedItem.Name}");
                 return;
             }
 
             if (_isLyricsMode)
             {
-                ShowStatus("🎤 歌词模块已独立，图片切换不影响当前歌词");
+                ShowStatus("歌词模块已独立，图片切换不影响当前歌词");
                 return;
             }
 
             if (_currentViewMode == NavigationViewMode.Projects)
             {
-                ShowStatus($"💡 请先打开幻灯片进入分割模式，或切换到文件视图");
+                ShowStatus($"请先打开幻灯片进入分割模式，或切换到文件视图");
                 return;
             }
 
@@ -111,7 +111,7 @@ namespace ImageColorChanger.UI
             CompositePlaybackPanel.Visibility = Visibility.Collapsed;
 
             string fileType = selectedItem.FileType == FileType.Video ? "视频" : "音频";
-            ShowStatus($"✅ 已选中{fileType}: {selectedItem.Name} (双击播放)");
+            ShowStatus($"已选中{fileType}: {selectedItem.Name} (双击播放)");
         }
 
         private void HandleMediaFileDoubleClick(ProjectTreeItem selectedItem)
@@ -125,13 +125,13 @@ namespace ImageColorChanger.UI
                 LoadAndDisplayVideo(selectedItem.Path);
             }
 
-            ShowStatus($"🎬 正在播放: {selectedItem.Name}");
+            ShowStatus($"正在播放: {selectedItem.Name}");
         }
 
         private void HandleImageFileDoubleClick(ProjectTreeItem selectedItem, Stopwatch clickTime)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"📷 切换到图片: {selectedItem.Name}");
+            System.Diagnostics.Debug.WriteLine($"切换到图片: {selectedItem.Name}");
 #endif
             var switchStart = clickTime.ElapsedMilliseconds;
             SwitchToImageMode();
@@ -139,7 +139,7 @@ namespace ImageColorChanger.UI
             if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("🛑 停止当前播放");
+                System.Diagnostics.Debug.WriteLine("停止当前播放");
 #endif
                 _ = _playbackViewModel.StopPlaybackCommand.ExecuteAsync(null);
             }
@@ -150,7 +150,7 @@ namespace ImageColorChanger.UI
 
             clickTime.Stop();
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⏱️ [切换图片] 准备耗时: {switchStart}ms, 加载耗时: {loadTime}ms, 总耗时: {clickTime.ElapsedMilliseconds}ms");
+            System.Diagnostics.Debug.WriteLine($"[切换图片] 准备耗时: {switchStart}ms, 加载耗时: {loadTime}ms, 总耗时: {clickTime.ElapsedMilliseconds}ms");
             System.Diagnostics.Debug.WriteLine($"========================================\n");
 #endif
         }
@@ -233,12 +233,15 @@ namespace ImageColorChanger.UI
                     EnterLyricsMode();
                 }
 
-                ShowStatus("🎤 已进入歌词模式（独立歌曲）");
+                ShowStatus("已进入歌词模式（独立歌曲）");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 打开歌曲歌词失败: {ex.Message}");
+                ShowStatus($"打开歌曲歌词失败: {ex.Message}");
             }
         }
     }
 }
+
+
+

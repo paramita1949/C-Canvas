@@ -121,7 +121,7 @@ namespace ImageColorChanger.UI
                 SendCodeButton.IsEnabled = true;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [重置密码] 发送验证码异常: {ex}");
+                System.Diagnostics.Debug.WriteLine($" [重置密码] 发送验证码异常: {ex}");
                 #endif
             }
         }
@@ -203,7 +203,7 @@ namespace ImageColorChanger.UI
                 ShowStatus($"重置失败：{ex.Message}", isError: true);
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [重置密码] 异常: {ex}");
+                System.Diagnostics.Debug.WriteLine($" [重置密码] 异常: {ex}");
                 #endif
             }
             finally
@@ -309,4 +309,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
 

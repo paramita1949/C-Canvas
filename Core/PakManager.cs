@@ -63,7 +63,7 @@ namespace ImageColorChanger.Core
             {
                 if (!File.Exists(_pakFilePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [PAK] 资源包不存在: {_pakFilePath}");
+                    System.Diagnostics.Debug.WriteLine($" [PAK] 资源包不存在: {_pakFilePath}");
                     return false;
                 }
                 
@@ -74,21 +74,21 @@ namespace ImageColorChanger.Core
                     var magic = Encoding.ASCII.GetString(br.ReadBytes(PAK_MAGIC.Length));
                     if (magic != PAK_MAGIC)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ [PAK] 无效的资源包格式");
+                        System.Diagnostics.Debug.WriteLine($" [PAK] 无效的资源包格式");
                         return false;
                     }
                     
                     var version = br.ReadInt32();
                     if (version != PAK_VERSION)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ [PAK] 不支持的资源包版本: {version}");
+                        System.Diagnostics.Debug.WriteLine($" [PAK] 不支持的资源包版本: {version}");
                         return false;
                     }
                     
                     // 读取文件数量
                     var fileCount = br.ReadInt32();
                     #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📦 [PAK] 加载资源包: {fileCount} 个文件");
+                    //System.Diagnostics.Debug.WriteLine($" [PAK] 加载资源包: {fileCount} 个文件");
                     #endif
                     
                     // 读取文件索引
@@ -123,13 +123,13 @@ namespace ImageColorChanger.Core
                 
                 _isLoaded = true;
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包加载成功: {_resourceCache.Count} 个文件");
+                //System.Diagnostics.Debug.WriteLine($" [PAK] 资源包加载成功: {_resourceCache.Count} 个文件");
                 #endif
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PAK] 加载失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [PAK] 加载失败: {ex.Message}");
                 return false;
             }
         }
@@ -194,9 +194,9 @@ namespace ImageColorChanger.Core
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"📦 [PAK] 开始创建资源包...");
-                System.Diagnostics.Debug.WriteLine($"📂 源目录: {sourceDirectory}");
-                System.Diagnostics.Debug.WriteLine($"📄 输出: {outputPakPath}");
+                System.Diagnostics.Debug.WriteLine($" [PAK] 开始创建资源包...");
+                System.Diagnostics.Debug.WriteLine($" 源目录: {sourceDirectory}");
+                System.Diagnostics.Debug.WriteLine($" 输出: {outputPakPath}");
                 
                 // 收集要打包的文件
                 var files = new List<string>();
@@ -215,7 +215,7 @@ namespace ImageColorChanger.Core
                     }
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"📋 找到 {files.Count} 个文件");
+                System.Diagnostics.Debug.WriteLine($" 找到 {files.Count} 个文件");
                 
                 using (var fs = new FileStream(outputPakPath, FileMode.Create, FileAccess.Write))
                 using (var bw = new BinaryWriter(fs))
@@ -272,12 +272,12 @@ namespace ImageColorChanger.Core
                     }
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"✅ [PAK] 资源包创建成功: {outputPakPath}");
-                //System.Diagnostics.Debug.WriteLine($"📊 文件大小: {new FileInfo(outputPakPath).Length / 1024} KB");
+                //System.Diagnostics.Debug.WriteLine($" [PAK] 资源包创建成功: {outputPakPath}");
+                //System.Diagnostics.Debug.WriteLine($" 文件大小: {new FileInfo(outputPakPath).Length / 1024} KB");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PAK] 创建失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [PAK] 创建失败: {ex.Message}");
                 throw;
             }
         }
@@ -312,4 +312,6 @@ namespace ImageColorChanger.Core
         }
     }
 }
+
+
 

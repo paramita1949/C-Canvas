@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Input;
 
@@ -125,7 +125,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 全局热键管理器初始化失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 全局热键管理器初始化失败: {ex.Message}");
                 System.Windows.MessageBox.Show($"全局热键管理器初始化失败: {ex.Message}", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -138,7 +138,7 @@ namespace ImageColorChanger.UI
             if (_globalHotKeyManager == null || _shortcutActionHandler == null)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("❌ 全局热键管理器或ActionHandler未初始化");
+                System.Diagnostics.Debug.WriteLine(" 全局热键管理器或ActionHandler未初始化");
                 #endif
                 return;
             }
@@ -146,7 +146,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine("🔧 [全局热键] 开始注册全局热键...");
+                //System.Diagnostics.Debug.WriteLine("[全局热键] 开始注册全局热键...");
                 //#endif
 
                 RegisterProjectionNavigationHotKeys();
@@ -158,7 +158,7 @@ namespace ImageColorChanger.UI
                     () =>
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F2键触发");
+                        //System.Diagnostics.Debug.WriteLine("[全局热键] F2键触发");
                         //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
@@ -173,7 +173,7 @@ namespace ImageColorChanger.UI
                     () =>
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] F3键触发");
+                        //System.Diagnostics.Debug.WriteLine("[全局热键] F3键触发");
                         //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
@@ -188,7 +188,7 @@ namespace ImageColorChanger.UI
                     () =>
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎯 [全局热键] ESC键触发");
+                        //System.Diagnostics.Debug.WriteLine("[全局热键] ESC键触发");
                         //#endif
                         Dispatcher.InvokeAsync(async () =>
                         {
@@ -197,7 +197,7 @@ namespace ImageColorChanger.UI
                     });
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键注册完成（投影模式）");
+                //System.Diagnostics.Debug.WriteLine(" [全局热键] 全局热键注册完成（投影模式）");
                 //#endif
             }
             catch (Exception)
@@ -222,7 +222,7 @@ namespace ImageColorChanger.UI
                 _hotKeyIdPageUp = -1;
                 _hotKeyIdPageDown = -1;
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine("✅ [全局热键] 全局热键已注销");
+                //System.Diagnostics.Debug.WriteLine(" [全局热键] 全局热键已注销");
                 //#endif
             }
             catch (Exception)
@@ -233,4 +233,6 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
 

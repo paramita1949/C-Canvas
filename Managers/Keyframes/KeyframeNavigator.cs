@@ -51,7 +51,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    //System.Diagnostics.Debug.WriteLine("🛑 [上一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine(" [上一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
                 }
 
@@ -81,7 +81,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (isBackwardJump)
                 {
                     forceDirectJump = true;
-                    //System.Diagnostics.Debug.WriteLine($"⬅️ [上一帧] 检测到回跳（从#{_keyframeManager.CurrentKeyframeIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
+                    //System.Diagnostics.Debug.WriteLine($"⬅ [上一帧] 检测到回跳（从#{_keyframeManager.CurrentKeyframeIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
                 }
 
                 // 更新当前帧索引
@@ -97,11 +97,11 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    //System.Diagnostics.Debug.WriteLine($"⚡ [上一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
+                    //System.Diagnostics.Debug.WriteLine($" [上一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (滚动中:{forceDirectJump}, 回跳:{isBackwardJump}, 持续0:{_keyframeManager.ScrollDuration == 0})");
                     
                     try
                     {
-                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        //  禁用自动投影同步，避免中间状态导致投影位置错误
                         _uiHost.SetAutoProjectionSyncEnabled(false);
                         
                         var scrollViewer = _uiHost.ImageScrollViewer;
@@ -110,11 +110,11 @@ namespace ImageColorChanger.Managers.Keyframes
                     }
                     finally
                     {
-                        // 🛡️ 确保必定重新启用自动投影同步
+                        //  确保必定重新启用自动投影同步
                         _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
-                    // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
+                    //  滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_uiHost.IsProjectionEnabled)
                     {
                         _uiHost.UpdateProjection();
@@ -123,7 +123,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
-                    //System.Diagnostics.Debug.WriteLine($"🎬 [上一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
+                    //System.Diagnostics.Debug.WriteLine($" [上一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 
@@ -135,7 +135,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 跳转上一关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 跳转上一关键帧异常: {ex.Message}");
                 _uiHost.ShowStatus($"跳转失败: {ex.Message}");
             }
         }
@@ -168,14 +168,14 @@ namespace ImageColorChanger.Managers.Keyframes
                 int currentIndex = _keyframeManager.CurrentKeyframeIndex;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 开始：当前索引={currentIndex}, 总关键帧数={keyframes.Count}");
+                System.Diagnostics.Debug.WriteLine($" [下一帧] 开始：当前索引={currentIndex}, 总关键帧数={keyframes.Count}");
                 if (currentIndex >= 0 && currentIndex < keyframes.Count)
                 {
                     System.Diagnostics.Debug.WriteLine($"   当前关键帧ID={keyframes[currentIndex].Id}, 位置={keyframes[currentIndex].Position:F4}");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"   ⚠️ 当前索引无效或越界");
+                    System.Diagnostics.Debug.WriteLine($"    当前索引无效或越界");
                 }
                 #endif
 
@@ -184,7 +184,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (_keyframeManager.IsScrolling)
                 {
                     _keyframeManager.StopScrollAnimation();
-                    //System.Diagnostics.Debug.WriteLine("🛑 [下一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
+                    //System.Diagnostics.Debug.WriteLine(" [下一帧] 检测到滚动动画正在进行，立即停止并直接跳转");
                     forceDirectJump = true;
                 }
 
@@ -192,7 +192,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 int targetIndex = currentIndex + 1;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 当前索引={currentIndex}, 目标索引={targetIndex}, 总关键帧数={keyframes.Count}");
+                System.Diagnostics.Debug.WriteLine($" [下一帧] 当前索引={currentIndex}, 目标索引={targetIndex}, 总关键帧数={keyframes.Count}");
                 #endif
 
                 // 检查是否首次执行（之前未播放过关键帧）
@@ -204,7 +204,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 {
                     // 循环回第一帧
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔄 [下一帧] 检测到循环：从索引{currentIndex}（关键帧#{currentIndex + 1}）循环回第一帧");
+                    System.Diagnostics.Debug.WriteLine($" [下一帧] 检测到循环：从索引{currentIndex}（关键帧#{currentIndex + 1}）循环回第一帧");
                     #endif
                     targetIndex = 0;
                     
@@ -214,7 +214,7 @@ namespace ImageColorChanger.Managers.Keyframes
                     // 如果正在录制，自动停止录制（参考Python版本 playback_controller.py 第50-64行）
                     if (wasRecording)
                     {
-                        // 🔧 修复：在循环检测时，currentIndex 是最后一帧的索引，应该记录这一帧的时间
+                        //  修复：在循环检测时，currentIndex 是最后一帧的索引，应该记录这一帧的时间
                         // 但是，这个记录是在 StepToNextKeyframe() 内部进行的，而 MainWindow.Keyframe.cs 中也会记录
                         // 所以这里不应该重复记录，应该由 MainWindow.Keyframe.cs 中的逻辑来处理
                         // 但是，由于循环检测是在 StepToNextKeyframe() 内部，而 MainWindow.Keyframe.cs 中的记录是在调用之前
@@ -224,7 +224,7 @@ namespace ImageColorChanger.Managers.Keyframes
                         {
                             var lastKeyframe = keyframes[currentIndex];
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"📹 [循环-录制] 记录最后一帧 #{currentIndex + 1} (ID={lastKeyframe.Id}) 的时间");
+                            System.Diagnostics.Debug.WriteLine($" [循环-录制] 记录最后一帧 #{currentIndex + 1} (ID={lastKeyframe.Id}) 的时间");
                             #endif
                             await _uiHost.RecordKeyframeTimeAsync(lastKeyframe.Id);
                         }
@@ -262,7 +262,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 {
                     forceDirectJump = true;
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⬅️ [下一帧] 检测到回跳（从#{currentIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
+                    System.Diagnostics.Debug.WriteLine($"⬅ [下一帧] 检测到回跳（从#{currentIndex + 1}到#{targetIndex + 1}），强制使用直接跳转");
                     #endif
                 }
 
@@ -270,7 +270,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 _keyframeManager.UpdateKeyframeIndex(targetIndex);
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [下一帧] 已更新索引：{currentIndex} -> {targetIndex}，目标关键帧ID={keyframes[targetIndex].Id}");
+                System.Diagnostics.Debug.WriteLine($" [下一帧] 已更新索引：{currentIndex} -> {targetIndex}，目标关键帧ID={keyframes[targetIndex].Id}");
                 #endif
 
                 // 获取目标位置
@@ -284,11 +284,11 @@ namespace ImageColorChanger.Managers.Keyframes
                 if (useDirectJump)
                 {
                     // 直接跳转
-                    //System.Diagnostics.Debug.WriteLine($"⚡ [下一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (首次:{isFirstExecution}, 循环:{isLoopingBack}, 回跳:{isBackwardJump})");
+                    //System.Diagnostics.Debug.WriteLine($" [下一帧] 直接跳转到关键帧 #{targetIndex + 1}/{keyframes.Count} (首次:{isFirstExecution}, 循环:{isLoopingBack}, 回跳:{isBackwardJump})");
                     
                     try
                     {
-                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        //  禁用自动投影同步，避免中间状态导致投影位置错误
                         _uiHost.SetAutoProjectionSyncEnabled(false);
                         
                         var scrollViewer = _uiHost.ImageScrollViewer;
@@ -297,11 +297,11 @@ namespace ImageColorChanger.Managers.Keyframes
                     }
                     finally
                     {
-                        // 🛡️ 确保必定重新启用自动投影同步
+                        //  确保必定重新启用自动投影同步
                         _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
-                    // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
+                    //  滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_uiHost.IsProjectionEnabled)
                     {
                         _uiHost.UpdateProjection();
@@ -310,7 +310,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 else
                 {
                     // 平滑滚动
-                    //System.Diagnostics.Debug.WriteLine($"🎬 [下一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
+                    //System.Diagnostics.Debug.WriteLine($" [下一帧] 平滑滚动到关键帧 #{targetIndex + 1}/{keyframes.Count} (持续:{_keyframeManager.ScrollDuration}秒)");
                     _keyframeManager.SmoothScrollTo(targetPosition);
                 }
 
@@ -326,7 +326,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 跳转下一关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 跳转下一关键帧异常: {ex.Message}");
                 _uiHost.ShowStatus($"跳转失败: {ex.Message}");
                 return false; // 异常情况下，不记录时间
             }
@@ -348,14 +348,14 @@ namespace ImageColorChanger.Managers.Keyframes
                     return;
                 }
 
-                // 🔧 修复：如果正在录制，先记录当前帧的时间（跳转前）
+                //  修复：如果正在录制，先记录当前帧的时间（跳转前）
                 // 支持跳帧录制：即使直接跳转到某个关键帧，也要记录之前帧的停留时间
                 var currentIndex = _keyframeManager.CurrentKeyframeIndex;
                 if (_uiHost.IsPlaybackRecording && currentIndex >= 0 && currentIndex < keyframes.Count)
                 {
                     var currentKeyframe = keyframes[currentIndex];
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📹 [跳转录制] 从关键帧 #{currentIndex + 1} (ID={currentKeyframe.Id}) 跳转到 #{index + 1}，先记录当前帧时间");
+                    System.Diagnostics.Debug.WriteLine($" [跳转录制] 从关键帧 #{currentIndex + 1} (ID={currentKeyframe.Id}) 跳转到 #{index + 1}，先记录当前帧时间");
                     #endif
                     _ = _uiHost.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                 }
@@ -374,7 +374,7 @@ namespace ImageColorChanger.Managers.Keyframes
                     
                     try
                     {
-                        // 🛡️ 禁用自动投影同步，避免中间状态导致投影位置错误
+                        //  禁用自动投影同步，避免中间状态导致投影位置错误
                         _uiHost.SetAutoProjectionSyncEnabled(false);
                         
                         var scrollViewer = _uiHost.ImageScrollViewer;
@@ -383,11 +383,11 @@ namespace ImageColorChanger.Managers.Keyframes
                     }
                     finally
                     {
-                        // 🛡️ 确保必定重新启用自动投影同步
+                        //  确保必定重新启用自动投影同步
                         _uiHost.SetAutoProjectionSyncEnabled(true);
                     }
                     
-                    // ✅ 滚动完成后，统一更新投影（确保使用最终的滚动位置）
+                    //  滚动完成后，统一更新投影（确保使用最终的滚动位置）
                     if (_uiHost.IsProjectionEnabled)
                     {
                         _uiHost.UpdateProjection();
@@ -404,7 +404,7 @@ namespace ImageColorChanger.Managers.Keyframes
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 跳转到关键帧异常: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 跳转到关键帧异常: {ex.Message}");
             }
         }
 
@@ -415,7 +415,7 @@ namespace ImageColorChanger.Managers.Keyframes
         {
             try
             {
-                // 🔧 确保投影同步状态已恢复（修复投影卡住BUG）
+                //  确保投影同步状态已恢复（修复投影卡住BUG）
                 _uiHost.SetAutoProjectionSyncEnabled(true);
                 
                 // 检查是否有录制的时间数据
@@ -425,12 +425,12 @@ namespace ImageColorChanger.Managers.Keyframes
                     return;
                 }
                 
-                // 🎬 检查是否启用了合成标记
+                //  检查是否启用了合成标记
                 bool isCompositeEnabled = await _keyframeManager.GetCompositePlaybackEnabledAsync(imageId);
                 
                 if (isCompositeEnabled)
                 {
-                    // 🎬 自动播放合成模式
+                    //  自动播放合成模式
                     _uiHost.TriggerCompositePlayback();
                 }
                 else
@@ -449,4 +449,5 @@ namespace ImageColorChanger.Managers.Keyframes
         }
     }
 }
+
 

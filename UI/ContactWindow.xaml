@@ -43,21 +43,21 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
-                                <Setter Property="Foreground" Value="#1976D2"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandPrimary}"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrushDialogBrandHover}"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.25" Color="#2196F3"/>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.25" Color="{StaticResource ColorDialogBrandPrimary}"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="Selected">
-                                <Setter TargetName="border" Property="Background" Value="#2196F3"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#1976D2"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BrushDialogBrandPrimary}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandHover}"/>
                                 <Setter Property="Foreground" Value="White"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.3" Color="#2196F3"/>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="10" Opacity="0.3" Color="{StaticResource ColorDialogBrandPrimary}"/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
@@ -77,12 +77,12 @@
         </Grid.RowDefinitions>
 
         <!-- 标题栏 -->
-        <Border Grid.Row="0" Background="#2196F3" Padding="20,15">
+        <Border Grid.Row="0" Background="{StaticResource BrushDialogBrandPrimary}" Padding="20,15">
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.2" Color="#000000"/>
             </Border.Effect>
             <StackPanel>
-                <TextBlock Text="💰 付费购买 - 咏幕投影" 
+                <TextBlock Text="付费购买 - 咏幕投影" 
                            FontSize="26" 
                            FontWeight="Bold" 
                            Foreground="White"
@@ -120,7 +120,7 @@
 
             <!-- 左侧：微信联系 -->
             <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0">
-                <TextBlock Text="📱 微信联系" 
+                <TextBlock Text=" 微信联系" 
                            FontSize="20" 
                            FontWeight="Medium"
                            Foreground="#333333"
@@ -151,7 +151,7 @@
 
             <!-- 右侧：付款码 -->
             <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0">
-                <TextBlock Text="💰 付款码" 
+                <TextBlock Text="付款码" 
                            FontSize="20" 
                            FontWeight="Medium"
                            Foreground="#333333"
@@ -182,4 +182,5 @@
         </Grid>
     </Grid>
 </Window>
+
 

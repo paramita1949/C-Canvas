@@ -135,7 +135,7 @@ namespace ImageColorChanger.UI
             void RestoreButton()
             {
                 string text = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
-                BtnPlayCount.Content = $"🔄 {text}次";
+                SetPlayCountButtonContent(text);
                 BtnPlayCount.Focus();
             }
 
@@ -143,3 +143,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

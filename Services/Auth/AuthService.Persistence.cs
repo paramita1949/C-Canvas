@@ -141,7 +141,7 @@ namespace ImageColorChanger.Services
                     {
                         lastError = ex;
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {authFilePath} -> {ex.Message}");
+                        System.Diagnostics.Trace.WriteLine($" [AuthService] 保存登录状态失败: {authFilePath} -> {ex.Message}");
 #else
                         _ = ex;
 #endif
@@ -158,8 +158,8 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 保存登录状态失败: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 异常详情: {ex}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 保存登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 异常详情: {ex}");
 #else
                 _ = ex;
 #endif
@@ -186,7 +186,7 @@ namespace ImageColorChanger.Services
                     .ToList();
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine("💾 [AuthService] 尝试加载登录状态（按时间倒序）:");
+                System.Diagnostics.Trace.WriteLine(" [AuthService] 尝试加载登录状态（按时间倒序）:");
                 foreach (var path in candidatePaths)
                 {
                     System.Diagnostics.Trace.WriteLine($"   - {path}");
@@ -196,7 +196,7 @@ namespace ImageColorChanger.Services
                 if (!candidatePaths.Any())
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 无本地登录状态文件");
+                    System.Diagnostics.Trace.WriteLine($" [AuthService] 无本地登录状态文件");
 #endif
                     return;
                 }
@@ -225,11 +225,11 @@ namespace ImageColorChanger.Services
                     if (!loadResult.IsValid || loadResult.Snapshot == null)
                     {
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地凭证无效: {authFilePath} ({loadResult.Error})");
+                        System.Diagnostics.Trace.WriteLine($" [AuthService] 本地凭证无效: {authFilePath} ({loadResult.Error})");
 #endif
                         _authStateStore.DeleteSnapshot(authFilePath);
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine($"🧹 [AuthService] 已删除损坏凭证: {authFilePath}");
+                        System.Diagnostics.Trace.WriteLine($" [AuthService] 已删除损坏凭证: {authFilePath}");
 #endif
                         continue;
                     }
@@ -252,7 +252,7 @@ namespace ImageColorChanger.Services
                 var authData = selected.Snapshot;
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine(
-                    $"💾 [AuthService] 选择凭证: Path={selected.Path}, FileVersion={authData.FileVersion}, " +
+                    $" [AuthService] 选择凭证: Path={selected.Path}, FileVersion={authData.FileVersion}, " +
                     $"Candidates={validSnapshots.Count}");
 #endif
                 ApplyPersistedSnapshot(authData);
@@ -287,7 +287,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 加载登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 加载登录状态失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -310,13 +310,13 @@ namespace ImageColorChanger.Services
                     _authStateStore.DeleteSnapshot(authFilePath);
                 }
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 本地登录状态已删除");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 本地登录状态已删除");
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 删除登录状态失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 删除登录状态失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -410,4 +410,6 @@ namespace ImageColorChanger.Services
         #endregion
     }
 }
+
+
 

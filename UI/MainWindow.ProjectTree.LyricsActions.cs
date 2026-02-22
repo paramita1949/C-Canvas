@@ -23,7 +23,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var createGroupItem = new MenuItem { Header = "📁 新建歌词库" };
+            var createGroupItem = new MenuItem { Header = "新建歌词库" };
             createGroupItem.Click += (s, args) => CreateLyricsLibrary();
             contextMenu.Items.Add(createGroupItem);
 
@@ -48,7 +48,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var createSongItem = new MenuItem { Header = "🎵 新建歌词" };
+            var createSongItem = new MenuItem { Header = " 新建歌词" };
             createSongItem.Click += (s, args) => CreateLyricsSong(groupItem.Id);
             contextMenu.Items.Add(createSongItem);
 
@@ -102,7 +102,7 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            var deleteItem = new MenuItem { Header = "🗑️ 删除歌词库" };
+            var deleteItem = new MenuItem { Header = " 删除歌词库" };
             deleteItem.Click += (s, args) => DeleteLyricsGroup(groupItem.Id);
             contextMenu.Items.Add(deleteItem);
         }
@@ -117,7 +117,7 @@ namespace ImageColorChanger.UI
             var songs = _dbContext.LyricsProjects.Where(p => p.GroupId == groupId).ToList();
             if (songs.Count == 0)
             {
-                ShowStatus("⚠️ 当前歌词库没有可设置的歌曲");
+                ShowStatus("当前歌词库没有可设置的歌曲");
                 return;
             }
 
@@ -129,7 +129,7 @@ namespace ImageColorChanger.UI
             }
 
             _dbContext.SaveChanges();
-            ShowStatus($"✅ 已为 {songs.Count} 首歌曲设置水印: {watermarkName}");
+            ShowStatus($"已为 {songs.Count} 首歌曲设置水印: {watermarkName}");
 
             if (_currentLyricsProject != null && _currentLyricsProject.GroupId == groupId)
             {
@@ -148,13 +148,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var openItem = new MenuItem { Header = "🎤 打开歌词" };
+            var openItem = new MenuItem { Header = "打开歌词" };
             openItem.Click += (s, args) => EnterLyricsModeFromSong(songItem.Id);
             contextMenu.Items.Add(openItem);
 
             contextMenu.Items.Add(new Separator());
 
-            var renameItem = new MenuItem { Header = "✏️ 重命名" };
+            var renameItem = new MenuItem { Header = "✏ 重命名" };
             renameItem.Click += (s, args) => RenameLyricsSong(songItem);
             contextMenu.Items.Add(renameItem);
 
@@ -167,7 +167,7 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            var deleteItem = new MenuItem { Header = "🗑️ 删除歌曲" };
+            var deleteItem = new MenuItem { Header = " 删除歌曲" };
             deleteItem.Click += (s, args) => DeleteLyricsSong(songItem.Id);
             contextMenu.Items.Add(deleteItem);
         }
@@ -196,12 +196,12 @@ namespace ImageColorChanger.UI
                 var manager = new Managers.LyricsGroupManager(_dbContext);
                 manager.CreateGroup(name.Trim(), nextOrder, isSystem: false);
                 LoadProjects();
-                ShowStatus($"✅ 已创建歌词库: {name.Trim()}");
+                ShowStatus($"已创建歌词库: {name.Trim()}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[歌词库] 新建失败: {ex}");
-                ShowStatus($"❌ 新建歌词库失败: {ex.Message}");
+                ShowStatus($"新建歌词库失败: {ex.Message}");
             }
         }
 
@@ -241,7 +241,7 @@ namespace ImageColorChanger.UI
 
                 string colorHex = $"#{colorDialog.Color.R:X2}{colorDialog.Color.G:X2}{colorDialog.Color.B:X2}";
                 manager.SetGroupHighlightColor(groupItem.Id, colorHex);
-                ShowStatus($"✅ 已设置歌词库 [{groupItem.Name}] 的高亮颜色: {colorHex}");
+                ShowStatus($"已设置歌词库 [{groupItem.Name}] 的高亮颜色: {colorHex}");
 
                 LoadProjects();
 
@@ -352,7 +352,7 @@ namespace ImageColorChanger.UI
             var group = _dbContext.LyricsGroups.FirstOrDefault(g => g.Id == groupItem.Id);
             if (group == null || group.IsSystem)
             {
-                ShowStatus("⚠️ 系统分组不支持重命名");
+                ShowStatus("系统分组不支持重命名");
                 return;
             }
 
@@ -366,7 +366,7 @@ namespace ImageColorChanger.UI
             group.ModifiedTime = DateTime.Now;
             _dbContext.SaveChanges();
             ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, group.Id);
-            ShowStatus($"✅ 已重命名歌词库: {group.Name}");
+            ShowStatus($"已重命名歌词库: {group.Name}");
         }
 
         private void RenameLyricsSong(ProjectTreeItem songItem)
@@ -392,7 +392,7 @@ namespace ImageColorChanger.UI
             song.ModifiedTime = DateTime.Now;
             _dbContext.SaveChanges();
             ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsSong, song.Id);
-            ShowStatus($"✅ 已重命名歌曲: {song.Name}");
+            ShowStatus($"已重命名歌曲: {song.Name}");
         }
 
         private void ReloadProjectsPreservingLyricsTreeState(TreeItemType? preferredType = null, int preferredId = 0)
@@ -513,7 +513,7 @@ namespace ImageColorChanger.UI
 
             if (group.IsSystem)
             {
-                ShowStatus("⚠️ 系统分组不允许删除");
+                ShowStatus("系统分组不允许删除");
                 return;
             }
 
@@ -555,7 +555,7 @@ namespace ImageColorChanger.UI
             }
 
             LoadProjects();
-            ShowStatus($"✅ 已删除歌词库: {group.Name}（同时删除 {songs.Count} 首歌词）");
+            ShowStatus($"已删除歌词库: {group.Name}（同时删除 {songs.Count} 首歌词）");
         }
 
         private void DeleteLyricsSong(int songId)
@@ -584,7 +584,7 @@ namespace ImageColorChanger.UI
             _dbContext.LyricsProjects.Remove(song);
             _dbContext.SaveChanges();
             LoadProjects();
-            ShowStatus($"✅ 已删除歌曲: {song.Name}");
+            ShowStatus($"已删除歌曲: {song.Name}");
         }
 
         private string PromptTextDialog(string title, string prompt, string defaultValue)
@@ -646,3 +646,6 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+
+

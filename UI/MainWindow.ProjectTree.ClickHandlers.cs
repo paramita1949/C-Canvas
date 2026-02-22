@@ -108,7 +108,7 @@ namespace ImageColorChanger.UI
 
             if (!System.IO.File.Exists(selectedItem.Path))
             {
-                ShowStatus($"❌ 文件不存在: {selectedItem.Name}");
+                ShowStatus($"文件不存在: {selectedItem.Name}");
                 return;
             }
 
@@ -140,7 +140,7 @@ namespace ImageColorChanger.UI
 
             if (!System.IO.File.Exists(selectedItem.Path))
             {
-                ShowStatus($"❌ 文件不存在: {selectedItem.Name}");
+                ShowStatus($"文件不存在: {selectedItem.Name}");
                 return;
             }
 
@@ -157,3 +157,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

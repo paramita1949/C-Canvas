@@ -107,8 +107,8 @@ namespace ImageColorChanger.UI
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] 更新UI - 解绑次数: {resetCount}");
-                //System.Diagnostics.Debug.WriteLine($"🎨 [UpdateAuthUI] Tooltip: {BtnLogin.ToolTip}");
+                //System.Diagnostics.Debug.WriteLine($"[UpdateAuthUI] 更新UI - 解绑次数: {resetCount}");
+                //System.Diagnostics.Debug.WriteLine($"[UpdateAuthUI] Tooltip: {BtnLogin.ToolTip}");
                 //#endif
             }
             else
@@ -180,7 +180,7 @@ namespace ImageColorChanger.UI
             
             // 调试信息已注释
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎨 [ShowUserMenu] 显示用户菜单");
+            //System.Diagnostics.Debug.WriteLine($"[ShowUserMenu] 显示用户菜单");
             //System.Diagnostics.Debug.WriteLine($"   用户名: {username}");
             //System.Diagnostics.Debug.WriteLine($"   剩余天数: {remainingDays}");
             //System.Diagnostics.Debug.WriteLine($"   解绑次数: {resetCount}");
@@ -219,21 +219,18 @@ namespace ImageColorChanger.UI
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
             
-            var headerText = new System.Windows.Controls.TextBlock
+            var headerTitle = new System.Windows.Controls.ContentControl
             {
-                Text = "👤 个人中心",
-                FontSize = 20,
-                FontWeight = FontWeights.Bold,
-                Foreground = System.Windows.Media.Brushes.White,
+                Content = BuildIconLabelContent("IconLucideBookOpen", "个人中心", System.Windows.Media.Brushes.White),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            System.Windows.Controls.Grid.SetColumn(headerText, 0);
-            headerGrid.Children.Add(headerText);
+            System.Windows.Controls.Grid.SetColumn(headerTitle, 0);
+            headerGrid.Children.Add(headerTitle);
             
             // 刷新按钮（简化版）
             var refreshBtn = new System.Windows.Controls.Button
             {
-                Content = "🔄 刷新信息",
+                Content = BuildIconLabelContent("IconLucideRefreshCw", "刷新信息", System.Windows.Media.Brushes.White),
                 Background = new System.Windows.Media.SolidColorBrush(Color.FromRgb(40, 167, 69)),
                 Foreground = System.Windows.Media.Brushes.White,
                 BorderThickness = new Thickness(0),
@@ -252,7 +249,7 @@ namespace ImageColorChanger.UI
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔄 [手动刷新] 用户点击刷新按钮");
+                //System.Diagnostics.Debug.WriteLine($" [手动刷新] 用户点击刷新按钮");
                 //#endif
                 
                 bool success = await _authService.RefreshAccountInfoAsync();
@@ -264,7 +261,7 @@ namespace ImageColorChanger.UI
                 {
                     // 调试信息已注释
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [手动刷新] 刷新成功，重新显示窗口");
+                    //System.Diagnostics.Debug.WriteLine($" [手动刷新] 刷新成功，重新显示窗口");
                     //#endif
                     
                     // 更新标题栏
@@ -277,7 +274,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"❌ [手动刷新] 刷新失败");
+                    System.Diagnostics.Debug.WriteLine($" [手动刷新] 刷新失败");
                     #endif
                     
                     MessageBox.Show("无法连接到服务器，当前显示为本地缓存数据", "刷新失败", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -297,25 +294,25 @@ namespace ImageColorChanger.UI
             };
             
             // 用户名
-            AddInfoBlock(contentPanel, "用户名", username, "👤");
+            AddInfoBlock(contentPanel, "用户名", username);
             
             // 账号有效期（只显示日期，不显示具体时间）
             string expireInfo = $"{expiresAt?.ToString("yyyy年MM月dd日") ?? "未知"}  (剩余 {remainingDays} 天)";
-            AddInfoBlock(contentPanel, "有效期", expireInfo, "⏰");
+            AddInfoBlock(contentPanel, "有效期", expireInfo);
             
             // 设备绑定 - 显示剩余可绑定数量
             string deviceBindInfo = deviceInfo != null 
                 ? $"剩余可绑定 {deviceInfo.RemainingSlots} 台  (已绑定 {deviceInfo.BoundDevices} / {deviceInfo.MaxDevices})"
                 : "未知";
-            AddInfoBlock(contentPanel, "设备绑定", deviceBindInfo, "📱");
+            AddInfoBlock(contentPanel, "设备绑定", deviceBindInfo);
             
             // 解绑次数
             string resetInfo = $"{resetCount} 次";
-            AddInfoBlock(contentPanel, "解绑次数", resetInfo, "🔓");
+            AddInfoBlock(contentPanel, "解绑次数", resetInfo);
             
             // 硬件ID（可点击复制）
             string hardwareId = _authService.GetCurrentHardwareId();
-            AddClickableCopyBlock(contentPanel, "硬件ID", hardwareId, "🖥️");
+            AddClickableCopyBlock(contentPanel, "硬件ID", hardwareId);
             
             mainPanel.Children.Add(contentPanel);
             
@@ -358,7 +355,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 添加信息块
         /// </summary>
-        private void AddInfoBlock(System.Windows.Controls.StackPanel parent, string label, string value, string icon)
+        private void AddInfoBlock(System.Windows.Controls.StackPanel parent, string label, string value)
         {
             var block = new System.Windows.Controls.Border
             {
@@ -376,7 +373,7 @@ namespace ImageColorChanger.UI
             
             var labelText = new System.Windows.Controls.TextBlock
             {
-                Text = $"{icon} {label}",
+                Text = label,
                 FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
@@ -404,7 +401,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 添加可点击复制的信息块
         /// </summary>
-        private void AddClickableCopyBlock(System.Windows.Controls.StackPanel parent, string label, string value, string icon)
+        private void AddClickableCopyBlock(System.Windows.Controls.StackPanel parent, string label, string value)
         {
             var block = new System.Windows.Controls.Border
             {
@@ -429,7 +426,7 @@ namespace ImageColorChanger.UI
             
             var labelText = new System.Windows.Controls.TextBlock
             {
-                Text = $"{icon} {label}",
+                Text = label,
                 FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
@@ -455,7 +452,7 @@ namespace ImageColorChanger.UI
             // 复制图标
             var copyIcon = new System.Windows.Controls.TextBlock
             {
-                Text = "📋",
+                Text = "复制",
                 FontSize = 16,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0),
@@ -501,7 +498,7 @@ namespace ImageColorChanger.UI
                 
                 var label = new System.Windows.Controls.TextBlock
                 {
-                    Text = "💡 提示：文本已自动全选，直接按 Ctrl+C 复制",
+                    Text = "提示：文本已自动全选，直接按 Ctrl+C 复制",
                     FontSize = 13,
                     Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
                     Margin = new Thickness(0, 0, 0, 10)
@@ -557,7 +554,7 @@ namespace ImageColorChanger.UI
                 
                 // 调试信息已注释
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📋 [显示] 硬件ID窗口已打开: {value}");
+                //System.Diagnostics.Debug.WriteLine($" [显示] 硬件ID窗口已打开: {value}");
                 //#endif
                 
                 textWindow.ShowDialog();
@@ -642,8 +639,7 @@ namespace ImageColorChanger.UI
             }
             
             // 二次确认
-            var confirmResult = MessageBox.Show(
-                $"⚠️ 确认解绑设备\n\n" +
+            var confirmResult = MessageBox.Show($"确认解绑设备\n\n" +
                 $"解绑后将会：\n" +
                 $"• 清除所有已绑定的设备\n" +
                 $"• 当前账号自动退出登录\n" +
@@ -667,13 +663,13 @@ namespace ImageColorChanger.UI
         private async void UnbindDevice()
         {
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] 开始解绑流程");
+            System.Diagnostics.Debug.WriteLine($" [UnbindDevice] 开始解绑流程");
             #endif
             
             // 要求输入密码确认
             var passwordDialog = new System.Windows.Window
             {
-                Title = "🔒 密码确认",
+                Title = " 密码确认",
                 Width = 460,
                 Height = 260,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -699,7 +695,7 @@ namespace ImageColorChanger.UI
             
             var headerText = new System.Windows.Controls.TextBlock
             {
-                Text = "🔒 密码验证",
+                Text = " 密码验证",
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
                 Foreground = System.Windows.Media.Brushes.White
@@ -716,7 +712,7 @@ namespace ImageColorChanger.UI
             // 提示文本
             var promptText = new System.Windows.Controls.TextBlock
             {
-                Text = "⚠️ 解绑设备需要验证您的账号密码",
+                Text = " 解绑设备需要验证您的账号密码",
                 FontSize = 14,
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
                 Margin = new Thickness(0, 0, 0, 15)
@@ -803,13 +799,13 @@ namespace ImageColorChanger.UI
             if (dialogResult != true || string.IsNullOrEmpty(passwordBox.Password))
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] 用户取消或密码为空");
+                System.Diagnostics.Debug.WriteLine($" [UnbindDevice] 用户取消或密码为空");
                 #endif
                 return;
             }
             
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] 调用 ResetDevicesAsync");
+            System.Diagnostics.Debug.WriteLine($" [UnbindDevice] 调用 ResetDevicesAsync");
             #endif
             
             // 创建加载提示窗口
@@ -895,7 +891,7 @@ namespace ImageColorChanger.UI
                 loadingWindow.Close();
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🔄 [UnbindDevice] ResetDevicesAsync 返回:");
+                System.Diagnostics.Debug.WriteLine($" [UnbindDevice] ResetDevicesAsync 返回:");
                 System.Diagnostics.Debug.WriteLine($"   success: {success}");
                 System.Diagnostics.Debug.WriteLine($"   message: {message}");
                 System.Diagnostics.Debug.WriteLine($"   remaining: {remaining}");
@@ -904,8 +900,7 @@ namespace ImageColorChanger.UI
                 if (success)
                 {
                     // 解绑成功，自动退出登录
-                    MessageBox.Show(
-                        $"✅ {message}\n\n剩余解绑次数：{remaining}次\n\n当前账号已自动退出，请重新登录。",
+                    MessageBox.Show($"{message}\n\n剩余解绑次数：{remaining}次\n\n当前账号已自动退出，请重新登录。",
                         "解绑成功",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -916,8 +911,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    MessageBox.Show(
-                        $"❌ {message}",
+                    MessageBox.Show($"{message}",
                         "解绑失败",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
@@ -929,11 +923,10 @@ namespace ImageColorChanger.UI
                 loadingWindow.Close();
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [UnbindDevice] 异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [UnbindDevice] 异常: {ex.Message}");
                 #endif
                 
-                MessageBox.Show(
-                    $"❌ 解绑过程中发生错误：{ex.Message}",
+                MessageBox.Show($"解绑过程中发生错误：{ex.Message}",
                     "解绑失败",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
@@ -950,4 +943,7 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+
+
 

@@ -48,14 +48,14 @@ namespace ImageColorChanger.UI
                 {
                     BibleToolbar.IsOpen = true;
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经工具栏] 已显示");
+                    //System.Diagnostics.Debug.WriteLine($" [圣经工具栏] 已显示");
                     //#endif
                 }
             }
             catch (Exception ex)
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [浮动工具栏] 显示失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [浮动工具栏] 显示失败: {ex.Message}");
                 //#else
                 _ = ex;  // 防止未使用变量警告
                 //#endif
@@ -89,7 +89,7 @@ namespace ImageColorChanger.UI
 
         #endregion
 
-        #region 🎬 视频背景控制功能
+        #region  视频背景控制功能
 
         /// <summary>
         /// 更新 MediaElement 的循环播放行为
@@ -109,7 +109,7 @@ namespace ImageColorChanger.UI
             }
 
 #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateVideoLoopBehavior] 循环播放: {loop}");
+            //System.Diagnostics.Debug.WriteLine($" [UpdateVideoLoopBehavior] 循环播放: {loop}");
 #endif
         }
 
@@ -121,26 +121,26 @@ namespace ImageColorChanger.UI
             if (sender is MediaElement mediaElement)
             {
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔄 [OnVideoMediaEnded] 视频循环播放，当前位置: {mediaElement.Position}");
+                //System.Diagnostics.Debug.WriteLine($" [OnVideoMediaEnded] 视频循环播放，当前位置: {mediaElement.Position}");
 #endif
                 mediaElement.Position = TimeSpan.Zero;
                 mediaElement.Play();
                 
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [OnVideoMediaEnded] 已重置并重新播放");
+                //System.Diagnostics.Debug.WriteLine($" [OnVideoMediaEnded] 已重置并重新播放");
 #endif
             }
         }
 
 #if DEBUG
-        // 📊 帧率监控变量
+        // 帧率监控变量
         private System.Diagnostics.Stopwatch _frameMonitorStopwatch = System.Diagnostics.Stopwatch.StartNew();
         private int _frameCount = 0;
         private DateTime _lastFrameReport = DateTime.Now;
 #endif
 
         /// <summary>
-        /// 🔍 监控 VisualBrush 刷新率（调试用）
+        /// 监控 VisualBrush 刷新率（调试用）
         /// </summary>
         private void MonitorVisualBrushFrameRate()
         {
@@ -151,7 +151,7 @@ namespace ImageColorChanger.UI
             if ((DateTime.Now - _lastFrameReport).TotalSeconds >= 1.0)
             {
                 double fps = _frameCount / _frameMonitorStopwatch.Elapsed.TotalSeconds;
-                //System.Diagnostics.Debug.WriteLine($"📊 [VisualBrush FPS] 当前帧率: {fps:F1} FPS");
+                //System.Diagnostics.Debug.WriteLine($"[VisualBrush FPS] 当前帧率: {fps:F1} FPS");
                 
                 // 重置计数器
                 _frameCount = 0;
@@ -188,7 +188,7 @@ namespace ImageColorChanger.UI
                     _currentSlide.VideoVolume = slideToUpdate.VideoVolume;
                     
                     #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveVideoBackgroundSettings] 已保存视频背景设置: SlideId={slideToUpdate.Id}");
+                    //System.Diagnostics.Debug.WriteLine($"[SaveVideoBackgroundSettings] 已保存视频背景设置: SlideId={slideToUpdate.Id}");
                     #endif
                 }
             }
@@ -199,7 +199,7 @@ namespace ImageColorChanger.UI
             )
             {
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [SaveVideoBackgroundSettings] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [SaveVideoBackgroundSettings] 失败: {ex.Message}");
                 _ = ex;
 #endif
             }
@@ -235,7 +235,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [画布比例切换] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [画布比例切换] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -294,10 +294,10 @@ namespace ImageColorChanger.UI
                     UpdateSplitLayout((Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode);
                 }
 
-                // 🔧 更新视频背景尺寸（如果存在）
+                // 更新视频背景尺寸（如果存在）
                 UpdateVideoBackgroundSize(width, height);
 
-                // 🔧 更新浮动工具栏位置（根据画布高度调整）
+                // 更新浮动工具栏位置（根据画布高度调整）
                 UpdateBibleToolbarPosition(height);
 
                 // 强制更新布局
@@ -306,7 +306,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [应用画布比例] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [应用画布比例] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -332,14 +332,14 @@ namespace ImageColorChanger.UI
                     BtnCanvasAspectRatioInPanel.Content = ratio == "16:9" ? "宽屏幕" : "窄屏幕";
                 }
 
-                // 🔧 初始化工具栏位置
+                // 初始化工具栏位置
                 int height = ratio == "16:9" ? 900 : 720;
                 UpdateBibleToolbarPosition(height);
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [初始化画布比例] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [初始化画布比例] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -367,14 +367,14 @@ namespace ImageColorChanger.UI
 #if DEBUG
                 if (mediaElements.Count > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔧 [视频尺寸] 已更新 {mediaElements.Count} 个视频背景尺寸: {width}×{height}");
+                    System.Diagnostics.Debug.WriteLine($"[视频尺寸] 已更新 {mediaElements.Count} 个视频背景尺寸: {width}×{height}");
                 }
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [更新视频尺寸] 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [更新视频尺寸] 失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -390,20 +390,20 @@ namespace ImageColorChanger.UI
             {
                 if (BibleToolbar != null)
                 {
-                    // 🎯 工具栏位置 = -(画布高度/2 + 45)
+                    // 工具栏位置 = -(画布高度/2 + 45)
                     // 这样工具栏始终悬浮在画布上方中央，距离画布顶部约45px（按钮放大后）
                     double offset = -(canvasHeight / 2 + 45);
                     BibleToolbar.VerticalOffset = offset;
 
 #if DEBUG
-                    // System.Diagnostics.Debug.WriteLine($"🔧 [工具栏位置] 画布高度={canvasHeight}, VerticalOffset={offset:F0}");
+                    // System.Diagnostics.Debug.WriteLine($"[工具栏位置] 画布高度={canvasHeight}, VerticalOffset={offset:F0}");
 #endif
                 }
             }
             catch (Exception ex)
             {
 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"❌ [更新工具栏位置] 失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" [更新工具栏位置] 失败: {ex.Message}");
                 _ = ex;
 #else
                 _ = ex;
@@ -415,3 +415,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

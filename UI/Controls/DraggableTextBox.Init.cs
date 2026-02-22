@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
@@ -37,7 +37,7 @@ namespace ImageColorChanger.UI.Controls
                 BorderThickness = new System.Windows.Thickness(2),
                 Background = WpfBrushes.Transparent,  // 完全透明
                 CornerRadius = new System.Windows.CornerRadius(3),
-                ClipToBounds = false  // 🔧 不裁剪内容，防止字体顶部/底部被遮挡
+                ClipToBounds = false  // 不裁剪内容，防止字体顶部/底部被遮挡
             };
 
             var grid = new WpfGrid
@@ -45,10 +45,10 @@ namespace ImageColorChanger.UI.Controls
                 Background = WpfBrushes.Transparent  // 设置透明背景，使鼠标事件能够穿透
             };
 
-            // 🔧 定义拖动区域的宽度
+            // 定义拖动区域的宽度
             const double dragAreaWidth = 30;
 
-            // 🔧 创建四个拖动区域（上、下、左、右）
+            // 创建四个拖动区域（上、下、左、右）
             _dragAreaTop = new WpfBorder
             {
                 Background = WpfBrushes.Transparent,
@@ -97,7 +97,7 @@ namespace ImageColorChanger.UI.Controls
             _dragAreaRight.MouseMove += OnDragAreaMouseMove;
             _dragAreaRight.MouseLeftButtonUp += OnDragAreaMouseUp;
 
-            // ✅ 初始化 WPF RichTextBox
+            //  初始化 WPF RichTextBox
             _richTextBox = new System.Windows.Controls.RichTextBox
             {
                 // 基本属性
@@ -105,32 +105,32 @@ namespace ImageColorChanger.UI.Controls
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 Background = WpfBrushes.Transparent,
                 BorderThickness = new System.Windows.Thickness(0),
-                Padding = new System.Windows.Thickness(10, 10, 10, 10),  // 🔧 增加 Padding 防止文本被边框遮挡
+                Padding = new System.Windows.Thickness(10, 10, 10, 10),  // 增加 Padding 防止文本被边框遮挡
 
                 // 编辑属性
                 AcceptsReturn = true,
                 AcceptsTab = false,
                 IsReadOnly = true,  // 默认只读，双击后可编辑
 
-                // 🔧 只读模式下不拦截鼠标事件，允许父控件处理拖拽和双击
+                // 只读模式下不拦截鼠标事件，允许父控件处理拖拽和双击
                 IsHitTestVisible = false,
 
-                // 🔧 文本和光标颜色设置
+                // 文本和光标颜色设置
                 Foreground = WpfBrushes.White,  // 默认白色文本（在深色背景上可见）
                 CaretBrush = WpfBrushes.White,  // 白色光标
 
-                // ✅ 隐藏滚动条
+                //  隐藏滚动条
                 VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden
             };
 
             // 监听文本改变事件
             _richTextBox.TextChanged += (s, e) =>
             {
-                // 🔧 防止同步过程中的循环调用
+                // 防止同步过程中的循环调用
                 if (_isSyncing)
                     return;
 
-                // ✅ 动态应用行高到所有段落（包括新创建的段落）
+                //  动态应用行高到所有段落（包括新创建的段落）
                 ApplyLineHeightToAllParagraphs();
 
                 // 同步文本到 Data.Content
@@ -138,20 +138,20 @@ namespace ImageColorChanger.UI.Controls
                 ContentChanged?.Invoke(this, Data.Content);
             };
 
-            // ✅ 监听文本选择改变事件（用于更新工具栏按钮状态）
+            //  监听文本选择改变事件（用于更新工具栏按钮状态）
             _richTextBox.SelectionChanged += (s, e) =>
             {
                 // 触发事件通知 MainWindow 更新工具栏
                 TextSelectionChanged?.Invoke(this, EventArgs.Empty);
 
-                // ✅ 优化光标样式：防止光标继承斜体样式
+                //  优化光标样式：防止光标继承斜体样式
                 FixCaretStyle();
                 UpdateCaretBrushForCurrentPosition();
             };
 
             grid.Children.Add(_richTextBox);
 
-            // 🔧 添加四个拖动区域到 Grid（在 RichTextBox 上层，用于编辑模式下拖动）
+            // 添加四个拖动区域到 Grid（在 RichTextBox 上层，用于编辑模式下拖动）
             grid.Children.Add(_dragAreaTop);
             grid.Children.Add(_dragAreaBottom);
             grid.Children.Add(_dragAreaLeft);
@@ -163,7 +163,7 @@ namespace ImageColorChanger.UI.Controls
             _selectionRect = new System.Windows.Shapes.Rectangle
             {
                 Stroke = WpfBrushes.DodgerBlue,
-                StrokeThickness = 1,  // ✅ 非常细的边框
+                StrokeThickness = 1,  //  非常细的边框
                 StrokeDashArray = new System.Windows.Media.DoubleCollection { 5, 3 },
                 Fill = WpfBrushes.Transparent,
                 IsHitTestVisible = false,
@@ -175,7 +175,7 @@ namespace ImageColorChanger.UI.Controls
                 System.Windows.HorizontalAlignment.Left,
                 System.Windows.VerticalAlignment.Top,
                 WpfCursors.SizeNWSE,
-                new System.Windows.Thickness(-8, -8, 0, 0)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(-8, -8, 0, 0)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbTopLeft.DragDelta += (s, e) => ResizeFromCorner(e, -1, -1, true, true);
 
@@ -183,7 +183,7 @@ namespace ImageColorChanger.UI.Controls
                 System.Windows.HorizontalAlignment.Center,
                 System.Windows.VerticalAlignment.Top,
                 WpfCursors.SizeNS,
-                new System.Windows.Thickness(0, -8, 0, 0)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(0, -8, 0, 0)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbTopCenter.DragDelta += (s, e) => ResizeFromEdge(e, 0, -1, false, true);
 
@@ -191,7 +191,7 @@ namespace ImageColorChanger.UI.Controls
                 System.Windows.HorizontalAlignment.Right,
                 System.Windows.VerticalAlignment.Top,
                 WpfCursors.SizeNESW,
-                new System.Windows.Thickness(0, -8, -8, 0)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(0, -8, -8, 0)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbTopRight.DragDelta += (s, e) => ResizeFromCorner(e, 1, -1, false, true);
 
@@ -199,7 +199,7 @@ namespace ImageColorChanger.UI.Controls
                 System.Windows.HorizontalAlignment.Left,
                 System.Windows.VerticalAlignment.Bottom,
                 WpfCursors.SizeNESW,
-                new System.Windows.Thickness(-8, 0, 0, -8)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(-8, 0, 0, -8)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbBottomLeft.DragDelta += (s, e) => ResizeFromCorner(e, -1, 1, true, false);
 
@@ -207,37 +207,37 @@ namespace ImageColorChanger.UI.Controls
                 System.Windows.HorizontalAlignment.Center,
                 System.Windows.VerticalAlignment.Bottom,
                 WpfCursors.SizeNS,
-                new System.Windows.Thickness(0, 0, 0, -8)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(0, 0, 0, -8)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbBottomCenter.DragDelta += (s, e) => ResizeFromEdge(e, 0, 1, false, false);
 
-            // ✅ 左中控制点（调整宽度）
+            //  左中控制点（调整宽度）
             _resizeThumbLeftCenter = CreateResizeThumb(
                 System.Windows.HorizontalAlignment.Left,
                 System.Windows.VerticalAlignment.Center,
                 WpfCursors.SizeWE,
-                new System.Windows.Thickness(-8, 0, 0, 0)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(-8, 0, 0, 0)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbLeftCenter.DragDelta += (s, e) => ResizeFromEdge(e, -1, 0, true, false);
 
-            // ✅ 右中控制点（调整宽度）
+            //  右中控制点（调整宽度）
             _resizeThumbRightCenter = CreateResizeThumb(
                 System.Windows.HorizontalAlignment.Right,
                 System.Windows.VerticalAlignment.Center,
                 WpfCursors.SizeWE,
-                new System.Windows.Thickness(0, 0, -8, 0)  // ✅ 统一边距适配 16×16 尺寸
+                new System.Windows.Thickness(0, 0, -8, 0)  //  统一边距适配 16×16 尺寸
             );
             _resizeThumbRightCenter.DragDelta += (s, e) => ResizeFromEdge(e, 1, 0, false, false);
 
             _resizeThumbBottomRight = new WpfThumb
             {
-                Width = 16,  // ✅ 增大控制点，更容易看清
+                Width = 16,  //  增大控制点，更容易看清
                 Height = 16,
                 Background = WpfBrushes.DodgerBlue,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
                 VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
                 Cursor = WpfCursors.SizeNWSE,
-                Margin = new System.Windows.Thickness(0, 0, -8, -8),  // ✅ 调整边距适配新尺寸
+                Margin = new System.Windows.Thickness(0, 0, -8, -8),  //  调整边距适配新尺寸
                 Visibility = System.Windows.Visibility.Collapsed
             };
             _resizeThumbBottomRight.DragDelta += (s, e) => ResizeFromCorner(e, 1, 1, false, false);
@@ -318,7 +318,7 @@ namespace ImageColorChanger.UI.Controls
                 string cleanName = fontFamily.Substring(hashIndex + 1);
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"🔧 [DraggableTextBox] 字体名称清理: {fontFamily} -> {cleanName}");
+//                System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 字体名称清理: {fontFamily} -> {cleanName}");
 //#endif
                 
                 return cleanName;
@@ -336,3 +336,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

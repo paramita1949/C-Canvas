@@ -9,12 +9,11 @@
 
                 <!-- 标题 -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <TextBlock Text="🎬"
-                               Foreground="#2196F3"
-                               FontSize="24"
-                               FontWeight="Bold"
-                               Margin="0,0,8,0"
-                               VerticalAlignment="Center"/>
+                    <Viewbox Width="24" Height="24" Margin="0,0,8,0">
+                        <Path Data="{StaticResource IconLucideClapperboard}"
+                              Style="{StaticResource LucideIconPathStyle}"
+                              Stroke="{StaticResource BrushBrandPrimary}"/>
+                    </Viewbox>
                     <TextBlock Text="动画设置"
                                Foreground="#333333"
                                FontSize="16"

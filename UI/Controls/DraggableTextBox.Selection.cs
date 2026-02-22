@@ -54,7 +54,7 @@ namespace ImageColorChanger.UI.Controls
             if (selected)
             {
                 _selectionRect.Visibility = System.Windows.Visibility.Visible;
-                // ✅ 不覆盖用户设置的背景色，保持当前背景
+                //  不覆盖用户设置的背景色，保持当前背景
 
                 _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Visible;
                 _resizeThumbTopCenter.Visibility = System.Windows.Visibility.Visible;
@@ -68,7 +68,7 @@ namespace ImageColorChanger.UI.Controls
             else
             {
                 _selectionRect.Visibility = System.Windows.Visibility.Collapsed;
-                // ✅ 不覆盖用户设置的背景色，重新应用背景样式
+                //  不覆盖用户设置的背景色，重新应用背景样式
                 ApplyBackgroundStyle();
 
                 _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Collapsed;
@@ -87,3 +87,4 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+

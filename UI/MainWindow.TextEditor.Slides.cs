@@ -31,7 +31,7 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
-        #region 🆕 幻灯片管理
+        #region 幻灯片管理
 
         /// <summary>
         /// 当前选中的幻灯片
@@ -66,9 +66,9 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 var startTime = System.Diagnostics.Stopwatch.StartNew();
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] ===== 开始加载视频背景 =====");
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 文件: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] ===== 开始加载视频背景 =====");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] 文件: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
 #endif
 
                 // 清除旧的背景
@@ -76,7 +76,7 @@ namespace ImageColorChanger.UI
                 var oldMediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
                 
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] 清除旧的 MediaElement 数量: {oldMediaElements.Count}");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] 清除旧的 MediaElement 数量: {oldMediaElements.Count}");
 #endif
                 
                 foreach (var old in oldMediaElements)
@@ -92,14 +92,14 @@ namespace ImageColorChanger.UI
                     Source = new Uri(slide.BackgroundImagePath, UriKind.Absolute),
                     LoadedBehavior = MediaState.Manual,
                     UnloadedBehavior = MediaState.Manual,
-                    Stretch = Stretch.UniformToFill,  // 🔧 改为 UniformToFill，填充整个画布
-                    Width = EditorCanvas.Width,       // 🔧 明确设置宽度
-                    Height = EditorCanvas.Height,     // 🔧 明确设置高度
+                    Stretch = Stretch.UniformToFill,  // 改为 UniformToFill，填充整个画布
+                    Width = EditorCanvas.Width,       // 明确设置宽度
+                    Height = EditorCanvas.Height,     // 明确设置高度
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
                     VerticalAlignment = System.Windows.VerticalAlignment.Top,
                     Volume = slide.VideoVolume,  // 使用数据库中的音量（默认0）
                     ScrubbingEnabled = true,
-                    // 🚀 启用 GPU 硬件加速缓存
+                    // 启用 GPU 硬件加速缓存
                     CacheMode = new BitmapCache
                     {
                         EnableClearType = false,  // 视频不需要ClearType
@@ -108,15 +108,15 @@ namespace ImageColorChanger.UI
                     }
                 };
                 
-                // 🚀 设置 GPU 渲染优化
+                // 设置 GPU 渲染优化
                 RenderOptions.SetBitmapScalingMode(mediaElement, BitmapScalingMode.LowQuality);  // 优先性能而非质量
                 RenderOptions.SetCachingHint(mediaElement, CachingHint.Cache);  // 强制启用缓存
                 
 #if DEBUG
                 //var cache = mediaElement.CacheMode as BitmapCache;
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapCache 已启用: RenderAtScale={cache?.RenderAtScale ?? 0}");
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] CachingHint: {RenderOptions.GetCachingHint(mediaElement)}");
-                //System.Diagnostics.Debug.WriteLine($"🚀 [视频GPU加速] BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(mediaElement)}");
+                //System.Diagnostics.Debug.WriteLine($"[视频GPU加速] BitmapCache 已启用: RenderAtScale={cache?.RenderAtScale ?? 0}");
+                //System.Diagnostics.Debug.WriteLine($"[视频GPU加速] CachingHint: {RenderOptions.GetCachingHint(mediaElement)}");
+                //System.Diagnostics.Debug.WriteLine($"[视频GPU加速] BitmapScalingMode: {RenderOptions.GetBitmapScalingMode(mediaElement)}");
 #endif
 
                 // 设置循环播放（根据数据库设置）
@@ -125,11 +125,11 @@ namespace ImageColorChanger.UI
                 // 添加到 Canvas（设置位置为左上角）
                 Canvas.SetLeft(mediaElement, 0);
                 Canvas.SetTop(mediaElement, 0);
-                Canvas.SetZIndex(mediaElement, -1);  // 🔧 设置为最底层，确保文本在上方
+                Canvas.SetZIndex(mediaElement, -1);  // 设置为最底层，确保文本在上方
                 EditorCanvas.Children.Insert(0, mediaElement);
 
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] MediaElement 已添加到 EditorCanvas (索引 0)");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] MediaElement 已添加到 EditorCanvas (索引 0)");
 #endif
 
                 // 自动播放
@@ -137,11 +137,11 @@ namespace ImageColorChanger.UI
 
 #if DEBUG
                 startTime.Stop();
-                //System.Diagnostics.Debug.WriteLine($"✅ [视频加载] 加载成功: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] 加载成功: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
                 //System.Diagnostics.Debug.WriteLine($"   - 循环播放: {slide.VideoLoopEnabled}");
                 //System.Diagnostics.Debug.WriteLine($"   - 音量: {slide.VideoVolume * 100}%");
-                //System.Diagnostics.Debug.WriteLine($"⏱️ [视频加载] 耗时: {startTime.ElapsedMilliseconds} ms");
-                //System.Diagnostics.Debug.WriteLine($"🎬 [视频加载] ===== 加载完成 =====\n");
+                //System.Diagnostics.Debug.WriteLine($"⏱ [视频加载] 耗时: {startTime.ElapsedMilliseconds} ms");
+                //System.Diagnostics.Debug.WriteLine($" [视频加载] ===== 加载完成 =====\n");
 #endif
             }
             catch (Exception
@@ -151,7 +151,7 @@ namespace ImageColorChanger.UI
             )
             {
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [视频背景] 加载失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [视频背景] 加载失败: {ex.Message}");
                 _ = ex;
 #endif
                 // 失败时使用纯色背景
@@ -163,7 +163,7 @@ namespace ImageColorChanger.UI
 
         /// <summary>
         /// 幻灯片列表选择改变事件
-        /// ✅ 切换幻灯片前先保存当前文本，防止文本丢失
+        ///  切换幻灯片前先保存当前文本，防止文本丢失
         /// </summary>
         private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
@@ -188,8 +188,8 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // ✅ 切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
-                // 🔧 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
+                //  切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
+                // 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
                 var textBoxesCopy = _textBoxes.ToList();
                 
                 // 先同步所有文本框的内容到 Data.Content
@@ -207,7 +207,7 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
-                // 🔧 先提取 RichTextSpans（在 LoadSlide 之前，此时 UI 元素仍然有效）
+                // 先提取 RichTextSpans（在 LoadSlide 之前，此时 UI 元素仍然有效）
                 var richTextSpansDict = new Dictionary<int, List<Database.Models.RichTextSpan>>();
                 foreach (var tb in textBoxesCopy)
                 {
@@ -230,13 +230,13 @@ namespace ImageColorChanger.UI
                     {
                         // 如果提取失败，记录但不阻止切换幻灯片
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] 提取 RichTextSpans 失败 (ID={tb?.Data?.Id}): {ex.Message}");
+                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 提取 RichTextSpans 失败 (ID={tb?.Data?.Id}): {ex.Message}");
                         _ = ex;
 #endif
                     }
                 }
                 
-                // 🚀 在切换前预解析相邻视频（确保切换时已准备好）
+                // 在切换前预解析相邻视频（确保切换时已准备好）
                 if (_isProjectionLocked)
                 {
                     _ = PreparseAdjacentVideosBeforeSwitchAsync(selectedSlide);
@@ -247,13 +247,13 @@ namespace ImageColorChanger.UI
                 
                 // 保存到数据库（在 UI 线程中异步执行，避免阻塞UI）
                 // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
-                // ✅ 注意：必须在 UI 线程中执行，因为 DbContext 不是线程安全的
+                //  注意：必须在 UI 线程中执行，因为 DbContext 不是线程安全的
 #pragma warning disable CS4014
                 _ = Dispatcher.InvokeAsync(async () =>
                 {
                     try
                     {
-                        // 🔧 使用副本集合，避免集合被修改
+                        // 使用副本集合，避免集合被修改
                         // 注意：此时 LoadSlide 已经执行，_textBoxes 已被清空，但 textBoxesCopy 仍然有效
                         await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
                         
@@ -263,27 +263,27 @@ namespace ImageColorChanger.UI
                             await _textProjectManager.SaveRichTextSpansAsync(kvp.Key, kvp.Value);
                         }
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"✅ [切换幻灯片] 文本已保存到数据库");
+                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 文本已保存到数据库");
 #endif
                     }
                     catch (ObjectDisposedException)
                     {
-                        // ✅ 如果 DbContext 已被释放，忽略错误（程序可能正在关闭）
+                        //  如果 DbContext 已被释放，忽略错误（程序可能正在关闭）
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 已被释放，跳过保存");
+                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] DbContext 已被释放，跳过保存");
 #endif
                     }
                     catch (InvalidOperationException)
                     {
-                        // ✅ 如果 DbContext 操作失败（可能是线程安全问题），忽略错误
+                        //  如果 DbContext 操作失败（可能是线程安全问题），忽略错误
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [切换幻灯片] DbContext 操作失败，跳过保存");
+                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] DbContext 操作失败，跳过保存");
 #endif
                     }
                     catch
                     {
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"❌ [切换幻灯片] 保存文本失败");
+                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 保存文本失败");
 #endif
                     }
                 }, System.Windows.Threading.DispatcherPriority.Background);
@@ -315,7 +315,7 @@ namespace ImageColorChanger.UI
             // 创建右键菜单
             var contextMenu = new ContextMenu();
             
-            // 🔑 应用自定义样式
+            // 应用自定义样式
             contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
 
             // 新建幻灯片
@@ -440,7 +440,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 通过ID查找幻灯片，避免对象引用不一致的问题
+                // 通过ID查找幻灯片，避免对象引用不一致的问题
                 var slides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
 
                 // 通过ID查找索引，而不是使用对象引用
@@ -450,7 +450,7 @@ namespace ImageColorChanger.UI
                 if (sourceIndex == -1 || targetIndex == -1)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [ReorderSlides] 无法找到幻灯片: sourceIndex={sourceIndex}, targetIndex={targetIndex}");
+                    System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 无法找到幻灯片: sourceIndex={sourceIndex}, targetIndex={targetIndex}");
                     #endif
                     return;
                 }
@@ -471,7 +471,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.UpdateSlideSortOrdersAsync(slides);
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
+                System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
                 #endif
 
                 // 刷新列表
@@ -487,7 +487,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [ReorderSlides] 排序失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序失败: {ex.Message}");
                 #endif
                 WpfMessageBox.Show($"排序失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
@@ -522,7 +522,7 @@ namespace ImageColorChanger.UI
             if (TextEditorPanel.Visibility != Visibility.Visible)
                 return;
 
-            //System.Diagnostics.Debug.WriteLine($"🖱️ [TextEditorPanel_PreviewMouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"[TextEditorPanel_PreviewMouseDown] 开始处理");
             //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
 
             // 检查点击是否在 DraggableTextBox 内部
@@ -531,7 +531,7 @@ namespace ImageColorChanger.UI
             {
                 if (clickedElement is DraggableTextBox)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，不处理");
+                    //System.Diagnostics.Debug.WriteLine($"   -  点击在文本框内，不处理");
                     // 点击在文本框内部，不处理（让文本框自己处理）
                     return;
                 }
@@ -545,12 +545,12 @@ namespace ImageColorChanger.UI
                         fe.Name?.Contains("Button") == true ||
                         fe.Name?.Contains("Border") == true)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在工具栏/按钮上: {fe.Name}，不处理");
+                        //System.Diagnostics.Debug.WriteLine($"   -  点击在工具栏/按钮上: {fe.Name}，不处理");
                         return;
                     }
                 }
 
-                // 🔧 修复：只对 Visual 或 Visual3D 使用 VisualTreeHelper.GetParent
+                // 修复：只对 Visual 或 Visual3D 使用 VisualTreeHelper.GetParent
                 // 对于非 Visual 元素（如 Run、Paragraph 等文档元素），使用 LogicalTreeHelper
                 if (clickedElement is Visual || clickedElement is System.Windows.Media.Media3D.Visual3D)
                 {
@@ -564,7 +564,7 @@ namespace ImageColorChanger.UI
 
             // 只有当点击在EditorCanvas内的空白区域时才处理
             // 这个判断通过EditorCanvas_MouseDown事件来处理，这里不再重复处理
-            //System.Diagnostics.Debug.WriteLine($"   - ⚠️ 点击在其他区域，交由EditorCanvas_MouseDown处理");
+            //System.Diagnostics.Debug.WriteLine($"   -  点击在其他区域，交由EditorCanvas_MouseDown处理");
         }
 
         /// <summary>
@@ -581,14 +581,14 @@ namespace ImageColorChanger.UI
             {
                 NavigateToPreviousSlide();
                 e.Handled = true; // 阻止事件冒泡，避免触发全局热键
-                //System.Diagnostics.Debug.WriteLine("⌨️ 文本编辑器: PageUp 切换幻灯片");
+                //System.Diagnostics.Debug.WriteLine(" 文本编辑器: PageUp 切换幻灯片");
             }
             // PageDown: 切换到下一张幻灯片
             else if (e.Key == System.Windows.Input.Key.PageDown)
             {
                 NavigateToNextSlide();
                 e.Handled = true; // 阻止事件冒泡，避免触发全局热键
-                //System.Diagnostics.Debug.WriteLine("⌨️ 文本编辑器: PageDown 切换幻灯片");
+                //System.Diagnostics.Debug.WriteLine(" 文本编辑器: PageDown 切换幻灯片");
             }
         }
 
@@ -608,13 +608,13 @@ namespace ImageColorChanger.UI
             {
                 // 不是第一张，切换到上一张
                 SlideListBox.SelectedIndex = currentIndex - 1;
-                //System.Diagnostics.Debug.WriteLine($"⬆️ 切换到上一张幻灯片: Index={currentIndex - 1}");
+                //System.Diagnostics.Debug.WriteLine($"⬆ 切换到上一张幻灯片: Index={currentIndex - 1}");
             }
             else
             {
                 // 第一张，循环到最后一张
                 SlideListBox.SelectedIndex = SlideListBox.Items.Count - 1;
-                //System.Diagnostics.Debug.WriteLine($"🔄 循环到最后一张幻灯片: Index={SlideListBox.Items.Count - 1}");
+                //System.Diagnostics.Debug.WriteLine($" 循环到最后一张幻灯片: Index={SlideListBox.Items.Count - 1}");
             }
 
             // 自动滚动到当前幻灯片
@@ -637,13 +637,13 @@ namespace ImageColorChanger.UI
             {
                 // 不是最后一张，切换到下一张
                 SlideListBox.SelectedIndex = currentIndex + 1;
-                //System.Diagnostics.Debug.WriteLine($"⬇️ 切换到下一张幻灯片: Index={currentIndex + 1}");
+                //System.Diagnostics.Debug.WriteLine($"⬇ 切换到下一张幻灯片: Index={currentIndex + 1}");
             }
             else
             {
                 // 最后一张，循环回到第一张
                 SlideListBox.SelectedIndex = 0;
-                //System.Diagnostics.Debug.WriteLine($"🔄 循环回到第一张幻灯片: Index=0");
+                //System.Diagnostics.Debug.WriteLine($" 循环回到第一张幻灯片: Index=0");
             }
 
             // 自动滚动到当前幻灯片
@@ -697,24 +697,24 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔍 [缩略图调试] 输出幻灯片信息和缩略图路径
+                // [缩略图调试] 输出幻灯片信息和缩略图路径
                 //System.Diagnostics.Debug.WriteLine($"\n========== [缩略图调试] ==========");
-                //System.Diagnostics.Debug.WriteLine($"📋 幻灯片ID: {slide.Id}");
-                //System.Diagnostics.Debug.WriteLine($"📋 幻灯片标题: {slide.Title}");
-                //System.Diagnostics.Debug.WriteLine($"📋 排序顺序: {slide.SortOrder}");
-                //System.Diagnostics.Debug.WriteLine($"📋 缩略图路径: {slide.ThumbnailPath ?? "无"}");
-                //System.Diagnostics.Debug.WriteLine($"📋 主图路径: {slide.BackgroundImagePath ?? "无"}");
+                //System.Diagnostics.Debug.WriteLine($" 幻灯片ID: {slide.Id}");
+                //System.Diagnostics.Debug.WriteLine($" 幻灯片标题: {slide.Title}");
+                //System.Diagnostics.Debug.WriteLine($" 排序顺序: {slide.SortOrder}");
+                //System.Diagnostics.Debug.WriteLine($" 缩略图路径: {slide.ThumbnailPath ?? "无"}");
+                //System.Diagnostics.Debug.WriteLine($" 主图路径: {slide.BackgroundImagePath ?? "无"}");
                 //
                 //if (!string.IsNullOrEmpty(slide.ThumbnailPath))
                 //{
-                //    //System.Diagnostics.Debug.WriteLine($"📋 缩略图文件名: {System.IO.Path.GetFileName(slide.ThumbnailPath)}");
-                //    //System.Diagnostics.Debug.WriteLine($"📋 缩略图存在: {System.IO.File.Exists(slide.ThumbnailPath)}");
+                //    //System.Diagnostics.Debug.WriteLine($" 缩略图文件名: {System.IO.Path.GetFileName(slide.ThumbnailPath)}");
+                //    //System.Diagnostics.Debug.WriteLine($" 缩略图存在: {System.IO.File.Exists(slide.ThumbnailPath)}");
                 //}
                 //
                 //if (!string.IsNullOrEmpty(slide.BackgroundImagePath))
                 //{
-                //    //System.Diagnostics.Debug.WriteLine($"📋 主图文件名: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
-                //    //System.Diagnostics.Debug.WriteLine($"📋 主图存在: {System.IO.File.Exists(slide.BackgroundImagePath)}");
+                //    //System.Diagnostics.Debug.WriteLine($" 主图文件名: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                //    //System.Diagnostics.Debug.WriteLine($" 主图存在: {System.IO.File.Exists(slide.BackgroundImagePath)}");
                 //}
                 //System.Diagnostics.Debug.WriteLine($"====================================\n");
 
@@ -723,7 +723,7 @@ namespace ImageColorChanger.UI
                 // 清空画布
                 ClearEditorCanvas();
 
-                // 🎬 加载背景（支持视频背景）
+                //  加载背景（支持视频背景）
                 if (!string.IsNullOrEmpty(slide.BackgroundImagePath) &&
                     System.IO.File.Exists(slide.BackgroundImagePath))
                 {
@@ -731,21 +731,21 @@ namespace ImageColorChanger.UI
                     bool isVideo = slide.VideoBackgroundEnabled && IsVideoFile(slide.BackgroundImagePath);
 
 #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] 背景路径: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] VideoBackgroundEnabled: {slide.VideoBackgroundEnabled}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsVideoFile: {IsVideoFile(slide.BackgroundImagePath)}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] isVideo: {isVideo}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] _isProjectionLocked: {_isProjectionLocked}");
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [LoadSlide] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] 背景路径: {System.IO.Path.GetFileName(slide.BackgroundImagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] VideoBackgroundEnabled: {slide.VideoBackgroundEnabled}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] IsVideoFile: {IsVideoFile(slide.BackgroundImagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] isVideo: {isVideo}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] _isProjectionLocked: {_isProjectionLocked}");
+                    //System.Diagnostics.Debug.WriteLine($"[LoadSlide] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
 #endif
 
                     if (isVideo)
                     {
-                        // 🎬 视频背景：主屏幕正常加载视频
-                        // 🔒 锁定模式下，投影使用独立的 MediaElement，主屏幕也正常显示视频
+                        //  视频背景：主屏幕正常加载视频
+                        //  锁定模式下，投影使用独立的 MediaElement，主屏幕也正常显示视频
                         // 这样主屏幕可以正常预览，投影独立播放
 #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🎬 [LoadSlide] 加载视频背景");
+                        //System.Diagnostics.Debug.WriteLine($" [LoadSlide] 加载视频背景");
                         //System.Diagnostics.Debug.WriteLine($"   - 视频路径: {slide.BackgroundImagePath}");
                         //System.Diagnostics.Debug.WriteLine($"   - 循环播放: {slide.VideoLoopEnabled}");
                         //System.Diagnostics.Debug.WriteLine($"   - 锁定状态: {_isProjectionLocked}");
@@ -754,7 +754,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        // 🖼️ 图片背景
+                        // 图片背景
                         var bitmap = new BitmapImage();
                         bitmap.BeginInit();
                         bitmap.UriSource = new Uri(slide.BackgroundImagePath);
@@ -771,7 +771,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 🔧 无背景图：设置Canvas背景色
+                    // 无背景图：设置Canvas背景色
                     if (!string.IsNullOrEmpty(slide.BackgroundColor))
                     {
                         EditorCanvas.Background = (SolidColorBrush)new BrushConverter().ConvertFrom(slide.BackgroundColor);
@@ -787,7 +787,7 @@ namespace ImageColorChanger.UI
 
 //#if DEBUG
 //                int totalSpans = elements.Sum(e => e.RichTextSpans?.Count ?? 0);
-//                //System.Diagnostics.Debug.WriteLine($"📥 [加载幻灯片] ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}, RichTextSpans={totalSpans}");
+//                //System.Diagnostics.Debug.WriteLine($"[加载幻灯片] ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}, RichTextSpans={totalSpans}");
 //#endif
 
                 foreach (var element in elements)
@@ -804,49 +804,49 @@ namespace ImageColorChanger.UI
                     AddTextBoxToCanvas(textBox);
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
+                //System.Diagnostics.Debug.WriteLine($" 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
                 
-                // 🆕 恢复分割配置
+                // 恢复分割配置
                 RestoreSplitConfig(slide);
                 
-                // 🆕 加载完成后，如果投影已开启且未锁定，自动更新投影
+                // 加载完成后，如果投影已开启且未锁定，自动更新投影
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
                     // 延迟一点点，确保UI渲染完成
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
-                        //System.Diagnostics.Debug.WriteLine("✅ 幻灯片加载后已自动更新投影");
+                        //System.Diagnostics.Debug.WriteLine(" 幻灯片加载后已自动更新投影");
                     }), System.Windows.Threading.DispatcherPriority.Render);
                 }
 
-                // 🚀 预解析下一个/上一个视频（异步，不阻塞）
+                // 预解析下一个/上一个视频（异步，不阻塞）
                 _ = PreparseAdjacentVideosAsync(slide);
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载幻灯片失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载幻灯片失败: {ex.Message}");
                 WpfMessageBox.Show($"加载幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// ❌ 已禁用：切换前预解析相邻视频（简化为跟主屏幕WPF一样的逻辑）
+        ///  已禁用：切换前预解析相邻视频（简化为跟主屏幕WPF一样的逻辑）
         /// </summary>
         private async System.Threading.Tasks.Task PreparseAdjacentVideosBeforeSwitchAsync(Slide targetSlide)
         {
-            // ✅ 简化：去掉预解析，直接播放更简单稳定
+            //  简化：去掉预解析，直接播放更简单稳定
             await System.Threading.Tasks.Task.CompletedTask;
             return;
         }
 
         /// <summary>
-        /// ❌ 已禁用：预解析相邻幻灯片的视频（简化为跟主屏幕WPF一样的逻辑）
+        ///  已禁用：预解析相邻幻灯片的视频（简化为跟主屏幕WPF一样的逻辑）
         /// </summary>
         private async System.Threading.Tasks.Task PreparseAdjacentVideosAsync(Slide currentSlide)
         {
-            // ✅ 简化：去掉预解析，直接播放更简单稳定
+            //  简化：去掉预解析，直接播放更简单稳定
             await System.Threading.Tasks.Task.CompletedTask;
             return;
         }
@@ -862,10 +862,10 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🔧 获取当前幻灯片总数（用于生成标题序号）
+                // 获取当前幻灯片总数（用于生成标题序号）
                 var slideCount = await _textProjectManager.GetSlideCountAsync(_currentTextProject.Id);
                 
-                // 🔧 获取当前最大排序号（用于SortOrder）
+                // 获取当前最大排序号（用于SortOrder）
                 int maxOrder = await _textProjectManager.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
 
                 // 创建新幻灯片（标题序号 = 总数 + 1）
@@ -887,11 +887,11 @@ namespace ImageColorChanger.UI
                 // 选中新建的幻灯片
                 SlideListBox.SelectedItem = newSlide;
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 新建幻灯片成功: ID={newSlide.Id}, Title={newSlide.Title}");
+                //System.Diagnostics.Debug.WriteLine($" 新建幻灯片成功: ID={newSlide.Id}, Title={newSlide.Title}");
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 新建幻灯片失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 新建幻灯片失败: {ex.Message}");
                 WpfMessageBox.Show($"新建幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -946,13 +946,13 @@ namespace ImageColorChanger.UI
                 // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
                 foreach (var sourceElement in sourceElements)
                 {
-                    // ✅ 使用 CloneElement 方法复制所有样式属性
+                    //  使用 CloneElement 方法复制所有样式属性
                     var newElement = _textProjectManager.CloneElement(sourceElement);
                     newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
                     
                     await _textProjectManager.AddElementAsync(newElement);
 
-                    // 🆕 复制富文本片段（如果有）
+                    // 复制富文本片段（如果有）
                     if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
                     {
                         var newSpans = new List<Database.Models.RichTextSpan>();
@@ -1021,11 +1021,11 @@ namespace ImageColorChanger.UI
                     
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 复制幻灯片成功: 原ID={sourceSlide.Id}, 新ID={newSlide.Id}");
+                //System.Diagnostics.Debug.WriteLine($" 复制幻灯片成功: 原ID={sourceSlide.Id}, 新ID={newSlide.Id}");
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 复制幻灯片失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 复制幻灯片失败: {ex.Message}");
                 WpfMessageBox.Show($"复制幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -1039,31 +1039,31 @@ namespace ImageColorChanger.UI
             if (SlideListBox.SelectedItem is not Slide selectedSlide)
                 return;
 
-            // 🔧 保存要删除的幻灯片ID和当前选中索引
+            // 保存要删除的幻灯片ID和当前选中索引
             int slideIdToDelete = selectedSlide.Id;
             int currentSelectedIndex = SlideListBox.SelectedIndex;
 
             try
             {
-                // ✅ 从数据库重新加载实体，确保实体是从当前 DbContext 加载的
+                //  从数据库重新加载实体，确保实体是从当前 DbContext 加载的
                 // 这样可以避免乐观并发异常
                 var slideToDelete = await _textProjectManager.GetSlideByIdAsync(slideIdToDelete);
                 if (slideToDelete == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ 幻灯片不存在: ID={slideIdToDelete}");
+                    System.Diagnostics.Debug.WriteLine($" 幻灯片不存在: ID={slideIdToDelete}");
 #endif
                     // 刷新列表，可能已经被删除了
                     LoadSlideList();
                     return;
                 }
 
-                // 🔧 临时禁用 SelectionChanged 事件，避免删除后刷新列表时触发保存操作
+                // 临时禁用 SelectionChanged 事件，避免删除后刷新列表时触发保存操作
                 SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
 
                 try
                 {
-                    // 🔧 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
+                    // 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
                     // 这样可以避免在删除时尝试保存已删除的文本元素
                     var allSlides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
                     
@@ -1087,7 +1087,7 @@ namespace ImageColorChanger.UI
                     // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
                     LoadSlideList();
 
-                    // 🔧 选中合适的幻灯片
+                    // 选中合适的幻灯片
                     if (SlideListBox.Items.Count > 0)
                     {
                         int targetIndex = currentSelectedIndex < SlideListBox.Items.Count 
@@ -1103,7 +1103,7 @@ namespace ImageColorChanger.UI
                     }
 
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ 删除幻灯片成功: ID={slideIdToDelete}, Title={selectedSlide.Title}");
+                    System.Diagnostics.Debug.WriteLine($" 删除幻灯片成功: ID={slideIdToDelete}, Title={selectedSlide.Title}");
 #endif
                 }
                 finally
@@ -1118,7 +1118,7 @@ namespace ImageColorChanger.UI
                 SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 删除幻灯片失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 删除幻灯片失败: {ex.Message}");
 #endif
                 WpfMessageBox.Show($"删除幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
@@ -1135,7 +1135,7 @@ namespace ImageColorChanger.UI
 
             var slides = _textProjectManager.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id).GetAwaiter().GetResult();
 
-            // 🆕 加载缩略图路径
+            // 加载缩略图路径
             var thumbnailDir = System.IO.Path.Combine(
                 System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
                 "Thumbnails");
@@ -1149,7 +1149,7 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            // 🆕 保存当前选中的索引
+            // 保存当前选中的索引
             int previousSelectedIndex = SlideListBox.SelectedIndex;
             
             SlideListBox.ItemsSource = slides;
@@ -1162,14 +1162,14 @@ namespace ImageColorChanger.UI
                     ? previousSelectedIndex 
                     : 0;
                 
-                // 🆕 先清空选中项，然后再设置，强制触发SelectionChanged事件
+                // 先清空选中项，然后再设置，强制触发SelectionChanged事件
                 SlideListBox.SelectedIndex = -1;
                 SlideListBox.SelectedIndex = targetIndex;
                 
-                //System.Diagnostics.Debug.WriteLine($"🔄 强制选中幻灯片: Index={targetIndex}");
+                //System.Diagnostics.Debug.WriteLine($" 强制选中幻灯片: Index={targetIndex}");
             }
 
-            //System.Diagnostics.Debug.WriteLine($"✅ 加载幻灯片列表: Count={slides.Count}");
+            //System.Diagnostics.Debug.WriteLine($" 加载幻灯片列表: Count={slides.Count}");
         }
 
         /// <summary>
@@ -1183,12 +1183,12 @@ namespace ImageColorChanger.UI
             var currentSelectedSlide = SlideListBox.SelectedItem as Slide;
             var currentSelectedId = currentSelectedSlide?.Id;
             
-            // 🔧 临时禁用SelectionChanged事件，避免重新加载当前幻灯片
+            // 临时禁用SelectionChanged事件，避免重新加载当前幻灯片
             SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
             
             try
             {
-                // 🔧 先清空ItemsSource，强制UI重新绑定
+                // 先清空ItemsSource，强制UI重新绑定
                 SlideListBox.ItemsSource = null;
                 
                 // 重新加载列表
@@ -1204,7 +1204,7 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"✅ 刷新幻灯片列表完成（未重新加载幻灯片内容）");
+                //System.Diagnostics.Debug.WriteLine($" 刷新幻灯片列表完成（未重新加载幻灯片内容）");
             }
             finally
             {
@@ -1225,7 +1225,7 @@ namespace ImageColorChanger.UI
                 if (canvasParent == null)
                     return null;
 
-                // 🎨 保存缩略图前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
+                // 保存缩略图前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
                 foreach (var textBox in _textBoxes)
                 {
                     textBox.HideDecorations();
@@ -1254,7 +1254,7 @@ namespace ImageColorChanger.UI
                 // 缩放到缩略图大小
                 var thumbnail = new TransformedBitmap(renderBitmap, new ScaleTransform(0.1, 0.1));
 
-                // 🎨 保存缩略图后：恢复所有文本框的装饰元素
+                // 保存缩略图后：恢复所有文本框的装饰元素
                 foreach (var textBox in _textBoxes)
                 {
                     textBox.RestoreDecorations();
@@ -1264,9 +1264,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 生成缩略图失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 生成缩略图失败: {ex.Message}");
                 
-                // 🎨 异常时也要恢复装饰元素
+                // 异常时也要恢复装饰元素
                 foreach (var textBox in _textBoxes)
                 {
                     textBox.RestoreDecorations();
@@ -1306,12 +1306,12 @@ namespace ImageColorChanger.UI
                     encoder.Save(fileStream);
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 缩略图已保存: {thumbnailPath}");
+                //System.Diagnostics.Debug.WriteLine($" 缩略图已保存: {thumbnailPath}");
                 return thumbnailPath;
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存缩略图失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 保存缩略图失败: {ex.Message}");
                 return null;
             }
         }
@@ -1320,3 +1320,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

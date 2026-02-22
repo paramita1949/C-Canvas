@@ -18,7 +18,7 @@ namespace ImageColorChanger.Managers
             {
 #if DEBUG
                 // System.Diagnostics.Debug.WriteLine("========================================");
-                // System.Diagnostics.Debug.WriteLine("🖥️ [投影管理器] 开始检测显示器");
+                // System.Diagnostics.Debug.WriteLine(" [投影管理器] 开始检测显示器");
                 // System.Diagnostics.Debug.WriteLine("========================================");
 #endif
                 // 优先 EnumDisplayDevices/EnumDisplaySettings，失败时回退主屏幕
@@ -32,7 +32,7 @@ namespace ImageColorChanger.Managers
 #if DEBUG
                 // System.Diagnostics.Debug.WriteLine("");
                 // System.Diagnostics.Debug.WriteLine("========================================");
-                // System.Diagnostics.Debug.WriteLine($"📊 [投影管理器] 最终显示器列表，共 {_screens.Count} 个显示器");
+                // System.Diagnostics.Debug.WriteLine($" [投影管理器] 最终显示器列表，共 {_screens.Count} 个显示器");
                 for (int i = 0; i < _screens.Count; i++)
                 {
                     var screen = _screens[i];
@@ -46,7 +46,7 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [投影管理器] 初始化屏幕信息失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [投影管理器] 初始化屏幕信息失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -166,3 +166,5 @@ namespace ImageColorChanger.Managers
         }
     }
 }
+
+

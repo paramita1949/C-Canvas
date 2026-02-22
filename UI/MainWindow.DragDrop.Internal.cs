@@ -50,7 +50,7 @@ namespace ImageColorChanger.UI
                 if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    // 🔧 优化：允许拖拽文件、文件夹和Project节点
+                    // 优化：允许拖拽文件、文件夹和Project节点
                     if (_draggedItem.Type == TreeItemType.File || 
                         _draggedItem.Type == TreeItemType.Folder || 
                         _draggedItem.Type == TreeItemType.Project || 
@@ -82,7 +82,7 @@ namespace ImageColorChanger.UI
                     // 获取拖拽源项
                     var sourceItem = e.Data.GetData(typeof(ProjectTreeItem)) as ProjectTreeItem;
                     
-                    // 🔧 全新逻辑：分为两类
+                    // 全新逻辑：分为两类
                     // 第一类：文件夹 + 单文件（File类型）
                     // 第二类：Project + TextProject
                     bool isValidDrop = false;
@@ -161,7 +161,7 @@ namespace ImageColorChanger.UI
                     
                     if (sourceItem != null && targetItem != null && sourceItem != targetItem)
                     {
-                        // 🔧 全新逻辑：分为两类
+                        // 全新逻辑：分为两类
                         // 第一类：文件夹 + 单文件
                         bool isSourceFirstCategory = sourceItem.Type == TreeItemType.Folder || sourceItem.Type == TreeItemType.File;
                         bool isTargetFirstCategory = targetItem.Type == TreeItemType.Folder || targetItem.Type == TreeItemType.File;
@@ -181,16 +181,16 @@ namespace ImageColorChanger.UI
                             {
                                 ReorderFolders(sourceItem, targetItem);
                             }
-                            // 🆕 文件夹和单文件之间的拖拽（暂时不处理，因为需要更复杂的逻辑）
+                            // 文件夹和单文件之间的拖拽（暂时不处理，因为需要更复杂的逻辑）
                         }
-                        // 🆕 第二类内部拖拽：Project节点之间
+                        // 第二类内部拖拽：Project节点之间
                         else if (isSourceSecondCategory && isTargetSecondCategory)
                         {
                             ReorderProjects(sourceItem, targetItem);
                         }
                         else
                         {
-                            //System.Diagnostics.Debug.WriteLine($"❌ 无效的拖拽组合: {sourceItem.Type} -> {targetItem.Type}");
+                            //System.Diagnostics.Debug.WriteLine($" 无效的拖拽组合: {sourceItem.Type} -> {targetItem.Type}");
                         }
                     }
                 }
@@ -408,7 +408,7 @@ namespace ImageColorChanger.UI
                 // 只允许在同一文件夹内排序
                 if (sourceFolderId != targetFolderId)
                 {
-                    ShowStatus("❌ 只能在同一文件夹内拖拽排序");
+                    ShowStatus("只能在同一文件夹内拖拽排序");
                     return;
                 }
 
@@ -429,23 +429,18 @@ namespace ImageColorChanger.UI
 
                 if (sourceIndex == -1 || targetIndex == -1)
                 {
-                    ShowStatus("❌ 无法找到文件");
+                    ShowStatus("无法找到文件");
                     return;
                 }
 
-                // 移除源文件
+                // 移除源文件后，若向下拖拽，目标索引需要左移1，保持“插入到目标项前”语义
                 var sourceFile = files[sourceIndex];
                 files.RemoveAt(sourceIndex);
-
-                // 插入到目标位置
                 if (sourceIndex < targetIndex)
                 {
-                    files.Insert(targetIndex, sourceFile);
+                    targetIndex--;
                 }
-                else
-                {
-                    files.Insert(targetIndex, sourceFile);
-                }
+                files.Insert(targetIndex, sourceFile);
 
                 // 更新所有文件的OrderIndex
                 for (int i = 0; i < files.Count; i++)
@@ -453,21 +448,21 @@ namespace ImageColorChanger.UI
                     files[i].OrderIndex = i + 1;
                 }
 
-                // 🆕 自动重命名：给文件名前面加上序号
+                // 自动重命名：给文件名前面加上序号
                 RenameFilesWithSequenceNumbers(files, sourceFolderId);
 
                 // 保存更改
                 DatabaseManagerService.UpdateMediaFilesOrder(files);
 
-                // 🔑 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
+                // 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
                 UpdateTreeItemOrder(sourceFolderId, files);
                 
-                ShowStatus($"✅ 已重新排序: {sourceItem.Name}");
+                ShowStatus($"已重新排序: {sourceItem.Name}");
             }
             catch (Exception ex)
             {
                 //System.Diagnostics.Debug.WriteLine($"重新排序失败: {ex}");
-                ShowStatus($"❌ 排序失败: {ex.Message}");
+                ShowStatus($"排序失败: {ex.Message}");
             }
             finally
             {
@@ -487,38 +482,33 @@ namespace ImageColorChanger.UI
             
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🔄 [ReorderFolders] 开始文件夹拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
+                //System.Diagnostics.Debug.WriteLine($" [ReorderFolders] 开始文件夹拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
                 
                 // 获取所有文件夹
                 var folders = DatabaseManagerService.GetAllFolders();
-                //System.Diagnostics.Debug.WriteLine($"📂 [ReorderFolders] 获取到 {folders.Count} 个文件夹");
+                //System.Diagnostics.Debug.WriteLine($"[ReorderFolders] 获取到 {folders.Count} 个文件夹");
                 
                 // 找到源文件夹和目标文件夹的索引
                 int sourceIndex = folders.FindIndex(f => f.Id == sourceItem.Id);
                 int targetIndex = folders.FindIndex(f => f.Id == targetItem.Id);
                 
-                //System.Diagnostics.Debug.WriteLine($"📂 [ReorderFolders] 源文件夹索引: {sourceIndex}, 目标文件夹索引: {targetIndex}");
+                //System.Diagnostics.Debug.WriteLine($"[ReorderFolders] 源文件夹索引: {sourceIndex}, 目标文件夹索引: {targetIndex}");
 
                 if (sourceIndex == -1 || targetIndex == -1)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"❌ [ReorderFolders] 无法找到文件夹");
-                    ShowStatus("❌ 无法找到文件夹");
+                    //System.Diagnostics.Debug.WriteLine($" [ReorderFolders] 无法找到文件夹");
+                    ShowStatus("无法找到文件夹");
                     return;
                 }
 
-                // 移除源文件夹
+                // 移除源文件夹后，若向下拖拽，目标索引需要左移1，保持“插入到目标项前”语义
                 var sourceFolder = folders[sourceIndex];
                 folders.RemoveAt(sourceIndex);
-
-                // 插入到目标位置
                 if (sourceIndex < targetIndex)
                 {
-                    folders.Insert(targetIndex, sourceFolder);
+                    targetIndex--;
                 }
-                else
-                {
-                    folders.Insert(targetIndex, sourceFolder);
-                }
+                folders.Insert(targetIndex, sourceFolder);
 
                 // 更新所有文件夹的OrderIndex
                 for (int i = 0; i < folders.Count; i++)
@@ -532,14 +522,14 @@ namespace ImageColorChanger.UI
                 // 更新TreeView中的文件夹顺序
                 UpdateFolderTreeItemOrder(folders);
                 
-                ShowStatus($"✅ 已重新排序文件夹: {sourceItem.Name}");
+                ShowStatus($"已重新排序文件夹: {sourceItem.Name}");
             }
             catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"重新排序文件夹失败: {ex}");
                 #endif
-                ShowStatus($"❌ 文件夹排序失败: {ex.Message}");
+                ShowStatus($"文件夹排序失败: {ex.Message}");
             }
             finally
             {
@@ -563,14 +553,14 @@ namespace ImageColorChanger.UI
                 
                 if (currentIndex == -1)
                 {
-                    ShowStatus("❌ 无法找到文件夹");
+                    ShowStatus("无法找到文件夹");
                     return;
                 }
                 
                 // 如果已经是第一个，无法上移
                 if (currentIndex == 0)
                 {
-                    ShowStatus("⚠️ 已经是第一个文件夹");
+                    ShowStatus("已经是第一个文件夹");
                     return;
                 }
                 
@@ -591,14 +581,14 @@ namespace ImageColorChanger.UI
                 // 更新UI
                 UpdateFolderTreeItemOrder(folders);
                 
-                ShowStatus($"✅ 已上移: {folderItem.Name}");
+                ShowStatus($"已上移: {folderItem.Name}");
             }
             catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"文件夹上移失败: {ex}");
                 #endif
-                ShowStatus($"❌ 上移失败: {ex.Message}");
+                ShowStatus($"上移失败: {ex.Message}");
             }
         }
 
@@ -617,14 +607,14 @@ namespace ImageColorChanger.UI
                 
                 if (currentIndex == -1)
                 {
-                    ShowStatus("❌ 无法找到文件夹");
+                    ShowStatus("无法找到文件夹");
                     return;
                 }
                 
                 // 如果已经是最后一个，无法下移
                 if (currentIndex == folders.Count - 1)
                 {
-                    ShowStatus("⚠️ 已经是最后一个文件夹");
+                    ShowStatus("已经是最后一个文件夹");
                     return;
                 }
                 
@@ -645,14 +635,14 @@ namespace ImageColorChanger.UI
                 // 更新UI
                 UpdateFolderTreeItemOrder(folders);
                 
-                ShowStatus($"✅ 已下移: {folderItem.Name}");
+                ShowStatus($"已下移: {folderItem.Name}");
             }
             catch (Exception ex)
             {
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"文件夹下移失败: {ex}");
                 #endif
-                ShowStatus($"❌ 下移失败: {ex.Message}");
+                ShowStatus($"下移失败: {ex.Message}");
             }
         }
 
@@ -722,7 +712,7 @@ namespace ImageColorChanger.UI
                             }
                             else
                             {
-                                (iconKind, iconColor) = ("Shuffle", "#FF9800");  // 默认随机播放
+                                (iconKind, iconColor) = GetPlayModeIcon("random");
                             }
                         }
                         else
@@ -756,8 +746,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateFolderTreeItemOrder] 开始更新文件夹顺序...");
-                //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderTreeItemOrder] 排序后的文件夹数量: {sortedFolders.Count}");
+                //System.Diagnostics.Debug.WriteLine($" [UpdateFolderTreeItemOrder] 开始更新文件夹顺序...");
+                //System.Diagnostics.Debug.WriteLine($"[UpdateFolderTreeItemOrder] 排序后的文件夹数量: {sortedFolders.Count}");
                 
                 // 输出排序后的文件夹顺序
                 //for (int i = 0; i < sortedFolders.Count; i++)
@@ -765,8 +755,8 @@ namespace ImageColorChanger.UI
                 //    System.Diagnostics.Debug.WriteLine($"  [{i}] {sortedFolders[i].Name} (ID={sortedFolders[i].Id}, OrderIndex={sortedFolders[i].OrderIndex})");
                 //}
                 
-                // 🔧 修复：使用轻量级更新，只更新文件夹顺序，不重新加载整个项目树
-                //System.Diagnostics.Debug.WriteLine("🔄 [UpdateFolderTreeItemOrder] 使用轻量级更新文件夹顺序");
+                // 修复：使用轻量级更新，只更新文件夹顺序，不重新加载整个项目树
+                //System.Diagnostics.Debug.WriteLine(" [UpdateFolderTreeItemOrder] 使用轻量级更新文件夹顺序");
                 UpdateFolderOrderOnly(sortedFolders);
             }
             catch (Exception ex)
@@ -788,52 +778,47 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🔄 [UpdateFolderOrderOnly] 开始轻量级更新文件夹顺序...");
-                
-                // 创建一个字典来快速查找新的顺序索引
-                var orderDict = sortedFolders.Select((f, index) => new { f.Id, Order = index })
+                var orderDict = sortedFolders
+                    .Select((f, index) => new { f.Id, Order = index })
                     .ToDictionary(x => x.Id, x => x.Order);
-                
-                // 找到所有文件夹项及其在集合中的位置
-                var folderItems = new List<(ProjectTreeItem item, int originalIndex)>();
-                for (int i = 0; i < _projectTreeItems.Count; i++)
+
+                // 按目标顺序准备文件夹节点，避免 Move 过程中的索引漂移问题。
+                var sortedFolderItems = _projectTreeItems
+                    .Where(item => item.Type == TreeItemType.Folder)
+                    .OrderBy(item => orderDict.TryGetValue(item.Id, out var order) ? order : int.MaxValue)
+                    .ToList();
+
+                if (sortedFolderItems.Count == 0)
                 {
-                    if (_projectTreeItems[i].Type == TreeItemType.Folder)
+                    return;
+                }
+
+                var rebuiltItems = new System.Collections.Generic.List<ProjectTreeItem>(_projectTreeItems.Count);
+                int folderCursor = 0;
+                foreach (var item in _projectTreeItems)
+                {
+                    if (item.Type == TreeItemType.Folder)
                     {
-                        folderItems.Add((_projectTreeItems[i], i));
+                        rebuiltItems.Add(sortedFolderItems[folderCursor++]);
+                    }
+                    else
+                    {
+                        rebuiltItems.Add(item);
                     }
                 }
-                
-                //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderOrderOnly] 找到 {folderItems.Count} 个文件夹项");
-                
-                // 根据新的OrderIndex排序文件夹
-                var sortedFolderItems = folderItems.OrderBy(f => 
-                    orderDict.ContainsKey(f.item.Id) ? orderDict[f.item.Id] : int.MaxValue).ToList();
-                
-                // 🔧 关键修复：使用Move操作，只移动文件夹，保持Project节点位置不变
-                for (int i = 0; i < sortedFolderItems.Count; i++)
+
+                _projectTreeItems.Clear();
+                foreach (var item in rebuiltItems)
                 {
-                    var folderItem = sortedFolderItems[i];
-                    var targetIndex = folderItems[i].originalIndex;
-                    
-                    // 如果位置已经正确，跳过
-                    if (_projectTreeItems.IndexOf(folderItem.item) == targetIndex)
-                        continue;
-                    
-                    // 移动文件夹到正确位置
-                    _projectTreeItems.Move(_projectTreeItems.IndexOf(folderItem.item), targetIndex);
-                    //System.Diagnostics.Debug.WriteLine($"📂 [UpdateFolderOrderOnly] 移动文件夹: {folderItem.item.Name} 到位置 {targetIndex}");
+                    _projectTreeItems.Add(item);
                 }
-                
-                //System.Diagnostics.Debug.WriteLine($"✅ [UpdateFolderOrderOnly] 文件夹顺序更新完成，Project节点位置保持不变");
-                
-                // 🔧 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
+
                 FilterProjectTree();
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [UpdateFolderOrderOnly] 轻量级更新失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [UpdateFolderOrderOnly] 轻量级更新失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
@@ -849,18 +834,18 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                //System.Diagnostics.Debug.WriteLine($"🔄 [ReorderProjects] 开始Project拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
+                //System.Diagnostics.Debug.WriteLine($" [ReorderProjects] 开始Project拖拽排序: {sourceItem.Name} -> {targetItem.Name}");
                 
                 // 获取项目树中所有的Project节点
                 var projects = _projectTreeItems
                     .Where(item => item.Type == TreeItemType.Project || item.Type == TreeItemType.TextProject)
                     .ToList();
                 
-                //System.Diagnostics.Debug.WriteLine($"📋 [ReorderProjects] 找到 {projects.Count} 个Project节点");
+                //System.Diagnostics.Debug.WriteLine($" [ReorderProjects] 找到 {projects.Count} 个Project节点");
                 
                 if (projects.Count < 2)
                 {
-                    //System.Diagnostics.Debug.WriteLine("⚠️ [ReorderProjects] Project节点数量少于2，无需排序");
+                    //System.Diagnostics.Debug.WriteLine(" [ReorderProjects] Project节点数量少于2，无需排序");
                     return;
                 }
                 
@@ -870,11 +855,11 @@ namespace ImageColorChanger.UI
                 
                 if (sourceIndex == -1 || targetIndex == -1)
                 {
-                    //System.Diagnostics.Debug.WriteLine("❌ [ReorderProjects] 找不到源或目标Project节点");
+                    //System.Diagnostics.Debug.WriteLine(" [ReorderProjects] 找不到源或目标Project节点");
                     return;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"📋 [ReorderProjects] 源Project索引: {sourceIndex}, 目标Project索引: {targetIndex}");
+                //System.Diagnostics.Debug.WriteLine($" [ReorderProjects] 源Project索引: {sourceIndex}, 目标Project索引: {targetIndex}");
                 
                 // 在项目树中移动Project节点
                 int sourceTreeIndex = _projectTreeItems.IndexOf(sourceItem);
@@ -883,12 +868,12 @@ namespace ImageColorChanger.UI
                 if (sourceTreeIndex != -1 && targetTreeIndex != -1)
                 {
                     _projectTreeItems.Move(sourceTreeIndex, targetTreeIndex);
-                    //System.Diagnostics.Debug.WriteLine($"✅ [ReorderProjects] Project节点移动完成: {sourceItem.Name} 从位置{sourceTreeIndex}移动到位置{targetTreeIndex}");
+                    //System.Diagnostics.Debug.WriteLine($" [ReorderProjects] Project节点移动完成: {sourceItem.Name} 从位置{sourceTreeIndex}移动到位置{targetTreeIndex}");
                     
-                    // 🔧 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
+                    // 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
                     FilterProjectTree();
                     
-                    // 🆕 保存排序到数据库（只保存TextProject类型的项目）
+                    // 保存排序到数据库（只保存TextProject类型的项目）
                     if (sourceItem.Type == TreeItemType.TextProject && targetItem.Type == TreeItemType.TextProject)
                     {
                         _ = SaveTextProjectsOrderAsync();
@@ -898,7 +883,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [ReorderProjects] Project排序失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ReorderProjects] Project排序失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
@@ -938,13 +923,13 @@ namespace ImageColorChanger.UI
                 await dbContext.SaveChangesAsync();
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [SaveTextProjectsOrder] 已保存 {textProjectItems.Count} 个项目的排序");
+                System.Diagnostics.Debug.WriteLine($" [SaveTextProjectsOrder] 已保存 {textProjectItems.Count} 个项目的排序");
                 #endif
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [SaveTextProjectsOrder] 保存排序失败");
+                //System.Diagnostics.Debug.WriteLine($" [SaveTextProjectsOrder] 保存排序失败");
                 #endif
             }
         }
@@ -980,7 +965,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔢 开始更新显示名称序号 ({files.Count} 个文件)");
+                //System.Diagnostics.Debug.WriteLine($"开始更新显示名称序号 ({files.Count} 个文件)");
                 //#endif
 
                 for (int i = 0; i < files.Count; i++)
@@ -988,7 +973,7 @@ namespace ImageColorChanger.UI
                     var file = files[i];
                     int newNumber = i + 1;
                     
-                    // 🔑 关键：始终从物理文件路径获取原始文件名（保持不变）
+                    // 关键：始终从物理文件路径获取原始文件名（保持不变）
                     string originalFileName = System.IO.Path.GetFileName(file.Path);
                     string originalNameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(originalFileName);
                     
@@ -1002,7 +987,7 @@ namespace ImageColorChanger.UI
                     if (newDisplayName == file.Name)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"  ⏭️ [{i + 1}] 跳过（名称未变）: {file.Name}");
+                        //System.Diagnostics.Debug.WriteLine($"   [{i + 1}] 跳过（名称未变）: {file.Name}");
                         //#endif
                         continue;
                     }
@@ -1013,20 +998,20 @@ namespace ImageColorChanger.UI
                     // Path 保持不变
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"  ✅ [{i + 1}] 显示名称: {oldDisplayName} → {newDisplayName}");
+                    //System.Diagnostics.Debug.WriteLine($"   [{i + 1}] 显示名称: {oldDisplayName} → {newDisplayName}");
                     //System.Diagnostics.Debug.WriteLine($"      原始文件: {originalFileName}");
                     //System.Diagnostics.Debug.WriteLine($"      物理路径: {file.Path} (不变)");
                     //#endif
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ 显示名称序号更新完成");
+                //System.Diagnostics.Debug.WriteLine($" 显示名称序号更新完成");
                 //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 显示名称序号更新失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 显示名称序号更新失败: {ex.Message}");
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
@@ -1071,3 +1056,7 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
+
+

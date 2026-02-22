@@ -25,7 +25,7 @@ namespace ImageColorChanger.UI
             {
                 var treeViewItem = FindParent<TreeViewItem>(element);
 
-                // 🆕 如果点击在空白区域（没有TreeViewItem），只在幻灯片项目模式显示新建项目菜单
+                // 如果点击在空白区域（没有TreeViewItem），只在幻灯片项目模式显示新建项目菜单
                 if (treeViewItem == null)
                 {
                     TryShowRootBlankAreaContextMenu(sender as UIElement, e);
@@ -98,7 +98,7 @@ namespace ImageColorChanger.UI
             {
                 var filesMenu = CreateNoBorderContextMenu();
 
-                var newLibraryItem = new MenuItem { Header = "🎵 新建歌词库" };
+                var newLibraryItem = new MenuItem { Header = " 新建歌词库" };
                 newLibraryItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
                 newLibraryItem.Foreground = Brushes.White;
                 newLibraryItem.BorderThickness = new Thickness(0);
@@ -119,7 +119,7 @@ namespace ImageColorChanger.UI
 
             var contextMenu = CreateNoBorderContextMenu();
 
-            var newProjectItem = new MenuItem { Header = "📝 新建项目" };
+            var newProjectItem = new MenuItem { Header = "新建项目" };
             newProjectItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
             newProjectItem.Foreground = Brushes.White;
             newProjectItem.BorderThickness = new Thickness(0);
@@ -132,7 +132,7 @@ namespace ImageColorChanger.UI
             contextMenu.Items.Add(newProjectItem);
             contextMenu.Items.Add(new Separator());
 
-            var exportAllItem = new MenuItem { Header = "📦 导出所有项目" };
+            var exportAllItem = new MenuItem { Header = "导出所有项目" };
             exportAllItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
             exportAllItem.Foreground = Brushes.White;
             exportAllItem.BorderThickness = new Thickness(0);
@@ -191,13 +191,13 @@ namespace ImageColorChanger.UI
 
             if (folderMenuState.HasColorEffectMark)
             {
-                var unmarkColorItem = new MenuItem { Header = "🎨 取消变色标记" };
+                var unmarkColorItem = new MenuItem { Header = "取消变色标记" };
                 unmarkColorItem.Click += (s, args) => UnmarkFolderColorEffect(item);
                 contextMenu.Items.Add(unmarkColorItem);
             }
             else
             {
-                var markColorItem = new MenuItem { Header = "🎨 标记为变色" };
+                var markColorItem = new MenuItem { Header = "标记为变色" };
                 markColorItem.Click += (s, args) => MarkFolderColorEffect(item);
                 contextMenu.Items.Add(markColorItem);
             }
@@ -213,11 +213,11 @@ namespace ImageColorChanger.UI
             }
 
             var currentPlayMode = folderMenuState.CurrentPlayMode;
-            var playModeMenuItem = new MenuItem { Header = "🎵 视频播放模式" };
+            var playModeMenuItem = new MenuItem { Header = "播放模式" };
 
             var sequentialItem = new MenuItem
             {
-                Header = "⬍⬆ 顺序播放",
+                Header = "顺序",
                 IsCheckable = true,
                 IsChecked = currentPlayMode == "sequential"
             };
@@ -226,7 +226,7 @@ namespace ImageColorChanger.UI
 
             var randomItem = new MenuItem
             {
-                Header = "🔀 随机播放",
+                Header = "随机",
                 IsCheckable = true,
                 IsChecked = currentPlayMode == "random"
             };
@@ -235,18 +235,21 @@ namespace ImageColorChanger.UI
 
             var loopAllItem = new MenuItem
             {
-                Header = "🔁 列表循环",
+                Header = "循环",
                 IsCheckable = true,
                 IsChecked = currentPlayMode == "loop_all"
             };
             loopAllItem.Click += (s, args) => SetFolderPlayMode(item, "loop_all");
             playModeMenuItem.Items.Add(loopAllItem);
 
-            playModeMenuItem.Items.Add(new Separator());
-
-            var clearModeItem = new MenuItem { Header = "✖ 清除播放模式" };
-            clearModeItem.Click += (s, args) => ClearFolderPlayMode(item);
-            playModeMenuItem.Items.Add(clearModeItem);
+            var loopOneItem = new MenuItem
+            {
+                Header = "单曲",
+                IsCheckable = true,
+                IsChecked = currentPlayMode == "loop_one"
+            };
+            loopOneItem.Click += (s, args) => SetFolderPlayMode(item, "loop_one");
+            playModeMenuItem.Items.Add(loopOneItem);
 
             contextMenu.Items.Add(playModeMenuItem);
             contextMenu.Items.Add(new Separator());
@@ -256,26 +259,11 @@ namespace ImageColorChanger.UI
         {
             if (folderMenuState.IsManualSort)
             {
-                var resetSortItem = new MenuItem { Header = "🔄 重置排序" };
+                var resetSortItem = new MenuItem { Header = " 重置排序" };
                 resetSortItem.Click += (s, args) => ResetFolderSort(item);
                 contextMenu.Items.Add(resetSortItem);
                 contextMenu.Items.Add(new Separator());
             }
-
-            var highlightColorItem = new MenuItem { Header = "🎨 标记高亮色" };
-            highlightColorItem.Click += (s, args) => SetFolderHighlightColor(item);
-            contextMenu.Items.Add(highlightColorItem);
-            contextMenu.Items.Add(new Separator());
-
-            var moveUpItem = new MenuItem { Header = "⬆️ 上移" };
-            moveUpItem.Click += (s, args) => MoveFolderUp(item);
-            contextMenu.Items.Add(moveUpItem);
-
-            var moveDownItem = new MenuItem { Header = "⬇️ 下移" };
-            moveDownItem.Click += (s, args) => MoveFolderDown(item);
-            contextMenu.Items.Add(moveDownItem);
-
-            contextMenu.Items.Add(new Separator());
 
             var deleteItem = new MenuItem { Header = "删除文件夹" };
             deleteItem.Click += (s, args) => DeleteFolder(item);
@@ -319,22 +307,24 @@ namespace ImageColorChanger.UI
 
         private void BuildTextProjectContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
-            var renameItem = new MenuItem { Header = "✏️ 重命名" };
+            var renameItem = new MenuItem { Header = "✏ 重命名" };
             renameItem.Click += (s, args) => RenameTextProjectAsync(item);
             contextMenu.Items.Add(renameItem);
 
             contextMenu.Items.Add(new Separator());
 
-            var exportItem = new MenuItem { Header = "📤 导出" };
+            var exportItem = new MenuItem { Header = "导出" };
             exportItem.Click += async (s, args) => await ExportTextProjectAsync(item);
             contextMenu.Items.Add(exportItem);
 
             contextMenu.Items.Add(new Separator());
 
-            var deleteItem = new MenuItem { Header = "🗑️ 删除项目" };
+            var deleteItem = new MenuItem { Header = " 删除项目" };
             deleteItem.Click += async (s, args) => await DeleteTextProjectAsync(item);
             contextMenu.Items.Add(deleteItem);
         }
 
     }
 }
+
+

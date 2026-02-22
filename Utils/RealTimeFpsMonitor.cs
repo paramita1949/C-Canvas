@@ -70,7 +70,7 @@ namespace ImageColorChanger.Utils
             _titleUpdateTimer.Start();
             
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"✅ [FPS监控] 监控已启动");
+            //System.Diagnostics.Debug.WriteLine($" [FPS监控] 监控已启动");
             //#endif
         }
 
@@ -94,7 +94,7 @@ namespace ImageColorChanger.Utils
             });
             
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"⏹️ [FPS监控] 监控已停止");
+            //System.Diagnostics.Debug.WriteLine($" [FPS监控] 监控已停止");
             //#endif
         }
 
@@ -138,7 +138,7 @@ namespace ImageColorChanger.Utils
             //// 每10帧输出一次调试信息
             //if (_mainFrameTimestamps.Count % 10 == 0)
             //{
-            //    System.Diagnostics.Debug.WriteLine($"🎬 [主屏渲染] 最近1秒帧数: {_mainFrameTimestamps.Count}, FPS: {_mainCurrentFps:F1}");
+            //    System.Diagnostics.Debug.WriteLine($" [主屏渲染] 最近1秒帧数: {_mainFrameTimestamps.Count}, FPS: {_mainCurrentFps:F1}");
             //}
             //#endif
         }
@@ -178,7 +178,7 @@ namespace ImageColorChanger.Utils
             //        avgInterval = totalInterval / (_projectionSyncTimestamps.Count - 1);
             //    }
             //    
-            //    System.Diagnostics.Debug.WriteLine($"📺 [投影同步] 最近1秒次数: {_projectionSyncTimestamps.Count}, FPS: {_projectionCurrentFps:F1}, 平均间隔: {avgInterval:F2}ms");
+            //    System.Diagnostics.Debug.WriteLine($" [投影同步] 最近1秒次数: {_projectionSyncTimestamps.Count}, FPS: {_projectionCurrentFps:F1}, 平均间隔: {avgInterval:F2}ms");
             //}
             //#endif
         }
@@ -219,4 +219,6 @@ namespace ImageColorChanger.Utils
         }
     }
 }
+
+
 

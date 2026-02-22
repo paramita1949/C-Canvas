@@ -34,7 +34,7 @@ namespace ImageColorChanger.UI
                                 _currentImageId = firstImageResult.firstImageId.Value;
                                 LoadImage(firstImageResult.firstImagePath);
                                 await Task.Delay(UI_UPDATE_DELAY_MILLISECONDS);
-                                ShowStatus("✅ 已跳转到第一张相似图片");
+                                ShowStatus("已跳转到第一张相似图片");
                             }
                         }
                     }
@@ -140,7 +140,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 显示脚本失败: {ex.Message}");
+                ShowStatus($"显示脚本失败: {ex.Message}");
             }
         }
 
@@ -165,7 +165,7 @@ namespace ImageColorChanger.UI
 
             if (scriptWindow.ShowDialog() == true)
             {
-                ShowStatus("✅ 脚本已更新");
+                ShowStatus("脚本已更新");
             }
         }
 
@@ -200,8 +200,10 @@ namespace ImageColorChanger.UI
 
             if (scriptWindow.ShowDialog() == true)
             {
-                ShowStatus("✅ 原图模式脚本已更新");
+                ShowStatus("原图模式脚本已更新");
             }
         }
     }
 }
+
+

@@ -324,7 +324,7 @@ namespace ImageColorChanger.UI
 
             if (showStatus)
             {
-                ShowStatus($"✅ 主题: {safeName}");
+                ShowStatus($"主题: {safeName}");
             }
         }
 
@@ -443,18 +443,18 @@ namespace ImageColorChanger.UI
             string name = textBox.Text?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(name))
             {
-                ShowStatus("⚠️ 主题名称不能为空");
+                ShowStatus("主题名称不能为空");
                 return;
             }
 
             if (_configManager == null || !_configManager.AddCustomLyricsThemePreset(name, hex))
             {
-                ShowStatus("⚠️ 主题名称已存在或保存失败");
+                ShowStatus("主题名称已存在或保存失败");
                 return;
             }
 
             ApplyLyricsTheme(name, hex);
-            ShowStatus($"✅ 已新增主题: {name}");
+            ShowStatus($"已新增主题: {name}");
         }
 
         private double ResolveMainLyricsFontSize()
@@ -488,7 +488,7 @@ namespace ImageColorChanger.UI
             }
 
             EnforceMainLyricsEditorFontSize();
-            ShowStatus($"✅ 主屏字号: {next:0}");
+            ShowStatus($"主屏字号: {next:0}");
 
             if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
             {
@@ -913,7 +913,7 @@ namespace ImageColorChanger.UI
 
             if (_lyricsPagingMode)
             {
-                ShowStatus($"📄 分页 {(_lyricsCurrentPageIndex + 1)}/{GetCurrentSplitRegionCount()}");
+                ShowStatus($"分页 {(_lyricsCurrentPageIndex + 1)}/{GetCurrentSplitRegionCount()}");
             }
             else
             {
@@ -937,7 +937,7 @@ namespace ImageColorChanger.UI
             _ = enabled;
             _lyricsPagingMode = false;
             UpdatePagingNavVisibility();
-            ShowStatus("ℹ️ 分页功能已下线，请使用切片功能");
+            ShowStatus("分页功能已下线，请使用切片功能");
         }
 
 
@@ -1119,13 +1119,13 @@ namespace ImageColorChanger.UI
                 GetActiveLyricsEditor().Focus();
             }, System.Windows.Threading.DispatcherPriority.Loaded);
 
-            // 🔧 隐藏合成播放按钮面板（歌词模式不需要）
+            // 隐藏合成播放按钮面板（歌词模式不需要）
             CompositePlaybackPanel.Visibility = Visibility.Collapsed;
 
             // 启动自动保存计时器（每30秒保存一次）
             StartAutoSaveTimer();
 
-            // 🔧 如果投影已开启，先清空图片投影状态，再投影歌词
+            // 如果投影已开启，先清空图片投影状态，再投影歌词
 //#if DEBUG
 //            Debug.WriteLine($"[歌词] 检查投影状态 - _projectionManager: {_projectionManager != null}, IsProjecting: {_projectionManager?.IsProjecting}");
 //#endif
@@ -1177,13 +1177,13 @@ namespace ImageColorChanger.UI
             // 显示图片浏览区域
             ImageScrollViewer.Visibility = Visibility.Visible;
 
-            // 🔧 先设置标志为false，再恢复合成播放按钮的显示状态
+            // 先设置标志为false，再恢复合成播放按钮的显示状态
             _isLyricsMode = false;
 
-            // 🔧 恢复合成播放按钮的显示状态
+            // 恢复合成播放按钮的显示状态
             UpdateFloatingCompositePlayButton();
 
-            // 🔧 如果投影已开启，恢复图片投影（刷新当前图片）
+            // 如果投影已开启，恢复图片投影（刷新当前图片）
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
 //#if DEBUG
@@ -1247,7 +1247,7 @@ namespace ImageColorChanger.UI
                     {
                         SetSplitProjectionFontSizeForRegion(i, newGlobal);
                     }
-                    ShowStatus($"✅ 分割投影全局字号: {newGlobal:0}");
+                    ShowStatus($"分割投影全局字号: {newGlobal:0}");
                 }
                 else
                 {
@@ -1260,7 +1260,7 @@ namespace ImageColorChanger.UI
                     }
 
                     SetSplitProjectionFontSizeForRegion(index, next);
-                    ShowStatus($"✅ 分区{index + 1}投影字号: {next:0}");
+                    ShowStatus($"分区{index + 1}投影字号: {next:0}");
                 }
 
                 SaveCurrentSplitPageFromUi();
@@ -1330,7 +1330,7 @@ namespace ImageColorChanger.UI
         {
             if (_currentLyricsProject == null)
             {
-                ShowStatus("⚠️ 请先打开一首歌词再设置水印");
+                ShowStatus("请先打开一首歌词再设置水印");
                 return;
             }
 
@@ -1370,11 +1370,11 @@ namespace ImageColorChanger.UI
 
                 string relative = GetLyricsWatermarkRelativePath(targetPath);
                 BindLyricsWatermarkToCurrentSong(relative);
-                ShowStatus($"✅ 水印已导入并绑定: {targetName}");
+                ShowStatus($"水印已导入并绑定: {targetName}");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 水印导入失败: {ex.Message}");
+                ShowStatus($"水印导入失败: {ex.Message}");
             }
         }
 
@@ -1382,7 +1382,7 @@ namespace ImageColorChanger.UI
         {
             if (_currentLyricsProject == null)
             {
-                ShowStatus("⚠️ 当前没有可绑定的歌词项目");
+                ShowStatus("当前没有可绑定的歌词项目");
                 return;
             }
 
@@ -1410,7 +1410,7 @@ namespace ImageColorChanger.UI
                 RenderLyricsToProjection();
             }
 
-            ShowStatus("✅ 已清除当前歌曲水印");
+            ShowStatus("已清除当前歌曲水印");
         }
 
         private IEnumerable<string> EnumerateLyricsWatermarkFiles()
@@ -1649,7 +1649,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateAlignmentButtonsState(TextAlignment alignment)
         {
-            // 🔧 重新设计的视觉反馈：使用深色背景+橙色高亮
+            // 重新设计的视觉反馈：使用深色背景+橙色高亮
             var normalBrush = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(44, 44, 44)); // 深灰色
             var normalBorder = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(68, 68, 68)); // 边框灰色
             var highlightBrush = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(255, 152, 0)); // 橙色高亮
@@ -1928,21 +1928,21 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
-            ShowStatus("ℹ️ 分页功能已下线，请使用切片功能");
+            ShowStatus("分页功能已下线，请使用切片功能");
         }
 
         private void BtnLyricsPagingToggle_Click(object sender, RoutedEventArgs e)
         {
             _ = sender;
             _ = e;
-            ShowStatus("ℹ️ 分页功能已下线，请使用切片功能");
+            ShowStatus("分页功能已下线，请使用切片功能");
         }
 
         private void BtnLyricsPageDown_Click(object sender, RoutedEventArgs e)
         {
             _ = sender;
             _ = e;
-            ShowStatus("ℹ️ 分页功能已下线，请使用切片功能");
+            ShowStatus("分页功能已下线，请使用切片功能");
         }
 
         /// <summary>
@@ -2249,7 +2249,7 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //                Debug.WriteLine($"[歌词] 滚动位置改变: {e.VerticalOffset:F2}");
 //#endif
-                // 🔧 同步投影滚动位置（传入歌词ScrollViewer）
+                // 同步投影滚动位置（传入歌词ScrollViewer）
                 _projectionManager.SyncLyricsScroll(LyricsScrollViewer);
             }
         }
@@ -2456,7 +2456,7 @@ namespace ImageColorChanger.UI
             _ = index;
             _lyricsPagingMode = false;
             UpdatePagingNavVisibility();
-            ShowStatus("ℹ️ 分页功能已下线，请使用切片功能");
+            ShowStatus("分页功能已下线，请使用切片功能");
         }
 
         [Conditional("DEBUG")]
@@ -2510,7 +2510,7 @@ namespace ImageColorChanger.UI
 //                    Debug.WriteLine($"[歌词-加载] 内容完整: {_currentLyricsProject.Content ?? "(空)"}");
 //#endif
 
-                    // 🔧 自动升级旧项目：对齐方式
+                    // 自动升级旧项目：对齐方式
                     if (_currentLyricsProject.TextAlign == "Left")
                     {
                         _currentLyricsProject.TextAlign = "Center";
@@ -2652,7 +2652,7 @@ namespace ImageColorChanger.UI
                     _currentLyricsProjectId = _currentLyricsProject.Id;
                     LogLyricsSaveDebug($"[Load-Create] projectId={_currentLyricsProject.Id}, sourceType={_currentLyricsProject.SourceType}, groupId={_currentLyricsProject.GroupId}");
                     
-                    // 🔧 清空歌词内容（新项目没有歌词）
+                    // 清空歌词内容（新项目没有歌词）
                     _lyricsSplitPages.Clear();
                     _lyricsCurrentPageIndex = 0;
                     SetLyricsSplitMode(ViewSplitMode.Single, keepTextBridge: false);
@@ -3082,4 +3082,9 @@ namespace ImageColorChanger.UI
         // 浮动歌词按钮已删除
     }
 }
+
+
+
+
+
 

@@ -15,7 +15,7 @@ namespace ImageColorChanger.UI
         private async void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
 #if DEBUG
-            // System.Diagnostics.Debug.WriteLine($"⌨️ [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
+            // System.Diagnostics.Debug.WriteLine($" [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
 #endif
             var key = ResolveEffectiveKey(e);
 
@@ -53,3 +53,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

@@ -323,7 +323,7 @@ namespace ImageColorChanger.Core
             catch
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ [TextStyle] 颜色解析失败: {hexColor}，使用默认白色");
+                System.Diagnostics.Debug.WriteLine($" [TextStyle] 颜色解析失败: {hexColor}，使用默认白色");
 #endif
                 return SKColors.White;
             }
@@ -571,4 +571,5 @@ namespace ImageColorChanger.Core
         public SKSize Size { get; set; }
     }
 }
+
 

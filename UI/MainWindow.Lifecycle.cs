@@ -24,7 +24,7 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark(
                 "MainWindow.AuthInitialized",
                 $"IsAuthenticated={_authService.IsAuthenticated}; Username={_authService.Username ?? "<null>"}; RemainingDays={_authService.RemainingDays}");
-            // 🔍 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
+            // 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
             /*
             System.Diagnostics.Debug.WriteLine("========== 幻灯片按钮间距调试信息 ==========");
 
@@ -63,7 +63,7 @@ namespace ImageColorChanger.UI
                     BibleSelectionTableRow.Height = new GridLength(1, GridUnitType.Star);
                 }
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 已恢复圣经历史记录+按钮区域高度: {_configManager.BibleHistoryRowHeight}");
+                System.Diagnostics.Debug.WriteLine($" 已恢复圣经历史记录+按钮区域高度: {_configManager.BibleHistoryRowHeight}");
 #endif
             }
             
@@ -261,7 +261,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
+                // System.Diagnostics.Debug.WriteLine("主窗口正在关闭,清理资源...");
                 _startupDeferredWorkCts.Cancel();
                 MainWindow_Closing(sender, e);
                 DisposeBibleSearchComponents();
@@ -322,7 +322,7 @@ namespace ImageColorChanger.UI
                     _fpsMonitor.Dispose();
                 }
                 
-                // 🔐 清理认证服务
+                // 清理认证服务
                 CleanupAuthService();
                 
                 // 处理圣经历史记录
@@ -333,7 +333,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 资源清理失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 资源清理失败: {ex.Message}");
             }
         }
 
@@ -399,4 +399,6 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
 

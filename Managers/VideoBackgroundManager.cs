@@ -45,7 +45,7 @@ namespace ImageColorChanger.Managers
             _lruOrder = new LinkedList<string>();
 
 #if DEBUG
-            //System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已初始化");
+            //System.Diagnostics.Debug.WriteLine(" VideoBackgroundManager 已初始化");
 #endif
         }
 
@@ -64,7 +64,7 @@ namespace ImageColorChanger.Managers
             if (string.IsNullOrEmpty(videoPath) || !System.IO.File.Exists(videoPath))
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [视频背景] 视频文件不存在: {videoPath}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 视频文件不存在: {videoPath}");
 #endif
                 return null;
             }
@@ -77,7 +77,7 @@ namespace ImageColorChanger.Managers
                 _lruOrder.AddFirst(videoPath);
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ [视频背景] 缓存命中: {System.IO.Path.GetFileName(videoPath)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 缓存命中: {System.IO.Path.GetFileName(videoPath)}");
 #endif
                 return cachedMedia;
             }
@@ -89,7 +89,7 @@ namespace ImageColorChanger.Managers
             AddToCache(videoPath, mediaElement);
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🆕 [视频背景] 创建新MediaElement: {System.IO.Path.GetFileName(videoPath)}");
+            System.Diagnostics.Debug.WriteLine($" [视频背景] 创建新MediaElement: {System.IO.Path.GetFileName(videoPath)}");
 #endif
 
             return mediaElement;
@@ -111,7 +111,7 @@ namespace ImageColorChanger.Managers
                 _currentVideoPath = videoPath;
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"▶️ [视频背景] 播放: {System.IO.Path.GetFileName(videoPath)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 播放: {System.IO.Path.GetFileName(videoPath)}");
 #endif
             }
         }
@@ -127,7 +127,7 @@ namespace ImageColorChanger.Managers
                 media.Pause();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⏸️ [视频背景] 暂停: {System.IO.Path.GetFileName(_currentVideoPath)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 暂停: {System.IO.Path.GetFileName(_currentVideoPath)}");
 #endif
             }
         }
@@ -143,7 +143,7 @@ namespace ImageColorChanger.Managers
                 media.Stop();
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⏹️ [视频背景] 停止: {System.IO.Path.GetFileName(_currentVideoPath)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 停止: {System.IO.Path.GetFileName(_currentVideoPath)}");
 #endif
             }
         }
@@ -161,7 +161,7 @@ namespace ImageColorChanger.Managers
             }
 
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔊 [视频背景] 音量设置为: {volume:P0}");
+            System.Diagnostics.Debug.WriteLine($" [视频背景] 音量设置为: {volume:P0}");
 #endif
         }
 
@@ -180,7 +180,7 @@ namespace ImageColorChanger.Managers
                 _lruOrder.Remove(videoPath);
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🗑️ [视频背景] 移除缓存: {System.IO.Path.GetFileName(videoPath)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] 移除缓存: {System.IO.Path.GetFileName(videoPath)}");
 #endif
             }
         }
@@ -202,7 +202,7 @@ namespace ImageColorChanger.Managers
             _currentVideoPath = null;
 
 #if DEBUG
-            //System.Diagnostics.Debug.WriteLine("🗑️ [视频背景] 清除所有缓存");
+            //System.Diagnostics.Debug.WriteLine(" [视频背景] 清除所有缓存");
 #endif
         }
 
@@ -249,7 +249,7 @@ namespace ImageColorChanger.Managers
 #if DEBUG
                 var duration = mediaElement.NaturalDuration;
                 var size = $"{mediaElement.NaturalVideoWidth}x{mediaElement.NaturalVideoHeight}";
-                System.Diagnostics.Debug.WriteLine($"📹 [视频背景] MediaOpened - 时长: {duration}, 尺寸: {size}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] MediaOpened - 时长: {duration}, 尺寸: {size}");
 #endif
             };
 
@@ -257,7 +257,7 @@ namespace ImageColorChanger.Managers
             mediaElement.MediaFailed += (s, e) =>
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [视频背景] MediaFailed: {e.ErrorException?.Message}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] MediaFailed: {e.ErrorException?.Message}");
 #endif
             };
 
@@ -276,7 +276,7 @@ namespace ImageColorChanger.Managers
                 RemoveFromCache(oldest);
 
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🗑️ [视频背景] LRU淘汰: {System.IO.Path.GetFileName(oldest)}");
+                System.Diagnostics.Debug.WriteLine($" [视频背景] LRU淘汰: {System.IO.Path.GetFileName(oldest)}");
 #endif
             }
 
@@ -294,11 +294,13 @@ namespace ImageColorChanger.Managers
             ClearCache();
 
 #if DEBUG
-            //System.Diagnostics.Debug.WriteLine("✅ VideoBackgroundManager 已释放");
+            //System.Diagnostics.Debug.WriteLine(" VideoBackgroundManager 已释放");
 #endif
         }
 
         #endregion
     }
 }
+
+
 

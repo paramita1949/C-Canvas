@@ -63,7 +63,7 @@ namespace ImageColorChanger.UI.Controls
                 _currentColor = _targetTextBox.Data.ShadowColor;
                 _opacity = _targetTextBox.Data.ShadowOpacity;
 
-                // ✅ 如果阴影透明度为 0%（完全透明/无阴影），打开面板时设置为 80%（默认可见）
+                //  如果阴影透明度为 0%（完全透明/无阴影），打开面板时设置为 80%（默认可见）
                 if (_opacity <= 0)
                 {
                     _opacity = 80;
@@ -394,7 +394,7 @@ namespace ImageColorChanger.UI.Controls
             if (_targetTextBox == null)
             {
 // #if DEBUG
-//                 System.Diagnostics.Debug.WriteLine("⚠️ ApplyShadow: _targetTextBox 为 null");
+//                 System.Diagnostics.Debug.WriteLine(" ApplyShadow: _targetTextBox 为 null");
 // #endif
                 return;
             }
@@ -430,9 +430,10 @@ namespace ImageColorChanger.UI.Controls
                 shadowOpacity: _opacity
             );
 
-            // ✅ 强制刷新文本框渲染（触发投影更新）
+            //  强制刷新文本框渲染（触发投影更新）
             _targetTextBox.InvalidateVisual();
         }
     }
 }
+
 

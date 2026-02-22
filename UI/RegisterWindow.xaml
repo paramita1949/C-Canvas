@@ -11,9 +11,11 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <Style x:Key="IconPathStyle" TargetType="Path" BasedOn="{StaticResource CommonIconPathStyle}"/>
+
         <!-- 主按钮样式 -->
         <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="Background" Value="{StaticResource BrushDialogBrandPrimary}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontSize" Value="14"/>
@@ -32,7 +34,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BrushDialogBrandHover}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#CCCCCC"/>
@@ -52,7 +54,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="#D0D0D0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Height" Value="36"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -82,7 +84,7 @@
             <Setter Property="BorderBrush" Value="#D0D0D0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="White"/>
-            <Setter Property="Height" Value="36"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -101,10 +103,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#007ACC"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#007ACC"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -137,10 +139,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#007ACC"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#007ACC"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrushDialogBrandPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -265,19 +267,30 @@
 
                 <Button x:Name="RegisterButton"
                         Grid.Column="0"
-                        Content="注册"
                         Style="{StaticResource ModernButton}"
                         Click="RegisterButton_Click"
-                        TabIndex="5"/>
+                        TabIndex="5">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Path Data="M16 4H20V8 M20 4L14 10 M10 6H7A3 3 0 0 0 4 9V17A3 3 0 0 0 7 20H15A3 3 0 0 0 18 17V14"
+                              Style="{StaticResource IconPathStyle}"/>
+                        <TextBlock Text="注册" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <Button x:Name="CancelButton"
                         Grid.Column="2"
-                        Content="取消"
                         Style="{StaticResource OutlineButton}"
                         Click="CancelButton_Click"
-                        TabIndex="6"/>
+                        TabIndex="6">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Path Data="M18 6L6 18 M6 6L18 18"
+                              Style="{StaticResource IconPathStyle}"/>
+                        <TextBlock Text="取消" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Grid>
     </Border>
 </Window>
+
 

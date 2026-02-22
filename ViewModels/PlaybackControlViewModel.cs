@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -315,7 +315,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 录制操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 录制操作失败: {ex.Message}");
             }
         }
 
@@ -333,7 +333,7 @@ namespace ImageColorChanger.ViewModels
                 {
                     // 停止播放
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🛑 [停止播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}");
+                    //System.Diagnostics.Debug.WriteLine($" [停止播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}");
                     //#endif
                     await playbackService.StopPlaybackAsync();
                     _countdownService.Stop();
@@ -349,7 +349,7 @@ namespace ImageColorChanger.ViewModels
                     if (_stateMachine.TryTransition(PlaybackStatus.Playing))
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"▶️ [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
+                        //System.Diagnostics.Debug.WriteLine($" [开始播放] 当前模式: {CurrentMode}, 图片ID: {CurrentImageId}, 播放次数: {PlayCount}");
                         //#endif
                         
                         AttachPlaybackServiceEvents(playbackService);
@@ -366,7 +366,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 播放操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 播放操作失败: {ex.Message}");
             }
         }
 
@@ -384,7 +384,7 @@ namespace ImageColorChanger.ViewModels
                 {
                     // 继续播放
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"▶️ [继续播放] 从暂停状态恢复播放");
+                    System.Diagnostics.Debug.WriteLine($" [继续播放] 从暂停状态恢复播放");
                     #endif
                     await playbackService.ResumePlaybackAsync();
                     _countdownService.Resume();
@@ -396,7 +396,7 @@ namespace ImageColorChanger.ViewModels
                 {
                     // 暂停播放
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⏸️ [暂停播放] 暂停当前播放");
+                    System.Diagnostics.Debug.WriteLine($" [暂停播放] 暂停当前播放");
                     #endif
                     await playbackService.PausePlaybackAsync();
                     _countdownService.Pause();
@@ -409,7 +409,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 暂停操作失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 暂停操作失败: {ex.Message}");
             }
         }
 
@@ -438,7 +438,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 清除时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 清除时间数据失败: {ex.Message}");
             }
         }
 
@@ -450,21 +450,21 @@ namespace ImageColorChanger.ViewModels
             try
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"\n📋 ========== 读取脚本信息 ==========");
-                System.Diagnostics.Debug.WriteLine($"📋 图片ID: {CurrentImageId}");
+                System.Diagnostics.Debug.WriteLine($"\n ========== 读取脚本信息 ==========");
+                System.Diagnostics.Debug.WriteLine($" 图片ID: {CurrentImageId}");
                 #endif
                 
                 var timings = await _timingRepository.GetTimingSequenceAsync(CurrentImageId);
                 if (timings == null || timings.Count == 0)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ 没有脚本数据");
+                    System.Diagnostics.Debug.WriteLine($" 没有脚本数据");
                     #endif
                     return "暂无脚本数据";
                 }
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📋 读取到 {timings.Count} 条Timing记录");
+                System.Diagnostics.Debug.WriteLine($" 读取到 {timings.Count} 条Timing记录");
                 #endif
                 
                 var lines = new System.Collections.Generic.List<string>
@@ -482,7 +482,7 @@ namespace ImageColorChanger.ViewModels
                 foreach (var timing in timings.OrderBy(t => t.SequenceOrder))
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📋 Timing #{index}: KeyframeId={timing.KeyframeId}, Duration={timing.Duration:F2}秒, Order={timing.SequenceOrder}");
+                    System.Diagnostics.Debug.WriteLine($" Timing #{index}: KeyframeId={timing.KeyframeId}, Duration={timing.Duration:F2}秒, Order={timing.SequenceOrder}");
                     #endif
                     lines.Add($"{index,4} | {timing.KeyframeId,7} | {timing.Duration,7:F2} | {timing.CreatedAt:yyyy-MM-dd HH:mm:ss}");
                     index++;
@@ -492,8 +492,8 @@ namespace ImageColorChanger.ViewModels
                 lines.Add("═".PadRight(40, '═'));
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📋 总时长: {timings.Sum(t => t.Duration):F2}秒");
-                System.Diagnostics.Debug.WriteLine($"📋 ========== 脚本信息读取完成 ==========\n");
+                System.Diagnostics.Debug.WriteLine($" 总时长: {timings.Sum(t => t.Duration):F2}秒");
+                System.Diagnostics.Debug.WriteLine($" ========== 脚本信息读取完成 ==========\n");
                 #endif
 
                 return string.Join(Environment.NewLine, lines);
@@ -501,7 +501,7 @@ namespace ImageColorChanger.ViewModels
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ 获取脚本信息失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 获取脚本信息失败: {ex.Message}");
                 #endif
                 return $"获取脚本信息失败: {ex.Message}";
             }
@@ -523,13 +523,13 @@ namespace ImageColorChanger.ViewModels
         public async Task RecordKeyframeTimeAsync(int keyframeId)
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] RecordKeyframeTimeAsync 被调用: KeyframeId={keyframeId}, IsRecording={IsRecording}");
+            //System.Diagnostics.Debug.WriteLine($" [ViewModel] RecordKeyframeTimeAsync 被调用: KeyframeId={keyframeId}, IsRecording={IsRecording}");
             //#endif
             
             if (!IsRecording)
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"⚠️ [ViewModel] 不在录制状态，跳过记录");
+                //System.Diagnostics.Debug.WriteLine($" [ViewModel] 不在录制状态，跳过记录");
                 //#endif
                 return;
             }
@@ -539,20 +539,20 @@ namespace ImageColorChanger.ViewModels
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 var recordingService = GetRecordingService();
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📝 [ViewModel] 开始调用RecordingService.RecordTimingAsync...");
+                //System.Diagnostics.Debug.WriteLine($" [ViewModel] 开始调用RecordingService.RecordTimingAsync...");
                 //#endif
                 
                 await recordingService.RecordTimingAsync(keyframeId);
                 
                 sw.Stop();
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [ViewModel] 关键帧时间记录完成: KeyframeId={keyframeId}, 耗时: {sw.ElapsedMilliseconds}ms");
+                //System.Diagnostics.Debug.WriteLine($" [ViewModel] 关键帧时间记录完成: KeyframeId={keyframeId}, 耗时: {sw.ElapsedMilliseconds}ms");
                 //#endif
             }
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [ViewModel] 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ViewModel] 录制关键帧时间失败: KeyframeId={keyframeId}, {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
                 #else
                 _ = ex; // 避免未使用变量警告
@@ -591,17 +591,17 @@ namespace ImageColorChanger.ViewModels
                 CompletedPlayCount = playbackService.CompletedPlayCount;
             }
             
-            // System.Diagnostics.Debug.WriteLine($"📊 [ViewModel] 播放进度更新: 当前={e.CurrentIndex + 1}/{e.TotalCount}, 倒计时={e.RemainingTime:F1}秒");
+            // System.Diagnostics.Debug.WriteLine($" [ViewModel] 播放进度更新: 当前={e.CurrentIndex + 1}/{e.TotalCount}, 倒计时={e.RemainingTime:F1}秒");
             
             // 启动倒计时
             if (e.RemainingTime > 0)
             {
-                // System.Diagnostics.Debug.WriteLine($"⏱️ [ViewModel] 启动倒计时服务: {e.RemainingTime:F1}秒");
+                // System.Diagnostics.Debug.WriteLine($"⏱ [ViewModel] 启动倒计时服务: {e.RemainingTime:F1}秒");
                 _countdownService.Start(e.RemainingTime);
             }
             else
             {
-                // System.Diagnostics.Debug.WriteLine($"⚠️ [ViewModel] 倒计时时长无效: {e.RemainingTime}秒");
+                // System.Diagnostics.Debug.WriteLine($" [ViewModel] 倒计时时长无效: {e.RemainingTime}秒");
             }
         }
 
@@ -693,7 +693,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 检查时间数据失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 检查时间数据失败: {ex.Message}");
                 HasTimingData = false;
             }
             
@@ -709,7 +709,7 @@ namespace ImageColorChanger.ViewModels
             _isLoadingSettings = true;
             try
             {
-                // 🔧 创建独立的临时DbContext实例，不从DI容器获取
+                //  创建独立的临时DbContext实例，不从DI容器获取
                 // 避免释放DI容器中的DbContext导致其他服务无法使用
                 string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
                 using var context = new Database.CanvasDbContext(dbPath);
@@ -730,7 +730,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载播放次数设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载播放次数设置失败: {ex.Message}");
             }
             finally
             {
@@ -746,7 +746,7 @@ namespace ImageColorChanger.ViewModels
         {
             try
             {
-                // 🔧 创建独立的临时DbContext实例，不从DI容器获取
+                //  创建独立的临时DbContext实例，不从DI容器获取
                 // 避免释放DI容器中的DbContext导致其他服务无法使用
                 string dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pyimages.db");
                 using var context = new Database.CanvasDbContext(dbPath);
@@ -770,7 +770,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存播放次数设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 保存播放次数设置失败: {ex.Message}");
             }
         }
 
@@ -788,7 +788,7 @@ namespace ImageColorChanger.ViewModels
                 }
                 else
                 {
-                    // 🎯 先通过当前图片ID查找BaseImageId（可能当前图片不是录制时的起始图片）
+                    //  先通过当前图片ID查找BaseImageId（可能当前图片不是录制时的起始图片）
                     var baseImageId = await _originalModeRepository.FindBaseImageIdBySimilarImageAsync(CurrentImageId);
                     
                     if (baseImageId.HasValue)
@@ -806,7 +806,7 @@ namespace ImageColorChanger.ViewModels
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 更新时间数据状态失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 更新时间数据状态失败: {ex.Message}");
                 HasTimingData = false;
             }
         }
@@ -846,4 +846,6 @@ namespace ImageColorChanger.ViewModels
         #endregion
     }
 }
+
+
 

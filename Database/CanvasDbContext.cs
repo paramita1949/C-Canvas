@@ -418,7 +418,7 @@ namespace ImageColorChanger.Database
                     .HasForeignKey(e => e.SlideId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // 🔧 外键关系：文本元素 -> 富文本片段（一对多）
+                //  外键关系：文本元素 -> 富文本片段（一对多）
                 entity.HasMany(e => e.RichTextSpans)
                     .WithOne()
                     .HasForeignKey(s => s.TextElementId)
@@ -492,7 +492,7 @@ namespace ImageColorChanger.Database
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine($"🔧 开始初始化数据库: {_dbPath}");
+                // System.Diagnostics.Debug.WriteLine($" 开始初始化数据库: {_dbPath}");
 
                 bool dbFileExists = File.Exists(_dbPath);
                 bool hasBootstrapStamp = false;
@@ -523,7 +523,7 @@ namespace ImageColorChanger.Database
 
                 // 确保数据库已创建
                 Database.EnsureCreated();
-                // System.Diagnostics.Debug.WriteLine($"✅ Database.EnsureCreated() 完成");
+                // System.Diagnostics.Debug.WriteLine($" Database.EnsureCreated() 完成");
 
                 // schema 兼容升级采用“版本戳”路径：
                 // - 首次/版本变更：执行全量兼容检查
@@ -535,42 +535,42 @@ namespace ImageColorChanger.Database
 
                     // 检查并创建关键帧表（兼容旧数据库）
                     EnsureKeyframesTableExists();
-                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureKeyframesTableExists() 完成");
+                    // System.Diagnostics.Debug.WriteLine($" EnsureKeyframesTableExists() 完成");
 
                     // 检查并添加合成播放标记字段（兼容旧数据库）
                     EnsureCompositePlaybackColumnExists();
-                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositePlaybackColumnExists() 完成");
+                    // System.Diagnostics.Debug.WriteLine($" EnsureCompositePlaybackColumnExists() 完成");
 
                     // 检查并创建合成播放脚本表（兼容旧数据库）
                     EnsureCompositeScriptTableExists();
-                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureCompositeScriptTableExists() 完成");
+                    // System.Diagnostics.Debug.WriteLine($" EnsureCompositeScriptTableExists() 完成");
 
                     // 检查并添加歌词项目的图片关联字段（兼容旧数据库）
                     EnsureLyricsImageIdColumnExists();
-                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureLyricsImageIdColumnExists() 完成");
+                    // System.Diagnostics.Debug.WriteLine($" EnsureLyricsImageIdColumnExists() 完成");
 
                     // 歌词库Schema（分组+扩展列）兼容升级
                     EnsureLyricsLibrarySchemaExists();
 
-                    // 🆕 检查并添加文本项目的排序字段（兼容旧数据库）
+                    //  检查并添加文本项目的排序字段（兼容旧数据库）
                     EnsureTextProjectSortOrderColumnExists();
-                    // System.Diagnostics.Debug.WriteLine($"✅ EnsureTextProjectSortOrderColumnExists() 完成");
+                    // System.Diagnostics.Debug.WriteLine($" EnsureTextProjectSortOrderColumnExists() 完成");
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
                 }
 
-                // 🆕 确保默认项目存在
+                //  确保默认项目存在
                 EnsureDefaultProjectExists();
-                // System.Diagnostics.Debug.WriteLine($"✅ EnsureDefaultProjectExists() 完成");
+                // System.Diagnostics.Debug.WriteLine($" EnsureDefaultProjectExists() 完成");
 
                 ApplyStartupPragmas();
                 
-                // System.Diagnostics.Debug.WriteLine($"✅ 数据库初始化完成");
+                // System.Diagnostics.Debug.WriteLine($" 数据库初始化完成");
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
+                // System.Diagnostics.Debug.WriteLine($" 数据库初始化失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
         }
@@ -800,25 +800,25 @@ namespace ImageColorChanger.Database
         {
             try
             {
-                // System.Diagnostics.Debug.WriteLine("🔍 开始检查关键帧表...");
+                // System.Diagnostics.Debug.WriteLine(" 开始检查关键帧表...");
                 
                 // 检查 keyframes 表是否存在
                 var connection = Database.GetDbConnection();
                 if (connection.State != System.Data.ConnectionState.Open)
                 {
                     connection.Open();
-                    // System.Diagnostics.Debug.WriteLine("📂 数据库连接已打开");
+                    // System.Diagnostics.Debug.WriteLine(" 数据库连接已打开");
                 }
 
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='keyframes'";
                     var result = command.ExecuteScalar();
-                    // System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframes 表: {(result == null ? "不存在" : "已存在")}");
+                    // System.Diagnostics.Debug.WriteLine($" 检查 keyframes 表: {(result == null ? "不存在" : "已存在")}");
 
                     if (result == null)
                     {
-                        // System.Diagnostics.Debug.WriteLine("⚠️ keyframes表不存在，正在创建...");
+                        // System.Diagnostics.Debug.WriteLine(" keyframes表不存在，正在创建...");
                         
                         // 创建 keyframes 表
                         Database.ExecuteSqlRaw(@"
@@ -836,21 +836,21 @@ namespace ImageColorChanger.Database
                         Database.ExecuteSqlRaw("CREATE INDEX idx_keyframes_image ON keyframes(ImageId)");
                         Database.ExecuteSqlRaw("CREATE INDEX idx_keyframes_order ON keyframes(OrderIndex)");
                         
-                        // System.Diagnostics.Debug.WriteLine("✅ keyframes表创建成功");
+                        // System.Diagnostics.Debug.WriteLine(" keyframes表创建成功");
                     }
                     else
                     {
-                        // System.Diagnostics.Debug.WriteLine("ℹ️ keyframes表已存在，跳过创建");
+                        // System.Diagnostics.Debug.WriteLine(" keyframes表已存在，跳过创建");
                     }
 
                     // 检查 keyframe_timings 表是否存在
                     command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='keyframe_timings'";
                     result = command.ExecuteScalar();
-                    // System.Diagnostics.Debug.WriteLine($"🔍 检查 keyframe_timings 表: {(result == null ? "不存在" : "已存在")}");
+                    // System.Diagnostics.Debug.WriteLine($" 检查 keyframe_timings 表: {(result == null ? "不存在" : "已存在")}");
 
                     if (result == null)
                     {
-                        // System.Diagnostics.Debug.WriteLine("⚠️ keyframe_timings表不存在，正在创建...");
+                        // System.Diagnostics.Debug.WriteLine(" keyframe_timings表不存在，正在创建...");
                         
                         // 创建 keyframe_timings 表
                         Database.ExecuteSqlRaw(@"
@@ -869,23 +869,23 @@ namespace ImageColorChanger.Database
                         Database.ExecuteSqlRaw("CREATE INDEX idx_timing_image ON keyframe_timings(ImageId)");
                         Database.ExecuteSqlRaw("CREATE INDEX idx_timing_sequence ON keyframe_timings(ImageId, SequenceOrder)");
                         
-                        // System.Diagnostics.Debug.WriteLine("✅ keyframe_timings表创建成功");
+                        // System.Diagnostics.Debug.WriteLine(" keyframe_timings表创建成功");
                     }
                     else
                     {
-                        // System.Diagnostics.Debug.WriteLine("ℹ️ keyframe_timings表已存在，跳过创建");
+                        // System.Diagnostics.Debug.WriteLine(" keyframe_timings表已存在，跳过创建");
                     }
                 }
 
                 if (connection.State == System.Data.ConnectionState.Open)
                 {
                     connection.Close();
-                    // System.Diagnostics.Debug.WriteLine("📂 数据库连接已关闭");
+                    // System.Diagnostics.Debug.WriteLine(" 数据库连接已关闭");
                 }
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 检查/创建关键帧表失败: {ex.Message}\n{ex.StackTrace}");
+                // System.Diagnostics.Debug.WriteLine($" 检查/创建关键帧表失败: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
         }
@@ -930,7 +930,7 @@ namespace ImageColorChanger.Database
                                     ALTER TABLE images 
                                     ADD COLUMN composite_playback_enabled INTEGER NOT NULL DEFAULT 0";
                                 alterCommand.ExecuteNonQuery();
-                                System.Diagnostics.Debug.WriteLine("✅ 已添加 composite_playback_enabled 字段到 images 表");
+                                System.Diagnostics.Debug.WriteLine(" 已添加 composite_playback_enabled 字段到 images 表");
                             }
                         }
                     }
@@ -938,7 +938,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 composite_playback_enabled 字段失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 检查/添加 composite_playback_enabled 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }
@@ -980,14 +980,14 @@ namespace ImageColorChanger.Database
                         Database.ExecuteSqlRaw("CREATE UNIQUE INDEX idx_composite_scripts_image ON composite_scripts(image_id)");
 
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("✅ 已创建 composite_scripts 表");
+                        System.Diagnostics.Debug.WriteLine(" 已创建 composite_scripts 表");
                         #endif
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查/创建 composite_scripts 表失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 检查/创建 composite_scripts 表失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }
@@ -1032,7 +1032,7 @@ namespace ImageColorChanger.Database
                                     ALTER TABLE lyrics_projects 
                                     ADD COLUMN image_id INTEGER NULL";
                                 alterCommand.ExecuteNonQuery();
-                                System.Diagnostics.Debug.WriteLine("✅ 已添加 image_id 字段到 lyrics_projects 表");
+                                System.Diagnostics.Debug.WriteLine(" 已添加 image_id 字段到 lyrics_projects 表");
                             }
                         }
                     }
@@ -1040,7 +1040,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 image_id 字段失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 检查/添加 image_id 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }
@@ -1060,7 +1060,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ EnsureLyricsLibrarySchemaExists 失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" EnsureLyricsLibrarySchemaExists 失败: {ex.Message}");
                 // 兼容升级逻辑不阻断启动
             }
         }
@@ -1097,11 +1097,11 @@ namespace ImageColorChanger.Database
                         is_system INTEGER NOT NULL DEFAULT 0
                     )");
 
-                System.Diagnostics.Debug.WriteLine("✅ 已创建 lyrics_groups 表");
+                System.Diagnostics.Debug.WriteLine(" 已创建 lyrics_groups 表");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 创建 lyrics_groups 表失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 创建 lyrics_groups 表失败: {ex.Message}");
             }
         }
 
@@ -1117,7 +1117,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 扩展 lyrics_projects 列失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 扩展 lyrics_projects 列失败: {ex.Message}");
             }
         }
 
@@ -1136,7 +1136,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 创建歌词库索引失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 创建歌词库索引失败: {ex.Message}");
             }
         }
 
@@ -1196,7 +1196,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 歌词库系统分组回填失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 歌词库系统分组回填失败: {ex.Message}");
             }
         }
 
@@ -1225,7 +1225,7 @@ namespace ImageColorChanger.Database
 
             string sql = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnSqlType;
             Database.ExecuteSqlRaw(sql);
-            System.Diagnostics.Debug.WriteLine($"✅ 已添加列: {tableName}.{columnName}");
+            System.Diagnostics.Debug.WriteLine($" 已添加列: {tableName}.{columnName}");
         }
 
         /// <summary>
@@ -1268,7 +1268,7 @@ namespace ImageColorChanger.Database
                                     ALTER TABLE text_projects 
                                     ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0";
                                 alterCommand.ExecuteNonQuery();
-                                System.Diagnostics.Debug.WriteLine("✅ 已添加 sort_order 字段到 text_projects 表");
+                                System.Diagnostics.Debug.WriteLine(" 已添加 sort_order 字段到 text_projects 表");
                             }
                         }
                     }
@@ -1276,7 +1276,7 @@ namespace ImageColorChanger.Database
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 检查/添加 sort_order 字段失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 检查/添加 sort_order 字段失败: {ex.Message}");
                 // 不抛出异常，因为这不是致命错误
             }
         }
@@ -1300,7 +1300,7 @@ namespace ImageColorChanger.Database
                 if (!TextProjects.Any())
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("📋 [数据库初始化] 没有项目，检查是否首次初始化...");
+                    System.Diagnostics.Debug.WriteLine(" [数据库初始化] 没有项目，检查是否首次初始化...");
                     #endif
 
                     // 检查是否是首次初始化（通过 Settings 表中的标记判断）
@@ -1309,7 +1309,7 @@ namespace ImageColorChanger.Database
                     bool isFirstTime = (initFlag == null);
 
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📋 [数据库初始化] 首次初始化: {isFirstTime}");
+                    System.Diagnostics.Debug.WriteLine($" [数据库初始化] 首次初始化: {isFirstTime}");
                     #endif
 
                     // 创建"项目1"
@@ -1339,7 +1339,7 @@ namespace ImageColorChanger.Database
                     SaveChanges();
 
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {project1.Name} (ID={project1.Id})");
+                    System.Diagnostics.Debug.WriteLine($" [数据库初始化] 默认项目创建成功: {project1.Name} (ID={project1.Id})");
                     #endif
 
                     // 只在首次初始化时创建"赞美诗"
@@ -1371,7 +1371,7 @@ namespace ImageColorChanger.Database
                         SaveChanges();
 
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"✅ [数据库初始化] 默认项目创建成功: {praiseProject.Name} (ID={praiseProject.Id})");
+                        System.Diagnostics.Debug.WriteLine($" [数据库初始化] 默认项目创建成功: {praiseProject.Name} (ID={praiseProject.Id})");
                         #endif
 
                         // 标记首次初始化已完成
@@ -1383,13 +1383,13 @@ namespace ImageColorChanger.Database
                         SaveChanges();
 
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("✅ [数据库初始化] 首次初始化标记已设置");
+                        System.Diagnostics.Debug.WriteLine(" [数据库初始化] 首次初始化标记已设置");
                         #endif
                     }
                     else
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("ℹ️ [数据库初始化] 非首次初始化，仅创建项目1");
+                        System.Diagnostics.Debug.WriteLine(" [数据库初始化] 非首次初始化，仅创建项目1");
                         #endif
                     }
                 }
@@ -1397,7 +1397,7 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [数据库初始化] 创建默认项目失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [数据库初始化] 创建默认项目失败: {ex.Message}");
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
@@ -1437,4 +1437,5 @@ namespace ImageColorChanger.Database
         }
     }
 }
+
 

@@ -204,7 +204,7 @@ namespace ImageColorChanger.UI.Controls
             if (_targetTextBox == null)
                 return;
 
-            // 🆕 间距样式暂时只应用到整个文本框（行间距和字间距是全局属性）
+            // 间距样式暂时只应用到整个文本框（行间距和字间距是全局属性）
             _targetTextBox.ApplyStyle(
                 lineSpacing: _lineSpacing,
                 letterSpacing: _letterSpacing
@@ -222,4 +222,6 @@ namespace ImageColorChanger.UI.Controls
         }
     }
 }
+
+
 

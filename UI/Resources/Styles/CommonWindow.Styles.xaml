@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="ColorDialogBrandPrimary">#2563EB</Color>
+    <Color x:Key="ColorDialogBrandHover">#1D4ED8</Color>
+    <Color x:Key="ColorDialogBrandPressed">#1E40AF</Color>
+
+    <SolidColorBrush x:Key="BrushDialogBrandPrimary" Color="{StaticResource ColorDialogBrandPrimary}"/>
+    <SolidColorBrush x:Key="BrushDialogBrandHover" Color="{StaticResource ColorDialogBrandHover}"/>
+    <SolidColorBrush x:Key="BrushDialogBrandPressed" Color="{StaticResource ColorDialogBrandPressed}"/>
+
+    <Style x:Key="CommonIconPathStyle" TargetType="Path">
+        <Setter Property="StrokeThickness" Value="2"/>
+        <Setter Property="StrokeStartLineCap" Value="Round"/>
+        <Setter Property="StrokeEndLineCap" Value="Round"/>
+        <Setter Property="StrokeLineJoin" Value="Round"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Fill" Value="Transparent"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="Stroke" Value="{DynamicResource BrushGlobalIcon}"/>
+    </Style>
+</ResourceDictionary>

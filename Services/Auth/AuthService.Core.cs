@@ -90,7 +90,7 @@ namespace ImageColorChanger.Services
             await TryLoadAuthDataAsync().ConfigureAwait(false);
 #if DEBUG
             System.Diagnostics.Trace.WriteLine(
-                $"🔐 [AuthService] InitializeAsync完成: IsAuthenticated={_isAuthenticated}, " +
+                $" [AuthService] InitializeAsync完成: IsAuthenticated={_isAuthenticated}, " +
                 $"Username={_username ?? "null"}, RemainingDays={_remainingDays}");
 #endif
         }
@@ -127,3 +127,5 @@ namespace ImageColorChanger.Services
         }
     }
 }
+
+

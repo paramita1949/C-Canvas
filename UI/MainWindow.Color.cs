@@ -35,7 +35,7 @@ namespace ImageColorChanger.UI
             else
             {
                 BtnColorEffect.Background = System.Windows.Media.Brushes.Transparent; // 使用透明背景，让样式生效
-                ShowStatus("✅ 已关闭颜色效果");
+                ShowStatus("已关闭颜色效果");
             }
             
             // 通过ImageProcessor的UpdateImage来更新显示（包含完整的缩放、居中逻辑）
@@ -185,7 +185,7 @@ namespace ImageColorChanger.UI
                     {
                         _currentTargetColorName = presetName;
                         SaveSettings();
-                        ShowStatus($"✅ 已保存颜色预设: {presetName}");
+                        ShowStatus($"已保存颜色预设: {presetName}");
                         System.Windows.MessageBox.Show($"颜色预设 '{presetName}' 已保存成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
@@ -196,7 +196,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 保存颜色预设失败: {ex.Message}");
+                ShowStatus($"保存颜色预设失败: {ex.Message}");
                 System.Windows.MessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -204,4 +204,6 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
 

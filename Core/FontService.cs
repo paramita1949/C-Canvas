@@ -64,7 +64,7 @@ namespace ImageColorChanger.Core
                 if (string.IsNullOrEmpty(json))
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 未找到 {configFile}");
+//                    System.Diagnostics.Debug.WriteLine($" [FontService] 未找到 {configFile}");
 //#endif
                     return false;
                 }
@@ -78,7 +78,7 @@ namespace ImageColorChanger.Core
                 if (_fontConfig == null || _fontConfig.FontCategories == null || _fontConfig.FontCategories.Count == 0)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] {configFile} 配置为空");
+//                    System.Diagnostics.Debug.WriteLine($" [FontService] {configFile} 配置为空");
 //#endif
                     return false;
                 }
@@ -87,7 +87,7 @@ namespace ImageColorChanger.Core
 
 //#if DEBUG
 //                int totalFonts = _fontConfig.FontCategories.Sum(c => c.Fonts.Count);
-//                System.Diagnostics.Debug.WriteLine($"✅ [FontService] 初始化成功，加载了 {totalFonts} 个字体配置");
+//                System.Diagnostics.Debug.WriteLine($" [FontService] 初始化成功，加载了 {totalFonts} 个字体配置");
 //#endif
 
                 return true;
@@ -99,7 +99,7 @@ namespace ImageColorChanger.Core
             )
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [FontService] 初始化失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [FontService] 初始化失败: {ex.Message}");
 #endif
                 return false;
             }
@@ -170,7 +170,7 @@ namespace ImageColorChanger.Core
             if (string.IsNullOrEmpty(familyName))
                 return null;
 
-            // 🔧 提取字体族名称（处理完整路径格式：./CCanvas_Fonts/xxx.ttf#字体名）
+            //  提取字体族名称（处理完整路径格式：./CCanvas_Fonts/xxx.ttf#字体名）
             string extractedFamily = familyName;
             if (familyName.Contains("#"))
             {
@@ -265,7 +265,7 @@ namespace ImageColorChanger.Core
                             if (fontFamily == null)
                             {
 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 字体加载失败: {font.Name}");
+                                System.Diagnostics.Debug.WriteLine($" [FontService] 字体加载失败: {font.Name}");
 #endif
                                 continue;
                             }
@@ -298,7 +298,7 @@ namespace ImageColorChanger.Core
                     )
                     {
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 加载字体失败 [{font.Name}]: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($" [FontService] 加载字体失败 [{font.Name}]: {ex.Message}");
 #endif
                     }
                 }
@@ -315,7 +315,7 @@ namespace ImageColorChanger.Core
             }
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [FontService] ComboBox已填充 {totalFonts} 个字体");
+//            System.Diagnostics.Debug.WriteLine($" [FontService] ComboBox已填充 {totalFonts} 个字体");
 //#endif
 
             return totalFonts;
@@ -453,7 +453,7 @@ namespace ImageColorChanger.Core
         {
             _fontCache.Clear();
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🗑️ [FontService] 字体缓存已清除");
+            System.Diagnostics.Debug.WriteLine($" [FontService] 字体缓存已清除");
 #endif
         }
 
@@ -520,7 +520,7 @@ namespace ImageColorChanger.Core
                     if (!ResourceLoader.ResourceExists(fontRelativePath))
                     {
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"⚠️ [FontService] 字体文件不存在: {fontRelativePath}");
+                        System.Diagnostics.Debug.WriteLine($" [FontService] 字体文件不存在: {fontRelativePath}");
 #endif
                         return null;
                     }
@@ -536,7 +536,7 @@ namespace ImageColorChanger.Core
             )
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [FontService] 字体加载失败 [{font.Name}]: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [FontService] 字体加载失败 [{font.Name}]: {ex.Message}");
 #endif
                 return null;
             }
@@ -561,4 +561,5 @@ namespace ImageColorChanger.Core
         public System.Windows.Media.FontFamily FontFamily { get; set; }
     }
 }
+
 

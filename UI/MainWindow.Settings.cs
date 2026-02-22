@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载设置失败: {ex.Message}");
             }
         }
 
@@ -64,9 +64,9 @@ namespace ImageColorChanger.UI
             catch (Exception)
             {
                 // 使用默认值
-                _projectionAnimationEnabled = true;   // ✅ 默认启用
-                _projectionAnimationOpacity = 0.1;    // ✅ 默认透明度 0.1
-                _projectionAnimationDuration = 800;    // ✅ 默认动画时长 800ms
+                _projectionAnimationEnabled = true;   //  默认启用
+                _projectionAnimationOpacity = 0.1;    //  默认透明度 0.1
+                _projectionAnimationDuration = 800;    //  默认动画时长 800ms
             }
         }
 
@@ -89,11 +89,11 @@ namespace ImageColorChanger.UI
                 // 保存菜单栏字号（在ApplyMenuFontSize中已保存到_configManager）
                 _configManager.SaveConfig();
                 
-                // System.Diagnostics.Debug.WriteLine($"✅ 已保存设置到 config.json (颜色: {_currentTargetColorName})");
+                // System.Diagnostics.Debug.WriteLine($" 已保存设置到 config.json (颜色: {_currentTargetColorName})");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 保存设置失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 保存设置失败: {ex.Message}");
             }
         }
 
@@ -104,7 +104,7 @@ namespace ImageColorChanger.UI
         {
             _configManager.FolderFontSize = size;
             OnPropertyChanged(nameof(FolderFontSize));
-            ShowStatus($"✅ 文件夹字号已设置为: {size}");
+            ShowStatus($"文件夹字号已设置为: {size}");
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace ImageColorChanger.UI
         {
             _configManager.FileFontSize = size;
             OnPropertyChanged(nameof(FileFontSize));
-            ShowStatus($"✅ 文件字号已设置为: {size}");
+            ShowStatus($"文件字号已设置为: {size}");
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace ImageColorChanger.UI
         {
             _configManager.FolderTagFontSize = size;
             OnPropertyChanged(nameof(FolderTagFontSize));
-            ShowStatus($"✅ 文件夹标签字号已设置为: {size}");
+            ShowStatus($"文件夹标签字号已设置为: {size}");
         }
         
         /// <summary>
@@ -188,7 +188,7 @@ namespace ImageColorChanger.UI
                     btn.FontSize = adaptiveFontSize * textEditorScale;
                     btn.Height = buttonParams.Height * textEditorScale;
 
-                    // 🎯 A+、A-、B、A 按钮设置为紧凑样式（0间距、小内边距）
+                    // A+、A-、B、A 按钮设置为紧凑样式（0间距、小内边距）
                     if (btn == BtnIncreaseFontSize || btn == BtnDecreaseFontSize ||
                         btn == BtnBold || btn == BtnTextColor)
                     {
@@ -223,7 +223,7 @@ namespace ImageColorChanger.UI
                 CountdownText.FontSize = Math.Max(14, adaptiveFontSize);
                 
                 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"⏱️ 倒计时Border: 高度={CountdownBorder.Height:F1}, 字号={CountdownText.FontSize:F1}, VerticalAlignment={CountdownBorder.VerticalAlignment}");
+                // System.Diagnostics.Debug.WriteLine($"⏱ 倒计时Border: 高度={CountdownBorder.Height:F1}, 字号={CountdownText.FontSize:F1}, VerticalAlignment={CountdownBorder.VerticalAlignment}");
                 #endif
             }
             
@@ -234,7 +234,7 @@ namespace ImageColorChanger.UI
             _configManager.MenuFontSize = fontSize;
             
             #if DEBUG
-            // System.Diagnostics.Debug.WriteLine($"✅ 应用Python风格字号: 主字号={fontSize}, 显示字号={displayFontSize:F1}, 自适应={adaptiveFontSize:F1}, 屏幕宽度={screenWidth}, DPI缩放={dpiScale:F2}");
+            // System.Diagnostics.Debug.WriteLine($" 应用Python风格字号: 主字号={fontSize}, 显示字号={displayFontSize:F1}, 自适应={adaptiveFontSize:F1}, 屏幕宽度={screenWidth}, DPI缩放={dpiScale:F2}");
             #endif
         }
         
@@ -325,7 +325,7 @@ namespace ImageColorChanger.UI
             }
             
             #if DEBUG
-            // System.Diagnostics.Debug.WriteLine($"📏 调整菜单栏高度: {menuBarHeight:F1} (字号: {baseFontSize}, 缩放比例: {fontScale:F2})");
+            // System.Diagnostics.Debug.WriteLine($"调整菜单栏高度: {menuBarHeight:F1} (字号: {baseFontSize}, 缩放比例: {fontScale:F2})");
             #endif
         }
         
@@ -335,7 +335,7 @@ namespace ImageColorChanger.UI
         private void SetMenuFontSize(double size)
         {
             ApplyMenuFontSize(size);
-            ShowStatus($"✅ 菜单字号已设置为: {size}");
+            ShowStatus($"菜单字号已设置为: {size}");
         }
         
         /// <summary>
@@ -352,13 +352,13 @@ namespace ImageColorChanger.UI
                 ApplyMenuFontSize(currentFontSize);
                 
                 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"🎨 自适应字体系统初始化完成，字号: {currentFontSize}");
+                // System.Diagnostics.Debug.WriteLine($"自适应字体系统初始化完成，字号: {currentFontSize}");
                 #endif
             }
             catch
             {
                 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"❌ 自适应字体系统初始化失败");
+                // System.Diagnostics.Debug.WriteLine($" 自适应字体系统初始化失败");
                 #endif
             }
         }
@@ -366,4 +366,7 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
+
 

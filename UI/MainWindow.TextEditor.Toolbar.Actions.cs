@@ -105,7 +105,7 @@ namespace ImageColorChanger.UI
                 SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
 
                 LoadSlideList();
-                ShowStatus($"✅ 成功导入 {sortedFiles.Length} 张图片");
+                ShowStatus($"成功导入 {sortedFiles.Length} 张图片");
 
                 if (newSlides.Count > 0)
                 {
@@ -496,3 +496,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

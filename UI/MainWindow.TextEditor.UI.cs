@@ -38,24 +38,24 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void TreeItemEditBox_Loaded(object sender, RoutedEventArgs e)
         {
-            // //System.Diagnostics.Debug.WriteLine($"🔍 TreeItemEditBox_Loaded 触发");
+            // //System.Diagnostics.Debug.WriteLine($"TreeItemEditBox_Loaded 触发");
             
             if (sender is System.Windows.Controls.TextBox textBox)
             {
-                // //System.Diagnostics.Debug.WriteLine($"🔍 TextBox 实例: Text={textBox.Text}, Visibility={textBox.Visibility}");
+                // //System.Diagnostics.Debug.WriteLine($"TextBox 实例: Text={textBox.Text}, Visibility={textBox.Visibility}");
                 
                 if (textBox.DataContext is ProjectTreeItem item)
                 {
-                    // //System.Diagnostics.Debug.WriteLine($"🔍 DataContext: Name={item.Name}, IsEditing={item.IsEditing}");
+                    // //System.Diagnostics.Debug.WriteLine($"DataContext: Name={item.Name}, IsEditing={item.IsEditing}");
                     
                     // 只在编辑模式时才聚焦
                     if (!item.IsEditing)
                     {
-                        // //System.Diagnostics.Debug.WriteLine($"⚠️ IsEditing=false，跳过聚焦");
+                        // //System.Diagnostics.Debug.WriteLine($" IsEditing=false，跳过聚焦");
                         return;
                     }
                     
-                    //System.Diagnostics.Debug.WriteLine($"📝 编辑框加载: Text={textBox.Text}, IsEditing={item.IsEditing}");
+                    //System.Diagnostics.Debug.WriteLine($"编辑框加载: Text={textBox.Text}, IsEditing={item.IsEditing}");
                     
                     // 延迟聚焦，确保UI完全加载
                     Dispatcher.BeginInvoke(new Action(() =>
@@ -64,22 +64,22 @@ namespace ImageColorChanger.UI
                         {
                             bool focused = textBox.Focus();
                             textBox.CaretIndex = textBox.Text.Length; // 光标定位到末尾
-                            //System.Diagnostics.Debug.WriteLine($"✅ 编辑框已聚焦: Success={focused}, 光标位置: {textBox.CaretIndex}");
+                            //System.Diagnostics.Debug.WriteLine($" 编辑框已聚焦: Success={focused}, 光标位置: {textBox.CaretIndex}");
                         }
                         else
                         {
-                            //System.Diagnostics.Debug.WriteLine($"⚠️ 延迟检查时 IsEditing=false");
+                            //System.Diagnostics.Debug.WriteLine($" 延迟检查时 IsEditing=false");
                         }
                     }), System.Windows.Threading.DispatcherPriority.Input);
                 }
                 else
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ DataContext 不是 ProjectTreeItem: {textBox.DataContext?.GetType().Name}");
+                    //System.Diagnostics.Debug.WriteLine($" DataContext 不是 ProjectTreeItem: {textBox.DataContext?.GetType().Name}");
                 }
             }
             else
             {
-                //System.Diagnostics.Debug.WriteLine($"⚠️ sender 不是 TextBox: {sender?.GetType().Name}");
+                //System.Diagnostics.Debug.WriteLine($" sender 不是 TextBox: {sender?.GetType().Name}");
             }
         }
 
@@ -127,12 +127,12 @@ namespace ImageColorChanger.UI
                 textBox.DataContext is ProjectTreeItem item)
             {
                 bool isVisible = (bool)e.NewValue;
-                //System.Diagnostics.Debug.WriteLine($"🔍 编辑框可见性改变: IsVisible={isVisible}, IsEditing={item.IsEditing}, Name={item.Name}");
+                //System.Diagnostics.Debug.WriteLine($"编辑框可见性改变: IsVisible={isVisible}, IsEditing={item.IsEditing}, Name={item.Name}");
                 
                 // 当变为可见且处于编辑模式时，聚焦并定位光标
                 if (isVisible && item.IsEditing)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"📝 编辑框变为可见，准备聚焦");
+                    //System.Diagnostics.Debug.WriteLine($"编辑框变为可见，准备聚焦");
                     
                     // 延迟聚焦，确保控件完全渲染
                     Dispatcher.BeginInvoke(new Action(() =>
@@ -141,7 +141,7 @@ namespace ImageColorChanger.UI
                         {
                             bool focused = textBox.Focus();
                             textBox.CaretIndex = textBox.Text.Length;
-                            //System.Diagnostics.Debug.WriteLine($"✅ 编辑框已聚焦: Success={focused}, CaretIndex={textBox.CaretIndex}, IsFocused={textBox.IsFocused}");
+                            //System.Diagnostics.Debug.WriteLine($" 编辑框已聚焦: Success={focused}, CaretIndex={textBox.CaretIndex}, IsFocused={textBox.IsFocused}");
                         }
                     }), System.Windows.Threading.DispatcherPriority.Input);
                 }
@@ -172,7 +172,7 @@ namespace ImageColorChanger.UI
             }
 
             // 如果没找到，返回null（将使用系统默认字体）
-            //System.Diagnostics.Debug.WriteLine($"⚠️ 未找到字体: {fontFamilyName}，将使用默认字体");
+            //System.Diagnostics.Debug.WriteLine($" 未找到字体: {fontFamilyName}，将使用默认字体");
             return null;
         }
 
@@ -207,12 +207,12 @@ namespace ImageColorChanger.UI
             // 关闭文本编辑器
             CloseTextEditor();
             
-            //System.Diagnostics.Debug.WriteLine("状态: ✅ 已退出文本编辑器，返回图片/视频浏览模式");
+            //System.Diagnostics.Debug.WriteLine("状态:  已退出文本编辑器，返回图片/视频浏览模式");
         }
 
         #endregion
 
-        #region 🆕 投影锁定功能
+        #region 投影锁定功能
 
         /// <summary>
         /// 投影锁定状态（true=锁定，切换幻灯片不自动更新投影；false=未锁定，自动更新）
@@ -231,19 +231,19 @@ namespace ImageColorChanger.UI
             if (_isProjectionLocked)
             {
                 // 锁定状态：设置橙色，Tag标记锁定（样式会根据Tag禁用悬停效果）
-                BtnLockProjection.Content = "🔒 锁定投影";
+                SetLockProjectionButtonContent(true);
                 BtnLockProjection.ToolTip = "投影已锁定：切换幻灯片不会自动更新投影，点击解锁";
                 BtnLockProjection.Tag = "Locked";
                 BtnLockProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 165, 0));
                 BtnLockProjection.Foreground = new SolidColorBrush(Colors.White);
                 
-                // 🔒 锁定模式：如果当前有视频背景，切换到独立 MediaElement 模式
+                //  锁定模式：如果当前有视频背景，切换到独立 MediaElement 模式
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] ===== 锁定投影 =====");
-                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
-                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
-                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
-                //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
+                //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] ===== 锁定投影 =====");
+                //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
+                //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] BackgroundImagePath: {_currentSlide?.BackgroundImagePath ?? "null"}");
+                //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
+                //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] IsProjectionActive: {_projectionManager?.IsProjectionActive ?? false}");
 #endif
                 if (_currentSlide?.VideoBackgroundEnabled == true && 
                     !string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath) &&
@@ -251,9 +251,9 @@ namespace ImageColorChanger.UI
                     _projectionManager.IsProjectionActive)
                 {
 #if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 切换到独立 MediaElement 模式");
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 视频路径: {_currentSlide.BackgroundImagePath}");
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [BtnLockProjection] 循环播放: {_currentSlide.VideoLoopEnabled}");
+                    //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] 切换到独立 MediaElement 模式");
+                    //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] 视频路径: {_currentSlide.BackgroundImagePath}");
+                    //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] 循环播放: {_currentSlide.VideoLoopEnabled}");
 #endif
                     var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
                     var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
@@ -265,7 +265,7 @@ namespace ImageColorChanger.UI
 #if DEBUG
                 //else
                 //{
-                //    System.Diagnostics.Debug.WriteLine($"⚠️ [BtnLockProjection] 条件不满足，未切换到独立 MediaElement 模式");
+                //    System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] 条件不满足，未切换到独立 MediaElement 模式");
                 //    System.Diagnostics.Debug.WriteLine($"   - VideoBackgroundEnabled: {_currentSlide?.VideoBackgroundEnabled ?? false}");
                 //    System.Diagnostics.Debug.WriteLine($"   - BackgroundImagePath为空: {string.IsNullOrEmpty(_currentSlide?.BackgroundImagePath)}");
                 //    System.Diagnostics.Debug.WriteLine($"   - IsVideoFile: {(_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) ? IsVideoFile(_currentSlide.BackgroundImagePath) : false)}");
@@ -276,13 +276,13 @@ namespace ImageColorChanger.UI
             else
             {
                 // 未锁定状态：恢复默认蓝色
-                BtnLockProjection.Content = "🔓 锁定投影";
+                SetLockProjectionButtonContent(false);
                 BtnLockProjection.ToolTip = "投影未锁定：切换幻灯片自动更新投影，点击锁定";
                 BtnLockProjection.Tag = null;
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.BackgroundProperty);
                 BtnLockProjection.ClearValue(System.Windows.Controls.Button.ForegroundProperty);
                 
-                // 🔓 解锁模式：清理独立 MediaElement，切换回 VisualBrush 模式
+                //  解锁模式：清理独立 MediaElement，切换回 VisualBrush 模式
                 _projectionManager.ClearLockedVideo();
                 
                 // 如果当前有视频背景，重新使用 VisualBrush 模式更新投影
@@ -300,3 +300,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

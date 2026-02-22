@@ -28,7 +28,7 @@ namespace ImageColorChanger.Services
             _trialProjectionSession.SetToken(GenerateTrialProjectionToken());
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"🔒 [试用投影] 已启动，时长: {_trialProjectionSession.DurationSeconds}秒");
+            System.Diagnostics.Trace.WriteLine($" [试用投影] 已启动，时长: {_trialProjectionSession.DurationSeconds}秒");
 #endif
         }
 
@@ -54,7 +54,7 @@ namespace ImageColorChanger.Services
             if (!tokenValid)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [试用投影] 令牌验证失败，可能被篡改");
+                System.Diagnostics.Trace.WriteLine($" [试用投影] 令牌验证失败，可能被篡改");
 #endif
             }
 
@@ -92,7 +92,7 @@ namespace ImageColorChanger.Services
             _trialProjectionSession.Reset();
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"🔒 [试用投影] 已重置");
+            System.Diagnostics.Trace.WriteLine($" [试用投影] 已重置");
 #endif
         }
 
@@ -126,4 +126,5 @@ namespace ImageColorChanger.Services
         #endregion
     }
 }
+
 

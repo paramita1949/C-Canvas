@@ -28,7 +28,7 @@ namespace ImageColorChanger.Managers
         private int _height;
         private int _pitch;
         
-        // 🚀 帧率限制（减少 CPU 占用）
+        //  帧率限制（减少 CPU 占用）
         private DateTime _lastFrameTime = DateTime.MinValue;
         private readonly TimeSpan _minFrameInterval = TimeSpan.FromMilliseconds(33); // ~30fps
         
@@ -64,7 +64,7 @@ namespace ImageColorChanger.Managers
             SetupVlcCallbacks();
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 初始化完成: {width}x{height}");
+//            System.Diagnostics.Debug.WriteLine($" [VlcCustomRenderer] 初始化完成: {width}x{height}");
 //#endif
         }
 
@@ -92,7 +92,7 @@ namespace ImageColorChanger.Managers
             _videoBuffer = Marshal.AllocHGlobal(_pitch * _height);
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [WriteableBitmap] 初始化成功: {_width}x{_height}");
+//            System.Diagnostics.Debug.WriteLine($" [WriteableBitmap] 初始化成功: {_width}x{_height}");
 //#endif
         }
 
@@ -108,7 +108,7 @@ namespace ImageColorChanger.Managers
             _mediaPlayer.SetVideoCallbacks(Lock, Unlock, Display);
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [VLC] 回调设置完成");
+//            System.Diagnostics.Debug.WriteLine($" [VLC] 回调设置完成");
 //#endif
         }
 
@@ -145,7 +145,7 @@ namespace ImageColorChanger.Managers
             if (_isDisposed)
                 return;
 
-            // 🚀 帧率限制：跳过过于频繁的帧（减少 CPU 占用）
+            //  帧率限制：跳过过于频繁的帧（减少 CPU 占用）
             var now = DateTime.Now;
             if (now - _lastFrameTime < _minFrameInterval)
             {
@@ -181,7 +181,7 @@ namespace ImageColorChanger.Managers
                 catch (Exception ex)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"❌ [Display] WriteableBitmap更新错误: {ex.Message}");
+//                    System.Diagnostics.Debug.WriteLine($" [Display] WriteableBitmap更新错误: {ex.Message}");
 //#else
                     _ = ex; // 避免未使用变量警告
 //#endif
@@ -202,7 +202,7 @@ namespace ImageColorChanger.Managers
                 return;
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"🔄 [VlcCustomRenderer] 更新尺寸: {_width}x{_height} → {width}x{height}");
+//            System.Diagnostics.Debug.WriteLine($" [VlcCustomRenderer] 更新尺寸: {_width}x{_height} → {width}x{height}");
 //#endif
 
             _width = width;
@@ -252,11 +252,12 @@ namespace ImageColorChanger.Managers
             }
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [VlcCustomRenderer] 资源已释放");
+//            System.Diagnostics.Debug.WriteLine($" [VlcCustomRenderer] 资源已释放");
 //#endif
         }
 
         #endregion
     }
 }
+
 

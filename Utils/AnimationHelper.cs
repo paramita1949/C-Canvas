@@ -53,7 +53,7 @@ namespace ImageColorChanger.Utils
             {
                 scrollViewer.ScrollToVerticalOffset((double)e.NewValue);
 
-                // 🎬 每一帧记录FPS + 投影共享渲染（跟投影屏幕逻辑一样，直接调用方法）
+                //  每一帧记录FPS + 投影共享渲染（跟投影屏幕逻辑一样，直接调用方法）
                 var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
                 mainWindow?._fpsMonitor?.RecordMainFrame();
                 mainWindow?.ProjectionManager?.SyncSharedRendering();
@@ -101,7 +101,7 @@ namespace ImageColorChanger.Utils
                 animation.EasingFunction = GetEasingFunction(easingType, scrollDistance);
             }
             
-            // 🚀 极致性能优化：明确指定120 FPS帧率（与Python版本一致）
+            //  极致性能优化：明确指定120 FPS帧率（与Python版本一致）
             // WPF默认60fps，提升到120fps可以获得更丝滑的滚动体验
             Timeline.SetDesiredFrameRate(animation, 120);
 
@@ -109,7 +109,7 @@ namespace ImageColorChanger.Utils
             var storyboard = new Storyboard();
             storyboard.Children.Add(animation);
             
-            // 🔧 设置动画速度倍率（直接加速滚动动画）
+            //  设置动画速度倍率（直接加速滚动动画）
             storyboard.SpeedRatio = speedRatio;
 
             // 设置动画目标
@@ -310,4 +310,5 @@ namespace ImageColorChanger.Utils
         }
     }
 }
+
 

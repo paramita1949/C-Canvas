@@ -38,7 +38,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 开始处理");
+            //System.Diagnostics.Debug.WriteLine($"[EditorCanvas_MouseDown] 开始处理");
             //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
 
             // 这个事件只有在EditorCanvas区域内点击时才会触发
@@ -56,7 +56,7 @@ namespace ImageColorChanger.UI
                     position.Y <= textBox.ActualHeight)
                 {
                     clickedOnTextBox = true;
-                    //System.Diagnostics.Debug.WriteLine($"   - ✅ 点击在文本框内，保持选中状态");
+                    //System.Diagnostics.Debug.WriteLine($"   -  点击在文本框内，保持选中状态");
                     break;
                 }
             }
@@ -64,11 +64,11 @@ namespace ImageColorChanger.UI
             // 如果点击在编辑区域内但没有点击在文本框内，则取消所有文本框选中状态
             if (!clickedOnTextBox)
             {
-                //System.Diagnostics.Debug.WriteLine($"   - ❌ 点击在编辑区域空白位置，取消所有文本框选中状态");
+                //System.Diagnostics.Debug.WriteLine($"   -  点击在编辑区域空白位置，取消所有文本框选中状态");
                 DeselectAllTextBoxes(true); // 关闭侧边面板（点击空白区域时关闭）
             }
 
-            //System.Diagnostics.Debug.WriteLine($"🖱️ [EditorCanvas_MouseDown] 处理完成");
+            //System.Diagnostics.Debug.WriteLine($"[EditorCanvas_MouseDown] 处理完成");
         }
         
         /// <summary>
@@ -77,7 +77,7 @@ namespace ImageColorChanger.UI
         private async void EditorCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎹 [EditorCanvas_KeyDown] 按键: {e.Key}");
+            //System.Diagnostics.Debug.WriteLine($"[EditorCanvas_KeyDown] 按键: {e.Key}");
             //System.Diagnostics.Debug.WriteLine($"   IsInSplitMode: {IsInSplitMode()}");
             //System.Diagnostics.Debug.WriteLine($"   _selectedRegionIndex: {_selectedRegionIndex}");
             //System.Diagnostics.Debug.WriteLine($"   _regionImages.Count: {_regionImages.Count}");
@@ -88,25 +88,25 @@ namespace ImageColorChanger.UI
             if (e.Key == System.Windows.Input.Key.Delete)
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🎹 [DEL键] 检测到 Delete 键");
+                //System.Diagnostics.Debug.WriteLine($"[DEL键] 检测到 Delete 键");
                 //#endif
                 
                 if (IsInSplitMode())
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 在分割模式下");
+                    //System.Diagnostics.Debug.WriteLine($" [DEL键] 在分割模式下");
                     //#endif
                     
                     if (_selectedRegionIndex >= 0)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 有选中区域: {_selectedRegionIndex}");
+                        //System.Diagnostics.Debug.WriteLine($" [DEL键] 有选中区域: {_selectedRegionIndex}");
                         //#endif
                         
                         if (_regionImages.ContainsKey(_selectedRegionIndex))
                         {
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"✅ [DEL键] 区域有图片，执行清空");
+                            //System.Diagnostics.Debug.WriteLine($" [DEL键] 区域有图片，执行清空");
                             //#endif
                             
                             await ClearSelectedRegionImage();
@@ -115,21 +115,21 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //else
                         //{
-                        //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 区域没有图片");
+                        //    //System.Diagnostics.Debug.WriteLine($" [DEL键] 区域没有图片");
                         //}
                         //#endif
                     }
                     //#if DEBUG
                     //else
                     //{
-                    //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 没有选中区域");
+                    //    //System.Diagnostics.Debug.WriteLine($" [DEL键] 没有选中区域");
                     //}
                     //#endif
                 }
                 //#if DEBUG
                 //else
                 //{
-                //    //System.Diagnostics.Debug.WriteLine($"⚠️ [DEL键] 不在分割模式");
+                //    //System.Diagnostics.Debug.WriteLine($" [DEL键] 不在分割模式");
                 //}
                 //#endif
             }
@@ -201,3 +201,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

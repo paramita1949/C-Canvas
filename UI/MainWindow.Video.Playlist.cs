@@ -65,7 +65,8 @@ namespace ImageColorChanger.UI
             string folderPlayMode = dbManager.GetFolderVideoPlayMode(currentMediaFile.FolderId.Value);
             if (string.IsNullOrEmpty(folderPlayMode))
             {
-                return;
+                folderPlayMode = "random";
+                dbManager.SetFolderVideoPlayMode(currentMediaFile.FolderId.Value, folderPlayMode);
             }
 
             PlayMode mode = folderPlayMode switch
@@ -73,12 +74,15 @@ namespace ImageColorChanger.UI
                 "sequential" => PlayMode.Sequential,
                 "random" => PlayMode.Random,
                 "loop_all" => PlayMode.LoopAll,
+                "loop_one" => PlayMode.LoopOne,
                 _ => PlayMode.Sequential
             };
 
             _videoPlayerManager.SetPlayMode(mode);
             string[] modeNames = { "顺序", "随机", "单曲", "列表" };
-            ShowStatus($"🎵 播放模式: {modeNames[(int)mode]}");
+            ShowStatus($"播放模式: {modeNames[(int)mode]}");
         }
     }
 }
+
+

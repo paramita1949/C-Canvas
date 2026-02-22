@@ -52,7 +52,7 @@ namespace ImageColorChanger.Utils
                 return false;
             }
 
-            // 🔧 检查是否在投影模式下
+            //  检查是否在投影模式下
             // 投影模式下，全局热键处理的按键不在这里处理
             bool isProjectionActive = _mainWindow.GetProjectionManager()?.IsProjectionActive ?? false;
             if (isProjectionActive)
@@ -132,4 +132,5 @@ namespace ImageColorChanger.Utils
         }
     }
 }
+
 

@@ -57,7 +57,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🎯 固定位置创建新文本框,新文本在上层(ZIndex最大)
+                // 固定位置创建新文本框,新文本在上层(ZIndex最大)
                 const double newX = 100;
                 const double newY = 100;
                 const double newWidth = 600;  // 默认宽度
@@ -70,21 +70,21 @@ namespace ImageColorChanger.UI
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
                 }
                 
-                // ✅ 创建文本框时始终使用微软雅黑，不应用当前选择的字体
+                //  创建文本框时始终使用微软雅黑，不应用当前选择的字体
                 // 字体应用必须框选文字才能应用
                 string defaultFontFamily = "Microsoft YaHei UI";
                 
                 // 创建新元素 (关联到当前幻灯片)
                 var newElement = new TextElement
                 {
-                    SlideId = _currentSlide.Id,  // 🆕 关联到幻灯片
+                    SlideId = _currentSlide.Id,  // 关联到幻灯片
                     X = newX,
                     Y = newY,
                     Width = newWidth,
                     Height = newHeight,
                     Content = "双击编辑",
                     FontSize = 60,  // 默认字号60
-                    FontFamily = defaultFontFamily,  // ✅ 始终使用微软雅黑
+                    FontFamily = defaultFontFamily,  //  始终使用微软雅黑
                     FontColor = "#FFFFFF",  // 默认白色字体
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
@@ -96,13 +96,13 @@ namespace ImageColorChanger.UI
                 var textBox = new DraggableTextBox(newElement);
                 AddTextBoxToCanvas(textBox);
                 
-                // 🔧 新建文本框：自动进入编辑模式，全选占位符文本
+                // 新建文本框：自动进入编辑模式，全选占位符文本
                 textBox.Focus();
                 textBox.EnterEditModeForNew();
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 添加文本框失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 添加文本框失败: {ex.Message}");
                 WpfMessageBox.Show($"添加文本框失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -280,7 +280,7 @@ namespace ImageColorChanger.UI
                     {
                         BibleToolbar.IsOpen = false;
 //#if DEBUG
-//                        //System.Diagnostics.Debug.WriteLine($"✅ [删除文本框] 圣经工具栏已隐藏");
+//                        //System.Diagnostics.Debug.WriteLine($" [删除文本框] 圣经工具栏已隐藏");
 //#endif
                     }
                 }
@@ -288,11 +288,11 @@ namespace ImageColorChanger.UI
                 // 标记已修改
                 MarkContentAsModified();
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 删除文本框成功");
+                //System.Diagnostics.Debug.WriteLine($" 删除文本框成功");
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 删除文本框失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 删除文本框失败: {ex.Message}");
                 WpfMessageBox.Show($"删除文本框失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -370,9 +370,9 @@ namespace ImageColorChanger.UI
         private void UpdateStretchModeButton()
         {
             // 按钮显示当前的实际模式：
-            // - 如果图片是拉伸模式(Fill)，显示"📐 拉伸"
-            // - 如果图片是适中模式(Uniform)，显示"📐 适中"
-            BtnSplitStretchMode.Content = _splitStretchMode ? "📐 拉伸" : "📐 适中";
+            // - 如果图片是拉伸模式(Fill)，显示"拉伸"
+            // - 如果图片是适中模式(Uniform)，显示"适中"
+            SetSplitStretchButtonContent(_splitStretchMode);
         }
         
         /// <summary>
@@ -396,14 +396,14 @@ namespace ImageColorChanger.UI
                     _currentSlide.SplitStretchMode = _splitStretchMode;
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
+                    //System.Diagnostics.Debug.WriteLine($"[SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
                     //#endif
                 }
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitStretchMode] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [SaveSplitStretchMode] 失败");
                 #endif
             }
         }
@@ -464,7 +464,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
 //#if DEBUG
-//                //System.Diagnostics.Debug.WriteLine($"❌ [SetSplitMode] 失败: {ex.Message}");
+//                //System.Diagnostics.Debug.WriteLine($" [SetSplitMode] 失败: {ex.Message}");
 //#else
                 _ = ex; // 避免未使用警告
 //#endif
@@ -492,7 +492,7 @@ namespace ImageColorChanger.UI
             switch (mode)
             {
                 case Database.Models.Enums.ViewSplitMode.Single:
-                    // 🆕 单画面模式：创建一个占满整个画布的区域（不显示边框和标签）
+                    // 单画面模式：创建一个占满整个画布的区域（不显示边框和标签）
                     CreateRegionBorder(0, 0, 0, canvasWidth, canvasHeight);
                     break;
                     
@@ -545,7 +545,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CreateRegionBorder(int regionIndex, double x, double y, double width, double height)
         {
-            // 🆕 判断是否是单画面模式
+            // 判断是否是单画面模式
             bool isSingleMode = _currentSlide != null && _currentSlide.SplitMode == 0;
             
             var border = new WpfRectangle
@@ -581,7 +581,7 @@ namespace ImageColorChanger.UI
             _splitRegionBorders.Add(border);
             EditorCanvas.Children.Add(border);
             
-            // 🆕 只在非单画面模式下显示序列号标签
+            // 只在非单画面模式下显示序列号标签
             if (!isSingleMode)
             {
                 var label = new System.Windows.Controls.Border
@@ -624,7 +624,7 @@ namespace ImageColorChanger.UI
             }
             _splitRegionBorders.Clear();
             
-            // 🆕 清除序列号标签
+            // 清除序列号标签
             var labelsToRemove = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
                 .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
                 .ToList();
@@ -652,16 +652,16 @@ namespace ImageColorChanger.UI
                 return;
                 
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎯 [SelectRegion] 选中区域: {regionIndex}");
+            //System.Diagnostics.Debug.WriteLine($"[SelectRegion] 选中区域: {regionIndex}");
             //#endif
             
             _selectedRegionIndex = regionIndex;
             
-            // 🔑 设置画布焦点，使其能接收键盘事件
+            // 设置画布焦点，使其能接收键盘事件
             EditorCanvas.Focus();
             
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔑 [SelectRegion] 已设置画布焦点，IsFocused: {EditorCanvas.IsFocused}");
+            //System.Diagnostics.Debug.WriteLine($"[SelectRegion] 已设置画布焦点，IsFocused: {EditorCanvas.IsFocused}");
             //#endif
             
             // 更新所有边框的样式
@@ -693,7 +693,7 @@ namespace ImageColorChanger.UI
                 
             try
             {
-                // 🆕 检查图片是否来自原图标记或变色标记的文件夹
+                // 检查图片是否来自原图标记或变色标记的文件夹
                 (bool shouldUseStretch, bool shouldApplyColorEffect) = await Task.Run(() =>
                 {
                     try
@@ -701,7 +701,7 @@ namespace ImageColorChanger.UI
                         var mediaFile = _textProjectManager.GetMediaFileByPathAsync(imagePath).GetAwaiter().GetResult();
                         
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
+                        //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
                         //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
                         //if (mediaFile != null)
                         //{
@@ -717,7 +717,7 @@ namespace ImageColorChanger.UI
                                 mediaFile.FolderId.Value
                             );
 
-                            // 🎨 检查文件夹是否有变色标记
+                            // 检查文件夹是否有变色标记
                             bool hasColorEffectMark = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
@@ -725,11 +725,11 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine($"   变色标记: {hasColorEffectMark}");
                             //if (isOriginalFolder)
                             //{
-                            //    //System.Diagnostics.Debug.WriteLine($"🎯 [LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
+                            //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
                             //}
                             //if (hasColorEffectMark)
                             //{
-                            //    //System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
+                            //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
                             //}
                             #endif
 
@@ -745,7 +745,7 @@ namespace ImageColorChanger.UI
                     catch
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 检查标记失败");
+                        //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 检查标记失败");
                         #endif
                         return (false, false);
                     }
@@ -765,14 +765,14 @@ namespace ImageColorChanger.UI
                     _regionImages.Remove(_selectedRegionIndex);
                 }
                 
-                // 🚀 使用优化的图片加载（GPU加速 + 缓存）
+                // 使用优化的图片加载（GPU加速 + 缓存）
                 var bitmapSource = await Task.Run<BitmapSource>(() =>
                 {
-                    // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
+                    // 如果需要应用变色效果，使用 SkiaSharp 加载并处理
                     if (shouldApplyColorEffect)
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🎨 [LoadImageToSplitRegion] 开始应用变色效果...");
+                        //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 开始应用变色效果...");
                         #endif
                         
                         try
@@ -795,7 +795,7 @@ namespace ImageColorChanger.UI
                                 var result = _imageProcessor.ConvertToBitmapSource(skBitmap);
                                 
                                 #if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 变色效果应用成功");
+                                //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 变色效果应用成功");
                                 #endif
                                 
                                 return result;
@@ -803,21 +803,21 @@ namespace ImageColorChanger.UI
                             else
                             {
                                 #if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] SKBitmap加载失败");
+                                //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] SKBitmap加载失败");
                                 #endif
                             }
                         }
                         catch
                         {
                             #if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 应用变色效果失败");
+                            //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 应用变色效果失败");
                             #endif
                         }
                     }
                     else
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📷 [LoadImageToSplitRegion] 正常加载（无变色效果）");
+                        //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 正常加载（无变色效果）");
                         #endif
                     }
 
@@ -827,7 +827,7 @@ namespace ImageColorChanger.UI
                     bitmap.UriSource = new Uri(imagePath);
                     bitmap.CacheOption = BitmapCacheOption.OnLoad; // 立即加载到内存
                     bitmap.EndInit();
-                    bitmap.Freeze(); // 🔥 冻结到GPU显存，跨线程共享
+                    bitmap.Freeze(); // 冻结到GPU显存，跨线程共享
                     return bitmap;
                 });
                 
@@ -859,9 +859,9 @@ namespace ImageColorChanger.UI
                     Height = height,
                     Stretch = stretchMode,
                     Tag = $"RegionImage_{_selectedRegionIndex}",
-                    CacheMode = new BitmapCache // 🔥 启用GPU缓存，减少重复渲染
+                    CacheMode = new BitmapCache // 启用GPU缓存，减少重复渲染
                     {
-                        RenderAtScale = CalculateOptimalRenderScale()  // 🔥 动态计算渲染质量：自适应1080p/2K/4K投影屏
+                        RenderAtScale = CalculateOptimalRenderScale()  // 动态计算渲染质量：自适应1080p/2K/4K投影屏
                     }
                 };
                 
@@ -878,19 +878,19 @@ namespace ImageColorChanger.UI
                 _regionImageColorEffects[_selectedRegionIndex] = shouldApplyColorEffect; // 记录是否需要变色效果
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"💾 [LoadImageToSplitRegion] 保存变色状态: 区域{_selectedRegionIndex}, 需要变色={shouldApplyColorEffect}");
+                //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 保存变色状态: 区域{_selectedRegionIndex}, 需要变色={shouldApplyColorEffect}");
                 //System.Diagnostics.Debug.WriteLine($"   当前所有区域变色状态: {string.Join(", ", _regionImageColorEffects.Select(kv => $"区域{kv.Key}={kv.Value}"))}");
                 //#endif
                 
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
                 
-                // 🆕 同步更新拉伸按钮显示
+                // 同步更新拉伸按钮显示
                 _splitStretchMode = (stretchMode == System.Windows.Media.Stretch.Fill);
                 UpdateStretchModeButton();
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
+                //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 图片已加载到区域 {_selectedRegionIndex}");
                 //#endif
                 
                 // 保存分割配置到数据库
@@ -898,13 +898,13 @@ namespace ImageColorChanger.UI
                 
                 MarkContentAsModified();
                 
-                // 🆕 自动切换到下一个区域（无论是否已有图片）
+                // 自动切换到下一个区域（无论是否已有图片）
                 AutoSelectNextRegion();
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [LoadImageToSplitRegion] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 失败");
                 #endif
             }
         }
@@ -921,7 +921,7 @@ namespace ImageColorChanger.UI
             int nextIndex = (_selectedRegionIndex + 1) % _splitRegionBorders.Count;
 
             #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔄 [AutoSelectNextRegion] 自动切换到区域 {nextIndex}");
+            //System.Diagnostics.Debug.WriteLine($" [AutoSelectNextRegion] 自动切换到区域 {nextIndex}");
             #endif
 
             SelectRegion(nextIndex);
@@ -943,7 +943,7 @@ namespace ImageColorChanger.UI
         public async Task ClearSelectedRegionImage()
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🗑️ [ClearSelectedRegionImage] 开始清空区域图片");
+            //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 开始清空区域图片");
             //System.Diagnostics.Debug.WriteLine($"   _selectedRegionIndex: {_selectedRegionIndex}");
             //System.Diagnostics.Debug.WriteLine($"   包含图片: {_regionImages.ContainsKey(_selectedRegionIndex)}");
             //#endif
@@ -951,7 +951,7 @@ namespace ImageColorChanger.UI
             if (_selectedRegionIndex < 0 || !_regionImages.ContainsKey(_selectedRegionIndex))
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"⚠️ [ClearSelectedRegionImage] 条件不满足，退出");
+                //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 条件不满足，退出");
                 //#endif
                 return;
             }
@@ -959,7 +959,7 @@ namespace ImageColorChanger.UI
             try
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🗑️ [ClearSelectedRegionImage] 开始移除图片控件");
+                //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 开始移除图片控件");
                 //#endif
                 
                 // 移除图片控件
@@ -970,7 +970,7 @@ namespace ImageColorChanger.UI
                 _regionImageColorEffects.Remove(_selectedRegionIndex); // 同时清除变色效果记录
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [ClearSelectedRegionImage] 图片控件已移除");
+                //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 图片控件已移除");
                 //#endif
                 
                 // 保持边框选中状态（绿色），不改变分割状态
@@ -981,15 +981,15 @@ namespace ImageColorChanger.UI
                 MarkContentAsModified();
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [ClearSelectedRegionImage] 已保存到数据库");
+                //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 已保存到数据库");
                 //#endif
                 
-                ShowStatus($"✅ 已清空区域 {_selectedRegionIndex + 1} 的图片");
+                ShowStatus($"已清空区域 {_selectedRegionIndex + 1} 的图片");
             }
             catch (Exception ex)
             {
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [ClearSelectedRegionImage] 失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [ClearSelectedRegionImage] 失败: {ex.Message}");
                 //#endif
                 
                 WpfMessageBox.Show($"清空区域图片失败: {ex.Message}", "错误",
@@ -1036,7 +1036,7 @@ namespace ImageColorChanger.UI
                 await SaveSplitConfigAsync();
                 MarkContentAsModified();
                 
-                ShowStatus($"✅ 已清空所有区域的图片");
+                ShowStatus($"已清空所有区域的图片");
             }
             catch (Exception ex)
             {
@@ -1058,7 +1058,7 @@ namespace ImageColorChanger.UI
             // 选项1：清空当前区域
             var clearCurrentItem = new MenuItem
             {
-                Header = "🗑 清空当前区域",
+                Header = " 清空当前区域",
                 Height = 36
             };
             clearCurrentItem.Click += async (s, e) => await ClearSelectedRegionImage();
@@ -1067,7 +1067,7 @@ namespace ImageColorChanger.UI
             // 选项2：清空所有区域
             var clearAllItem = new MenuItem
             {
-                Header = "🗑 清空所有区域",
+                Header = " 清空所有区域",
                 Height = 36
             };
             clearAllItem.Click += async (s, e) => await ClearAllRegionImages();
@@ -1110,14 +1110,14 @@ namespace ImageColorChanger.UI
                     _currentSlide.SplitRegionsData = json;
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"💾 [SaveSplitConfig] 已保存 {regionDataList.Count} 个区域配置");
+                    //System.Diagnostics.Debug.WriteLine($"[SaveSplitConfig] 已保存 {regionDataList.Count} 个区域配置");
                     //#endif
                 }
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [SaveSplitConfig] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [SaveSplitConfig] 失败");
                 #endif
             }
         }
@@ -1141,7 +1141,7 @@ namespace ImageColorChanger.UI
                             OriginalDashArray = child.StrokeDashArray
                         };
                         
-                        // 🔧 改为投影样式：细实线（使用统一常量）
+                        // 改为投影样式：细实线（使用统一常量）
                         child.StrokeThickness = SPLIT_LINE_THICKNESS_PROJECTION;
                         child.StrokeDashArray = null; // 实线
                     }
@@ -1153,7 +1153,7 @@ namespace ImageColorChanger.UI
                     border.Visibility = Visibility.Collapsed;
                 }
                 
-                // 🔥 隐藏未加载图片的区域的序号标签
+                // 隐藏未加载图片的区域的序号标签
                 var labels = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
                     .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
                     .ToList();
@@ -1173,12 +1173,12 @@ namespace ImageColorChanger.UI
                     }
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已调整分割线为细线，隐藏边框和空白区域标签");
+                //System.Diagnostics.Debug.WriteLine($"[投影] 已调整分割线为细线，隐藏边框和空白区域标签");
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [HideSplitLinesForProjection] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [HideSplitLinesForProjection] 失败");
                 #endif
             }
         }
@@ -1218,7 +1218,7 @@ namespace ImageColorChanger.UI
                     border.Visibility = Visibility.Visible;
                 }
                 
-                // 🔥 恢复所有区域序号标签（包括未加载图片的）
+                // 恢复所有区域序号标签（包括未加载图片的）
                 var labels = EditorCanvas.Children.OfType<System.Windows.Controls.Border>()
                     .Where(b => b.Tag != null && b.Tag.ToString().StartsWith("RegionLabel_"))
                     .ToList();
@@ -1228,12 +1228,12 @@ namespace ImageColorChanger.UI
                     label.Visibility = Visibility.Visible;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"🎨 [投影] 已恢复分割线、边框和标签");
+                //System.Diagnostics.Debug.WriteLine($"[投影] 已恢复分割线、边框和标签");
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitLinesAfterProjection] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitLinesAfterProjection] 失败");
                 #endif
             }
         }
@@ -1245,7 +1245,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🆕 恢复拉伸模式
+                // 恢复拉伸模式
                 _splitStretchMode = slide.SplitStretchMode;
                 UpdateStretchModeButton();
                 
@@ -1253,7 +1253,7 @@ namespace ImageColorChanger.UI
                 if (slide.SplitMode < 0)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 无分割模式，清空分割区域");
+                    //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 无分割模式，清空分割区域");
                     //#endif
                     // 清空所有分割元素
                     ClearSplitLines();
@@ -1269,7 +1269,7 @@ namespace ImageColorChanger.UI
                 if (string.IsNullOrEmpty(slide.SplitRegionsData))
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 分割模式={splitMode}，但无区域数据");
+                    //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 分割模式={splitMode}，但无区域数据");
                     //#endif
                     return;
                 }
@@ -1279,13 +1279,13 @@ namespace ImageColorChanger.UI
                 if (regionDataList == null || regionDataList.Count == 0)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 反序列化失败或数据为空");
+                    //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 反序列化失败或数据为空");
                     //#endif
                     return;
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📋 [RestoreSplitConfig] 开始恢复 {regionDataList.Count} 个区域");
+                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 开始恢复 {regionDataList.Count} 个区域");
                 //#endif
                 
                 // 清空现有数据
@@ -1303,7 +1303,7 @@ namespace ImageColorChanger.UI
                     if (string.IsNullOrEmpty(regionData.ImagePath) || !System.IO.File.Exists(regionData.ImagePath))
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 图片不存在: {regionData.ImagePath}");
+                        //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 区域 {regionData.RegionIndex} 图片不存在: {regionData.ImagePath}");
                         //#endif
                         continue;
                     }
@@ -1311,12 +1311,12 @@ namespace ImageColorChanger.UI
                     if (regionData.RegionIndex >= _splitRegionBorders.Count)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [RestoreSplitConfig] 区域索引超出范围: {regionData.RegionIndex}");
+                        //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 区域索引超出范围: {regionData.RegionIndex}");
                         //#endif
                         continue;
                     }
                     
-                    // 🆕 检查图片是否来自原图标记或变色标记的文件夹
+                    // 检查图片是否来自原图标记或变色标记的文件夹
                     bool shouldUseStretch = false;
                     bool shouldApplyColorEffect = false;
                     try
@@ -1324,7 +1324,7 @@ namespace ImageColorChanger.UI
                         var mediaFile = _textProjectManager.GetMediaFileByPathAsync(regionData.ImagePath).GetAwaiter().GetResult();
                         
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");
+                        //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");
                         //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
                         //if (mediaFile != null)
                         //{
@@ -1339,7 +1339,7 @@ namespace ImageColorChanger.UI
                                 mediaFile.FolderId.Value
                             );
 
-                            // 🎨 检查文件夹是否有变色标记
+                            // 检查文件夹是否有变色标记
                             shouldApplyColorEffect = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
 
                             #if DEBUG
@@ -1347,11 +1347,11 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine($"   变色标记: {shouldApplyColorEffect}");
                             //if (shouldUseStretch)
                             //{
-                            //    //System.Diagnostics.Debug.WriteLine($"🎯 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
+                            //    //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自原图标记文件夹，使用拉伸模式");
                             //}
                             //if (shouldApplyColorEffect)
                             //{
-                            //    //System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自变色标记文件夹，应用变色效果");
+                            //    //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 来自变色标记文件夹，应用变色效果");
                             //}
                             #endif
                         }
@@ -1365,7 +1365,7 @@ namespace ImageColorChanger.UI
                     catch
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 检查标记失败");
+                        //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 检查标记失败");
                         #endif
                     }
                     
@@ -1376,14 +1376,14 @@ namespace ImageColorChanger.UI
                     double width = border.Width;
                     double height = border.Height;
                     
-                    // 🚀 使用优化的图片加载（GPU加速 + 缓存）
+                    // 使用优化的图片加载（GPU加速 + 缓存）
                     BitmapSource bitmap;
 
-                    // 🎨 如果需要应用变色效果，使用 SkiaSharp 加载并处理
+                    // 如果需要应用变色效果，使用 SkiaSharp 加载并处理
                     if (shouldApplyColorEffect)
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🎨 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 开始应用变色效果...");
+                        //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 开始应用变色效果...");
                         #endif
                         
                         try
@@ -1406,13 +1406,13 @@ namespace ImageColorChanger.UI
                                 bitmap = _imageProcessor.ConvertToBitmapSource(skBitmap);
                                 
                                 #if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 区域 {regionData.RegionIndex} 变色效果应用成功");
+                                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 区域 {regionData.RegionIndex} 变色效果应用成功");
                                 #endif
                             }
                             else
                             {
                                 #if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] SKBitmap加载失败");
+                                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] SKBitmap加载失败");
                                 #endif
                                 
                                 // 加载失败，使用正常方式
@@ -1428,7 +1428,7 @@ namespace ImageColorChanger.UI
                         catch
                         {
                             #if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 应用变色效果失败");
+                            //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 应用变色效果失败");
                             #endif
 
                             // 失败时使用正常方式
@@ -1444,7 +1444,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📷 [RestoreSplitConfig] 区域 {regionData.RegionIndex} 正常加载（无变色效果）");
+                        //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 正常加载（无变色效果）");
                         #endif
                         
                         // 正常加载（无变色效果）
@@ -1453,7 +1453,7 @@ namespace ImageColorChanger.UI
                         bmp.UriSource = new Uri(regionData.ImagePath);
                         bmp.CacheOption = BitmapCacheOption.OnLoad;
                         bmp.EndInit();
-                        bmp.Freeze(); // 🔥 冻结到GPU显存
+                        bmp.Freeze(); // 冻结到GPU显存
                         bitmap = bmp;
                     }
                     
@@ -1485,9 +1485,9 @@ namespace ImageColorChanger.UI
                         Height = height,
                         Stretch = stretchMode,
                         Tag = $"RegionImage_{regionData.RegionIndex}",
-                        CacheMode = new BitmapCache // 🔥 启用GPU缓存
+                        CacheMode = new BitmapCache // 启用GPU缓存
                         {
-                            RenderAtScale = CalculateOptimalRenderScale()  // 🔥 动态计算渲染质量：自适应1080p/2K/4K投影屏
+                            RenderAtScale = CalculateOptimalRenderScale()  // 动态计算渲染质量：自适应1080p/2K/4K投影屏
                         }
                     };
                     
@@ -1507,11 +1507,11 @@ namespace ImageColorChanger.UI
                     border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0));
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 已恢复区域 {regionData.RegionIndex}: {System.IO.Path.GetFileName(regionData.ImagePath)}");
                     //#endif
                 }
                 
-                // 🆕 最终同步：检查实际加载的图片拉伸模式，确保按钮显示正确
+                // 最终同步：检查实际加载的图片拉伸模式，确保按钮显示正确
                 if (_regionImages.Count > 0)
                 {
                     var firstImage = _regionImages.Values.FirstOrDefault();
@@ -1527,13 +1527,13 @@ namespace ImageColorChanger.UI
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"✅ [RestoreSplitConfig] 分割配置恢复完成");
+                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 分割配置恢复完成");
                 //#endif
             }
             catch
             {
                 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"❌ [RestoreSplitConfig] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 失败");
                 #endif
             }
         }
@@ -1542,3 +1542,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

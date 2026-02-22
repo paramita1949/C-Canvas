@@ -33,6 +33,7 @@ namespace ImageColorChanger.UI
                 _configManager = _mainWindowServices.GetRequired<ConfigManager>();
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
+                dbManager.NormalizeFolderVideoPlayModes("random");
 
                 // 迁移只在版本变化时执行，避免每次启动重复跑 schema 检查。
                 var currentVersion = Services.UpdateService.GetCurrentVersion() ?? "0.0.0.0";
@@ -64,10 +65,11 @@ namespace ImageColorChanger.UI
 
 
                 // 显式注入设置存储，避免控件直接依赖 DatabaseManager
-                var uiSettingsStore = _mainWindowServices.GetRequired<Services.Interfaces.IUiSettingsStore>();
-                BackgroundSettingsPanel.SettingsStore = uiSettingsStore;
-                BorderSettingsPanel.SettingsStore = uiSettingsStore;
-                TextColorSettingsPanel.SettingsStore = uiSettingsStore;
+                _uiSettingsStore = _mainWindowServices.GetRequired<Services.Interfaces.IUiSettingsStore>();
+                BackgroundSettingsPanel.SettingsStore = _uiSettingsStore;
+                BorderSettingsPanel.SettingsStore = _uiSettingsStore;
+                TextColorSettingsPanel.SettingsStore = _uiSettingsStore;
+                InitializeThemeSettings();
 
                 // 搜索范围在 Window_Loaded 的项目树刷新后统一加载，避免启动阶段重复查询。
             }
@@ -118,7 +120,7 @@ namespace ImageColorChanger.UI
                 _videoPlayerManager.SetVolume(50);
                 VolumeSlider.Value = 50;
 
-                BtnPlayMode.Content = "🔀";
+                SetMediaPlayModeButtonContent(PlayMode.Random);
                 BtnPlayMode.ToolTip = "播放模式：随机";
             }
             catch (Exception ex)
@@ -150,3 +152,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

@@ -39,7 +39,7 @@ namespace ImageColorChanger.UI
                 bool foundSimilar = _originalManager.FindSimilarImages(fileId);
                 if (!foundSimilar)
                 {
-                    ShowStatus("❌ 没有找到相似图片");
+                    ShowStatus("没有找到相似图片");
                     return;
                 }
 
@@ -50,13 +50,13 @@ namespace ImageColorChanger.UI
                 // 3. 验证数量（1-4张）
                 if (count < 1)
                 {
-                    ShowStatus("❌ 没有相似图片");
+                    ShowStatus("没有相似图片");
                     return;
                 }
 
                 if (count > 4)
                 {
-                    ShowStatus($"❌ 相似图片过多（{count}张），仅支持1-4张");
+                    ShowStatus($"相似图片过多（{count}张），仅支持1-4张");
                     return;
                 }
 
@@ -74,7 +74,7 @@ namespace ImageColorChanger.UI
                 var praiseProject = await FindOrCreatePraiseProjectAsync();
                 if (praiseProject == null)
                 {
-                    ShowStatus("❌ 创建赞美诗项目失败");
+                    ShowStatus("创建赞美诗项目失败");
                     return;
                 }
 
@@ -85,7 +85,7 @@ namespace ImageColorChanger.UI
                 var newSlide = await CreateSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
                 if (newSlide == null)
                 {
-                    ShowStatus("❌ 创建幻灯片失败");
+                    ShowStatus("创建幻灯片失败");
                     return;
                 }
 
@@ -101,11 +101,11 @@ namespace ImageColorChanger.UI
                     4 => "4分割",
                     _ => "分割"
                 };
-                ShowStatus($"✅ 已创建{modeName}幻灯片（{count}张图片）");
+                ShowStatus($"已创建{modeName}幻灯片（{count}张图片）");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 创建分割图失败: {ex.Message}");
+                ShowStatus($"创建分割图失败: {ex.Message}");
             }
         }
 
@@ -123,13 +123,13 @@ namespace ImageColorChanger.UI
                 // 2. 验证数量（1-4张）
                 if (count < 1)
                 {
-                    ShowStatus("❌ 没有相似图片");
+                    ShowStatus("没有相似图片");
                     return;
                 }
 
                 if (count > 4)
                 {
-                    ShowStatus($"❌ 相似图片过多（{count}张），仅支持1-4张");
+                    ShowStatus($"相似图片过多（{count}张），仅支持1-4张");
                     return;
                 }
 
@@ -147,7 +147,7 @@ namespace ImageColorChanger.UI
                 var praiseProject = await FindOrCreatePraiseProjectAsync();
                 if (praiseProject == null)
                 {
-                    ShowStatus("❌ 创建赞美诗项目失败");
+                    ShowStatus("创建赞美诗项目失败");
                     return;
                 }
 
@@ -158,7 +158,7 @@ namespace ImageColorChanger.UI
                 var newSlide = await CreateSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
                 if (newSlide == null)
                 {
-                    ShowStatus("❌ 创建幻灯片失败");
+                    ShowStatus("创建幻灯片失败");
                     return;
                 }
 
@@ -174,11 +174,11 @@ namespace ImageColorChanger.UI
                     4 => "4分割",
                     _ => "分割"
                 };
-                ShowStatus($"✅ 已创建{modeName}幻灯片（{count}张图片）");
+                ShowStatus($"已创建{modeName}幻灯片（{count}张图片）");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 创建分割图失败: {ex.Message}");
+                ShowStatus($"创建分割图失败: {ex.Message}");
             }
         }
 
@@ -290,30 +290,30 @@ namespace ImageColorChanger.UI
                 var mediaFile = DatabaseManagerService.GetMediaFileById(fileId);
                 if (mediaFile == null)
                 {
-                    ShowStatus("❌ 文件不存在");
+                    ShowStatus("文件不存在");
                     return;
                 }
 
                 var praiseProject = await FindOrCreatePraiseProjectAsync();
                 if (praiseProject == null)
                 {
-                    ShowStatus("❌ 创建赞美诗项目失败");
+                    ShowStatus("创建赞美诗项目失败");
                     return;
                 }
 
                 var newSlide = await CreateSingleSlideAsync(praiseProject.Id, mediaFile.Path, mediaFile.Name);
                 if (newSlide == null)
                 {
-                    ShowStatus("❌ 创建幻灯片失败");
+                    ShowStatus("创建幻灯片失败");
                     return;
                 }
 
                 await OpenSlideAsync(praiseProject, newSlide);
-                ShowStatus($"✅ 已添加幻灯片: {mediaFile.Name}");
+                ShowStatus($"已添加幻灯片: {mediaFile.Name}");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 添加幻灯片失败: {ex.Message}");
+                ShowStatus($"添加幻灯片失败: {ex.Message}");
             }
         }
 
@@ -400,5 +400,7 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
 
 

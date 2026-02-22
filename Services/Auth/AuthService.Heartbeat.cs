@@ -15,13 +15,13 @@ namespace ImageColorChanger.Services
             if (_isAuthenticated && CanUseProjection())
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"✅ [投影权限] 已登录且有效，允许投影");
+                System.Diagnostics.Trace.WriteLine($" [投影权限] 已登录且有效，允许投影");
 #endif
                 return (true, "已登录");
             }
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"⚠️ [投影权限] 未登录，尝试联网验证...");
+            System.Diagnostics.Trace.WriteLine($" [投影权限] 未登录，尝试联网验证...");
 #endif
 
             bool networkAvailable = false;
@@ -32,14 +32,14 @@ namespace ImageColorChanger.Services
                     var networkResponse = await networkClient.GetAsync("https://www.baidu.com");
                     networkAvailable = networkResponse.IsSuccessStatusCode;
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"ℹ️ [投影权限] 网络检测（百度）: {(networkAvailable ? "可用" : "不可用")}");
+                    System.Diagnostics.Trace.WriteLine($" [投影权限] 网络检测（百度）: {(networkAvailable ? "可用" : "不可用")}");
 #endif
                 }
             }
             catch
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"ℹ️ [投影权限] 网络检测（百度）: 不可用");
+                System.Diagnostics.Trace.WriteLine($" [投影权限] 网络检测（百度）: 不可用");
 #endif
                 return (true, "试用模式（离线）");
             }
@@ -59,27 +59,27 @@ namespace ImageColorChanger.Services
                     if (response != null && response.IsSuccessStatusCode)
                     {
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine($"⚠️ [投影权限] 服务器正常但未登录，试用投影");
+                        System.Diagnostics.Trace.WriteLine($" [投影权限] 服务器正常但未登录，试用投影");
 #endif
                         return (false, "检测到网络连接，请先登录后使用投影功能");
                     }
 
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [投影权限] 服务器故障（{response?.StatusCode}），允许试用模式");
+                    System.Diagnostics.Trace.WriteLine($" [投影权限] 服务器故障（{response?.StatusCode}），允许试用模式");
 #endif
                     return (true, "试用模式（服务器异常）");
                 }
                 catch (TaskCanceledException)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"ℹ️ [投影权限] 服务器超时，允许试用模式");
+                    System.Diagnostics.Trace.WriteLine($" [投影权限] 服务器超时，允许试用模式");
 #endif
                     return (true, "试用模式（服务器超时）");
                 }
                 catch (Exception ex)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"ℹ️ [投影权限] 服务器连接失败: {ex.Message}，允许试用模式");
+                    System.Diagnostics.Trace.WriteLine($" [投影权限] 服务器连接失败: {ex.Message}，允许试用模式");
 #else
                     _ = ex;
 #endif
@@ -103,7 +103,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"🔄 [刷新] 尝试从服务器刷新账号信息...");
+                System.Diagnostics.Trace.WriteLine($" [刷新] 尝试从服务器刷新账号信息...");
 #endif
                 var jsonContent = BuildTokenHardwarePayloadJson();
                 var response = await PostJsonWithFailoverAsync(
@@ -115,7 +115,7 @@ namespace ImageColorChanger.Services
                 if (response == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"❌ [刷新] 网络连接失败，使用本地缓存");
+                    System.Diagnostics.Trace.WriteLine($" [刷新] 网络连接失败，使用本地缓存");
 #endif
                     return false;
                 }
@@ -131,10 +131,10 @@ namespace ImageColorChanger.Services
                 ApplyServerAuthData(authResponse.Data, source: "refresh", updateLastSuccessfulHeartbeat: false, persistLocalCache: true);
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"✅ [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                System.Diagnostics.Trace.WriteLine($" [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
                 if (_deviceInfo != null)
                 {
-                    System.Diagnostics.Trace.WriteLine($"✅ [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
+                    System.Diagnostics.Trace.WriteLine($" [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
                 }
 #endif
                 return true;
@@ -142,14 +142,14 @@ namespace ImageColorChanger.Services
             catch (TaskCanceledException)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⏱️ [刷新] 超时，使用本地缓存");
+                System.Diagnostics.Trace.WriteLine($"⏱ [刷新] 超时，使用本地缓存");
 #endif
                 return false;
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"❌ [刷新] 异常: {ex.Message}，使用本地缓存");
+                System.Diagnostics.Trace.WriteLine($" [刷新] 异常: {ex.Message}，使用本地缓存");
 #else
                 _ = ex;
 #endif
@@ -170,7 +170,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"📢 [通知心跳] 开始检查通知更新...");
+                System.Diagnostics.Trace.WriteLine($" [通知心跳] 开始检查通知更新...");
 #endif
                 var jsonContent = BuildTokenHardwarePayloadJson();
                 var response = await PostJsonWithFailoverAsync(
@@ -182,7 +182,7 @@ namespace ImageColorChanger.Services
                 if (response == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [通知心跳] 网络连接失败，跳过本次通知检查");
+                    System.Diagnostics.Trace.WriteLine($" [通知心跳] 网络连接失败，跳过本次通知检查");
 #endif
                     return;
                 }
@@ -192,7 +192,7 @@ namespace ImageColorChanger.Services
                 if (authResponse == null || !authResponse.Success || !authResponse.Valid)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [通知心跳] 服务器未返回有效通知数据，本次跳过");
+                    System.Diagnostics.Trace.WriteLine($" [通知心跳] 服务器未返回有效通知数据，本次跳过");
 #endif
                     return;
                 }
@@ -200,19 +200,19 @@ namespace ImageColorChanger.Services
                 ApplyServerAuthData(authResponse.Data, source: "notice-heartbeat", updateLastSuccessfulHeartbeat: false, persistLocalCache: false);
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"✅ [通知心跳] 通知检查完成");
+                System.Diagnostics.Trace.WriteLine($" [通知心跳] 通知检查完成");
 #endif
             }
             catch (TaskCanceledException)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⏱️ [通知心跳] 检查超时，跳过本次");
+                System.Diagnostics.Trace.WriteLine($"⏱ [通知心跳] 检查超时，跳过本次");
 #endif
             }
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [通知心跳] 检查异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [通知心跳] 检查异常: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -233,7 +233,7 @@ namespace ImageColorChanger.Services
             try
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"💓 [心跳] 开始心跳检查... (当前时间: {DateTime.Now:HH:mm:ss})");
+                System.Diagnostics.Trace.WriteLine($" [心跳] 开始心跳检查... (当前时间: {DateTime.Now:HH:mm:ss})");
 #endif
                 var jsonContent = BuildTokenHardwarePayloadJson();
                 var response = await PostJsonWithFailoverAsync(HEARTBEAT_ENDPOINT, jsonContent, timeoutSeconds: 20);
@@ -241,7 +241,7 @@ namespace ImageColorChanger.Services
                 if (response == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"❌ [心跳] 所有API地址均失败，网络连接失败");
+                    System.Diagnostics.Trace.WriteLine($" [心跳] 所有API地址均失败，网络连接失败");
 #endif
                     return;
                 }
@@ -263,21 +263,21 @@ namespace ImageColorChanger.Services
                 }
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"🔍 [心跳] 服务器返回的 ServerTimeString: {authResponse.Data?.ServerTimeString ?? "null"}");
+                System.Diagnostics.Trace.WriteLine($" [心跳] 服务器返回的 ServerTimeString: {authResponse.Data?.ServerTimeString ?? "null"}");
                 if (!string.IsNullOrEmpty(authResponse.Data?.ServerTimeString))
                 {
                     if (DateTime.TryParse(authResponse.Data.ServerTimeString, out var serverTime))
                     {
-                        System.Diagnostics.Trace.WriteLine($"✅ [心跳] 服务器时间已更新: {serverTime}");
+                        System.Diagnostics.Trace.WriteLine($" [心跳] 服务器时间已更新: {serverTime}");
                     }
                     else
                     {
-                        System.Diagnostics.Trace.WriteLine($"⚠️ [心跳] 服务器时间解析失败: {authResponse.Data.ServerTimeString}");
+                        System.Diagnostics.Trace.WriteLine($" [心跳] 服务器时间解析失败: {authResponse.Data.ServerTimeString}");
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [心跳] 服务器未返回 server_time 字段");
+                    System.Diagnostics.Trace.WriteLine($" [心跳] 服务器未返回 server_time 字段");
                 }
 #endif
 
@@ -285,8 +285,8 @@ namespace ImageColorChanger.Services
 
 #if DEBUG
                 var nextHeartbeat = DateTime.Now.Add(AUTH_HEARTBEAT_INTERVAL);
-                System.Diagnostics.Trace.WriteLine($"✅ [心跳] 心跳正常，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
-                System.Diagnostics.Trace.WriteLine($"💓 [心跳] 下次心跳时间: {nextHeartbeat:HH:mm:ss}");
+                System.Diagnostics.Trace.WriteLine($" [心跳] 心跳正常，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                System.Diagnostics.Trace.WriteLine($" [心跳] 下次心跳时间: {nextHeartbeat:HH:mm:ss}");
 #endif
             }
             catch (Exception ex)
@@ -297,8 +297,8 @@ namespace ImageColorChanger.Services
                 {
                     _ = ex;
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线基准时间: {offlineBaseline:O}");
-                    System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，强制退出");
+                    System.Diagnostics.Trace.WriteLine($" [AuthService] 离线基准时间: {offlineBaseline:O}");
+                    System.Diagnostics.Trace.WriteLine($" [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，强制退出");
 #endif
                     Logout();
                     RaiseUiMessage(
@@ -311,13 +311,13 @@ namespace ImageColorChanger.Services
                 if (CanUseProjection())
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 本地缓存有效，允许离线使用");
+                    System.Diagnostics.Trace.WriteLine($" [AuthService] 本地缓存有效，允许离线使用");
 #endif
                     return;
                 }
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 心跳网络异常且本地缓存已过期");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 心跳网络异常且本地缓存已过期");
 #endif
                 Logout();
             }
@@ -338,9 +338,9 @@ namespace ImageColorChanger.Services
 #if DEBUG
             var firstHeartbeat = DateTime.Now.Add(AUTH_HEARTBEAT_INTERVAL);
             var secondHeartbeat = firstHeartbeat.Add(AUTH_HEARTBEAT_INTERVAL);
-            System.Diagnostics.Trace.WriteLine($"💓 [心跳] 认证心跳已启动（每2小时检查一次）");
-            System.Diagnostics.Trace.WriteLine($"💓 [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
-            System.Diagnostics.Trace.WriteLine($"💓 [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
+            System.Diagnostics.Trace.WriteLine($" [心跳] 认证心跳已启动（每2小时检查一次）");
+            System.Diagnostics.Trace.WriteLine($" [心跳] 首次心跳时间: {firstHeartbeat:HH:mm:ss}");
+            System.Diagnostics.Trace.WriteLine($" [心跳] 第二次心跳时间: {secondHeartbeat:HH:mm:ss}");
 #endif
         }
 
@@ -359,7 +359,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [通知心跳] 执行异常: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [通知心跳] 执行异常: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -375,4 +375,6 @@ namespace ImageColorChanger.Services
         }
     }
 }
+
+
 

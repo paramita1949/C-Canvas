@@ -81,7 +81,7 @@ namespace ImageColorChanger.Managers
 
                 if (mediaFile != null)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"✅ 成功导入文件: {mediaFile.Name}");
+                    //System.Diagnostics.Debug.WriteLine($" 成功导入文件: {mediaFile.Name}");
                 }
 
 #if DEBUG
@@ -128,7 +128,7 @@ namespace ImageColorChanger.Managers
                 }
 
                 var folderName = Path.GetFileName(folderPath);
-                // System.Diagnostics.Debug.WriteLine($"📁 开始导入文件夹: {folderName}");
+                // System.Diagnostics.Debug.WriteLine($" 开始导入文件夹: {folderName}");
 
                 // 递归扫描所有支持的媒体文件
                 var mediaFiles = ScanMediaFilesRecursively(folderPath, sortForImport: true);
@@ -139,7 +139,7 @@ namespace ImageColorChanger.Managers
                     return (null, new List<MediaFile>(), new List<string>());
                 }
 
-                // System.Diagnostics.Debug.WriteLine($"📊 找到 {mediaFiles.Count} 个媒体文件");
+                // System.Diagnostics.Debug.WriteLine($" 找到 {mediaFiles.Count} 个媒体文件");
 
                 // 导入文件夹到数据库
                 var folder = _dbManager.ImportFolder(folderPath, folderName);
@@ -219,7 +219,7 @@ namespace ImageColorChanger.Managers
                     }
                 }
 
-                // System.Diagnostics.Debug.WriteLine($"✅ 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
+                // System.Diagnostics.Debug.WriteLine($" 导入完成: 新增 {newFiles.Count} 个文件，已存在 {existingFiles.Count} 个文件");
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
                 //     $"[ImportManager] op={operationId} ImportFolder 完成: FolderId={folder.Id}, NewFiles={newFiles.Count}, ExistingFiles={existingFiles.Count}, NewLinks={linksToAdd.Count}, AllExisting={allFilesExisting}");
@@ -276,7 +276,7 @@ namespace ImageColorChanger.Managers
             }
             catch (UnauthorizedAccessException)
             {
-                //System.Diagnostics.Debug.WriteLine($"⚠️ 无权访问某些子目录");
+                //System.Diagnostics.Debug.WriteLine($" 无权访问某些子目录");
             }
             catch (Exception)
             {
@@ -332,10 +332,10 @@ namespace ImageColorChanger.Managers
         {
             try
             {
-                // 🔑 关键：检查文件夹是否为手动排序，如果是则跳过自动排序
+                //  关键：检查文件夹是否为手动排序，如果是则跳过自动排序
                 if (_dbManager.IsManualSortFolder(folderId))
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⏭️ 跳过手动排序文件夹 {folderId} 的自动排序");
+                    //System.Diagnostics.Debug.WriteLine($" 跳过手动排序文件夹 {folderId} 的自动排序");
                     return;
                 }
 
@@ -365,7 +365,7 @@ namespace ImageColorChanger.Managers
                 // 使用DatabaseManager的UpdateMediaFilesOrder方法保存更改
                 _dbManager.UpdateMediaFilesOrder(sortedFiles);
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
+                //System.Diagnostics.Debug.WriteLine($" 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
             }
             catch (Exception)
             {
@@ -402,7 +402,7 @@ namespace ImageColorChanger.Managers
                     totalUpdated += updated;
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"🔄 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
+                //System.Diagnostics.Debug.WriteLine($" 全部同步完成: 新增 {totalAdded}, 删除 {totalRemoved}");
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
                 //     $"[ImportManager] op={operationId} SyncAllFolders 完成: added={totalAdded}, removed={totalRemoved}, updated={totalUpdated}");
@@ -565,4 +565,6 @@ namespace ImageColorChanger.Managers
         }
     }
 }
+
+
 

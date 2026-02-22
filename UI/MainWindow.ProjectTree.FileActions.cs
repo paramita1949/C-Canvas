@@ -30,7 +30,7 @@ namespace ImageColorChanger.UI
             {
                 DatabaseManagerService.DeleteMediaFile(item.Id);
                 LoadProjects();
-                ShowStatus($"🗑️ 已删除文件: {item.Name}");
+                ShowStatus($"已删除文件: {item.Name}");
             }
         }
 
@@ -41,13 +41,13 @@ namespace ImageColorChanger.UI
         {
             if (item == null || string.IsNullOrWhiteSpace(item.Path))
             {
-                ShowStatus("❌ 文件路径无效");
+                ShowStatus("文件路径无效");
                 return;
             }
 
             if (!System.IO.File.Exists(item.Path) && !System.IO.Directory.Exists(item.Path))
             {
-                ShowStatus($"❌ 文件不存在: {item.Name}");
+                ShowStatus($"文件不存在: {item.Name}");
                 return;
             }
 
@@ -57,7 +57,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 打开文件位置失败: {ex.Message}");
+                ShowStatus($"打开文件位置失败: {ex.Message}");
             }
         }
 
@@ -78,3 +78,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

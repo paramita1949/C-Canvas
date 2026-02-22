@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
@@ -32,10 +32,10 @@ namespace ImageColorChanger.UI.Controls
         private WpfPoint _dragStartPoint;
         private WpfBorder _border;
 
-        // ✅ WPF RichTextBox 控件
+        //  WPF RichTextBox 控件
         private System.Windows.Controls.RichTextBox _richTextBox;
 
-        // 🔧 同步标志：防止 TextChanged 事件循环
+        // 同步标志：防止 TextChanged 事件循环
         private bool _isSyncing = false;
 
         private WpfThumb _resizeThumb;  // 右下角（保留兼容性）
@@ -54,7 +54,7 @@ namespace ImageColorChanger.UI.Controls
         private const int DOUBLE_CLICK_INTERVAL = 500;  // 双击间隔（毫秒）
         private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
 
-        // 🔧 四个拖动区域（用于在编辑模式下拖动文本框）
+        // 四个拖动区域（用于在编辑模式下拖动文本框）
         private WpfBorder _dragAreaTop;
         private WpfBorder _dragAreaBottom;
         private WpfBorder _dragAreaLeft;
@@ -93,7 +93,7 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// ✅ 检测选中文字是否为加粗（使用 WPF 原生 API）
+        ///  检测选中文字是否为加粗（使用 WPF 原生 API）
         /// </summary>
         public bool IsSelectionBold()
         {
@@ -110,7 +110,7 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// ✅ 检测选中文字是否为斜体（使用 WPF 原生 API）
+        ///  检测选中文字是否为斜体（使用 WPF 原生 API）
         /// </summary>
         public bool IsSelectionItalic()
         {
@@ -126,7 +126,7 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// ✅ 检测选中文字是否有下划线（使用 WPF 原生 API）
+        ///  检测选中文字是否有下划线（使用 WPF 原生 API）
         /// </summary>
         public bool IsSelectionUnderline()
         {
@@ -142,7 +142,7 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// ✅ 获取选中文字的字体（使用 WPF 原生 API）
+        ///  获取选中文字的字体（使用 WPF 原生 API）
         /// </summary>
         public string GetSelectionFontFamily()
         {
@@ -158,7 +158,7 @@ namespace ImageColorChanger.UI.Controls
         }
 
         /// <summary>
-        /// ✅ 修复光标样式：防止光标继承斜体样式
+        ///  修复光标样式：防止光标继承斜体样式
         /// </summary>
         private void FixCaretStyle()
         {
@@ -280,7 +280,7 @@ namespace ImageColorChanger.UI.Controls
         public event EventHandler RequestPaste;
 
         /// <summary>
-        /// ✅ 文本选择改变事件（用于更新工具栏按钮状态）
+        ///  文本选择改变事件（用于更新工具栏按钮状态）
         /// </summary>
         public event EventHandler TextSelectionChanged;
 
@@ -298,3 +298,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

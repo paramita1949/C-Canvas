@@ -246,7 +246,7 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"注册异常：{ex.Message}", isError: true);
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [注册] 未知异常: {ex}");
+                System.Diagnostics.Debug.WriteLine($" [注册] 未知异常: {ex}");
                 #endif
             }
             finally
@@ -272,4 +272,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
 

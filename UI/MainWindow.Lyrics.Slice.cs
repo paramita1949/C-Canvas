@@ -110,7 +110,7 @@ namespace ImageColorChanger.UI
         {
             if (_lyricsSplitMode != (int)ViewSplitMode.Single && enabled)
             {
-                ShowStatus("⚠️ 切片模式仅支持单画面");
+                ShowStatus("切片模式仅支持单画面");
                 return;
             }
 
@@ -163,7 +163,7 @@ namespace ImageColorChanger.UI
             if (_lyricsSliceModeEnabled)
             {
                 GenerateLyricsSlicesFromSingleText(preserveIndex: false);
-                ShowStatus($"✅ 已按每{_lyricsSliceLinesPerPage}行切片");
+                ShowStatus($"已按每{_lyricsSliceLinesPerPage}行切片");
             }
         }
 
@@ -328,7 +328,7 @@ namespace ImageColorChanger.UI
         private void BtnLyricsSliceToggle_Click(object sender, RoutedEventArgs e)
         {
             SetLyricsSliceModeEnabled(!_lyricsSliceModeEnabled);
-            ShowStatus(_lyricsSliceModeEnabled ? "✅ 已启用切片模式" : "✅ 已关闭切片模式");
+            ShowStatus(_lyricsSliceModeEnabled ? " 已启用切片模式" : " 已关闭切片模式");
         }
 
         private void BtnLyricsSliceRule1_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(1);
@@ -339,7 +339,7 @@ namespace ImageColorChanger.UI
         {
             if (_lyricsSplitMode != (int)ViewSplitMode.Single)
             {
-                ShowStatus("⚠️ 请先切回单画面再切片");
+                ShowStatus("请先切回单画面再切片");
                 return;
             }
 
@@ -349,7 +349,7 @@ namespace ImageColorChanger.UI
             }
             GenerateLyricsSlicesFromSingleText(preserveIndex: false);
             UpdateLyricsSliceUiState();
-            ShowStatus($"✅ 已生成 {_lyricsSliceItems.Count} 个切片");
+            ShowStatus($"已生成 {_lyricsSliceItems.Count} 个切片");
         }
 
         private void BtnLyricsSlicePrev_Click(object sender, RoutedEventArgs e)
@@ -701,3 +701,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

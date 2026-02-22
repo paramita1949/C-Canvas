@@ -119,7 +119,7 @@ namespace ImageColorChanger.Managers.Keyframes
                         // 保持在当前位置（防止回退到初始位置）
                         scrollViewer.ScrollToVerticalOffset(currentOffset);
                         
-                        // System.Diagnostics.Debug.WriteLine($"🛑 已停止滚动动画，保持在位置: {currentOffset:F0}");
+                        // System.Diagnostics.Debug.WriteLine($" 已停止滚动动画，保持在位置: {currentOffset:F0}");
                     }
                 });
             }
@@ -368,7 +368,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 }
                 catch (Exception)
                 {
-                    // System.Diagnostics.Debug.WriteLine($"❌ 平滑滚动异常: {ex.Message}");
+                    // System.Diagnostics.Debug.WriteLine($" 平滑滚动异常: {ex.Message}");
                 }
             });
         }
@@ -466,7 +466,7 @@ namespace ImageColorChanger.Managers.Keyframes
                 }
                 catch (Exception)
                 {
-                    // Console.WriteLine($"❌ UI更新异常: {ex.Message}");
+                    // Console.WriteLine($" UI更新异常: {ex.Message}");
                 }
             });
         }
@@ -540,4 +540,5 @@ namespace ImageColorChanger.Managers.Keyframes
         #endregion
     }
 }
+
 

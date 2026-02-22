@@ -8,7 +8,7 @@
                       Panel.ZIndex="100">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>  <!-- 工具栏 -->
-                        <RowDefinition Height="Auto"/>  <!-- 🆕 圣经经文工具栏 -->
+                        <RowDefinition Height="Auto"/>  <!--  圣经经文工具栏 -->
                         <RowDefinition Height="*"/>     <!-- 主内容区 -->
                     </Grid.RowDefinitions>
 
@@ -20,33 +20,58 @@
                         </Border.Effect>
                         <StackPanel Orientation="Horizontal">
                             <!-- 文本和背景操作 -->
-                            <Button x:Name="BtnAddText" Content="➕ 文本" 
+                            <Button x:Name="BtnAddText"
                                     Style="{StaticResource SuccessButtonStyle}"
-                                    ToolTip="添加文本框" Click="BtnAddText_Click"/>
+                                    ToolTip="添加文本框" Click="BtnAddText_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideTextCompact}" Style="{StaticResource LucideIconPathStyle}" Width="13" Height="13" Margin="0,0,6,0"/>
+                                    <TextBlock Text="文本" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
                             <!-- 导入按钮 -->
-                            <Button x:Name="BtnBackgroundImage" Content="📥 导入"
+                            <Button x:Name="BtnBackgroundImage"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="导入图片为幻灯片"
-                                    Click="BtnBackgroundImage_Click"/>
+                                    Click="BtnBackgroundImage_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideUpload}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="导入" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
                             <!-- 背景颜色按钮 -->
-                            <Button x:Name="BtnBackgroundColor" Content="🎨 背景"
+                            <Button x:Name="BtnBackgroundColor"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="选择背景颜色"
-                                    Click="BtnBackgroundColor_Click"/>
+                                    Click="BtnBackgroundColor_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucidePalette}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="背景" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
                             <!-- 分割按钮 -->
-                            <Button x:Name="BtnSplitView" Content="🖼 分割" 
+                            <Button x:Name="BtnSplitView"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="画面分割设置"
-                                    Click="BtnSplitView_Click"/>
+                                    Click="BtnSplitView_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideImage}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="分割" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
                             <!-- 原图模式切换按钮 -->
-                            <Button x:Name="BtnSplitStretchMode" Content="📐 适中"
+                            <Button x:Name="BtnSplitStretchMode"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="切换图片拉伸模式（适中/拉伸）"
-                                    Click="BtnSplitStretchMode_Click"/>
+                                    Click="BtnSplitStretchMode_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideMinimize}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="适中" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
@@ -195,59 +220,81 @@
                                 <ComboBoxItem Content="240"/>
                             </ComboBox>
                             
-                            <!-- 字号增大按钮 A+ -->
-                            <Button x:Name="BtnIncreaseFontSize" Content="A+"
+                            <!-- 字号增大按钮 -->
+                            <Button x:Name="BtnIncreaseFontSize"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnIncreaseFontSize_Click"
-                                    ToolTip="增大字号"/>
+                                    ToolTip="字体变大">
+                                <Path Data="{StaticResource IconLucideTextIncrease}"
+                                      Style="{StaticResource LucideIconPathStyle}"/>
+                            </Button>
 
-                            <!-- 字号减小按钮 A- -->
-                            <Button x:Name="BtnDecreaseFontSize" Content="A-"
+                            <!-- 字号减小按钮 -->
+                            <Button x:Name="BtnDecreaseFontSize"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
                                     Click="BtnDecreaseFontSize_Click"
-                                    ToolTip="减小字号"/>
+                                    ToolTip="字体变小">
+                                <Path Data="{StaticResource IconLucideTextDecrease}"
+                                      Style="{StaticResource LucideIconPathStyle}"/>
+                            </Button>
 
                             <!-- 加粗按钮 -->
-                            <Button x:Name="BtnBold" Content="B"
+                            <Button x:Name="BtnBold"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontFamily="Segoe UI"
-                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
-                                    ToolTip="加粗 (B)" Click="BtnBold_Click"/>
+                                    ToolTip="加粗" Click="BtnBold_Click">
+                                <Path Data="{StaticResource IconLucideBold}"
+                                      Style="{StaticResource LucideIconPathStyle}"
+                                      Width="14" Height="14"/>
+                            </Button>
 
                             <!-- 文字颜色按钮 -->
-                            <Button x:Name="BtnTextColor" Content="A"
+                            <Button x:Name="BtnTextColor"
                                     Width="40" Height="32"
                                     Padding="2"
-                                    FontFamily="Segoe UI"
-                                    FontSize="18"
                                     Style="{StaticResource CompactButtonStyle}"
-                                    ToolTip="文字颜色 (A)" Click="BtnTextColor_Click"/>
+                                    ToolTip="颜色" Click="BtnTextColor_Click">
+                                <Path Data="{StaticResource IconLucidePalette}"
+                                      Style="{StaticResource LucideIconPathStyle}"/>
+                            </Button>
 
                             <!-- 保存和投影 -->
-                            <Button x:Name="BtnSaveTextProject" Content="💾 保存"
+                            <Button x:Name="BtnSaveTextProject"
                                     Style="{StaticResource MenuButtonStyle}"
                                     Foreground="#333333"
-                                    ToolTip="保存项目" Click="BtnSaveTextProject_Click"/>
+                                    ToolTip="保存项目" Click="BtnSaveTextProject_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideSave}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="保存" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
-                            <Button x:Name="BtnLockProjection" Content="🔓 锁定投影"
+                            <Button x:Name="BtnLockProjection"
                                     Style="{StaticResource PrimaryButtonStyle}"
-                                    ToolTip="锁定投影：开启后切换幻灯片不会自动更新投影" Click="BtnLockProjection_Click"/>
+                                    ToolTip="锁定投影：开启后切换幻灯片不会自动更新投影" Click="BtnLockProjection_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideUnlock}" Style="{StaticResource LucideIconPathStyle}" Stroke="White" Margin="0,0,6,0"/>
+                                    <TextBlock Text="锁定投影" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
-                            <Button x:Name="BtnUpdateProjection" Content="🔄 更新投影"
+                            <Button x:Name="BtnUpdateProjection"
                                     Style="{StaticResource PrimaryButtonStyle}"
-                                    ToolTip="立即更新投影内容" Click="BtnUpdateProjection_Click"/>
+                                    ToolTip="立即更新投影内容" Click="BtnUpdateProjection_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideRefreshCw}" Style="{StaticResource LucideIconPathStyle}" Stroke="White" Margin="0,0,6,0"/>
+                                    <TextBlock Text="更新投影" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Border>
 
-                    <!-- 🆕 圣经导航面板（在幻灯片编辑模式下显示，与主界面共享同一个面板） -->
+                    <!--  圣经导航面板（在幻灯片编辑模式下显示，与主界面共享同一个面板） -->
                     <!-- 通过代码动态移动 BibleNavigationPanel 到这里 -->
 
                     <!-- 主内容区：左侧幻灯片列表 + 右侧编辑区 -->
@@ -270,7 +317,6 @@
                                 <Border Grid.Row="0" Background="#FAFAFA" Padding="8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
                                     <StackPanel Orientation="Horizontal">
                                         <Button x:Name="BtnCloseTextEditorInPanel"
-                                                Content="❌ 退出"
                                                 Height="36"
                                                 Width="80"
                                                 FontSize="14"
@@ -283,6 +329,10 @@
                                                 Cursor="Hand"
                                                 Click="BtnCloseTextEditor_Click"
                                                 ToolTip="退出文本编辑器，返回图片/视频浏览">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource IconLucideX}" Style="{StaticResource LucideIconPathStyle}" Stroke="#D32F2F" Margin="0,0,5,0"/>
+                                                <TextBlock Text="退出" VerticalAlignment="Center"/>
+                                            </StackPanel>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -468,7 +518,7 @@
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </StackPanel.Style>
-                                                            <TextBlock Text="📝" 
+                                                            <TextBlock Text="" 
                                                                        FontSize="32" 
                                                                        HorizontalAlignment="Center" 
                                                                        Foreground="#666666"
@@ -527,7 +577,7 @@
                                 <!-- 文本框将动态添加到这里 -->
                             </Canvas>
                             
-                            <!-- 🆕 圣经经文工具栏（悬浮在画布上方中央） -->
+                            <!--  圣经经文工具栏（悬浮在画布上方中央） -->
                             <Popup x:Name="BibleToolbar"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -550,12 +600,12 @@
                                                 Width="42" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="经文样式设置"
                                                 Click="BtnBibleInsertStyleSettings_Click"
                                                 Cursor="Hand">
-                                            <TextBlock Text="✝️" FontSize="20"/>
+                                            <Path Data="{StaticResource IconLucideBookPlus}" Style="{StaticResource LucideIconPathStyle}" Width="20" Height="20"/>
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -568,10 +618,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -589,7 +639,7 @@
                                                 Width="72" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="边框"
                                                 Click="BtnFloatingBorder_Click"
@@ -607,10 +657,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -625,7 +675,7 @@
                                                 Width="72" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="背景"
                                                 Click="BtnFloatingBackground_Click"
@@ -643,10 +693,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -661,7 +711,7 @@
                                                 Width="72" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="阴影"
                                                 Click="BtnFloatingShadow_Click"
@@ -679,10 +729,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -697,7 +747,7 @@
                                                 Width="72" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="间距"
                                                 Click="BtnFloatingSpacing_Click"
@@ -715,10 +765,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -733,7 +783,7 @@
                                                 Width="72" Height="42"
                                                 Margin="3"
                                                 Background="Transparent"
-                                                Foreground="#2196F3"
+                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="动画"
                                                 Click="BtnFloatingAnimation_Click"
@@ -751,10 +801,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -770,7 +820,7 @@
                                         <!-- 斜体按钮 -->
                                         <Button x:Name="BtnFloatingItalic" Content="/"
                                                 Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
+                                                Background="Transparent" Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0" FontSize="18" FontWeight="Bold"
                                                 ToolTip="斜体" Cursor="Hand"
                                                 Click="BtnFloatingItalic_Click">
@@ -784,10 +834,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -800,7 +850,7 @@
                                         <!-- 下划线按钮 -->
                                         <Button x:Name="BtnFloatingUnderline" Content="U"
                                                 Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
+                                                Background="Transparent" Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0" FontSize="18" FontWeight="Bold"
                                                 ToolTip="下划线" Cursor="Hand"
                                                 Click="BtnUnderline_Click">
@@ -814,10 +864,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -830,14 +880,14 @@
                                         <!-- 左对齐按钮 -->
                                         <Button x:Name="BtnFloatingAlignLeft"
                                                 Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
+                                                Background="Transparent" Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="左对齐" Cursor="Hand"
                                                 Click="BtnAlignLeft_Click">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left" Width="16">
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="16"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="12"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="14"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="16"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="12"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Left" Width="14"/>
                                             </StackPanel>
                                             <Button.Style>
                                                 <Style TargetType="Button">
@@ -849,10 +899,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -865,14 +915,14 @@
                                         <!-- 居中对齐按钮 -->
                                         <Button x:Name="BtnFloatingAlignCenter"
                                                 Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
+                                                Background="Transparent" Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="居中" Cursor="Hand"
                                                 Click="BtnAlignCenter_Click">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="16">
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="16"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="10"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="13"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="16"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="10"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Center" Width="13"/>
                                             </StackPanel>
                                             <Button.Style>
                                                 <Style TargetType="Button">
@@ -884,10 +934,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -900,14 +950,14 @@
                                         <!-- 右对齐按钮 -->
                                         <Button x:Name="BtnFloatingAlignRight"
                                                 Width="28" Height="28" Margin="2"
-                                                Background="Transparent" Foreground="#2196F3"
+                                                Background="Transparent" Foreground="{DynamicResource BrushGlobalIcon}"
                                                 BorderThickness="0"
                                                 ToolTip="右对齐" Cursor="Hand"
                                                 Click="BtnAlignRight_Click">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" Width="16">
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="16"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="12"/>
-                                                <Rectangle Fill="#2196F3" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="14"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="16"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="12"/>
+                                                <Rectangle Fill="{DynamicResource BrushGlobalIcon}" Height="2" Margin="0,1" HorizontalAlignment="Right" Width="14"/>
                                             </StackPanel>
                                             <Button.Style>
                                                 <Style TargetType="Button">
@@ -919,10 +969,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#14000000"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsPressed" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                                        <Setter TargetName="border" Property="Background" Value="#24000000"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -935,7 +985,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 边框设置侧边面板 -->
+                            <!--  边框设置侧边面板 -->
                             <Popup x:Name="BorderSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -974,7 +1024,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 背景设置侧边面板 -->
+                            <!--  背景设置侧边面板 -->
                             <Popup x:Name="BackgroundSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -1013,7 +1063,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 文本颜色设置侧边面板 -->
+                            <!--  文本颜色设置侧边面板 -->
                             <Popup x:Name="TextColorSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -1052,7 +1102,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 阴影设置侧边面板 -->
+                            <!--  阴影设置侧边面板 -->
                             <Popup x:Name="ShadowSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -1091,7 +1141,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 间距设置侧边面板 -->
+                            <!--  间距设置侧边面板 -->
                             <Popup x:Name="SpacingSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -1130,7 +1180,7 @@
                                 </Border>
                             </Popup>
 
-                            <!-- 🆕 动画设置侧边面板 -->
+                            <!--  动画设置侧边面板 -->
                             <Popup x:Name="AnimationSettingsPopup"
                                    AllowsTransparency="True"
                                    StaysOpen="True"
@@ -1219,3 +1269,5 @@
 
 
 </UserControl>
+
+

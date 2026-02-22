@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI
             if (_keyframeManager != null)
             {
                 _keyframeManager.CurrentKeyframeIndex = -1;
-                // System.Diagnostics.Debug.WriteLine("🔄 [图片加载] 重置关键帧索引为-1");
+                // System.Diagnostics.Debug.WriteLine(" [图片加载] 重置关键帧索引为-1");
                 
                 // 更新关键帧预览线和指示块
                 _keyframeManager?.UpdatePreviewLines();
@@ -68,7 +68,7 @@ namespace ImageColorChanger.UI
                 var dbContext = _dbContext;
                 if (dbContext == null)
                 {
-                    // Console.WriteLine("❌ 数据库上下文未就绪");
+                    // Console.WriteLine(" 数据库上下文未就绪");
                     return;
                 }
 
@@ -93,11 +93,11 @@ namespace ImageColorChanger.UI
                     UpdateScrollEasingMenuCheck(easingName);
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
-                // System.Diagnostics.Debug.WriteLine("✅ 关键帧和播放系统初始化完成");
+                // System.Diagnostics.Debug.WriteLine(" 关键帧和播放系统初始化完成");
             }
             catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 关键帧系统初始化异常: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 关键帧系统初始化异常: {ex.Message}");
                 MessageBox.Show($"关键帧系统初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -106,3 +106,4 @@ namespace ImageColorChanger.UI
 
     }
 }
+

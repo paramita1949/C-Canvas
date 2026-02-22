@@ -77,6 +77,8 @@ namespace ImageColorChanger.UI
         private const byte BUTTON_EMPHASIS_COLOR_R = 255;  // 金色 R
         private const byte BUTTON_EMPHASIS_COLOR_G = 215;  // 金色 G
         private const byte BUTTON_EMPHASIS_COLOR_B = 0;    // 金色 B
+        private const string UI_SETTING_GLOBAL_ICON_COLOR = "ui.theme.global_icon_color";
+        private const string DEFAULT_GLOBAL_ICON_COLOR_HEX = "#917878";
 
         // 播放模式图标颜色（十六进制）
         private const string ICON_COLOR_SEQUENTIAL = "#2196F3";  // 顺序播放 - 蓝色
@@ -108,17 +110,17 @@ namespace ImageColorChanger.UI
 
         // 项目数据
         private ObservableCollection<ProjectTreeItem> _projectTreeItems = new ObservableCollection<ProjectTreeItem>();
-        private ObservableCollection<ProjectTreeItem> _filteredProjectTreeItems = new ObservableCollection<ProjectTreeItem>(); // 🆕 过滤后的项目树
+        private ObservableCollection<ProjectTreeItem> _filteredProjectTreeItems = new ObservableCollection<ProjectTreeItem>(); // 过滤后的项目树
         private int _currentImageId = 0; // 当前加载的图片ID
         
-        // 🆕 视图模式枚举
+        // 视图模式枚举
         private enum NavigationViewMode
         {
             Files,      // 文件模式：显示文件夹和单文件
             Projects,   // 项目模式：显示TextProject节点
             Bible       // 圣经模式：显示圣经导航
         }
-        private NavigationViewMode _currentViewMode = NavigationViewMode.Files; // 🆕 当前视图模式，默认显示文件
+        private NavigationViewMode _currentViewMode = NavigationViewMode.Files; // 当前视图模式，默认显示文件
 
         // 原图模式相关
         private bool _originalMode = false;
@@ -131,6 +133,7 @@ namespace ImageColorChanger.UI
 
         // 数据库和管理器
         private ConfigManager _configManager;
+        private IUiSettingsStore _uiSettingsStore;
         private ProjectionManager _projectionManager;
         private OriginalManager _originalManager;
         private PreloadCacheManager _preloadCacheManager; // 智能预缓存管理器
@@ -167,7 +170,7 @@ namespace ImageColorChanger.UI
         private EventHandler<Services.Implementations.JumpToKeyframeEventArgs> _jumpToKeyframeRequestedHandler;
         private Services.Implementations.KeyframePlaybackService _keyframePlaybackService;
         
-        // ✅ SkiaSharp文本渲染器
+        //  SkiaSharp文本渲染器
         private SkiaTextRenderer _skiaRenderer;
         private GPUContext _gpuContext;
         private PakManager _pakManager;
@@ -252,7 +255,7 @@ namespace ImageColorChanger.UI
             InitializePlaybackViewModel();
             StartupPerfLogger.Mark("MainWindow.InitializePlaybackViewModel.Completed");
             
-            // 🆕 初始化文本编辑器
+            // 初始化文本编辑器
             InitializeTextEditor();
             StartupPerfLogger.Mark("MainWindow.InitializeTextEditor.Completed");
             
@@ -260,13 +263,13 @@ namespace ImageColorChanger.UI
             InitializeFpsMonitor();
             StartupPerfLogger.Mark("MainWindow.InitializeFpsMonitor.Completed");
             
-            // 🆕 监听主窗口失去焦点和状态变化，自动关闭圣经样式 Popup
+            // 监听主窗口失去焦点和状态变化，自动关闭圣经样式 Popup
             this.Deactivated += MainWindow_Deactivated;
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
             StartupPerfLogger.Mark("MainWindow.PopupCloseEvents.Registered");
             
-            // 🔐 初始化认证服务
+            // 初始化认证服务
             InitializeAuthService();
             StartupPerfLogger.Mark("MainWindow.InitializeAuthService.Completed");
             StartupPerfLogger.Mark("MainWindow.Ctor.End");
@@ -326,3 +329,5 @@ namespace ImageColorChanger.UI
     }
 
 }
+
+

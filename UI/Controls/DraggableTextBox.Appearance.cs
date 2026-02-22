@@ -42,7 +42,7 @@ namespace ImageColorChanger.UI.Controls
 
             {
 
-                // 🔧 如果有 RichTextSpans，不应用全局字体样式（保持每个片段的独立样式）
+                // 如果有 RichTextSpans，不应用全局字体样式（保持每个片段的独立样式）
 
                 bool hasRichTextSpans = Data.RichTextSpans != null && Data.RichTextSpans.Count > 0;
 
@@ -58,7 +58,7 @@ namespace ImageColorChanger.UI.Controls
 
                 {
 
-                    // 🔧 使用 FontService 加载字体（支持自定义字体文件）
+                    // 使用 FontService 加载字体（支持自定义字体文件）
 
                     // 优先使用 GetFontFamilyByFamily（支持字体族名称和完整路径）
 
@@ -102,7 +102,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                    // 🔧 设置加粗
+                    // 设置加粗
 
                     _richTextBox.FontWeight = Data.IsBoldBool
 
@@ -112,7 +112,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                    // 🔧 设置斜体
+                    // 设置斜体
 
                     _richTextBox.FontStyle = Data.IsItalicBool
 
@@ -136,19 +136,19 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 🔧 设置光标颜色为文本颜色（确保可见）
+                // 设置光标颜色为文本颜色（确保可见）
 
                 _richTextBox.CaretBrush = new WpfSolidColorBrush(color);
 
 
 
-                // ✅ 应用行高到所有段落
+                //  应用行高到所有段落
 
                 ApplyLineHeightToAllParagraphs();
 
 
 
-                // ⚠️ 字间距功能暂不支持（WPF 限制）
+                //  字间距功能暂不支持（WPF 限制）
 
                 // ApplyLetterSpacingToAllParagraphs();
 
@@ -182,7 +182,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ WPF 原生 FlowDocument 已包含所有样式信息
+                //  WPF 原生 FlowDocument 已包含所有样式信息
 
                 // 不再需要从 RichTextSpans 表重新构建样式
 
@@ -190,19 +190,19 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ 应用边框样式到 Border 容器
+                //  应用边框样式到 Border 容器
 
                 ApplyBorderStyle();
 
 
 
-                // ✅ 应用背景样式到 RichTextBox
+                //  应用背景样式到 RichTextBox
 
                 ApplyBackgroundStyle();
 
 
 
-                // ✅ 应用阴影样式到 RichTextBox
+                //  应用阴影样式到 RichTextBox
 
                 ApplyShadowStyle();
 
@@ -214,7 +214,7 @@ namespace ImageColorChanger.UI.Controls
 
 // #if DEBUG
 
-//                 System.Diagnostics.Debug.WriteLine($"❌ [ApplyStylesToRichTextBox] 失败: {ex.Message}");
+//                 System.Diagnostics.Debug.WriteLine($" [ApplyStylesToRichTextBox] 失败: {ex.Message}");
 
 // #endif
 
@@ -258,7 +258,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ 应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
+                //  应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
 
                 byte alpha = (byte)(255 * (100 - Data.BorderOpacity) / 100.0);
 
@@ -346,7 +346,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ 应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
+                //  应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
 
                 byte alpha = (byte)(255 * (100 - Data.BackgroundOpacity) / 100.0);
 
@@ -354,7 +354,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ 设置背景到 Border 容器（支持圆角）
+                //  设置背景到 Border 容器（支持圆角）
 
                 _border.Background = new WpfSolidColorBrush(backgroundColorWithAlpha);
 
@@ -364,7 +364,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // ✅ 应用背景圆角到 Border 容器
+                //  应用背景圆角到 Border 容器
 
                 ApplyBackgroundCornerRadius();
 
@@ -458,7 +458,7 @@ namespace ImageColorChanger.UI.Controls
 
                     Direction = Math.Atan2(Data.ShadowOffsetY, Data.ShadowOffsetX) * 180 / Math.PI,
 
-                    Opacity = Data.ShadowOpacity / 100.0  // ✅ 直接使用透明度百分比（0-100 → 0.0-1.0）
+                    Opacity = Data.ShadowOpacity / 100.0  //  直接使用透明度百分比（0-100 → 0.0-1.0）
 
                 };
 
@@ -470,7 +470,7 @@ namespace ImageColorChanger.UI.Controls
 
 // #if DEBUG
 
-//                 System.Diagnostics.Debug.WriteLine($"✅ [ApplyShadowStyle] 颜色={Data.ShadowColor}, 偏移=({Data.ShadowOffsetX:F2}, {Data.ShadowOffsetY:F2}), 模糊={Data.ShadowBlur}, 透明度={Data.ShadowOpacity}%");
+//                 System.Diagnostics.Debug.WriteLine($" [ApplyShadowStyle] 颜色={Data.ShadowColor}, 偏移=({Data.ShadowOffsetX:F2}, {Data.ShadowOffsetY:F2}), 模糊={Data.ShadowBlur}, 透明度={Data.ShadowOpacity}%");
 
 // #endif
 
@@ -482,7 +482,7 @@ namespace ImageColorChanger.UI.Controls
 
 // #if DEBUG
 
-//                 System.Diagnostics.Debug.WriteLine($"❌ [ApplyShadowStyle] 失败: {ex.Message}");
+//                 System.Diagnostics.Debug.WriteLine($" [ApplyShadowStyle] 失败: {ex.Message}");
 
 // #else
 
@@ -497,3 +497,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

@@ -29,7 +29,7 @@ namespace ImageColorChanger.Core
             set
             {
                 _usePak = value;
-                System.Diagnostics.Debug.WriteLine($"📦 [ResourceLoader] 使用PAK包: {_usePak}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 使用PAK包: {_usePak}");
             }
         }
         
@@ -46,7 +46,7 @@ namespace ImageColorChanger.Core
                 var success = GetPakManager().LoadPak();
                 if (!success)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ [ResourceLoader] PAK包加载失败，回退到文件系统");
+                    System.Diagnostics.Debug.WriteLine(" [ResourceLoader] PAK包加载失败，回退到文件系统");
                     _usePak = false;
                 }
             }
@@ -68,7 +68,7 @@ namespace ImageColorChanger.Core
                     var content = GetPakManager().GetResourceText(relativePath);
                     if (content != null)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"📦 [ResourceLoader] 从PAK加载: {relativePath}");
+                        //System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 从PAK加载: {relativePath}");
                         return content;
                     }
                 }
@@ -77,16 +77,16 @@ namespace ImageColorChanger.Core
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
                 if (File.Exists(fullPath))
                 {
-                    //System.Diagnostics.Debug.WriteLine($"📂 [ResourceLoader] 从文件加载: {relativePath}");
+                    //System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 从文件加载: {relativePath}");
                     return File.ReadAllText(fullPath);
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 文件不存在: {relativePath}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 文件不存在: {relativePath}");
                 return null;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 加载失败: {relativePath}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 加载失败: {relativePath}, {ex.Message}");
                 return null;
             }
         }
@@ -105,7 +105,7 @@ namespace ImageColorChanger.Core
                     var data = GetPakManager().GetResource(relativePath);
                     if (data != null)
                     {
-                        //System.Diagnostics.Debug.WriteLine($"📦 [ResourceLoader] 从PAK加载: {relativePath}");
+                        //System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 从PAK加载: {relativePath}");
                         return data;
                     }
                 }
@@ -114,16 +114,16 @@ namespace ImageColorChanger.Core
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
                 if (File.Exists(fullPath))
                 {
-                    //System.Diagnostics.Debug.WriteLine($"📂 [ResourceLoader] 从文件加载: {relativePath}");
+                    //System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 从文件加载: {relativePath}");
                     return File.ReadAllBytes(fullPath);
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 文件不存在: {relativePath}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 文件不存在: {relativePath}");
                 return null;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 加载失败: {relativePath}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 加载失败: {relativePath}, {ex.Message}");
                 return null;
             }
         }
@@ -152,7 +152,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 图片加载失败: {relativePath}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 图片加载失败: {relativePath}, {ex.Message}");
                 return null;
             }
         }
@@ -201,7 +201,7 @@ namespace ImageColorChanger.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [ResourceLoader] 字体加载失败: {relativePath}, {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [ResourceLoader] 字体加载失败: {relativePath}, {ex.Message}");
                 return null;
             }
         }
@@ -237,4 +237,6 @@ namespace ImageColorChanger.Core
         }
     }
 }
+
+
 

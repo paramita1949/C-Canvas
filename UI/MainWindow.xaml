@@ -46,69 +46,149 @@
                 <!-- 左侧：所有按钮在一排 -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
-                    <Button x:Name="BtnImport" Content="文件" Style="{StaticResource MenuButtonStyle}" 
-                            ToolTip="导入图片或文件夹" Click="BtnImport_Click"/>
+                    <Button x:Name="BtnImport" Style="{StaticResource MenuButtonStyle}" 
+                            ToolTip="导入图片或文件夹" Click="BtnImport_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideFolderOpen}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="文件" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnProjection" Content="🖥 投影" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="开启/关闭投影" Click="BtnProjection_Click"/>
+                    <Button x:Name="BtnProjection" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="开启/关闭投影" Click="BtnProjection_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideMonitor}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="投影" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnSync" Content="同步" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="同步所有文件夹" Click="BtnSync_Click"/>
+                    <Button x:Name="BtnSync" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="同步所有文件夹" Click="BtnSync_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideRefreshCw}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="同步" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnReset" Content="返回" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="重置视图" Click="BtnReset_Click"/>
+                    <Button x:Name="BtnReset" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="重置视图" Click="BtnReset_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideUndo2}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="返回" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnOriginal" Content="原图" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="切换原图模式" Click="BtnOriginal_Click"/>
+                    <Button x:Name="BtnOriginal" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="切换原图模式" Click="BtnOriginal_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideImage}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="原图" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnZoomReset" Content="缩放" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="重置缩放比例" Click="BtnZoomReset_Click"/>
+                    <Button x:Name="BtnZoomReset" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="重置缩放比例" Click="BtnZoomReset_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideSearch}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="缩放" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnColorEffect" Content="变色" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnColorEffect" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="切换颜色效果" 
-                            Click="BtnColorEffect_Click"/>
+                            Click="BtnColorEffect_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideWand2}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="变色" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                     <!-- 关键帧控制按钮 -->
-                    <Button x:Name="BtnAddKeyframe" Content="➕ 加帧" Style="{StaticResource SuccessButtonStyle}"
-                            ToolTip="在当前位置添加关键帧" Click="BtnAddKeyframe_Click"/>
+                    <Button x:Name="BtnAddKeyframe" Style="{StaticResource SuccessButtonStyle}"
+                            ToolTip="在当前位置添加关键帧" Click="BtnAddKeyframe_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucidePlus}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="加帧" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnClearKeyframes" Content="清帧" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="清除所有关键帧" Click="BtnClearKeyframes_Click"/>
+                    <Button x:Name="BtnClearKeyframes" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="清除所有关键帧" Click="BtnClearKeyframes_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideTrash2}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="清帧" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnPrevKeyframe" Content="上帧" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="跳转到上一个关键帧" Click="BtnPrevKeyframe_Click"/>
+                    <Button x:Name="BtnPrevKeyframe" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="跳转到上一个关键帧" Click="BtnPrevKeyframe_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideChevronLeft}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="上帧" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnNextKeyframe" Content="下帧" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="跳转到下一个关键帧" Click="BtnNextKeyframe_Click"/>
+                    <Button x:Name="BtnNextKeyframe" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="跳转到下一个关键帧" Click="BtnNextKeyframe_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideChevronRight}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="下帧" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
-                    <Button x:Name="BtnPlay" Content="播放" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click"/>
+                    <Button x:Name="BtnPlay" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="开始/停止自动播放" Click="BtnPlay_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucidePlay}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="播放" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- 播放控制按钮 -->
-                    <Button x:Name="BtnPlayCount" Content="5次" Style="{StaticResource MenuButtonStyle}"
+                    <Button x:Name="BtnPlayCount" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="单击循环切换，双击输入数字，滚轮微调 (1-10或∞)" 
                             Click="BtnPlayCount_Click"
                             MouseWheel="BtnPlayCount_MouseWheel"
-                            MouseDoubleClick="BtnPlayCount_MouseDoubleClick"/>
+                            MouseDoubleClick="BtnPlayCount_MouseDoubleClick">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideRepeat}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="5次" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <Button x:Name="BtnRecord" Content="录制" Style="{StaticResource RecordButtonStyle}"
                             ToolTip="开始/停止时间录制" 
                             Click="BtnRecord_Click"/>
-                    <Button x:Name="BtnScript" Content="脚本" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="显示脚本信息" Click="BtnScript_Click"/>
+                    <Button x:Name="BtnScript" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="显示脚本信息" Click="BtnScript_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideFileText}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="脚本" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Button x:Name="BtnClearTiming" Content="清时" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="清除时间录制数据" Click="BtnClearTiming_Click"/>
+                    <Button x:Name="BtnClearTiming" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="清除时间录制数据" Click="BtnClearTiming_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideTimerReset}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="清时" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- 分隔线 -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
-                    <Button x:Name="BtnPauseResume" Content="暂停" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click"/>
+                    <Button x:Name="BtnPauseResume" Style="{StaticResource MenuButtonStyle}"
+                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucidePause}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="暂停" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- 倒计时显示 - 无边框，黄色底 -->
                     <Border x:Name="CountdownBorder" Background="#FFFFCC" 
@@ -296,7 +376,7 @@
                             <ComboBoxItem Content="当前文件夹" Style="{StaticResource WhiteComboBoxItem}"/>
                         </ComboBox>
                         
-                        <!-- 🆕 文件/圣经/幻灯片 切换按钮 -->
+                        <!--  文件/圣经/幻灯片 切换按钮 -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,8">
                             <Button x:Name="BtnShowFiles"
                                     Content="文件"
@@ -325,7 +405,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- 🆕 圣经导航面板（圣经模式下显示） -->
+                    <!--  圣经导航面板（圣经模式下显示） -->
                     <Grid Grid.Row="1" x:Name="BibleNavigationPanel" Visibility="Collapsed" Background="#2D2D30">
                         <Grid.RowDefinitions>
                             <RowDefinition x:Name="BibleHistoryAndButtonRow" Height="*" MinHeight="150"/>    <!-- 历史记录+按钮（可调整高度，最小150像素） -->
@@ -456,13 +536,17 @@
                                         Style="{StaticResource MenuButtonStyle}"
                                         Click="BtnHistoryClearSelected_Click"/>
                                 <Button x:Name="BtnBibleSettings" 
-                                        Content="⚙ 设置" 
                                         Width="80" 
                                         Height="30" 
                                         FontSize="12"
                                         Margin="2"
                                         Style="{StaticResource MenuButtonStyle}"
-                                        Click="BtnBibleSettings_Click"/>
+                                        Click="BtnBibleSettings_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconLucideBookSliders}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="设置" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Border>
                         </Grid>
@@ -753,9 +837,9 @@
                                     <!-- 第一行：图标 + 文件/文件夹名称 -->
                                     <StackPanel Orientation="Horizontal">
                                         <Image Source="{Binding IconImagePath, Converter={StaticResource ThumbnailPathToImageSourceConverter}}"
-                                               Width="18"
-                                               Height="18"
-                                               Margin="0,0,8,0"
+                                               Width="22"
+                                               Height="22"
+                                               Margin="0,0,10,0"
                                                VerticalAlignment="Center">
                                             <Image.Style>
                                                 <Style TargetType="Image">
@@ -770,17 +854,23 @@
                                         </Image>
 
                                         <materialDesign:PackIcon Kind="{Binding IconKind}" 
-                                                                Foreground="{Binding IconColor}"
-                                                                Width="18" 
-                                                                Height="18" 
-                                                                Margin="0,0,8,0"
+                                                                Foreground="{DynamicResource BrushGlobalIcon}"
+                                                                Width="22" 
+                                                                Height="22" 
+                                                                Margin="0,0,10,0"
                                                                 VerticalAlignment="Center">
                                             <materialDesign:PackIcon.Style>
                                                 <Style TargetType="materialDesign:PackIcon">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Style.Triggers>
-                                                        <!-- 只在文件夹节点显示图标 -->
+                                                        <!-- 文件夹/歌词分组/歌词歌曲显示图标 -->
                                                         <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Type}" Value="LyricsGroup">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Type}" Value="LyricsSong">
                                                             <Setter Property="Visibility" Value="Visible"/>
                                                         </DataTrigger>
                                                         <!-- 如果没有IconKind也隐藏 -->
@@ -813,6 +903,12 @@
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
                                                                 <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="LyricsRoot">
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="LyricsGroup">
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
                                                             <!-- 编辑模式时隐藏 -->
                                                             <DataTrigger Binding="{Binding IsEditing}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -840,6 +936,12 @@
                                                         <Style.Triggers>
                                                             <!-- 如果是文件夹，使用文件夹字号 -->
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="LyricsRoot">
+                                                                <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="LyricsGroup">
                                                                 <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
                                                             <!-- 编辑模式时显示 -->
@@ -1015,11 +1117,14 @@
                         <!-- 文件名内容，居中显示 -->
                         <StackPanel VerticalAlignment="Center" 
                                     HorizontalAlignment="Center">
-                            <TextBlock Text="🎵" 
-                                       FontSize="80" 
-                                       HorizontalAlignment="Center"
-                                       Margin="0,0,0,20"
-                                       Foreground="White"/>
+                            <Viewbox Width="80"
+                                     Height="80"
+                                     HorizontalAlignment="Center"
+                                     Margin="0,0,0,20">
+                                <Path Data="{StaticResource IconLucideMusic}"
+                                      Style="{StaticResource LucideIconPathStyle}"
+                                      Stroke="White"/>
+                            </Viewbox>
                             <TextBlock x:Name="MediaFileNameText"
                                        Text="媒体文件"
                                        FontSize="28"
@@ -1034,14 +1139,14 @@
                     </Grid>
                 </Grid>
 
-                <!-- 🆕 圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
+                <!--  圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
                 <!-- 注意：圣经模式下，左侧ProjectTree会被替换为圣经专用导航 -->
                 <views:BibleSectionView x:Name="BibleSectionView"/>
 
-                <!-- 🆕 文本编辑器面板（默认隐藏，类似PPT的布局） -->
+                <!--  文本编辑器面板（默认隐藏，类似PPT的布局） -->
                 <views:TextEditorSectionView x:Name="TextEditorSectionView"/>
 
-                <!-- 🆕 歌词编辑器面板（极简黑色版） -->
+                <!--  歌词编辑器面板（极简黑色版） -->
                 <views:LyricsSectionView x:Name="LyricsSectionView"/>
 
                 <!-- 关键帧位置提示区域 - 灰色条（叠加在ScrollViewer上方） -->
@@ -1058,7 +1163,7 @@
                             MouseRightButtonDown="ScrollbarIndicatorsCanvas_Click"
                             ToolTip="左键：跳转到关键帧  |  右键：设置循环次数"/>
                 </Border>
-                <!-- 🎬 浮动合成播放按钮组（左上角） -->
+                <!--  浮动合成播放按钮组（左上角） -->
                 <StackPanel x:Name="CompositePlaybackPanel"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
@@ -1067,19 +1172,25 @@
                             Panel.ZIndex="300"
                             Visibility="Collapsed">
                     <Button x:Name="BtnFloatingCompositePlay"
-                            Content="🎬 合成播放"
                             Padding="15,8"
                             FontSize="18"
                             FontWeight="SemiBold"
-                            Background="#2196F3"
+                            Background="{StaticResource BrushBrandPrimary}"
                             Foreground="White"
-                            BorderBrush="#1976D2"
+                            BorderBrush="{StaticResource BrushBrandPrimary}"
                             BorderThickness="0"
                             Cursor="Hand"
                             Opacity="0.75"
                             Click="BtnCompositePlay_Click"
                             MouseRightButtonUp="BtnCompositePlay_RightClick"
                             ToolTip="左键：开始/停止播放 | 右键：快捷设置时长">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideClapperboard}"
+                                  Style="{StaticResource LucideIconPathStyle}"
+                                  Stroke="White"
+                                  Margin="0,0,8,0"/>
+                            <TextBlock Text="合成播放" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
@@ -1111,16 +1222,15 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                    <!-- ⚡ 速度控制按钮（仅在播放时显示） -->
+                    <!--  速度控制按钮（仅在播放时显示） -->
                     <Button x:Name="BtnCompositeSpeed"
-                            Content="⚡ 1.0x"
                             Padding="12,6"
                             Margin="0,8,0,0"
                             FontSize="13"
                             FontWeight="SemiBold"
-                            Background="#FF9800"
+                            Background="{StaticResource BrushBrandWarning}"
                             Foreground="White"
-                            BorderBrush="#F57C00"
+                            BorderBrush="{StaticResource BrushBrandWarning}"
                             BorderThickness="0"
                             Cursor="Hand"
                             Opacity="0.75"
@@ -1128,6 +1238,13 @@
                             Click="BtnCompositeSpeed_Click"
                             MouseRightButtonUp="BtnCompositeSpeed_RightClick"
                             ToolTip="右键：选择播放速度">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideZap}"
+                                  Style="{StaticResource LucideIconPathStyle}"
+                                  Stroke="White"
+                                  Margin="0,0,6,0"/>
+                            <TextBlock Text="1.0x" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
@@ -1191,5 +1308,6 @@
         </Border>
     </Grid>
 </Window>
+
 
 

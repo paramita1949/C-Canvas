@@ -36,6 +36,7 @@ namespace ImageColorChanger.Database.Repositories
                 NormalizedPath = normalizedPath,
                 OrderIndex = maxOrder + 1,
                 CreatedTime = DateTime.Now,
+                VideoPlayMode = "random",
                 ScanPolicy = "full",
                 LastScanTime = DateTime.Now,
                 LastScanStatus = "success"
@@ -193,6 +194,22 @@ namespace ImageColorChanger.Database.Repositories
                 return;
             }
 
+            var desiredOrders = folders
+                .Select((f, index) => new { f.Id, OrderIndex = index + 1 })
+                .ToDictionary(x => x.Id, x => x.OrderIndex);
+
+            var targetFolders = _context.Folders
+                .Where(f => desiredOrders.Keys.Contains(f.Id))
+                .ToList();
+
+            foreach (var folder in targetFolders)
+            {
+                if (desiredOrders.TryGetValue(folder.Id, out var orderIndex))
+                {
+                    folder.OrderIndex = orderIndex;
+                }
+            }
+
             _context.SaveChanges();
         }
 
@@ -273,7 +290,7 @@ namespace ImageColorChanger.Database.Repositories
             var folder = _context.Folders.FirstOrDefault(f => f.Id == folderId);
             if (folder != null)
             {
-                folder.VideoPlayMode = playMode;
+                folder.VideoPlayMode = NormalizePlayMode(playMode);
                 _context.SaveChanges();
             }
         }
@@ -284,14 +301,16 @@ namespace ImageColorChanger.Database.Repositories
             return folder?.VideoPlayMode;
         }
 
-        public void ClearFolderVideoPlayMode(int folderId)
+        public int NormalizeFolderVideoPlayModes(string defaultMode = "random")
         {
-            var folder = _context.Folders.FirstOrDefault(f => f.Id == folderId);
-            if (folder != null)
-            {
-                folder.VideoPlayMode = null;
-                _context.SaveChanges();
-            }
+            var normalizedDefaultMode = NormalizePlayMode(defaultMode);
+            return _context.Database.ExecuteSqlRaw(
+                @"UPDATE folders
+                  SET video_play_mode = {0}
+                  WHERE video_play_mode IS NULL
+                     OR TRIM(video_play_mode) = ''
+                     OR LOWER(video_play_mode) NOT IN ('sequential', 'random', 'loop_one', 'loop_all')",
+                normalizedDefaultMode);
         }
 
         public void SetFolderHighlightColor(int folderId, string color)
@@ -307,6 +326,25 @@ namespace ImageColorChanger.Database.Repositories
         public string GetFolderHighlightColor(int folderId)
         {
             return _context.Folders.Find(folderId)?.HighlightColor;
+        }
+
+        private static string NormalizePlayMode(string playMode)
+        {
+            if (string.IsNullOrWhiteSpace(playMode))
+            {
+                return "random";
+            }
+
+            return playMode.Trim().ToLowerInvariant() switch
+            {
+                "sequential" => "sequential",
+                "random" => "random",
+                "loop_one" => "loop_one",
+                "loop_all" => "loop_all",
+                "single" => "loop_one",
+                "loop" => "loop_all",
+                _ => "random"
+            };
         }
     }
 }

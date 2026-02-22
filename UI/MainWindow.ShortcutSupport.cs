@@ -229,14 +229,14 @@ namespace ImageColorChanger.UI
             {
                 await compositeService.ResumePlaybackAsync();
                 _countdownService?.Resume();
-                ShowStatus("▶️ 已继续合成播放");
+                ShowStatus("已继续合成播放");
             }
             else
             {
                 await compositeService.PausePlaybackAsync();
                 StopCompositeScrollAnimation();
                 _countdownService?.Pause();
-                ShowStatus("⏸ 已暂停合成播放");
+                ShowStatus("已暂停合成播放");
             }
 
             return true;
@@ -251,7 +251,7 @@ namespace ImageColorChanger.UI
             SaveLyricsProject();
             ShowToast("歌词已保存");
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"💾 [Ctrl+S] 歌词已保存");
+            System.Diagnostics.Debug.WriteLine($"[Ctrl+S] 歌词已保存");
 #endif
         }
 
@@ -265,7 +265,7 @@ namespace ImageColorChanger.UI
                 BtnSaveTextProject_Click(null, null);
                 ShowToast("幻灯片已保存");
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [Ctrl+S] 幻灯片已保存");
+                System.Diagnostics.Debug.WriteLine($"[Ctrl+S] 幻灯片已保存");
 #endif
             });
         }
@@ -273,4 +273,6 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
 

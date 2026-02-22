@@ -54,7 +54,7 @@ namespace ImageColorChanger.Utils
             // 优先级2: 检查是否有选中的编辑框
             if (_mainWindow.HasSelectedTextBox())
             {
-                //System.Diagnostics.Debug.WriteLine($"🔑 [全局ESC] 取消编辑框选中状态");
+                //System.Diagnostics.Debug.WriteLine($" [全局ESC] 取消编辑框选中状态");
                 _mainWindow.DeselectAllTextBoxes(true); // 关闭浮动工具栏
                 return true;
             }
@@ -63,7 +63,7 @@ namespace ImageColorChanger.Utils
             var projectionManager = _mainWindow.GetProjectionManager();
             if (projectionManager != null)
             {
-                // 🔒 安全检查：只有主窗口激活（在前台）时才允许ESC关闭投影
+                //  安全检查：只有主窗口激活（在前台）时才允许ESC关闭投影
                 if (_mainWindow.IsActive)
                 {
                     bool wasClosed = projectionManager.CloseProjection();
@@ -75,7 +75,7 @@ namespace ImageColorChanger.Utils
                 else
                 {
                     // 主窗口不在前台，忽略ESC键（防止误触关闭投影）
-                    //System.Diagnostics.Debug.WriteLine($"🔑 [ESC键] 主窗口不在前台，忽略关闭投影请求");
+                    //System.Diagnostics.Debug.WriteLine($" [ESC键] 主窗口不在前台，忽略关闭投影请求");
                     return false;
                 }
             }
@@ -301,4 +301,5 @@ namespace ImageColorChanger.Utils
         #endregion
     }
 }
+
 

@@ -16,7 +16,7 @@ namespace ImageColorChanger.UI
             try
             {
                 BtnSync.IsEnabled = false;
-                BtnSync.Content = "🔄 同步中...";
+                BtnSync.Content = "同步中...";
                 BtnSync.Background = new SolidColorBrush(Colors.LightGreen);
 
                 var (added, removed, updated) = ImportManagerService.SyncAllFolders();
@@ -24,11 +24,11 @@ namespace ImageColorChanger.UI
                 LoadProjects();
                 LoadSearchScopes();
 
-                ShowStatus($"🔄 同步完成: 新增 {added}, 删除 {removed}");
+                ShowStatus($"同步完成: 新增 {added}, 删除 {removed}");
             }
             catch (Exception ex)
             {
-                ShowStatus($"❌ 同步失败: {ex.Message}");
+                ShowStatus($"同步失败: {ex.Message}");
             }
             finally
             {
@@ -65,7 +65,7 @@ namespace ImageColorChanger.UI
             if (_originalMode)
             {
                 BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144));
-                ShowStatus("✅ 已启用原图模式");
+                ShowStatus("已启用原图模式");
 
                 if (_currentImageId > 0)
                 {
@@ -75,7 +75,7 @@ namespace ImageColorChanger.UI
             else
             {
                 BtnOriginal.Background = Brushes.Transparent;
-                ShowStatus("✅ 已关闭原图模式");
+                ShowStatus("已关闭原图模式");
             }
 
             _imageProcessor.UpdateImage();
@@ -110,3 +110,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

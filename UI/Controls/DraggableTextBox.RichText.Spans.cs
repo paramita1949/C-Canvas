@@ -34,7 +34,7 @@ namespace ImageColorChanger.UI.Controls
 
             // 应用字体
 
-            // 🔧 修复：如果 span.FontFamily 为空，使用 Data.FontFamily 作为默认值
+            // 修复：如果 span.FontFamily 为空，使用 Data.FontFamily 作为默认值
 
             string fontFamilyToApply = span.FontFamily;
 
@@ -176,7 +176,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                System.Diagnostics.Debug.WriteLine($"📤 [提取RichTextSpans] 文本框 ID={Data.Id} 开始提取");
+//                System.Diagnostics.Debug.WriteLine($"[提取RichTextSpans] 文本框 ID={Data.Id} 开始提取");
 
 //#endif
 
@@ -228,7 +228,7 @@ namespace ImageColorChanger.UI.Controls
 
                                 // 字体
 
-                                // 🔧 修复：如果 Run 没有显式设置 FontFamily，使用 RichTextBox 的 FontFamily 或 Data.FontFamily
+                                // 修复：如果 Run 没有显式设置 FontFamily，使用 RichTextBox 的 FontFamily 或 Data.FontFamily
 
                                 if (run.FontFamily != null)
 
@@ -310,7 +310,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                                System.Diagnostics.Debug.WriteLine($"  📦 片段 {spanOrder - 1}: 文本='{text}', 字体={span.FontFamily}, 字号={span.FontSize}, 颜色={span.FontColor}, 加粗={span.IsBold}, 斜体={span.IsItalic}");
+//                                System.Diagnostics.Debug.WriteLine($"  片段 {spanOrder - 1}: 文本='{text}', 字体={span.FontFamily}, 字号={span.FontSize}, 颜色={span.FontColor}, 加粗={span.IsBold}, 斜体={span.IsItalic}");
 
 //#endif
 
@@ -326,7 +326,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                System.Diagnostics.Debug.WriteLine($"📤 [提取RichTextSpans] 文本框 ID={Data.Id} 提取完成，共 {spans.Count} 个片段");
+//                System.Diagnostics.Debug.WriteLine($"[提取RichTextSpans] 文本框 ID={Data.Id} 提取完成，共 {spans.Count} 个片段");
 
 //#endif
 
@@ -338,7 +338,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                System.Diagnostics.Debug.WriteLine($"❌ [ExtractRichTextSpans] 提取失败: {ex.Message}");
+//                System.Diagnostics.Debug.WriteLine($" [ExtractRichTextSpans] 提取失败: {ex.Message}");
 
 //#endif
 
@@ -355,3 +355,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

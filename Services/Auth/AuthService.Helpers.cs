@@ -121,15 +121,15 @@ namespace ImageColorChanger.Services
 #if DEBUG
             if (_expiresAt.HasValue)
             {
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 过期时间: {_expiresAt}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 过期时间: {_expiresAt}");
             }
 #endif
 
             _lastSuccessfulHeartbeat = DateTime.Now;
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"🔓 [AuthService] 解绑次数: {_resetDeviceCount}次");
-            System.Diagnostics.Trace.WriteLine($"🔓 [AuthService] 服务器返回的 ResetDeviceCount: {authResponse.Data?.ResetDeviceCount?.ToString() ?? "null"}");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 解绑次数: {_resetDeviceCount}次");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 服务器返回的 ResetDeviceCount: {authResponse.Data?.ResetDeviceCount?.ToString() ?? "null"}");
 #endif
 
             GenerateAuthTokens();
@@ -137,7 +137,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
             if (_deviceInfo != null)
             {
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 设备绑定信息:");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 设备绑定信息:");
                 System.Diagnostics.Trace.WriteLine($"   已绑定设备: {_deviceInfo.BoundDevices}台");
                 System.Diagnostics.Trace.WriteLine($"   最大设备数: {_deviceInfo.MaxDevices}台");
                 System.Diagnostics.Trace.WriteLine($"   剩余可绑定: {_deviceInfo.RemainingSlots}台");
@@ -152,11 +152,11 @@ namespace ImageColorChanger.Services
 #if DEBUG
             if (_lastServerTime.HasValue && _lastLocalTime.HasValue)
             {
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 服务器时间: {_lastServerTime}");
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 本地时间: {_lastLocalTime}");
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] TickCount: {_lastTickCount}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 服务器时间: {_lastServerTime}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 本地时间: {_lastLocalTime}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] TickCount: {_lastTickCount}");
                 var timeDiff = (_lastLocalTime.Value - _lastServerTime.Value).TotalSeconds;
-                System.Diagnostics.Trace.WriteLine($"🔐 [AuthService] 时间差: {timeDiff:F1}秒 (本地-服务器)");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 时间差: {timeDiff:F1}秒 (本地-服务器)");
             }
 #endif
 
@@ -172,7 +172,7 @@ namespace ImageColorChanger.Services
             });
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"✅ [AuthService] 登录成功: {_username}, 剩余{_remainingDays}天");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 登录成功: {_username}, 剩余{_remainingDays}天");
 #endif
         }
 
@@ -185,7 +185,7 @@ namespace ImageColorChanger.Services
             string failureReason = authResponse?.Message ?? defaultFailureReason;
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"❌ [{contextTag}] 服务器返回失败: {failureReason}");
+            System.Diagnostics.Trace.WriteLine($" [{contextTag}] 服务器返回失败: {failureReason}");
             System.Diagnostics.Trace.WriteLine($"   失效原因(reason): {authResponse?.Reason}");
 #endif
 
@@ -205,11 +205,11 @@ namespace ImageColorChanger.Services
 #if DEBUG
                 if (authResponse == null)
                 {
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [{contextTag}] 响应解析失败（可能网络问题），不强制退出");
+                    System.Diagnostics.Trace.WriteLine($" [{contextTag}] 响应解析失败（可能网络问题），不强制退出");
                 }
                 else if (string.IsNullOrEmpty(authResponse.Reason))
                 {
-                    System.Diagnostics.Trace.WriteLine($"⚠️ [{contextTag}] 无明确失效原因，不强制退出");
+                    System.Diagnostics.Trace.WriteLine($" [{contextTag}] 无明确失效原因，不强制退出");
                 }
 #endif
                 return false;
@@ -218,7 +218,7 @@ namespace ImageColorChanger.Services
             if (CanUseProjection())
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 心跳失败，但本地缓存显示未过期，继续使用");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 心跳失败，但本地缓存显示未过期，继续使用");
 #endif
                 return true;
             }
@@ -376,9 +376,9 @@ namespace ImageColorChanger.Services
             if (fileVersion > 0 && fileVersion < maxVersion)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 检测到旧凭证版本，已忽略阻断。");
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 文件版本: {fileVersion}");
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 最大版本: {maxVersion}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 检测到旧凭证版本，已忽略阻断。");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 文件版本: {fileVersion}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 最大版本: {maxVersion}");
 #endif
             }
 
@@ -400,9 +400,9 @@ namespace ImageColorChanger.Services
             }
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线基准时间: {offlineBaseline:O}");
-            System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 启动时离线时长检测: {startupOfflineDecision.OfflineDays:F1} 天");
-            System.Diagnostics.Trace.WriteLine($"🔒 [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，清除登录状态");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 离线基准时间: {offlineBaseline:O}");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 启动时离线时长检测: {startupOfflineDecision.OfflineDays:F1} 天");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，清除登录状态");
 #endif
             DeleteAuthData();
             RaiseUiMessage("离线时间过长", $"账号已离线超过 {MAX_OFFLINE_DAYS} 天，请重新联网登录验证。", UiMessageLevel.Warning);
@@ -438,7 +438,7 @@ namespace ImageColorChanger.Services
                 IsAutoLogin = true
             });
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 自动登录成功: {_username}, 剩余{_remainingDays}天");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 自动登录成功: {_username}, 剩余{_remainingDays}天");
 #endif
         }
 
@@ -447,9 +447,11 @@ namespace ImageColorChanger.Services
             ClearAuthenticatedIdentity();
             DeleteAuthData();
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($"💾 [AuthService] 本地登录已过期");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 本地登录已过期");
 #endif
         }
     }
 }
+
+
 

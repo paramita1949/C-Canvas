@@ -121,7 +121,7 @@ namespace ImageColorChanger.Database.Models
         /// 边框宽度（0-20px）
         /// </summary>
         [Column("border_width")]
-        public double BorderWidth { get; set; } = 2;  // ✅ 默认 2px
+        public double BorderWidth { get; set; } = 2;  //  默认 2px
 
         /// <summary>
         /// 边框圆角（0-100px）
@@ -133,7 +133,7 @@ namespace ImageColorChanger.Database.Models
         /// 边框透明度（0-100，0%=完全不透明，100%=完全透明）
         /// </summary>
         [Column("border_opacity")]
-        public int BorderOpacity { get; set; } = 100;  // ✅ 默认完全透明（无边框）
+        public int BorderOpacity { get; set; } = 100;  //  默认完全透明（无边框）
 
         // ========== 背景样式 ==========
 
@@ -141,7 +141,7 @@ namespace ImageColorChanger.Database.Models
         /// 背景颜色（#RRGGBB格式）
         /// </summary>
         [Column("background_color")]
-        public string BackgroundColor { get; set; } = "Transparent";  // ✅ 默认透明
+        public string BackgroundColor { get; set; } = "Transparent";  //  默认透明
 
         /// <summary>
         /// 背景圆角（0-100px）
@@ -153,7 +153,7 @@ namespace ImageColorChanger.Database.Models
         /// 背景透明度（0-100，0%=完全不透明，100%=完全透明）
         /// </summary>
         [Column("background_opacity")]
-        public int BackgroundOpacity { get; set; } = 100;  // ✅ 默认完全透明（无背景）
+        public int BackgroundOpacity { get; set; } = 100;  //  默认完全透明（无背景）
 
         // ========== 阴影样式 ==========
 
@@ -300,4 +300,5 @@ namespace ImageColorChanger.Database.Models
         #endregion
     }
 }
+
 

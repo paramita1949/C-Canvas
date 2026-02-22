@@ -24,7 +24,7 @@ namespace ImageColorChanger.Core
         // 预缓存配置
         private const int SEQUENCE_PRELOAD_COUNT = 10; // 顺序模式预缓存数量
         private const int MAX_CONCURRENT_LOADS = 3;    // 最大并发加载数
-        private const bool ENABLE_PRERENDER = true;    // ⚡ 启用预渲染功能（提升切换速度）
+        private const bool ENABLE_PRERENDER = true;    //  启用预渲染功能（提升切换速度）
         
         // 取消令牌，用于取消上一次的预缓存任务
         private CancellationTokenSource _currentPreloadCts;
@@ -52,7 +52,7 @@ namespace ImageColorChanger.Core
         {
             _prerenderWidth = width;
             _prerenderHeight = height;
-            //System.Diagnostics.Debug.WriteLine($"📐 [预渲染] 设置目标尺寸: {width}x{height}");
+            //System.Diagnostics.Debug.WriteLine($" [预渲染] 设置目标尺寸: {width}x{height}");
         }
         
         /// <summary>
@@ -62,7 +62,7 @@ namespace ImageColorChanger.Core
         {
             _projectionWidth = width;
             _projectionHeight = height;
-            //System.Diagnostics.Debug.WriteLine($"📐 [预渲染] 设置投影尺寸: {width}x{height}");
+            //System.Diagnostics.Debug.WriteLine($" [预渲染] 设置投影尺寸: {width}x{height}");
         }
         
         #region 原图模式预缓存
@@ -74,7 +74,7 @@ namespace ImageColorChanger.Core
         {
             if (similarImages == null || similarImages.Count <= 1)
             {
-                //System.Diagnostics.Debug.WriteLine("⏭️ [预缓存] 循环模式: 没有需要预缓存的相似图片");
+                //System.Diagnostics.Debug.WriteLine(" [预缓存] 循环模式: 没有需要预缓存的相似图片");
                 return;
             }
             
@@ -94,7 +94,7 @@ namespace ImageColorChanger.Core
                 int currentIndex = similarImages.FindIndex(img => img.id == currentImageId);
                 if (currentIndex < 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [预缓存] 循环模式: 当前图片不在相似列表中 (ID:{currentImageId})");
+                    //System.Diagnostics.Debug.WriteLine($" [预缓存] 循环模式: 当前图片不在相似列表中 (ID:{currentImageId})");
                     return;
                 }
                 
@@ -125,18 +125,18 @@ namespace ImageColorChanger.Core
                     }
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"📦 [预缓存] 循环模式: 准备预缓存 {preloadList.Count} 张相似图片");
+                //System.Diagnostics.Debug.WriteLine($" [预缓存] 循环模式: 准备预缓存 {preloadList.Count} 张相似图片");
                 
                 // 异步加载
                 await PreloadImagesAsync(preloadList, cts.Token);
             }
             catch (OperationCanceledException)
             {
-                //System.Diagnostics.Debug.WriteLine("🛑 [预缓存] 循环模式: 已取消");
+                //System.Diagnostics.Debug.WriteLine(" [预缓存] 循环模式: 已取消");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 循环模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [预缓存] 循环模式失败: {ex.Message}");
             }
         }
         
@@ -161,7 +161,7 @@ namespace ImageColorChanger.Core
                 var currentFile = _dbManager.GetMediaFileById(currentImageId);
                 if (currentFile == null)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [预缓存] 顺序模式: 找不到当前文件 (ID:{currentImageId})");
+                    //System.Diagnostics.Debug.WriteLine($" [预缓存] 顺序模式: 找不到当前文件 (ID:{currentImageId})");
                     return;
                 }
                 
@@ -177,7 +177,7 @@ namespace ImageColorChanger.Core
                 int currentIndex = allImages.FindIndex(f => f.Id == currentImageId);
                 if (currentIndex < 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [预缓存] 顺序模式: 当前图片不在文件夹中 (ID:{currentImageId})");
+                    //System.Diagnostics.Debug.WriteLine($" [预缓存] 顺序模式: 当前图片不在文件夹中 (ID:{currentImageId})");
                     return;
                 }
                 
@@ -191,22 +191,22 @@ namespace ImageColorChanger.Core
                 
                 if (preloadList.Count == 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine("⏭️ [预缓存] 顺序模式: 已经是最后几张图片，无需预缓存");
+                    //System.Diagnostics.Debug.WriteLine(" [预缓存] 顺序模式: 已经是最后几张图片，无需预缓存");
                     return;
                 }
                 
-                //System.Diagnostics.Debug.WriteLine($"📦 [预缓存] 顺序模式: 准备预缓存后续 {preloadList.Count} 张图片");
+                //System.Diagnostics.Debug.WriteLine($" [预缓存] 顺序模式: 准备预缓存后续 {preloadList.Count} 张图片");
                 
                 // 异步加载
                 await PreloadImagesAsync(preloadList, cts.Token);
             }
             catch (OperationCanceledException)
             {
-                //System.Diagnostics.Debug.WriteLine("🛑 [预缓存] 顺序模式: 已取消");
+                //System.Diagnostics.Debug.WriteLine(" [预缓存] 顺序模式: 已取消");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 顺序模式失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" [预缓存] 顺序模式失败: {ex.Message}");
             }
         }
         
@@ -224,7 +224,7 @@ namespace ImageColorChanger.Core
             await Task.CompletedTask;
             // 关键帧模式下，当前图片已经加载完毕
             // 不需要预缓存其他图片，因为所有关键帧都在同一张图上
-            //System.Diagnostics.Debug.WriteLine($"✅ [预缓存] 关键帧模式: 当前图片已加载 (ID:{currentImageId})");
+            //System.Diagnostics.Debug.WriteLine($" [预缓存] 关键帧模式: 当前图片已加载 (ID:{currentImageId})");
         }
         
         #endregion
@@ -246,11 +246,11 @@ namespace ImageColorChanger.Core
             
             if (pathsToLoad.Count == 0)
             {
-                //System.Diagnostics.Debug.WriteLine("✅ [预缓存] 所有图片已在缓存中");
+                //System.Diagnostics.Debug.WriteLine(" [预缓存] 所有图片已在缓存中");
                 return;
             }
             
-            //System.Diagnostics.Debug.WriteLine($"⚡ [预缓存] 开始加载 {pathsToLoad.Count} 张图片 (跳过 {imagePaths.Count - pathsToLoad.Count} 张已缓存)");
+            //System.Diagnostics.Debug.WriteLine($" [预缓存] 开始加载 {pathsToLoad.Count} 张图片 (跳过 {imagePaths.Count - pathsToLoad.Count} 张已缓存)");
             
             // 使用信号量限制并发数量
             using var semaphore = new SemaphoreSlim(MAX_CONCURRENT_LOADS, MAX_CONCURRENT_LOADS);
@@ -268,14 +268,14 @@ namespace ImageColorChanger.Core
                     // 检查文件是否存在
                     if (!System.IO.File.Exists(path))
                     {
-                        //System.Diagnostics.Debug.WriteLine($"⚠️ [预缓存] 文件不存在: {System.IO.Path.GetFileName(path)}");
+                        //System.Diagnostics.Debug.WriteLine($" [预缓存] 文件不存在: {System.IO.Path.GetFileName(path)}");
                         return;
                     }
                     
                     // 检查是否已在缓存中（双重检查，因为可能在等待信号量时已被其他线程加载）
                     if (_imageMemoryCache.TryGetValue(path, out _))
                     {
-                        //System.Diagnostics.Debug.WriteLine($"⏭️ [预缓存] 已在缓存: {System.IO.Path.GetFileName(path)}");
+                        //System.Diagnostics.Debug.WriteLine($" [预缓存] 已在缓存: {System.IO.Path.GetFileName(path)}");
                         return;
                     }
                     
@@ -299,9 +299,9 @@ namespace ImageColorChanger.Core
                             
                             _imageMemoryCache.Set(path, image, entryOptions);
                             
-                            //System.Diagnostics.Debug.WriteLine($"✅ [预缓存{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} (权重:{entryOptions.Size})");
+                            //System.Diagnostics.Debug.WriteLine($" [预缓存{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} (权重:{entryOptions.Size})");
                             
-                            // ⚡ 如果启用预渲染，立即渲染到渲染缓存（主窗口 + 投影窗口）
+                            //  如果启用预渲染，立即渲染到渲染缓存（主窗口 + 投影窗口）
                             if (ENABLE_PRERENDER)
                             {
                                 // 预渲染主窗口尺寸
@@ -324,13 +324,13 @@ namespace ImageColorChanger.Core
                                 {
                                     string sizes = (mainRenderSuccess && projRenderSuccess) ? "主屏+投影" : 
                                                    mainRenderSuccess ? "主屏" : "投影";
-                                    //System.Diagnostics.Debug.WriteLine($"🎨 [预渲染{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} ({sizes})");
+                                    //System.Diagnostics.Debug.WriteLine($" [预渲染{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} ({sizes})");
                                 }
                             }
                         }
                         catch (Exception)
                         {
-                            //System.Diagnostics.Debug.WriteLine($"❌ [预缓存] 加载失败: {System.IO.Path.GetFileName(path)} - {ex.Message}");
+                            //System.Diagnostics.Debug.WriteLine($" [预缓存] 加载失败: {System.IO.Path.GetFileName(path)} - {ex.Message}");
                         }
                     }, cancellationToken);
                 }
@@ -343,7 +343,7 @@ namespace ImageColorChanger.Core
             // 等待所有预加载任务完成
             await Task.WhenAll(loadTasks);
             
-            //System.Diagnostics.Debug.WriteLine($"🎉 [预缓存] 完成: 共加载 {pathsToLoad.Count} 张图片");
+            //System.Diagnostics.Debug.WriteLine($" [预缓存] 完成: 共加载 {pathsToLoad.Count} 张图片");
         }
         
         /// <summary>
@@ -358,7 +358,7 @@ namespace ImageColorChanger.Core
                     _currentPreloadCts.Cancel();
                     _currentPreloadCts.Dispose();
                     _currentPreloadCts = null;
-                    //System.Diagnostics.Debug.WriteLine("🛑 [预缓存] 已取消上一次预缓存任务");
+                    //System.Diagnostics.Debug.WriteLine(" [预缓存] 已取消上一次预缓存任务");
                 }
             }
         }
@@ -378,4 +378,6 @@ namespace ImageColorChanger.Core
         #endregion
     }
 }
+
+
 

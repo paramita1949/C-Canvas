@@ -90,7 +90,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 🔧 如果有 RichTextSpans，同步更新所有片段的字体大小
+                // 如果有 RichTextSpans，同步更新所有片段的字体大小
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -126,7 +126,7 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.FontColor = color;
 
-                // 🔧 应用全局颜色时，清除局部样式，重新渲染
+                // 应用全局颜色时，清除局部样式，重新渲染
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -136,7 +136,7 @@ namespace ImageColorChanger.UI.Controls
 
                 }
 
-                // 🔧 无论是否有 RichTextSpans，都需要重新渲染以应用颜色到 Run 对象
+                // 无论是否有 RichTextSpans，都需要重新渲染以应用颜色到 Run 对象
 
                 needsRichTextResync = true;
 
@@ -150,7 +150,7 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.IsBoldBool = isBold.Value;
 
-                // 🔧 应用全局加粗时，清除局部样式，重新渲染
+                // 应用全局加粗时，清除局部样式，重新渲染
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -162,7 +162,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局加粗，清除局部样式");
+//                    System.Diagnostics.Debug.WriteLine($" [ApplyStyle] 应用全局加粗，清除局部样式");
 
 //#endif
 
@@ -188,7 +188,7 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.IsUnderlineBool = isUnderline.Value;
 
-                // 🔧 应用全局下划线时，清除局部样式，重新渲染
+                // 应用全局下划线时，清除局部样式，重新渲染
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -200,7 +200,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局下划线，清除局部样式");
+//                    System.Diagnostics.Debug.WriteLine($" [ApplyStyle] 应用全局下划线，清除局部样式");
 
 //#endif
 
@@ -216,7 +216,7 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.IsItalicBool = isItalic.Value;
 
-                // 🔧 应用全局斜体时，清除局部样式，重新渲染
+                // 应用全局斜体时，清除局部样式，重新渲染
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -228,7 +228,7 @@ namespace ImageColorChanger.UI.Controls
 
 //#if DEBUG
 
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [ApplyStyle] 应用全局斜体，清除局部样式");
+//                    System.Diagnostics.Debug.WriteLine($" [ApplyStyle] 应用全局斜体，清除局部样式");
 
 //#endif
 
@@ -386,7 +386,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 如果更新了 RichTextSpans，需要重新渲染
+            // 如果更新了 RichTextSpans，需要重新渲染
 
             if (needsRichTextResync)
 
@@ -408,7 +408,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
+            // 触发内容改变事件，通知主窗口保存样式到数据库
 
             ContentChanged?.Invoke(this, Data.Content);
 
@@ -498,13 +498,13 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 使用 WPF 原生 TextRange API
+            //  使用 WPF 原生 TextRange API
 
             var selection = _richTextBox.Selection;
 
 
 
-            // ✅ 应用加粗样式（WPF 原生 API）
+            //  应用加粗样式（WPF 原生 API）
 
             if (isBold.HasValue)
 
@@ -516,7 +516,7 @@ namespace ImageColorChanger.UI.Controls
 
                     isBold.Value ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal);
 
-                // 🔧 同时更新 Data 对象，确保保存到数据库
+                // 同时更新 Data 对象，确保保存到数据库
 
                 Data.IsBoldBool = isBold.Value;
 
@@ -524,7 +524,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 应用斜体样式（WPF 原生 API）
+            //  应用斜体样式（WPF 原生 API）
 
             if (isItalic.HasValue)
 
@@ -536,13 +536,13 @@ namespace ImageColorChanger.UI.Controls
 
                     isItalic.Value ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal);
 
-                // 🔧 同时更新 Data 对象，确保保存到数据库
+                // 同时更新 Data 对象，确保保存到数据库
 
                 Data.IsItalicBool = isItalic.Value;
 
 #if DEBUG
 
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用斜体: {isItalic.Value}, Data.IsItalic={Data.IsItalic}");
+                System.Diagnostics.Debug.WriteLine($"   应用斜体: {isItalic.Value}, Data.IsItalic={Data.IsItalic}");
 
 #endif
 
@@ -550,7 +550,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 应用下划线样式（WPF 原生 API）
+            //  应用下划线样式（WPF 原生 API）
 
             if (isUnderline.HasValue)
 
@@ -562,13 +562,13 @@ namespace ImageColorChanger.UI.Controls
 
                     isUnderline.Value ? System.Windows.TextDecorations.Underline : null);
 
-                // 🔧 同时更新 Data 对象，确保保存到数据库
+                // 同时更新 Data 对象，确保保存到数据库
 
                 Data.IsUnderlineBool = isUnderline.Value;
 
 #if DEBUG
 
-                System.Diagnostics.Debug.WriteLine($"  ✅ 应用下划线: {isUnderline.Value}, Data.IsUnderline={Data.IsUnderline}");
+                System.Diagnostics.Debug.WriteLine($"   应用下划线: {isUnderline.Value}, Data.IsUnderline={Data.IsUnderline}");
 
 #endif
 
@@ -576,7 +576,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 应用文字颜色（WPF 原生 API）
+            //  应用文字颜色（WPF 原生 API）
 
             if (color != null)
 
@@ -596,7 +596,7 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                    //System.Diagnostics.Debug.WriteLine($"  ✅ 应用颜色: {color}");
+                    //System.Diagnostics.Debug.WriteLine($"   应用颜色: {color}");
 
 #endif
 
@@ -608,7 +608,7 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                    System.Diagnostics.Debug.WriteLine($"  ❌ 颜色转换失败");
+                    System.Diagnostics.Debug.WriteLine($"   颜色转换失败");
 
 #endif
 
@@ -618,7 +618,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 应用字体（WPF 原生 API）- 优先使用 FontFamily 对象
+            //  应用字体（WPF 原生 API）- 优先使用 FontFamily 对象
 
             if (fontFamilyObj != null)
 
@@ -630,7 +630,7 @@ namespace ImageColorChanger.UI.Controls
 
                     fontFamilyObj);
 
-              // System.Diagnostics.Debug.WriteLine($"  ✅ 应用字体对象: {fontFamilyObj.Source}");
+              // System.Diagnostics.Debug.WriteLine($"   应用字体对象: {fontFamilyObj.Source}");
 
             }
 
@@ -648,7 +648,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // ✅ 应用字号（WPF 原生 API）
+            //  应用字号（WPF 原生 API）
 
             if (fontSize.HasValue)
 
@@ -660,13 +660,13 @@ namespace ImageColorChanger.UI.Controls
 
                     fontSize.Value);
 
-                // 🔧 同时更新 Data 对象
+                // 同时更新 Data 对象
 
                 Data.FontSize = fontSize.Value;
 
 
 
-                // 🔧 强制刷新 RichTextBox 布局，防止文本被边框遮挡
+                // 强制刷新 RichTextBox 布局，防止文本被边框遮挡
 
                 _richTextBox.InvalidateVisual();
 
@@ -674,7 +674,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                //// 🔍 检测文本是否被边框遮挡（调试用，已验证修复）
+                //// 检测文本是否被边框遮挡（调试用，已验证修复）
 
                 //try
 
@@ -730,7 +730,7 @@ namespace ImageColorChanger.UI.Controls
 
                 //
 
-                //    System.Diagnostics.Debug.WriteLine($"🔍 [字号={fontSize.Value}] 文本边界检测:");
+                //    System.Diagnostics.Debug.WriteLine($"[字号={fontSize.Value}] 文本边界检测:");
 
                 //    System.Diagnostics.Debug.WriteLine($"   RichTextBox: Width={richTextBoxWidth:F1}, Height={richTextBoxHeight:F1}");
 
@@ -746,7 +746,7 @@ namespace ImageColorChanger.UI.Controls
 
                 //    {
 
-                //        System.Diagnostics.Debug.WriteLine($"⚠️ 检测到遮挡: 左={leftClipped}, 右={rightClipped}, 上={topClipped}, 下={bottomClipped}");
+                //        System.Diagnostics.Debug.WriteLine($" 检测到遮挡: 左={leftClipped}, 右={rightClipped}, 上={topClipped}, 下={bottomClipped}");
 
                 //    }
 
@@ -754,7 +754,7 @@ namespace ImageColorChanger.UI.Controls
 
                 //    {
 
-                //        System.Diagnostics.Debug.WriteLine($"✅ 文本未被遮挡");
+                //        System.Diagnostics.Debug.WriteLine($" 文本未被遮挡");
 
                 //    }
 
@@ -764,7 +764,7 @@ namespace ImageColorChanger.UI.Controls
 
                 //{
 
-                //    System.Diagnostics.Debug.WriteLine($"❌ 边界检测失败: {ex.Message}");
+                //    System.Diagnostics.Debug.WriteLine($" 边界检测失败: {ex.Message}");
 
                 //}
 
@@ -772,7 +772,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 更新 Data 对象的边框样式（确保保存到数据库）
+            // 更新 Data 对象的边框样式（确保保存到数据库）
 
             if (borderColor != null)
 
@@ -792,7 +792,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 更新 Data 对象的背景样式（确保保存到数据库）
+            // 更新 Data 对象的背景样式（确保保存到数据库）
 
             if (backgroundColor != null)
 
@@ -808,7 +808,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 更新 Data 对象的文字颜色（确保保存到数据库）
+            // 更新 Data 对象的文字颜色（确保保存到数据库）
 
             if (color != null)
 
@@ -816,7 +816,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 应用边框和背景样式到 UI
+            // 应用边框和背景样式到 UI
 
             ApplyBorderStyle();
 
@@ -824,7 +824,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 应用阴影样式到选中文本（修复阴影在有选中文本时无效的问题）
+            // 应用阴影样式到选中文本（修复阴影在有选中文本时无效的问题）
 
             if (hasContainerStyleParams && (shadowColor != null || shadowOffsetX.HasValue ||
 
@@ -864,7 +864,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 触发内容改变事件，通知主窗口保存样式到数据库
+            // 触发内容改变事件，通知主窗口保存样式到数据库
 
             ContentChanged?.Invoke(this, Data.Content);
 
@@ -886,7 +886,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 设置 Document 的 PagePadding，防止文本被边框遮挡
+            // 设置 Document 的 PagePadding，防止文本被边框遮挡
 
             // 左右各增加 10 像素，上下各增加 15 像素
 
@@ -902,7 +902,7 @@ namespace ImageColorChanger.UI.Controls
 
                 {
 
-                    // 🔧 给段落添加顶部边距，防止字体被裁剪（特别是斜体和艺术字体）
+                    // 给段落添加顶部边距，防止字体被裁剪（特别是斜体和艺术字体）
 
                     paragraph.Margin = new System.Windows.Thickness(0, 5, 0, 0);
 
@@ -1049,3 +1049,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

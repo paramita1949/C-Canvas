@@ -34,7 +34,7 @@ namespace ImageColorChanger.UI
         #region 字段
 
         private TextProjectManager _textProjectManager;
-        private Database.CanvasDbContext _dbContext; // 🆕 数据库上下文
+        private Database.CanvasDbContext _dbContext; // 数据库上下文
         private TextProject _currentTextProject;
         private List<DraggableTextBox> _textBoxes = new List<DraggableTextBox>();
         private DraggableTextBox _selectedTextBox;
@@ -70,24 +70,24 @@ namespace ImageColorChanger.UI
         private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
         private bool _splitStretchMode = false; // false = 适中显示(Uniform), true = 拉伸显示(Fill)
         
-        // 🚀 Canvas渲染缓存（避免重复渲染）
+        // Canvas渲染缓存（避免重复渲染）
         private SKBitmap _lastCanvasRenderCache = null;
         private string _lastCanvasCacheKey = "";
 
-        // 🚀 渲染节流（避免过于频繁的更新）
+        // 渲染节流（避免过于频繁的更新）
         private DateTime _lastCanvasUpdateTime = DateTime.MinValue;
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
 
-        // 🔧 画布缩放比例（用于投影渲染）
+        // 画布缩放比例（用于投影渲染）
         private double _currentCanvasScaleX = 1.0;
         private double _currentCanvasScaleY = 1.0;
 
-        // 🔍 PAK字体列表输出标记（仅输出一次）
+        // PAK字体列表输出标记（仅输出一次）
 
-        // 🎬 投影屏幕动画设置（全局设置，不是针对单个文本框）
-        private bool _projectionAnimationEnabled = true;  // ✅ 默认启用
-        private double _projectionAnimationOpacity = 0.1; // ✅ 默认透明度 0.1
-        private int _projectionAnimationDuration = 800;   // ✅ 默认动画时长 800ms
+        //  投影屏幕动画设置（全局设置，不是针对单个文本框）
+        private bool _projectionAnimationEnabled = true;  //  默认启用
+        private double _projectionAnimationOpacity = 0.1; //  默认透明度 0.1
+        private int _projectionAnimationDuration = 800;   //  默认动画时长 800ms
 
         #endregion
 
@@ -107,7 +107,7 @@ namespace ImageColorChanger.UI
             // 加载系统字体
             LoadSystemFonts();
 
-            // 🆕 初始化画布比例
+            // 初始化画布比例
             InitializeCanvasAspectRatio();
 
             // 右键空白画布菜单（复制/粘贴）
@@ -127,10 +127,10 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 使用FontService统一加载字体
+                // 使用FontService统一加载字体
                 if (!Core.FontService.Instance.Initialize())
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ FontService初始化失败，加载系统默认字体");
+                    //System.Diagnostics.Debug.WriteLine($" FontService初始化失败，加载系统默认字体");
                     LoadSystemDefaultFonts();
                     return;
                 }
@@ -145,13 +145,13 @@ namespace ImageColorChanger.UI
 
                 if (totalFonts == 0)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ 未加载到任何字体，加载系统默认字体");
+                    //System.Diagnostics.Debug.WriteLine($" 未加载到任何字体，加载系统默认字体");
                     LoadSystemDefaultFonts();
                 }
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载自定义字体库失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载自定义字体库失败: {ex.Message}");
                 LoadSystemDefaultFonts();
             }
         }
@@ -201,11 +201,11 @@ namespace ImageColorChanger.UI
                     FontFamilySelector.SelectedIndex = 0;
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 加载系统默认字体完成: {FontFamilySelector.Items.Count} 种");
+                //System.Diagnostics.Debug.WriteLine($" 加载系统默认字体完成: {FontFamilySelector.Items.Count} 种");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载系统默认字体失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载系统默认字体失败: {ex.Message}");
             }
         }
 
@@ -240,7 +240,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 生成默认项目名称失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 生成默认项目名称失败: {ex.Message}");
                 // 失败时使用时间戳
                 return $"项目{DateTime.Now:yyyyMMddHHmmss}";
             }
@@ -253,7 +253,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🆕 重置状态：关闭原图模式
+                // 重置状态：关闭原图模式
                 ResetViewStateForTextEditor();
                 
                 // 创建项目
@@ -262,7 +262,7 @@ namespace ImageColorChanger.UI
                 // 切换到编辑模式
                 ShowTextEditor();
 
-                // 🆕 创建第一张幻灯片
+                // 创建第一张幻灯片
                 var firstSlide = new Slide
                 {
                     ProjectId = _currentTextProject.Id,
@@ -274,26 +274,26 @@ namespace ImageColorChanger.UI
                 };
                 await _textProjectManager.AddSlideAsync(firstSlide);
 
-                // 🆕 加载幻灯片列表
+                // 加载幻灯片列表
                 LoadSlideList();
 
                 // 添加到导航树
                 AddTextProjectToNavigationTree(_currentTextProject);
 
-                // 🆕 新建项目后，保存按钮恢复为白色
+                // 新建项目后，保存按钮恢复为白色
                 BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 创建文本项目成功: {projectName}");
+                //System.Diagnostics.Debug.WriteLine($" 创建文本项目成功: {projectName}");
                 
-                // 🆕 强制更新投影（如果投影已开启且未锁定）
+                // 强制更新投影（如果投影已开启且未锁定）
                 if (_projectionManager.IsProjectionActive && _currentSlide != null && !_isProjectionLocked)
                 {
-                    //System.Diagnostics.Debug.WriteLine("🔄 新建项目完成，准备更新投影...");
+                    //System.Diagnostics.Debug.WriteLine(" 新建项目完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
                     _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
-                        //System.Diagnostics.Debug.WriteLine("✅ 新建项目后已自动更新投影");
+                        //System.Diagnostics.Debug.WriteLine(" 新建项目后已自动更新投影");
                     }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
@@ -317,7 +317,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🆕 重置状态：关闭原图模式
+                // 重置状态：关闭原图模式
                 ResetViewStateForTextEditor();
                 
                 // 加载项目
@@ -326,13 +326,13 @@ namespace ImageColorChanger.UI
                 // 切换到编辑模式
                 ShowTextEditor();
 
-                // 🆕 加载幻灯片列表
+                // 加载幻灯片列表
                 LoadSlideList();
 
-                // 🆕 如果没有幻灯片，自动创建第一张
+                // 如果没有幻灯片，自动创建第一张
                 if (!await _textProjectManager.ProjectHasSlidesAsync(_currentTextProject.Id))
                 {
-                    //System.Diagnostics.Debug.WriteLine("⚠️ 项目没有幻灯片，自动创建第一张");
+                    //System.Diagnostics.Debug.WriteLine(" 项目没有幻灯片，自动创建第一张");
                     var firstSlide = new Slide
                     {
                         ProjectId = _currentTextProject.Id,
@@ -344,17 +344,17 @@ namespace ImageColorChanger.UI
                     };
                     await _textProjectManager.AddSlideAsync(firstSlide);
                     
-                    // 🔧 迁移旧的文本元素到第一张幻灯片
+                    // 迁移旧的文本元素到第一张幻灯片
                     await _textProjectManager.RebindProjectElementsToSlideAsync(_currentTextProject.Id, firstSlide.Id);
                     
                     // 重新加载幻灯片列表
                     LoadSlideList();
                 }
 
-                // 🆕 加载完成后，保存按钮恢复为白色
+                // 加载完成后，保存按钮恢复为白色
                 BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
 
-                // 🔧 修复：重置脚本按钮状态（文本项目没有录制数据）
+                // 修复：重置脚本按钮状态（文本项目没有录制数据）
                 if (_playbackViewModel != null)
                 {
                     // 文本项目不使用关键帧录制数据，强制设置为无数据状态（imageId=0表示无图片）
@@ -363,23 +363,23 @@ namespace ImageColorChanger.UI
                     await _playbackViewModel.SetCurrentImageAsync(0, PlaybackMode.Keyframe);
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 加载文本项目成功: {_currentTextProject.Name}");
+                //System.Diagnostics.Debug.WriteLine($" 加载文本项目成功: {_currentTextProject.Name}");
                 
-                // 🆕 强制更新投影（如果投影已开启且未锁定）
+                // 强制更新投影（如果投影已开启且未锁定）
                 if (_projectionManager.IsProjectionActive && _currentSlide != null && !_isProjectionLocked)
                 {
-                    //System.Diagnostics.Debug.WriteLine("🔄 项目加载完成，准备更新投影...");
+                    //System.Diagnostics.Debug.WriteLine(" 项目加载完成，准备更新投影...");
                     // 延迟确保UI完全渲染（异步执行，不等待）
                     _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
-                        //System.Diagnostics.Debug.WriteLine("✅ 项目加载后已自动更新投影");
+                        //System.Diagnostics.Debug.WriteLine(" 项目加载后已自动更新投影");
                     }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
             catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 加载文本项目失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 加载文本项目失败: {ex.Message}");
                 WpfMessageBox.Show($"加载项目失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -390,7 +390,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ShowTextEditor()
         {
-            //System.Diagnostics.Debug.WriteLine("🔄 [ShowTextEditor] 开始显示文本编辑器");
+            //System.Diagnostics.Debug.WriteLine(" [ShowTextEditor] 开始显示文本编辑器");
 
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
@@ -399,10 +399,10 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.Visibility: {TextEditorPanel.Visibility}");
             //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.IsVisible: {TextEditorPanel.IsVisible}");
 
-            // 🆕 重置投影状态：清空之前的图片投影状态
+            // 重置投影状态：清空之前的图片投影状态
             if (_projectionManager.IsProjectionActive)
             {
-                //System.Diagnostics.Debug.WriteLine("🔄 切换到文本编辑器模式，清空图片状态");
+                //System.Diagnostics.Debug.WriteLine(" 切换到文本编辑器模式，清空图片状态");
 
                 // 重置投影滚动位置
                 _projectionManager.ResetProjectionScroll();
@@ -410,10 +410,10 @@ namespace ImageColorChanger.UI
                 // 清空图片投影状态（文本编辑器不使用图片）
                 _projectionManager.ClearImageState();
 
-                //System.Diagnostics.Debug.WriteLine("✅ 图片状态已清空");
+                //System.Diagnostics.Debug.WriteLine(" 图片状态已清空");
             }
 
-            //System.Diagnostics.Debug.WriteLine("✅ [ShowTextEditor] 文本编辑器已显示");
+            //System.Diagnostics.Debug.WriteLine(" [ShowTextEditor] 文本编辑器已显示");
         }
 
         /// <summary>
@@ -421,7 +421,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void HideTextEditor()
         {
-            //System.Diagnostics.Debug.WriteLine("🔄 [HideTextEditor] 开始隐藏文本编辑器");
+            //System.Diagnostics.Debug.WriteLine(" [HideTextEditor] 开始隐藏文本编辑器");
 
             // 1. 隐藏幻灯片面板
             TextEditorPanel.Visibility = Visibility.Collapsed;
@@ -431,7 +431,7 @@ namespace ImageColorChanger.UI
             // 2. 根据当前模式恢复相应的显示区域
             if (_isBibleMode)
             {
-                // 🔧 圣经模式：确保圣经区域可见
+                // 圣经模式：确保圣经区域可见
                 BibleDisplayContainer.Visibility = Visibility.Visible;
                 BibleVerseScrollViewer.Visibility = Visibility.Visible;
 
@@ -439,11 +439,11 @@ namespace ImageColorChanger.UI
                 ImageScrollViewer.Visibility = Visibility.Collapsed;
                 VideoContainer.Visibility = Visibility.Collapsed;
 
-                //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复圣经显示");
+                //System.Diagnostics.Debug.WriteLine(" 退出幻灯片 → 恢复圣经显示");
             }
             else
             {
-                // 🔧 文件/项目模式：确保图片/视频区域可见
+                // 文件/项目模式：确保图片/视频区域可见
                 ImageScrollViewer.Visibility = Visibility.Visible;
                 VideoContainer.Visibility = Visibility.Visible;
 
@@ -453,14 +453,14 @@ namespace ImageColorChanger.UI
                 // 如果投影已开启，恢复图片投影
                 if (_projectionManager != null && _projectionManager.IsProjectionActive)
                 {
-                    //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片投影");
+                    //System.Diagnostics.Debug.WriteLine(" 退出幻灯片 → 恢复图片投影");
                     UpdateProjection();
                 }
 
-                //System.Diagnostics.Debug.WriteLine("🔄 退出幻灯片 → 恢复图片/视频显示");
+                //System.Diagnostics.Debug.WriteLine(" 退出幻灯片 → 恢复图片/视频显示");
             }
 
-            //System.Diagnostics.Debug.WriteLine("✅ [HideTextEditor] 文本编辑器已隐藏");
+            //System.Diagnostics.Debug.WriteLine(" [HideTextEditor] 文本编辑器已隐藏");
         }
 
         /// <summary>
@@ -468,7 +468,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void CloseTextEditor()
         {
-            //System.Diagnostics.Debug.WriteLine("🔄 [CloseTextEditor] 开始关闭文本编辑器");
+            //System.Diagnostics.Debug.WriteLine(" [CloseTextEditor] 开始关闭文本编辑器");
 
             _currentTextProject = null;
             _currentSlide = null;
@@ -482,7 +482,7 @@ namespace ImageColorChanger.UI
             SlideListBox.ItemsSource = null;
             SlideListBox.SelectedItem = null;
 
-            //System.Diagnostics.Debug.WriteLine("✅ [CloseTextEditor] 文本编辑器已关闭并重置");
+            //System.Diagnostics.Debug.WriteLine(" [CloseTextEditor] 文本编辑器已关闭并重置");
             HideTextEditor();
         }
 
@@ -493,19 +493,19 @@ namespace ImageColorChanger.UI
         {
             if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
             {
-                //System.Diagnostics.Debug.WriteLine("🔄 检测到文本编辑器模式，自动退出...");
+                //System.Diagnostics.Debug.WriteLine(" 检测到文本编辑器模式，自动退出...");
                 
                 // 检查是否有未保存的更改
                 if (BtnSaveTextProject.Background is SolidColorBrush brush && brush.Color == Colors.LightGreen)
                 {
-                    //System.Diagnostics.Debug.WriteLine("⚠️ 有未保存的更改，自动保存");
+                    //System.Diagnostics.Debug.WriteLine(" 有未保存的更改，自动保存");
                     // 自动保存
                     BtnSaveTextProject_Click(null, null);
                 }
                 
                 // 关闭文本编辑器
                 CloseTextEditor();
-                //System.Diagnostics.Debug.WriteLine("✅ 已自动退出文本编辑器");
+                //System.Diagnostics.Debug.WriteLine(" 已自动退出文本编辑器");
                 return true;
             }
             return false;
@@ -526,14 +526,14 @@ namespace ImageColorChanger.UI
                 EditorCanvas.Children.Remove(textBox);
             }
 
-            // 🎬 清除视频背景 MediaElement
+            //  清除视频背景 MediaElement
             var mediaElements = EditorCanvas.Children.OfType<MediaElement>().ToList();
             foreach (var media in mediaElements)
             {
                 media.Stop();
                 EditorCanvas.Children.Remove(media);
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🗑️ [视频背景] 清除 MediaElement");
+                //System.Diagnostics.Debug.WriteLine($" [视频背景] 清除 MediaElement");
 #endif
             }
         }
@@ -549,7 +549,7 @@ namespace ImageColorChanger.UI
                 var projectNode = new ProjectTreeItem
                 {
                     Name = project.Name,
-                    Type = TreeItemType.TextProject, // 🔧 修正：使用 TextProject 类型
+                    Type = TreeItemType.TextProject, // 修正：使用 TextProject 类型
                     Id = project.Id,
                     IconKind = "FileDocument",
                     IconColor = "#2196F3", // 蓝色，与 LoadTextProjectsToTree 保持一致
@@ -559,7 +559,7 @@ namespace ImageColorChanger.UI
                 // 添加到根节点
                 _projectTreeItems.Add(projectNode);
 
-                // 🔧 修复：切换到项目模式并刷新显示
+                // 修复：切换到项目模式并刷新显示
                 _currentViewMode = NavigationViewMode.Projects;
                 UpdateViewModeButtons();
                 FilterProjectTree();
@@ -567,11 +567,11 @@ namespace ImageColorChanger.UI
                 // 选中新创建的项目
                 projectNode.IsSelected = true;
 
-                //System.Diagnostics.Debug.WriteLine($"✅ 项目已添加到导航树: {project.Name}");
+                //System.Diagnostics.Debug.WriteLine($" 项目已添加到导航树: {project.Name}");
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ 添加项目到导航树失败: {ex.Message}");
+                //System.Diagnostics.Debug.WriteLine($" 添加项目到导航树失败: {ex.Message}");
             }
         }
 
@@ -579,3 +579,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

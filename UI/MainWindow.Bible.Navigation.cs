@@ -159,18 +159,18 @@ namespace ImageColorChanger.UI
             if (verses == null)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [圣经点击] ItemsSource为null或类型不匹配");
+                System.Diagnostics.Debug.WriteLine($" [圣经点击] ItemsSource为null或类型不匹配");
                 System.Diagnostics.Debug.WriteLine($"   ItemsSource类型: {BibleVerseList.ItemsSource?.GetType().Name ?? "null"}");
                 #endif
                 return;
             }
 
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📌 [圣经点击] 点击经文: {clickedVerse.Reference}, 当前高亮状态={clickedVerse.IsHighlighted}");
+            //System.Diagnostics.Debug.WriteLine($"[圣经点击] 点击经文: {clickedVerse.Reference}, 当前高亮状态={clickedVerse.IsHighlighted}");
             //System.Diagnostics.Debug.WriteLine($"   ItemsSource类型: {BibleVerseList.ItemsSource.GetType().Name}");
             //#endif
 
-            // 🔧 优化：点击切换高亮状态
+            // 优化：点击切换高亮状态
             if (clickedVerse.IsHighlighted)
             {
                 // 再次点击已高亮的经文，取消高亮
@@ -195,7 +195,7 @@ namespace ImageColorChanger.UI
             ApplyVerseStyles();
 
             // ========================================
-            // 📌 重新渲染投影（区分锁定模式和非锁定模式）
+            // 重新渲染投影（区分锁定模式和非锁定模式）
             // ========================================
             if (_projectionManager != null && _projectionManager.IsProjecting)
             {
@@ -204,7 +204,7 @@ namespace ImageColorChanger.UI
                 
                 if (hasLockedRecords)
                 {
-                    // 📌 锁定模式：点击非锁定记录框中的经文，不应该影响投影
+                    // 锁定模式：点击非锁定记录框中的经文，不应该影响投影
                     // 投影内容由锁定记录控制（_mergedVerses）
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"[圣经] 锁定模式：点击经文不更新投影");
@@ -213,7 +213,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 📌 非锁定模式：点击经文更新投影
+                    // 非锁定模式：点击经文更新投影
                     RenderBibleToProjection();
                 }
             }
@@ -327,7 +327,7 @@ namespace ImageColorChanger.UI
         #region 圣经投影
 
         /// <summary>
-        /// 投影当前经文（🆕 使用 VisualBrush 100%一致投影）
+        /// 投影当前经文（使用 VisualBrush 100%一致投影）
         /// </summary>
         private async Task ProjectBibleVerseAsync(BibleVerse verse)
         {
@@ -336,13 +336,13 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🆕 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
+                // 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
+                    //System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
                     //#endif
                 }
 
@@ -351,7 +351,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [圣经投影-VisualBrush] 投影失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影失败: {ex.Message}");
                 #else
                 _ = ex;
                 #endif
@@ -365,19 +365,19 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 投影经文范围（多节）（🆕 使用 VisualBrush 100%一致投影）
+        /// 投影经文范围（多节）（使用 VisualBrush 100%一致投影）
         /// </summary>
         private async Task ProjectBibleVerseRangeAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
             try
             {
-                // 🆕 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
+                // 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
+                    //System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
                     //#endif
                 }
 
@@ -386,7 +386,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [圣经投影-VisualBrush] 投影范围失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影范围失败: {ex.Message}");
                 #else
                 _ = ex;
                 #endif
@@ -418,7 +418,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 🔧 使用主屏幕的实际宽度来渲染，确保与主屏幕显示一致
+                // 使用主屏幕的实际宽度来渲染，确保与主屏幕显示一致
                 double screenWidth = 0;
                 double screenHeight = 0;
                 
@@ -441,11 +441,11 @@ namespace ImageColorChanger.UI
 
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"📐 [圣经渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}, 经文数量: {verses.Count}");
+//                System.Diagnostics.Debug.WriteLine($" [圣经渲染-SkiaSharp] 屏幕尺寸: {screenWidth}×{screenHeight}, 经文数量: {verses.Count}");
 //#endif
 
                 // ========================================
-                // ✅ 使用SkiaSharp渲染（替代WPF的Canvas+RenderTargetBitmap）
+                //  使用SkiaSharp渲染（替代WPF的Canvas+RenderTargetBitmap）
                 // ========================================
                 
                 // 准备经文列表数据
@@ -465,7 +465,7 @@ namespace ImageColorChanger.UI
                 if (!isLockedMode && !string.IsNullOrEmpty(chapterTitle))
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 添加章节标题: {chapterTitle}");
+                    //System.Diagnostics.Debug.WriteLine($"[投影渲染] 添加章节标题: {chapterTitle}");
                     //#endif
                     verseItems.Add(new Core.BibleVerseItem
                     {
@@ -476,7 +476,7 @@ namespace ImageColorChanger.UI
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📌 [投影渲染] 总共 {verseItems.Count} 项（包含标题）");
+                //System.Diagnostics.Debug.WriteLine($"[投影渲染] 总共 {verseItems.Count} 项（包含标题）");
                 //#endif
                 
                 // 添加所有经文
@@ -524,7 +524,7 @@ namespace ImageColorChanger.UI
                         (float)_configManager.BibleMargin,
                         20f),
                     VerseSpacing = (float)_configManager.BibleVerseSpacing,
-                    HighlightColor = Core.TextStyle.ParseColor(_configManager.BibleHighlightColor), // 🔧 添加高亮颜色
+                    HighlightColor = Core.TextStyle.ParseColor(_configManager.BibleHighlightColor), // 添加高亮颜色
                     
                     // 标题样式
                     TitleStyle = new Core.TextStyle
@@ -557,11 +557,11 @@ namespace ImageColorChanger.UI
                     }
                 };
                 
-                // ✅ 使用SkiaSharp渲染
+                //  使用SkiaSharp渲染
                 var skBitmap = _skiaRenderer.RenderBibleText(context);
                 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ [圣经渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
+//                System.Diagnostics.Debug.WriteLine($" [圣经渲染-SkiaSharp] 完成: {skBitmap.Width}×{skBitmap.Height}");
 //#endif
                 
                 return skBitmap;
@@ -588,7 +588,7 @@ namespace ImageColorChanger.UI
         private void RenderBibleToProjection()
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📺 [渲染投影] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"[渲染投影] ========== 开始 ==========");
             //System.Diagnostics.Debug.WriteLine($"   经文列表项数量: {BibleVerseList.Items.Count}");
             //#endif
 
@@ -625,13 +625,13 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 🆕 使用 RenderTargetBitmap 独立渲染投影（解决高亮变色波浪问题）
+                // 使用 RenderTargetBitmap 独立渲染投影（解决高亮变色波浪问题）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
 
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"✅ [圣经投影-RenderTargetBitmap] 投影完成，共{versesList.Count}节");
+                    //System.Diagnostics.Debug.WriteLine($" [圣经投影-RenderTargetBitmap] 投影完成，共{versesList.Count}节");
                     //#endif
                 }
             }
@@ -662,7 +662,7 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //                Debug.WriteLine("[圣经] 投影开启且在圣经模式，触发投影");
 //#endif
-                // 🔧 立即清空图片状态（防止自动刷新显示图片）
+                // 立即清空图片状态（防止自动刷新显示图片）
                 _projectionManager.ClearImageState();
 
                 // 延迟2ms确保投影窗口完全初始化
@@ -679,7 +679,7 @@ namespace ImageColorChanger.UI
                     
                     if (hasLockedRecords)
                     {
-                        // 📌 锁定模式：投影开启时，投影锁定记录
+                        // 锁定模式：投影开启时，投影锁定记录
                         //#if DEBUG
                         //Debug.WriteLine("[圣经] 锁定模式：延迟后投影锁定记录");
                         //#endif
@@ -687,7 +687,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        // 📌 非锁定模式：投影当前章节
+                        // 非锁定模式：投影当前章节
                         //#if DEBUG
                         //Debug.WriteLine("[圣经] 非锁定模式：延迟后投影当前章节");
                         //#endif
@@ -707,7 +707,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleVersionTrigger_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            // 🔧 只在圣经模式下才显示工具栏
+            // 只在圣经模式下才显示工具栏
             if (!_isBibleMode)
             {
                 return;
@@ -725,7 +725,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleVersionTrigger_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            // 🔧 只在圣经模式下才处理隐藏逻辑
+            // 只在圣经模式下才处理隐藏逻辑
             if (!_isBibleMode)
             {
                 return;
@@ -775,3 +775,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

@@ -178,7 +178,7 @@ namespace ImageColorChanger.Services
             catch (Exception ex)
             {
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($"⚠️ [AuthService] 通知回执失败: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 通知回执失败: {ex.Message}");
 #else
                 _ = ex;
 #endif
@@ -186,4 +186,5 @@ namespace ImageColorChanger.Services
         }
     }
 }
+
 

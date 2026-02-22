@@ -13,7 +13,7 @@ namespace ImageColorChanger.UI
         private void ResetView()
         {
             ResetZoom();
-            ShowStatus("✅ 视图已重置");
+            ShowStatus("视图已重置");
         }
 
         public void ShowStatus(string message)
@@ -57,3 +57,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

@@ -70,16 +70,12 @@ namespace ImageColorChanger.UI
                         }
                         else
                         {
-                            (iconKind, iconColor) = ("Shuffle", "#FF9800");
+                            (iconKind, iconColor) = GetPlayModeIcon("random");
                         }
-                    }
-                    else if (!string.IsNullOrEmpty(folderPlayMode))
-                    {
-                        (iconKind, iconColor) = GetPlayModeIcon(folderPlayMode);
                     }
                     else if (hasColorEffectMark)
                     {
-                        (iconKind, iconColor) = ("Palette", "#FF6B6B");
+                        (iconKind, iconColor) = ("FolderStar", ICON_COLOR_PALETTE);
                     }
                     else
                     {
@@ -212,10 +208,10 @@ namespace ImageColorChanger.UI
             bool isSequence = folderSequenceIds != null && folderSequenceIds.Contains(folderId);
             if (isSequence)
             {
-                return isManualSort ? ("FolderDownload", "#FF6B35") : ("ArrowDownward", "#FF6B35");
+                return ("FolderDownload", "#FF6B35");
             }
 
-            return isManualSort ? ("FolderSync", "#4ECDC4") : ("Repeat", "#4ECDC4");
+            return ("FolderSync", "#4ECDC4");
         }
 
         private Dictionary<int, List<MediaFile>> BuildFolderMediaLookup(DatabaseManager dbManager, List<Folder> folders)
@@ -474,7 +470,6 @@ namespace ImageColorChanger.UI
 
                 foreach (var group in groups)
                 {
-                    string lyricsGroupIconPath = ResolveLyricsGroupIconPath();
                     string groupHighlightColor = ResolveLyricsGroupTreeColor(group);
                     var groupSongs = songs
                         .Where(s => s.GroupId == group.Id)
@@ -488,7 +483,6 @@ namespace ImageColorChanger.UI
                         Icon = "FolderMusic",
                         IconKind = "FolderMusic",
                         IconColor = group.IsSystem ? "#9E9E9E" : groupHighlightColor,
-                        IconImagePath = lyricsGroupIconPath,
                         Type = TreeItemType.LyricsGroup,
                         Tag = group,
                         Children = new ObservableCollection<ProjectTreeItem>()
@@ -571,25 +565,6 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private string ResolveLyricsGroupIconPath()
-        {
-            try
-            {
-                string pngPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "icon", "geci.png");
-                if (System.IO.File.Exists(pngPath))
-                {
-                    return pngPath;
-                }
-
-                string icoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "icon", "geci.ico");
-                return System.IO.File.Exists(icoPath) ? icoPath : string.Empty;
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
         private async Task LoadFirstProjectAsync()
         {
             try
@@ -605,16 +580,16 @@ namespace ImageColorChanger.UI
                 {
                     var firstProject = textProjects[0];
                     await LoadTextProjectAsync(firstProject.Id);
-                    ShowStatus($"✅ 已打开项目: {firstProject.Name}");
+                    ShowStatus($"已打开项目: {firstProject.Name}");
                 }
                 else
                 {
-                    ShowStatus("📝 暂无幻灯片项目，请创建新项目");
+                    ShowStatus("暂无幻灯片项目，请创建新项目");
                 }
             }
             catch (Exception ex)
             {
-                ShowStatus($"⚠️ 加载项目失败: {ex.Message}");
+                ShowStatus($"加载项目失败: {ex.Message}");
             }
         }
 
@@ -625,11 +600,14 @@ namespace ImageColorChanger.UI
         {
             return fileType switch
             {
-                FileType.Image => "🖼️",
-                FileType.Video => "🎬",
-                FileType.Audio => "🎵",
-                _ => "📄"
+                FileType.Image => "",
+                FileType.Video => "",
+                FileType.Audio => "",
+                _ => ""
             };
         }
     }
 }
+
+
+

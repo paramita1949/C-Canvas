@@ -42,7 +42,7 @@ namespace ImageColorChanger.UI.Controls
         {
             InitializeComponent();
             InitializeColorPalette();
-            // ✅ 延迟加载：在 BindTarget 时再加载（确保数据库已初始化）
+            //  延迟加载：在 BindTarget 时再加载（确保数据库已初始化）
             // LoadRecentColors();
         }
 
@@ -53,7 +53,7 @@ namespace ImageColorChanger.UI.Controls
         {
             _targetTextBox = textBox;
 
-            // ✅ 如果最近颜色还没有加载，现在加载（延迟加载，确保数据库已初始化）
+            //  如果最近颜色还没有加载，现在加载（延迟加载，确保数据库已初始化）
             if (_recentColors.Count == 0)
             {
                 LoadRecentColors();
@@ -67,7 +67,7 @@ namespace ImageColorChanger.UI.Controls
                 _cornerRadius = (int)_targetTextBox.Data.BorderRadius;
                 _opacity = _targetTextBox.Data.BorderOpacity;
 
-                // ✅ 如果边框透明度为 100%（完全透明），打开面板时设置为 0%（完全不透明）
+                //  如果边框透明度为 100%（完全透明），打开面板时设置为 0%（完全不透明）
                 if (_opacity >= 100)
                 {
                     _opacity = 0;
@@ -172,7 +172,7 @@ namespace ImageColorChanger.UI.Controls
                 if (settingsStore == null)
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，使用空列表");
+                    //                    System.Diagnostics.Debug.WriteLine($" [边框面板] 无法访问数据库，使用空列表");
                     //#endif
                     _recentColors = new List<string>();
                     UpdateRecentColorsGrid();
@@ -181,12 +181,12 @@ namespace ImageColorChanger.UI.Controls
 
                 var jsonValue = settingsStore.GetValue("BorderRecentColors");
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"🔍 [边框面板] 从数据库读取值: {(string.IsNullOrEmpty(jsonValue) ? "空" : jsonValue)}");
+                //                System.Diagnostics.Debug.WriteLine($"[边框面板] 从数据库读取值: {(string.IsNullOrEmpty(jsonValue) ? "空" : jsonValue)}");
                 //#endif
                 if (string.IsNullOrEmpty(jsonValue))
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"📥 [边框面板] 数据库中没有最近颜色");
+                    //                    System.Diagnostics.Debug.WriteLine($"[边框面板] 数据库中没有最近颜色");
                     //#endif
                     _recentColors = new List<string>();
                 }
@@ -194,7 +194,7 @@ namespace ImageColorChanger.UI.Controls
                 {
                     var savedColors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonValue) ?? new List<string>();
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"📥 [边框面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
+                    //                    System.Diagnostics.Debug.WriteLine($"[边框面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
                     //#endif
                     _recentColors = savedColors.Take(6).ToList();
                 }
@@ -202,7 +202,7 @@ namespace ImageColorChanger.UI.Controls
             catch
             {
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 加载失败: {ex.Message}");
+                //                System.Diagnostics.Debug.WriteLine($" [边框面板] 加载失败: {ex.Message}");
                 //#endif
                 _recentColors = new List<string>();
             }
@@ -220,7 +220,7 @@ namespace ImageColorChanger.UI.Controls
                 if (settingsStore == null)
                 {
                     //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 无法访问数据库，保存失败");
+                    //                    System.Diagnostics.Debug.WriteLine($" [边框面板] 无法访问数据库，保存失败");
                     //#endif
                     return;
                 }
@@ -229,13 +229,13 @@ namespace ImageColorChanger.UI.Controls
                 var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
                 settingsStore.SaveValue("BorderRecentColors", jsonValue);
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"💾 [边框面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
+                //                System.Diagnostics.Debug.WriteLine($"[边框面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
                 //#endif
             }
             catch
             {
                 //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"⚠️ [边框面板] 保存失败: {ex.Message}");
+                //                System.Diagnostics.Debug.WriteLine($" [边框面板] 保存失败: {ex.Message}");
                 //#endif
             }
         }
@@ -282,7 +282,7 @@ namespace ImageColorChanger.UI.Controls
         {
             _currentColor = "Transparent";
             TxtRgbInput.Text = "无颜色";
-            _opacity = 100;  // ✅ 透明度 100% = 完全透明
+            _opacity = 100;  //  透明度 100% = 完全透明
             OpacitySlider.Value = 100;
             ApplyBorderColor("Transparent");
         }
@@ -372,6 +372,8 @@ namespace ImageColorChanger.UI.Controls
         }
     }
 }
+
+
 
 
 

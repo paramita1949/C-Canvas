@@ -78,7 +78,7 @@ namespace ImageColorChanger.UI.Controls
 
         {
 
-            // 🔧 不隐藏边框，保留用户设置的边框样式（用于投影显示）
+            // 不隐藏边框，保留用户设置的边框样式（用于投影显示）
 
             // 只隐藏选择框和拖拽手柄等编辑装饰元素
 
@@ -94,7 +94,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 🔧 隐藏所有8个拖拽手柄
+            // 隐藏所有8个拖拽手柄
 
             if (_resizeThumbTopLeft != null)
 
@@ -157,3 +157,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

@@ -56,7 +56,7 @@ namespace ImageColorChanger.UI
             )
             {
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"❌ [资源清理] 清理视频资源失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" [资源清理] 清理视频资源失败: {ex.Message}");
 #endif
             }
         }
@@ -90,10 +90,10 @@ namespace ImageColorChanger.UI
                         switch (e.PropertyName)
                         {
                             case "IsRecording":
-                                BtnRecord.Content = _playbackViewModel.IsRecording ? "⏹ 停止" : "⏺ 录制";
+                                SetRecordButtonContent(_playbackViewModel.IsRecording);
                                 break;
                             case "IsPlaying":
-                                BtnPlay.Content = _playbackViewModel.IsPlaying ? "⏹ 停止" : "▶ 播放";
+                                SetPlayButtonContent(_playbackViewModel.IsPlaying);
                                 BtnPauseResume.IsEnabled = _playbackViewModel.IsPlaying;
                                 BtnPlay.Background = _playbackViewModel.IsPlaying
                                     ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(BUTTON_ACTIVE_COLOR_R, BUTTON_ACTIVE_COLOR_G, BUTTON_ACTIVE_COLOR_B))
@@ -106,11 +106,11 @@ namespace ImageColorChanger.UI
                                 }
                                 break;
                             case "IsPaused":
-                                BtnPauseResume.Content = _playbackViewModel.IsPaused ? "▶ 继续" : "⏸ 暂停";
+                                SetPauseResumeButtonContent(_playbackViewModel.IsPaused);
                                 break;
                             case "PlayCount":
                                 string text = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
-                                BtnPlayCount.Content = $"🔄 {text}次";
+                                SetPlayCountButtonContent(text);
                                 break;
                             case "HasTimingData":
                                 BtnScript.Background = _playbackViewModel.HasTimingData
@@ -124,12 +124,12 @@ namespace ImageColorChanger.UI
 
                 Dispatcher.Invoke(() =>
                 {
-                    BtnRecord.Content = _playbackViewModel.IsRecording ? "⏹ 停止" : "⏺ 录制";
-                    BtnPlay.Content = _playbackViewModel.IsPlaying ? "⏹ 停止" : "▶ 播放";
-                    BtnPauseResume.Content = _playbackViewModel.IsPaused ? "▶ 继续" : "⏸ 暂停";
+                    SetRecordButtonContent(_playbackViewModel.IsRecording);
+                    SetPlayButtonContent(_playbackViewModel.IsPlaying);
+                    SetPauseResumeButtonContent(_playbackViewModel.IsPaused);
                     BtnPauseResume.IsEnabled = _playbackViewModel.IsPlaying;
                     string playCountText = _playbackViewModel.PlayCount == -1 ? "∞" : _playbackViewModel.PlayCount.ToString();
-                    BtnPlayCount.Content = $"🔄 {playCountText}次";
+                    SetPlayCountButtonContent(playCountText);
                 });
 
                 var keyframePlayback = _playbackServiceFactory.GetPlaybackService(Database.Models.Enums.PlaybackMode.Keyframe);
@@ -185,3 +185,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

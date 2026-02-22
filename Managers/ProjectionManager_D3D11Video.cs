@@ -14,15 +14,15 @@ namespace ImageColorChanger.Managers
     {
         #region 字段
 
-        // ✅ 优化5：竞态条件保护
+        //  优化5：竞态条件保护
         private bool _isD3D11Disposed = false;
         
-        // ✅ 优化1：复用 Media 实例，避免内存泄漏
+        //  优化1：复用 Media 实例，避免内存泄漏
         private LibVLCSharp.Shared.Media _currentProjectionMedia;
 
         #endregion
 
-        #region ✅ 优化2：LibVLC 安全获取
+        #region  优化2：LibVLC 安全获取
 
         /// <summary>
         /// 确保 LibVLC 已初始化（线程安全）
@@ -35,7 +35,7 @@ namespace ImageColorChanger.Managers
             if (_videoPlayerManager == null)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [LibVLC] VideoPlayerManager 未设置");
+//                System.Diagnostics.Debug.WriteLine($" [LibVLC] VideoPlayerManager 未设置");
 //#endif
                 return false;
             }
@@ -44,13 +44,13 @@ namespace ImageColorChanger.Managers
             if (_projectionLibVLC == null)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [LibVLC] 初始化失败");
+//                System.Diagnostics.Debug.WriteLine($" [LibVLC] 初始化失败");
 //#endif
                 return false;
             }
 
 //#if DEBUG
-//            System.Diagnostics.Debug.WriteLine($"✅ [LibVLC] 初始化成功");
+//            System.Diagnostics.Debug.WriteLine($" [LibVLC] 初始化成功");
 //#endif
             return true;
         }
@@ -58,27 +58,27 @@ namespace ImageColorChanger.Managers
         #endregion
 
         /// <summary>
-        /// 🎬 使用 VLC D3D11 渲染器更新锁定模式视频（已优化）
+        ///  使用 VLC D3D11 渲染器更新锁定模式视频（已优化）
         /// </summary>
         private void UpdateProjectionWithLockedVideoD3D11(string videoPath, bool loopEnabled, SKBitmap textLayer)
         {
-            // ✅ 优化5：竞态条件保护
+            //  优化5：竞态条件保护
             if (_isD3D11Disposed || _projectionWindow == null || _projectionContainer == null)
                 return;
 
-            // ✅ 优化7：使用 BeginInvoke 异步调用，避免 UI 线程死锁
-            // 🎯 优化：使用 DispatcherPriority.Normal 确保及时执行
+            //  优化7：使用 BeginInvoke 异步调用，避免 UI 线程死锁
+            //  优化：使用 DispatcherPriority.Normal 确保及时执行
             if (!TryBeginOnProjectionDispatcher(() =>
             {
                 try
                 {
-                    // ✅ 优化5：双重检查，防止在调度期间被 Dispose
+                    //  优化5：双重检查，防止在调度期间被 Dispose
                     if (_isD3D11Disposed)
                         return;
 
 //#if DEBUG
 //                    var sw = System.Diagnostics.Stopwatch.StartNew();
-//                    System.Diagnostics.Debug.WriteLine($"🔒 [UpdateProjectionWithLockedVideo-D3D11] 开始");
+//                    System.Diagnostics.Debug.WriteLine($" [UpdateProjectionWithLockedVideo-D3D11] 开始");
 //                    System.Diagnostics.Debug.WriteLine($"   视频路径: {videoPath}");
 //#endif
 
@@ -89,14 +89,14 @@ namespace ImageColorChanger.Managers
                         return;
                     }
 
-                    // 🔄 保存旧路径，用于判断是否需要停止
+                    //  保存旧路径，用于判断是否需要停止
                     string oldVideoPath = _lockedVideoPath;
                     
-                    // 🔄 如果视频路径改变，记录日志
+                    //  如果视频路径改变，记录日志
                     if (oldVideoPath != videoPath && _projectionVlcPlayer != null)
                     {
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine($"🔄 视频路径改变（热切换）: {oldVideoPath} → {videoPath}");
+//                        System.Diagnostics.Debug.WriteLine($" 视频路径改变（热切换）: {oldVideoPath} → {videoPath}");
 //#endif
                     }
                     
@@ -112,23 +112,23 @@ namespace ImageColorChanger.Managers
                         projHeight = 1080;
                     }
 
-                    // ✅ 优化2：使用安全的 LibVLC 获取方法
+                    //  优化2：使用安全的 LibVLC 获取方法
                     if (!EnsureLibVLCInitialized())
                         return;
 
                     EnsureProjectionVlcPlayer();
                     EnsureProjectionRenderer(projWidth, projHeight);
 
-                    // 🎬 绑定 WriteableBitmap 到 Image 控件
+                    //  绑定 WriteableBitmap 到 Image 控件
                     _projectionVideoImage.Source = _projectionVlcRenderer.WriteableBitmap;
 
-                    // 🎬 显示视频容器
+                    //  显示视频容器
                     _projectionVideoContainer.Visibility = Visibility.Visible;
 
                     if (!TryStartProjectionPlayback(videoPath, oldVideoPath, loopEnabled))
                         return;
 
-                    // 🎨 如果有文本层，叠加显示
+                    //  如果有文本层，叠加显示
                     if (textLayer != null)
                     {
                         UpdateProjectionTextLayer(textLayer);
@@ -141,13 +141,13 @@ namespace ImageColorChanger.Managers
 
 //#if DEBUG
 //                    sw.Stop();
-//                    System.Diagnostics.Debug.WriteLine($"✅ 视频播放已启动，总耗时: {sw.ElapsedMilliseconds}ms");
+//                    System.Diagnostics.Debug.WriteLine($" 视频播放已启动，总耗时: {sw.ElapsedMilliseconds}ms");
 //#endif
                 }
                 catch (Exception ex)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjectionWithLockedVideo-D3D11] 错误: {ex.Message}");
+//                    System.Diagnostics.Debug.WriteLine($" [UpdateProjectionWithLockedVideo-D3D11] 错误: {ex.Message}");
 //                    System.Diagnostics.Debug.WriteLine($"   堆栈: {ex.StackTrace}");
 //#else
                     _ = ex; // 避免未使用变量警告
@@ -164,13 +164,13 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void UpdateProjectionTextLayer(SKBitmap textLayer)
         {
-            // ✅ 优化5：竞态条件保护
+            //  优化5：竞态条件保护
             if (_isD3D11Disposed || textLayer == null || _projectionVideoContainer == null)
                 return;
 
             try
             {
-                // ✅ 优化4：简化缓存逻辑 - 依赖调用方控制频率
+                //  优化4：简化缓存逻辑 - 依赖调用方控制频率
                 // 不使用时间戳判断，因为 SKBitmap 是引用类型，时间戳可能不可靠
                 // 如果需要防抖，应该在调用方控制
                 
@@ -178,7 +178,7 @@ namespace ImageColorChanger.Managers
                 _cachedTextLayerBitmap = bitmapSource;
                 _cachedTextLayerTimestamp = DateTime.Now.Ticks;
                 
-                // 🎨 在视频容器中查找或创建文本层 Image
+                //  在视频容器中查找或创建文本层 Image
                 var textImage = GetOrCreateProjectionTextLayerImage();
                 
                 textImage.Source = bitmapSource;
@@ -188,13 +188,13 @@ namespace ImageColorChanger.Managers
                 System.Windows.Controls.Panel.SetZIndex(_projectionVideoImage, 0);
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ 文本层已叠加: {textLayer.Width}x{textLayer.Height}");
+//                System.Diagnostics.Debug.WriteLine($" 文本层已叠加: {textLayer.Width}x{textLayer.Height}");
 //#endif
             }
             catch (Exception ex)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [UpdateProjectionTextLayer] 错误: {ex.Message}");
+//                System.Diagnostics.Debug.WriteLine($" [UpdateProjectionTextLayer] 错误: {ex.Message}");
 //#else
                 _ = ex; // 避免未使用变量警告
 //#endif
@@ -229,13 +229,13 @@ namespace ImageColorChanger.Managers
             }
         }
 
-        #region ❌ 已删除：视频预解析优化（简化为跟主屏幕WPF一样的逻辑）
+        #region  已删除：视频预解析优化（简化为跟主屏幕WPF一样的逻辑）
         
         // 预解析功能已删除，直接播放更简单稳定
         
         #endregion
 
-        #region ✅ 优化5：窗口尺寸变化监听
+        #region  优化5：窗口尺寸变化监听
 
         private bool _projectionWindowSizeChangedRegistered = false;
 
@@ -355,7 +355,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         private void OnProjectionWindowSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // ✅ 优化5：竞态条件保护
+            //  优化5：竞态条件保护
             if (_isD3D11Disposed || _projectionVlcRenderer == null || _projectionWindow == null)
                 return;
 
@@ -367,7 +367,7 @@ namespace ImageColorChanger.Managers
                 if (newWidth > 0 && newHeight > 0)
                 {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine($"🔄 [窗口尺寸变化] {(int)e.PreviousSize.Width}x{(int)e.PreviousSize.Height} → {newWidth}x{newHeight}");
+//                    System.Diagnostics.Debug.WriteLine($" [窗口尺寸变化] {(int)e.PreviousSize.Width}x{(int)e.PreviousSize.Height} → {newWidth}x{newHeight}");
 //#endif
                     // 再次检查，防止在执行期间被 Dispose
                     if (_isD3D11Disposed || _projectionVlcRenderer == null)
@@ -386,7 +386,7 @@ namespace ImageColorChanger.Managers
             catch (Exception ex)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [窗口尺寸变化] 处理错误: {ex.Message}");
+//                System.Diagnostics.Debug.WriteLine($" [窗口尺寸变化] 处理错误: {ex.Message}");
 //#else
                 _ = ex; // 避免未使用变量警告
 //#endif
@@ -395,7 +395,7 @@ namespace ImageColorChanger.Managers
 
         #endregion
 
-        #region ✅ 优化4：Dispose 资源清理
+        #region  优化4：Dispose 资源清理
 
         /// <summary>
         /// 释放一次投影会话的 D3D11/VLC 资源（可重新初始化）。
@@ -428,7 +428,7 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public void DisposeD3D11Resources()
         {
-            // ✅ 优化5：设置 Dispose 标志，防止竞态条件
+            //  优化5：设置 Dispose 标志，防止竞态条件
             _isD3D11Disposed = true;
 
             try
@@ -436,13 +436,13 @@ namespace ImageColorChanger.Managers
                 ReleaseD3D11SessionResources();
 
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ [Dispose] D3D11 视频资源已清理");
+//                System.Diagnostics.Debug.WriteLine($" [Dispose] D3D11 视频资源已清理");
 //#endif
             }
             catch (Exception ex)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"❌ [Dispose] D3D11 资源清理错误: {ex.Message}");
+//                System.Diagnostics.Debug.WriteLine($" [Dispose] D3D11 资源清理错误: {ex.Message}");
 //#else
                 _ = ex; // 避免未使用变量警告
 //#endif
@@ -452,4 +452,5 @@ namespace ImageColorChanger.Managers
         #endregion
     }
 }
+
 

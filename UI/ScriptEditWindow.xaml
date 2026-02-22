@@ -77,7 +77,6 @@
         <!-- 保存按钮 -->
         <Button Grid.Row="4" 
                 x:Name="BtnSave"
-                Content="保存" 
                 Width="100" 
                 Height="30"
                 FontSize="12"
@@ -85,7 +84,23 @@
                 Foreground="White"
                 HorizontalAlignment="Left"
                 Margin="0,0,0,10"
-                Click="BtnSave_Click"/>
+                Click="BtnSave_Click">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Path Data="M5 3H17L21 7V21H5V3Z M8 3V9H16V3 M9 21V14H17V21"
+                      Width="14"
+                      Height="14"
+                      Margin="0,0,5,0"
+                      Stretch="Uniform"
+                      Stroke="White"
+                      Fill="Transparent"
+                      StrokeThickness="2"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round"
+                      VerticalAlignment="Center"/>
+                <TextBlock Text="保存" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
 
         <!-- 文本编辑区 -->
         <TextBox Grid.Row="5" 

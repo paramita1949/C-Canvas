@@ -110,7 +110,7 @@ namespace ImageColorChanger.UI
         private async void BibleHistoryItem_Click(object sender, MouseButtonEventArgs e)
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"[历史记录点击] ========== 开始 ==========");
             //#endif
 
             if (sender is Border border && border.DataContext is BibleHistoryItem item)
@@ -120,7 +120,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"   当前状态: IsChecked={item.IsChecked}, IsLocked={item.IsLocked}");
                 //#endif
 
-                // 🔧 双击检测
+                // 双击检测
                 var now = DateTime.Now;
                 var interval = (now - _lastHistoryClickTime).TotalMilliseconds;
                 var isDoubleClick = interval < DoubleClickInterval && _lastHistoryClickedItem == item;
@@ -135,7 +135,7 @@ namespace ImageColorChanger.UI
                 if (isDoubleClick)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   ✅ 检测到双击，切换锁定状态");
+                    //System.Diagnostics.Debug.WriteLine($"    检测到双击，切换锁定状态");
                     //#endif
 
                     // 双击：切换锁定状态
@@ -146,7 +146,7 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"   锁定状态: {wasLocked} -> {item.IsLocked}");
                     //#endif
 
-                    // 🆕 锁定后自动勾选（但不触发单击逻辑）
+                    // 锁定后自动勾选（但不触发单击逻辑）
                     if (item.IsLocked && !item.IsChecked)
                     {
                         // 使用私有字段直接设置，避免触发PropertyChanged
@@ -159,7 +159,7 @@ namespace ImageColorChanger.UI
                     // 强制刷新列表显示以确保边框更新
                     BibleHistoryList.Items.Refresh();
 
-                    // 🆕 增量更新：根据锁定状态决定是添加还是删除
+                    // 增量更新：根据锁定状态决定是添加还是删除
                     if (item.IsLocked)
                     {
                         //#if DEBUG
@@ -181,12 +181,12 @@ namespace ImageColorChanger.UI
                     await UpdateProjectionFromMergedVerses();
 
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（双击） ==========\n");
+                    //System.Diagnostics.Debug.WriteLine($"[历史记录点击] ========== 结束（双击） ==========\n");
                     //#endif
                     return;
                 }
 
-                // 🔧 单击逻辑：检查是否有锁定记录
+                // 单击逻辑：检查是否有锁定记录
                 bool hasLockedRecords = _historySlots.Any(x => x.IsLocked);
 
                 //#if DEBUG
@@ -202,12 +202,12 @@ namespace ImageColorChanger.UI
                     item.IsChecked = !item.IsChecked;
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"   勾选状态: {item.IsChecked}");
-                    //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（锁定模式单击） ==========\n");
+                    //System.Diagnostics.Debug.WriteLine($"[历史记录点击] ========== 结束（锁定模式单击） ==========\n");
                     //#endif
                     return;
                 }
 
-                // 🔧 无锁定记录时：单选模式
+                // 无锁定记录时：单选模式
                 if (!item.IsChecked)
                 {
                     //#if DEBUG
@@ -268,7 +268,7 @@ namespace ImageColorChanger.UI
                 }
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🖱️ [历史记录点击] ========== 结束（单击） ==========\n");
+                //System.Diagnostics.Debug.WriteLine($"[历史记录点击] ========== 结束（单击） ==========\n");
                 //#endif
             }
         }
@@ -279,7 +279,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 🔧 此事件暂时保留，用于未来可能的选中状态同步
+            // 此事件暂时保留，用于未来可能的选中状态同步
             // 实际的经文加载由BibleHistoryItem_Click事件处理，避免重复加载
         }
 
@@ -327,15 +327,15 @@ namespace ImageColorChanger.UI
                 foreach (var item in _historySlots)
                 {
                     item.IsLocked = false;
-                    item.IsChecked = false;  // 🆕 同时清空勾选状态，防止误覆盖
+                    item.IsChecked = false;  // 同时清空勾选状态，防止误覆盖
                 }
                 
                 await LoadAndDisplayLockedRecords(); // 会清空显示
                 
-                // 🆕 更新清空按钮样式（从绿色恢复成白色）
+                // 更新清空按钮样式（从绿色恢复成白色）
                 UpdateClearButtonStyle();
                 
-                // 🆕 刷新列表显示，确保界面更新
+                // 刷新列表显示，确保界面更新
                 BibleHistoryList.Items.Refresh();
                 
                 #if DEBUG
@@ -369,7 +369,7 @@ namespace ImageColorChanger.UI
         
         /// <summary>
         /// 加载并显示所有锁定记录（核心方法）
-        /// 🔧 使用增量更新，避免刷新闪烁
+        /// 使用增量更新，避免刷新闪烁
         /// </summary>
         private async Task LoadAndDisplayLockedRecords()
         {
@@ -402,17 +402,17 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"[圣经] 开始合并 {lockedItems.Count} 条锁定记录");
                 //#endif
                 
-                // 🆕 构建新的经文列表
+                // 构建新的经文列表
                 var newVerses = new List<BibleVerse>();
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📚 [锁定模式] 开始加载 {lockedItems.Count} 条锁定记录");
+                System.Diagnostics.Debug.WriteLine($"[锁定模式] 开始加载 {lockedItems.Count} 条锁定记录");
                 #endif
                 
                 foreach (var item in lockedItems)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📖 [锁定模式] 加载槽位{item.Index}: {item.DisplayText}");
+                    System.Diagnostics.Debug.WriteLine($"[锁定模式] 加载槽位{item.Index}: {item.DisplayText}");
                     #endif
                     
                     // 添加分隔标题（Verse=0 标记为标题行）
@@ -432,14 +432,14 @@ namespace ImageColorChanger.UI
                         {
                             newVerses.Add(verseData);
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"  ✅ 添加经文: {item.BookId}章{item.Chapter}:{verse}节");
+                            System.Diagnostics.Debug.WriteLine($"   添加经文: {item.BookId}章{item.Chapter}:{verse}节");
                             #endif
                         }
                     }
                 }
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📚 [锁定模式] 加载完成，共 {newVerses.Count} 行（含标题）");
+                System.Diagnostics.Debug.WriteLine($"[锁定模式] 加载完成，共 {newVerses.Count} 行（含标题）");
                 #endif
                 
                 //#if DEBUG
@@ -449,7 +449,7 @@ namespace ImageColorChanger.UI
                 // 更新主屏幕标题（清空，因为合并模式下每组都有自己的标题）
                 BibleChapterTitle.Text = "";
                 
-                // 🆕 增量更新：只在首次绑定时设置ItemsSource，后续使用Clear/Add
+                // 增量更新：只在首次绑定时设置ItemsSource，后续使用Clear/Add
                 if (BibleVerseList.ItemsSource != _mergedVerses)
                 {
                     BibleVerseList.ItemsSource = _mergedVerses;
@@ -465,7 +465,7 @@ namespace ImageColorChanger.UI
                 }
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"📊 [锁定模式] 最终列表中共 {_mergedVerses.Count} 条记录");
+                System.Diagnostics.Debug.WriteLine($"[锁定模式] 最终列表中共 {_mergedVerses.Count} 条记录");
                 for (int i = 0; i < _mergedVerses.Count; i++)
                 {
                     var v = _mergedVerses[i];
@@ -486,7 +486,7 @@ namespace ImageColorChanger.UI
                     ApplyVerseStyles();
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
                 
-                // 更新投影（🆕 使用 VisualBrush）
+                // 更新投影（使用 VisualBrush）
                 if (_projectionManager != null && _projectionManager.IsProjecting && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
@@ -513,7 +513,7 @@ namespace ImageColorChanger.UI
                     BibleVerseList.ItemsSource = _mergedVerses;
                 }
                 
-                // 🔧 检查是否有锁定记录，如果有锁定记录，_mergedVerses应该只包含锁定记录的经文
+                // 检查是否有锁定记录，如果有锁定记录，_mergedVerses应该只包含锁定记录的经文
                 // 如果_mergedVerses中有非锁定模式的经文（没有标题行），应该先清空
                 bool hasLockedRecords = _historySlots.Any(x => x.IsLocked && x.BookId > 0);
                 if (hasLockedRecords)
@@ -524,20 +524,20 @@ namespace ImageColorChanger.UI
                     {
                         // _mergedVerses中有经文但没有标题行，说明是非锁定模式的经文，应该清空
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔒 [增量添加] 检测到非锁定模式的经文，清空_mergedVerses（{_mergedVerses.Count}条）");
+                        //System.Diagnostics.Debug.WriteLine($" [增量添加] 检测到非锁定模式的经文，清空_mergedVerses（{_mergedVerses.Count}条）");
                         //#endif
                         _mergedVerses.Clear();
                     }
                 }
                 
-                // 🔧 检查该记录是否已经存在，避免重复插入
+                // 检查该记录是否已经存在，避免重复插入
                 var book = BibleBookConfig.GetBook(item.BookId);
                 string verseText = (item.StartVerse == item.EndVerse) ? $"{item.StartVerse}节" : $"{item.StartVerse}-{item.EndVerse}节";
                 string titleText = $"{book?.Name}{item.Chapter}章{verseText}";
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [增量添加] 开始检查记录: {titleText}");
-                //System.Diagnostics.Debug.WriteLine($"🔍 [增量添加] 当前列表总数: {_mergedVerses.Count}");
+                //System.Diagnostics.Debug.WriteLine($"[增量添加] 开始检查记录: {titleText}");
+                //System.Diagnostics.Debug.WriteLine($"[增量添加] 当前列表总数: {_mergedVerses.Count}");
                 //for (int i = 0; i < _mergedVerses.Count; i++)
                 //{
                 //    var v = _mergedVerses[i];
@@ -559,26 +559,26 @@ namespace ImageColorChanger.UI
                     v.Scripture == titleText);
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [增量添加] 检查结果: alreadyExists={alreadyExists}, 查找条件: Verse=0, Book={item.BookId}, Chapter={item.Chapter}, Scripture={titleText}");
+                //System.Diagnostics.Debug.WriteLine($"[增量添加] 检查结果: alreadyExists={alreadyExists}, 查找条件: Verse=0, Book={item.BookId}, Chapter={item.Chapter}, Scripture={titleText}");
                 //#endif
                 
                 if (alreadyExists)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔒 [增量添加] 记录已存在，跳过插入: {titleText}");
+                    //System.Diagnostics.Debug.WriteLine($" [增量添加] 记录已存在，跳过插入: {titleText}");
                     //#endif
                     return;
                 }
                 
                 // 找到插入位置（根据槽位顺序）
-                // 🔧 应该根据 _mergedVerses 中实际已存在的锁定记录来计算插入位置
+                // 应该根据 _mergedVerses 中实际已存在的锁定记录来计算插入位置
                 var lockedItems = _historySlots
                     .Where(x => x.IsLocked && x.BookId > 0)
                     .OrderBy(x => x.Index)
                     .ToList();
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [插入位置计算] 锁定记录总数: {lockedItems.Count}, 当前item槽位: {item.Index}");
+                //System.Diagnostics.Debug.WriteLine($"[插入位置计算] 锁定记录总数: {lockedItems.Count}, 当前item槽位: {item.Index}");
                 //#endif
                 
                 int insertIndex = 0;
@@ -588,12 +588,12 @@ namespace ImageColorChanger.UI
                     {
                         // 找到当前item的位置
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [插入位置计算] 找到当前item，停止计算，insertIndex={insertIndex}");
+                        //System.Diagnostics.Debug.WriteLine($"[插入位置计算] 找到当前item，停止计算，insertIndex={insertIndex}");
                         //#endif
                         break;
                     }
                     
-                    // 🔧 检查 _mergedVerses 中是否已经有该锁定记录
+                    // 检查 _mergedVerses 中是否已经有该锁定记录
                     var existingBook = BibleBookConfig.GetBook(lockedItem.BookId);
                     string existingVerseText = (lockedItem.StartVerse == lockedItem.EndVerse) ? $"{lockedItem.StartVerse}节" : $"{lockedItem.StartVerse}-{lockedItem.EndVerse}节";
                     string existingTitleText = $"{existingBook?.Name}{lockedItem.Chapter}章{existingVerseText}";
@@ -610,23 +610,23 @@ namespace ImageColorChanger.UI
                         int verseCount = 1 + (lockedItem.EndVerse - lockedItem.StartVerse + 1);
                         insertIndex += verseCount;
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"🔍 [插入位置计算] 槽位{lockedItem.Index}已存在，增加{verseCount}，insertIndex={insertIndex}");
+                        //System.Diagnostics.Debug.WriteLine($"[插入位置计算] 槽位{lockedItem.Index}已存在，增加{verseCount}，insertIndex={insertIndex}");
                         //#endif
                     }
                     // 如果不存在，说明还没有加载，不增加 insertIndex
                 }
                 
-                // 🔧 确保 insertIndex 不超过当前列表长度
+                // 确保 insertIndex 不超过当前列表长度
                 if (insertIndex > _mergedVerses.Count)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [插入位置计算] insertIndex({insertIndex})超过列表长度({_mergedVerses.Count})，调整为{_mergedVerses.Count}");
+                    //System.Diagnostics.Debug.WriteLine($"[插入位置计算] insertIndex({insertIndex})超过列表长度({_mergedVerses.Count})，调整为{_mergedVerses.Count}");
                     //#endif
                     insertIndex = _mergedVerses.Count;
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [插入位置计算] 最终结果: 当前列表总数={_mergedVerses.Count}, 计算出的插入位置={insertIndex}, 记录={titleText}");
+                //System.Diagnostics.Debug.WriteLine($"[插入位置计算] 最终结果: 当前列表总数={_mergedVerses.Count}, 计算出的插入位置={insertIndex}, 记录={titleText}");
                 //#endif
                 
                 // 构建要插入的经文列表
@@ -658,7 +658,7 @@ namespace ImageColorChanger.UI
                 //for (int debugIdx = 0; debugIdx < versesToAdd.Count; debugIdx++)
                 //{
                 //    var v = versesToAdd[debugIdx];
-                //    System.Diagnostics.Debug.WriteLine($"🔍 [插入调试] 第{debugIdx}条: Verse={v.Verse}, Scripture={v.Scripture?.Substring(0, Math.Min(30, v.Scripture?.Length ?? 0))}");
+                //    System.Diagnostics.Debug.WriteLine($"[插入调试] 第{debugIdx}条: Verse={v.Verse}, Scripture={v.Scripture?.Substring(0, Math.Min(30, v.Scripture?.Length ?? 0))}");
                 //}
                 //#endif
                 
@@ -668,13 +668,13 @@ namespace ImageColorChanger.UI
                 {
                     _mergedVerses.Insert(insertPos, verse);
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [插入调试] 插入到位置 {insertPos}, Verse={verse.Verse}, 当前列表总数: {_mergedVerses.Count}");
+                    //System.Diagnostics.Debug.WriteLine($"[插入调试] 插入到位置 {insertPos}, Verse={verse.Verse}, 当前列表总数: {_mergedVerses.Count}");
                     //#endif
                     insertPos++;
                 }
                 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📊 [增量添加] 插入完成，最终列表共 {_mergedVerses.Count} 条记录");
+                //System.Diagnostics.Debug.WriteLine($"[增量添加] 插入完成，最终列表共 {_mergedVerses.Count} 条记录");
                 //for (int i = 0; i < _mergedVerses.Count; i++)
                 //{
                 //    var v = _mergedVerses[i];
@@ -703,7 +703,7 @@ namespace ImageColorChanger.UI
                 await Dispatcher.InvokeAsync(() => 
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"🔍 [二次样式应用] 再次应用样式确保完整");
+                    //System.Diagnostics.Debug.WriteLine($"[二次样式应用] 再次应用样式确保完整");
                     //#endif
                     ApplyVerseStyles();
                 }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -776,7 +776,7 @@ namespace ImageColorChanger.UI
         private async Task UpdateProjectionFromMergedVerses()
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔄 [更新合并投影] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($" [更新合并投影] ========== 开始 ==========");
             //#endif
 
             if (_projectionManager != null && _projectionManager.IsProjecting)
@@ -789,7 +789,7 @@ namespace ImageColorChanger.UI
 
                 if (verseList.Count > 0 && BibleVerseScrollViewer != null)
                 {
-                    // 🆕 使用 VisualBrush 投影（100%像素级一致）
+                    // 使用 VisualBrush 投影（100%像素级一致）
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                 }
                 else
@@ -799,7 +799,7 @@ namespace ImageColorChanger.UI
             }
 
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🔄 [更新合并投影] ========== 结束 ==========\n");
+            //System.Diagnostics.Debug.WriteLine($" [更新合并投影] ========== 结束 ==========\n");
             //#endif
 
             await Task.CompletedTask;
@@ -832,3 +832,4 @@ namespace ImageColorChanger.UI
 
     }
 }
+

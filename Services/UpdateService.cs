@@ -828,7 +828,7 @@ namespace ImageColorChanger.Services
                     return false;
                 }
 
-                // 🔧 检查是否有独立的 EXE 文件（特殊处理）
+                //  检查是否有独立的 EXE 文件（特殊处理）
                 var standaloneExeFiles = updateFiles
                     .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     .Where(f => !Path.GetFileName(f).Equals("CanvasCast.exe", StringComparison.OrdinalIgnoreCase))
@@ -1217,6 +1217,7 @@ exit
         }
     }
 }
+
 
 
 

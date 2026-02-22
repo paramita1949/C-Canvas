@@ -119,8 +119,8 @@ namespace ImageColorChanger.UI
 
             var iconText = new TextBlock
             {
-                Text = "🎵",
-                FontSize = 120,
+                Text = "音频",
+                FontSize = 72,
                 HorizontalAlignment = WpfHorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 30),
                 Foreground = WpfBrushes.White
@@ -190,3 +190,4 @@ namespace ImageColorChanger.UI
         }
     }
 }
+

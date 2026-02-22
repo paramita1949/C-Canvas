@@ -38,7 +38,7 @@ namespace ImageColorChanger.Core
             if (_cache.TryGetValue(cacheKey, out SKBitmap cachedBitmap))
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"✅ [SkiaTextRenderer] 缓存命中: {cacheKey.Substring(0, Math.Min(50, cacheKey.Length))}...");
+//                System.Diagnostics.Debug.WriteLine($" [SkiaTextRenderer] 缓存命中: {cacheKey.Substring(0, Math.Min(50, cacheKey.Length))}...");
 //#endif
                 return cachedBitmap;
             }
@@ -50,7 +50,7 @@ namespace ImageColorChanger.Core
             if (width <= 0 || height <= 0)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"⚠️ [SkiaTextRenderer] 无效尺寸: {width}x{height}");
+//                System.Diagnostics.Debug.WriteLine($" [SkiaTextRenderer] 无效尺寸: {width}x{height}");
 //#endif
                 return new SKBitmap(1, 1);
             }
@@ -88,7 +88,7 @@ namespace ImageColorChanger.Core
             if (context.Style.ShadowOpacity > 0 && (context.Style.ShadowBlur > 0 || Math.Abs(context.Style.ShadowOffsetX) > 0.1 || Math.Abs(context.Style.ShadowOffsetY) > 0.1))
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"🎨 绘制阴影: Opacity={context.Style.ShadowOpacity}, Blur={context.Style.ShadowBlur}, OffsetX={context.Style.ShadowOffsetX}, OffsetY={context.Style.ShadowOffsetY}, Color={context.Style.ShadowColor}");
+                System.Diagnostics.Debug.WriteLine($" 绘制阴影: Opacity={context.Style.ShadowOpacity}, Blur={context.Style.ShadowBlur}, OffsetX={context.Style.ShadowOffsetX}, OffsetY={context.Style.ShadowOffsetY}, Color={context.Style.ShadowColor}");
                 #endif
                 DrawShadow(canvas, textBounds, context.Style);
             }
@@ -133,7 +133,7 @@ namespace ImageColorChanger.Core
 
                 canvas.DrawText(line.Text, x, y, context.Alignment, font, paint);
 
-                // 🆕 绘制下划线
+                //  绘制下划线
                 if (context.Style.IsUnderline)
                 {
                     DrawUnderline(canvas, line.Text, x, y, font, paint, context.Alignment);
@@ -184,7 +184,7 @@ namespace ImageColorChanger.Core
             var verseLayouts = new List<VerseLayout>();
             
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"📏 [投影节距] VerseSpacing配置: {context.VerseSpacing}");
+            //System.Diagnostics.Debug.WriteLine($" [投影节距] VerseSpacing配置: {context.VerseSpacing}");
             //#endif
             
             // 用于跟踪是否是第一个标题
@@ -203,7 +203,7 @@ namespace ImageColorChanger.Core
                         currentY += 60;
                         verseStartY = currentY;
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📌 [记录分隔] 添加固定间距60，currentY: {currentY - 60} -> {currentY}");
+                        //System.Diagnostics.Debug.WriteLine($" [记录分隔] 添加固定间距60，currentY: {currentY - 60} -> {currentY}");
                         //#endif
                     }
                     isFirstTitle = false;
@@ -224,7 +224,7 @@ namespace ImageColorChanger.Core
                     
                     // 标题后的间距固定为15像素
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📌 [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
+                    //System.Diagnostics.Debug.WriteLine($" [标题间距] 标题高度: {titleHeight}, 固定间距: 15, currentY变化: {currentY} -> {currentY + titleHeight + 15}");
                     //#endif
                     currentY += titleHeight + 15;
                 }
@@ -256,14 +256,14 @@ namespace ImageColorChanger.Core
                     if (i < context.Verses.Count - 1)
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📌 [经文间距] 第{verse.VerseNumber}节, 高度: {verseHeight}, 节距: {context.VerseSpacing}, currentY变化: {currentY} -> {currentY + verseHeight + context.VerseSpacing}");
+                        //System.Diagnostics.Debug.WriteLine($" [经文间距] 第{verse.VerseNumber}节, 高度: {verseHeight}, 节距: {context.VerseSpacing}, currentY变化: {currentY} -> {currentY + verseHeight + context.VerseSpacing}");
                         //#endif
                         currentY += verseHeight + context.VerseSpacing;
                     }
                     else
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"📌 [最后一节] 第{verse.VerseNumber}节, 高度: {verseHeight}, 无额外间距");
+                        //System.Diagnostics.Debug.WriteLine($" [最后一节] 第{verse.VerseNumber}节, 高度: {verseHeight}, 无额外间距");
                         //#endif
                         currentY += verseHeight;
                     }
@@ -298,12 +298,12 @@ namespace ImageColorChanger.Core
                 }
                 else
                 {
-                    // 渲染经文行（🔧 高亮时使用高亮颜色）
+                    // 渲染经文行（ 高亮时使用高亮颜色）
                     var verseColor = layout.Verse.IsHighlighted 
                         ? context.HighlightColor 
                         : context.VerseStyle.TextColor;
                     
-                    // 节号（🔧 高亮时也使用高亮颜色）
+                    // 节号（ 高亮时也使用高亮颜色）
                     using var numberFont = CreateFont(context.VerseNumberStyle);
                     using var numberPaint = CreatePaint(context.VerseNumberStyle);
                     if (layout.Verse.IsHighlighted)
@@ -331,7 +331,7 @@ namespace ImageColorChanger.Core
             
 //#if DEBUG
 //            sw.Stop();
-//            System.Diagnostics.Debug.WriteLine($"📖 [SkiaTextRenderer-Bible] 完成: {context.Verses.Count}节, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
+//            System.Diagnostics.Debug.WriteLine($" [SkiaTextRenderer-Bible] 完成: {context.Verses.Count}节, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
 //#endif
             
             return bitmap;
@@ -434,7 +434,7 @@ namespace ImageColorChanger.Core
             
 //#if DEBUG
 //            sw.Stop();
-//            System.Diagnostics.Debug.WriteLine($"🎵 [SkiaTextRenderer-Lyrics] 完成: {lines.Count}行, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
+//            System.Diagnostics.Debug.WriteLine($" [SkiaTextRenderer-Lyrics] 完成: {lines.Count}行, 尺寸: {width}×{actualHeight}, {sw.ElapsedMilliseconds}ms");
 //#endif
             
             return bitmap;
@@ -445,7 +445,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         private SKFont CreateFont(TextStyle style)
         {
-            // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+            //  使用SkiaFontService加载字体（支持自定义字体文件）
             var typeface = _fontService.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
             var font = new SKFont
@@ -455,16 +455,16 @@ namespace ImageColorChanger.Core
                 Subpixel = true
             };
             
-            // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+            //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
             if (style.IsBold)
             {
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine($"    🎨 [CreateFont] 启用加粗: 字体={style.FontFamily}, Embolden=true");
+//                System.Diagnostics.Debug.WriteLine($"     [CreateFont] 启用加粗: 字体={style.FontFamily}, Embolden=true");
 //#endif
                 font.Embolden = true;
             }
 
-            // ✅ 应用字间距（使用 ScaleX 实现水平拉伸）
+            //  应用字间距（使用 ScaleX 实现水平拉伸）
             if (style.LetterSpacing > 0)
             {
                 font.ScaleX = 1.0f + style.LetterSpacing;
@@ -567,7 +567,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         private void DrawShadow(SKCanvas canvas, SKRect bounds, TextStyle style)
         {
-            // ✅ 只要透明度大于0且有偏移或模糊，就绘制阴影
+            //  只要透明度大于0且有偏移或模糊，就绘制阴影
             if (style.ShadowOpacity <= 0)
                 return;
 
@@ -581,7 +581,7 @@ namespace ImageColorChanger.Core
             );
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"🎨 DrawShadow 执行: Color={shadowColor}, Blur={style.ShadowBlur}, OffsetX={style.ShadowOffsetX}, OffsetY={style.ShadowOffsetY}");
+            System.Diagnostics.Debug.WriteLine($" DrawShadow 执行: Color={shadowColor}, Blur={style.ShadowBlur}, OffsetX={style.ShadowOffsetX}, OffsetY={style.ShadowOffsetY}");
             #endif
 
             // 根据阴影类型选择渲染方法
@@ -711,7 +711,7 @@ namespace ImageColorChanger.Core
             if (style.BackgroundOpacity >= 100)
                 return;
 
-            // ✅ 计算背景颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
+            //  计算背景颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
             byte alpha = (byte)(255 * (100 - style.BackgroundOpacity) / 100f);
             var backgroundColor = new SKColor(
                 style.BackgroundColor.Red,
@@ -747,7 +747,7 @@ namespace ImageColorChanger.Core
             if (style.BorderOpacity >= 100 || style.BorderWidth <= 0)
                 return;
 
-            // ✅ 计算边框颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
+            //  计算边框颜色（应用透明度：0% = 完全不透明，100% = 完全透明）
             byte alpha = (byte)(255 * (100 - style.BorderOpacity) / 100f);
             var borderColor = new SKColor(
                 style.BorderColor.Red,
@@ -923,4 +923,6 @@ namespace ImageColorChanger.Core
 
     }
 }
+
+
 

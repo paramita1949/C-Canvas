@@ -39,7 +39,7 @@ namespace ImageColorChanger.Core
 
             // 计算每行的位置
             var layout = new TextLayout();
-            // ✅ 修复行间距计算：与 WPF BlockLineHeight 行为完全一致
+            //  修复行间距计算：与 WPF BlockLineHeight 行为完全一致
             //
             // WPF BlockLineHeight 行为：
             //   LineHeight = FontSize × LineSpacing (例如 86 × 2.1 = 180.6)
@@ -75,7 +75,7 @@ namespace ImageColorChanger.Core
 #if DEBUG
                 if (layout.Lines.Count == 1) // 只输出第一行的调试信息
                 {
-                    System.Diagnostics.Debug.WriteLine($"📐 [行间距计算] 字体大小={style.FontSize}, 行间距倍数={style.LineSpacing}, 计算行高={lineHeight}, 第一行baseline={currentY}");
+                    System.Diagnostics.Debug.WriteLine($" [行间距计算] 字体大小={style.FontSize}, 行间距倍数={style.LineSpacing}, 计算行高={lineHeight}, 第一行baseline={currentY}");
                 }
 #endif
 
@@ -302,7 +302,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         private SKFont CreateFont(TextStyle style)
         {
-            // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+            //  使用SkiaFontService加载字体（支持自定义字体文件）
             var typeface = _fontService.GetTypeface(style.FontFamily, style.IsBold, style.IsItalic);
             
             var font = new SKFont
@@ -312,7 +312,7 @@ namespace ImageColorChanger.Core
                 Subpixel = true
             };
             
-            // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+            //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
             if (style.IsBold)
             {
                 font.Embolden = true;
@@ -337,4 +337,5 @@ namespace ImageColorChanger.Core
         }
     }
 }
+
 

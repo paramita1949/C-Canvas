@@ -21,7 +21,7 @@ namespace ImageColorChanger.Database.Repositories
 
         void SetFolderVideoPlayMode(int folderId, string playMode);
         string GetFolderVideoPlayMode(int folderId);
-        void ClearFolderVideoPlayMode(int folderId);
+        int NormalizeFolderVideoPlayModes(string defaultMode = "random");
 
         void SetFolderHighlightColor(int folderId, string color);
         string GetFolderHighlightColor(int folderId);

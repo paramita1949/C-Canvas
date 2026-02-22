@@ -44,7 +44,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 启动FPS监控失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 启动FPS监控失败: {ex.Message}");
             }
         }
         
@@ -60,7 +60,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 停止FPS监控失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 停止FPS监控失败: {ex.Message}");
             }
         }
 
@@ -195,7 +195,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 更新预览线失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 更新预览线失败: {ex.Message}");
             }
         }
 
@@ -261,7 +261,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 绘制当前关键帧指示块失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 绘制当前关键帧指示块失败: {ex.Message}");
             }
         }
 
@@ -361,15 +361,15 @@ namespace ImageColorChanger.UI
                     }
 
                     // 左键：跳转
-                    // 🔧 修复：在跳转前保存当前索引，避免更新索引后导致记录错误
+                    // 修复：在跳转前保存当前索引，避免更新索引后导致记录错误
                     int currentIndexBeforeJump = _keyframeManager.CurrentKeyframeIndex;
                     
-                    // 🔧 修复：如果正在录制，先记录当前帧的时间（跳转前）
+                    // 修复：如果正在录制，先记录当前帧的时间（跳转前）
                     if (_playbackViewModel?.IsRecording == true && currentIndexBeforeJump >= 0 && currentIndexBeforeJump < keyframes.Count)
                     {
                         var currentKeyframe = keyframes[currentIndexBeforeJump];
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"📹 [点击跳转-录制] 从关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 跳转到 #{closestIndex + 1}，先记录当前帧时间");
+                        System.Diagnostics.Debug.WriteLine($" [点击跳转-录制] 从关键帧 #{currentIndexBeforeJump + 1} (ID={currentKeyframe.Id}) 跳转到 #{closestIndex + 1}，先记录当前帧时间");
                         #endif
                         _ = _playbackViewModel.RecordKeyframeTimeAsync(currentKeyframe.Id); // 异步执行不等待
                     }
@@ -389,7 +389,7 @@ namespace ImageColorChanger.UI
                     // 更新当前关键帧索引
                     _keyframeManager.UpdateKeyframeIndex(closestIndex);
 
-                    // 🔧 修复：点击跳转时，先停止任何正在进行的滚动动画，确保直接跳转
+                    // 修复：点击跳转时，先停止任何正在进行的滚动动画，确保直接跳转
                     if (_keyframeManager.IsScrolling)
                     {
                         _keyframeManager.StopScrollAnimation();
@@ -406,7 +406,7 @@ namespace ImageColorChanger.UI
                         double targetOffset = closestKeyframe.YPosition;
                         ImageScrollViewer.ScrollToVerticalOffset(targetOffset);
                         
-                        ShowStatus($"🎯 跳转到关键帧 #{closestIndex + 1}/{keyframes.Count}");
+                        ShowStatus($"跳转到关键帧 #{closestIndex + 1}/{keyframes.Count}");
                         
                         // 刷新预览线显示
                         UpdatePreviewLines();
@@ -415,7 +415,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 点击跳转失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 点击跳转失败: {ex.Message}");
             }
         }
 
@@ -426,7 +426,7 @@ namespace ImageColorChanger.UI
         {
             var menu = new ContextMenu();
             
-            // 🔑 应用自定义样式
+            // 应用自定义样式
             menu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
             
             // 菜单标题
@@ -481,7 +481,7 @@ namespace ImageColorChanger.UI
             {
                 if (_keyframeManager == null)
                 {
-                    ShowStatus("❌ 关键帧系统未初始化");
+                    ShowStatus("关键帧系统未初始化");
                     return;
                 }
 
@@ -502,22 +502,22 @@ namespace ImageColorChanger.UI
                     
                     if (loopCount.HasValue)
                     {
-                        ShowStatus($"✅ 已设置循环提示: {loopCount}遍");
+                        ShowStatus($"已设置循环提示: {loopCount}遍");
                     }
                     else
                     {
-                        ShowStatus($"✅ 已清除循环提示");
+                        ShowStatus($"已清除循环提示");
                     }
                 }
                 else
                 {
-                    ShowStatus("❌ 设置失败");
+                    ShowStatus("设置失败");
                 }
             }
             catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 设置循环次数失败: {ex.Message}");
-                ShowStatus($"❌ 设置失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 设置循环次数失败: {ex.Message}");
+                ShowStatus($"设置失败: {ex.Message}");
             }
         }
 
@@ -549,7 +549,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 加载滚动速度失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 加载滚动速度失败: {ex.Message}");
             }
         }
         
@@ -581,7 +581,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 保存滚动速度失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 保存滚动速度失败: {ex.Message}");
             }
         }
         
@@ -611,13 +611,13 @@ namespace ImageColorChanger.UI
                         
                         // 保存到数据库
                         SaveScrollSpeedSettings();
-                        ShowStatus($"✅ 滚动速度已设置为 {speed}秒");
+                        ShowStatus($"滚动速度已设置为 {speed}秒");
                     }
                 }
             }
             catch
             {
-                ShowStatus($"❌ 设置滚动速度失败");
+                ShowStatus($"设置滚动速度失败");
             }
         }
         
@@ -651,7 +651,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 更新菜单选中状态失败: {ex.Message}");
             }
         }
         
@@ -681,7 +681,7 @@ namespace ImageColorChanger.UI
                             _keyframeManager.IsLinearScrolling = true;
                         }
                         
-                        ShowStatus($"✅ 滚动函数已设置为 线性滚动");
+                        ShowStatus($"滚动函数已设置为 线性滚动");
                     }
                     else
                     {
@@ -696,7 +696,7 @@ namespace ImageColorChanger.UI
                             _keyframeManager.ScrollEasingType = easingName;
                         }
                         
-                        ShowStatus($"✅ 滚动函数已设置为 {GetEasingDisplayName(easingName)}");
+                        ShowStatus($"滚动函数已设置为 {GetEasingDisplayName(easingName)}");
                     }
                     
                     // 更新菜单选中状态
@@ -706,7 +706,7 @@ namespace ImageColorChanger.UI
             }
             catch
             {
-                ShowStatus($"❌ 设置滚动函数失败");
+                ShowStatus($"设置滚动函数失败");
             }
         }
         
@@ -753,7 +753,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"⚠️ 更新菜单选中状态失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 更新菜单选中状态失败: {ex.Message}");
             }
         }
         
@@ -788,7 +788,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 保存滚动函数失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 保存滚动函数失败: {ex.Message}");
             }
         }
         
@@ -843,13 +843,13 @@ namespace ImageColorChanger.UI
                     dbContext.SaveChanges();
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("✅ 已设置默认滚动函数为线性");
+                    System.Diagnostics.Debug.WriteLine(" 已设置默认滚动函数为线性");
                     #endif
                 }
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 加载滚动函数失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 加载滚动函数失败: {ex.Message}");
             }
         }
         
@@ -908,7 +908,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 检查原图模式失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 检查原图模式失败: {ex.Message}");
                 return false;
             }
         }
@@ -928,12 +928,12 @@ namespace ImageColorChanger.UI
 
                 // 调用媒体播放器的上一曲功能
                 _videoPlayerManager.PlayPrevious();
-                ShowStatus("⏮️ 切换到上一个媒体文件");
+                ShowStatus("切换到上一个媒体文件");
             }
             catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 切换上一个媒体失败: {ex.Message}");
-                ShowStatus($"❌ 切换失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 切换上一个媒体失败: {ex.Message}");
+                ShowStatus($"切换失败: {ex.Message}");
             }
             return Task.CompletedTask;
         }
@@ -953,12 +953,12 @@ namespace ImageColorChanger.UI
 
                 // 调用媒体播放器的下一曲功能
                 _videoPlayerManager.PlayNext();
-                ShowStatus("⏭️ 切换到下一个媒体文件");
+                ShowStatus("切换到下一个媒体文件");
             }
             catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($"❌ 切换下一个媒体失败: {ex.Message}");
-                ShowStatus($"❌ 切换失败: {ex.Message}");
+                // System.Diagnostics.Debug.WriteLine($" 切换下一个媒体失败: {ex.Message}");
+                ShowStatus($"切换失败: {ex.Message}");
             }
             return Task.CompletedTask;
         }
@@ -1008,7 +1008,7 @@ namespace ImageColorChanger.UI
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ Toast显示异常: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($" Toast显示异常: {ex.Message}");
                 }
             });
         }
@@ -1017,3 +1017,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

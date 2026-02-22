@@ -14,10 +14,11 @@ namespace ImageColorChanger.UI
         {
             return playMode switch
             {
-                "sequential" => ("SortAscending", ICON_COLOR_SEQUENTIAL),
-                "random" => ("Shuffle", ICON_COLOR_RANDOM),
-                "loop_all" => ("Repeat", ICON_COLOR_LOOP),
-                _ => ("Shuffle", ICON_COLOR_RANDOM)
+                "sequential" => ("FolderArrowUpDownOutline", ICON_COLOR_SEQUENTIAL),
+                "random" => ("FolderArrowRightOutline", ICON_COLOR_RANDOM),
+                "loop_all" => ("FolderSyncOutline", ICON_COLOR_LOOP),
+                "loop_one" => ("FolderPlayOutline", ICON_COLOR_LOOP),
+                _ => ("FolderArrowRightOutline", ICON_COLOR_RANDOM)
             };
         }
     }

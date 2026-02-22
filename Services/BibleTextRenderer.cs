@@ -24,7 +24,7 @@ namespace ImageColorChanger.Services
             _fontService = fontService ?? App.GetRequiredService<SkiaFontService>() ?? throw new InvalidOperationException("SkiaFontService is not available.");
             
             #if DEBUG
-            Debug.WriteLine($"✅ [BibleTextRenderer] 初始化完成");
+            Debug.WriteLine($" [BibleTextRenderer] 初始化完成");
             Debug.WriteLine($"   样式布局: {_config.Style}");
             Debug.WriteLine($"   统一字体: {_config.FontFamily}");
             Debug.WriteLine($"   标题: {_config.TitleStyle.FontSize}pt, 粗体={_config.TitleStyle.IsBold}");
@@ -86,7 +86,7 @@ namespace ImageColorChanger.Services
         {
             using (var font = new SKFont())
             {
-                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                //  使用SkiaFontService加载字体（支持自定义字体文件）
                 font.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.TitleStyle.IsBold,
@@ -95,7 +95,7 @@ namespace ImageColorChanger.Services
                 font.Size = _config.TitleStyle.FontSize;
                 font.Subpixel = true;
                 
-                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.TitleStyle.IsBold)
                 {
                     font.Embolden = true;
@@ -126,7 +126,7 @@ namespace ImageColorChanger.Services
         {
             using (var font = new SKFont())
             {
-                // ✅ 使用SkiaFontService加载字体（支持自定义字体文件）
+                //  使用SkiaFontService加载字体（支持自定义字体文件）
                 font.Typeface = _fontService.GetTypeface(
                     _config.FontFamily,
                     _config.VerseStyle.IsBold,
@@ -135,7 +135,7 @@ namespace ImageColorChanger.Services
                 font.Size = _config.VerseStyle.FontSize;
                 font.Subpixel = true;
                 
-                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.VerseStyle.IsBold)
                 {
                     font.Embolden = true;
@@ -191,7 +191,7 @@ namespace ImageColorChanger.Services
                 verseFont.Size = _config.VerseStyle.FontSize;
                 verseFont.Subpixel = true;
                 
-                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.VerseStyle.IsBold)
                 {
                     verseFont.Embolden = true;
@@ -206,7 +206,7 @@ namespace ImageColorChanger.Services
                 titleFont.Size = _config.TitleStyle.FontSize;
                 titleFont.Subpixel = true;
                 
-                // 🔧 如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
+                //  如果需要加粗，启用伪加粗（对于不支持加粗的自定义字体）
                 if (_config.TitleStyle.IsBold)
                 {
                     titleFont.Embolden = true;
@@ -314,4 +314,5 @@ namespace ImageColorChanger.Services
         }
     }
 }
+
 

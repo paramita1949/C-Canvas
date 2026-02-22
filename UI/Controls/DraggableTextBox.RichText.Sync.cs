@@ -42,7 +42,7 @@ namespace ImageColorChanger.UI.Controls
 
             {
 
-                // ✅ 遍历所有段落，保留段落之间的换行符
+                //  遍历所有段落，保留段落之间的换行符
 
                 // 使用 textRange.Text 会丢失换行符，导致文本顺序错乱
 
@@ -162,7 +162,7 @@ namespace ImageColorChanger.UI.Controls
 
                 //string preview = Data.Content.Length > 100 ? Data.Content.Substring(0, 100) + "..." : Data.Content;
 
-                //System.Diagnostics.Debug.WriteLine($"✅ [SyncTextFromRichTextBox] 同步完成，段落数={_richTextBox.Document.Blocks.Count}, 文本长度={Data.Content.Length}, 预览={preview.Replace("\r\n", "\\n")}");
+                //System.Diagnostics.Debug.WriteLine($" [SyncTextFromRichTextBox] 同步完成，段落数={_richTextBox.Document.Blocks.Count}, 文本长度={Data.Content.Length}, 预览={preview.Replace("\r\n", "\\n")}");
 
 #endif
 
@@ -174,7 +174,7 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                //System.Diagnostics.Debug.WriteLine($"❌ [SyncTextFromRichTextBox] 失败");
+                //System.Diagnostics.Debug.WriteLine($" [SyncTextFromRichTextBox] 失败");
 
 #endif
 
@@ -196,7 +196,7 @@ namespace ImageColorChanger.UI.Controls
 
             {
 
-                // 🔧 设置同步标志，防止 TextChanged 事件循环
+                // 设置同步标志，防止 TextChanged 事件循环
 
                 _isSyncing = true;
 
@@ -206,7 +206,7 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 🔧 如果有 RichTextSpans，渲染富文本片段
+                // 如果有 RichTextSpans，渲染富文本片段
 
                 if (Data.RichTextSpans != null && Data.RichTextSpans.Count > 0)
 
@@ -214,11 +214,11 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                    //System.Diagnostics.Debug.WriteLine($"📥 [加载RichTextSpans] 文本框 ID={Data.Id} 开始加载 {Data.RichTextSpans.Count} 个片段");
+                    //System.Diagnostics.Debug.WriteLine($"[加载RichTextSpans] 文本框 ID={Data.Id} 开始加载 {Data.RichTextSpans.Count} 个片段");
 
 #endif
 
-                    // ✅ 关键修复：根据 Data.Content 中的换行符来分割段落
+                    //  关键修复：根据 Data.Content 中的换行符来分割段落
 
                     // 这样可以保留段落结构，即使 RichTextSpans 中没有段落分隔信息
 
@@ -404,7 +404,7 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                    //System.Diagnostics.Debug.WriteLine($"✅ [加载RichTextSpans] 加载完成，段落数={_richTextBox.Document.Blocks.Count}");
+                    //System.Diagnostics.Debug.WriteLine($" [加载RichTextSpans] 加载完成，段落数={_richTextBox.Document.Blocks.Count}");
 
 #endif
 
@@ -414,7 +414,7 @@ namespace ImageColorChanger.UI.Controls
 
                 {
 
-                    // ✅ 普通文本：按换行符分割为多个段落，保留文本顺序
+                    //  普通文本：按换行符分割为多个段落，保留文本顺序
 
                     string content = Data.Content ?? "";
 
@@ -514,7 +514,7 @@ namespace ImageColorChanger.UI.Controls
 
 #if DEBUG
 
-                System.Diagnostics.Debug.WriteLine($"❌ [SyncTextToRichTextBox] 失败");
+                System.Diagnostics.Debug.WriteLine($" [SyncTextToRichTextBox] 失败");
 
 #endif
 
@@ -524,7 +524,7 @@ namespace ImageColorChanger.UI.Controls
 
             {
 
-                // 🔧 清除同步标志
+                // 清除同步标志
 
                 _isSyncing = false;
 
@@ -535,3 +535,5 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+
+

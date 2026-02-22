@@ -39,7 +39,7 @@ namespace ImageColorChanger.UI
 
                 sw.Stop();
                 string direction = isNext ? "下一张" : "上一张";
-                ShowStatus($"✅ 已切换到{direction}相似图片: {Path.GetFileName(result.newImagePath)}");
+                ShowStatus($"已切换到{direction}相似图片: {Path.GetFileName(result.newImagePath)}");
                 return true;
             }
 
@@ -146,3 +146,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

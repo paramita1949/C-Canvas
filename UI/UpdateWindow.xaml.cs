@@ -78,14 +78,14 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                ProgressText.Text = "✅ 下载完成！准备安装...";
+                ProgressText.Text = "下载完成！准备安装...";
                 DownloadProgress.Value = 100;
                 await Task.Delay(800);
 
                 // 倒计时5秒后自动安装
                 for (int i = 5; i > 0; i--)
                 {
-                    ProgressText.Text = $"✅ 下载完成！{i}秒后自动安装...";
+                    ProgressText.Text = $"下载完成！{i}秒后自动安装...";
                     await Task.Delay(1000);
                 }
 
@@ -129,4 +129,6 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+
 

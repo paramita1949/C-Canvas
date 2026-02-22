@@ -16,34 +16,48 @@
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BtnMediaPrev"
-                        Content="⏮"
                         Width="40"
                         Height="40"
                         ToolTip="上一首"
-                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
+                    <Path Data="{StaticResource IconLucideSkipBack}"
+                          Style="{StaticResource LucideIconPathStyle}"
+                          Stroke="White"/>
+                </Button>
 
                 <Button x:Name="BtnMediaPlayPause"
-                        Content="▶"
                         Width="50"
                         Height="50"
                         Margin="10,0"
                         ToolTip="播放/暂停"
-                        Style="{StaticResource MaterialDesignFloatingActionButton}"/>
+                        Style="{StaticResource MaterialDesignFloatingActionButton}">
+                    <Path Data="{StaticResource IconLucidePlay}"
+                          Style="{StaticResource LucideIconPathStyle}"
+                          Width="20"
+                          Height="20"
+                          Stroke="White"/>
+                </Button>
 
                 <Button x:Name="BtnMediaNext"
-                        Content="⏭"
                         Width="40"
                         Height="40"
                         ToolTip="下一首"
-                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
+                    <Path Data="{StaticResource IconLucideSkipForward}"
+                          Style="{StaticResource LucideIconPathStyle}"
+                          Stroke="White"/>
+                </Button>
 
                 <Button x:Name="BtnMediaStop"
-                        Content="⏹"
                         Width="40"
                         Height="40"
                         Margin="10,0,0,0"
                         ToolTip="停止"
-                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
+                    <Path Data="{StaticResource IconLucideStop}"
+                          Style="{StaticResource LucideIconPathStyle}"
+                          Stroke="White"/>
+                </Button>
             </StackPanel>
 
             <Grid Grid.Column="1" Margin="20,0">
@@ -69,16 +83,21 @@
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BtnPlayMode"
-                        Content="🔀"
                         Width="40"
                         Height="40"
                         ToolTip="播放模式：随机 (默认)"
-                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}"/>
+                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
+                    <Path Data="{StaticResource IconLucideShuffle}"
+                          Style="{StaticResource LucideIconPathStyle}"
+                          Stroke="White"/>
+                </Button>
 
-                <TextBlock Text="🔊"
-                           FontSize="18"
+                <Path Data="{StaticResource IconLucideVolume2}"
+                      Style="{StaticResource LucideIconPathStyle}"
+                      Width="18"
+                      Height="18"
                            VerticalAlignment="Center"
-                           Foreground="White"
+                      Stroke="White"
                            Margin="15,0,5,0"/>
 
                 <Slider x:Name="VolumeSlider"
@@ -91,3 +110,4 @@
         </Grid>
     </Border>
 </UserControl>
+

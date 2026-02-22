@@ -49,7 +49,7 @@ namespace ImageColorChanger.UI
                     string colorHex = $"#{selectedColor.R:X2}{selectedColor.G:X2}{selectedColor.B:X2}";
 
                     dbManager.SetFolderHighlightColor(item.Id, colorHex);
-                    ShowStatus($"✅ 已设置文件夹 [{item.Name}] 的高亮颜色: {colorHex}");
+                    ShowStatus($"已设置文件夹 [{item.Name}] 的高亮颜色: {colorHex}");
 
                     LoadProjects();
 
@@ -132,7 +132,7 @@ namespace ImageColorChanger.UI
                 }
 
                 LoadProjects();
-                ShowStatus($"✅ 已重置文件夹排序: {item.Name}");
+                ShowStatus($"已重置文件夹排序: {item.Name}");
             }
             catch (Exception ex)
             {
@@ -141,3 +141,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

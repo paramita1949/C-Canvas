@@ -7,10 +7,13 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Lime" />
+                <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="Blue" SecondaryColor="Teal" />
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
                 <ResourceDictionary Source="UI/Resources/Styles/MainWindow.BaseStyles.xaml" />
+                <ResourceDictionary Source="UI/Resources/Styles/CommonWindow.Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <Color x:Key="ColorGlobalIcon">#917878</Color>
+            <SolidColorBrush x:Key="BrushGlobalIcon" Color="{StaticResource ColorGlobalIcon}"/>
             <converters:ThumbnailPathToImageSourceConverter x:Key="ThumbnailPathToImageSourceConverter"/>
         </ResourceDictionary>
     </Application.Resources>

@@ -23,7 +23,7 @@ namespace ImageColorChanger.UI
                 double newZoom = _currentZoom + delta;
                 newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
                 
-                // 🔧 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
+                // 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
                 // 避免双重缩放导致的拉伸变形问题
                 if (_imageProcessor != null && !_originalMode)
                 {
@@ -143,12 +143,12 @@ namespace ImageColorChanger.UI
             if (_originalDisplayMode == OriginalDisplayMode.Stretch)
             {
                 _originalDisplayMode = OriginalDisplayMode.Fit;
-                ShowStatus("✅ 原图模式: 适中显示");
+                ShowStatus("原图模式: 适中显示");
             }
             else
             {
                 _originalDisplayMode = OriginalDisplayMode.Stretch;
-                ShowStatus("✅ 原图模式: 拉伸显示");
+                ShowStatus("原图模式: 拉伸显示");
             }
             
             // 更新ImageProcessor的显示模式
@@ -202,4 +202,7 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
+
+
+
 

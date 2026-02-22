@@ -110,17 +110,17 @@ namespace ImageColorChanger.Services.Implementations
                     _recordingData.Add(timingDto);
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"📹 [录制] 记录关键帧: KeyframeId={keyframeId}, Duration={duration:F2}秒, SequenceOrder={timingDto.SequenceOrder}, 总记录数={_recordingData.Count}");
+                    System.Diagnostics.Debug.WriteLine($" [录制] 记录关键帧: KeyframeId={keyframeId}, Duration={duration:F2}秒, SequenceOrder={timingDto.SequenceOrder}, 总记录数={_recordingData.Count}");
                     if (duration <= 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"   ⚠️ [录制] 注意：Duration为0或负数，可能是快速切换");
+                        System.Diagnostics.Debug.WriteLine($"    [录制] 注意：Duration为0或负数，可能是快速切换");
                     }
                     #endif
                 }
                 else
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [录制] 找不到关键帧: KeyframeId={keyframeId}");
+                    System.Diagnostics.Debug.WriteLine($" [录制] 找不到关键帧: KeyframeId={keyframeId}");
                     #endif
                 }
 
@@ -130,7 +130,7 @@ namespace ImageColorChanger.Services.Implementations
             }
             catch (Exception)
             {
-                //System.Diagnostics.Debug.WriteLine($"❌ [RecordTiming] 错误详情: {ex}");
+                //System.Diagnostics.Debug.WriteLine($" [RecordTiming] 错误详情: {ex}");
                 throw;
             }
         }
@@ -148,7 +148,7 @@ namespace ImageColorChanger.Services.Implementations
             if (_recordingData.Any())
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"💾 [录制完成] 准备保存 {_recordingData.Count} 条记录:");
+                System.Diagnostics.Debug.WriteLine($" [录制完成] 准备保存 {_recordingData.Count} 条记录:");
                 for (int i = 0; i < _recordingData.Count; i++)
                 {
                     var t = _recordingData[i];
@@ -158,12 +158,12 @@ namespace ImageColorChanger.Services.Implementations
                 
                 await _timingRepository.BatchSaveTimingsAsync(_currentImageId, _recordingData);
 
-                // 🎬 自动更新合成脚本的总时长（从关键帧时间累计）
+                //  自动更新合成脚本的总时长（从关键帧时间累计）
                 double totalDuration = _recordingData.Sum(t => t.Duration);
                 await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, totalDuration, autoCalculate: true);
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 录制完成，自动更新合成脚本总时长: {totalDuration:F2}秒");
+                System.Diagnostics.Debug.WriteLine($" 录制完成，自动更新合成脚本总时长: {totalDuration:F2}秒");
                 #endif
             }
             else
@@ -189,4 +189,5 @@ namespace ImageColorChanger.Services.Implementations
         }
     }
 }
+
 

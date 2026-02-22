@@ -145,7 +145,7 @@ namespace ImageColorChanger.Services.Implementations
             // 1. 获取合成脚本（优先从CompositeScript读取时间配置）
             var compositeScript = await _compositeScriptRepository.GetByImageIdAsync(imageId);
             
-            // 🔧 如果脚本存在但使用的是旧的默认值（105秒），且不是自动计算的，则更新为JSON配置的默认值
+            //  如果脚本存在但使用的是旧的默认值（105秒），且不是自动计算的，则更新为JSON配置的默认值
             if (compositeScript != null && !compositeScript.AutoCalculate)
             {
                 const double OLD_DEFAULT_DURATION = 105.0;
@@ -156,7 +156,7 @@ namespace ImageColorChanger.Services.Implementations
                     compositeScript.UpdatedAt = DateTime.Now;
                     await _compositeScriptRepository.CreateOrUpdateAsync(imageId, _configManager.CompositePlaybackDefaultDuration, autoCalculate: false);
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"🔄 更新脚本默认时间: {OLD_DEFAULT_DURATION}秒 -> {_configManager.CompositePlaybackDefaultDuration}秒");
+                    System.Diagnostics.Debug.WriteLine($" 更新脚本默认时间: {OLD_DEFAULT_DURATION}秒 -> {_configManager.CompositePlaybackDefaultDuration}秒");
                     #endif
                 }
             }
@@ -176,7 +176,7 @@ namespace ImageColorChanger.Services.Implementations
             {
                 // 模式1：有关键帧和时间序列 - 使用关键帧模式播放
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式1：有关键帧和时间序列");
+                //System.Diagnostics.Debug.WriteLine($" 合成播放模式1：有关键帧和时间序列");
                 //#endif
 
                 // 计算总时长（从时间序列累计）
@@ -201,7 +201,7 @@ namespace ImageColorChanger.Services.Implementations
                 {
                     // 模式2a：有多个关键帧 - 从第一帧滚动到最后一帧
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
+                    //System.Diagnostics.Debug.WriteLine($" 合成播放模式2a：有多个关键帧但无录制数据，从第一帧滚动到最后一帧");
                     //#endif
 
                     // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
@@ -240,7 +240,7 @@ namespace ImageColorChanger.Services.Implementations
                 {
                     // 模式2b：只有一个关键帧 - 从该关键帧滚动到底部
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
+                    //System.Diagnostics.Debug.WriteLine($" 合成播放模式2b：只有一个关键帧，从该关键帧滚动到底部");
                     //#endif
 
                     // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
@@ -259,7 +259,7 @@ namespace ImageColorChanger.Services.Implementations
                     var heightArgs = new ScrollableHeightRequestEventArgs();
                     ScrollableHeightRequested?.Invoke(this, heightArgs);
                     
-                    // 📏 只滚动到75%的位置，保留底部25%内容可见
+                    //  只滚动到75%的位置，保留底部25%内容可见
                     double fullScrollableHeight = heightArgs.ScrollableHeight > 0 ? heightArgs.ScrollableHeight : 10000;
                     _endPosition = _startPosition + (fullScrollableHeight - _startPosition) * 0.75;
 
@@ -289,7 +289,7 @@ namespace ImageColorChanger.Services.Implementations
             {
                 // 模式3：无关键帧 - 从顶部滚动到底部，使用TOTAL时间（从配置读取默认值）
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"📊 合成播放模式3：无关键帧，从顶部滚动");
+                //System.Diagnostics.Debug.WriteLine($" 合成播放模式3：无关键帧，从顶部滚动");
                 //#endif
 
                 // 从CompositeScript获取TOTAL时间，如果没有则使用配置的默认时间
@@ -311,7 +311,7 @@ namespace ImageColorChanger.Services.Implementations
                 var heightArgs = new ScrollableHeightRequestEventArgs();
                 ScrollableHeightRequested?.Invoke(this, heightArgs);
                 
-                // 📏 只滚动到75%的位置，保留底部25%内容可见
+                //  只滚动到75%的位置，保留底部25%内容可见
                 double fullScrollableHeight = heightArgs.ScrollableHeight > 0 ? heightArgs.ScrollableHeight : 10000;
                 _endPosition = fullScrollableHeight * 0.75;
                 
@@ -340,7 +340,7 @@ namespace ImageColorChanger.Services.Implementations
             {
                 // 理论上不应该到这里
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ 未知的播放模式组合");
+                System.Diagnostics.Debug.WriteLine($" 未知的播放模式组合");
                 #endif
                 return;
             }
@@ -461,7 +461,7 @@ namespace ImageColorChanger.Services.Implementations
                         if (segment.Type == SegmentType.Scroll)
                         {
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"🎬 [CompositePlaybackService] ========== 触发滚动段 ==========");
+                            //System.Diagnostics.Debug.WriteLine($" [CompositePlaybackService] ========== 触发滚动段 ==========");
                             //System.Diagnostics.Debug.WriteLine($"   起始位置: {segment.StartPosition:F1}");
                             //System.Diagnostics.Debug.WriteLine($"   结束位置: {segment.EndPosition:F1}");
                             //System.Diagnostics.Debug.WriteLine($"   时长: {segment.Duration:F1}秒");
@@ -472,7 +472,7 @@ namespace ImageColorChanger.Services.Implementations
                             // 滚动段：触发滚动请求
                             // 触发当前关键帧变化事件（滚动到目标关键帧）
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   📢 [CompositePlaybackService] 触发 CurrentKeyframeChanged 事件");
+                            //System.Diagnostics.Debug.WriteLine($"    [CompositePlaybackService] 触发 CurrentKeyframeChanged 事件");
                             //#endif
                             CurrentKeyframeChanged?.Invoke(this, new CurrentKeyframeChangedEventArgs
                             {
@@ -481,13 +481,13 @@ namespace ImageColorChanger.Services.Implementations
                             });
                             
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   📢 [CompositePlaybackService] 触发 ScrollRequested 事件");
+                            //System.Diagnostics.Debug.WriteLine($"    [CompositePlaybackService] 触发 ScrollRequested 事件");
                             //#endif
-                            // 🔧 直接加速滚动动画，不改变时长
+                            //  直接加速滚动动画，不改变时长
                             // 动画时长保持原始值，通过SpeedRatio加速动画播放
                             
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   ⚡ [滚动段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x (直接加速动画)");
+                            System.Diagnostics.Debug.WriteLine($"    [滚动段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x (直接加速动画)");
                             #endif
                             
                             ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
@@ -521,11 +521,11 @@ namespace ImageColorChanger.Services.Implementations
                                 YPosition = segment.StartPosition
                             });
                             
-                            // 🔧 停留段：直接加速等待时间
+                            //  停留段：直接加速等待时间
                             double adjustedDuration = segment.Duration / Speed;
                             
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"   ⚡ [停留段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x, 调整后: {adjustedDuration:F2}秒");
+                            System.Diagnostics.Debug.WriteLine($"    [停留段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x, 调整后: {adjustedDuration:F2}秒");
                             #endif
                             
                             // 触发进度更新（显示倒计时，显示加速后的时间）
@@ -558,7 +558,7 @@ namespace ImageColorChanger.Services.Implementations
                     if (PlayCount == -1 || CompletedPlayCount < PlayCount)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($"🔄 新一轮播放开始，保持当前速度 {Speed:F2}x");
+                        System.Diagnostics.Debug.WriteLine($" 新一轮播放开始，保持当前速度 {Speed:F2}x");
                         #endif
                         
                         // 触发跳回起始位置的事件
@@ -683,19 +683,19 @@ namespace ImageColorChanger.Services.Implementations
             // 获取已播放的时间（秒）
             double elapsedSeconds = _playbackStopwatch.Elapsed.TotalSeconds;
             
-            // 🔧 现在使用SpeedRatio直接加速动画，实际播放时间就是原始时间
+            //  现在使用SpeedRatio直接加速动画，实际播放时间就是原始时间
             // 不需要转换，因为动画时长保持不变，只是播放速度加快
             double elapsedSecondsOriginal = elapsedSeconds;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⏱️ 更新TOTAL时间: {elapsedSeconds:F2}秒 (调整后) -> {elapsedSecondsOriginal:F2}秒 (原始, 速度: {Speed:F2}x)");
+            System.Diagnostics.Debug.WriteLine($"⏱ 更新TOTAL时间: {elapsedSeconds:F2}秒 (调整后) -> {elapsedSecondsOriginal:F2}秒 (原始, 速度: {Speed:F2}x)");
             #endif
 
             // 如果时间太短（小于1秒），忽略
             if (elapsedSecondsOriginal < 1.0)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ 播放时间太短，忽略更新");
+                System.Diagnostics.Debug.WriteLine($" 播放时间太短，忽略更新");
                 #endif
                 return;
             }
@@ -707,7 +707,7 @@ namespace ImageColorChanger.Services.Implementations
             await _compositeScriptRepository.CreateOrUpdateAsync(_currentImageId, elapsedSecondsOriginal, autoCalculate: false);
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ 已更新TOTAL时间为 {elapsedSecondsOriginal:F2}秒 (考虑速度 {Speed:F2}x)，重新开始循环播放");
+            System.Diagnostics.Debug.WriteLine($" 已更新TOTAL时间为 {elapsedSecondsOriginal:F2}秒 (考虑速度 {Speed:F2}x)，重新开始循环播放");
             #endif
 
             // 短暂延迟，确保停止完成
@@ -734,7 +734,7 @@ namespace ImageColorChanger.Services.Implementations
             if (speed <= 0)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"⚠️ 无效的速度值: {speed}，必须大于0");
+                System.Diagnostics.Debug.WriteLine($" 无效的速度值: {speed}，必须大于0");
                 #endif
                 return;
             }
@@ -752,7 +752,7 @@ namespace ImageColorChanger.Services.Implementations
             Speed = speed;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"⚡ 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
+            System.Diagnostics.Debug.WriteLine($" 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
             #endif
 
             // 如果正在播放，且当前有正在播放的段，需要立即应用新速度
@@ -795,7 +795,7 @@ namespace ImageColorChanger.Services.Implementations
                 double remainingAdjustedTime = remainingOriginalTime / Speed;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"   🔄 [速度调整] 已播放调整: {elapsedAdjustedTime:F2}秒, 已播放原始: {elapsedOriginalTime:F2}秒");
+                System.Diagnostics.Debug.WriteLine($"    [速度调整] 已播放调整: {elapsedAdjustedTime:F2}秒, 已播放原始: {elapsedOriginalTime:F2}秒");
                 System.Diagnostics.Debug.WriteLine($"      剩余原始: {remainingOriginalTime:F2}秒, 剩余调整: {remainingAdjustedTime:F2}秒 (新速度: {Speed:F2}x)");
                 #endif
                 
@@ -819,7 +819,7 @@ namespace ImageColorChanger.Services.Implementations
                     double actualStartPosition = Math.Min(currentScrollPosition, _currentSegment.EndPosition);
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"   📍 [速度调整] 当前滚动位置: {currentScrollPosition:F1}, 使用位置: {actualStartPosition:F1}, 目标位置: {_currentSegment.EndPosition:F1}");
+                    System.Diagnostics.Debug.WriteLine($"    [速度调整] 当前滚动位置: {currentScrollPosition:F1}, 使用位置: {actualStartPosition:F1}, 目标位置: {_currentSegment.EndPosition:F1}");
                     #endif
                     
                     // 更新段开始时间和速度（重新开始计时）
@@ -849,7 +849,7 @@ namespace ImageColorChanger.Services.Implementations
             #if DEBUG
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ 应用速度到当前段失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" 应用速度到当前段失败: {ex.Message}");
             }
             #else
             catch (Exception)
@@ -925,7 +925,7 @@ namespace ImageColorChanger.Services.Implementations
             #if DEBUG
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ WaitWithSpeedAdjustment 异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($" WaitWithSpeedAdjustment 异常: {ex.Message}");
             }
             #else
             catch (Exception)
@@ -1043,4 +1043,6 @@ namespace ImageColorChanger.Services.Implementations
         public double CurrentScrollPosition { get; set; }
     }
 }
+
+
 

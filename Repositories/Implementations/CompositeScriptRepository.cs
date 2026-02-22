@@ -46,7 +46,7 @@ namespace ImageColorChanger.Repositories.Implementations
                 await _context.SaveChangesAsync();
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
+                System.Diagnostics.Debug.WriteLine($" 更新合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
                 #endif
 
                 return existing;
@@ -66,7 +66,7 @@ namespace ImageColorChanger.Repositories.Implementations
             await _context.SaveChangesAsync();
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"✅ 创建合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
+            System.Diagnostics.Debug.WriteLine($" 创建合成脚本: ImageId={imageId}, TotalDuration={totalDuration:F2}秒, AutoCalculate={autoCalculate}");
             #endif
 
             return newScript;
@@ -88,7 +88,7 @@ namespace ImageColorChanger.Repositories.Implementations
                 await _context.SaveChangesAsync();
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 更新合成脚本总时长: ImageId={imageId}, TotalDuration={totalDuration:F2}秒");
+                System.Diagnostics.Debug.WriteLine($" 更新合成脚本总时长: ImageId={imageId}, TotalDuration={totalDuration:F2}秒");
                 #endif
                 return;
             }
@@ -110,7 +110,7 @@ namespace ImageColorChanger.Repositories.Implementations
                 await _context.SaveChangesAsync();
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"✅ 删除合成脚本: ImageId={imageId}");
+                System.Diagnostics.Debug.WriteLine($" 删除合成脚本: ImageId={imageId}");
                 #endif
             }
         }
@@ -125,4 +125,5 @@ namespace ImageColorChanger.Repositories.Implementations
         }
     }
 }
+
 

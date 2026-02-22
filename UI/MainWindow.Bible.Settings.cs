@@ -55,14 +55,14 @@ namespace ImageColorChanger.UI
                     async () =>
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("🔄 [圣经设置] 译本切换，重新加载经文");
+                        System.Diagnostics.Debug.WriteLine(" [圣经设置] 译本切换，重新加载经文");
                         #endif
                         
                         // 应用设置
                         ApplyBibleSettings();
                         ApplyBibleSearchResultFontSizes();
 
-                        // 🔄 重新加载当前章节
+                        //  重新加载当前章节
                         if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)
                         {
                             await LoadChapterVersesAsync(_currentBook, _currentChapter);
@@ -79,7 +79,7 @@ namespace ImageColorChanger.UI
                             }
                             else
                             {
-                                // 📌 非锁定模式：更新当前章节的投影
+                                // 非锁定模式：更新当前章节的投影
                                 RenderBibleToProjection();
                             }
                         }
@@ -88,7 +88,7 @@ namespace ImageColorChanger.UI
                     async () =>
                     {
                         //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine("🎨 [圣经设置] 样式改变，刷新显示");
+                        //System.Diagnostics.Debug.WriteLine("[圣经设置] 样式改变，刷新显示");
                         //#endif
                         
                         // 应用设置
@@ -127,7 +127,7 @@ namespace ImageColorChanger.UI
                 this.PreviewMouseDown -= MainWindow_SettingsClose_PreviewMouseDown; // 先移除避免重复
                 this.PreviewMouseDown += MainWindow_SettingsClose_PreviewMouseDown;
 
-                // 🔧 计算窗口位置：统一定位在设置按钮的右边
+                // 计算窗口位置：统一定位在设置按钮的右边
                 if (_configManager.BibleSettingsWindowLeft.HasValue && _configManager.BibleSettingsWindowTop.HasValue)
                 {
                     _bibleSettingsWindow.Left = _configManager.BibleSettingsWindowLeft.Value;
@@ -135,12 +135,12 @@ namespace ImageColorChanger.UI
                 }
                 else if (BtnBibleSettings != null)
                 {
-                    // 🔧 相对于主窗口定位，避免屏幕坐标转换问题
+                    // 相对于主窗口定位，避免屏幕坐标转换问题
                     // 获取按钮相对于主窗口的位置
                     var buttonPos = BtnBibleSettings.TransformToAncestor(this)
                         .Transform(new System.Windows.Point(0, 0));
                     
-                    // 🔧 简单定位：窗口位置 = 主窗口位置 + 按钮相对位置 + 偏移
+                    // 简单定位：窗口位置 = 主窗口位置 + 按钮相对位置 + 偏移
                     _bibleSettingsWindow.Left = this.Left + buttonPos.X + BtnBibleSettings.ActualWidth + 20;
                     _bibleSettingsWindow.Top = this.Top + buttonPos.Y + 30;
                 }
@@ -251,17 +251,17 @@ namespace ImageColorChanger.UI
                     
                     if (hasLockedRecords)
                     {
-                        // 📌 锁定模式：译本切换时，更新锁定记录的投影
+                        // 锁定模式：译本切换时，更新锁定记录的投影
                         await UpdateProjectionFromMergedVerses();
                     }
                     else
                     {
-                        // 📌 非锁定模式：更新当前章节的投影
+                        // 非锁定模式：更新当前章节的投影
                         RenderBibleToProjection();
                     }
                 }
                 
-                ShowStatus($"✅ 已切换到: {versionName}");
+                ShowStatus($"已切换到: {versionName}");
             }
             catch (Exception ex)
             {
@@ -270,7 +270,7 @@ namespace ImageColorChanger.UI
                 //#else
                 _ = ex;
                 //#endif
-                ShowStatus($"❌ 切换译本失败");
+                ShowStatus($"切换译本失败");
             }
         }
 
@@ -280,7 +280,7 @@ namespace ImageColorChanger.UI
         private void ApplyBibleSettings()
         {
             //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"🎨 [应用圣经样式] ========== 开始 ==========");
+            //System.Diagnostics.Debug.WriteLine($"[应用圣经样式] ========== 开始 ==========");
             //#endif
 
             try
@@ -336,19 +336,19 @@ namespace ImageColorChanger.UI
                 if (BibleVerseList.Items.Count == 0)
                 {
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 列表为空，跳过样式应用");
+                    //System.Diagnostics.Debug.WriteLine($" [ApplyVerseStyles] 列表为空，跳过样式应用");
                     //#endif
                     return;
                 }
 
                 // ========================================
-                // 📌 模式判断
+                // 模式判断
                 // ========================================
                 var firstVerse = BibleVerseList.Items[0] as BibleVerse;
                 bool isLockedMode = firstVerse != null && firstVerse.Verse == 0;
 
                 //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"🔍 [ApplyVerseStyles] 开始应用样式，总共 {BibleVerseList.Items.Count} 条记录，模式={isLockedMode}");
+                //System.Diagnostics.Debug.WriteLine($"[ApplyVerseStyles] 开始应用样式，总共 {BibleVerseList.Items.Count} 条记录，模式={isLockedMode}");
                 //#endif
 
                 var textColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTextColor);
@@ -372,7 +372,7 @@ namespace ImageColorChanger.UI
                         var tempVerse = BibleVerseList.Items[i] as BibleVerse;
                         if (tempVerse != null && tempVerse.IsHighlighted)
                         {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ [ApplyVerseStyles] 容器{i}未生成（null），但该经文被高亮: {tempVerse.Reference}");
+                            System.Diagnostics.Debug.WriteLine($" [ApplyVerseStyles] 容器{i}未生成（null），但该经文被高亮: {tempVerse.Reference}");
                         }
                         #endif
                         continue;
@@ -385,11 +385,11 @@ namespace ImageColorChanger.UI
                     //#if DEBUG
                     //if (verse.IsHighlighted)
                     //{
-                    //    System.Diagnostics.Debug.WriteLine($"🔧 [ApplyVerseStyles] 处理高亮经文{i}: {verse.Reference}");
+                    //    System.Diagnostics.Debug.WriteLine($"[ApplyVerseStyles] 处理高亮经文{i}: {verse.Reference}");
                     //}
                     //#endif
 
-                    // 🔧 查找单个 TextBlock（新布局）
+                    // 查找单个 TextBlock（新布局）
                     var verseTextBlock = FindVisualChild<TextBlock>(container);
                     if (verseTextBlock != null)
                     {
@@ -398,7 +398,7 @@ namespace ImageColorChanger.UI
                         verseTextBlock.FontFamily = fontFamily;
                         
                         // ========================================
-                        // 📌 锁定模式：渲染标题行
+                        // 锁定模式：渲染标题行
                         // ========================================
                         if (verse.Verse == 0)
                         {
@@ -418,7 +418,7 @@ namespace ImageColorChanger.UI
                         else
                         {
                             // ========================================
-                            // 📌 渲染普通经文行（锁定模式和非锁定模式通用）
+                            // 渲染普通经文行（锁定模式和非锁定模式通用）
                             // ========================================
                             verseTextBlock.FontSize = _configManager.BibleFontSize;
                             verseTextBlock.FontWeight = FontWeights.Normal;
@@ -440,7 +440,7 @@ namespace ImageColorChanger.UI
                             //#if DEBUG
                             //else
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"📝 [圣经主屏] 经文{i}使用默认颜色: {verse.Reference}");
+                            //    System.Diagnostics.Debug.WriteLine($"[圣经主屏] 经文{i}使用默认颜色: {verse.Reference}");
                             //}
                             //#endif
 
@@ -487,12 +487,12 @@ namespace ImageColorChanger.UI
                     }
                     
                     // ========================================
-                    // 📌 设置Border的Margin（节间距）
+                    // 设置Border的Margin（节间距）
                     // ========================================
                     var border = FindVisualChild<Border>(container);
                     if (border != null)
                     {
-                        // 📌 锁定模式：标题行使用更大的间距（记录之间的分隔）
+                        // 锁定模式：标题行使用更大的间距（记录之间的分隔）
                         if (verse.Verse == 0)
                         {
                             // 第一个标题行：顶部间距为0（置顶显示）
@@ -502,12 +502,12 @@ namespace ImageColorChanger.UI
                             border.Margin = new Thickness(0, topMargin, 0, 15);
                             
                             //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"🔍 [主屏标题Margin] i={i}, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}(固定), 底部固定=15, 实际Margin={border.Margin}");
+                            //System.Diagnostics.Debug.WriteLine($"[主屏标题Margin] i={i}, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}(固定), 底部固定=15, 实际Margin={border.Margin}");
                             //#endif
                         }
                         else
                         {
-                            // 📌 普通经文行：第一节经文上边距固定为0（与标题间距由XAML中的Border控制），其他经文使用配置的节距
+                            // 普通经文行：第一节经文上边距固定为0（与标题间距由XAML中的Border控制），其他经文使用配置的节距
                             double topMargin = (i == 0 || (i == 1 && _mergedVerses.Count > 0 && _mergedVerses[0].Verse == 0)) 
                                 ? 0  // 第一节经文：上边距为0
                                 : _configManager.BibleVerseSpacing / 2;  // 其他经文：使用配置的节距
@@ -517,7 +517,7 @@ namespace ImageColorChanger.UI
                             //#if DEBUG
                             //if (i <= 1) // 输出前两个经文的调试信息
                             //{
-                            //    System.Diagnostics.Debug.WriteLine($"🔍 [主屏经文Margin] i={i}, 第{verse.Verse}节, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}, 实际Margin={border.Margin}");
+                            //    System.Diagnostics.Debug.WriteLine($"[主屏经文Margin] i={i}, 第{verse.Verse}节, 节距配置={_configManager.BibleVerseSpacing}, topMargin={topMargin}, 实际Margin={border.Margin}");
                             //}
                             //#endif
                         }
@@ -526,7 +526,7 @@ namespace ImageColorChanger.UI
                         //if (i == 0) // 只输出第一个经文的调试信息
                         //{
                         //    Debug.WriteLine($"");
-                        //    Debug.WriteLine($"🔧 [圣经样式应用]");
+                        //    Debug.WriteLine($"[圣经样式应用]");
                         //    Debug.WriteLine($"   字体大小: {_configManager.BibleFontSize}px");
                         //    Debug.WriteLine($"   节间距配置: {_configManager.BibleVerseSpacing}px");
                         //    Debug.WriteLine($"   Border Margin: {border.Margin} (上下各{_configManager.BibleVerseSpacing / 2}px)");
@@ -556,3 +556,6 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+
+

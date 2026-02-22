@@ -21,14 +21,18 @@
                             
                             <!-- 退出按钮 -->
                             <Button x:Name="BtnCloseLyricsEditor" 
-                                    Content="❌ 退出"
                                     Width="100" Height="40"
                                     Margin="0,0,12,0"
                                     FontSize="18"
                                     FontWeight="Bold"
                                     Style="{StaticResource MenuButtonStyle}"
                                    
-                                    ToolTip="退出歌词模式"/>
+                                    ToolTip="退出歌词模式">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideX}" Style="{StaticResource LucideIconPathStyle}" Stroke="{StaticResource BrushBrandDanger}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="退出" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
                                        Margin="0,0,12,0"/>
@@ -64,21 +68,29 @@
 
                             <!-- 文字颜色 -->
                             <Button x:Name="BtnLyricsTextColor" 
-                                    Content="🎨 颜色"
                                     Width="110" Height="40"
                                     Margin="0,0,12,0"
                                     FontSize="18"
                                     Style="{StaticResource MenuButtonStyle}"
                                    
-                                    ToolTip="选择文字颜色"/>
+                                    ToolTip="选择文字颜色">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucidePalette}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="颜色" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
                             <Button x:Name="BtnLyricsWatermark"
-                                    Content="🖼 水印"
                                     Width="110" Height="40"
                                     Margin="0,0,12,0"
                                     FontSize="18"
                                     Style="{StaticResource MenuButtonStyle}"
-                                    ToolTip="导入/选择投影水印Logo"/>
+                                    ToolTip="导入/选择投影水印Logo">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideImage}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="水印" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
                                        Margin="0,0,12,0"/>
@@ -132,14 +144,18 @@
 
                             <!-- 清空内容 -->
                             <Button x:Name="BtnLyricsClear" 
-                                    Content="🗑 清空"
                                     Width="100" Height="40"
                                     Margin="0,0,12,0"
                                     FontSize="18"
                                     FontWeight="Bold"
                                    
                                     Style="{StaticResource RecordButtonStyle}"
-                                    ToolTip="清空所有内容"/>
+                                    ToolTip="清空所有内容">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconLucideTrash2}" Style="{StaticResource LucideIconPathStyle}" Stroke="{StaticResource BrushBrandDanger}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="清空" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
                             <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
                                        Margin="0,0,12,0"/>
@@ -205,7 +221,6 @@
                                        
                                         ToolTip="进入/退出分页"/>
                                 <Button x:Name="BtnLyricsPageUp"
-                                        Content="◀"
                                         Width="56" Height="40"
                                         Margin="0,0,6,0"
                                         FontSize="18"
@@ -215,7 +230,11 @@
                                         BorderBrush="#444444"
                                         BorderThickness="1"
                                        
-                                        ToolTip="上一项"/>
+                                        ToolTip="上一项">
+                                    <Path Data="{StaticResource IconLucideChevronLeft}"
+                                          Style="{StaticResource LucideIconPathStyle}"
+                                          Stroke="White"/>
+                                </Button>
                                 <Border Background="#2D2D2D"
                                         BorderBrush="#555555"
                                         BorderThickness="1"
@@ -234,7 +253,6 @@
                                                TextAlignment="Center"/>
                                 </Border>
                                 <Button x:Name="BtnLyricsPageDown"
-                                        Content="▶"
                                         Width="56" Height="40"
                                         FontSize="18"
                                         FontWeight="Bold"
@@ -243,7 +261,11 @@
                                         BorderBrush="#444444"
                                         BorderThickness="1"
                                        
-                                        ToolTip="下一项"/>
+                                        ToolTip="下一项">
+                                    <Path Data="{StaticResource IconLucideChevronRight}"
+                                          Style="{StaticResource LucideIconPathStyle}"
+                                          Stroke="White"/>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -492,7 +514,6 @@
                                             Orientation="Horizontal"
                                             HorizontalAlignment="Left">
                                     <Button x:Name="BtnLyricsSlicePrev"
-                                            Content="◀"
                                             Width="56" Height="34"
                                             Margin="0,0,6,0"
                                             FontSize="16"
@@ -500,16 +521,23 @@
                                             Background="#2C2C2C"
                                             BorderBrush="#444444"
                                             BorderThickness="1"
-                                            ToolTip="上一片"/>
+                                            ToolTip="上一片">
+                                        <Path Data="{StaticResource IconLucideChevronLeft}"
+                                              Style="{StaticResource LucideIconPathStyle}"
+                                              Stroke="White"/>
+                                    </Button>
                                     <Button x:Name="BtnLyricsSliceNext"
-                                            Content="▶"
                                             Width="56" Height="34"
                                             FontSize="16"
                                             Foreground="White"
                                             Background="#2C2C2C"
                                             BorderBrush="#444444"
                                             BorderThickness="1"
-                                            ToolTip="下一片"/>
+                                            ToolTip="下一片">
+                                        <Path Data="{StaticResource IconLucideChevronRight}"
+                                              Style="{StaticResource LucideIconPathStyle}"
+                                              Stroke="White"/>
+                                    </Button>
                                 </StackPanel>
 
                                 <ListBox x:Name="LyricsSliceList"

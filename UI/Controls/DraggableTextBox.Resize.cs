@@ -36,7 +36,7 @@ namespace ImageColorChanger.UI.Controls
         {
             var thumb = new WpfThumb
             {
-                Width = 16,  // ✅ 增大控制点，更容易看清
+                Width = 16,  //  增大控制点，更容易看清
                 Height = 16,
                 Background = WpfBrushes.DodgerBlue,
                 HorizontalAlignment = hAlign,
@@ -135,3 +135,4 @@ namespace ImageColorChanger.UI.Controls
         #endregion
     }
 }
+

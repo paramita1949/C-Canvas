@@ -23,7 +23,7 @@ namespace ImageColorChanger.UI
     {
         private readonly ConfigManager _configManager;
         private readonly IBibleService _bibleService;
-        // 🔧 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
+        // 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
         private System.Windows.Forms.ColorDialog _colorDialog;
         private Dictionary<string, CustomFont> _fontMap = new Dictionary<string, CustomFont>(); // 字体名称到字体信息的映射
         private bool _isLoading = false; // 标记是否正在加载设置，避免触发保存
@@ -45,7 +45,7 @@ namespace ImageColorChanger.UI
             _bibleService = bibleService;
             _onSettingsChanged = onSettingsChanged;
             _onStyleChanged = onStyleChanged;
-            // 🔧 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
+            // 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
             _colorDialog = new System.Windows.Forms.ColorDialog
             {
                 FullOpen = true,
@@ -91,7 +91,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 🔧 使用FontService统一加载字体（使用完整版配置）
+                // 使用FontService统一加载字体（使用完整版配置）
                 if (!FontService.Instance.Initialize())
                 {
                     //#if DEBUG
@@ -205,7 +205,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        // 🔧 如果找不到字体名称，尝试直接使用family名称查找ComboBox项
+                        // 如果找不到字体名称，尝试直接使用family名称查找ComboBox项
                         // 因为等线等系统字体可能直接用family名称显示
                         bool found = SelectComboBoxItemByContent(CmbFontFamily, _configManager.BibleFontFamily);
                         
@@ -315,7 +315,7 @@ namespace ImageColorChanger.UI
             if (font != null)
                 return font.Name;
             
-            // 🔧 如果找不到，尝试直接使用family作为系统字体，不强制返回第一个字体
+            // 如果找不到，尝试直接使用family作为系统字体，不强制返回第一个字体
             // 这样即使字体服务中没有配置，也能使用系统字体
             return null; // 返回null，让调用者决定如何处理
         }
@@ -666,7 +666,7 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 #if DEBUG
-                Debug.WriteLine($"[圣经设置] ❌ 保存设置失败: {ex.Message}");
+                Debug.WriteLine($"[圣经设置]  保存设置失败: {ex.Message}");
                 Debug.WriteLine($"[圣经设置] 错误类型: {ex.GetType().Name}");
                 Debug.WriteLine($"[圣经设置] 错误堆栈: {ex.StackTrace}");
                 if (ex.InnerException != null)
@@ -755,4 +755,6 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+
 
