@@ -14,6 +14,12 @@
     <SolidColorBrush x:Key="BrushBrandWarning" Color="{StaticResource ColorBrandWarning}"/>
     <SolidColorBrush x:Key="BrushBrandSuccess" Color="{StaticResource ColorBrandSuccess}"/>
     <SolidColorBrush x:Key="BrushIconDefault" Color="{DynamicResource ColorGlobalIcon}"/>
+    <SolidColorBrush x:Key="BrushMenuSurface" Color="#FFFDFB"/>
+    <SolidColorBrush x:Key="BrushMenuSubSurface" Color="#FFF8F2"/>
+    <SolidColorBrush x:Key="BrushMenuText" Color="#3A2F2F"/>
+    <SolidColorBrush x:Key="BrushMenuBorder" Color="#E6DAD2"/>
+    <SolidColorBrush x:Key="BrushMenuHover" Color="{DynamicResource ColorGlobalIcon}" Opacity="0.16"/>
+    <SolidColorBrush x:Key="BrushMenuDisabledText" Color="#A89C9C"/>
 
     <!-- Lucide-like 24x24 stroke geometries -->
     <Geometry x:Key="IconLucideMonitor">M3 4H21V16H3V4Z M8 20H16 M12 16V20</Geometry>
@@ -160,7 +166,7 @@
     <!-- 紧凑 ContextMenu 菜单项样式：去掉默认左侧图标保留列 -->
     <Style x:Key="CompactContextMenuItemStyle" TargetType="MenuItem">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource BrushMenuText}"/>
         <Setter Property="Padding" Value="12,6,12,6"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -203,7 +209,9 @@
                                    Focusable="False"
                                    IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
                                    PopupAnimation="Fade">
-                                <Border Background="#2D2D30"
+                                <Border Background="{DynamicResource BrushMenuSubSurface}"
+                                        BorderBrush="{DynamicResource BrushMenuBorder}"
+                                        BorderThickness="1"
                                         CornerRadius="4"
                                         Padding="4">
                                     <StackPanel IsItemsHost="True"
@@ -226,13 +234,13 @@
                             <Setter TargetName="CheckedGlyph" Property="Visibility" Value="Visible"/>
                         </MultiTrigger>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="MenuItemBorder" Property="Background" Value="#3A3A3A"/>
+                            <Setter TargetName="MenuItemBorder" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
                         </Trigger>
                         <Trigger Property="IsSubmenuOpen" Value="True">
-                            <Setter TargetName="MenuItemBorder" Property="Background" Value="#3A3A3A"/>
+                            <Setter TargetName="MenuItemBorder" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Foreground" Value="#808080"/>
+                            <Setter Property="Foreground" Value="{DynamicResource BrushMenuDisabledText}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -245,16 +253,18 @@
         <Style.Resources>
             <Style TargetType="MenuItem" BasedOn="{StaticResource CompactContextMenuItemStyle}"/>
         </Style.Resources>
-        <Setter Property="Background" Value="#2D2D30"/>
-        <Setter Property="Foreground" Value="White"/>
-        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource BrushMenuSurface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource BrushMenuText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushMenuBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContextMenu">
                     <Border Background="{TemplateBinding Background}"
-                            BorderThickness="0"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="4"
                             Padding="4">
                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
@@ -274,10 +284,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Content" Property="TextBlock.Foreground" Value="Red"/>
+                            <Setter TargetName="Content" Property="TextBlock.Foreground" Value="{DynamicResource BrushGlobalIcon}"/>
                         </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Border" Property="Background" Value="#3A3A3A"/>
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -291,7 +301,7 @@
         <Setter Property="MinWidth" Value="60"/>
         <Setter Property="Padding" Value="8,4"/>
         <Setter Property="Margin" Value="3,0"/>
-        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontSize" Value="21"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
         <Setter Property="Background" Value="#FFFFFF"/>

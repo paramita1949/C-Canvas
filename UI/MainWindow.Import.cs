@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
 
@@ -20,6 +21,17 @@ namespace ImageColorChanger.UI
         }
 
         #region 导入文件相关
+
+        private void BtnImport_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            // 悬浮即弹出，避免重复创建弹窗造成闪烁
+            if (BtnImport.ContextMenu != null && BtnImport.ContextMenu.IsOpen)
+            {
+                return;
+            }
+
+            BtnImport_Click(sender, new RoutedEventArgs());
+        }
 
         private void BtnImport_Click(object sender, RoutedEventArgs e)
         {
@@ -177,6 +189,10 @@ namespace ImageColorChanger.UI
 
             // 显示菜单
             contextMenu.PlacementTarget = BtnImport;
+            contextMenu.Placement = PlacementMode.Bottom;
+            contextMenu.HorizontalOffset = 0;
+            contextMenu.VerticalOffset = 0;
+            BtnImport.ContextMenu = contextMenu;
             contextMenu.IsOpen = true;
         }
 

@@ -47,7 +47,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
                     <Button x:Name="BtnImport" Style="{StaticResource MenuButtonStyle}" 
-                            ToolTip="导入图片或文件夹" Click="BtnImport_Click">
+                            ToolTip="导入图片或文件夹" Click="BtnImport_Click" MouseEnter="BtnImport_MouseEnter">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucideFolderOpen}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
                             <TextBlock Text="文件" VerticalAlignment="Center"/>
