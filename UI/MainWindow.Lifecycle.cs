@@ -67,17 +67,26 @@ namespace ImageColorChanger.UI
             }
             
             // 初始化圣经服务
+            var bibleInitSw = System.Diagnostics.Stopwatch.StartNew();
             InitializeBibleService();
-            StartupPerfLogger.Mark("MainWindow.InitializeBibleService.Completed");
+            StartupPerfLogger.Mark("MainWindow.InitializeBibleService.Completed", $"ElapsedMs={bibleInitSw.ElapsedMilliseconds}");
 
             // 🔄 静默同步所有文件夹（避免跨线程并发访问同一 DbContext）
+            var startupSyncSw = System.Diagnostics.Stopwatch.StartNew();
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Begin");
             try
             {
                 // 清理旧版“图片绑定歌词”残留，歌词模块仅保留独立歌曲数据。
+                var purgeSw = System.Diagnostics.Stopwatch.StartNew();
                 PurgeLegacyImageLinkedLyricsProjects();
+                StartupPerfLogger.Mark("MainWindow.StartupFolderSync.PurgeLegacyLyrics.Completed", $"ElapsedMs={purgeSw.ElapsedMilliseconds}");
 
                 // 启动时先做一次映射对账，确保历史数据迁移后读路径稳定。
+                var reconcileSw = System.Diagnostics.Stopwatch.StartNew();
                 var reconcileResult = DatabaseManagerService.ReconcileFolderImageLinks();
+                StartupPerfLogger.Mark(
+                    "MainWindow.StartupFolderSync.Reconcile.Completed",
+                    $"ElapsedMs={reconcileSw.ElapsedMilliseconds}; MissingLinks={reconcileResult.missingLinks}; StaleLinks={reconcileResult.staleLinks}; AddedLinks={reconcileResult.addedLinks}; RemovedLinks={reconcileResult.removedLinks}");
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
                 //     $"[MainWindow] 启动对账: missingLinks={reconcileResult.missingLinks}, staleLinks={reconcileResult.staleLinks}, addedLinks={reconcileResult.addedLinks}, removedLinks={reconcileResult.removedLinks}");
@@ -86,7 +95,11 @@ namespace ImageColorChanger.UI
                 var importManager = ImportManagerService;
                 if (importManager != null)
                 {
+                    var syncSw = System.Diagnostics.Stopwatch.StartNew();
                     var (added, removed, updated) = importManager.SyncAllFolders();
+                    StartupPerfLogger.Mark(
+                        "MainWindow.StartupFolderSync.SyncAllFolders.Completed",
+                        $"ElapsedMs={syncSw.ElapsedMilliseconds}; Added={added}; Removed={removed}; Updated={updated}");
 #if DEBUG
                     // System.Diagnostics.Trace.WriteLine(
                     //     $"[MainWindow] 启动同步完成: added={added}, removed={removed}, updated={updated}");
@@ -103,9 +116,14 @@ namespace ImageColorChanger.UI
             }
 
             // 同步后刷新项目树和搜索范围
+            var refreshTreeSw = System.Diagnostics.Stopwatch.StartNew();
             LoadProjects();
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadProjects.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
+
+            refreshTreeSw.Restart();
             LoadSearchScopes();
-            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed");
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadSearchScopes.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
+            StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
 
             // 延迟5秒后检查更新，避免影响启动速度
@@ -191,6 +209,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // System.Diagnostics.Debug.WriteLine("🔚 主窗口正在关闭,清理资源...");
+                _startupDeferredWorkCts.Cancel();
                 MainWindow_Closing(sender, e);
                 DisposeBibleSearchComponents();
 
