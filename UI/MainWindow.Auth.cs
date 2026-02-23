@@ -218,6 +218,7 @@ namespace ImageColorChanger.UI
             var headerGrid = new System.Windows.Controls.Grid();
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
             
             var headerTitle = new System.Windows.Controls.ContentControl
             {
@@ -227,6 +228,28 @@ namespace ImageColorChanger.UI
             System.Windows.Controls.Grid.SetColumn(headerTitle, 0);
             headerGrid.Children.Add(headerTitle);
             
+            // 续费按钮（位于刷新按钮左侧）
+            var renewBtn = new System.Windows.Controls.Button
+            {
+                Content = BuildIconLabelContent("IconLucideBookPlus", "续费", System.Windows.Media.Brushes.White),
+                Background = new System.Windows.Media.SolidColorBrush(Color.FromRgb(255, 152, 0)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 6, 12, 6),
+                FontSize = 12,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            renewBtn.Click += (s, e) =>
+            {
+                OpenPaymentWindowFromUserMenu(userWindow);
+            };
+
+            System.Windows.Controls.Grid.SetColumn(renewBtn, 1);
+            headerGrid.Children.Add(renewBtn);
+
             // 刷新按钮（简化版）
             var refreshBtn = new System.Windows.Controls.Button
             {
@@ -281,7 +304,7 @@ namespace ImageColorChanger.UI
                 }
             };
             
-            System.Windows.Controls.Grid.SetColumn(refreshBtn, 1);
+            System.Windows.Controls.Grid.SetColumn(refreshBtn, 2);
             headerGrid.Children.Add(refreshBtn);
             
             headerPanel.Child = headerGrid;
@@ -350,6 +373,23 @@ namespace ImageColorChanger.UI
             
             userWindow.Content = mainPanel;
             userWindow.ShowDialog();
+        }
+
+        private void OpenPaymentWindowFromUserMenu(Window ownerWindow)
+        {
+            try
+            {
+                var contactWindow = new ContactWindow
+                {
+                    Owner = ownerWindow ?? this
+                };
+                contactWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开续费窗口失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         /// <summary>
