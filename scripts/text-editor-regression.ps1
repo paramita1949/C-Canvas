@@ -98,6 +98,12 @@ $ctxHasEnsure = Invoke-RgHasMatch -Pattern "EnsureRichTextSpansV2SchemaExists" -
 $migHasUpgrade = Invoke-RgHasMatch -Pattern "MigrateUpgradeRichTextSpansV2Schema" -Path $migPath
 Add-CheckResult -Lines $report -Name "DB upgrade path includes v2 columns/indexes" -Passed ($ctxHasEnsure -and $migHasUpgrade) -Detail "$ctxPath; $migPath"
 
+# 8) Guard: exiting edit mode should not rebuild rich-text document (prevents visual drift)
+$editModePath = "UI/Controls/DraggableTextBox.EditMode.cs"
+$editModeText = Get-Content $editModePath -Raw
+$exitNoRichResync = -not ($editModeText -match "snapshot\.RichTextSpans\.Count\s*>\s*0[\s\S]*SyncTextToRichTextBox\s*\(")
+Add-CheckResult -Lines $report -Name "ExitEditMode has no rich-text re-render side effect" -Passed $exitNoRichResync -Detail $editModePath
+
 $report.Add("")
 $report.Add((New-Section -Title "Manual Acceptance Checklist"))
 $report.Add("")

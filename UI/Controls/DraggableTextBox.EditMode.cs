@@ -126,13 +126,8 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 用户显式退出编辑时提取快照并回写样式
-            var snapshot = CaptureSnapshotForSave();
-            if (snapshot.RichTextSpans.Count > 0)
-            {
-                // 退出编辑后重渲染，确保富文本样式在只读态一致
-                SyncTextToRichTextBox();
-            }
+            // 退出编辑时仅提取快照用于持久化，不重建文档以避免视觉重排。
+            _ = CaptureSnapshotForSave();
 
 
 
