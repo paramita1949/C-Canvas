@@ -4,634 +4,196 @@ using System.Linq;
 using System.Threading.Tasks;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Repositories.TextEditor;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
 {
     /// <summary>
-    /// 文本项目管理器
-    /// 负责文本项目的CRUD操作
+    /// 文本项目管理器（兼容层）。
+    /// 新代码请优先使用 Repositories.TextEditor 与应用层 orchestrator。
     /// </summary>
+    [Obsolete("TextProjectManager is a compatibility facade. Prefer Repositories.TextEditor + application services.")]
     public class TextProjectManager
     {
         private readonly CanvasDbContext _dbContext;
+        private readonly ITextProjectRepository _textProjectRepository;
+        private readonly ISlideRepository _slideRepository;
+        private readonly ITextElementRepository _textElementRepository;
+        private readonly IRichTextSpanRepository _richTextSpanRepository;
 
         public TextProjectManager(CanvasDbContext dbContext)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _textProjectRepository = new EfTextProjectRepository(_dbContext);
+            _slideRepository = new EfSlideRepository(_dbContext);
+            _textElementRepository = new EfTextElementRepository(_dbContext);
+            _richTextSpanRepository = new EfRichTextSpanRepository(_dbContext);
         }
 
         #region 项目管理
 
-        /// <summary>
-        /// 创建新的文本项目
-        /// </summary>
-        /// <param name="name">项目名称</param>
-        /// <param name="canvasWidth">画布宽度（默认1920）</param>
-        /// <param name="canvasHeight">画布高度（默认1080）</param>
-        /// <returns>创建的项目实体</returns>
-        public async Task<TextProject> CreateProjectAsync(string name, int canvasWidth = 1920, int canvasHeight = 1080)
+        public Task<TextProject> CreateProjectAsync(string name, int canvasWidth = 1920, int canvasHeight = 1080)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("项目名称不能为空", nameof(name));
-
-            var project = new TextProject
-            {
-                Name = name.Trim(),
-                CanvasWidth = canvasWidth,
-                CanvasHeight = canvasHeight,
-                CreatedTime = DateTime.Now,
-                ModifiedTime = DateTime.Now
-            };
-
-            var dbContext = _dbContext;
-            dbContext.TextProjects.Add(project);
-            await dbContext.SaveChangesAsync();
-
-            //System.Diagnostics.Debug.WriteLine($" 创建文本项目成功: ID={project.Id}, Name={project.Name}");
-            return project;
+            return _textProjectRepository.CreateAsync(name, canvasWidth, canvasHeight);
         }
 
-        /// <summary>
-        /// 加载文本项目（包含所有元素和富文本片段）
-        /// </summary>
-        /// <param name="projectId">项目ID</param>
-        /// <returns>项目实体（包含元素和富文本片段）</returns>
-        public async Task<TextProject> LoadProjectAsync(int projectId)
+        public Task<TextProject> LoadProjectAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var project = await dbContext.TextProjects
-                .Include(p => p.Elements)
-                    .ThenInclude(e => e.RichTextSpans)  //  加载富文本片段
-                .FirstOrDefaultAsync(p => p.Id == projectId);
-
-            if (project == null)
-                throw new InvalidOperationException($"项目不存在: ID={projectId}");
-
-            //  手动排序（EF Core 不支持在 Include 中使用 OrderBy）
-            if (project.Elements != null)
-            {
-                project.Elements = project.Elements.OrderBy(e => e.ZIndex).ToList();
-                foreach (var element in project.Elements)
-                {
-                    if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
-                    {
-                        element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
-                    }
-                }
-            }
-
-//#if DEBUG
-//            int totalSpans = project.Elements.Sum(e => e.RichTextSpans?.Count ?? 0);
-//            System.Diagnostics.Debug.WriteLine($" [加载项目] ID={project.Id}, Name={project.Name}, Elements={project.Elements.Count}, RichTextSpans={totalSpans}");
-//#endif
-            return project;
+            return _textProjectRepository.LoadWithElementsAndRichTextAsync(projectId);
         }
 
-        /// <summary>
-        /// 获取所有项目（仅基本信息，不加载元素）
-        /// </summary>
-        /// <returns>项目列表（按SortOrder排序，然后按修改时间排序）</returns>
-        public async Task<List<TextProject>> GetAllProjectsAsync()
+        public Task<List<TextProject>> GetAllProjectsAsync()
         {
-            var dbContext = _dbContext;
-            return await dbContext.TextProjects
-                .OrderBy(p => p.SortOrder)
-                .ThenByDescending(p => p.ModifiedTime ?? p.CreatedTime)
-                .ToListAsync();
+            return _textProjectRepository.GetAllAsync();
         }
 
-        /// <summary>
-        /// 保存项目（更新修改时间）
-        /// </summary>
-        /// <param name="project">项目实体</param>
-        public async Task SaveProjectAsync(TextProject project)
+        public Task SaveProjectAsync(TextProject project)
         {
-            if (project == null)
-                throw new ArgumentNullException(nameof(project));
-
-            project.ModifiedTime = DateTime.Now;
-            var dbContext = _dbContext;
-            dbContext.TextProjects.Update(project);
-            await dbContext.SaveChangesAsync();
-
-            //System.Diagnostics.Debug.WriteLine($" 保存文本项目成功: ID={project.Id}, Name={project.Name}");
+            return _textProjectRepository.SaveAsync(project);
         }
 
-        /// <summary>
-        /// 删除项目（级联删除所有元素）
-        /// </summary>
-        /// <param name="projectId">项目ID</param>
-        public async Task DeleteProjectAsync(int projectId)
+        public Task DeleteProjectAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var project = await dbContext.TextProjects.FindAsync(projectId);
-            if (project == null)
-                throw new InvalidOperationException($"项目不存在: ID={projectId}");
-
-            dbContext.TextProjects.Remove(project);
-            await dbContext.SaveChangesAsync();
-
-            //System.Diagnostics.Debug.WriteLine($" 删除文本项目成功: ID={projectId}");
+            return _textProjectRepository.DeleteAsync(projectId);
         }
 
-        /// <summary>
-        /// 更新项目背景图
-        /// </summary>
-        /// <param name="projectId">项目ID</param>
-        /// <param name="imagePath">背景图路径</param>
-        public async Task UpdateBackgroundImageAsync(int projectId, string imagePath)
+        public Task UpdateBackgroundImageAsync(int projectId, string imagePath)
         {
-            var dbContext = _dbContext;
-            var project = await dbContext.TextProjects.FindAsync(projectId);
-            if (project == null)
-                throw new InvalidOperationException($"项目不存在: ID={projectId}");
-
-            project.BackgroundImagePath = imagePath;
-            project.ModifiedTime = DateTime.Now;
-            await dbContext.SaveChangesAsync();
-
-            //System.Diagnostics.Debug.WriteLine($" 更新背景图成功: ProjectID={projectId}, Path={imagePath}");
+            return _textProjectRepository.UpdateBackgroundImageAsync(projectId, imagePath);
         }
 
         #endregion
 
         #region 幻灯片管理
 
-        public async Task<bool> ProjectHasSlidesAsync(int projectId)
+        public Task<bool> ProjectHasSlidesAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            return await dbContext.Slides.AnyAsync(s => s.ProjectId == projectId);
+            return _slideRepository.ProjectHasSlidesAsync(projectId);
         }
 
-        public async Task<int> GetSlideCountAsync(int projectId)
+        public Task<int> GetSlideCountAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            return await dbContext.Slides.CountAsync(s => s.ProjectId == projectId);
+            return _slideRepository.GetCountByProjectAsync(projectId);
         }
 
-        public async Task<int> GetMaxSlideSortOrderAsync(int projectId)
+        public Task<int> GetMaxSlideSortOrderAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var maxOrderValue = await dbContext.Slides
-                .Where(s => s.ProjectId == projectId)
-                .Select(s => (int?)s.SortOrder)
-                .MaxAsync();
-            return maxOrderValue ?? 0;
+            return _slideRepository.GetMaxSortOrderAsync(projectId);
         }
 
-        public async Task<Slide> AddSlideAsync(Slide slide)
+        public Task<Slide> AddSlideAsync(Slide slide)
         {
-            if (slide == null)
-                throw new ArgumentNullException(nameof(slide));
-
-            var dbContext = _dbContext;
-            dbContext.Slides.Add(slide);
-            await dbContext.SaveChangesAsync();
-            return slide;
+            return _slideRepository.AddAsync(slide);
         }
 
-        public async Task AddSlidesAsync(IEnumerable<Slide> slides)
+        public Task AddSlidesAsync(IEnumerable<Slide> slides)
         {
-            if (slides == null)
-                throw new ArgumentNullException(nameof(slides));
-
-            var slideList = slides.ToList();
-            if (slideList.Count == 0)
-                return;
-
-            var dbContext = _dbContext;
-            dbContext.Slides.AddRange(slideList);
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.AddRangeAsync(slides);
         }
 
-        public async Task<Slide> GetSlideByIdAsync(int slideId)
+        public Task<Slide> GetSlideByIdAsync(int slideId)
         {
-            var dbContext = _dbContext;
-            return await dbContext.Slides.FindAsync(slideId);
+            return _slideRepository.GetByIdAsync(slideId);
         }
 
-        public async Task UpdateSlideAsync(Slide slide)
+        public Task UpdateSlideAsync(Slide slide)
         {
-            if (slide == null)
-                throw new ArgumentNullException(nameof(slide));
-
-            var dbContext = _dbContext;
-            dbContext.Slides.Update(slide);
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.UpdateAsync(slide);
         }
 
-        public async Task UpdateSlideThumbnailAsync(int slideId, string thumbnailPath)
+        public Task UpdateSlideThumbnailAsync(int slideId, string thumbnailPath)
         {
-            var dbContext = _dbContext;
-            var slide = await dbContext.Slides.FindAsync(slideId);
-            if (slide == null)
-                return;
-
-            slide.ThumbnailPath = thumbnailPath;
-            slide.ModifiedTime = DateTime.Now;
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.UpdateThumbnailAsync(slideId, thumbnailPath);
         }
 
-        public async Task<List<Slide>> GetSlidesByProjectAsync(int projectId)
+        public Task<List<Slide>> GetSlidesByProjectAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            return await dbContext.Slides
-                .Where(s => s.ProjectId == projectId)
-                .OrderBy(s => s.SortOrder)
-                .ToListAsync();
+            return _slideRepository.GetByProjectAsync(projectId);
         }
 
-        public async Task<List<Slide>> GetSlidesByProjectWithElementsAsync(int projectId)
+        public Task<List<Slide>> GetSlidesByProjectWithElementsAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            return await dbContext.Slides
-                .Include(s => s.Elements)
-                .Where(s => s.ProjectId == projectId)
-                .OrderBy(s => s.SortOrder)
-                .ToListAsync();
+            return _slideRepository.GetByProjectWithElementsAsync(projectId);
         }
 
-        public async Task UpdateSlideSortOrdersAsync(IEnumerable<Slide> slides)
+        public Task UpdateSlideSortOrdersAsync(IEnumerable<Slide> slides)
         {
-            if (slides == null)
-                throw new ArgumentNullException(nameof(slides));
-
-            var slideList = slides.ToList();
-            if (slideList.Count == 0)
-                return;
-
-            var dbContext = _dbContext;
-            foreach (var slide in slideList)
-            {
-                dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
-            }
-
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.UpdateSortOrdersAsync(slides);
         }
 
-        public async Task ShiftSlideSortOrdersAsync(int projectId, int fromSortOrder, int delta)
+        public Task ShiftSlideSortOrdersAsync(int projectId, int fromSortOrder, int delta)
         {
-            if (delta == 0)
-                return;
-
-            var dbContext = _dbContext;
-            var slides = await dbContext.Slides
-                .Where(s => s.ProjectId == projectId && s.SortOrder >= fromSortOrder)
-                .ToListAsync();
-
-            foreach (var slide in slides)
-            {
-                slide.SortOrder += delta;
-            }
-
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.ShiftSortOrdersAsync(projectId, fromSortOrder, delta);
         }
 
-        public async Task DeleteSlideAsync(int slideId)
+        public Task DeleteSlideAsync(int slideId)
         {
-            var dbContext = _dbContext;
-            var slide = await dbContext.Slides.FindAsync(slideId);
-            if (slide == null)
-                return;
-
-            dbContext.Slides.Remove(slide);
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.DeleteAsync(slideId);
         }
 
-        public async Task DeleteSlidesByProjectAsync(int projectId)
+        public Task DeleteSlidesByProjectAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var slides = await dbContext.Slides
-                .Where(s => s.ProjectId == projectId)
-                .ToListAsync();
-
-            if (slides.Count == 0)
-                return;
-
-            dbContext.Slides.RemoveRange(slides);
-            await dbContext.SaveChangesAsync();
+            return _slideRepository.DeleteByProjectAsync(projectId);
         }
 
-        public async Task<List<TextElement>> GetElementsBySlideWithRichTextAsync(int slideId)
+        public Task<List<TextElement>> GetElementsBySlideWithRichTextAsync(int slideId)
         {
-            var dbContext = _dbContext;
-            var elements = await dbContext.TextElements
-                .Include(e => e.RichTextSpans)
-                .Where(e => e.SlideId == slideId)
-                .OrderBy(e => e.ZIndex)
-                .ToListAsync();
-
-            foreach (var element in elements)
-            {
-                if (element.RichTextSpans != null && element.RichTextSpans.Count > 0)
-                {
-                    element.RichTextSpans = element.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
-                }
-            }
-
-            return elements;
+            return _textElementRepository.GetBySlideWithRichTextAsync(slideId);
         }
 
-        public async Task RebindProjectElementsToSlideAsync(int projectId, int targetSlideId)
+        public Task RebindProjectElementsToSlideAsync(int projectId, int targetSlideId)
         {
-            var dbContext = _dbContext;
-            var oldElements = await dbContext.TextElements
-                .Where(e => e.ProjectId == projectId && e.SlideId == null)
-                .ToListAsync();
-
-            if (oldElements.Count == 0)
-                return;
-
-            foreach (var element in oldElements)
-            {
-                element.SlideId = targetSlideId;
-            }
-
-            await dbContext.SaveChangesAsync();
+            return _textElementRepository.RebindProjectElementsToSlideAsync(projectId, targetSlideId);
         }
 
         #endregion
 
         #region 元素管理
 
-        /// <summary>
-        /// 添加文本元素
-        /// </summary>
-        /// <param name="element">元素实体</param>
-        /// <returns>添加后的元素（包含ID）</returns>
-        public async Task<TextElement> AddElementAsync(TextElement element)
+        public Task<TextElement> AddElementAsync(TextElement element)
         {
-            if (element == null)
-                throw new ArgumentNullException(nameof(element));
-
-            var dbContext = _dbContext;
-
-            // 检查关联是否存在（ProjectId 或 SlideId 至少有一个）
-            if (element.ProjectId.HasValue)
-            {
-                var projectExists = await dbContext.TextProjects.AnyAsync(p => p.Id == element.ProjectId);
-                if (!projectExists)
-                    throw new InvalidOperationException($"项目不存在: ID={element.ProjectId}");
-            }
-            else if (element.SlideId.HasValue)
-            {
-                var slideExists = await dbContext.Slides.AnyAsync(s => s.Id == element.SlideId);
-                if (!slideExists)
-                    throw new InvalidOperationException($"幻灯片不存在: ID={element.SlideId}");
-            }
-            else
-            {
-                throw new InvalidOperationException("文本元素必须关联到项目或幻灯片");
-            }
-
-            dbContext.TextElements.Add(element);
-            await dbContext.SaveChangesAsync();
-
-            // 更新项目修改时间
-            if (element.ProjectId.HasValue)
-                await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
-            if (element.SlideId.HasValue)
-            {
-                var slide = await dbContext.Slides.FindAsync(element.SlideId.Value);
-                if (slide != null && slide.ProjectId > 0)
-                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
-            }
-
-            //System.Diagnostics.Debug.WriteLine($" 添加文本元素成功: ID={element.Id}, ProjectID={element.ProjectId}, SlideID={element.SlideId}");
-            return element;
+            return _textElementRepository.AddAsync(element);
         }
 
-        /// <summary>
-        /// 更新文本元素
-        /// </summary>
-        /// <param name="element">元素实体</param>
-        public async Task UpdateElementAsync(TextElement element)
+        public Task UpdateElementAsync(TextElement element)
         {
-            if (element == null)
-                throw new ArgumentNullException(nameof(element));
-
-            var dbContext = _dbContext;
-            dbContext.TextElements.Update(element);
-            await dbContext.SaveChangesAsync();
-
-            // 更新项目修改时间
-            if (element.ProjectId.HasValue)
-                await UpdateProjectModifiedTimeAsync(element.ProjectId.Value);
-            if (element.SlideId.HasValue)
-            {
-                var slide = await dbContext.Slides.FindAsync(element.SlideId.Value);
-                if (slide != null && slide.ProjectId > 0)
-                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
-            }
-
-            //System.Diagnostics.Debug.WriteLine($" 更新文本元素成功: ID={element.Id}");
+            return _textElementRepository.UpdateAsync(element);
         }
 
-        /// <summary>
-        /// 批量更新文本元素（性能优化）
-        /// </summary>
-        /// <param name="elements">元素列表</param>
-        public async Task UpdateElementsAsync(IEnumerable<TextElement> elements)
+        public Task UpdateElementsAsync(IEnumerable<TextElement> elements)
         {
-            if (elements == null || !elements.Any())
-                return;
-
-            var dbContext = _dbContext;
-            dbContext.TextElements.UpdateRange(elements);
-            await dbContext.SaveChangesAsync();
-
-            // 更新所有涉及项目的修改时间
-            var projectIds = elements.Where(e => e.ProjectId.HasValue).Select(e => e.ProjectId.Value).Distinct();
-            foreach (var projectId in projectIds)
-            {
-                await UpdateProjectModifiedTimeAsync(projectId);
-            }
-
-            // 更新涉及幻灯片的项目修改时间
-            var slideIds = elements.Where(e => e.SlideId.HasValue).Select(e => e.SlideId.Value).Distinct();
-            foreach (var slideId in slideIds)
-            {
-                var slide = await dbContext.Slides.FindAsync(slideId);
-                if (slide != null && slide.ProjectId > 0)
-                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
-            }
+            return _textElementRepository.UpdateRangeAsync(elements);
         }
 
-        /// <summary>
-        /// 添加富文本片段
-        /// </summary>
-        /// <param name="span">富文本片段实体</param>
-        /// <returns>添加后的片段（包含ID）</returns>
-        public async Task<RichTextSpan> AddRichTextSpanAsync(RichTextSpan span)
+        public Task<RichTextSpan> AddRichTextSpanAsync(RichTextSpan span)
         {
-            if (span == null)
-                throw new ArgumentNullException(nameof(span));
-
-            var dbContext = _dbContext;
-            if (string.IsNullOrWhiteSpace(span.FormatVersion))
-            {
-                span.FormatVersion = Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion;
-            }
-            if (!span.ParagraphIndex.HasValue)
-            {
-                span.ParagraphIndex = 0;
-            }
-            if (!span.RunIndex.HasValue)
-            {
-                span.RunIndex = span.SpanOrder;
-            }
-
-            dbContext.RichTextSpans.Add(span);
-            await dbContext.SaveChangesAsync();
-
-            return span;
+            return _richTextSpanRepository.AddAsync(span);
         }
 
-        /// <summary>
-        /// 删除文本元素的所有富文本片段
-        /// </summary>
-        /// <param name="textElementId">文本元素ID</param>
-        public async Task DeleteRichTextSpansByElementIdAsync(int textElementId)
+        public Task DeleteRichTextSpansByElementIdAsync(int textElementId)
         {
-            var dbContext = _dbContext;
-            var spans = await dbContext.RichTextSpans
-                .Where(s => s.TextElementId == textElementId)
-                .ToListAsync();
-
-            if (spans.Any())
-            {
-                dbContext.RichTextSpans.RemoveRange(spans);
-                await dbContext.SaveChangesAsync();
-            }
+            return _richTextSpanRepository.DeleteByTextElementIdAsync(textElementId);
         }
 
-        /// <summary>
-        /// 批量保存富文本片段（先删除旧的，再添加新的）
-        /// </summary>
-        /// <param name="textElementId">文本元素ID</param>
-        /// <param name="spans">新的富文本片段列表</param>
-        public async Task SaveRichTextSpansAsync(int textElementId, List<RichTextSpan> spans)
+        public Task SaveRichTextSpansAsync(int textElementId, List<RichTextSpan> spans)
         {
-            if (spans == null)
-                throw new ArgumentNullException(nameof(spans));
-
-            var dbContext = _dbContext;
-            NormalizeRichTextSpansForSave(textElementId, spans);
-
-            // 删除旧的片段
-            var oldSpans = await dbContext.RichTextSpans
-                .Where(s => s.TextElementId == textElementId)
-                .ToListAsync();
-
-            if (oldSpans.Any())
-            {
-                dbContext.RichTextSpans.RemoveRange(oldSpans);
-            }
-
-            // 添加新的片段
-            if (spans.Any())
-            {
-                dbContext.RichTextSpans.AddRange(spans);
-            }
-
-            await dbContext.SaveChangesAsync();
+            return _richTextSpanRepository.SaveForTextElementAsync(textElementId, spans);
         }
 
-        private static void NormalizeRichTextSpansForSave(int textElementId, List<RichTextSpan> spans)
+        public Task DeleteElementAsync(int elementId)
         {
-            var paragraphRunCursors = new Dictionary<int, int>();
-            foreach (var span in spans.OrderBy(s => s.SpanOrder))
-            {
-                span.TextElementId = textElementId;
-
-                if (string.IsNullOrWhiteSpace(span.FormatVersion))
-                {
-                    span.FormatVersion = Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion;
-                }
-
-                if (!span.ParagraphIndex.HasValue)
-                {
-                    span.ParagraphIndex = 0;
-                }
-
-                int paragraphIndex = span.ParagraphIndex.Value;
-                if (!paragraphRunCursors.TryGetValue(paragraphIndex, out var runCursor))
-                {
-                    runCursor = 0;
-                }
-
-                if (!span.RunIndex.HasValue)
-                {
-                    span.RunIndex = runCursor;
-                }
-
-                paragraphRunCursors[paragraphIndex] = Math.Max(runCursor + 1, span.RunIndex.Value + 1);
-            }
+            return _textElementRepository.DeleteAsync(elementId);
         }
 
-        /// <summary>
-        /// 删除文本元素
-        /// </summary>
-        /// <param name="elementId">元素ID</param>
-        public async Task DeleteElementAsync(int elementId)
+        public Task DeleteAllElementsAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var element = await dbContext.TextElements.FindAsync(elementId);
-            if (element == null)
-                throw new InvalidOperationException($"元素不存在: ID={elementId}");
-
-            int? projectId = element.ProjectId;
-            int? slideId = element.SlideId;
-
-            dbContext.TextElements.Remove(element);
-            await dbContext.SaveChangesAsync();
-
-            // 更新项目修改时间
-            if (projectId.HasValue)
-                await UpdateProjectModifiedTimeAsync(projectId.Value);
-            if (slideId.HasValue)
-            {
-                var slide = await dbContext.Slides.FindAsync(slideId.Value);
-                if (slide != null && slide.ProjectId > 0)
-                    await UpdateProjectModifiedTimeAsync(slide.ProjectId);
-            }
-
-            //System.Diagnostics.Debug.WriteLine($" 删除文本元素成功: ID={elementId}");
+            return _textElementRepository.DeleteByProjectAsync(projectId);
         }
 
-        /// <summary>
-        /// 删除项目的所有元素
-        /// </summary>
-        /// <param name="projectId">项目ID</param>
-        public async Task DeleteAllElementsAsync(int projectId)
+        public Task<List<TextElement>> GetElementsByProjectAsync(int projectId)
         {
-            var dbContext = _dbContext;
-            var elements = await dbContext.TextElements
-                .Where(e => e.ProjectId == projectId)
-                .ToListAsync();
-
-            if (elements.Any())
-            {
-                dbContext.TextElements.RemoveRange(elements);
-                await dbContext.SaveChangesAsync();
-
-                //System.Diagnostics.Debug.WriteLine($" 删除所有文本元素成功: ProjectID={projectId}, Count={elements.Count}");
-            }
-        }
-
-        /// <summary>
-        /// 获取项目的所有元素（按ZIndex排序）
-        /// </summary>
-        /// <param name="projectId">项目ID</param>
-        /// <returns>元素列表</returns>
-        public async Task<List<TextElement>> GetElementsByProjectAsync(int projectId)
-        {
-            var dbContext = _dbContext;
-            return await dbContext.TextElements
-                .Where(e => e.ProjectId == projectId)
-                .OrderBy(e => e.ZIndex)
-                .ToListAsync();
+            return _textElementRepository.GetByProjectAsync(projectId);
         }
 
         #endregion
@@ -645,33 +207,15 @@ namespace ImageColorChanger.Managers
                 return null;
             }
 
-            var dbContext = _dbContext;
-            return await dbContext.MediaFiles.FirstOrDefaultAsync(m => m.Path == path);
+            return await _dbContext.MediaFiles.FirstOrDefaultAsync(m => m.Path == path);
         }
 
-        /// <summary>
-        /// 更新项目修改时间
-        /// </summary>
-        private async Task UpdateProjectModifiedTimeAsync(int projectId)
-        {
-            var dbContext = _dbContext;
-            var project = await dbContext.TextProjects.FindAsync(projectId);
-            if (project != null)
-            {
-                project.ModifiedTime = DateTime.Now;
-                await dbContext.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// 克隆文本元素（用于复制、对称等）
-        /// </summary>
-        /// <param name="source">源元素</param>
-        /// <returns>克隆的元素（未保存到数据库）</returns>
         public TextElement CloneElement(TextElement source)
         {
             if (source == null)
+            {
                 throw new ArgumentNullException(nameof(source));
+            }
 
             return new TextElement
             {
@@ -690,16 +234,13 @@ namespace ImageColorChanger.Managers
                 IsUnderline = source.IsUnderline,
                 IsItalic = source.IsItalic,
                 TextAlign = source.TextAlign,
-                // 边框样式
                 BorderColor = source.BorderColor,
                 BorderWidth = source.BorderWidth,
                 BorderRadius = source.BorderRadius,
                 BorderOpacity = source.BorderOpacity,
-                // 背景样式
                 BackgroundColor = source.BackgroundColor,
                 BackgroundRadius = source.BackgroundRadius,
                 BackgroundOpacity = source.BackgroundOpacity,
-                // 阴影样式
                 ShadowType = source.ShadowType,
                 ShadowPreset = source.ShadowPreset,
                 ShadowColor = source.ShadowColor,
@@ -707,7 +248,6 @@ namespace ImageColorChanger.Managers
                 ShadowOffsetY = source.ShadowOffsetY,
                 ShadowBlur = source.ShadowBlur,
                 ShadowOpacity = source.ShadowOpacity,
-                // 间距样式
                 LineSpacing = source.LineSpacing,
                 LetterSpacing = source.LetterSpacing
             };
@@ -716,6 +256,3 @@ namespace ImageColorChanger.Managers
         #endregion
     }
 }
-
-
-

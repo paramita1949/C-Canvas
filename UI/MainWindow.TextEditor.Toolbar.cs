@@ -202,7 +202,7 @@ namespace ImageColorChanger.UI
                         })
                         .ToList();
 
-                    await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, spansToSave);
+                    await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, spansToSave);
                     newElement.RichTextSpans = spansToSave;
                 }
 
@@ -700,62 +700,54 @@ namespace ImageColorChanger.UI
             try
             {
                 // 检查图片是否来自原图标记或变色标记的文件夹
-                (bool shouldUseStretch, bool shouldApplyColorEffect) = await Task.Run(() =>
+                bool shouldUseStretch = false;
+                bool shouldApplyColorEffect = false;
+                try
                 {
-                    try
+                    var mediaFile = await _textProjectManager.GetMediaFileByPathAsync(imagePath);
+                    
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
+                    //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
+                    //if (mediaFile != null)
+                    //{
+                    //    //System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                    //}
+                    #endif
+                    
+                    if (mediaFile?.FolderId != null)
                     {
-                        var mediaFile = _textProjectManager.GetMediaFileByPathAsync(imagePath).GetAwaiter().GetResult();
-                        
+                        shouldUseStretch = _originalManager.CheckOriginalMark(
+                            Database.Models.Enums.ItemType.Folder,
+                            mediaFile.FolderId.Value
+                        );
+
+                        shouldApplyColorEffect = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
+
                         #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
-                        //System.Diagnostics.Debug.WriteLine($"   MediaFile找到: {mediaFile != null}");
-                        //if (mediaFile != null)
+                        //System.Diagnostics.Debug.WriteLine($"   原图标记: {shouldUseStretch}");
+                        //System.Diagnostics.Debug.WriteLine($"   变色标记: {shouldApplyColorEffect}");
+                        //if (shouldUseStretch)
                         //{
-                        //    //System.Diagnostics.Debug.WriteLine($"   FolderId: {mediaFile.FolderId}");
+                        //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
+                        //}
+                        //if (shouldApplyColorEffect)
+                        //{
+                        //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
                         //}
                         #endif
-                        
-                        if (mediaFile?.FolderId != null)
-                        {
-                            // 检查文件夹是否有原图标记
-                            bool isOriginalFolder = _originalManager.CheckOriginalMark(
-                                Database.Models.Enums.ItemType.Folder,
-                                mediaFile.FolderId.Value
-                            );
-
-                            // 检查文件夹是否有变色标记
-                            bool hasColorEffectMark = DatabaseManagerService.HasFolderAutoColorEffect(mediaFile.FolderId.Value);
-
-                            #if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"   原图标记: {isOriginalFolder}");
-                            //System.Diagnostics.Debug.WriteLine($"   变色标记: {hasColorEffectMark}");
-                            //if (isOriginalFolder)
-                            //{
-                            //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到原图标记文件夹，自动使用拉伸模式");
-                            //}
-                            //if (hasColorEffectMark)
-                            //{
-                            //    //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检测到变色标记文件夹，自动应用变色效果");
-                            //}
-                            #endif
-
-                            return (isOriginalFolder, hasColorEffectMark);
-                        }
-                        
-                        #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   未找到MediaFile或FolderId为空");
-                        #endif
-                        
-                        return (false, false);
                     }
-                    catch
-                    {
-                        #if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 检查标记失败");
-                        #endif
-                        return (false, false);
-                    }
-                });
+                    
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($"   未找到MediaFile或FolderId为空");
+                    #endif
+                }
+                catch
+                {
+                    #if DEBUG
+                    //System.Diagnostics.Debug.WriteLine($" [LoadImageToSplitRegion] 检查标记失败");
+                    #endif
+                }
                 
                 // 获取区域边框信息
                 var border = _splitRegionBorders[_selectedRegionIndex];
@@ -1103,7 +1095,13 @@ namespace ImageColorChanger.UI
                     .ToList();
                 
                 string json = JsonSerializer.Serialize(regionDataList);
-                
+
+                // 未变化时跳过数据库写入，减少切换链路开销
+                if (string.Equals(_currentSlide.SplitRegionsData, json, StringComparison.Ordinal))
+                {
+                    return;
+                }
+                 
                 // 更新数据库
                 var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
@@ -1247,7 +1245,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 恢复分割配置
         /// </summary>
-        private void RestoreSplitConfig(Slide slide)
+        private async Task RestoreSplitConfigAsync(Slide slide)
         {
             try
             {
@@ -1327,7 +1325,7 @@ namespace ImageColorChanger.UI
                     bool shouldApplyColorEffect = false;
                     try
                     {
-                        var mediaFile = _textProjectManager.GetMediaFileByPathAsync(regionData.ImagePath).GetAwaiter().GetResult();
+                        var mediaFile = await _textProjectManager.GetMediaFileByPathAsync(regionData.ImagePath);
                         
                         #if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");

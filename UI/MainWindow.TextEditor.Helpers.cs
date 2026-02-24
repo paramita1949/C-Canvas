@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,6 +17,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -156,6 +158,86 @@ namespace ImageColorChanger.UI
 
             var snapshots = CaptureTextBoxSnapshotsForSave(sourceTextBoxes);
             await _textElementPersistenceService.SaveAsync(snapshots);
+        }
+
+        private async Task<TextEditorSaveResult> SaveTextEditorStateAsync(
+            SaveTrigger trigger,
+            IEnumerable<DraggableTextBox> sourceTextBoxes = null,
+            bool persistAdditionalState = true,
+            bool saveThumbnail = false,
+            CancellationToken cancellationToken = default)
+        {
+            var snapshots = CaptureTextBoxSnapshotsForSave(sourceTextBoxes);
+
+            if (!EnableTextEditorOrchestrator || _textEditorSaveOrchestrator == null)
+            {
+                bool textElementsSaved = false;
+                bool additionalStateSaved = false;
+                bool thumbnailSaved = false;
+                string thumbnailPath = null;
+
+                try
+                {
+                    await _textElementPersistenceService.SaveAsync(snapshots, cancellationToken);
+                    textElementsSaved = true;
+
+                    if (persistAdditionalState)
+                    {
+                        await SaveSplitConfigAsync();
+                        additionalStateSaved = true;
+                    }
+
+                    if (saveThumbnail && _currentSlide != null)
+                    {
+                        thumbnailPath = SaveSlideThumbnail(_currentSlide.Id);
+                        thumbnailSaved = !string.IsNullOrEmpty(thumbnailPath);
+                        if (thumbnailSaved)
+                        {
+                            _currentSlide.ThumbnailPath = thumbnailPath;
+                        }
+                    }
+
+                    return TextEditorSaveResult.Success(
+                        trigger,
+                        textElementsSaved,
+                        additionalStateSaved,
+                        thumbnailSaved,
+                        thumbnailPath);
+                }
+                catch (Exception ex)
+                {
+                    return TextEditorSaveResult.Failure(
+                        trigger,
+                        ex,
+                        textElementsSaved,
+                        additionalStateSaved,
+                        thumbnailSaved,
+                        thumbnailPath);
+                }
+            }
+
+            return await _textEditorSaveOrchestrator.SaveAsync(
+                new TextEditorSaveRequest
+                {
+                    Trigger = trigger,
+                    Snapshots = snapshots,
+                    PersistAdditionalStateAsync = persistAdditionalState
+                        ? _ => SaveSplitConfigAsync()
+                        : null,
+                    SaveThumbnailAsync = saveThumbnail && _currentSlide != null
+                        ? _ =>
+                        {
+                            var path = SaveSlideThumbnail(_currentSlide.Id);
+                            if (!string.IsNullOrEmpty(path))
+                            {
+                                _currentSlide.ThumbnailPath = path;
+                            }
+
+                            return Task.FromResult(path);
+                        }
+                        : null
+                },
+                cancellationToken);
         }
 
         /// <summary>
@@ -340,42 +422,46 @@ namespace ImageColorChanger.UI
             return null;
         }
 
-        /// <summary>
-        /// 生成Canvas渲染缓存键（基于所有区域图片路径、文本框内容、背景色和背景图）
-        /// </summary>
-        private string GenerateCanvasCacheKey()
+        private Services.TextEditor.Rendering.TextEditorProjectionCacheContext BuildProjectionCacheContext()
         {
-            // 图片路径部分
-            var imagePart = string.Join("|", _regionImagePaths.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"));
+            var textStates = _textBoxes
+                .Where(tb => tb != null)
+                .Select(tb => new Services.TextEditor.Rendering.TextEditorProjectionTextState
+                {
+                    Content = tb.Data.Content,
+                    X = tb.Data.X,
+                    Y = tb.Data.Y,
+                    Width = tb.Data.Width,
+                    Height = tb.Data.Height,
+                    FontSize = tb.Data.FontSize,
+                    FontFamily = tb.Data.FontFamily,
+                    FontColor = tb.Data.FontColor,
+                    IsBold = tb.Data.IsBoldBool,
+                    IsItalic = tb.Data.IsItalicBool,
+                    IsUnderline = tb.Data.IsUnderlineBool,
+                    TextAlign = tb.Data.TextAlign,
+                    ZIndex = tb.Data.ZIndex,
+                    BorderColor = tb.Data.BorderColor,
+                    BorderWidth = tb.Data.BorderWidth,
+                    BorderRadius = tb.Data.BorderRadius,
+                    BorderOpacity = tb.Data.BorderOpacity,
+                    BackgroundColor = tb.Data.BackgroundColor,
+                    BackgroundRadius = tb.Data.BackgroundRadius,
+                    BackgroundOpacity = tb.Data.BackgroundOpacity,
+                    LineSpacing = tb.Data.LineSpacing,
+                    LetterSpacing = tb.Data.LetterSpacing
+                })
+                .ToArray();
 
-            // 文本框内容部分（包括内容、位置、尺寸、样式等所有影响渲染的属性）
-            var textPart = string.Join("|", _textBoxes.Select(tb =>
-                $"{tb.Data.Content}_{tb.Data.X}_{tb.Data.Y}_{tb.Data.Width}_{tb.Data.Height}" +
-                $"_{tb.Data.FontSize}_{tb.Data.FontFamily}_{tb.Data.FontColor}_{tb.Data.IsBold}_{tb.Data.IsItalic}_{tb.Data.IsUnderline}" +
-                $"_{tb.Data.TextAlign}_{tb.Data.ZIndex}" +
-                $"_{tb.Data.BorderColor}_{tb.Data.BorderWidth}_{tb.Data.BorderRadius}_{tb.Data.BorderOpacity}" +
-                $"_{tb.Data.BackgroundColor}_{tb.Data.BackgroundRadius}_{tb.Data.BackgroundOpacity}" +
-                $"_{tb.Data.LineSpacing}_{tb.Data.LetterSpacing}"));
-
-            // 背景色和背景图部分（确保背景变化时缓存失效）
-            var bgColor = _currentSlide?.BackgroundColor ?? "";
-            var bgImage = _currentSlide?.BackgroundImagePath ?? "";
-
-            return $"{imagePart}#{textPart}#{_currentSlide?.SplitMode}#{_splitStretchMode}#{bgColor}#{bgImage}";
-        }
-        
-        /// <summary>
-        /// 清除Canvas渲染缓存（在Canvas内容发生变化时调用）
-        /// </summary>
-        private void ClearCanvasRenderCache()
-        {
-            _lastCanvasRenderCache?.Dispose();
-            _lastCanvasRenderCache = null;
-            _lastCanvasCacheKey = "";
-            
-            #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($" [缓存] Canvas渲染缓存已清除");
-            #endif
+            return new Services.TextEditor.Rendering.TextEditorProjectionCacheContext
+            {
+                RegionImagePaths = _regionImagePaths,
+                TextStates = textStates,
+                SplitMode = _currentSlide?.SplitMode.ToString(),
+                SplitStretchMode = _splitStretchMode,
+                BackgroundColor = _currentSlide?.BackgroundColor,
+                BackgroundImagePath = _currentSlide?.BackgroundImagePath
+            };
         }
         
         /// <summary>
@@ -392,65 +478,17 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"[更新投影] 文本框数量: {_textBoxes.Count}");
             //System.Diagnostics.Debug.WriteLine($" [更新投影] 视频背景: {(_currentSlide?.VideoBackgroundEnabled == true ? "已启用" : "未启用")}");
 #endif
-
-            if (!_projectionManager.IsProjectionActive)
+            _textEditorProjectionComposer?.Compose(new Services.TextEditor.Rendering.TextEditorProjectionComposeRequest
             {
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine(" [更新投影] 投影未开启，无法更新投影内容");
-#endif
-                WpfMessageBox.Show("请先开启投影！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // 投影屏幕淡入淡出动画
-            FadeOutAndUpdateProjection();
-        }
-
-        /// <summary>
-        /// 投影屏幕淡出并更新（根据动画设置决定是否使用动画）
-        /// </summary>
-        private void FadeOutAndUpdateProjection()
-        {
-            if (!_projectionManager.IsProjectionActive)
-                return;
-
-            // 如果动画未启用，直接更新（无动画）
-            if (!_projectionAnimationEnabled)
-            {
-                UpdateProjectionContent();
-                return;
-            }
-
-            // 获取投影窗口的容器（用于动画）
-            var projectionContainer = _projectionManager.GetProjectionContainer();
-            if (projectionContainer == null)
-            {
-                // 如果无法获取容器，直接更新（无动画）
-                UpdateProjectionContent();
-                return;
-            }
-
-            // 淡入淡出动画
-            DoubleAnimation fadeOutAnimation = new DoubleAnimation
-            {
-                From = 1.0,
-                To = _projectionAnimationOpacity,
-                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡出时间占一半
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 淡出完成后更新内容并淡入
-            fadeOutAnimation.Completed += (s, e) =>
-            {
-                // 更新投影内容
-                UpdateProjectionContent();
-                
-                // 淡入新内容
-                FadeInProjection(projectionContainer);
-            };
-
-            // 开始淡出动画
-            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+                IsProjectionActive = _projectionManager.IsProjectionActive,
+                AnimationEnabled = _projectionAnimationEnabled,
+                AnimationOpacity = _projectionAnimationOpacity,
+                AnimationDurationMs = _projectionAnimationDuration,
+                GetProjectionContainer = () => _projectionManager.GetProjectionContainer(),
+                UpdateProjectionContent = UpdateProjectionContent,
+                ShowProjectionNotActiveHint = () =>
+                    WpfMessageBox.Show("请先开启投影！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning)
+            });
         }
 
         /// <summary>
@@ -496,39 +534,6 @@ namespace ImageColorChanger.UI
                     UpdateProjectionWithStaticBackground();
                 }
             }
-        }
-
-        /// <summary>
-        /// 投影屏幕淡入动画
-        /// </summary>
-        private void FadeInProjection(UIElement projectionContainer)
-        {
-            if (projectionContainer == null)
-                return;
-
-            // 如果动画未启用，直接显示（无动画）
-            if (!_projectionAnimationEnabled)
-            {
-                projectionContainer.Opacity = 1.0;
-                // 清除之前的动画
-                projectionContainer.BeginAnimation(UIElement.OpacityProperty, null);
-                return;
-            }
-
-            // 设置初始透明度为设置的透明度值（淡入效果）
-            projectionContainer.Opacity = _projectionAnimationOpacity;
-
-            // 创建淡入动画
-            DoubleAnimation fadeInAnimation = new DoubleAnimation
-            {
-                From = _projectionAnimationOpacity,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(_projectionAnimationDuration / 2),  // 淡入时间占一半
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-            };
-
-            // 开始动画
-            projectionContainer.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
         }
 
         /// <summary>
@@ -622,27 +627,26 @@ namespace ImageColorChanger.UI
 #endif
 
             // 渲染节流 - 避免过于频繁的更新
-            var now = DateTime.Now;
-            if ((now - _lastCanvasUpdateTime).TotalMilliseconds < CanvasUpdateThrottleMs)
+            var now = DateTime.UtcNow;
+            if (_textEditorProjectionRenderStateService?.ShouldThrottle(now, CanvasUpdateThrottleMs) == true)
             {
 #if DEBUG
-                //System.Diagnostics.Debug.WriteLine($" [静态投影] 节流跳过 (距上次 {(now - _lastCanvasUpdateTime).TotalMilliseconds:F0}ms)");
+                //System.Diagnostics.Debug.WriteLine($" [静态投影] 节流跳过");
 #endif
                 return;
             }
-            _lastCanvasUpdateTime = now;
-            
+
             // 缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
-            string cacheKey = GenerateCanvasCacheKey();
+            string cacheKey = _textEditorProjectionRenderStateService?.BuildCanvasCacheKey(BuildProjectionCacheContext()) ?? string.Empty;
 #if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"[静态投影-缓存] 缓存键相同: {cacheKey == _lastCanvasCacheKey}, 缓存存在: {_lastCanvasRenderCache != null}");
+            //System.Diagnostics.Debug.WriteLine($"[静态投影-缓存] 检查缓存键: {cacheKey}");
 #endif
-            if (cacheKey == _lastCanvasCacheKey && _lastCanvasRenderCache != null)
+            if (_textEditorProjectionRenderStateService?.TryGetCached(cacheKey, out var cachedBitmap) == true && cachedBitmap != null)
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 缓存命中，直接复用旧渲染结果");
 #endif
-                _projectionManager.UpdateProjectionText(_lastCanvasRenderCache);
+                _projectionManager.UpdateProjectionText(cachedBitmap);
                 return;
             }
 
@@ -652,65 +656,35 @@ namespace ImageColorChanger.UI
 
             // 保存辅助线的可见性状态
             var guidesVisibility = AlignmentGuidesCanvas.Visibility;
-            
+
             try
             {
-                // 渲染前：隐藏辅助线，避免被渲染到投影中
-                AlignmentGuidesCanvas.Visibility = Visibility.Collapsed;
-                
-                // 渲染前：隐藏分割线和边框，避免被渲染到投影中
-                HideSplitLinesForProjection();
-                
-                // 渲染前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
-                foreach (var textBox in _textBoxes)
-                {
-                    textBox.HideDecorations();
-                }
-                
-                // 1. 渲染EditorCanvasContainer（只包含Canvas和背景图，不包含辅助线）
-                if (EditorCanvasContainer == null)
-                {
-                    return;
-                }
-                
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"[Canvas信息] 尺寸: {EditorCanvas.ActualWidth}×{EditorCanvas.ActualHeight}");
-                //System.Diagnostics.Debug.WriteLine($"[Canvas信息] 子元素数量: {EditorCanvas.Children.Count}");
-                //System.Diagnostics.Debug.WriteLine($"[Canvas信息] 区域图片: {_regionImages.Count}");
-                //System.Diagnostics.Debug.WriteLine($"[Canvas信息] 文本框: {_textBoxes.Count}");
-                //#endif
-                
-                // 新方案：直接用SkiaSharp合成Canvas，完全跳过RenderTargetBitmap！
-                // 2. 直接按投影物理像素分辨率合成Canvas内容（最高质量，避免二次缩放）
-                //#if DEBUG
-                //var composeSw = System.Diagnostics.Stopwatch.StartNew();
-                //#endif
-                
-                // 使用物理像素分辨率（而非WPF单位），获得最高质量
-                var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
-                var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
-                
-                //#if DEBUG
-                //composeSw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ComposeCanvasWithSkia (物理像素分辨率): {composeSw.ElapsedMilliseconds}ms ({finalImage.Width}×{finalImage.Height})");
-                //#endif
+                _textEditorRenderSafetyService.Execute(
+                    _textBoxes,
+                    renderAction: () =>
+                    {
+                        if (EditorCanvasContainer == null)
+                        {
+                            return;
+                        }
 
-                // 4. 更新投影（使用专用的文字投影方法，语义清晰）
-                //#if DEBUG
-                //var updateSw = System.Diagnostics.Stopwatch.StartNew();
-                //#endif
-                
-                _projectionManager.UpdateProjectionText(finalImage);
-                
-                //#if DEBUG
-                //updateSw.Stop();
-                //System.Diagnostics.Debug.WriteLine($"⏱ [性能] UpdateProjectionText: {updateSw.ElapsedMilliseconds}ms");
-                //#endif
+                        // 使用物理像素分辨率（而非WPF单位），获得最高质量
+                        var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                        var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
 
-                // 保存渲染结果到缓存
-                _lastCanvasRenderCache?.Dispose(); // 释放旧缓存
-                _lastCanvasRenderCache = finalImage;
-                _lastCanvasCacheKey = cacheKey;
+                        _projectionManager.UpdateProjectionText(finalImage);
+                        _textEditorProjectionRenderStateService?.UpdateCache(cacheKey, finalImage);
+                    },
+                    beforeRenderAction: () =>
+                    {
+                        AlignmentGuidesCanvas.Visibility = Visibility.Collapsed;
+                        HideSplitLinesForProjection();
+                    },
+                    afterRenderAction: () =>
+                    {
+                        AlignmentGuidesCanvas.Visibility = guidesVisibility;
+                        RestoreSplitLinesAfterProjection();
+                    });
 
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 渲染完成");
@@ -726,23 +700,6 @@ namespace ImageColorChanger.UI
                 //#endif
                 WpfMessageBox.Show($"更新投影失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                // 渲染后：恢复所有文本框的装饰元素
-                foreach (var textBox in _textBoxes)
-                {
-                    textBox.RestoreDecorations();
-                }
-                
-                // 确保恢复辅助线的可见性（无论成功还是失败）
-                AlignmentGuidesCanvas.Visibility = guidesVisibility;
-                //System.Diagnostics.Debug.WriteLine($"[更新投影] 已恢复辅助线状态");
-                
-                // 恢复分割线和边框显示
-                RestoreSplitLinesAfterProjection();
-                
-                //System.Diagnostics.Debug.WriteLine($"[更新投影] ===== 更新投影结束 =====");
             }
         }
 

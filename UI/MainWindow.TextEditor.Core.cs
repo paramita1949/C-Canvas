@@ -16,14 +16,16 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Repositories.TextEditor;
 using ImageColorChanger.Services.TextEditor;
+using ImageColorChanger.Services.TextEditor.Application;
+using ImageColorChanger.Services.TextEditor.Rendering;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfColor = System.Windows.Media.Color;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
-using SkiaSharp;
 
 namespace ImageColorChanger.UI
 {
@@ -45,6 +47,14 @@ namespace ImageColorChanger.UI
         private string _currentTextColor = "#000000";
         private ITextBoxEditSessionService _textBoxEditSessionService;
         private ITextElementPersistenceService _textElementPersistenceService;
+        private ITextEditorSaveOrchestrator _textEditorSaveOrchestrator;
+        private ITextElementRepository _textElementRepository;
+        private IRichTextSpanRepository _richTextSpanRepository;
+        private ITextEditorProjectionComposer _textEditorProjectionComposer;
+        private ITextEditorThumbnailService _textEditorThumbnailService;
+        private ITextEditorProjectionRenderStateService _textEditorProjectionRenderStateService;
+        private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
+        private const bool EnableTextEditorOrchestrator = true;
 
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
@@ -73,12 +83,7 @@ namespace ImageColorChanger.UI
         private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
         private bool _splitStretchMode = false; // false = 适中显示(Uniform), true = 拉伸显示(Fill)
         
-        // Canvas渲染缓存（避免重复渲染）
-        private SKBitmap _lastCanvasRenderCache = null;
-        private string _lastCanvasCacheKey = "";
-
         // 渲染节流（避免过于频繁的更新）
-        private DateTime _lastCanvasUpdateTime = DateTime.MinValue;
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
 
         // 画布缩放比例（用于投影渲染）
@@ -107,11 +112,16 @@ namespace ImageColorChanger.UI
             }
             _textProjectManager = new TextProjectManager(_dbContext);
             _textBoxEditSessionService = _mainWindowServices.GetRequired<ITextBoxEditSessionService>();
-            var richTextSerializer = _mainWindowServices.GetRequired<IRichTextSerializer>();
-            _textElementPersistenceService = new TextElementPersistenceService(
-                _textProjectManager,
-                _textBoxEditSessionService,
-                richTextSerializer);
+            _textElementPersistenceService = _mainWindowServices.GetRequired<ITextElementPersistenceService>();
+            _textElementRepository = _mainWindowServices.GetRequired<ITextElementRepository>();
+            _richTextSpanRepository = _mainWindowServices.GetRequired<IRichTextSpanRepository>();
+            _textEditorProjectionComposer = _mainWindowServices.GetRequired<ITextEditorProjectionComposer>();
+            _textEditorThumbnailService = _mainWindowServices.GetRequired<ITextEditorThumbnailService>();
+            _textEditorProjectionRenderStateService = _mainWindowServices.GetRequired<ITextEditorProjectionRenderStateService>();
+            _textEditorRenderSafetyService = _mainWindowServices.GetRequired<ITextEditorRenderSafetyService>();
+            _textEditorSaveOrchestrator = EnableTextEditorOrchestrator
+                ? _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>()
+                : null;
 
             // 加载系统字体
             LoadSystemFonts();
@@ -284,7 +294,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddSlideAsync(firstSlide);
 
                 // 加载幻灯片列表
-                LoadSlideList();
+                await LoadSlideList();
 
                 // 添加到导航树
                 AddTextProjectToNavigationTree(_currentTextProject);
@@ -336,7 +346,7 @@ namespace ImageColorChanger.UI
                 ShowTextEditor();
 
                 // 加载幻灯片列表
-                LoadSlideList();
+                await LoadSlideList();
 
                 // 如果没有幻灯片，自动创建第一张
                 if (!await _textProjectManager.ProjectHasSlidesAsync(_currentTextProject.Id))
@@ -357,7 +367,7 @@ namespace ImageColorChanger.UI
                     await _textProjectManager.RebindProjectElementsToSlideAsync(_currentTextProject.Id, firstSlide.Id);
                     
                     // 重新加载幻灯片列表
-                    LoadSlideList();
+                    await LoadSlideList();
                 }
 
                 // 加载完成后，保存按钮恢复为白色
@@ -498,7 +508,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 检查并自动退出文本编辑器（如果当前在编辑模式）
         /// </summary>
-        public bool AutoExitTextEditorIfNeeded()
+        public async Task<bool> AutoExitTextEditorIfNeededAsync()
         {
             if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
             {
@@ -508,8 +518,22 @@ namespace ImageColorChanger.UI
                 if (BtnSaveTextProject.Background is SolidColorBrush brush && brush.Color == Colors.LightGreen)
                 {
                     //System.Diagnostics.Debug.WriteLine(" 有未保存的更改，自动保存");
-                    // 自动保存
-                    BtnSaveTextProject_Click(null, null);
+                    var saveResult = await SaveTextEditorStateAsync(
+                        Services.TextEditor.Application.Models.SaveTrigger.AutoExit,
+                        _textBoxes,
+                        persistAdditionalState: true,
+                        saveThumbnail: false);
+                    if (!saveResult.Succeeded)
+                    {
+                        WpfMessageBox.Show(
+                            $"自动保存失败，已取消退出：{saveResult.Exception?.Message}",
+                            "保存失败",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return false;
+                    }
+
+                    BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
                 }
                 
                 // 关闭文本编辑器
@@ -525,6 +549,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ClearEditorCanvas()
         {
+            _textEditorProjectionRenderStateService?.ClearCache();
             _textBoxes.Clear();
             _selectedTextBox = null;
             

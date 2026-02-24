@@ -82,6 +82,10 @@ namespace ImageColorChanger.Core
             services.AddScoped<Repositories.Interfaces.IMediaFileRepository, Repositories.Implementations.MediaFileRepositoryImpl>();
             services.AddScoped<Repositories.Interfaces.ICompositeScriptRepository, Repositories.Implementations.CompositeScriptRepository>();
             services.AddScoped<Managers.Keyframes.IKeyframeStore, Managers.Keyframes.KeyframeStoreAdapter>();
+            services.AddScoped<Repositories.TextEditor.ITextProjectRepository, Repositories.TextEditor.EfTextProjectRepository>();
+            services.AddScoped<Repositories.TextEditor.ISlideRepository, Repositories.TextEditor.EfSlideRepository>();
+            services.AddScoped<Repositories.TextEditor.ITextElementRepository, Repositories.TextEditor.EfTextElementRepository>();
+            services.AddScoped<Repositories.TextEditor.IRichTextSpanRepository, Repositories.TextEditor.EfRichTextSpanRepository>();
 
             return services;
         }
@@ -103,6 +107,11 @@ namespace ImageColorChanger.Core
             services.AddSingleton<Services.TextEditor.ITextLayoutService, Services.TextEditor.TextLayoutService>();
             services.AddSingleton<Services.TextEditor.IRichTextSerializer, Services.TextEditor.RichTextSerializer>();
             services.AddScoped<Services.TextEditor.ITextElementPersistenceService, Services.TextEditor.TextElementPersistenceService>();
+            services.AddScoped<Services.TextEditor.Application.ITextEditorSaveOrchestrator, Services.TextEditor.Application.TextEditorSaveOrchestrator>();
+            services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionComposer, Services.TextEditor.Rendering.TextEditorProjectionComposer>();
+            services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionRenderStateService, Services.TextEditor.Rendering.TextEditorProjectionRenderStateService>();
+            services.AddSingleton<Services.TextEditor.Rendering.ITextEditorRenderSafetyService, Services.TextEditor.Rendering.TextEditorRenderSafetyService>();
+            services.AddSingleton<Services.TextEditor.Rendering.ITextEditorThumbnailService, Services.TextEditor.Rendering.TextEditorThumbnailService>();
 
             // 认证服务（仅暴露接口，避免上层依赖具体实现）
             services.AddSingleton<IAuthService>(_ => AuthService.Instance);
@@ -163,7 +172,6 @@ namespace ImageColorChanger.Core
             services.AddSingleton<SortManager>();
             services.AddSingleton<SearchManager>();
             services.AddSingleton<ImportManager>();
-            services.AddScoped<TextProjectManager>();
             services.AddTransient<SlideExportManager>(sp =>
                 new SlideExportManager(sp.GetRequiredService<DatabaseManager>().GetDbContext()));
             services.AddTransient<SlideImportManager>(sp =>

@@ -179,11 +179,11 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 退出文本编辑器按钮点击事件
         /// </summary>
-        private void BtnCloseTextEditor_Click(object sender, RoutedEventArgs e)
+        private async void BtnCloseTextEditor_Click(object sender, RoutedEventArgs e)
         {
             // 检查是否有未保存的更改
             if (_currentTextProject != null && BtnSaveTextProject.Background is SolidColorBrush brush && 
-                brush.Color == Colors.Yellow)
+                brush.Color == Colors.LightGreen)
             {
                 var result = WpfMessageBox.Show(
                     "当前项目有未保存的更改，是否保存？", 
@@ -193,8 +193,22 @@ namespace ImageColorChanger.UI
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // 保存项目
-                    BtnSaveTextProject_Click(sender, e);
+                    var saveResult = await SaveTextEditorStateAsync(
+                        Services.TextEditor.Application.Models.SaveTrigger.AutoExit,
+                        _textBoxes,
+                        persistAdditionalState: true,
+                        saveThumbnail: true);
+                    if (!saveResult.Succeeded)
+                    {
+                        WpfMessageBox.Show(
+                            $"保存失败，已取消退出：{saveResult.Exception?.Message}",
+                            "保存失败",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
                 }
                 else if (result == MessageBoxResult.Cancel)
                 {

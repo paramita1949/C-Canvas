@@ -208,7 +208,7 @@ namespace ImageColorChanger.UI
                 : Brushes.Transparent;
         }
 
-        private void EnterLyricsModeFromSong(int lyricsProjectId)
+        private async Task EnterLyricsModeFromSongAsync(int lyricsProjectId)
         {
             try
             {
@@ -217,7 +217,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                AutoExitTextEditorIfNeeded();
+                await AutoExitTextEditorIfNeededAsync();
                 SetLyricsEntryBySong(lyricsProjectId);
 
                 if (_isLyricsMode)

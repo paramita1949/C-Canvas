@@ -41,6 +41,10 @@
     <EmbeddedResource Remove="Canvas111\**" />
     <None Remove="Canvas111\**" />
     <Page Remove="Canvas111\**" />
+    <Compile Remove="Canvas.TextEditor.Tests\**" />
+    <EmbeddedResource Remove="Canvas.TextEditor.Tests\**" />
+    <None Remove="Canvas.TextEditor.Tests\**" />
+    <Page Remove="Canvas.TextEditor.Tests\**" />
   </ItemGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">

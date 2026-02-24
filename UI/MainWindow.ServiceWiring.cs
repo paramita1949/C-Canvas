@@ -48,6 +48,10 @@ namespace ImageColorChanger.UI
 
                 // 清理视频背景管理器
                 _videoBackgroundManager?.Dispose();
+                _textEditorProjectionRenderStateService?.ClearCache();
+                _textEditorSaveOrchestrator = null;
+                _textEditorProjectionRenderStateService = null;
+                _textEditorRenderSafetyService = null;
             }
             catch (Exception
 #if DEBUG

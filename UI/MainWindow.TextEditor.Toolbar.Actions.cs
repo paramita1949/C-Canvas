@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -92,7 +93,7 @@ namespace ImageColorChanger.UI
                 SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
                 foreach (var slide in newSlides)
                 {
-                    LoadSlide(slide);
+                    await LoadSlide(slide);
                     await Task.Delay(150);
 
                     var thumbnailPath = SaveSlideThumbnail(slide.Id);
@@ -104,7 +105,7 @@ namespace ImageColorChanger.UI
                 }
                 SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
 
-                LoadSlideList();
+                await LoadSlideList();
                 ShowStatus($"成功导入 {sortedFiles.Length} 张图片");
 
                 if (newSlides.Count > 0)
@@ -446,21 +447,18 @@ namespace ImageColorChanger.UI
 
             try
             {
-                await PersistTextElementsAsync(_textBoxes);
-
-                await SaveSplitConfigAsync();
-
-                if (_currentSlide != null)
+                var saveResult = await SaveTextEditorStateAsync(
+                    SaveTrigger.Manual,
+                    _textBoxes,
+                    persistAdditionalState: true,
+                    saveThumbnail: true);
+                if (!saveResult.Succeeded)
                 {
-                    var thumbnailPath = SaveSlideThumbnail(_currentSlide.Id);
-                    if (!string.IsNullOrEmpty(thumbnailPath))
-                    {
-                        _currentSlide.ThumbnailPath = thumbnailPath;
-                    }
+                    throw saveResult.Exception ?? new InvalidOperationException("未知保存失败。");
                 }
 
                 BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
-                RefreshSlideList();
+                await RefreshSlideList();
 
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {

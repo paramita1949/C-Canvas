@@ -374,23 +374,21 @@ namespace ImageColorChanger.UI
                 ResetViewStateForTextEditor();
                 _currentTextProject = project;
                 ShowTextEditor();
-                LoadSlideList();
+                await LoadSlideList();
 
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    _currentSlide = slide;
-                    SlideListBox.SelectedItem = slide;
-                    LoadSlide(slide);
-                }, System.Windows.Threading.DispatcherPriority.Loaded);
+                _currentSlide = slide;
+                SlideListBox.SelectedItem = slide;
+                await LoadSlide(slide);
 
                 await Dispatcher.InvokeAsync(() =>
                 {
                     if (_currentSlide != null && _currentSlide.Id == slide.Id)
                     {
                         SaveSlideThumbnail(slide.Id);
-                        LoadSlideList();
                     }
                 }, System.Windows.Threading.DispatcherPriority.Background);
+
+                await LoadSlideList();
             }
             catch (Exception)
             {

@@ -1,5 +1,31 @@
 2026.2.24
 -------------------------
+V6.0.2.6
+【幻灯片文本重构-阶段三二批落地】
+1、新增投影渲染状态服务 `TextEditorProjectionRenderStateService`，统一承接缓存键生成、缓存生命周期与渲染节流状态
+2、新增渲染安全模板服务 `TextEditorRenderSafetyService`，统一“渲染前隐藏装饰 / 渲染后恢复”流程
+3、`MainWindow.TextEditor.Helpers` 移除本地缓存键/缓存清理逻辑，静态投影改为调用渲染服务
+4、`TextEditorThumbnailService` 改为复用渲染安全模板，不再各处复制隐藏/恢复代码
+5、新增性能基线脚本 `scripts/text-editor-performance-baseline.ps1`，首轮自动生成基线并接入回归脚本
+6、新增渲染测试 `TextEditorProjectionRenderStateServiceTests`、`TextEditorRenderSafetyServiceTests` 并通过
+
+V6.0.2.5
+【幻灯片文本重构-阶段二完成，阶段三首批落地】
+1、新增 TextEditor 仓储边界（Project/Slide/TextElement/RichTextSpan）并接入 DI
+2、TextElementPersistenceService 改为依赖仓储接口，不再依赖 TextProjectManager
+3、TextProjectManager 调整为兼容 Facade（保留 API，标注 Obsolete 迁移提示）
+4、TextEditor UI 移除对 TextProjectManager 富文本细节 API 的直接调用
+5、新增渲染服务：ProjectionComposer 与 ThumbnailService，UI 仅触发调用（阶段三首批）
+6、回归脚本新增阶段二/三守卫（仓储依赖、富文本 API 隔离、渲染服务入口）
+
+V6.0.2.4
+【幻灯片文本重构-阶段一完成】
+1、保存链路统一到 TextEditorSaveOrchestrator（手动保存/切换保存/自动退出保存）
+2、移除 MainWindow.TextEditor.* 中同步阻塞调用（GetAwaiter().GetResult()=0）
+3、LoadSlide/LoadSlideList/RestoreSplitConfig 改为真实异步 await 链路
+4、新增 Canvas.TextEditor.Tests（SaveOrchestrator + RichTextSerializer）
+5、回归脚本新增守卫：统一保存入口、切换入口、阻塞调用清零
+
 V6.0.2.3
 修复幻灯片保存后，文字漂移的问题
 

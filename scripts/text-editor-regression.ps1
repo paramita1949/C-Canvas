@@ -66,23 +66,77 @@ $lifecycleText = Get-Content $lifecyclePath -Raw
 $hideNoExit = -not ($lifecycleText -match "HideDecorations\s*\([^)]*\)\s*[\s\S]*ExitEditMode\s*\(")
 Add-CheckResult -Lines $report -Name "HideDecorations has no ExitEditMode side effect" -Passed $hideNoExit -Detail $lifecyclePath
 
-# 3) Guard: save path uses PersistTextElementsAsync
+# 3) Guard: save path uses unified SaveTextEditorStateAsync entry
 $toolbarActionsPath = "UI/MainWindow.TextEditor.Toolbar.Actions.cs"
 $toolbarActionsText = Get-Content $toolbarActionsPath -Raw
-$saveUsesPersistence = $toolbarActionsText -match "BtnSaveTextProject_Click\s*\([^)]*\)\s*[\s\S]*?PersistTextElementsAsync\s*\("
-Add-CheckResult -Lines $report -Name "Save button uses persistence service entry" -Passed $saveUsesPersistence -Detail "UI/MainWindow.TextEditor.Toolbar.Actions.cs"
+$saveUsesOrchestrator = $toolbarActionsText -match "BtnSaveTextProject_Click\s*\([^)]*\)\s*[\s\S]*?SaveTextEditorStateAsync\s*\("
+Add-CheckResult -Lines $report -Name "Save button uses unified save orchestrator entry" -Passed $saveUsesOrchestrator -Detail "UI/MainWindow.TextEditor.Toolbar.Actions.cs"
 
 # 4) Guard: slide switch is awaited async save (no fire-and-forget pattern)
 $slidePath = "UI/MainWindow.TextEditor.Slides.cs"
 $slideText = Get-Content $slidePath -Raw
 $switchIsAsync = $slideText -match "private\s+async\s+void\s+SlideListBox_SelectionChanged"
 $noFireForget = -not ($slideText -match "#pragma\s+warning\s+disable\s+CS4014")
-$slidePersists = $slideText -match "await\s+PersistTextElementsAsync\("
-Add-CheckResult -Lines $report -Name "Slide switch uses awaited save path" -Passed ($switchIsAsync -and $noFireForget -and $slidePersists) -Detail $slidePath
+$slideUsesOrchestrator = $slideText -match "await\s+SaveTextEditorStateAsync\s*\([\s\S]*SaveTrigger\.SlideSwitch"
+Add-CheckResult -Lines $report -Name "Slide switch uses awaited save orchestrator path" -Passed ($switchIsAsync -and $noFireForget -and $slideUsesOrchestrator) -Detail $slidePath
 
-# 5) Guard: thumbnail path uses CaptureSnapshotForSave and HideDecorations
-$thumbUsesSnapshot = $slideText -match "GenerateThumbnail\s*\(\)\s*[\s\S]*?CaptureSnapshotForSave\s*\("
-Add-CheckResult -Lines $report -Name "Thumbnail generation captures snapshot without edit-mode exit" -Passed $thumbUsesSnapshot -Detail $slidePath
+# 4.1) Guard: no sync blocking GetAwaiter().GetResult() in TextEditor UI chain
+$blockingCalls = & rg -n "GetAwaiter\(\)\.GetResult\(" UI -g "MainWindow.TextEditor*.cs" 2>$null
+$noBlockingAwaiter = ($LASTEXITCODE -ne 0)
+$blockingDetail = if ($noBlockingAwaiter) { "UI/MainWindow.TextEditor*.cs has zero blocking awaiter calls." } else { ($blockingCalls -join " | ") }
+Add-CheckResult -Lines $report -Name "No GetAwaiter().GetResult() in MainWindow.TextEditor.*" -Passed $noBlockingAwaiter -Detail $blockingDetail
+
+# 4.2) Guard: persistence service should not depend on TextProjectManager directly
+$persistencePath = "Services/TextEditor/TextElementPersistenceService.cs"
+$persistenceText = Get-Content $persistencePath -Raw
+$noManagerInPersistence = -not ($persistenceText -match "TextProjectManager")
+Add-CheckResult -Lines $report -Name "TextElementPersistenceService does not depend on TextProjectManager" -Passed $noManagerInPersistence -Detail $persistencePath
+
+# 4.3) Guard: TextEditor UI should not call manager rich-text detail APIs directly
+$uiRichTextCalls = & rg -n "_textProjectManager\.(SaveRichTextSpansAsync|DeleteRichTextSpansByElementIdAsync|GetElementsBySlideWithRichTextAsync|AddRichTextSpanAsync)" UI -g "MainWindow.TextEditor*.cs" 2>$null
+$uiNoRichTextManagerCalls = ($LASTEXITCODE -ne 0)
+$uiRichTextDetail = if ($uiNoRichTextManagerCalls) { "MainWindow.TextEditor.* has no direct manager rich-text API calls." } else { ($uiRichTextCalls -join " | ") }
+Add-CheckResult -Lines $report -Name "TextEditor UI avoids direct manager rich-text APIs" -Passed $uiNoRichTextManagerCalls -Detail $uiRichTextDetail
+
+# 5) Guard: thumbnail path keeps snapshot side-effect guard (either local or service implementation)
+$thumbnailServicePath = "Services/TextEditor/Rendering/TextEditorThumbnailService.cs"
+$thumbnailServiceText = if (Test-Path $thumbnailServicePath) { Get-Content $thumbnailServicePath -Raw } else { "" }
+$renderSafetyPath = "Services/TextEditor/Rendering/TextEditorRenderSafetyService.cs"
+$renderSafetyText = if (Test-Path $renderSafetyPath) { Get-Content $renderSafetyPath -Raw } else { "" }
+$thumbUsesSnapshot = ($slideText -match "GenerateThumbnail\s*\(\)\s*[\s\S]*?CaptureSnapshotForSave\s*\(") -or
+    (($thumbnailServiceText -match "CaptureSnapshotForSave\s*\(") -and ($thumbnailServiceText -match "HideDecorations\s*\(")) -or
+    (($thumbnailServiceText -match "_renderSafetyService\.Execute") -and ($renderSafetyText -match "CaptureSnapshotForSave\s*\(") -and ($renderSafetyText -match "HideDecorations\s*\("))
+Add-CheckResult -Lines $report -Name "Thumbnail generation captures snapshot without edit-mode exit" -Passed $thumbUsesSnapshot -Detail "$slidePath; $thumbnailServicePath; $renderSafetyPath"
+
+# 5.1) Guard: thumbnail path delegates to thumbnail service
+$thumbUsesService = $slideText -match "SaveSlideThumbnail\s*\([^)]*\)\s*[\s\S]*?_textEditorThumbnailService\?\.SaveSlideThumbnail"
+Add-CheckResult -Lines $report -Name "Thumbnail save uses thumbnail service entry" -Passed $thumbUsesService -Detail $slidePath
+
+# 5.2) Guard: projection update delegates to projection composer
+$helpersPath = "UI/MainWindow.TextEditor.Helpers.cs"
+$helpersText = Get-Content $helpersPath -Raw
+$projectionUsesComposer = $helpersText -match "UpdateProjectionFromCanvas\s*\(\)\s*[\s\S]*?_textEditorProjectionComposer\?\.Compose"
+Add-CheckResult -Lines $report -Name "Projection update uses projection composer entry" -Passed $projectionUsesComposer -Detail $helpersPath
+
+# 5.3) Guard: projection cache key/clear is owned by rendering service instead of UI helper
+$helpersNoLocalCacheFns = (-not ($helpersText -match "private\s+string\s+GenerateCanvasCacheKey\s*\(")) -and
+    (-not ($helpersText -match "private\s+void\s+ClearCanvasRenderCache\s*\("))
+$helpersUsesRenderState = ($helpersText -match "_textEditorProjectionRenderStateService\?\.BuildCanvasCacheKey") -and
+    ($helpersText -match "_textEditorProjectionRenderStateService\?\.UpdateCache")
+Add-CheckResult -Lines $report -Name "Projection cache key/clear moved out of MainWindow helper" -Passed ($helpersNoLocalCacheFns -and $helpersUsesRenderState) -Detail $helpersPath
+
+# 5.4) Guard: render hide/restore template is centralized in rendering safety service
+$helpersUsesRenderSafety = $helpersText -match "_textEditorRenderSafetyService\.Execute"
+$thumbnailUsesRenderSafety = $thumbnailServiceText -match "_renderSafetyService\.Execute"
+Add-CheckResult -Lines $report -Name "Render safety template centralized for projection/thumbnail" -Passed ($helpersUsesRenderSafety -and $thumbnailUsesRenderSafety) -Detail "$helpersPath; $thumbnailServicePath"
+
+# 5.5) Guard: TextProjectManager is compatibility facade with low direct DbContext usage
+$managerPath = "Managers/TextProjectManager.cs"
+$managerText = Get-Content $managerPath -Raw
+$managerMarkedObsolete = $managerText -match "\[Obsolete\("
+$dbContextDirectCount = ([regex]::Matches($managerText, "_dbContext\.")).Count
+$managerFacadeOk = $managerMarkedObsolete -and ($dbContextDirectCount -le 6)
+Add-CheckResult -Lines $report -Name "TextProjectManager remains compatibility facade" -Passed $managerFacadeOk -Detail "$managerPath (DbContext direct refs: $dbContextDirectCount)"
 
 # 6) Guard: RichTextSpan has v2 fields
 $modelPath = "Database/Models/RichTextSpan.cs"
@@ -103,6 +157,30 @@ $editModePath = "UI/Controls/DraggableTextBox.EditMode.cs"
 $editModeText = Get-Content $editModePath -Raw
 $exitNoRichResync = -not ($editModeText -match "snapshot\.RichTextSpans\.Count\s*>\s*0[\s\S]*SyncTextToRichTextBox\s*\(")
 Add-CheckResult -Lines $report -Name "ExitEditMode has no rich-text re-render side effect" -Passed $exitNoRichResync -Detail $editModePath
+
+# 9) Guard: performance baseline regression <=10%
+$perfScriptPath = "scripts/text-editor-performance-baseline.ps1"
+$perfPassed = $false
+$perfDetail = ""
+if (Test-Path $perfScriptPath) {
+    try {
+        $perfOutput = & $perfScriptPath -AutoOnly 2>&1
+        $perfPassed = ($LASTEXITCODE -eq 0)
+        if ($perfPassed) {
+            $perfDetail = "Performance baseline check passed."
+        } else {
+            $perfDetail = "Performance baseline check failed. Last lines: " + (($perfOutput | Select-Object -Last 5) -join " | ")
+        }
+    }
+    catch {
+        $perfPassed = $false
+        $perfDetail = $_.Exception.Message
+    }
+} else {
+    $perfPassed = $false
+    $perfDetail = "Missing performance baseline script: $perfScriptPath"
+}
+Add-CheckResult -Lines $report -Name "Performance baseline regression <= 10%" -Passed $perfPassed -Detail $perfDetail
 
 $report.Add("")
 $report.Add((New-Section -Title "Manual Acceptance Checklist"))

@@ -176,8 +176,9 @@ namespace ImageColorChanger.Services
                 var response = await PostJsonWithFailoverAsync(
                     HEARTBEAT_ENDPOINT,
                     jsonContent,
-                    timeoutSeconds: 8,
-                    perRequestTimeoutSeconds: 8);
+                    timeoutSeconds: 6,
+                    allowFailoverOnFailure: false,
+                    perRequestTimeoutSeconds: 6);
 
                 if (response == null)
                 {
@@ -204,6 +205,12 @@ namespace ImageColorChanger.Services
 #endif
             }
             catch (TaskCanceledException)
+            {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($"⏱ [通知心跳] 检查超时，跳过本次");
+#endif
+            }
+            catch (TimeoutException)
             {
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine($"⏱ [通知心跳] 检查超时，跳过本次");

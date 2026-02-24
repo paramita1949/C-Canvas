@@ -149,7 +149,7 @@ namespace ImageColorChanger.UI
             }
 
             var openItem = new MenuItem { Header = "打开歌词" };
-            openItem.Click += (s, args) => EnterLyricsModeFromSong(songItem.Id);
+            openItem.Click += (s, args) => _ = EnterLyricsModeFromSongAsync(songItem.Id);
             contextMenu.Items.Add(openItem);
 
             contextMenu.Items.Add(new Separator());
@@ -309,7 +309,7 @@ namespace ImageColorChanger.UI
 
             LoadProjects();
             FocusLyricsTreeNode(groupId, project.Id);
-            EnterLyricsModeFromSong(project.Id);
+            _ = EnterLyricsModeFromSongAsync(project.Id);
         }
 
         private void FocusLyricsTreeNode(int groupId, int songId)

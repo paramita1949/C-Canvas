@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -203,36 +204,40 @@ namespace ImageColorChanger.UI
                     bool saveSucceeded = false;
                     Exception lastSaveException = null;
 
-                    try
+                    bool hasPendingChanges = BtnSaveTextProject.Background is SolidColorBrush saveBrush
+                                             && saveBrush.Color == Colors.LightGreen;
+
+                    if (!hasPendingChanges)
                     {
-                        await PersistTextElementsAsync(textBoxesCopy);
-                        await SaveSplitConfigAsync();
                         saveSucceeded = true;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        lastSaveException = ex;
-                    }
+                        var saveResult = await SaveTextEditorStateAsync(
+                            SaveTrigger.SlideSwitch,
+                            textBoxesCopy,
+                            persistAdditionalState: true,
+                            saveThumbnail: false);
+                        saveSucceeded = saveResult.Succeeded;
+                        lastSaveException = saveResult.Exception;
 
-                    if (!saveSucceeded)
-                    {
-                        var retryResult = WpfMessageBox.Show(
-                            $"切换幻灯片前保存失败：{lastSaveException?.Message}\n是否重试？",
-                            "保存失败",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Warning);
-
-                        if (retryResult == MessageBoxResult.Yes)
+                        if (!saveSucceeded)
                         {
-                            try
+                            var retryResult = WpfMessageBox.Show(
+                                $"切换幻灯片前保存失败：{lastSaveException?.Message}\n是否重试？",
+                                "保存失败",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Warning);
+
+                            if (retryResult == MessageBoxResult.Yes)
                             {
-                                await PersistTextElementsAsync(textBoxesCopy);
-                                await SaveSplitConfigAsync();
-                                saveSucceeded = true;
-                            }
-                            catch (Exception retryEx)
-                            {
-                                lastSaveException = retryEx;
+                                saveResult = await SaveTextEditorStateAsync(
+                                    SaveTrigger.SlideSwitch,
+                                    textBoxesCopy,
+                                    persistAdditionalState: true,
+                                    saveThumbnail: false);
+                                saveSucceeded = saveResult.Succeeded;
+                                lastSaveException = saveResult.Exception;
                             }
                         }
                     }
@@ -266,7 +271,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 直接加载新幻灯片
-                LoadSlide(selectedSlide);
+                await LoadSlide(selectedSlide);
             }
             finally
             {
@@ -458,7 +463,7 @@ namespace ImageColorChanger.UI
                 #endif
 
                 // 刷新列表
-                LoadSlideList();
+                await LoadSlideList();
 
                 // 保持选中当前幻灯片（通过ID查找）
                 var updatedSourceSlide = slides.FirstOrDefault(s => s.Id == sourceSlide.Id);
@@ -676,7 +681,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 加载幻灯片内容到编辑器
         /// </summary>
-        private void LoadSlide(Slide slide)
+        private async Task LoadSlide(Slide slide)
         {
             try
             {
@@ -766,7 +771,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 加载文本元素（包含富文本片段）
-                var elements = _textProjectManager.GetElementsBySlideWithRichTextAsync(slide.Id).GetAwaiter().GetResult();
+                var elements = await _textElementRepository.GetBySlideWithRichTextAsync(slide.Id);
 
 //#if DEBUG
 //                int totalSpans = elements.Sum(e => e.RichTextSpans?.Count ?? 0);
@@ -790,13 +795,13 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
                 
                 // 恢复分割配置
-                RestoreSplitConfig(slide);
+                await RestoreSplitConfigAsync(slide);
                 
                 // 加载完成后，如果投影已开启且未锁定，自动更新投影
                 if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
                 {
                     // 延迟一点点，确保UI渲染完成
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateProjectionFromCanvas();
                         //System.Diagnostics.Debug.WriteLine(" 幻灯片加载后已自动更新投影");
@@ -865,7 +870,7 @@ namespace ImageColorChanger.UI
                 await _textProjectManager.AddSlideAsync(newSlide);
 
                 // 刷新幻灯片列表
-                LoadSlideList();
+                await LoadSlideList();
 
                 // 选中新建的幻灯片
                 SlideListBox.SelectedItem = newSlide;
@@ -895,7 +900,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 加载源幻灯片的所有元素（包含富文本片段）
-                var sourceElements = await _textProjectManager.GetElementsBySlideWithRichTextAsync(sourceSlide.Id);
+                var sourceElements = await _textElementRepository.GetBySlideWithRichTextAsync(sourceSlide.Id);
 
                 // 计算新的排序位置（在源幻灯片后面）
                 int newSortOrder = sourceSlide.SortOrder + 1;
@@ -972,40 +977,30 @@ namespace ImageColorChanger.UI
                         }
 
                         // 批量保存富文本片段
-                        await _textProjectManager.SaveRichTextSpansAsync(newElement.Id, newSpans);
+                        await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, newSpans);
                     }
                 }
 
-                // 先加载新幻灯片内容并生成缩略图,再刷新列表(避免闪烁)
-                await Dispatcher.InvokeAsync(async () =>
+                // 先加载新幻灯片内容并生成缩略图，再刷新列表（避免闪烁）
+                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
+                try
                 {
-                    // 临时选中新幻灯片(不触发SelectionChanged)
-                    var previousIndex = SlideListBox.SelectedIndex;
-                    SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
-                    
-                    // 手动加载新幻灯片内容
-                    LoadSlide(newSlide);
-                    
-                    // 等待UI完全渲染
+                    await LoadSlide(newSlide);
                     await Task.Delay(150);
-                    
-                    // 生成新幻灯片的缩略图
+
                     var thumbnailPath = SaveSlideThumbnail(newSlide.Id);
                     if (!string.IsNullOrEmpty(thumbnailPath))
                     {
                         newSlide.ThumbnailPath = thumbnailPath;
                     }
-                    
-                    // 恢复事件监听
-                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
-                    
-                    // 刷新幻灯片列表(此时缩略图已生成)
-                    LoadSlideList();
-                    
-                    // 选中新幻灯片
+
+                    await LoadSlideList();
                     SlideListBox.SelectedItem = newSlide;
-                    
-                }, System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+                finally
+                {
+                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                }
 
                 //System.Diagnostics.Debug.WriteLine($" 复制幻灯片成功: 原ID={sourceSlide.Id}, 新ID={newSlide.Id}");
             }
@@ -1040,7 +1035,7 @@ namespace ImageColorChanger.UI
                     System.Diagnostics.Debug.WriteLine($" 幻灯片不存在: ID={slideIdToDelete}");
 #endif
                     // 刷新列表，可能已经被删除了
-                    LoadSlideList();
+                    await LoadSlideList();
                     return;
                 }
 
@@ -1057,7 +1052,7 @@ namespace ImageColorChanger.UI
                     if (slideToSwitchTo != null)
                     {
                         // 先切换到其他幻灯片（不触发 SelectionChanged，因为已禁用）
-                        LoadSlide(slideToSwitchTo);
+                        await LoadSlide(slideToSwitchTo);
                     }
                     else
                     {
@@ -1071,7 +1066,7 @@ namespace ImageColorChanger.UI
                     await _textProjectManager.DeleteSlideAsync(slideIdToDelete);
 
                     // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
-                    LoadSlideList();
+                    await LoadSlideList();
 
                     // 选中合适的幻灯片
                     if (SlideListBox.Items.Count > 0)
@@ -1084,7 +1079,7 @@ namespace ImageColorChanger.UI
                         // 手动加载选中的幻灯片（因为 SelectionChanged 被禁用了）
                         if (SlideListBox.SelectedItem is Slide targetSlide)
                         {
-                            LoadSlide(targetSlide);
+                            await LoadSlide(targetSlide);
                         }
                     }
 
@@ -1114,12 +1109,12 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 加载幻灯片列表
         /// </summary>
-        private void LoadSlideList()
+        private async Task LoadSlideList()
         {
             if (_currentTextProject == null)
                 return;
 
-            var slides = _textProjectManager.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id).GetAwaiter().GetResult();
+            var slides = await _textProjectManager.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id);
 
             // 加载缩略图路径
             var thumbnailDir = System.IO.Path.Combine(
@@ -1161,7 +1156,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 刷新幻灯片列表（保持当前选中项）
         /// </summary>
-        private void RefreshSlideList()
+        private async Task RefreshSlideList()
         {
             if (_currentTextProject == null)
                 return;
@@ -1178,7 +1173,7 @@ namespace ImageColorChanger.UI
                 SlideListBox.ItemsSource = null;
                 
                 // 重新加载列表
-                LoadSlideList();
+                await LoadSlideList();
                 
                 // 尝试恢复选中项（不会触发SelectionChanged）
                 if (currentSelectedId.HasValue)
@@ -1203,64 +1198,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private BitmapSource GenerateThumbnail()
         {
-            try
-            {
-                // 获取画布的父Grid（包含背景图）
-                var canvasParent = EditorCanvas.Parent as Grid;
-                if (canvasParent == null)
-                    return null;
-
-                // 保存缩略图前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
-                foreach (var textBox in _textBoxes)
-                {
-                    // 无副作用快照：保证缩略图与持久化数据一致，不打断编辑态
-                    _ = textBox.CaptureSnapshotForSave();
-                    textBox.HideDecorations();
-                }
-
-                // 强制更新布局，确保隐藏效果生效
-                canvasParent.UpdateLayout();
-
-                // 获取实际尺寸
-                int width = (int)canvasParent.ActualWidth;
-                int height = (int)canvasParent.ActualHeight;
-                
-                // 如果尺寸无效，使用默认值
-                if (width <= 0) width = 1600;
-                if (height <= 0) height = 900;
-
-                // 创建渲染目标
-                var renderBitmap = new RenderTargetBitmap(
-                    width, height,
-                    96, 96,
-                    PixelFormats.Pbgra32);
-
-                // 渲染画布
-                renderBitmap.Render(canvasParent);
-
-                // 缩放到缩略图大小
-                var thumbnail = new TransformedBitmap(renderBitmap, new ScaleTransform(0.1, 0.1));
-
-                // 保存缩略图后：恢复所有文本框的装饰元素
-                foreach (var textBox in _textBoxes)
-                {
-                    textBox.RestoreDecorations();
-                }
-
-                return thumbnail;
-            }
-            catch (Exception)
-            {
-                //System.Diagnostics.Debug.WriteLine($" 生成缩略图失败: {ex.Message}");
-                
-                // 异常时也要恢复装饰元素
-                foreach (var textBox in _textBoxes)
-                {
-                    textBox.RestoreDecorations();
-                }
-                
-                return null;
-            }
+            var canvasParent = EditorCanvas.Parent as Grid;
+            return _textEditorThumbnailService?.GenerateThumbnail(canvasParent, _textBoxes);
         }
 
         /// <summary>
@@ -1270,31 +1209,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var thumbnail = GenerateThumbnail();
-                if (thumbnail == null)
-                    return null;
-
-                // 创建缩略图目录
+                var canvasParent = EditorCanvas.Parent as Grid;
                 var thumbnailDir = System.IO.Path.Combine(
                     System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
                     "Thumbnails");
-                
-                if (!System.IO.Directory.Exists(thumbnailDir))
-                    System.IO.Directory.CreateDirectory(thumbnailDir);
 
-                // 保存缩略图
-                var thumbnailPath = System.IO.Path.Combine(thumbnailDir, $"slide_{slideId}.png");
-                
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(thumbnail));
-                
-                using (var fileStream = new FileStream(thumbnailPath, FileMode.Create))
-                {
-                    encoder.Save(fileStream);
-                }
-
-                //System.Diagnostics.Debug.WriteLine($" 缩略图已保存: {thumbnailPath}");
-                return thumbnailPath;
+                return _textEditorThumbnailService?.SaveSlideThumbnail(
+                    slideId,
+                    canvasParent,
+                    _textBoxes,
+                    thumbnailDir);
             }
             catch (Exception)
             {

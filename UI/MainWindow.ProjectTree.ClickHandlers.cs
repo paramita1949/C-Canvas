@@ -33,7 +33,7 @@ namespace ImageColorChanger.UI
 
             if (IsLyricsLibraryFeatureEnabled && selectedItem.Type == TreeItemType.LyricsSong)
             {
-                EnterLyricsModeFromSong(selectedItem.Id);
+                await EnterLyricsModeFromSongAsync(selectedItem.Id);
                 return;
             }
 
@@ -54,11 +54,12 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private Task HandleFolderNodeClickAsync(ProjectTreeItem selectedItem, MouseButtonEventArgs e)
+        private async Task HandleFolderNodeClickAsync(ProjectTreeItem selectedItem, MouseButtonEventArgs e)
         {
-            if (TextEditorPanel.Visibility != Visibility.Visible)
+            // 分割模式下需要保持编辑态，允许继续从文件树选择图片填充区域。
+            if (TextEditorPanel.Visibility == Visibility.Visible && !IsInSplitMode())
             {
-                AutoExitTextEditorIfNeeded();
+                await AutoExitTextEditorIfNeededAsync();
             }
 
             CollapseOtherFolders(selectedItem);
@@ -78,15 +79,17 @@ namespace ImageColorChanger.UI
             }
 
             e.Handled = true;
-            return Task.CompletedTask;
         }
 
         private async Task HandleFileNodeClickAsync(ProjectTreeItem selectedItem)
         {
             bool isEditingSlide = TextEditorPanel.Visibility == Visibility.Visible;
-            if (!isEditingSlide)
+            bool keepEditorForSplitImage = isEditingSlide &&
+                                           IsInSplitMode() &&
+                                           selectedItem.FileType == FileType.Image;
+            if (isEditingSlide && !keepEditorForSplitImage)
             {
-                AutoExitTextEditorIfNeeded();
+                await AutoExitTextEditorIfNeededAsync();
             }
 
             int fileId = selectedItem.Id;

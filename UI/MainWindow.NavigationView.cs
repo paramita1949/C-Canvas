@@ -8,7 +8,6 @@ using System.Windows.Media;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
-using ImageColorChanger.Managers;
 using Microsoft.EntityFrameworkCore;
 using Color = System.Windows.Media.Color;
 using ColorConverter = System.Windows.Media.ColorConverter;
@@ -28,7 +27,6 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadProjects(bool enableDetailedIcons = true)
         {
-            if (_textProjectManager == null) return;
             try
             {
                 var dbManager = DatabaseManagerService;
@@ -422,12 +420,15 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_textProjectManager == null)
+                if (_dbContext == null)
                 {
-                    _textProjectManager = new TextProjectManager(_dbContext);
+                    return;
                 }
 
-                var textProjects = _textProjectManager.GetAllProjectsAsync().GetAwaiter().GetResult();
+                var textProjects = _dbContext.TextProjects
+                    .AsNoTracking()
+                    .OrderBy(p => p.Id)
+                    .ToList();
 
                 foreach (var project in textProjects)
                 {
@@ -569,16 +570,20 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_textProjectManager == null)
+                if (_dbContext == null)
                 {
-                    _textProjectManager = new TextProjectManager(_dbContext);
+                    ShowStatus("数据库上下文未初始化");
+                    return;
                 }
 
-                var textProjects = await _textProjectManager.GetAllProjectsAsync();
+                var firstProject = await _dbContext.TextProjects
+                    .AsNoTracking()
+                    .OrderBy(p => p.Id)
+                    .Select(p => new { p.Id, p.Name })
+                    .FirstOrDefaultAsync();
 
-                if (textProjects != null && textProjects.Count > 0)
+                if (firstProject != null)
                 {
-                    var firstProject = textProjects[0];
                     await LoadTextProjectAsync(firstProject.Id);
                     ShowStatus($"已打开项目: {firstProject.Name}");
                 }

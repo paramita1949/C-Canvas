@@ -3,23 +3,26 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ImageColorChanger.Managers;
+using ImageColorChanger.Repositories.TextEditor;
 using ImageColorChanger.Services.TextEditor.Models;
 
 namespace ImageColorChanger.Services.TextEditor
 {
     public sealed class TextElementPersistenceService : ITextElementPersistenceService
     {
-        private readonly TextProjectManager _textProjectManager;
+        private readonly ITextElementRepository _textElementRepository;
+        private readonly IRichTextSpanRepository _richTextSpanRepository;
         private readonly ITextBoxEditSessionService _editSessionService;
         private readonly IRichTextSerializer _richTextSerializer;
 
         public TextElementPersistenceService(
-            TextProjectManager textProjectManager,
+            ITextElementRepository textElementRepository,
+            IRichTextSpanRepository richTextSpanRepository,
             ITextBoxEditSessionService editSessionService,
             IRichTextSerializer richTextSerializer)
         {
-            _textProjectManager = textProjectManager ?? throw new ArgumentNullException(nameof(textProjectManager));
+            _textElementRepository = textElementRepository ?? throw new ArgumentNullException(nameof(textElementRepository));
+            _richTextSpanRepository = richTextSpanRepository ?? throw new ArgumentNullException(nameof(richTextSpanRepository));
             _editSessionService = editSessionService ?? throw new ArgumentNullException(nameof(editSessionService));
             _richTextSerializer = richTextSerializer ?? throw new ArgumentNullException(nameof(richTextSerializer));
         }
@@ -54,7 +57,7 @@ namespace ImageColorChanger.Services.TextEditor
                     snapshot.Element.Content = snapshot.Content ?? string.Empty;
                 }
 
-                await _textProjectManager.UpdateElementsAsync(validSnapshots.Select(s => s.Element));
+                await _textElementRepository.UpdateRangeAsync(validSnapshots.Select(s => s.Element));
 
                 foreach (var snapshot in validSnapshots)
                 {
@@ -66,11 +69,11 @@ namespace ImageColorChanger.Services.TextEditor
 
                     if (spansToSave.Count > 0)
                     {
-                        await _textProjectManager.SaveRichTextSpansAsync(snapshot.TextElementId, spansToSave);
+                        await _richTextSpanRepository.SaveForTextElementAsync(snapshot.TextElementId, spansToSave);
                     }
                     else
                     {
-                        await _textProjectManager.DeleteRichTextSpansByElementIdAsync(snapshot.TextElementId);
+                        await _richTextSpanRepository.DeleteByTextElementIdAsync(snapshot.TextElementId);
                     }
 
                     snapshot.Element.RichTextSpans = spansToSave;
