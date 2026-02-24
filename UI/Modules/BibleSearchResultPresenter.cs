@@ -7,10 +7,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfButton = System.Windows.Controls.Button;
+using WpfGrid = System.Windows.Controls.Grid;
 using WpfListBox = System.Windows.Controls.ListBox;
 using WpfPanel = System.Windows.Controls.Panel;
+using WpfStackPanel = System.Windows.Controls.StackPanel;
 using WpfTextBlock = System.Windows.Controls.TextBlock;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WpfWrapPanel = System.Windows.Controls.WrapPanel;
 
 namespace ImageColorChanger.UI.Modules
 {
@@ -263,15 +266,84 @@ namespace ImageColorChanger.UI.Modules
             return button;
         }
 
-        private static WpfTextBlock CreateFilterSeparatorText()
+        private static WpfTextBlock CreateFilterLeadingSeparatorText()
         {
             return new WpfTextBlock
             {
-                Text = " | ",
+                Text = "|",
                 Foreground = CreateBrush("#9E9E9E"),
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 4, 6)
+                Margin = new Thickness(0, 0, 6, 6)
             };
+        }
+
+        private static WpfStackPanel CreateBookFilterSegment(BookFilterOption option, bool selected, RoutedEventHandler onClick)
+        {
+            var segment = new WpfStackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal
+            };
+            segment.Children.Add(CreateFilterLeadingSeparatorText());
+            segment.Children.Add(CreateFilterTextButton(option, selected, onClick));
+            return segment;
+        }
+
+        private static void RenderFilterTagsWithAlignedWrap(
+            WpfPanel filterTagsPanel,
+            IReadOnlyList<BookFilterOption> options,
+            string selectedFilterKey,
+            RoutedEventHandler onClick)
+        {
+            if (filterTagsPanel == null)
+            {
+                return;
+            }
+
+            if (options == null || options.Count == 0)
+            {
+                filterTagsPanel.Children.Clear();
+                return;
+            }
+
+            filterTagsPanel.Children.Clear();
+            var root = new WpfGrid
+            {
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch
+            };
+            root.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            root.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var allOption = options.FirstOrDefault(o => o.Key == BookFilterOption.AllKey);
+            if (allOption != null)
+            {
+                var allButton = CreateFilterTextButton(allOption, allOption.Key == selectedFilterKey, onClick);
+                allButton.VerticalAlignment = VerticalAlignment.Top;
+                WpfGrid.SetColumn(allButton, 0);
+                root.Children.Add(allButton);
+            }
+
+            var booksPanel = new WpfWrapPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+
+            foreach (var option in options.Where(o => o.Key != BookFilterOption.AllKey))
+            {
+                booksPanel.Children.Add(CreateBookFilterSegment(option, option.Key == selectedFilterKey, onClick));
+            }
+
+            WpfGrid.SetColumn(booksPanel, 1);
+            root.Children.Add(booksPanel);
+
+            if (allOption == null && booksPanel.Children.Count > 0)
+            {
+                // If "全部" is unavailable, keep tags flush-left.
+                WpfGrid.SetColumn(booksPanel, 0);
+                root.ColumnDefinitions[1].Width = GridLength.Auto;
+            }
+
+            filterTagsPanel.Children.Add(root);
         }
 
         private static SolidColorBrush CreateBrush(string hex)
@@ -495,17 +567,8 @@ namespace ImageColorChanger.UI.Modules
 
             private void RenderFilterTags()
             {
-                _filterTagsPanel.Children.Clear();
                 var options = BuildBookFilterOptions(_allHits);
-                for (int i = 0; i < options.Count; i++)
-                {
-                    var option = options[i];
-                    _filterTagsPanel.Children.Add(CreateFilterTextButton(option, option.Key == _selectedFilterKey, FilterTagButton_Click));
-                    if (i < options.Count - 1)
-                    {
-                        _filterTagsPanel.Children.Add(CreateFilterSeparatorText());
-                    }
-                }
+                RenderFilterTagsWithAlignedWrap(_filterTagsPanel, options, _selectedFilterKey, FilterTagButton_Click);
             }
 
             private void ApplyFilter()
@@ -767,27 +830,8 @@ namespace ImageColorChanger.UI.Modules
 
             private void RenderFilterTags()
             {
-                _filterTagsPanel.Children.Clear();
                 var options = BuildBookFilterOptions(_allHits);
-                const int maxTagsPerLine = 15;
-                for (int i = 0; i < options.Count; i++)
-                {
-                    if (i > 0 && i % maxTagsPerLine == 0)
-                    {
-                        _filterTagsPanel.Children.Add(new WpfBorder
-                        {
-                            Width = 100000,
-                            Height = 0
-                        });
-                    }
-
-                    var option = options[i];
-                    _filterTagsPanel.Children.Add(CreateFilterTextButton(option, option.Key == _selectedFilterKey, FilterTagButton_Click));
-                    if (i < options.Count - 1)
-                    {
-                        _filterTagsPanel.Children.Add(CreateFilterSeparatorText());
-                    }
-                }
+                RenderFilterTagsWithAlignedWrap(_filterTagsPanel, options, _selectedFilterKey, FilterTagButton_Click);
             }
 
             private void ApplyFilter()

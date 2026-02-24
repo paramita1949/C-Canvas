@@ -18,7 +18,7 @@ namespace ImageColorChanger.UI
         private Border BibleVersionTriggerArea => BibleSectionView?.BibleVersionTriggerArea;
         private Border BibleVersionToolbar => BibleSectionView?.BibleVersionToolbar;
         private Border BibleEmbeddedSearchResultsContainer => BibleSectionView?.BibleEmbeddedSearchResultsContainer;
-        private WrapPanel BibleEmbeddedSearchFilterTagsPanel => BibleSectionView?.BibleEmbeddedSearchFilterTagsPanel;
+        private System.Windows.Controls.Panel BibleEmbeddedSearchFilterTagsPanel => BibleSectionView?.BibleEmbeddedSearchFilterTagsPanel;
         private System.Windows.Controls.ListBox BibleEmbeddedSearchResultsList => BibleSectionView?.BibleEmbeddedSearchResultsList;
         private System.Windows.Controls.Button BibleEmbeddedSearchPrevPageButton => BibleSectionView?.BibleEmbeddedSearchPrevPageButton;
         private TextBlock BibleEmbeddedSearchPageInfoText => BibleSectionView?.BibleEmbeddedSearchPageInfoText;
