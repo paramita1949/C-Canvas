@@ -260,7 +260,7 @@ namespace ImageColorChanger.UI
                 };
                 
                 // 保存到数据库
-                await _textProjectManager.AddElementAsync(textElement);
+                await _textProjectService.AddElementAsync(textElement);
                 
                 // 在 UI 线程上创建 DraggableTextBox 并添加到画布
                 await Dispatcher.InvokeAsync(() =>
@@ -371,7 +371,7 @@ namespace ImageColorChanger.UI
                 };
 
                 // 保存到数据库
-                await _textProjectManager.AddElementAsync(textElement);
+                await _textProjectService.AddElementAsync(textElement);
 
                 // 创建富文本片段（RichTextSpan）
                 var richTextSpans = new List<Database.Models.RichTextSpan>();
@@ -450,7 +450,7 @@ namespace ImageColorChanger.UI
 
                 foreach (var span in richTextSpans)
                 {
-                    await _textProjectManager.AddRichTextSpanAsync(span);
+                    await _textProjectService.AddRichTextSpanAsync(span);
                 }
 
                 //#if DEBUG
@@ -540,7 +540,7 @@ namespace ImageColorChanger.UI
                     ZIndex = maxZIndex + 1
                 };
 
-                await _textProjectManager.AddElementAsync(textElement);
+                await _textProjectService.AddElementAsync(textElement);
 
                 // 创建富文本片段
                 var richTextSpans = new List<Database.Models.RichTextSpan>();
@@ -619,7 +619,7 @@ namespace ImageColorChanger.UI
                 // 保存富文本片段
                 foreach (var span in richTextSpans)
                 {
-                    await _textProjectManager.AddRichTextSpanAsync(span);
+                    await _textProjectService.AddRichTextSpanAsync(span);
                 }
 
                 textElement.RichTextSpans = richTextSpans;
@@ -849,5 +849,3 @@ namespace ImageColorChanger.UI
 
     }
 }
-
-

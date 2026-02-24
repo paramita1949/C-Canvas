@@ -15,7 +15,6 @@ using Microsoft.EntityFrameworkCore;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
-using ImageColorChanger.Managers;
 using ImageColorChanger.Repositories.TextEditor;
 using ImageColorChanger.Services.TextEditor;
 using ImageColorChanger.Services.TextEditor.Application;
@@ -36,7 +35,7 @@ namespace ImageColorChanger.UI
     {
         #region 字段
 
-        private TextProjectManager _textProjectManager;
+        private ITextProjectService _textProjectService;
         private Database.CanvasDbContext _dbContext; // 数据库上下文
         private TextProject _currentTextProject;
         private List<DraggableTextBox> _textBoxes = new List<DraggableTextBox>();
@@ -54,7 +53,6 @@ namespace ImageColorChanger.UI
         private ITextEditorThumbnailService _textEditorThumbnailService;
         private ITextEditorProjectionRenderStateService _textEditorProjectionRenderStateService;
         private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
-        private const bool EnableTextEditorOrchestrator = true;
 
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
@@ -110,7 +108,7 @@ namespace ImageColorChanger.UI
             {
                 throw new InvalidOperationException("Database context is not initialized.");
             }
-            _textProjectManager = new TextProjectManager(_dbContext);
+            _textProjectService = _mainWindowServices.GetRequired<ITextProjectService>();
             _textBoxEditSessionService = _mainWindowServices.GetRequired<ITextBoxEditSessionService>();
             _textElementPersistenceService = _mainWindowServices.GetRequired<ITextElementPersistenceService>();
             _textElementRepository = _mainWindowServices.GetRequired<ITextElementRepository>();
@@ -119,9 +117,7 @@ namespace ImageColorChanger.UI
             _textEditorThumbnailService = _mainWindowServices.GetRequired<ITextEditorThumbnailService>();
             _textEditorProjectionRenderStateService = _mainWindowServices.GetRequired<ITextEditorProjectionRenderStateService>();
             _textEditorRenderSafetyService = _mainWindowServices.GetRequired<ITextEditorRenderSafetyService>();
-            _textEditorSaveOrchestrator = EnableTextEditorOrchestrator
-                ? _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>()
-                : null;
+            _textEditorSaveOrchestrator = _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>();
 
             // 加载系统字体
             LoadSystemFonts();
@@ -240,7 +236,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取所有现有项目
-                var existingProjects = await _textProjectManager.GetAllProjectsAsync();
+                var existingProjects = await _textProjectService.GetAllProjectsAsync();
                 
                 // 找出所有以"项目"开头的名称
                 var projectNumbers = existingProjects
@@ -276,7 +272,7 @@ namespace ImageColorChanger.UI
                 ResetViewStateForTextEditor();
                 
                 // 创建项目
-                _currentTextProject = await _textProjectManager.CreateProjectAsync(projectName);
+                _currentTextProject = await _textProjectService.CreateProjectAsync(projectName);
 
                 // 切换到编辑模式
                 ShowTextEditor();
@@ -291,7 +287,7 @@ namespace ImageColorChanger.UI
                     SplitMode = -1,  // 默认无分割模式
                     SplitStretchMode = false  // 默认适中模式
                 };
-                await _textProjectManager.AddSlideAsync(firstSlide);
+                await _textProjectService.AddSlideAsync(firstSlide);
 
                 // 加载幻灯片列表
                 await LoadSlideList();
@@ -340,7 +336,7 @@ namespace ImageColorChanger.UI
                 ResetViewStateForTextEditor();
                 
                 // 加载项目
-                _currentTextProject = await _textProjectManager.LoadProjectAsync(projectId);
+                _currentTextProject = await _textProjectService.LoadProjectAsync(projectId);
 
                 // 切换到编辑模式
                 ShowTextEditor();
@@ -349,7 +345,7 @@ namespace ImageColorChanger.UI
                 await LoadSlideList();
 
                 // 如果没有幻灯片，自动创建第一张
-                if (!await _textProjectManager.ProjectHasSlidesAsync(_currentTextProject.Id))
+                if (!await _textProjectService.ProjectHasSlidesAsync(_currentTextProject.Id))
                 {
                     //System.Diagnostics.Debug.WriteLine(" 项目没有幻灯片，自动创建第一张");
                     var firstSlide = new Slide
@@ -361,10 +357,10 @@ namespace ImageColorChanger.UI
                         SplitMode = -1,  // 默认无分割模式
                         SplitStretchMode = false  // 默认适中模式
                     };
-                    await _textProjectManager.AddSlideAsync(firstSlide);
+                    await _textProjectService.AddSlideAsync(firstSlide);
                     
                     // 迁移旧的文本元素到第一张幻灯片
-                    await _textProjectManager.RebindProjectElementsToSlideAsync(_currentTextProject.Id, firstSlide.Id);
+                    await _textProjectService.RebindProjectElementsToSlideAsync(_currentTextProject.Id, firstSlide.Id);
                     
                     // 重新加载幻灯片列表
                     await LoadSlideList();
@@ -613,5 +609,3 @@ namespace ImageColorChanger.UI
 
     }
 }
-
-

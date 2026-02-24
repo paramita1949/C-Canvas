@@ -897,7 +897,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_textProjectManager == null || _dbContext == null)
+                if (_textProjectService == null || _dbContext == null)
                     return;
 
                 // 获取所有TextProject类型的项目节点
@@ -1056,7 +1056,3 @@ namespace ImageColorChanger.UI
         #endregion
     }
 }
-
-
-
-

@@ -429,7 +429,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 通过ID查找幻灯片，避免对象引用不一致的问题
-                var slides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
+                var slides = await _textProjectService.GetSlidesByProjectAsync(_currentTextProject.Id);
 
                 // 通过ID查找索引，而不是使用对象引用
                 int sourceIndex = slides.FindIndex(s => s.Id == sourceSlide.Id);
@@ -456,7 +456,7 @@ namespace ImageColorChanger.UI
                     slides[i].SortOrder = i;
                 }
 
-                await _textProjectManager.UpdateSlideSortOrdersAsync(slides);
+                await _textProjectService.UpdateSlideSortOrdersAsync(slides);
 
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
@@ -851,10 +851,10 @@ namespace ImageColorChanger.UI
             try
             {
                 // 获取当前幻灯片总数（用于生成标题序号）
-                var slideCount = await _textProjectManager.GetSlideCountAsync(_currentTextProject.Id);
+                var slideCount = await _textProjectService.GetSlideCountAsync(_currentTextProject.Id);
                 
                 // 获取当前最大排序号（用于SortOrder）
-                int maxOrder = await _textProjectManager.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
+                int maxOrder = await _textProjectService.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
 
                 // 创建新幻灯片（标题序号 = 总数 + 1）
                 var newSlide = new Slide
@@ -867,7 +867,7 @@ namespace ImageColorChanger.UI
                     SplitStretchMode = false  // 默认适中模式
                 };
 
-                await _textProjectManager.AddSlideAsync(newSlide);
+                await _textProjectService.AddSlideAsync(newSlide);
 
                 // 刷新幻灯片列表
                 await LoadSlideList();
@@ -906,7 +906,7 @@ namespace ImageColorChanger.UI
                 int newSortOrder = sourceSlide.SortOrder + 1;
                 
                 // 将后面的幻灯片排序顺序都+1
-                var slidesToUpdate = (await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id))
+                var slidesToUpdate = (await _textProjectService.GetSlidesByProjectAsync(_currentTextProject.Id))
                     .Where(s => s.SortOrder >= newSortOrder)
                     .ToList();
                 
@@ -914,7 +914,7 @@ namespace ImageColorChanger.UI
                 {
                     slide.SortOrder++;
                 }
-                await _textProjectManager.UpdateSlideSortOrdersAsync(slidesToUpdate);
+                await _textProjectService.UpdateSlideSortOrdersAsync(slidesToUpdate);
 
                 // 创建新幻灯片（复制所有属性）
                 var newSlide = new Slide
@@ -929,16 +929,16 @@ namespace ImageColorChanger.UI
                     SplitRegionsData = sourceSlide.SplitRegionsData  // 复制区域数据
                 };
 
-                await _textProjectManager.AddSlideAsync(newSlide);
+                await _textProjectService.AddSlideAsync(newSlide);
 
                 // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
                 foreach (var sourceElement in sourceElements)
                 {
                     //  使用 CloneElement 方法复制所有样式属性
-                    var newElement = _textProjectManager.CloneElement(sourceElement);
+                    var newElement = _textProjectService.CloneElement(sourceElement);
                     newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
                     
-                    await _textProjectManager.AddElementAsync(newElement);
+                    await _textProjectService.AddElementAsync(newElement);
 
                     // 复制富文本片段（如果有）
                     if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
@@ -1028,7 +1028,7 @@ namespace ImageColorChanger.UI
             {
                 //  从数据库重新加载实体，确保实体是从当前 DbContext 加载的
                 // 这样可以避免乐观并发异常
-                var slideToDelete = await _textProjectManager.GetSlideByIdAsync(slideIdToDelete);
+                var slideToDelete = await _textProjectService.GetSlideByIdAsync(slideIdToDelete);
                 if (slideToDelete == null)
                 {
 #if DEBUG
@@ -1046,7 +1046,7 @@ namespace ImageColorChanger.UI
                 {
                     // 如果当前正在显示要删除的幻灯片，先切换到其他幻灯片
                     // 这样可以避免在删除时尝试保存已删除的文本元素
-                    var allSlides = await _textProjectManager.GetSlidesByProjectAsync(_currentTextProject.Id);
+                    var allSlides = await _textProjectService.GetSlidesByProjectAsync(_currentTextProject.Id);
                     
                     var slideToSwitchTo = allSlides.FirstOrDefault(s => s.Id != slideIdToDelete);
                     if (slideToSwitchTo != null)
@@ -1063,7 +1063,7 @@ namespace ImageColorChanger.UI
                     }
 
                     // 删除幻灯片（级联删除会自动删除关联的 TextElements 和 RichTextSpans）
-                    await _textProjectManager.DeleteSlideAsync(slideIdToDelete);
+                    await _textProjectService.DeleteSlideAsync(slideIdToDelete);
 
                     // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
                     await LoadSlideList();
@@ -1114,7 +1114,7 @@ namespace ImageColorChanger.UI
             if (_currentTextProject == null)
                 return;
 
-            var slides = await _textProjectManager.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id);
+            var slides = await _textProjectService.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id);
 
             // 加载缩略图路径
             var thumbnailDir = System.IO.Path.Combine(
@@ -1231,6 +1231,3 @@ namespace ImageColorChanger.UI
 
     }
 }
-
-
-

@@ -224,13 +224,13 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" 开始保存项目: ID={item.Id}, {item.OriginalName} -> {newName.Trim()}");
                 
                 // 加载并更新项目
-                var project = await _textProjectManager.LoadProjectAsync(item.Id);
+                var project = await _textProjectService.LoadProjectAsync(item.Id);
                 if (project != null)
                 {
                     //System.Diagnostics.Debug.WriteLine($" 项目加载成功，更新名称");
                     
                     project.Name = newName.Trim();
-                    await _textProjectManager.SaveProjectAsync(project);
+                    await _textProjectService.SaveProjectAsync(project);
                     
                     // 更新树节点（Name 已经通过绑定更新了，只需更新 OriginalName）
                     item.OriginalName = newName.Trim();
@@ -329,7 +329,7 @@ namespace ImageColorChanger.UI
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    await _textProjectManager.DeleteProjectAsync(item.Id);
+                    await _textProjectService.DeleteProjectAsync(item.Id);
 
                     // 如果删除的是当前项目，关闭编辑器
                     if (_currentTextProject != null && _currentTextProject.Id == item.Id)
@@ -466,6 +466,3 @@ namespace ImageColorChanger.UI
 
     }
 }
-
-
-

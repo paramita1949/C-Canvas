@@ -90,7 +90,7 @@ namespace ImageColorChanger.UI
                 };
 
                 // 保存到数据库
-                await _textProjectManager.AddElementAsync(newElement);
+                await _textProjectService.AddElementAsync(newElement);
 
                 // 添加到画布
                 var textBox = new DraggableTextBox(newElement);
@@ -122,7 +122,7 @@ namespace ImageColorChanger.UI
                 sourceTextBox.SyncTextFromRichTextBox();
 
                 var sourceElement = sourceTextBox.Data;
-                _textBoxClipboardElement = _textProjectManager.CloneElement(sourceElement);
+                _textBoxClipboardElement = _textProjectService.CloneElement(sourceElement);
                 _textBoxClipboardSpans = CloneRichTextSpans(sourceElement.RichTextSpans);
                 _textBoxPasteOffsetStep = 1;
 
@@ -154,7 +154,7 @@ namespace ImageColorChanger.UI
             try
             {
                 int maxZIndex = _textBoxes.Count > 0 ? _textBoxes.Max(tb => tb.Data.ZIndex) : 0;
-                var newElement = _textProjectManager.CloneElement(_textBoxClipboardElement);
+                var newElement = _textProjectService.CloneElement(_textBoxClipboardElement);
 
                 // 位置策略：优先锚点文本框，否则当前选中文本框，再否则默认位置
                 double baseX = anchorTextBox?.Data.X ?? _selectedTextBox?.Data.X ?? 100;
@@ -167,7 +167,7 @@ namespace ImageColorChanger.UI
                 newElement.Y = baseY + step;
                 newElement.ZIndex = maxZIndex + 1;
 
-                await _textProjectManager.AddElementAsync(newElement);
+                await _textProjectService.AddElementAsync(newElement);
 
                 if (_textBoxClipboardSpans != null && _textBoxClipboardSpans.Count > 0)
                 {
@@ -270,7 +270,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 从数据库删除
-                await _textProjectManager.DeleteElementAsync(textBox.Data.Id);
+                await _textProjectService.DeleteElementAsync(textBox.Data.Id);
 
                 // 从画布移除
                 EditorCanvas.Children.Remove(textBox);
@@ -391,12 +391,12 @@ namespace ImageColorChanger.UI
                 
             try
             {
-                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitStretchMode = _splitStretchMode;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                    await _textProjectService.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
                     _currentSlide.SplitStretchMode = _splitStretchMode;
@@ -446,7 +446,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 更新数据库
-                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitMode = (int)mode;
@@ -455,7 +455,7 @@ namespace ImageColorChanger.UI
                     // 切换分割模式时，清空分割区域数据
                     slideToUpdate.SplitRegionsData = null;
                     
-                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                    await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                     // 更新本地缓存
                     _currentSlide.SplitMode = (int)mode;
@@ -704,7 +704,7 @@ namespace ImageColorChanger.UI
                 bool shouldApplyColorEffect = false;
                 try
                 {
-                    var mediaFile = await _textProjectManager.GetMediaFileByPathAsync(imagePath);
+                    var mediaFile = await _textProjectService.GetMediaFileByPathAsync(imagePath);
                     
                     #if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"[LoadImageToSplitRegion] 检查图片: {System.IO.Path.GetFileName(imagePath)}");
@@ -1103,12 +1103,12 @@ namespace ImageColorChanger.UI
                 }
                  
                 // 更新数据库
-                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.SplitRegionsData = json;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                    await _textProjectService.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
                     _currentSlide.SplitRegionsData = json;
@@ -1325,7 +1325,7 @@ namespace ImageColorChanger.UI
                     bool shouldApplyColorEffect = false;
                     try
                     {
-                        var mediaFile = await _textProjectManager.GetMediaFileByPathAsync(regionData.ImagePath);
+                        var mediaFile = await _textProjectService.GetMediaFileByPathAsync(regionData.ImagePath);
                         
                         #if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"[RestoreSplitConfig] 区域 {regionData.RegionIndex} 检查图片: {System.IO.Path.GetFileName(regionData.ImagePath)}");
@@ -1546,6 +1546,3 @@ namespace ImageColorChanger.UI
 
     }
 }
-
-
-

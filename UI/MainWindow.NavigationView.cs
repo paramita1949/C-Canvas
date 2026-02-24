@@ -8,6 +8,7 @@ using System.Windows.Media;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.Services.TextEditor.Application;
 using Microsoft.EntityFrameworkCore;
 using Color = System.Windows.Media.Color;
 using ColorConverter = System.Windows.Media.ColorConverter;
@@ -21,6 +22,7 @@ namespace ImageColorChanger.UI
     {
         // 添加标记，用于跟踪是否是第一次进入幻灯片模式
         private static bool _isFirstTimeEnteringProjects = true;
+        private int _textProjectTreeLoadToken;
 
         /// <summary>
         /// 从数据库加载项目树
@@ -418,19 +420,28 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadTextProjectsToTree()
         {
+            int loadToken = ++_textProjectTreeLoadToken;
+            _ = LoadTextProjectsToTreeAsync(loadToken);
+        }
+
+        private async Task LoadTextProjectsToTreeAsync(int loadToken)
+        {
             try
             {
-                if (_dbContext == null)
+                var textProjectService = _mainWindowServices?.GetRequired<ITextProjectService>();
+                if (textProjectService == null)
                 {
                     return;
                 }
 
-                var textProjects = _dbContext.TextProjects
-                    .AsNoTracking()
-                    .OrderBy(p => p.Id)
-                    .ToList();
+                var textProjects = await textProjectService.GetAllProjectsAsync();
 
-                foreach (var project in textProjects)
+                if (loadToken != _textProjectTreeLoadToken)
+                {
+                    return;
+                }
+
+                foreach (var project in textProjects.OrderBy(p => p.Id))
                 {
                     _projectTreeItems.Add(new ProjectTreeItem
                     {
@@ -443,8 +454,10 @@ namespace ImageColorChanger.UI
                         Path = null
                     });
                 }
+
+                FilterProjectTree();
             }
-            catch (Exception)
+            catch
             {
             }
         }
@@ -570,17 +583,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_dbContext == null)
+                var textProjectService = _mainWindowServices?.GetRequired<ITextProjectService>();
+                if (textProjectService == null)
                 {
-                    ShowStatus("数据库上下文未初始化");
+                    ShowStatus("文本项目服务未初始化");
                     return;
                 }
 
-                var firstProject = await _dbContext.TextProjects
-                    .AsNoTracking()
+                var firstProject = (await textProjectService.GetAllProjectsAsync())
                     .OrderBy(p => p.Id)
-                    .Select(p => new { p.Id, p.Name })
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
                 if (firstProject != null)
                 {

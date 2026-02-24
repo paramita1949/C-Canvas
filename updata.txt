@@ -1,3 +1,12 @@
+2026.2.25
+-------------------------
+V6.0.2.7
+【幻灯片文本重构-迁移收尾】
+1、彻底移除 `TextProjectManager` 运行时代码与依赖注入注册，统一改为 `ITextProjectService`
+2、`MainWindow.TextEditor` / `SplitSlide` 全链路改为 `ITextProjectService` 调用，不再保留兼容分支
+3、`NavigationView` 文本项目树与首项目加载改为 `ITextProjectService`，UI 不再直接查询 `TextProjects`
+4、回归脚本新增守卫：禁止 UI 直接访问 `_dbContext.TextProjects/Slides/TextElements/RichTextSpans`
+
 2026.2.24
 -------------------------
 V6.0.2.6

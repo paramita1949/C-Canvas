@@ -92,11 +92,11 @@ $persistenceText = Get-Content $persistencePath -Raw
 $noManagerInPersistence = -not ($persistenceText -match "TextProjectManager")
 Add-CheckResult -Lines $report -Name "TextElementPersistenceService does not depend on TextProjectManager" -Passed $noManagerInPersistence -Detail $persistencePath
 
-# 4.3) Guard: TextEditor UI should not call manager rich-text detail APIs directly
-$uiRichTextCalls = & rg -n "_textProjectManager\.(SaveRichTextSpansAsync|DeleteRichTextSpansByElementIdAsync|GetElementsBySlideWithRichTextAsync|AddRichTextSpanAsync)" UI -g "MainWindow.TextEditor*.cs" 2>$null
+# 4.3) Guard: TextEditor UI should not call project service rich-text detail APIs directly
+$uiRichTextCalls = & rg -n "_textProjectService\.(SaveRichTextSpansAsync|DeleteRichTextSpansByElementIdAsync|GetElementsBySlideWithRichTextAsync|AddRichTextSpanAsync)" UI -g "MainWindow.TextEditor*.cs" 2>$null
 $uiNoRichTextManagerCalls = ($LASTEXITCODE -ne 0)
-$uiRichTextDetail = if ($uiNoRichTextManagerCalls) { "MainWindow.TextEditor.* has no direct manager rich-text API calls." } else { ($uiRichTextCalls -join " | ") }
-Add-CheckResult -Lines $report -Name "TextEditor UI avoids direct manager rich-text APIs" -Passed $uiNoRichTextManagerCalls -Detail $uiRichTextDetail
+$uiRichTextDetail = if ($uiNoRichTextManagerCalls) { "MainWindow.TextEditor.* has no direct project service rich-text API calls." } else { ($uiRichTextCalls -join " | ") }
+Add-CheckResult -Lines $report -Name "TextEditor UI avoids direct project-service rich-text APIs" -Passed $uiNoRichTextManagerCalls -Detail $uiRichTextDetail
 
 # 5) Guard: thumbnail path keeps snapshot side-effect guard (either local or service implementation)
 $thumbnailServicePath = "Services/TextEditor/Rendering/TextEditorThumbnailService.cs"
@@ -130,13 +130,17 @@ $helpersUsesRenderSafety = $helpersText -match "_textEditorRenderSafetyService\.
 $thumbnailUsesRenderSafety = $thumbnailServiceText -match "_renderSafetyService\.Execute"
 Add-CheckResult -Lines $report -Name "Render safety template centralized for projection/thumbnail" -Passed ($helpersUsesRenderSafety -and $thumbnailUsesRenderSafety) -Detail "$helpersPath; $thumbnailServicePath"
 
-# 5.5) Guard: TextProjectManager is compatibility facade with low direct DbContext usage
-$managerPath = "Managers/TextProjectManager.cs"
-$managerText = Get-Content $managerPath -Raw
-$managerMarkedObsolete = $managerText -match "\[Obsolete\("
-$dbContextDirectCount = ([regex]::Matches($managerText, "_dbContext\.")).Count
-$managerFacadeOk = $managerMarkedObsolete -and ($dbContextDirectCount -le 6)
-Add-CheckResult -Lines $report -Name "TextProjectManager remains compatibility facade" -Passed $managerFacadeOk -Detail "$managerPath (DbContext direct refs: $dbContextDirectCount)"
+# 5.5) Guard: legacy TextProjectManager has been fully migrated out of runtime code
+$legacyManagerRefs = & rg -n "TextProjectManager" UI Services Repositories Core Managers -g "*.cs" 2>$null
+$legacyManagerGone = ($LASTEXITCODE -ne 0)
+$legacyManagerDetail = if ($legacyManagerGone) { "No runtime code references TextProjectManager." } else { ($legacyManagerRefs -join " | ") }
+Add-CheckResult -Lines $report -Name "TextProjectManager fully migrated out of runtime code" -Passed $legacyManagerGone -Detail $legacyManagerDetail
+
+# 5.6) Guard: UI does not directly query text-editor entities from DbContext
+$uiDirectTextDbRefs = & rg -n "_dbContext\.(TextProjects|Slides|TextElements|RichTextSpans)" UI -g "*.cs" 2>$null
+$uiNoDirectTextDbRefs = ($LASTEXITCODE -ne 0)
+$uiDirectTextDbDetail = if ($uiNoDirectTextDbRefs) { "UI has no direct DbContext access for text-editor entities." } else { ($uiDirectTextDbRefs -join " | ") }
+Add-CheckResult -Lines $report -Name "UI avoids direct DbContext text-editor entity queries" -Passed $uiNoDirectTextDbRefs -Detail $uiDirectTextDbDetail
 
 # 6) Guard: RichTextSpan has v2 fields
 $modelPath = "Database/Models/RichTextSpan.cs"
@@ -164,7 +168,7 @@ $perfPassed = $false
 $perfDetail = ""
 if (Test-Path $perfScriptPath) {
     try {
-        $perfOutput = & $perfScriptPath -AutoOnly 2>&1
+        $perfOutput = & $perfScriptPath -AutoOnly -NoBuild 2>&1
         $perfPassed = ($LASTEXITCODE -eq 0)
         if ($perfPassed) {
             $perfDetail = "Performance baseline check passed."

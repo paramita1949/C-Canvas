@@ -107,6 +107,7 @@ namespace ImageColorChanger.Core
             services.AddSingleton<Services.TextEditor.ITextLayoutService, Services.TextEditor.TextLayoutService>();
             services.AddSingleton<Services.TextEditor.IRichTextSerializer, Services.TextEditor.RichTextSerializer>();
             services.AddScoped<Services.TextEditor.ITextElementPersistenceService, Services.TextEditor.TextElementPersistenceService>();
+            services.AddScoped<Services.TextEditor.Application.ITextProjectService, Services.TextEditor.Application.TextProjectService>();
             services.AddScoped<Services.TextEditor.Application.ITextEditorSaveOrchestrator, Services.TextEditor.Application.TextEditorSaveOrchestrator>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionComposer, Services.TextEditor.Rendering.TextEditorProjectionComposer>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionRenderStateService, Services.TextEditor.Rendering.TextEditorProjectionRenderStateService>();

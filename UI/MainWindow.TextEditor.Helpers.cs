@@ -169,51 +169,9 @@ namespace ImageColorChanger.UI
         {
             var snapshots = CaptureTextBoxSnapshotsForSave(sourceTextBoxes);
 
-            if (!EnableTextEditorOrchestrator || _textEditorSaveOrchestrator == null)
+            if (_textEditorSaveOrchestrator == null)
             {
-                bool textElementsSaved = false;
-                bool additionalStateSaved = false;
-                bool thumbnailSaved = false;
-                string thumbnailPath = null;
-
-                try
-                {
-                    await _textElementPersistenceService.SaveAsync(snapshots, cancellationToken);
-                    textElementsSaved = true;
-
-                    if (persistAdditionalState)
-                    {
-                        await SaveSplitConfigAsync();
-                        additionalStateSaved = true;
-                    }
-
-                    if (saveThumbnail && _currentSlide != null)
-                    {
-                        thumbnailPath = SaveSlideThumbnail(_currentSlide.Id);
-                        thumbnailSaved = !string.IsNullOrEmpty(thumbnailPath);
-                        if (thumbnailSaved)
-                        {
-                            _currentSlide.ThumbnailPath = thumbnailPath;
-                        }
-                    }
-
-                    return TextEditorSaveResult.Success(
-                        trigger,
-                        textElementsSaved,
-                        additionalStateSaved,
-                        thumbnailSaved,
-                        thumbnailPath);
-                }
-                catch (Exception ex)
-                {
-                    return TextEditorSaveResult.Failure(
-                        trigger,
-                        ex,
-                        textElementsSaved,
-                        additionalStateSaved,
-                        thumbnailSaved,
-                        thumbnailPath);
-                }
+                throw new InvalidOperationException("文本保存编排服务未初始化。");
             }
 
             return await _textEditorSaveOrchestrator.SaveAsync(

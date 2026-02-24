@@ -10,6 +10,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Stabilize CI/local timing by disabling first-time experience side effects.
+if (-not $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE) {
+    $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
+}
+if (-not $env:DOTNET_CLI_TELEMETRY_OPTOUT) {
+    $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
+}
+
 function Invoke-TestMetric {
     param(
         [string]$Name,

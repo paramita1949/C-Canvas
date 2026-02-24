@@ -65,8 +65,8 @@ namespace ImageColorChanger.UI
 
                 ShowStatus($"正在导入 {sortedFiles.Length} 张图片...");
 
-                int currentOrder = await _textProjectManager.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
-                var slideCount = await _textProjectManager.GetSlideCountAsync(_currentTextProject.Id);
+                int currentOrder = await _textProjectService.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
+                var slideCount = await _textProjectService.GetSlideCountAsync(_currentTextProject.Id);
 
                 var newSlides = new List<Slide>();
                 for (int i = 0; i < sortedFiles.Length; i++)
@@ -88,7 +88,7 @@ namespace ImageColorChanger.UI
                     newSlides.Add(newSlide);
                 }
 
-                await _textProjectManager.AddSlidesAsync(newSlides);
+                await _textProjectService.AddSlidesAsync(newSlides);
 
                 SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
                 foreach (var slide in newSlides)
@@ -100,7 +100,7 @@ namespace ImageColorChanger.UI
                     if (!string.IsNullOrEmpty(thumbnailPath))
                     {
                         slide.ThumbnailPath = thumbnailPath;
-                        await _textProjectManager.UpdateSlideThumbnailAsync(slide.Id, thumbnailPath);
+                        await _textProjectService.UpdateSlideThumbnailAsync(slide.Id, thumbnailPath);
                     }
                 }
                 SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
@@ -233,19 +233,19 @@ namespace ImageColorChanger.UI
 
                     EditorCanvas.Background = new ImageBrush(bitmap) { Stretch = Stretch.Fill };
 
-                    var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                    var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                     if (slideToUpdate != null)
                     {
                         slideToUpdate.BackgroundImagePath = dialog.FileName;
                         slideToUpdate.BackgroundColor = null;
                         slideToUpdate.ModifiedTime = DateTime.Now;
-                        await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                        await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                         _currentSlide.BackgroundImagePath = dialog.FileName;
                         _currentSlide.BackgroundColor = null;
                     }
 
-                    await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
+                    await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
                     if (_projectionManager != null && _projectionManager.IsProjectionActive && !_isProjectionLocked)
                     {
                         UpdateProjectionFromCanvas();
@@ -299,19 +299,19 @@ namespace ImageColorChanger.UI
                     var hexColor = $"#{wpfColor.R:X2}{wpfColor.G:X2}{wpfColor.B:X2}";
                     EditorCanvas.Background = new SolidColorBrush(wpfColor);
 
-                    var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                    var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                     if (slideToUpdate != null)
                     {
                         slideToUpdate.BackgroundColor = hexColor;
                         slideToUpdate.BackgroundImagePath = null;
                         slideToUpdate.ModifiedTime = DateTime.Now;
-                        await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                        await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                         _currentSlide.BackgroundColor = hexColor;
                         _currentSlide.BackgroundImagePath = null;
                     }
 
-                    await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
+                    await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
                     MarkContentAsModified();
                 }
                 catch (Exception ex)
@@ -333,19 +333,19 @@ namespace ImageColorChanger.UI
             try
             {
                 EditorCanvas.Background = new SolidColorBrush(Colors.White);
-                var slideToUpdate = await _textProjectManager.GetSlideByIdAsync(_currentSlide.Id);
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
                     slideToUpdate.BackgroundColor = "#FFFFFF";
                     slideToUpdate.BackgroundImagePath = null;
                     slideToUpdate.ModifiedTime = DateTime.Now;
-                    await _textProjectManager.UpdateSlideAsync(slideToUpdate);
+                    await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                     _currentSlide.BackgroundColor = "#FFFFFF";
                     _currentSlide.BackgroundImagePath = null;
                 }
 
-                await _textProjectManager.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
+                await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
                 MarkContentAsModified();
             }
             catch (Exception ex)
@@ -371,13 +371,13 @@ namespace ImageColorChanger.UI
                 double centerX = EditorCanvas.Width / 2;
                 double mirrorX = centerX + (centerX - _selectedTextBox.Data.X - _selectedTextBox.Data.Width);
 
-                var mirrorElement = _textProjectManager.CloneElement(_selectedTextBox.Data);
+                var mirrorElement = _textProjectService.CloneElement(_selectedTextBox.Data);
                 mirrorElement.X = mirrorX;
                 mirrorElement.IsSymmetricBool = true;
                 mirrorElement.SymmetricPairId = _selectedTextBox.Data.Id;
                 mirrorElement.SymmetricType = "Horizontal";
 
-                await _textProjectManager.AddElementAsync(mirrorElement);
+                await _textProjectService.AddElementAsync(mirrorElement);
 
                 var mirrorBox = new DraggableTextBox(mirrorElement);
                 AddTextBoxToCanvas(mirrorBox);
@@ -412,13 +412,13 @@ namespace ImageColorChanger.UI
                 double centerY = EditorCanvas.Height / 2;
                 double mirrorY = centerY + (centerY - _selectedTextBox.Data.Y - _selectedTextBox.Data.Height);
 
-                var mirrorElement = _textProjectManager.CloneElement(_selectedTextBox.Data);
+                var mirrorElement = _textProjectService.CloneElement(_selectedTextBox.Data);
                 mirrorElement.Y = mirrorY;
                 mirrorElement.IsSymmetricBool = true;
                 mirrorElement.SymmetricPairId = _selectedTextBox.Data.Id;
                 mirrorElement.SymmetricType = "Vertical";
 
-                await _textProjectManager.AddElementAsync(mirrorElement);
+                await _textProjectService.AddElementAsync(mirrorElement);
 
                 var mirrorBox = new DraggableTextBox(mirrorElement);
                 AddTextBoxToCanvas(mirrorBox);
@@ -481,5 +481,3 @@ namespace ImageColorChanger.UI
         }
     }
 }
-
-
