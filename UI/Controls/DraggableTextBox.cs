@@ -1,6 +1,8 @@
 using System;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.TextEditor;
+using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.Utils;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfCanvas = System.Windows.Controls.Canvas;
@@ -53,6 +55,8 @@ namespace ImageColorChanger.UI.Controls
         private DateTime _lastClickTime = DateTime.MinValue;  // 记录上次点击时间，用于双击检测
         private const int DOUBLE_CLICK_INTERVAL = 500;  // 双击间隔（毫秒）
         private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
+        private readonly TextLayoutProfile _textLayoutProfile = TextLayoutProfile.Default;
+        private static readonly ITextLayoutService _textLayoutService = new TextLayoutService();
 
         // 四个拖动区域（用于在编辑模式下拖动文本框）
         private WpfBorder _dragAreaTop;
@@ -283,6 +287,11 @@ namespace ImageColorChanger.UI.Controls
         ///  文本选择改变事件（用于更新工具栏按钮状态）
         /// </summary>
         public event EventHandler TextSelectionChanged;
+
+        /// <summary>
+        /// 编辑状态改变事件
+        /// </summary>
+        public event EventHandler<bool> EditModeChanged;
 
         #endregion
 

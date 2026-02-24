@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -45,6 +46,8 @@ namespace ImageColorChanger.UI
             // 监听选中事件
             textBox.SelectionChanged += (s, isSelected) =>
             {
+                _textBoxEditSessionService?.SetSelected(textBox.Data.Id, isSelected);
+
                 if (isSelected)
                 {
                     // 取消其他文本框的选中状态
@@ -71,6 +74,11 @@ namespace ImageColorChanger.UI
                         BibleToolbar.IsOpen = false;
                     }
                 }
+            };
+
+            textBox.EditModeChanged += (s, isEditing) =>
+            {
+                _textBoxEditSessionService?.SetEditing(textBox.Data.Id, isEditing);
             };
 
             // 监听内容变化，保存按钮变绿色
@@ -125,6 +133,29 @@ namespace ImageColorChanger.UI
                     UpdateToolbarButtonStatesFromSelection();
                 }
             };
+        }
+
+        private List<TextBoxSnapshot> CaptureTextBoxSnapshotsForSave(IEnumerable<DraggableTextBox> sourceTextBoxes = null)
+        {
+            var textBoxes = (sourceTextBoxes ?? _textBoxes).Where(tb => tb != null).ToList();
+            var snapshots = new List<TextBoxSnapshot>(textBoxes.Count);
+            foreach (var textBox in textBoxes)
+            {
+                snapshots.Add(textBox.CaptureSnapshotForSave());
+            }
+
+            return snapshots;
+        }
+
+        private async Task PersistTextElementsAsync(IEnumerable<DraggableTextBox> sourceTextBoxes = null)
+        {
+            if (_textElementPersistenceService == null)
+            {
+                throw new InvalidOperationException("文本持久化服务未初始化");
+            }
+
+            var snapshots = CaptureTextBoxSnapshotsForSave(sourceTextBoxes);
+            await _textElementPersistenceService.SaveAsync(snapshots);
         }
 
         /// <summary>

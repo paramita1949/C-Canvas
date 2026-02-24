@@ -98,6 +98,12 @@ namespace ImageColorChanger.Core
             services.AddSingleton<GPUContext>();
             services.AddSingleton<SkiaFontService>();
 
+            // 文本编辑域服务
+            services.AddSingleton<Services.TextEditor.ITextBoxEditSessionService, Services.TextEditor.TextBoxEditSessionService>();
+            services.AddSingleton<Services.TextEditor.ITextLayoutService, Services.TextEditor.TextLayoutService>();
+            services.AddSingleton<Services.TextEditor.IRichTextSerializer, Services.TextEditor.RichTextSerializer>();
+            services.AddScoped<Services.TextEditor.ITextElementPersistenceService, Services.TextEditor.TextElementPersistenceService>();
+
             // 认证服务（仅暴露接口，避免上层依赖具体实现）
             services.AddSingleton<IAuthService>(_ => AuthService.Instance);
 
@@ -157,6 +163,7 @@ namespace ImageColorChanger.Core
             services.AddSingleton<SortManager>();
             services.AddSingleton<SearchManager>();
             services.AddSingleton<ImportManager>();
+            services.AddScoped<TextProjectManager>();
             services.AddTransient<SlideExportManager>(sp =>
                 new SlideExportManager(sp.GetRequiredService<DatabaseManager>().GetDbContext()));
             services.AddTransient<SlideImportManager>(sp =>

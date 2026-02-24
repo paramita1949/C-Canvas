@@ -94,6 +94,8 @@ namespace ImageColorChanger.UI.Controls
                 mainWindow.SyncProjectionNavigationHotKeys();
             }
 
+            EditModeChanged?.Invoke(this, true);
+
         }
 
 
@@ -124,34 +126,12 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 退出编辑前，提取并保存富文本样式到 Data.RichTextSpans
-
-            // 这样可以保留用户修改的局部字体、颜色等样式
-
-            if (_richTextBox != null && !_isPlaceholderText)
-
+            // 用户显式退出编辑时提取快照并回写样式
+            var snapshot = CaptureSnapshotForSave();
+            if (snapshot.RichTextSpans.Count > 0)
             {
-
-                var richTextSpans = ExtractRichTextSpansFromFlowDocument();
-
-                if (richTextSpans != null && richTextSpans.Count > 0)
-
-                {
-
-                    Data.RichTextSpans = richTextSpans;
-
-//#if DEBUG
-
-//                    System.Diagnostics.Debug.WriteLine($"[ExitEditMode] 提取了 {richTextSpans.Count} 个富文本片段");
-
-//#endif
-
-                    // 修复：退出编辑模式后，重新渲染文本以确保样式正确应用
-
-                    SyncTextToRichTextBox();
-
-                }
-
+                // 退出编辑后重渲染，确保富文本样式在只读态一致
+                SyncTextToRichTextBox();
             }
 
 
@@ -176,6 +156,8 @@ namespace ImageColorChanger.UI.Controls
             {
                 mainWindow.SyncProjectionNavigationHotKeys();
             }
+
+            EditModeChanged?.Invoke(this, false);
 
 
 

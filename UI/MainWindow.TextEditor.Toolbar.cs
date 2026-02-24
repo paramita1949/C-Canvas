@@ -195,7 +195,10 @@ namespace ImageColorChanger.UI
                             ShadowOffsetX = span.ShadowOffsetX,
                             ShadowOffsetY = span.ShadowOffsetY,
                             ShadowBlur = span.ShadowBlur,
-                            ShadowOpacity = span.ShadowOpacity
+                            ShadowOpacity = span.ShadowOpacity,
+                            ParagraphIndex = span.ParagraphIndex,
+                            RunIndex = span.RunIndex,
+                            FormatVersion = span.FormatVersion
                         })
                         .ToList();
 
@@ -248,7 +251,10 @@ namespace ImageColorChanger.UI
                     ShadowOffsetX = span.ShadowOffsetX,
                     ShadowOffsetY = span.ShadowOffsetY,
                     ShadowBlur = span.ShadowBlur,
-                    ShadowOpacity = span.ShadowOpacity
+                    ShadowOpacity = span.ShadowOpacity,
+                    ParagraphIndex = span.ParagraphIndex,
+                    RunIndex = span.RunIndex,
+                    FormatVersion = span.FormatVersion
                 })
                 .ToList();
         }

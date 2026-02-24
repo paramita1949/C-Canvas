@@ -105,7 +105,7 @@ namespace ImageColorChanger.UI.Controls
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 Background = WpfBrushes.Transparent,
                 BorderThickness = new System.Windows.Thickness(0),
-                Padding = new System.Windows.Thickness(10, 10, 10, 10),  // 增加 Padding 防止文本被边框遮挡
+                Padding = new System.Windows.Thickness(0),
 
                 // 编辑属性
                 AcceptsReturn = true,
@@ -122,6 +122,8 @@ namespace ImageColorChanger.UI.Controls
                 //  隐藏滚动条
                 VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden
             };
+
+            ApplyTextLayoutProfile();
 
             // 监听文本改变事件
             _richTextBox.TextChanged += (s, e) =>

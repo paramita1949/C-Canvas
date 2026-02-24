@@ -34,6 +34,24 @@ namespace ImageColorChanger.Database.Models
         [Column("text")]
         public string Text { get; set; } = "";
 
+        /// <summary>
+        /// 段落索引（v2 富文本协议）
+        /// </summary>
+        [Column("paragraph_index")]
+        public int? ParagraphIndex { get; set; }
+
+        /// <summary>
+        /// 段内 Run 索引（v2 富文本协议）
+        /// </summary>
+        [Column("run_index")]
+        public int? RunIndex { get; set; }
+
+        /// <summary>
+        /// 富文本格式版本（null=v1，v2=显式段落/Run边界）
+        /// </summary>
+        [Column("format_version")]
+        public string FormatVersion { get; set; }
+
         #region 字体样式
 
         /// <summary>
@@ -184,4 +202,3 @@ namespace ImageColorChanger.Database.Models
         #endregion
     }
 }
-

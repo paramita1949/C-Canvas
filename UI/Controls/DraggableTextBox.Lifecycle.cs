@@ -128,16 +128,6 @@ namespace ImageColorChanger.UI.Controls
 
                 _resizeThumbBottomRight.Visibility = System.Windows.Visibility.Collapsed;
 
-
-
-            if (IsInEditMode)
-
-            {
-
-                ExitEditMode();
-
-            }
-
         }
 
         public void RestoreDecorations()

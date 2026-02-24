@@ -38,8 +38,8 @@ namespace ImageColorChanger.Database
     public class CanvasDbContext : DbContext
     {
         private const string StartupSchemaBootstrapStampKey = "db.schema.bootstrap.version";
-        private const string StartupSchemaBootstrapVersion = "2026-02-22.1";
-        private const int StartupSchemaBootstrapUserVersion = 202602221;
+        private const string StartupSchemaBootstrapVersion = "2026-02-24.1";
+        private const int StartupSchemaBootstrapUserVersion = 202602241;
 
         /// <summary>
         /// 数据库文件路径
@@ -433,6 +433,10 @@ namespace ImageColorChanger.Database
 
                 // 文本框ID+片段顺序复合索引（用于按顺序查询）
                 entity.HasIndex(e => new { e.TextElementId, e.SpanOrder }).HasDatabaseName("idx_rich_text_spans_order");
+
+                // v2：按段落和 Run 顺序读取
+                entity.HasIndex(e => new { e.TextElementId, e.ParagraphIndex, e.RunIndex })
+                    .HasDatabaseName("idx_rich_text_spans_paragraph_run");
             });
 
             // ========== 幻灯片表配置 ==========
@@ -555,6 +559,9 @@ namespace ImageColorChanger.Database
                     //  检查并添加文本项目的排序字段（兼容旧数据库）
                     EnsureTextProjectSortOrderColumnExists();
                     // System.Diagnostics.Debug.WriteLine($" EnsureTextProjectSortOrderColumnExists() 完成");
+
+                    // 富文本 v2（段落/Run边界）兼容升级
+                    EnsureRichTextSpansV2SchemaExists();
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
@@ -1197,6 +1204,23 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($" 歌词库系统分组回填失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureRichTextSpansV2SchemaExists()
+        {
+            try
+            {
+                EnsureColumnExists("rich_text_spans", "paragraph_index", "INTEGER NULL");
+                EnsureColumnExists("rich_text_spans", "run_index", "INTEGER NULL");
+                EnsureColumnExists("rich_text_spans", "format_version", "TEXT NULL");
+
+                Database.ExecuteSqlRaw(
+                    "CREATE INDEX IF NOT EXISTS idx_rich_text_spans_paragraph_run ON rich_text_spans(text_element_id, paragraph_index, run_index)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" EnsureRichTextSpansV2SchemaExists 失败: {ex.Message}");
             }
         }
 

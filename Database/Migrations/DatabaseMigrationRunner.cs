@@ -44,6 +44,7 @@ namespace ImageColorChanger.Database.Migrations
             MigrateAddUnderlineSupport();
             MigrateAddRichTextSupport();
             MigrateCreateRichTextSpansTable();
+            MigrateUpgradeRichTextSpansV2Schema();
             MigrateAddShadowTypeAndPreset();
             MigrateAddVideoBackgroundSupport();
         }
@@ -279,6 +280,9 @@ namespace ImageColorChanger.Database.Migrations
                                 text_element_id INTEGER NOT NULL,
                                 span_order INTEGER NOT NULL,
                                 text TEXT NOT NULL DEFAULT '',
+                                paragraph_index INTEGER NULL,
+                                run_index INTEGER NULL,
+                                format_version TEXT NULL,
                                 font_family TEXT NULL,
                                 font_size REAL NULL,
                                 font_color TEXT NULL,
@@ -303,12 +307,65 @@ namespace ImageColorChanger.Database.Migrations
                         _context.Database.ExecuteSqlRaw(createTableSql);
                         _context.Database.ExecuteSqlRaw("CREATE INDEX idx_rich_text_spans_element ON rich_text_spans(text_element_id)");
                         _context.Database.ExecuteSqlRaw("CREATE INDEX idx_rich_text_spans_order ON rich_text_spans(text_element_id, span_order)");
+                        _context.Database.ExecuteSqlRaw("CREATE INDEX idx_rich_text_spans_paragraph_run ON rich_text_spans(text_element_id, paragraph_index, run_index)");
                     }
                 }
             }
             catch (Exception)
             {
             }
+        }
+
+        public void MigrateUpgradeRichTextSpansV2Schema()
+        {
+            try
+            {
+                EnsureRichTextSpansColumnExists("paragraph_index", "INTEGER NULL");
+                EnsureRichTextSpansColumnExists("run_index", "INTEGER NULL");
+                EnsureRichTextSpansColumnExists("format_version", "TEXT NULL");
+                _context.Database.ExecuteSqlRaw(
+                    "CREATE INDEX IF NOT EXISTS idx_rich_text_spans_paragraph_run ON rich_text_spans(text_element_id, paragraph_index, run_index)");
+            }
+            catch
+            {
+            }
+        }
+
+        private void EnsureRichTextSpansColumnExists(string columnName, string definition)
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open)
+            {
+                connection.Open();
+            }
+
+            using (var checkTableCommand = connection.CreateCommand())
+            {
+                checkTableCommand.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='rich_text_spans' LIMIT 1";
+                if (checkTableCommand.ExecuteScalar() == null)
+                {
+                    return;
+                }
+            }
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(rich_text_spans)";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (string.Equals(reader["name"]?.ToString(), columnName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+
+#pragma warning disable EF1002
+            _context.Database.ExecuteSqlRaw($"ALTER TABLE rich_text_spans ADD COLUMN {columnName} {definition}");
+#pragma warning restore EF1002
         }
 
         public void MigrateAddVideoBackgroundSupport()

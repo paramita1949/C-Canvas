@@ -38,6 +38,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private Slide _currentSlide;
         private bool _isRevertingSlideSelection;
+        private bool _isSwitchingSlide;
 
         private bool CanSwitchSlideWhileProjecting(bool showToast = true)
         {
@@ -165,129 +166,111 @@ namespace ImageColorChanger.UI
         /// 幻灯片列表选择改变事件
         ///  切换幻灯片前先保存当前文本，防止文本丢失
         /// </summary>
-        private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private async void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (_isRevertingSlideSelection)
+            if (_isRevertingSlideSelection || _isSwitchingSlide)
             {
                 return;
             }
 
-            if (SlideListBox.SelectedItem is Slide selectedSlide)
+            if (SlideListBox.SelectedItem is not Slide selectedSlide)
             {
-                if (_currentSlide != null && selectedSlide.Id != _currentSlide.Id && !CanSwitchSlideWhileProjecting())
-                {
-                    _isRevertingSlideSelection = true;
-                    try
-                    {
-                        SlideListBox.SelectedItem = _currentSlide;
-                    }
-                    finally
-                    {
-                        _isRevertingSlideSelection = false;
-                    }
-                    return;
-                }
+                return;
+            }
 
-                //  切换幻灯片前，先保存当前编辑的文本（确保换行符等格式不丢失）
-                // 先创建集合的副本，避免在遍历时集合被修改（LoadSlide 会清空 _textBoxes）
-                var textBoxesCopy = _textBoxes.ToList();
-                
-                // 先同步所有文本框的内容到 Data.Content
-                foreach (var textBox in textBoxesCopy)
+            _isSwitchingSlide = true;
+            try
+            {
+                if (_currentSlide != null && selectedSlide.Id != _currentSlide.Id)
                 {
-                    if (textBox.IsInEditMode)
+                    if (!CanSwitchSlideWhileProjecting())
                     {
-                        // 如果文本框正在编辑，先退出编辑模式（会触发 SyncTextFromRichTextBox）
-                        textBox.ExitEditMode();
+                        _isRevertingSlideSelection = true;
+                        try
+                        {
+                            SlideListBox.SelectedItem = _currentSlide;
+                        }
+                        finally
+                        {
+                            _isRevertingSlideSelection = false;
+                        }
+                        return;
                     }
-                    else
-                    {
-                        // 如果不在编辑模式，手动同步一次（确保 Data.Content 是最新的）
-                        textBox.SyncTextFromRichTextBox();
-                    }
-                }
-                
-                // 先提取 RichTextSpans（在 LoadSlide 之前，此时 UI 元素仍然有效）
-                var richTextSpansDict = new Dictionary<int, List<Database.Models.RichTextSpan>>();
-                foreach (var tb in textBoxesCopy)
-                {
+
+                    var previousSlide = _currentSlide;
+                    var textBoxesCopy = _textBoxes.ToList();
+
+                    bool saveSucceeded = false;
+                    Exception lastSaveException = null;
+
                     try
                     {
-                        if (tb != null && tb.Data != null)
+                        await PersistTextElementsAsync(textBoxesCopy);
+                        await SaveSplitConfigAsync();
+                        saveSucceeded = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastSaveException = ex;
+                    }
+
+                    if (!saveSucceeded)
+                    {
+                        var retryResult = WpfMessageBox.Show(
+                            $"切换幻灯片前保存失败：{lastSaveException?.Message}\n是否重试？",
+                            "保存失败",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (retryResult == MessageBoxResult.Yes)
                         {
-                            var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
-                            if (richTextSpans != null && richTextSpans.Count > 0)
+                            try
                             {
-                                richTextSpansDict[tb.Data.Id] = richTextSpans;
+                                await PersistTextElementsAsync(textBoxesCopy);
+                                await SaveSplitConfigAsync();
+                                saveSucceeded = true;
+                            }
+                            catch (Exception retryEx)
+                            {
+                                lastSaveException = retryEx;
                             }
                         }
                     }
-                    catch (Exception
-#if DEBUG
-                        ex
-#endif
-                    )
+
+                    if (!saveSucceeded)
                     {
-                        // 如果提取失败，记录但不阻止切换幻灯片
-#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 提取 RichTextSpans 失败 (ID={tb?.Data?.Id}): {ex.Message}");
-                        _ = ex;
-#endif
+                        WpfMessageBox.Show(
+                            $"保存失败，未切换幻灯片：{lastSaveException?.Message}",
+                            "错误",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+
+                        _isRevertingSlideSelection = true;
+                        try
+                        {
+                            SlideListBox.SelectedItem = previousSlide;
+                        }
+                        finally
+                        {
+                            _isRevertingSlideSelection = false;
+                        }
+
+                        return;
                     }
                 }
-                
+
                 // 在切换前预解析相邻视频（确保切换时已准备好）
                 if (_isProjectionLocked)
                 {
                     _ = PreparseAdjacentVideosBeforeSwitchAsync(selectedSlide);
                 }
-                
+
                 // 直接加载新幻灯片
                 LoadSlide(selectedSlide);
-                
-                // 保存到数据库（在 UI 线程中异步执行，避免阻塞UI）
-                // 使用 #pragma 抑制警告，因为这里是有意不等待的（fire-and-forget）
-                //  注意：必须在 UI 线程中执行，因为 DbContext 不是线程安全的
-#pragma warning disable CS4014
-                _ = Dispatcher.InvokeAsync(async () =>
-                {
-                    try
-                    {
-                        // 使用副本集合，避免集合被修改
-                        // 注意：此时 LoadSlide 已经执行，_textBoxes 已被清空，但 textBoxesCopy 仍然有效
-                        await _textProjectManager.UpdateElementsAsync(textBoxesCopy.Select(tb => tb.Data));
-                        
-                        // 同步 FlowDocument 到 RichTextSpans（使用之前提取的数据）
-                        foreach (var kvp in richTextSpansDict)
-                        {
-                            await _textProjectManager.SaveRichTextSpansAsync(kvp.Key, kvp.Value);
-                        }
-#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 文本已保存到数据库");
-#endif
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        //  如果 DbContext 已被释放，忽略错误（程序可能正在关闭）
-#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] DbContext 已被释放，跳过保存");
-#endif
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        //  如果 DbContext 操作失败（可能是线程安全问题），忽略错误
-#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] DbContext 操作失败，跳过保存");
-#endif
-                    }
-                    catch
-                    {
-#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($" [切换幻灯片] 保存文本失败");
-#endif
-                    }
-                }, System.Windows.Threading.DispatcherPriority.Background);
-#pragma warning restore CS4014
+            }
+            finally
+            {
+                _isSwitchingSlide = false;
             }
         }
 
@@ -980,7 +963,10 @@ namespace ImageColorChanger.UI
                                 ShadowOffsetX = sourceSpan.ShadowOffsetX,
                                 ShadowOffsetY = sourceSpan.ShadowOffsetY,
                                 ShadowBlur = sourceSpan.ShadowBlur,
-                                ShadowOpacity = sourceSpan.ShadowOpacity
+                                ShadowOpacity = sourceSpan.ShadowOpacity,
+                                ParagraphIndex = sourceSpan.ParagraphIndex,
+                                RunIndex = sourceSpan.RunIndex,
+                                FormatVersion = sourceSpan.FormatVersion
                             };
                             newSpans.Add(newSpan);
                         }
@@ -1182,10 +1168,10 @@ namespace ImageColorChanger.UI
 
             var currentSelectedSlide = SlideListBox.SelectedItem as Slide;
             var currentSelectedId = currentSelectedSlide?.Id;
-            
-            // 临时禁用SelectionChanged事件，避免重新加载当前幻灯片
-            SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
-            
+
+            // 通过保护位屏蔽转发链路中的 SelectionChanged，避免保存后触发 LoadSlide 造成视觉跳变。
+            _isRevertingSlideSelection = true;
+
             try
             {
                 // 先清空ItemsSource，强制UI重新绑定
@@ -1208,8 +1194,7 @@ namespace ImageColorChanger.UI
             }
             finally
             {
-                // 恢复SelectionChanged事件
-                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                _isRevertingSlideSelection = false;
             }
         }
 
@@ -1228,6 +1213,8 @@ namespace ImageColorChanger.UI
                 // 保存缩略图前：隐藏所有文本框的装饰元素（边框、拖拽手柄等）
                 foreach (var textBox in _textBoxes)
                 {
+                    // 无副作用快照：保证缩略图与持久化数据一致，不打断编辑态
+                    _ = textBox.CaptureSnapshotForSave();
                     textBox.HideDecorations();
                 }
 

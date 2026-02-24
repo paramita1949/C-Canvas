@@ -28,6 +28,42 @@ namespace ImageColorChanger.UI.Controls
     {
         #region RichText 同步
 
+        private void RenderRichTextSpansV2(IReadOnlyList<Database.Models.RichTextSpan> spans)
+        {
+            var grouped = spans
+                .GroupBy(s => s.ParagraphIndex ?? 0)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            if (grouped.Count == 0)
+            {
+                _richTextBox.Document.Blocks.Add(new System.Windows.Documents.Paragraph());
+                return;
+            }
+
+            int expectedParagraphIndex = 0;
+            foreach (var paragraphGroup in grouped)
+            {
+                while (expectedParagraphIndex < paragraphGroup.Key)
+                {
+                    _richTextBox.Document.Blocks.Add(new System.Windows.Documents.Paragraph());
+                    expectedParagraphIndex++;
+                }
+
+                var paragraph = new System.Windows.Documents.Paragraph();
+
+                foreach (var span in paragraphGroup.OrderBy(s => s.RunIndex ?? s.SpanOrder))
+                {
+                    var run = new System.Windows.Documents.Run(span.Text ?? string.Empty);
+                    ApplySpanStyleToRun(run, span);
+                    paragraph.Inlines.Add(run);
+                }
+
+                _richTextBox.Document.Blocks.Add(paragraph);
+                expectedParagraphIndex = paragraphGroup.Key + 1;
+            }
+        }
+
         public void SyncTextFromRichTextBox()
 
         {
@@ -232,9 +268,20 @@ namespace ImageColorChanger.UI.Controls
 
                     var sortedSpans = Data.RichTextSpans.OrderBy(s => s.SpanOrder).ToList();
 
-                    
+                    bool hasV2Spans = sortedSpans.Any(s =>
+                        string.Equals(
+                            s.FormatVersion,
+                            Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        s.ParagraphIndex.HasValue);
 
-                    // 将所有 RichTextSpans 的文本按顺序拼接（去掉换行符）
+                    if (hasV2Spans)
+                    {
+                        RenderRichTextSpansV2(sortedSpans);
+                    }
+                    else
+                    {
+                        // 将所有 RichTextSpans 的文本按顺序拼接（去掉换行符）
 
                     string allSpansText = string.Join("", sortedSpans.Select(s => s.Text ?? ""));
 
@@ -259,8 +306,6 @@ namespace ImageColorChanger.UI.Controls
                         {
 
                             var paragraph = new System.Windows.Documents.Paragraph();
-
-                            paragraph.Margin = new System.Windows.Thickness(0);
 
                             
 
@@ -348,7 +393,13 @@ namespace ImageColorChanger.UI.Controls
 
                                         IsItalic = span.IsItalic,
 
-                                        IsUnderline = span.IsUnderline
+                                        IsUnderline = span.IsUnderline,
+
+                                        ParagraphIndex = span.ParagraphIndex,
+
+                                        RunIndex = span.RunIndex,
+
+                                        FormatVersion = span.FormatVersion
 
                                     };
 
@@ -378,8 +429,6 @@ namespace ImageColorChanger.UI.Controls
 
                         var paragraph = new System.Windows.Documents.Paragraph();
 
-                        paragraph.Margin = new System.Windows.Thickness(0);
-
                         
 
                         foreach (var span in sortedSpans)
@@ -397,6 +446,8 @@ namespace ImageColorChanger.UI.Controls
                         
 
                         _richTextBox.Document.Blocks.Add(paragraph);
+
+                    }
 
                     }
 
@@ -431,8 +482,6 @@ namespace ImageColorChanger.UI.Controls
                     {
 
                         var paragraph = new System.Windows.Documents.Paragraph();
-
-                        paragraph.Margin = new System.Windows.Thickness(0);
 
                         var run = new System.Windows.Documents.Run(line);
 
@@ -491,8 +540,6 @@ namespace ImageColorChanger.UI.Controls
                     {
 
                         var paragraph = new System.Windows.Documents.Paragraph();
-
-                        paragraph.Margin = new System.Windows.Thickness(0);
 
                         _richTextBox.Document.Blocks.Add(paragraph);
 

@@ -241,6 +241,9 @@ namespace ImageColorChanger.Managers
                         {
                             SpanOrder = r.SpanOrder,
                             Text = r.Text,
+                            ParagraphIndex = r.ParagraphIndex,
+                            RunIndex = r.RunIndex,
+                            FormatVersion = r.FormatVersion,
                             FontFamily = r.FontFamily,
                             FontSize = r.FontSize,
                             FontColor = r.FontColor,
@@ -360,6 +363,9 @@ namespace ImageColorChanger.Managers
     {
         public int SpanOrder { get; set; }
         public string Text { get; set; }
+        public int? ParagraphIndex { get; set; }
+        public int? RunIndex { get; set; }
+        public string FormatVersion { get; set; }
         public string FontFamily { get; set; }
         public double? FontSize { get; set; }
         public string FontColor { get; set; }

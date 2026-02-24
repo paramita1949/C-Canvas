@@ -469,6 +469,19 @@ namespace ImageColorChanger.Managers
                 throw new ArgumentNullException(nameof(span));
 
             var dbContext = _dbContext;
+            if (string.IsNullOrWhiteSpace(span.FormatVersion))
+            {
+                span.FormatVersion = Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion;
+            }
+            if (!span.ParagraphIndex.HasValue)
+            {
+                span.ParagraphIndex = 0;
+            }
+            if (!span.RunIndex.HasValue)
+            {
+                span.RunIndex = span.SpanOrder;
+            }
+
             dbContext.RichTextSpans.Add(span);
             await dbContext.SaveChangesAsync();
 
@@ -504,6 +517,7 @@ namespace ImageColorChanger.Managers
                 throw new ArgumentNullException(nameof(spans));
 
             var dbContext = _dbContext;
+            NormalizeRichTextSpansForSave(textElementId, spans);
 
             // 删除旧的片段
             var oldSpans = await dbContext.RichTextSpans
@@ -522,6 +536,38 @@ namespace ImageColorChanger.Managers
             }
 
             await dbContext.SaveChangesAsync();
+        }
+
+        private static void NormalizeRichTextSpansForSave(int textElementId, List<RichTextSpan> spans)
+        {
+            var paragraphRunCursors = new Dictionary<int, int>();
+            foreach (var span in spans.OrderBy(s => s.SpanOrder))
+            {
+                span.TextElementId = textElementId;
+
+                if (string.IsNullOrWhiteSpace(span.FormatVersion))
+                {
+                    span.FormatVersion = Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion;
+                }
+
+                if (!span.ParagraphIndex.HasValue)
+                {
+                    span.ParagraphIndex = 0;
+                }
+
+                int paragraphIndex = span.ParagraphIndex.Value;
+                if (!paragraphRunCursors.TryGetValue(paragraphIndex, out var runCursor))
+                {
+                    runCursor = 0;
+                }
+
+                if (!span.RunIndex.HasValue)
+                {
+                    span.RunIndex = runCursor;
+                }
+
+                paragraphRunCursors[paragraphIndex] = Math.Max(runCursor + 1, span.RunIndex.Value + 1);
+            }
         }
 
         /// <summary>

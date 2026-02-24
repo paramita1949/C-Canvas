@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -42,6 +43,8 @@ namespace ImageColorChanger.UI
         private List<RichTextSpan> _textBoxClipboardSpans = new List<RichTextSpan>();
         private int _textBoxPasteOffsetStep = 1;
         private string _currentTextColor = "#000000";
+        private ITextBoxEditSessionService _textBoxEditSessionService;
+        private ITextElementPersistenceService _textElementPersistenceService;
 
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
@@ -103,6 +106,12 @@ namespace ImageColorChanger.UI
                 throw new InvalidOperationException("Database context is not initialized.");
             }
             _textProjectManager = new TextProjectManager(_dbContext);
+            _textBoxEditSessionService = _mainWindowServices.GetRequired<ITextBoxEditSessionService>();
+            var richTextSerializer = _mainWindowServices.GetRequired<IRichTextSerializer>();
+            _textElementPersistenceService = new TextElementPersistenceService(
+                _textProjectManager,
+                _textBoxEditSessionService,
+                richTextSerializer);
 
             // 加载系统字体
             LoadSystemFonts();

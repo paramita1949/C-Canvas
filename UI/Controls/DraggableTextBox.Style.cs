@@ -874,45 +874,7 @@ namespace ImageColorChanger.UI.Controls
 
         {
 
-            if (_richTextBox == null || Data == null)
-
-                return;
-
-
-
-            double lineSpacingMultiplier = Data.LineSpacing > 0 ? Data.LineSpacing : 1.2;
-
-            double lineHeight = Data.FontSize * lineSpacingMultiplier;
-
-
-
-            // 设置 Document 的 PagePadding，防止文本被边框遮挡
-
-            // 左右各增加 10 像素，上下各增加 15 像素
-
-            _richTextBox.Document.PagePadding = new System.Windows.Thickness(10, 15, 10, 15);
-
-
-
-            foreach (var block in _richTextBox.Document.Blocks)
-
-            {
-
-                if (block is System.Windows.Documents.Paragraph paragraph)
-
-                {
-
-                    // 给段落添加顶部边距，防止字体被裁剪（特别是斜体和艺术字体）
-
-                    paragraph.Margin = new System.Windows.Thickness(0, 5, 0, 0);
-
-                    paragraph.LineHeight = lineHeight;
-
-                    paragraph.LineStackingStrategy = System.Windows.LineStackingStrategy.BlockLineHeight;
-
-                }
-
-            }
+            ApplyTextLayoutProfile();
 
         }
 
@@ -990,7 +952,13 @@ namespace ImageColorChanger.UI.Controls
 
                 ShadowBlur = source.ShadowBlur,
 
-                ShadowOpacity = source.ShadowOpacity
+                ShadowOpacity = source.ShadowOpacity,
+
+                ParagraphIndex = source.ParagraphIndex,
+
+                RunIndex = source.RunIndex,
+
+                FormatVersion = source.FormatVersion
 
             };
 

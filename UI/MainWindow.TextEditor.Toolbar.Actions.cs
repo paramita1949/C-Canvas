@@ -446,20 +446,7 @@ namespace ImageColorChanger.UI
 
             try
             {
-                await _textProjectManager.UpdateElementsAsync(_textBoxes.Select(tb => tb.Data));
-
-                foreach (var tb in _textBoxes)
-                {
-                    var richTextSpans = tb.ExtractRichTextSpansFromFlowDocument();
-                    if (richTextSpans != null && richTextSpans.Count > 0)
-                    {
-                        await _textProjectManager.SaveRichTextSpansAsync(tb.Data.Id, richTextSpans);
-                    }
-                    else
-                    {
-                        await _textProjectManager.DeleteRichTextSpansByElementIdAsync(tb.Data.Id);
-                    }
-                }
+                await PersistTextElementsAsync(_textBoxes);
 
                 await SaveSplitConfigAsync();
 
