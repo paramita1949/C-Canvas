@@ -173,17 +173,83 @@ namespace ImageColorChanger.Services
                 System.Diagnostics.Trace.WriteLine($" [通知心跳] 开始检查通知更新...");
 #endif
                 var jsonContent = BuildTokenHardwarePayloadJson();
-                var response = await PostJsonWithFailoverAsync(
-                    HEARTBEAT_ENDPOINT,
-                    jsonContent,
-                    timeoutSeconds: 6,
-                    allowFailoverOnFailure: false,
-                    perRequestTimeoutSeconds: 6);
+                const int maxAttempts = 2;
+                const int requestTimeoutSeconds = 30;
+                HttpResponseMessage response = null;
+                Exception lastAttemptException = null;
+                var overallStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    var attemptStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    try
+                    {
+                        response = await PostJsonWithFailoverAsync(
+                            HEARTBEAT_ENDPOINT,
+                            jsonContent,
+                            timeoutSeconds: requestTimeoutSeconds,
+                            allowFailoverOnFailure: false,
+                            perRequestTimeoutSeconds: requestTimeoutSeconds);
+
+                        attemptStopwatch.Stop();
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine(
+                            $" [通知心跳] 第{attempt}/{maxAttempts}次请求完成: " +
+                            $"{(response == null ? "无响应" : $"HTTP {(int)response.StatusCode}")}, " +
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+#endif
+
+                        if (response != null)
+                        {
+                            break;
+                        }
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        lastAttemptException = ex;
+                        attemptStopwatch.Stop();
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine(
+                            $"⏱ [通知心跳] 第{attempt}/{maxAttempts}次请求超时: " +
+                            $"timeout={requestTimeoutSeconds}s, 耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+#endif
+                    }
+                    catch (TimeoutException ex)
+                    {
+                        lastAttemptException = ex;
+                        attemptStopwatch.Stop();
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine(
+                            $"⏱ [通知心跳] 第{attempt}/{maxAttempts}次请求超时异常: " +
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+#endif
+                    }
+                    catch (Exception ex)
+                    {
+                        lastAttemptException = ex;
+                        attemptStopwatch.Stop();
+#if DEBUG
+                        System.Diagnostics.Trace.WriteLine(
+                            $" [通知心跳] 第{attempt}/{maxAttempts}次请求异常: {ex.Message}, " +
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+#endif
+                    }
+
+                    if (attempt < maxAttempts)
+                    {
+                        await Task.Delay(250);
+                    }
+                }
+
+                overallStopwatch.Stop();
 
                 if (response == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($" [通知心跳] 网络连接失败，跳过本次通知检查");
+                    System.Diagnostics.Trace.WriteLine(
+                        $" [通知心跳] 网络连接失败，跳过本次通知检查: " +
+                        $"尝试次数={maxAttempts}, 总耗时={overallStopwatch.ElapsedMilliseconds}ms, " +
+                        $"最后异常={(lastAttemptException == null ? "无" : lastAttemptException.GetType().Name)}");
 #endif
                     return;
                 }
@@ -193,7 +259,13 @@ namespace ImageColorChanger.Services
                 if (authResponse == null || !authResponse.Success || !authResponse.Valid)
                 {
 #if DEBUG
-                    System.Diagnostics.Trace.WriteLine($" [通知心跳] 服务器未返回有效通知数据，本次跳过");
+                    var preview = responseContent?.Length > 140
+                        ? responseContent.Substring(0, 140) + "..."
+                        : responseContent;
+                    System.Diagnostics.Trace.WriteLine(
+                        $" [通知心跳] 服务器未返回有效通知数据，本次跳过: " +
+                        $"HTTP={(int)response.StatusCode}, success={authResponse?.Success.ToString() ?? "null"}, " +
+                        $"valid={authResponse?.Valid.ToString() ?? "null"}, body={preview}");
 #endif
                     return;
                 }
@@ -201,7 +273,9 @@ namespace ImageColorChanger.Services
                 ApplyServerAuthData(authResponse.Data, source: "notice-heartbeat", updateLastSuccessfulHeartbeat: false, persistLocalCache: false);
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($" [通知心跳] 通知检查完成");
+                System.Diagnostics.Trace.WriteLine(
+                    $" [通知心跳] 通知检查完成: HTTP={(int)response.StatusCode}, " +
+                    $"总耗时={overallStopwatch.ElapsedMilliseconds}ms");
 #endif
             }
             catch (TaskCanceledException)
