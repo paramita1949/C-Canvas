@@ -10,12 +10,14 @@ namespace ImageColorChanger.UI
     {
         private readonly IAuthFacade _authFacade;
         public bool RegisterSuccess { get; private set; }
+        public string RegisterSuccessMessage { get; private set; }
 
         public RegisterWindow(IAuthFacade authFacade)
         {
             _authFacade = authFacade ?? throw new ArgumentNullException(nameof(authFacade));
             InitializeComponent();
             RegisterSuccess = false;
+            RegisterSuccessMessage = string.Empty;
 
             // 订阅服务器切换事件
             _authFacade.ServerSwitching += OnServerSwitching;
@@ -220,7 +222,8 @@ namespace ImageColorChanger.UI
                 if (success)
                 {
                     RegisterSuccess = true;
-                    ShowStatus("注册成功！等待管理员激活...", isError: false);
+                    RegisterSuccessMessage = string.IsNullOrWhiteSpace(message) ? "注册成功！" : message;
+                    ShowStatus(RegisterSuccessMessage, isError: false);
                     
                     // 延迟关闭窗口
                     await System.Threading.Tasks.Task.Delay(2000);

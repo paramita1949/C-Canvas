@@ -200,7 +200,11 @@ namespace ImageColorChanger.UI
             if (result == true && registerWindow.RegisterSuccess)
             {
                 // 注册成功，显示提示信息
-                ShowStatus("注册成功！请等待管理员激活后登录。", isError: false);
+                ShowStatus(
+                    string.IsNullOrWhiteSpace(registerWindow.RegisterSuccessMessage)
+                        ? "注册成功，请直接登录。"
+                        : registerWindow.RegisterSuccessMessage,
+                    isError: false);
             }
         }
 

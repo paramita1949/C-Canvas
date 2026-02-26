@@ -1,15 +1,12 @@
 2026.2.25
 -------------------------
-V6.0.2.7
+V6.0.2.4
 【幻灯片文本重构-迁移收尾】
 1、彻底移除 `TextProjectManager` 运行时代码与依赖注入注册，统一改为 `ITextProjectService`
 2、`MainWindow.TextEditor` / `SplitSlide` 全链路改为 `ITextProjectService` 调用，不再保留兼容分支
 3、`NavigationView` 文本项目树与首项目加载改为 `ITextProjectService`，UI 不再直接查询 `TextProjects`
 4、回归脚本新增守卫：禁止 UI 直接访问 `_dbContext.TextProjects/Slides/TextElements/RichTextSpans`
 
-2026.2.24
--------------------------
-V6.0.2.6
 【幻灯片文本重构-阶段三二批落地】
 1、新增投影渲染状态服务 `TextEditorProjectionRenderStateService`，统一承接缓存键生成、缓存生命周期与渲染节流状态
 2、新增渲染安全模板服务 `TextEditorRenderSafetyService`，统一“渲染前隐藏装饰 / 渲染后恢复”流程
@@ -18,7 +15,6 @@ V6.0.2.6
 5、新增性能基线脚本 `scripts/text-editor-performance-baseline.ps1`，首轮自动生成基线并接入回归脚本
 6、新增渲染测试 `TextEditorProjectionRenderStateServiceTests`、`TextEditorRenderSafetyServiceTests` 并通过
 
-V6.0.2.5
 【幻灯片文本重构-阶段二完成，阶段三首批落地】
 1、新增 TextEditor 仓储边界（Project/Slide/TextElement/RichTextSpan）并接入 DI
 2、TextElementPersistenceService 改为依赖仓储接口，不再依赖 TextProjectManager
@@ -27,7 +23,6 @@ V6.0.2.5
 5、新增渲染服务：ProjectionComposer 与 ThumbnailService，UI 仅触发调用（阶段三首批）
 6、回归脚本新增阶段二/三守卫（仓储依赖、富文本 API 隔离、渲染服务入口）
 
-V6.0.2.4
 【幻灯片文本重构-阶段一完成】
 1、保存链路统一到 TextEditorSaveOrchestrator（手动保存/切换保存/自动退出保存）
 2、移除 MainWindow.TextEditor.* 中同步阻塞调用（GetAwaiter().GetResult()=0）
