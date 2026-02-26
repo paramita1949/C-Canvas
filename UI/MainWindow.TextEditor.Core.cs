@@ -285,7 +285,7 @@ namespace ImageColorChanger.UI
                     SortOrder = 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = false  // 默认适中模式
+                    SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
                 };
                 await _textProjectService.AddSlideAsync(firstSlide);
 
@@ -355,7 +355,7 @@ namespace ImageColorChanger.UI
                         SortOrder = 1,
                         BackgroundColor = "#000000",  // 默认黑色背景
                         SplitMode = -1,  // 默认无分割模式
-                        SplitStretchMode = false  // 默认适中模式
+                        SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
                     };
                     await _textProjectService.AddSlideAsync(firstSlide);
                     

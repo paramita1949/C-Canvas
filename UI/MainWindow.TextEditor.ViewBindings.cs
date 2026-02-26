@@ -103,6 +103,7 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<System.Windows.Input.MouseEventArgs>(nameof(SlideListBox_PreviewMouseMove), SlideListBox_PreviewMouseMove);
             BindTextEditorEvent<System.Windows.DragEventArgs>(nameof(SlideListBox_Drop), SlideListBox_Drop);
             BindTextEditorEvent<System.Windows.DragEventArgs>(nameof(SlideListBox_DragOver), SlideListBox_DragOver);
+            BindTextEditorEvent<System.Windows.DragEventArgs>(nameof(SlideListBox_DragLeave), SlideListBox_DragLeave);
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(SlideListBox_KeyDown), SlideListBox_KeyDown);
             BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(EditorCanvas_MouseDown), EditorCanvas_MouseDown);
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(EditorCanvas_KeyDown), EditorCanvas_KeyDown);

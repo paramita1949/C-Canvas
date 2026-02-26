@@ -104,7 +104,7 @@ namespace ImageColorChanger.Managers
         private bool _isColorEffectEnabled;
         private double _zoomRatio = 1.0;
         private bool _isOriginalMode;
-        private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Stretch;
+        private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Fit;
         private string _currentImagePath; // 用于缓存键生成
         
         //  投影图片缓存

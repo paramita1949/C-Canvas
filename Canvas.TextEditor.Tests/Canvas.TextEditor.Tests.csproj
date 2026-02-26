@@ -20,5 +20,4 @@
   <ItemGroup>
     <ProjectReference Include="..\ImageColorChanger.csproj" />
   </ItemGroup>
-  <Import Project="Canvas.TextEditor.Tests.dotnet_reactor.targets" Condition="Exists('Canvas.TextEditor.Tests.dotnet_reactor.targets')" />
 </Project>

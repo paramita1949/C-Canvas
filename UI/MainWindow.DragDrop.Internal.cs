@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 
@@ -110,7 +112,7 @@ namespace ImageColorChanger.UI
                     {
                         e.Effects = System.Windows.DragDropEffects.Move;
                         
-                        // 显示拖拽插入位置指示器（蓝色横线）
+                        // 显示拖拽插入位置指示器（橙色加粗横线）
                         ShowDragIndicator(targetTreeViewItem);
                     }
                     else
@@ -277,39 +279,19 @@ namespace ImageColorChanger.UI
                 // 获取TreeViewItem相对于ProjectTree的位置
                 var position = targetItem.TranslatePoint(new System.Windows.Point(0, 0), ProjectTree);
                 
-                // 获取目标项的数据
-                var targetData = targetItem.DataContext as ProjectTreeItem;
-                if (targetData == null) return;
-                
-                // 精确计算文件名的起始位置
-                // TreeView缩进 + 图标宽度 + 图标右边距 = 文件名起始位置
-                double treeViewIndent = targetData.Type == TreeItemType.File ? 19 : 0; // 文件的TreeView缩进
-                double iconWidth = 18; // PackIcon宽度
-                double iconMargin = 8; // PackIcon右边距
-                double textStartPosition = treeViewIndent + iconWidth + iconMargin; // 文件名实际开始位置
-                
-                // 根据文件名长度智能调整横线长度
-                double lineLength;
-                if (!string.IsNullOrEmpty(targetData.Name))
+                // 插入线长度与左侧文件夹导航区域同宽
+                double indicatorWidth = DragIndicatorCanvas?.ActualWidth > 1
+                    ? DragIndicatorCanvas.ActualWidth
+                    : ProjectTree.ActualWidth;
+                if (indicatorWidth <= 1)
                 {
-                    // 基于文件名长度估算宽度（每个字符约7px，中文字符约12px）
-                    double estimatedWidth = 0;
-                    foreach (char c in targetData.Name)
-                    {
-                        estimatedWidth += (c > 127) ? 12 : 7; // 中文字符宽度更大
-                    }
-                    lineLength = Math.Min(estimatedWidth + 10, 160); // 最大160px，加10px缓冲
-                    lineLength = Math.Max(lineLength, 60); // 最小60px
-                }
-                else
-                {
-                    lineLength = 80; // 默认长度
+                    indicatorWidth = 220; // 布局未完成时兜底
                 }
                 
                 // 设置指示线的位置和长度
                 Canvas.SetTop(DragIndicatorLine, position.Y);
-                DragIndicatorLine.X1 = textStartPosition;
-                DragIndicatorLine.X2 = textStartPosition + lineLength;
+                DragIndicatorLine.X1 = 0;
+                DragIndicatorLine.X2 = indicatorWidth;
                 DragIndicatorLine.Y1 = 0;
                 DragIndicatorLine.Y2 = 0;
                 
@@ -441,6 +423,7 @@ namespace ImageColorChanger.UI
                     targetIndex--;
                 }
                 files.Insert(targetIndex, sourceFile);
+                var beforePositions = CaptureVisibleProjectTreeItemPositions();
 
                 // 更新所有文件的OrderIndex
                 for (int i = 0; i < files.Count; i++)
@@ -456,6 +439,7 @@ namespace ImageColorChanger.UI
 
                 // 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
                 UpdateTreeItemOrder(sourceFolderId, files);
+                AnimateProjectTreeReorder(beforePositions);
                 
                 ShowStatus($"已重新排序: {sourceItem.Name}");
             }
@@ -509,6 +493,7 @@ namespace ImageColorChanger.UI
                     targetIndex--;
                 }
                 folders.Insert(targetIndex, sourceFolder);
+                var beforePositions = CaptureVisibleProjectTreeItemPositions();
 
                 // 更新所有文件夹的OrderIndex
                 for (int i = 0; i < folders.Count; i++)
@@ -521,6 +506,7 @@ namespace ImageColorChanger.UI
 
                 // 更新TreeView中的文件夹顺序
                 UpdateFolderTreeItemOrder(folders);
+                AnimateProjectTreeReorder(beforePositions);
                 
                 ShowStatus($"已重新排序文件夹: {sourceItem.Name}");
             }
@@ -867,11 +853,13 @@ namespace ImageColorChanger.UI
                 
                 if (sourceTreeIndex != -1 && targetTreeIndex != -1)
                 {
+                    var beforePositions = CaptureVisibleProjectTreeItemPositions();
                     _projectTreeItems.Move(sourceTreeIndex, targetTreeIndex);
                     //System.Diagnostics.Debug.WriteLine($" [ReorderProjects] Project节点移动完成: {sourceItem.Name} 从位置{sourceTreeIndex}移动到位置{targetTreeIndex}");
                     
                     // 修复：更新完 _projectTreeItems 后，重新过滤到显示集合
                     FilterProjectTree();
+                    AnimateProjectTreeReorder(beforePositions);
                     
                     // 保存排序到数据库（只保存TextProject类型的项目）
                     if (sourceItem.Type == TreeItemType.TextProject && targetItem.Type == TreeItemType.TextProject)
@@ -1051,6 +1039,126 @@ namespace ImageColorChanger.UI
             
             // 没有匹配到序号，返回原名
             return name;
+        }
+
+        private Dictionary<string, double> CaptureVisibleProjectTreeItemPositions()
+        {
+            var positions = new Dictionary<string, double>();
+            if (ProjectTree == null)
+            {
+                return positions;
+            }
+
+            ProjectTree.UpdateLayout();
+            foreach (var treeViewItem in FindVisualChildrenForTree<TreeViewItem>(ProjectTree))
+            {
+                if (treeViewItem.DataContext is not ProjectTreeItem data)
+                {
+                    continue;
+                }
+
+                string key = GetProjectTreeAnimationKey(data);
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                double y = treeViewItem.TransformToAncestor(ProjectTree).Transform(new System.Windows.Point(0, 0)).Y;
+                positions[key] = y;
+            }
+
+            return positions;
+        }
+
+        private void AnimateProjectTreeReorder(Dictionary<string, double> beforePositions)
+        {
+            if (beforePositions == null || beforePositions.Count == 0 || ProjectTree == null)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ProjectTree.UpdateLayout();
+
+                foreach (var treeViewItem in FindVisualChildrenForTree<TreeViewItem>(ProjectTree))
+                {
+                    if (treeViewItem.DataContext is not ProjectTreeItem data)
+                    {
+                        continue;
+                    }
+
+                    string key = GetProjectTreeAnimationKey(data);
+                    if (!beforePositions.TryGetValue(key, out var oldY))
+                    {
+                        continue;
+                    }
+
+                    double newY = treeViewItem.TransformToAncestor(ProjectTree).Transform(new System.Windows.Point(0, 0)).Y;
+                    double delta = oldY - newY;
+                    if (Math.Abs(delta) < 0.5)
+                    {
+                        continue;
+                    }
+
+                    if (treeViewItem.RenderTransform is not TranslateTransform translate)
+                    {
+                        translate = new TranslateTransform();
+                        treeViewItem.RenderTransform = translate;
+                    }
+
+                    translate.BeginAnimation(TranslateTransform.YProperty, null);
+                    translate.Y = delta;
+
+                    var animation = new DoubleAnimation
+                    {
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(160),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    animation.Completed += (_, _) =>
+                    {
+                        translate.BeginAnimation(TranslateTransform.YProperty, null);
+                        translate.Y = 0;
+                    };
+
+                    translate.BeginAnimation(TranslateTransform.YProperty, animation);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private static string GetProjectTreeAnimationKey(ProjectTreeItem item)
+        {
+            if (item == null)
+            {
+                return null;
+            }
+
+            return $"{item.Type}:{item.Id}";
+        }
+
+        private static IEnumerable<T> FindVisualChildrenForTree<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null)
+            {
+                yield break;
+            }
+
+            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    yield return typedChild;
+                }
+
+                foreach (T descendant in FindVisualChildrenForTree<T>(child))
+                {
+                    yield return descendant;
+                }
+            }
         }
 
         #endregion

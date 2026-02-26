@@ -35,7 +35,7 @@ namespace ImageColorChanger.Core
         
         // 显示模式
         private bool originalMode = false;
-        private OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch;
+        private OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Fit;
         
         // 缩放状态
         private double zoomRatio = Constants.DefaultZoomRatio;

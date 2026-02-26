@@ -94,6 +94,7 @@ namespace ImageColorChanger.UI.Views
         private void SlideListBox_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_PreviewMouseMove), sender, e);
         private void SlideListBox_Drop(object sender, System.Windows.DragEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_Drop), sender, e);
         private void SlideListBox_DragOver(object sender, System.Windows.DragEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_DragOver), sender, e);
+        private void SlideListBox_DragLeave(object sender, System.Windows.DragEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_DragLeave), sender, e);
         private void SlideListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_KeyDown), sender, e);
         private void EditorCanvas_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_MouseDown), sender, e);
         private void EditorCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_KeyDown), sender, e);

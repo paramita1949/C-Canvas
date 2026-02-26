@@ -456,6 +456,7 @@
                                              PreviewMouseMove="SlideListBox_PreviewMouseMove"
                                              Drop="SlideListBox_Drop"
                                              DragOver="SlideListBox_DragOver"
+                                             DragLeave="SlideListBox_DragLeave"
                                              KeyDown="SlideListBox_KeyDown">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">

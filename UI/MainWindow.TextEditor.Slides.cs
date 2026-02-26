@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -40,6 +42,9 @@ namespace ImageColorChanger.UI
         private Slide _currentSlide;
         private bool _isRevertingSlideSelection;
         private bool _isSwitchingSlide;
+        private bool _isReorderingSlides;
+        private bool _isDeletingSlide;
+        private bool _isNormalizingSlideSortOrder;
 
         private bool CanSwitchSlideWhileProjecting(bool showToast = true)
         {
@@ -344,6 +349,15 @@ namespace ImageColorChanger.UI
 
         private Slide _draggingSlide = null;
         private System.Windows.Point _slideDragStartPoint;
+        private AdornerLayer _slideInsertAdornerLayer;
+        private SlideInsertAdorner _slideInsertAdorner;
+        private DropInsertPosition _pendingDropPosition = DropInsertPosition.Before;
+
+        private enum DropInsertPosition
+        {
+            Before,
+            After
+        }
 
         /// <summary>
         /// 幻灯片列表鼠标按下事件（开始拖动）
@@ -374,10 +388,17 @@ namespace ImageColorChanger.UI
                 if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    // 开始拖放操作
-                    System.Windows.DataObject dragData = new System.Windows.DataObject("Slide", _draggingSlide);
-                    DragDrop.DoDragDrop(SlideListBox, dragData, System.Windows.DragDropEffects.Move);
-                    _draggingSlide = null;
+                    try
+                    {
+                        // 开始拖放操作
+                        System.Windows.DataObject dragData = new System.Windows.DataObject("Slide", _draggingSlide);
+                        DragDrop.DoDragDrop(SlideListBox, dragData, System.Windows.DragDropEffects.Move);
+                    }
+                    finally
+                    {
+                        ClearSlideDragVisuals();
+                        _draggingSlide = null;
+                    }
                 }
             }
         }
@@ -387,13 +408,35 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SlideListBox_DragOver(object sender, System.Windows.DragEventArgs e)
         {
-            if (e.Data.GetDataPresent("Slide"))
+            if (e.Data.GetDataPresent("Slide") && e.Data.GetData("Slide") is Slide sourceSlide)
             {
                 e.Effects = System.Windows.DragDropEffects.Move;
+
+                var targetItem = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+                if (targetItem?.DataContext is Slide targetSlide)
+                {
+                    if (targetSlide.Id == sourceSlide.Id)
+                    {
+                        HideSlideInsertIndicator();
+                        e.Handled = true;
+                        return;
+                    }
+
+                    var mouseInItem = e.GetPosition(targetItem);
+                    _pendingDropPosition = mouseInItem.Y >= targetItem.ActualHeight * 0.5
+                        ? DropInsertPosition.After
+                        : DropInsertPosition.Before;
+                    ShowSlideInsertIndicator(targetItem, _pendingDropPosition);
+                }
+                else
+                {
+                    HideSlideInsertIndicator();
+                }
             }
             else
             {
                 e.Effects = System.Windows.DragDropEffects.None;
+                HideSlideInsertIndicator();
             }
             e.Handled = true;
         }
@@ -401,31 +444,58 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 幻灯片列表放下事件（完成排序）
         /// </summary>
-        private void SlideListBox_Drop(object sender, System.Windows.DragEventArgs e)
+        private async void SlideListBox_Drop(object sender, System.Windows.DragEventArgs e)
         {
-            if (e.Data.GetDataPresent("Slide"))
+            try
             {
-                Slide sourceSlide = e.Data.GetData("Slide") as Slide;
-                
-                // 获取放下位置的幻灯片
-                var targetItem = FindVisualAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
-                if (targetItem != null)
+                if (!e.Data.GetDataPresent("Slide"))
                 {
-                    Slide targetSlide = targetItem.DataContext as Slide;
-                    if (targetSlide != null && sourceSlide != targetSlide)
-                    {
-                        // 执行排序
-                        ReorderSlides(sourceSlide, targetSlide);
-                    }
+                    return;
                 }
+
+                if (e.Data.GetData("Slide") is not Slide sourceSlide)
+                {
+                    return;
+                }
+
+                // 获取放下位置的幻灯片
+                var targetItem = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+                Slide targetSlide = targetItem?.DataContext as Slide;
+                if (targetSlide == null)
+                {
+                    targetSlide = SlideListBox.Items.Cast<object>().LastOrDefault() as Slide;
+                    _pendingDropPosition = DropInsertPosition.After;
+                }
+
+                if (targetSlide == null || targetSlide.Id == sourceSlide.Id)
+                {
+                    return;
+                }
+
+                var beforePositions = CaptureVisibleSlideItemPositions();
+                bool reordered = await ReorderSlides(sourceSlide, targetSlide, _pendingDropPosition == DropInsertPosition.After);
+                if (reordered)
+                {
+                    AnimateSlideListReorder(beforePositions);
+                }
+            }
+            finally
+            {
+                ClearSlideDragVisuals();
             }
         }
 
         /// <summary>
         /// 重新排序幻灯片
         /// </summary>
-        private async void ReorderSlides(Slide sourceSlide, Slide targetSlide)
+        private async Task<bool> ReorderSlides(Slide sourceSlide, Slide targetSlide, bool insertAfterTarget)
         {
+            if (_isReorderingSlides || _currentTextProject == null || sourceSlide == null || targetSlide == null)
+            {
+                return false;
+            }
+
+            _isReorderingSlides = true;
             try
             {
                 // 通过ID查找幻灯片，避免对象引用不一致的问题
@@ -440,27 +510,43 @@ namespace ImageColorChanger.UI
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 无法找到幻灯片: sourceIndex={sourceIndex}, targetIndex={targetIndex}");
                     #endif
-                    return;
+                    return false;
+                }
+
+                if (insertAfterTarget)
+                {
+                    targetIndex++;
                 }
 
                 // 移除源幻灯片
                 var sourceSlideEntity = slides[sourceIndex];
                 slides.RemoveAt(sourceIndex);
-                
+
+                if (sourceIndex < targetIndex)
+                {
+                    targetIndex--;
+                }
+
+                targetIndex = Math.Clamp(targetIndex, 0, slides.Count);
+                if (targetIndex == sourceIndex)
+                {
+                    return false;
+                }
+
                 // 插入到目标位置
                 slides.Insert(targetIndex, sourceSlideEntity);
 
                 // 更新所有幻灯片的SortOrder
                 for (int i = 0; i < slides.Count; i++)
                 {
-                    slides[i].SortOrder = i;
+                    slides[i].SortOrder = i + 1;
                 }
 
                 await _textProjectService.UpdateSlideSortOrdersAsync(slides);
 
-                #if DEBUG
-                System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
-                #endif
+                // #if DEBUG
+                // System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
+                // #endif
 
                 // 刷新列表
                 await LoadSlideList();
@@ -471,6 +557,8 @@ namespace ImageColorChanger.UI
                 {
                     SlideListBox.SelectedItem = updatedSourceSlide;
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -479,6 +567,34 @@ namespace ImageColorChanger.UI
                 #endif
                 WpfMessageBox.Show($"排序失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+            finally
+            {
+                _isReorderingSlides = false;
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片列表拖拽离开事件
+        /// </summary>
+        private void SlideListBox_DragLeave(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.OriginalSource is not DependencyObject originalSource)
+            {
+                ClearSlideDragVisuals();
+                return;
+            }
+
+            var visualHit = SlideListBox.InputHitTest(e.GetPosition(SlideListBox)) as DependencyObject;
+            if (visualHit == null || FindVisualAncestor<ListBoxItem>(visualHit) == null)
+            {
+                HideSlideInsertIndicator();
+            }
+
+            if (!IsDescendantOf(originalSource, SlideListBox))
+            {
+                ClearSlideDragVisuals();
             }
         }
 
@@ -497,6 +613,182 @@ namespace ImageColorChanger.UI
             }
             while (current != null);
             return null;
+        }
+
+        private bool IsDescendantOf(DependencyObject child, DependencyObject ancestor)
+        {
+            while (child != null)
+            {
+                if (ReferenceEquals(child, ancestor))
+                {
+                    return true;
+                }
+
+                child = child switch
+                {
+                    Visual or System.Windows.Media.Media3D.Visual3D => VisualTreeHelper.GetParent(child),
+                    _ => LogicalTreeHelper.GetParent(child)
+                };
+            }
+
+            return false;
+        }
+
+        private void ShowSlideInsertIndicator(ListBoxItem targetItem, DropInsertPosition position)
+        {
+            if (targetItem == null)
+            {
+                return;
+            }
+
+            _slideInsertAdornerLayer ??= AdornerLayer.GetAdornerLayer(targetItem);
+            if (_slideInsertAdornerLayer == null)
+            {
+                return;
+            }
+
+            if (_slideInsertAdorner == null || !ReferenceEquals(_slideInsertAdorner.AdornedElement, targetItem))
+            {
+                HideSlideInsertIndicator();
+                _slideInsertAdorner = new SlideInsertAdorner(targetItem);
+                _slideInsertAdornerLayer = AdornerLayer.GetAdornerLayer(targetItem);
+                _slideInsertAdornerLayer?.Add(_slideInsertAdorner);
+            }
+
+            _slideInsertAdorner.SetPosition(position == DropInsertPosition.After);
+        }
+
+        private void HideSlideInsertIndicator()
+        {
+            if (_slideInsertAdornerLayer != null && _slideInsertAdorner != null)
+            {
+                _slideInsertAdornerLayer.Remove(_slideInsertAdorner);
+            }
+
+            _slideInsertAdorner = null;
+            _slideInsertAdornerLayer = null;
+        }
+
+        private void ClearSlideDragVisuals()
+        {
+            HideSlideInsertIndicator();
+        }
+
+        private Dictionary<int, double> CaptureVisibleSlideItemPositions()
+        {
+            var positions = new Dictionary<int, double>();
+            if (SlideListBox == null || SlideListBox.Items.Count == 0)
+            {
+                return positions;
+            }
+
+            for (int i = 0; i < SlideListBox.Items.Count; i++)
+            {
+                if (SlideListBox.Items[i] is not Slide slide)
+                {
+                    continue;
+                }
+
+                if (SlideListBox.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem item)
+                {
+                    continue;
+                }
+
+                var transform = item.TransformToAncestor(SlideListBox);
+                var point = transform.Transform(new System.Windows.Point(0, 0));
+                positions[slide.Id] = point.Y;
+            }
+
+            return positions;
+        }
+
+        private void AnimateSlideListReorder(Dictionary<int, double> oldPositions)
+        {
+            if (oldPositions == null || oldPositions.Count == 0 || SlideListBox == null)
+            {
+                return;
+            }
+
+            SlideListBox.UpdateLayout();
+
+            for (int i = 0; i < SlideListBox.Items.Count; i++)
+            {
+                if (SlideListBox.Items[i] is not Slide slide || !oldPositions.TryGetValue(slide.Id, out var oldY))
+                {
+                    continue;
+                }
+
+                if (SlideListBox.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem item)
+                {
+                    continue;
+                }
+
+                var newY = item.TransformToAncestor(SlideListBox).Transform(new System.Windows.Point(0, 0)).Y;
+                var delta = oldY - newY;
+                if (Math.Abs(delta) < 0.5)
+                {
+                    continue;
+                }
+
+                if (item.RenderTransform is not TranslateTransform translate)
+                {
+                    translate = new TranslateTransform();
+                    item.RenderTransform = translate;
+                }
+
+                translate.BeginAnimation(TranslateTransform.YProperty, null);
+                translate.Y = delta;
+
+                var animation = new DoubleAnimation
+                {
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(160),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+
+                animation.Completed += (_, _) =>
+                {
+                    translate.BeginAnimation(TranslateTransform.YProperty, null);
+                    translate.Y = 0;
+                };
+
+                translate.BeginAnimation(TranslateTransform.YProperty, animation);
+            }
+        }
+
+        private sealed class SlideInsertAdorner : Adorner
+        {
+            private readonly System.Windows.Media.Pen _linePen;
+            private bool _drawAfter;
+
+            public SlideInsertAdorner(UIElement adornedElement) : base(adornedElement)
+            {
+                IsHitTestVisible = false;
+                _linePen = new System.Windows.Media.Pen(
+                    new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF9800")),
+                    4);
+                _linePen.Freeze();
+            }
+
+            public void SetPosition(bool drawAfter)
+            {
+                if (_drawAfter == drawAfter)
+                {
+                    return;
+                }
+
+                _drawAfter = drawAfter;
+                InvalidateVisual();
+            }
+
+            protected override void OnRender(DrawingContext drawingContext)
+            {
+                base.OnRender(drawingContext);
+
+                var width = AdornedElement.RenderSize.Width;
+                var y = _drawAfter ? AdornedElement.RenderSize.Height : 0;
+                drawingContext.DrawLine(_linePen, new System.Windows.Point(0, y), new System.Windows.Point(width, y));
+            }
         }
 
         #endregion
@@ -864,7 +1156,7 @@ namespace ImageColorChanger.UI
                     SortOrder = maxOrder + 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = false  // 默认适中模式
+                    SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
                 };
 
                 await _textProjectService.AddSlideAsync(newSlide);
@@ -1017,8 +1309,13 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnDeleteSlide_Click(object sender, RoutedEventArgs e)
         {
+            if (_isDeletingSlide)
+                return;
+
             if (SlideListBox.SelectedItem is not Slide selectedSlide)
                 return;
+
+            _isDeletingSlide = true;
 
             // 保存要删除的幻灯片ID和当前选中索引
             int slideIdToDelete = selectedSlide.Id;
@@ -1095,14 +1392,15 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                // 如果出错，也要恢复事件监听
-                SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
-
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($" 删除幻灯片失败: {ex.Message}");
 #endif
                 WpfMessageBox.Show($"删除幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isDeletingSlide = false;
             }
         }
 
@@ -1114,6 +1412,7 @@ namespace ImageColorChanger.UI
             if (_currentTextProject == null)
                 return;
 
+            await NormalizeSlideSortOrdersIfNeededAsync(_currentTextProject.Id);
             var slides = await _textProjectService.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id);
 
             // 加载缩略图路径
@@ -1151,6 +1450,58 @@ namespace ImageColorChanger.UI
             }
 
             //System.Diagnostics.Debug.WriteLine($" 加载幻灯片列表: Count={slides.Count}");
+        }
+
+        /// <summary>
+        /// 只在排序异常时修复 SortOrder（重复/非连续/小于1），避免历史脏数据影响拖拽与删除。
+        /// </summary>
+        private async Task NormalizeSlideSortOrdersIfNeededAsync(int projectId)
+        {
+            if (_isNormalizingSlideSortOrder || projectId <= 0)
+            {
+                return;
+            }
+
+            _isNormalizingSlideSortOrder = true;
+            try
+            {
+                var slides = await _textProjectService.GetSlidesByProjectAsync(projectId);
+                if (slides == null || slides.Count <= 1)
+                {
+                    return;
+                }
+
+                bool needsNormalize = false;
+                for (int i = 0; i < slides.Count; i++)
+                {
+                    int expectedOrder = i + 1;
+                    if (slides[i].SortOrder != expectedOrder)
+                    {
+                        needsNormalize = true;
+                        break;
+                    }
+                }
+
+                if (!needsNormalize)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < slides.Count; i++)
+                {
+                    slides[i].SortOrder = i + 1;
+                }
+
+                await _textProjectService.UpdateSlideSortOrdersAsync(slides);
+            }
+            catch
+            {
+                // 自愈失败不阻断主流程，后续由正常操作继续兜底。
+            }
+            finally
+            {
+                _isNormalizingSlideSortOrder = false;
+            }
         }
 
         /// <summary>

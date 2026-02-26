@@ -134,10 +134,21 @@ namespace ImageColorChanger.Repositories.TextEditor
             {
                 return;
             }
+            var sortOrderById = slideList
+                .GroupBy(s => s.Id)
+                .ToDictionary(g => g.Key, g => g.Last().SortOrder);
 
-            foreach (var slide in slideList)
+            var targetIds = sortOrderById.Keys.ToList();
+            var trackedSlides = await _dbContext.Slides
+                .Where(s => targetIds.Contains(s.Id))
+                .ToListAsync();
+
+            foreach (var trackedSlide in trackedSlides)
             {
-                _dbContext.Entry(slide).Property(s => s.SortOrder).IsModified = true;
+                if (sortOrderById.TryGetValue(trackedSlide.Id, out int newOrder))
+                {
+                    trackedSlide.SortOrder = newOrder;
+                }
             }
 
             await _dbContext.SaveChangesAsync();

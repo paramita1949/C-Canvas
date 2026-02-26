@@ -124,7 +124,7 @@ namespace ImageColorChanger.UI
 
         // 原图模式相关
         private bool _originalMode = false;
-        private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Stretch;
+        private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Fit;
 
         // TreeView拖拽相关
         private ProjectTreeItem _draggedItem = null;

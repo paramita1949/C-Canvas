@@ -437,6 +437,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 分割拉伸模式
+        /// </summary>
+        public bool SplitStretchMode
+        {
+            get => _config.SplitStretchMode;
+            set
+            {
+                if (_config.SplitStretchMode != value)
+                {
+                    _config.SplitStretchMode = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 歌词投影字号（仅影响投影，不影响主屏编辑字号）
         /// </summary>
         public double LyricsProjectionFontSize
@@ -1032,9 +1048,15 @@ namespace ImageColorChanger.Core
     public partial class AppConfig
     {
         /// <summary>
-        /// 原图显示模式（默认：拉伸）
+        /// 原图显示模式（默认：适中）
         /// </summary>
-        public OriginalDisplayMode OriginalDisplayMode { get; set; } = OriginalDisplayMode.Stretch;
+        public OriginalDisplayMode OriginalDisplayMode { get; set; } = OriginalDisplayMode.Fit;
+
+        /// <summary>
+        /// 分割图片拉伸模式（默认：适中）
+        /// false=适中(Uniform), true=拉伸(Fill)
+        /// </summary>
+        public bool SplitStretchMode { get; set; } = false;
 
         /// <summary>
         /// 窗口状态（默认：最大化）

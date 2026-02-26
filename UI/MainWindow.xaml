@@ -1003,12 +1003,12 @@
                             IsHitTestVisible="False"
                             Background="Transparent">
                         <Line x:Name="DragIndicatorLine"
-                              Stroke="#2196F3"
-                              StrokeThickness="2"
+                              Stroke="#FF9800"
+                              StrokeThickness="4"
                               X1="20" Y1="0" X2="200" Y2="0"
                               Visibility="Collapsed">
                             <Line.Effect>
-                                <DropShadowEffect ShadowDepth="0" BlurRadius="4" Opacity="0.5" Color="#2196F3"/>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="3" Opacity="0.45" Color="#FF9800"/>
                             </Line.Effect>
                         </Line>
                     </Canvas>

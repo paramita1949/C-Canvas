@@ -15,7 +15,7 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 更新投影图片 - 使用共享渲染模式
         /// </summary>
-        public void UpdateProjectionImage(SKBitmap image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Stretch, bool bypassCache = false)
+        public void UpdateProjectionImage(SKBitmap image, bool applyColorEffect, double zoomRatio, bool isOriginalMode, OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Fit, bool bypassCache = false)
         {
             // 只有在实际使用 VisualBrush 时才重置（避免每次都 ScrollToTop）
             if (_projectionWindow != null && _currentBibleScrollViewer != null)

@@ -266,7 +266,7 @@ namespace ImageColorChanger.UI
                     BackgroundColor = "#000000",  // 黑色背景
                     SplitMode = (int)splitMode,
                     SplitRegionsData = splitRegionsJson,
-                    SplitStretchMode = true,  // 默认拉伸模式
+                    SplitStretchMode = _splitStretchMode,  // 使用当前分割拉伸偏好
                     CreatedTime = DateTime.Now,
                     ModifiedTime = DateTime.Now
                 };
@@ -350,7 +350,7 @@ namespace ImageColorChanger.UI
                     BackgroundColor = "#000000",  // 黑色背景
                     SplitMode = (int)ViewSplitMode.Single,  // 单画面
                     SplitRegionsData = splitRegionsJson,
-                    SplitStretchMode = true,  // 默认拉伸模式
+                    SplitStretchMode = _splitStretchMode,  // 使用当前分割拉伸偏好
                     CreatedTime = DateTime.Now,
                     ModifiedTime = DateTime.Now
                 };

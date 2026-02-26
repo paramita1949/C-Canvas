@@ -368,6 +368,15 @@ namespace ImageColorChanger.UI
             
             // 保存到数据库
             await SaveSplitStretchModeAsync();
+
+            // 作为全局偏好长期保存（下次分割图沿用）
+            SaveSettings();
+
+            // 非锁定投影下，切换后立即同步投影显示
+            if (!_isProjectionLocked && _projectionManager?.IsProjectionActive == true)
+            {
+                UpdateProjectionFromCanvas();
+            }
         }
         
         /// <summary>
@@ -829,25 +838,10 @@ namespace ImageColorChanger.UI
                     return bitmap;
                 });
                 
-                // 决定使用的拉伸模式
-                System.Windows.Media.Stretch stretchMode;
-                if (shouldUseStretch)
-                {
-                    // 原图标记文件夹：拉伸填满
-                    stretchMode = System.Windows.Media.Stretch.Fill;
-                }
-                else if (_currentSlide.SplitMode == 0 || _currentSlide.SplitMode == 4)
-                {
-                    // 单画面模式或三分割模式：默认拉伸填满
-                    stretchMode = System.Windows.Media.Stretch.Fill;
-                }
-                else
-                {
-                    // 其他分割模式：根据用户设置
-                    stretchMode = _splitStretchMode ? 
-                        System.Windows.Media.Stretch.Fill : 
-                        System.Windows.Media.Stretch.Uniform;
-                }
+                // 分割模式下严格按用户设置（适中/拉伸）
+                System.Windows.Media.Stretch stretchMode = _splitStretchMode
+                    ? System.Windows.Media.Stretch.Fill
+                    : System.Windows.Media.Stretch.Uniform;
                 
                 // 创建 Image 控件，应用拉伸模式
                 var imageControl = new System.Windows.Controls.Image
@@ -1461,25 +1455,10 @@ namespace ImageColorChanger.UI
                         bitmap = bmp;
                     }
                     
-                    // 决定使用的拉伸模式
-                    System.Windows.Media.Stretch stretchMode;
-                    if (shouldUseStretch)
-                    {
-                        // 原图标记文件夹：拉伸填满
-                        stretchMode = System.Windows.Media.Stretch.Fill;
-                    }
-                    else if (slide.SplitMode == 0 || slide.SplitMode == 4)
-                    {
-                        // 单画面模式或三分割模式：默认拉伸填满
-                        stretchMode = System.Windows.Media.Stretch.Fill;
-                    }
-                    else
-                    {
-                        // 其他分割模式：根据用户设置
-                        stretchMode = _splitStretchMode ? 
-                            System.Windows.Media.Stretch.Fill : 
-                            System.Windows.Media.Stretch.Uniform;
-                    }
+                    // 分割模式下严格按用户设置（适中/拉伸）
+                    System.Windows.Media.Stretch stretchMode = _splitStretchMode
+                        ? System.Windows.Media.Stretch.Fill
+                        : System.Windows.Media.Stretch.Uniform;
                     
                     // 创建 Image 控件，应用拉伸模式
                     var imageControl = new System.Windows.Controls.Image
