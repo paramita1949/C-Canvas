@@ -239,6 +239,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
                             <!-- 搜索框 -->
@@ -247,7 +248,7 @@
                                      Height="40"
                                      Margin="0"
                                      Padding="12,8"
-                                     materialDesign:HintAssist.Hint="搜索..."
+                                     materialDesign:HintAssist.Hint="搜索（双击左键清除内容）"
                                      materialDesign:HintAssist.Foreground="#666666"
                                      materialDesign:TextFieldAssist.UnderlineBrush="#2196F3"
                                      Style="{StaticResource MaterialDesignFilledTextBox}"
@@ -258,8 +259,23 @@
                                      Foreground="Black"
                                      VerticalContentAlignment="Center"/>
 
+                            <Button x:Name="SearchClearButton"
+                                    Grid.Column="1"
+                                    Style="{StaticResource SearchClearButtonStyle}"
+                                    Width="30"
+                                    Height="30"
+                                    Margin="6,0,0,0"
+                                    Padding="0"
+                                    Content="×"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed"
+                                    ToolTip="清空搜索"
+                                    Click="SearchClearButton_Click"/>
+
                             <StackPanel x:Name="BibleSearchModePanel"
-                                        Grid.Column="1"
+                                        Grid.Column="2"
                                         Orientation="Horizontal"
                                         Margin="10,0,0,0"
                                         VerticalAlignment="Center"

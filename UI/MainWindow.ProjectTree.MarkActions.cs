@@ -23,7 +23,7 @@ namespace ImageColorChanger.UI
             {
                 var dbManager = DatabaseManagerService;
                 dbManager.MarkFolderAutoColorEffect(item.Id);
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
 
                 bool shouldApplyEffect = false;
 
@@ -65,7 +65,7 @@ namespace ImageColorChanger.UI
             {
                 var dbManager = DatabaseManagerService;
                 dbManager.UnmarkFolderAutoColorEffect(item.Id);
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
 
                 bool shouldRemoveEffect = false;
 
@@ -108,7 +108,7 @@ namespace ImageColorChanger.UI
             {
                 string modeText = markType == MarkType.Loop ? "循环" : "顺序";
                 ShowStatus($"已标记文件夹为原图({modeText}): {item.Name}");
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
             }
             else
             {
@@ -126,7 +126,7 @@ namespace ImageColorChanger.UI
             if (success)
             {
                 ShowStatus($"已取消文件夹原图标记: {item.Name}");
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
             }
             else
             {
@@ -149,7 +149,7 @@ namespace ImageColorChanger.UI
 
             string modeText = markType == MarkType.Loop ? "循环" : "顺序";
             ShowStatus($"已标记为原图({modeText}): {item.Name}");
-            LoadProjects();
+            ReloadProjectsPreservingTreeState();
 
             if (_currentImageId == item.Id && !_originalMode)
             {
@@ -177,7 +177,7 @@ namespace ImageColorChanger.UI
             }
 
             ShowStatus($"已取消原图标记: {item.Name}");
-            LoadProjects();
+            ReloadProjectsPreservingTreeState();
 
             if (_currentImageId == item.Id && _originalMode)
             {

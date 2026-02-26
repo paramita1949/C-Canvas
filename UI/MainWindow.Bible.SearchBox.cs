@@ -178,7 +178,7 @@ namespace ImageColorChanger.UI
             }
             else
             {
-                HintAssist.SetHint(SearchBox, "搜索...");
+                HintAssist.SetHint(SearchBox, "搜索（双击左键清除内容）");
                 if (SearchScope != null)
                 {
                     SearchScope.Visibility = Visibility.Visible;

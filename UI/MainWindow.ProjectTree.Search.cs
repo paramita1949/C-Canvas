@@ -21,6 +21,7 @@ namespace ImageColorChanger.UI
             try
             {
                 string searchTerm = SearchBox.Text?.Trim() ?? "";
+                UpdateSearchClearButtonVisibility(searchTerm);
 
                 if (_isBibleMode)
                 {
@@ -81,6 +82,7 @@ namespace ImageColorChanger.UI
         {
             SearchBox.Clear();
             SearchBox.Focus();
+            UpdateSearchClearButtonVisibility(string.Empty);
 
             if (_isBibleMode)
             {
@@ -91,6 +93,35 @@ namespace ImageColorChanger.UI
 
             CollapseAllFolders();
             ShowStatus("已清除搜索并折叠所有文件夹");
+        }
+
+        private void SearchClearButton_Click(object sender, RoutedEventArgs e)
+        {
+            SearchBox.Clear();
+            SearchBox.Focus();
+            UpdateSearchClearButtonVisibility(string.Empty);
+
+            if (_isBibleMode)
+            {
+                HideBibleSearchResults();
+                ShowStatus("已清除经文搜索");
+                return;
+            }
+
+            CollapseAllFolders();
+            ShowStatus("已清除搜索并折叠所有文件夹");
+        }
+
+        private void UpdateSearchClearButtonVisibility(string searchTerm)
+        {
+            if (SearchClearButton == null)
+            {
+                return;
+            }
+
+            SearchClearButton.Visibility = string.IsNullOrWhiteSpace(searchTerm)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
         }
 
         /// <summary>

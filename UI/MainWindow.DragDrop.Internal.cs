@@ -727,15 +727,15 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 更新根目录文件顺序 - 这种情况比较复杂，暂时还是用LoadProjects
-                    LoadProjects();
+                    // 更新根目录文件顺序：完整刷新，但保留树展开/选中状态
+                    ReloadProjectsPreservingTreeState();
                 }
             }
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"更新TreeView顺序失败: {ex}");
-                // 如果轻量级更新失败，回退到完整刷新
-                LoadProjects();
+                // 如果轻量级更新失败，回退到完整刷新（保留树状态）
+                ReloadProjectsPreservingTreeState();
             }
         }
 
@@ -766,8 +766,8 @@ namespace ImageColorChanger.UI
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
-                // 如果更新失败，回退到完整刷新
-                LoadProjects();
+                // 如果更新失败，回退到完整刷新（保留树状态）
+                ReloadProjectsPreservingTreeState();
             }
         }
 
@@ -822,8 +822,8 @@ namespace ImageColorChanger.UI
                 #else
                 _ = ex; // 避免未使用变量警告
                 #endif
-                // 如果轻量级更新失败，回退到完整刷新
-                LoadProjects();
+                // 如果轻量级更新失败，回退到完整刷新（保留树状态）
+                ReloadProjectsPreservingTreeState();
             }
         }
 

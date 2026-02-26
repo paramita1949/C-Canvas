@@ -1,6 +1,9 @@
-2026.2.25
+2026.2.26
 -------------------------
 V6.0.2.4
+优化几处细节，刷新UI后，不在折叠
+优化搜索清除按钮和提示
+
 【幻灯片文本重构-迁移收尾】
 1、彻底移除 `TextProjectManager` 运行时代码与依赖注入注册，统一改为 `ITextProjectService`
 2、`MainWindow.TextEditor` / `SplitSlide` 全链路改为 `ITextProjectService` 调用，不再保留兼容分支

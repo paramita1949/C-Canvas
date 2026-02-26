@@ -148,13 +148,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var openItem = new MenuItem { Header = "打开歌词" };
-            openItem.Click += (s, args) => _ = EnterLyricsModeFromSongAsync(songItem.Id);
-            contextMenu.Items.Add(openItem);
-
-            contextMenu.Items.Add(new Separator());
-
-            var renameItem = new MenuItem { Header = "✏ 重命名" };
+            var renameItem = new MenuItem { Header = "重命名" };
             renameItem.Click += (s, args) => RenameLyricsSong(songItem);
             contextMenu.Items.Add(renameItem);
 
@@ -194,8 +188,8 @@ namespace ImageColorChanger.UI
             try
             {
                 var manager = new Managers.LyricsGroupManager(_dbContext);
-                manager.CreateGroup(name.Trim(), nextOrder, isSystem: false);
-                LoadProjects();
+                var createdGroup = manager.CreateGroup(name.Trim(), nextOrder, isSystem: false);
+                ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, createdGroup.Id);
                 ShowStatus($"已创建歌词库: {name.Trim()}");
             }
             catch (Exception ex)
@@ -243,7 +237,7 @@ namespace ImageColorChanger.UI
                 manager.SetGroupHighlightColor(groupItem.Id, colorHex);
                 ShowStatus($"已设置歌词库 [{groupItem.Name}] 的高亮颜色: {colorHex}");
 
-                LoadProjects();
+                ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, groupItem.Id);
 
                 string searchTerm = SearchBox.Text?.Trim() ?? "";
                 if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -307,8 +301,7 @@ namespace ImageColorChanger.UI
             _dbContext.LyricsProjects.Add(project);
             _dbContext.SaveChanges();
 
-            LoadProjects();
-            FocusLyricsTreeNode(groupId, project.Id);
+            ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsSong, project.Id);
             _ = EnterLyricsModeFromSongAsync(project.Id);
         }
 
@@ -554,7 +547,7 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            LoadProjects();
+            ReloadProjectsPreservingLyricsTreeState();
             ShowStatus($"已删除歌词库: {group.Name}（同时删除 {songs.Count} 首歌词）");
         }
 
@@ -581,9 +574,32 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            int preferredGroupId = song.GroupId ?? 0;
+            bool deletingCurrentSong = _currentLyricsProject != null && _currentLyricsProject.Id == songId;
+            if (deletingCurrentSong)
+            {
+                // 先清空当前项目引用，避免退出/关闭流程继续保存已删除对象
+                _currentLyricsProject = null;
+                _currentLyricsProjectId = 0;
+            }
+
             _dbContext.LyricsProjects.Remove(song);
             _dbContext.SaveChanges();
-            LoadProjects();
+
+            if (deletingCurrentSong && _isLyricsMode)
+            {
+                try
+                {
+                    ExitLyricsMode();
+                }
+                catch
+                {
+                    // 退出失败不阻断删除主流程
+                }
+            }
+
+            // 保持歌词树展开状态，避免删除后库节点被折叠
+            ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, preferredGroupId);
             ShowStatus($"已删除歌曲: {song.Name}");
         }
 

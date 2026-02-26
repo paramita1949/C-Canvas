@@ -51,7 +51,7 @@ namespace ImageColorChanger.UI
                     dbManager.SetFolderHighlightColor(item.Id, colorHex);
                     ShowStatus($"已设置文件夹 [{item.Name}] 的高亮颜色: {colorHex}");
 
-                    LoadProjects();
+                    ReloadProjectsPreservingTreeState();
 
                     string searchTerm = SearchBox.Text?.Trim() ?? "";
                     if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -131,7 +131,7 @@ namespace ImageColorChanger.UI
                     dbManager.UpdateMediaFilesOrder(sortedFiles);
                 }
 
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
                 ShowStatus($"已重置文件夹排序: {item.Name}");
             }
             catch (Exception ex)

@@ -37,7 +37,7 @@ namespace ImageColorChanger.UI
             try
             {
                 DatabaseManagerService.DeleteFolder(item.Id, forceDelete);
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
                 LoadSearchScopes();
 
                 if (forceDelete)
@@ -125,7 +125,7 @@ namespace ImageColorChanger.UI
         private void SyncFolder(ProjectTreeItem item)
         {
             var (added, removed, _) = ImportManagerService.SyncFolder(item.Id);
-            LoadProjects();
+            ReloadProjectsPreservingTreeState();
             ShowStatus($"同步完成: {item.Name} (新增 {added}, 删除 {removed})");
         }
 
@@ -148,7 +148,7 @@ namespace ImageColorChanger.UI
                     _ => "未知"
                 };
 
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
                 ShowStatus($"已设置文件夹 [{item.Name}] 的播放模式: {modeName}");
             }
             catch (Exception ex)

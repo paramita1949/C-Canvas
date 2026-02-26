@@ -337,8 +337,8 @@ namespace ImageColorChanger.UI
                         CloseTextEditor();
                     }
 
-                    // 刷新项目树
-                    LoadProjects();
+                    // 刷新项目树并保留展开状态
+                    ReloadProjectsPreservingTreeState();
 
                     ShowStatus($"已删除项目: {item.Name}");
                     //System.Diagnostics.Debug.WriteLine($" 已删除项目: ID={item.Id}, Name={item.Name}");

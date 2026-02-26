@@ -21,7 +21,7 @@ namespace ImageColorChanger.UI
 
                 var (added, removed, updated) = ImportManagerService.SyncAllFolders();
 
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
                 LoadSearchScopes();
 
                 ShowStatus($"同步完成: 新增 {added}, 删除 {removed}");

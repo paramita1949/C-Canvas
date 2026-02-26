@@ -205,7 +205,7 @@ namespace ImageColorChanger.UI
                         // 刷新UI
                         if (importedFolderCount > 0 || importedFileCount > 0)
                         {
-                            LoadProjects(); // 刷新项目树
+                            ReloadProjectsPreservingTreeState(); // 刷新项目树并保留展开状态
                             LoadSearchScopes(); // 刷新搜索范围
                             
                             // 清除缓存，确保使用最新的数据库数据

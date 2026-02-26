@@ -240,7 +240,7 @@ namespace ImageColorChanger.UI
                 var mediaFile = ImportManagerService.ImportSingleFile(openFileDialog.FileName);
                 if (mediaFile != null)
                 {
-                    LoadProjects(); // 刷新项目树
+                    ReloadProjectsPreservingTreeState(); // 刷新项目树并保留展开状态
                     LoadSearchScopes(); // 刷新搜索范围
                     ShowStatus($"已导入: {mediaFile.Name}");
                 }
@@ -268,7 +268,7 @@ namespace ImageColorChanger.UI
                 
                 if (folder != null)
                 {
-                    LoadProjects(); // 刷新项目树
+                    ReloadProjectsPreservingTreeState(); // 刷新项目树并保留展开状态
                     LoadSearchScopes(); // 刷新搜索范围
                     
                     // 清除缓存，确保使用最新的数据库数据
@@ -320,7 +320,7 @@ namespace ImageColorChanger.UI
                 int count = await slideImportManager.ImportProjectsAsync();
                 if (count > 0)
                 {
-                    LoadProjects(); // 刷新项目树
+                    ReloadProjectsPreservingTreeState(); // 刷新项目树并保留展开状态
                     ShowStatus($"已导入 {count} 个幻灯片项目");
                 }
                 else if (!string.IsNullOrWhiteSpace(slideImportManager.LastError))
@@ -626,7 +626,7 @@ namespace ImageColorChanger.UI
                 var result = await service.ImportAsync(openDialog.FileName, strategy);
                 if (result.Success)
                 {
-                    LoadProjects();
+                    ReloadProjectsPreservingLyricsTreeState();
                 }
                 LogImportExportInfo($"[ImportLyr-End] success={result?.Success}, imported={result?.Imported}, overwritten={result?.Overwritten}, copied={result?.Copied}, skipped={result?.Skipped}, failed={result?.Failed}");
                 ShowStatus(result.Success ? $" {result.Message}" : $" {result.Message}");

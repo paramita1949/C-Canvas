@@ -29,7 +29,7 @@ namespace ImageColorChanger.UI
             if (result == MessageBoxResult.Yes)
             {
                 DatabaseManagerService.DeleteMediaFile(item.Id);
-                LoadProjects();
+                ReloadProjectsPreservingTreeState();
                 ShowStatus($"已删除文件: {item.Name}");
             }
         }

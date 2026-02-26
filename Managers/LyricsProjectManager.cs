@@ -67,13 +67,29 @@ namespace ImageColorChanger.Managers
             if (project.Id == 0)
             {
                 _dbContext.LyricsProjects.Add(project);
-            }
-            else
-            {
-                _dbContext.LyricsProjects.Update(project);
+                _dbContext.SaveChanges();
+                return;
             }
 
-            _dbContext.SaveChanges();
+            // 项目可能在其他流程（如项目树删除）中被移除，直接跳过可避免并发更新异常。
+            var exists = _dbContext.LyricsProjects
+                .AsNoTracking()
+                .Any(p => p.Id == project.Id);
+            if (!exists)
+            {
+                return;
+            }
+
+            try
+            {
+                _dbContext.LyricsProjects.Update(project);
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // 并发删除/修改导致更新目标不存在，忽略本次保存并清理跟踪状态。
+                _dbContext.Entry(project).State = EntityState.Detached;
+            }
         }
 
         public void Delete(int id)
