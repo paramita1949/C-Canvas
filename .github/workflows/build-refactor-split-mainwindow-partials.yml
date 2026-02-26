@@ -3,10 +3,10 @@ name: C#/WPF云编译(Refactor-Split-MainWindow-Partials)
 on:
   push:
     branches:
-      - refactor-split-mainwindow-partials
+      - '**'
   pull_request:
     branches:
-      - refactor-split-mainwindow-partials
+      - '**'
   workflow_dispatch:
 
 env:
