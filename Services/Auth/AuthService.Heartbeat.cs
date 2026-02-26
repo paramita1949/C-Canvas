@@ -193,10 +193,11 @@ namespace ImageColorChanger.Services
 
                         attemptStopwatch.Stop();
 #if DEBUG
+                        string attemptUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                         System.Diagnostics.Trace.WriteLine(
                             $" [通知心跳] 第{attempt}/{maxAttempts}次请求完成: " +
                             $"{(response == null ? "无响应" : $"HTTP {(int)response.StatusCode}")}, " +
-                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms, URL={attemptUrl}");
 #endif
 
                         if (response != null)
@@ -209,9 +210,10 @@ namespace ImageColorChanger.Services
                         lastAttemptException = ex;
                         attemptStopwatch.Stop();
 #if DEBUG
+                        string timeoutUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                         System.Diagnostics.Trace.WriteLine(
                             $"⏱ [通知心跳] 第{attempt}/{maxAttempts}次请求超时: " +
-                            $"timeout={requestTimeoutSeconds}s, 耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+                            $"timeout={requestTimeoutSeconds}s, 耗时={attemptStopwatch.ElapsedMilliseconds}ms, URL={timeoutUrl}");
 #endif
                     }
                     catch (TimeoutException ex)
@@ -219,9 +221,10 @@ namespace ImageColorChanger.Services
                         lastAttemptException = ex;
                         attemptStopwatch.Stop();
 #if DEBUG
+                        string timeoutUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                         System.Diagnostics.Trace.WriteLine(
                             $"⏱ [通知心跳] 第{attempt}/{maxAttempts}次请求超时异常: " +
-                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms, URL={timeoutUrl}");
 #endif
                     }
                     catch (Exception ex)
@@ -229,9 +232,10 @@ namespace ImageColorChanger.Services
                         lastAttemptException = ex;
                         attemptStopwatch.Stop();
 #if DEBUG
+                        string exceptionUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                         System.Diagnostics.Trace.WriteLine(
                             $" [通知心跳] 第{attempt}/{maxAttempts}次请求异常: {ex.Message}, " +
-                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms");
+                            $"耗时={attemptStopwatch.ElapsedMilliseconds}ms, URL={exceptionUrl}");
 #endif
                     }
 
@@ -246,10 +250,11 @@ namespace ImageColorChanger.Services
                 if (response == null)
                 {
 #if DEBUG
+                    string failedUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                     System.Diagnostics.Trace.WriteLine(
                         $" [通知心跳] 网络连接失败，跳过本次通知检查: " +
                         $"尝试次数={maxAttempts}, 总耗时={overallStopwatch.ElapsedMilliseconds}ms, " +
-                        $"最后异常={(lastAttemptException == null ? "无" : lastAttemptException.GetType().Name)}");
+                        $"最后异常={(lastAttemptException == null ? "无" : lastAttemptException.GetType().Name)}, URL={failedUrl}");
 #endif
                     return;
                 }
@@ -262,10 +267,11 @@ namespace ImageColorChanger.Services
                     var preview = responseContent?.Length > 140
                         ? responseContent.Substring(0, 140) + "..."
                         : responseContent;
+                    string invalidUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                     System.Diagnostics.Trace.WriteLine(
                         $" [通知心跳] 服务器未返回有效通知数据，本次跳过: " +
                         $"HTTP={(int)response.StatusCode}, success={authResponse?.Success.ToString() ?? "null"}, " +
-                        $"valid={authResponse?.Valid.ToString() ?? "null"}, body={preview}");
+                        $"valid={authResponse?.Valid.ToString() ?? "null"}, URL={invalidUrl}, body={preview}");
 #endif
                     return;
                 }
@@ -273,9 +279,10 @@ namespace ImageColorChanger.Services
                 ApplyServerAuthData(authResponse.Data, source: "notice-heartbeat", updateLastSuccessfulHeartbeat: false, persistLocalCache: false);
 
 #if DEBUG
+                string successUrl = $"{_authApiClient.CurrentApiBaseUrl}{HEARTBEAT_ENDPOINT}";
                 System.Diagnostics.Trace.WriteLine(
                     $" [通知心跳] 通知检查完成: HTTP={(int)response.StatusCode}, " +
-                    $"总耗时={overallStopwatch.ElapsedMilliseconds}ms");
+                    $"总耗时={overallStopwatch.ElapsedMilliseconds}ms, URL={successUrl}");
 #endif
             }
             catch (TaskCanceledException)
