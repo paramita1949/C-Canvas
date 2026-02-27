@@ -213,7 +213,7 @@
 
                 <StackPanel Grid.Row="3"
                             Orientation="Horizontal"
-                            HorizontalAlignment="Right"
+                            HorizontalAlignment="Left"
                             Margin="0,6,0,0">
                     <Button x:Name="BibleEmbeddedSearchPrevPageButton"
                             x:FieldModifier="public"

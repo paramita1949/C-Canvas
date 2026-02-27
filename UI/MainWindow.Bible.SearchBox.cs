@@ -16,7 +16,7 @@ namespace ImageColorChanger.UI
         private IBibleSearchCoordinator _bibleSearchCoordinator;
         private IBibleSearchResultPresenter _bibleSearchResultPresenter;
         private IBibleHistorySlotWriter _bibleHistorySlotWriter;
-        private BibleSearchResultDisplayMode _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Floating;
+        private BibleSearchResultDisplayMode _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Embedded;
         private bool _bibleSearchDisplayModeLoaded;
         private bool _bibleSearchComponentsInitialized;
         private bool _isDisposingBibleSearchComponents;
@@ -237,18 +237,18 @@ namespace ImageColorChanger.UI
             {
                 var savedValue = DatabaseManagerService.GetUISetting(
                     BibleSearchResultDisplayModeSettingKey,
-                    BibleSearchResultDisplayMode.Floating.ToString());
+                    BibleSearchResultDisplayMode.Embedded.ToString());
 
                 if (!Enum.TryParse(savedValue, ignoreCase: true, out BibleSearchResultDisplayMode parsedMode))
                 {
-                    parsedMode = BibleSearchResultDisplayMode.Floating;
+                    parsedMode = BibleSearchResultDisplayMode.Embedded;
                 }
 
                 _bibleSearchDisplayMode = parsedMode;
             }
             catch
             {
-                _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Floating;
+                _bibleSearchDisplayMode = BibleSearchResultDisplayMode.Embedded;
             }
         }
 
