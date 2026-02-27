@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.DTOs;
 using ImageColorChanger.Database.Models.Enums;
@@ -79,11 +82,8 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 6. 删除项目中的所有旧幻灯片
-                await ClearProjectSlidesAsync(praiseProject.Id);
-
-                // 7. 创建新幻灯片
-                var newSlide = await CreateSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
+                // 6. 仅替换第一张幻灯片（不存在则创建），不再清空整个项目。
+                var newSlide = await UpsertFirstSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
                 if (newSlide == null)
                 {
                     ShowStatus("创建幻灯片失败");
@@ -152,11 +152,8 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 5. 删除项目中的所有旧幻灯片
-                await ClearProjectSlidesAsync(praiseProject.Id);
-
-                // 6. 创建新幻灯片
-                var newSlide = await CreateSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
+                // 5. 仅替换第一张幻灯片（不存在则创建），不再清空整个项目。
+                var newSlide = await UpsertFirstSplitSlideAsync(praiseProject.Id, splitMode, similarImages);
                 if (newSlide == null)
                 {
                     ShowStatus("创建幻灯片失败");
@@ -229,21 +226,12 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 清空项目中的所有幻灯片
+        /// 创建或更新第一张分割幻灯片
         /// </summary>
-        private async Task ClearProjectSlidesAsync(int projectId)
-        {
-            await _textProjectService.DeleteSlidesByProjectAsync(projectId);
-        }
-
-        /// <summary>
-        /// 创建分割幻灯片
-        /// </summary>
-        private async Task<Slide> CreateSplitSlideAsync(int projectId, ViewSplitMode splitMode, List<(int id, string name, string path)> similarImages)
+        private async Task<Slide> UpsertFirstSplitSlideAsync(int projectId, ViewSplitMode splitMode, List<(int id, string name, string path)> similarImages)
         {
             try
             {
-                // 1. 创建分割区域数据
                 var regionDataList = new List<SplitRegionData>();
                 for (int i = 0; i < similarImages.Count; i++)
                 {
@@ -254,26 +242,42 @@ namespace ImageColorChanger.UI
                     });
                 }
 
-                // 2. 序列化为JSON
                 string splitRegionsJson = JsonSerializer.Serialize(regionDataList);
 
-                // 3. 创建幻灯片
-                var newSlide = new Slide
+                var existingSlides = await _textProjectService.GetSlidesByProjectAsync(projectId);
+                var firstSlide = existingSlides
+                    .OrderBy(s => s.SortOrder)
+                    .ThenBy(s => s.Id)
+                    .FirstOrDefault();
+
+                if (firstSlide == null)
                 {
-                    ProjectId = projectId,
-                    Title = "幻灯片 1",
-                    SortOrder = 1,
-                    BackgroundColor = "#000000",  // 黑色背景
-                    SplitMode = (int)splitMode,
-                    SplitRegionsData = splitRegionsJson,
-                    SplitStretchMode = _splitStretchMode,  // 使用当前分割拉伸偏好
-                    CreatedTime = DateTime.Now,
-                    ModifiedTime = DateTime.Now
-                };
+                    var newSlide = new Slide
+                    {
+                        ProjectId = projectId,
+                        Title = "幻灯片 1",
+                        SortOrder = 1,
+                        BackgroundColor = "#000000",
+                        SplitMode = (int)splitMode,
+                        SplitRegionsData = splitRegionsJson,
+                        SplitStretchMode = _splitStretchMode,
+                        CreatedTime = DateTime.Now,
+                        ModifiedTime = DateTime.Now
+                    };
 
-                await _textProjectService.AddSlideAsync(newSlide);
+                    await _textProjectService.AddSlideAsync(newSlide);
+                    return newSlide;
+                }
 
-                return newSlide;
+                firstSlide.BackgroundColor = "#000000";
+                firstSlide.BackgroundImagePath = null;
+                firstSlide.SplitMode = (int)splitMode;
+                firstSlide.SplitRegionsData = splitRegionsJson;
+                firstSlide.SplitStretchMode = _splitStretchMode;
+                firstSlide.ModifiedTime = DateTime.Now;
+
+                await _textProjectService.UpdateSlideAsync(firstSlide);
+                return firstSlide;
             }
             catch (Exception)
             {
@@ -309,12 +313,84 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                await OpenSlideAsync(praiseProject, newSlide);
+                var thumbnailPath = SaveSlideThumbnailFromImagePath(newSlide.Id, mediaFile.Path);
+                if (!string.IsNullOrWhiteSpace(thumbnailPath))
+                {
+                    newSlide.ThumbnailPath = thumbnailPath;
+                }
+
+                // 静默添加：不要切换当前视图或加载新幻灯片，避免打断当前显示内容。
+                if (TextEditorPanel.Visibility == Visibility.Visible &&
+                    _currentTextProject?.Id == praiseProject.Id)
+                {
+                    await LoadSlideList();
+                }
+
                 ShowStatus($"已添加幻灯片: {mediaFile.Name}");
             }
             catch (Exception ex)
             {
                 ShowStatus($"添加幻灯片失败: {ex.Message}");
+            }
+        }
+
+        private string SaveSlideThumbnailFromImagePath(int slideId, string imagePath)
+        {
+            try
+            {
+                if (slideId <= 0 || string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+                {
+                    return null;
+                }
+
+                var thumbnailDir = Path.Combine(
+                    Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
+                    "Thumbnails");
+                Directory.CreateDirectory(thumbnailDir);
+
+                var thumbnailPath = Path.Combine(thumbnailDir, $"slide_{slideId}.png");
+
+                BitmapFrame sourceFrame;
+                using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var decoder = BitmapDecoder.Create(
+                        stream,
+                        BitmapCreateOptions.PreservePixelFormat,
+                        BitmapCacheOption.OnLoad);
+                    sourceFrame = decoder.Frames.FirstOrDefault();
+                }
+
+                if (sourceFrame == null || sourceFrame.PixelWidth <= 0 || sourceFrame.PixelHeight <= 0)
+                {
+                    return null;
+                }
+
+                const double maxWidth = 320.0;
+                const double maxHeight = 180.0;
+                double scaleX = maxWidth / sourceFrame.PixelWidth;
+                double scaleY = maxHeight / sourceFrame.PixelHeight;
+                double scale = Math.Min(1.0, Math.Min(scaleX, scaleY));
+
+                BitmapSource output = sourceFrame;
+                if (scale < 1.0)
+                {
+                    var resized = new TransformedBitmap(sourceFrame, new ScaleTransform(scale, scale));
+                    resized.Freeze();
+                    output = resized;
+                }
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(output));
+                using (var fileStream = new FileStream(thumbnailPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    encoder.Save(fileStream);
+                }
+
+                return thumbnailPath;
+            }
+            catch
+            {
+                return null;
             }
         }
 

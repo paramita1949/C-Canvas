@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Threading;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
 
@@ -10,6 +11,10 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const string ImportExportLogPrefix = "[导入导出UI]";
+        private DispatcherTimer _importMenuAutoCloseTimer;
+        private ContextMenu _activeImportMenu;
+        private DateTime _importMenuLastKeepAliveUtc = DateTime.MinValue;
+        private const double ImportMenuCloseGracePeriodMs = 420;
         private static void LogImportExportInfo(string message)
         {
             // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} {message}");
@@ -24,6 +29,8 @@ namespace ImageColorChanger.UI
 
         private void BtnImport_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            StopImportMenuAutoCloseTimer();
+
             // 悬浮即弹出，避免重复创建弹窗造成闪烁
             if (BtnImport.ContextMenu != null && BtnImport.ContextMenu.IsOpen)
             {
@@ -31,6 +38,11 @@ namespace ImageColorChanger.UI
             }
 
             BtnImport_Click(sender, new RoutedEventArgs());
+        }
+
+        private void BtnImport_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            StartImportMenuAutoCloseTimer();
         }
 
         private void BtnImport_Click(object sender, RoutedEventArgs e)
@@ -193,7 +205,171 @@ namespace ImageColorChanger.UI
             contextMenu.HorizontalOffset = 0;
             contextMenu.VerticalOffset = 0;
             BtnImport.ContextMenu = contextMenu;
+            _activeImportMenu = contextMenu;
+            _importMenuLastKeepAliveUtc = DateTime.UtcNow;
             contextMenu.IsOpen = true;
+
+            contextMenu.MouseEnter += (_, _) =>
+            {
+                StopImportMenuAutoCloseTimer();
+            };
+            contextMenu.MouseLeave += (_, _) =>
+            {
+                StartImportMenuAutoCloseTimer();
+            };
+            contextMenu.Closed += (_, _) =>
+            {
+                StopImportMenuAutoCloseTimer();
+                if (ReferenceEquals(_activeImportMenu, contextMenu))
+                {
+                    _activeImportMenu = null;
+                }
+            };
+
+            // 进入菜单后持续检测鼠标位置，离开按钮和菜单区域即自动关闭。
+            StartImportMenuAutoCloseTimer();
+        }
+
+        private void StartImportMenuAutoCloseTimer()
+        {
+            _importMenuAutoCloseTimer ??= new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(150)
+            };
+
+            _importMenuAutoCloseTimer.Tick -= ImportMenuAutoCloseTimer_Tick;
+            _importMenuAutoCloseTimer.Tick += ImportMenuAutoCloseTimer_Tick;
+            _importMenuAutoCloseTimer.Stop();
+            _importMenuAutoCloseTimer.Start();
+        }
+
+        private void StopImportMenuAutoCloseTimer()
+        {
+            _importMenuAutoCloseTimer?.Stop();
+        }
+
+        private void ImportMenuAutoCloseTimer_Tick(object sender, EventArgs e)
+        {
+            var contextMenu = _activeImportMenu ?? BtnImport?.ContextMenu;
+            if (contextMenu == null || !contextMenu.IsOpen)
+            {
+                StopImportMenuAutoCloseTimer();
+                return;
+            }
+
+            bool mouseOnButton = IsMouseInsideElement(BtnImport);
+            bool mouseOnMenu = IsMouseInsideContextMenuPopup(contextMenu);
+            bool mouseOnSubmenu = IsMouseInsideAnyOpenSubmenuPopup(contextMenu);
+            bool shouldKeepOpen =
+                mouseOnButton ||
+                mouseOnMenu ||
+                mouseOnSubmenu;
+
+            if (shouldKeepOpen)
+            {
+                _importMenuLastKeepAliveUtc = DateTime.UtcNow;
+                return;
+            }
+
+            var elapsedSinceKeepAlive = (DateTime.UtcNow - _importMenuLastKeepAliveUtc).TotalMilliseconds;
+            if (elapsedSinceKeepAlive < ImportMenuCloseGracePeriodMs)
+            {
+                return;
+            }
+
+            StopImportMenuAutoCloseTimer();
+            if (contextMenu != null)
+            {
+                contextMenu.IsOpen = false;
+            }
+        }
+
+        private static bool IsMouseInsideContextMenuPopup(ContextMenu contextMenu)
+        {
+            if (contextMenu == null || !contextMenu.IsOpen || contextMenu.ActualWidth <= 0 || contextMenu.ActualHeight <= 0)
+            {
+                return false;
+            }
+
+            var mousePosition = System.Windows.Forms.Control.MousePosition;
+            var mouse = new System.Windows.Point(mousePosition.X, mousePosition.Y);
+            var topLeft = contextMenu.PointToScreen(new System.Windows.Point(0, 0));
+            var bottomRight = contextMenu.PointToScreen(new System.Windows.Point(contextMenu.ActualWidth, contextMenu.ActualHeight));
+
+            double minX = Math.Min(topLeft.X, bottomRight.X);
+            double maxX = Math.Max(topLeft.X, bottomRight.X);
+            double minY = Math.Min(topLeft.Y, bottomRight.Y);
+            double maxY = Math.Max(topLeft.Y, bottomRight.Y);
+
+            return mouse.X >= minX && mouse.X <= maxX && mouse.Y >= minY && mouse.Y <= maxY;
+        }
+
+        private static bool IsMouseInsideAnyOpenSubmenuPopup(ItemsControl parent)
+        {
+            if (parent == null)
+            {
+                return false;
+            }
+
+            foreach (var raw in parent.Items)
+            {
+                if (raw is not MenuItem item)
+                {
+                    continue;
+                }
+
+                if (item.IsSubmenuOpen && IsMouseInsideMenuItemSubmenuPopup(item))
+                {
+                    return true;
+                }
+
+                if (item.HasItems && IsMouseInsideAnyOpenSubmenuPopup(item))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsMouseInsideMenuItemSubmenuPopup(MenuItem item)
+        {
+            if (item == null || !item.IsSubmenuOpen)
+            {
+                return false;
+            }
+
+            if (item.Template?.FindName("PART_Popup", item) is not Popup popup || !popup.IsOpen)
+            {
+                return false;
+            }
+
+            if (popup.Child is not FrameworkElement child || child.ActualWidth <= 0 || child.ActualHeight <= 0)
+            {
+                return false;
+            }
+
+            var mousePosition = System.Windows.Forms.Control.MousePosition;
+            var mouse = new System.Windows.Point(mousePosition.X, mousePosition.Y);
+            var topLeft = child.PointToScreen(new System.Windows.Point(0, 0));
+            var bottomRight = child.PointToScreen(new System.Windows.Point(child.ActualWidth, child.ActualHeight));
+            double minX = Math.Min(topLeft.X, bottomRight.X);
+            double maxX = Math.Max(topLeft.X, bottomRight.X);
+            double minY = Math.Min(topLeft.Y, bottomRight.Y);
+            double maxY = Math.Max(topLeft.Y, bottomRight.Y);
+
+            return mouse.X >= minX && mouse.X <= maxX && mouse.Y >= minY && mouse.Y <= maxY;
+        }
+
+        private static bool IsMouseInsideElement(FrameworkElement element)
+        {
+            if (element == null || !element.IsLoaded || element.ActualWidth <= 0 || element.ActualHeight <= 0)
+            {
+                return false;
+            }
+
+            var p = System.Windows.Input.Mouse.GetPosition(element);
+            return p.X >= 0 && p.Y >= 0 && p.X <= element.ActualWidth && p.Y <= element.ActualHeight;
         }
 
         private async System.Threading.Tasks.Task OpenVersionUpgradeAsync()

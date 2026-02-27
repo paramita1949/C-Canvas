@@ -308,6 +308,14 @@ namespace ImageColorChanger.UI
                 
                 // 更新按钮状态
                 UpdateViewModeButtons();
+                if (_currentViewMode == NavigationViewMode.Projects && _currentTextProject != null)
+                {
+                    ApplyUnifiedSearchResetAndTreeRefresh(TreeItemType.TextProject, _currentTextProject.Id);
+                }
+                else
+                {
+                    ApplyUnifiedSearchResetAndTreeRefresh();
+                }
                 
                 return;
             }
@@ -467,6 +475,7 @@ namespace ImageColorChanger.UI
 
             // 更新按钮状态
             UpdateViewModeButtons();
+            ApplyUnifiedSearchResetAndTreeRefresh();
         }
 
 

@@ -24,6 +24,42 @@ namespace ImageColorChanger.UI
         private static bool _isFirstTimeEnteringProjects = true;
         private int _textProjectTreeLoadToken;
 
+        private void ApplyUnifiedSearchResetAndTreeRefresh(TreeItemType? preferredType = null, int preferredId = 0)
+        {
+            bool hadSearchTerm = SearchBox != null && !string.IsNullOrWhiteSpace(SearchBox.Text);
+
+            if (SearchBox != null && hadSearchTerm)
+            {
+                SearchBox.TextChanged -= SearchBox_TextChanged;
+                try
+                {
+                    SearchBox.Clear();
+                }
+                finally
+                {
+                    SearchBox.TextChanged += SearchBox_TextChanged;
+                }
+            }
+
+            UpdateSearchClearButtonVisibility(string.Empty);
+
+            if (hadSearchTerm)
+            {
+                if (preferredType.HasValue && preferredId > 0)
+                {
+                    ReloadProjectsPreservingTreeState(preferredType, preferredId);
+                }
+                else
+                {
+                    ReloadProjectsPreservingTreeState();
+                }
+
+                return;
+            }
+
+            FilterProjectTree();
+        }
+
         /// <summary>
         /// 从数据库加载项目树
         /// </summary>
@@ -351,7 +387,7 @@ namespace ImageColorChanger.UI
             }
 
             UpdateViewModeButtons();
-            FilterProjectTree();
+            ApplyUnifiedSearchResetAndTreeRefresh();
         }
 
         /// <summary>
@@ -378,9 +414,16 @@ namespace ImageColorChanger.UI
             }
 
             UpdateViewModeButtons();
-            FilterProjectTree();
+            if (_currentTextProject != null)
+            {
+                ApplyUnifiedSearchResetAndTreeRefresh(TreeItemType.TextProject, _currentTextProject.Id);
+            }
+            else
+            {
+                ApplyUnifiedSearchResetAndTreeRefresh();
+            }
 
-            if (_isFirstTimeEnteringProjects)
+            if (_isFirstTimeEnteringProjects && _currentTextProject == null)
             {
                 _ = LoadFirstProjectAsync();
                 _isFirstTimeEnteringProjects = false;
