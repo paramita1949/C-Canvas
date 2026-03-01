@@ -14,7 +14,10 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const string NdiOfficialDownloadUrl = "https://ndi.link/NDIRedistV6";
+        private static readonly TimeSpan NdiDiscoveryDuration = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan NdiDiscoveryInterval = TimeSpan.FromSeconds(5);
         private System.Windows.Threading.DispatcherTimer _ndiDiscoveryTimer;
+        private DateTime _ndiDiscoveryStartedAtUtc = DateTime.MinValue;
 
         internal MenuItem BuildNdiSubMenu()
         {
@@ -34,7 +37,7 @@ namespace ImageColorChanger.UI
                 lyricsTransparentItem.IsChecked = _configManager.ProjectionNdiLyricsTransparentEnabled;
                 int connectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0;
                 bool connected = _configManager.ProjectionNdiEnabled && connectionCount > 0;
-                runtimeStatusItem.Header = connected ? "NDI已连接" : "NDI未连接";
+                runtimeStatusItem.Header = connected ? $"NDI已连接（{connectionCount}台）" : "NDI未连接";
                 runtimeStatusItem.Foreground = connected ? WpfBrushes.LimeGreen : WpfBrushes.Gray;
             }
 
@@ -78,8 +81,8 @@ namespace ImageColorChanger.UI
                     else
                     {
                         _projectionNdiOutputManager?.PushTransparentIdleFrame();
-                        StartNdiDiscoveryTimer();
-                        ShowStatus("NDI已连接");
+                        StartNdiDiscoveryTimer(resetWindow: true);
+                        ShowStatus("NDI已开启，等待客户端连接");
                     }
                 }
                 else
@@ -176,15 +179,20 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void StartNdiDiscoveryTimer()
+        private void StartNdiDiscoveryTimer(bool resetWindow = false)
         {
             if (_ndiDiscoveryTimer == null)
             {
                 _ndiDiscoveryTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background)
                 {
-                    Interval = TimeSpan.FromSeconds(2)
+                    Interval = NdiDiscoveryInterval
                 };
                 _ndiDiscoveryTimer.Tick += (_, _) => TryPublishNdiDiscoveryHeartbeat();
+            }
+
+            if (resetWindow || _ndiDiscoveryStartedAtUtc == DateTime.MinValue)
+            {
+                _ndiDiscoveryStartedAtUtc = DateTime.UtcNow;
             }
 
             if (!_ndiDiscoveryTimer.IsEnabled)
@@ -199,6 +207,8 @@ namespace ImageColorChanger.UI
             {
                 _ndiDiscoveryTimer.Stop();
             }
+
+            _ndiDiscoveryStartedAtUtc = DateTime.MinValue;
         }
 
         private void TryPublishNdiDiscoveryHeartbeat()
@@ -207,16 +217,34 @@ namespace ImageColorChanger.UI
             {
                 if (!(_configManager?.ProjectionNdiEnabled ?? false))
                 {
+                    StopNdiDiscoveryTimer();
+                    return;
+                }
+
+                int connectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0;
+                if (connectionCount > 0)
+                {
+                    StopNdiDiscoveryTimer();
+                    return;
+                }
+
+                bool discoveryExpired = _ndiDiscoveryStartedAtUtc != DateTime.MinValue
+                    && (DateTime.UtcNow - _ndiDiscoveryStartedAtUtc) >= NdiDiscoveryDuration;
+                if (discoveryExpired)
+                {
+                    _configManager.ProjectionNdiEnabled = false;
+                    _projectionNdiOutputManager?.Stop();
+                    StopVideoNdiTimer();
+                    StopNdiDiscoveryTimer();
+                    ShowStatus("2分钟内无客户端连接，NDI输出已自动关闭");
                     return;
                 }
 
                 // 只在未投影时发送透明心跳，避免覆盖正在投影的静态内容。
-                if (_projectionManager?.IsProjectionActive == true)
+                if (_projectionManager?.IsProjectionActive != true)
                 {
-                    return;
+                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
                 }
-
-                _projectionNdiOutputManager?.PushTransparentIdleFrame();
             }
             catch
             {
