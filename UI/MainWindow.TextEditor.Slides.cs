@@ -1191,6 +1191,28 @@ namespace ImageColorChanger.UI
 
             try
             {
+                // 先保存当前编辑态，避免从数据库读取到旧内容（会导致多行文本在副本中被拼接）。
+                bool hasPendingChanges = BtnSaveTextProject.Background is SolidColorBrush saveBrush
+                                         && saveBrush.Color == Colors.LightGreen;
+                if (hasPendingChanges)
+                {
+                    var saveResult = await SaveTextEditorStateAsync(
+                        SaveTrigger.SlideSwitch,
+                        _textBoxes.ToList(),
+                        persistAdditionalState: true,
+                        saveThumbnail: false);
+
+                    if (!saveResult.Succeeded)
+                    {
+                        WpfMessageBox.Show(
+                            $"复制前保存失败：{saveResult.Exception?.Message}",
+                            "错误",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        return;
+                    }
+                }
+
                 // 加载源幻灯片的所有元素（包含富文本片段）
                 var sourceElements = await _textElementRepository.GetBySlideWithRichTextAsync(sourceSlide.Id);
 
