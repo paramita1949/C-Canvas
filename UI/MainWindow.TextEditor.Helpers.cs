@@ -73,10 +73,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 取消选中时隐藏浮动工具栏
-                    if (BibleToolbar != null)
-                    {
-                        BibleToolbar.IsOpen = false;
-                    }
+                    HideBibleFloatingToolbar();
                 }
             };
 
@@ -440,6 +437,11 @@ namespace ImageColorChanger.UI
         private void UpdateProjectionFromCanvas()
         {
             bool suppressAnimationThisCall = ConsumeSuppressNextProjectionAnimation();
+            if (_isBiblePopupOverlayVisible && _biblePopupOverlayEnterProgress < 0.999)
+            {
+                // 弹窗进入动画期间，强制关闭投影链路的二次淡入，避免主屏/投影透明度不一致。
+                suppressAnimationThisCall = true;
+            }
             _textEditorProjectionComposer?.Compose(new Services.TextEditor.Rendering.TextEditorProjectionComposeRequest
             {
                 IsProjectionActive = _projectionManager.IsProjectionActive,
@@ -608,10 +610,13 @@ namespace ImageColorChanger.UI
 
             // 缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
             string cacheKey = _textEditorProjectionRenderStateService?.BuildCanvasCacheKey(BuildProjectionCacheContext()) ?? string.Empty;
+            bool bypassCacheForPopupAnimation = _isBiblePopupOverlayVisible && _biblePopupOverlayEnterProgress < 0.999;
 #if DEBUG
             //System.Diagnostics.Debug.WriteLine($"[静态投影-缓存] 检查缓存键: {cacheKey}");
 #endif
-            if (_textEditorProjectionRenderStateService?.TryGetCached(cacheKey, out var cachedBitmap) == true && cachedBitmap != null)
+            if (!bypassCacheForPopupAnimation &&
+                _textEditorProjectionRenderStateService?.TryGetCached(cacheKey, out var cachedBitmap) == true &&
+                cachedBitmap != null)
             {
                 _projectionManager.UpdateProjectionTextFullFrame(cachedBitmap);
                 PublishSlideFrameToNdi(cachedBitmap);
@@ -1156,6 +1161,56 @@ namespace ImageColorChanger.UI
             if (popupY < 0f) popupY = 0f;
             _biblePopupOverlayLastRect = new Rect(popupX, popupY, popupWidth, popupHeight);
 
+            double animProgress = _biblePopupAnimationEnabled
+                ? Math.Clamp(_biblePopupOverlayEnterProgress, 0.0, 1.0)
+                : 1.0;
+            double animEase = EaseOutCubic(animProgress);
+            double startAlpha = Math.Clamp(_biblePopupAnimationOpacity, 0.0, 1.0);
+            float animAlphaMul = (float)Math.Clamp(startAlpha + ((1.0 - startAlpha) * animEase), 0.0, 1.0);
+            string animationType = ResolveBiblePopupAnimationType(cfg);
+            var clipRect = BuildPopupEnterClipRect(animationType, popupX, popupY, popupWidth, popupHeight, (float)animEase);
+
+            titlePaint.Color = MultiplyAlpha(titlePaint.Color, animAlphaMul);
+            versePaint.Color = MultiplyAlpha(versePaint.Color, animAlphaMul);
+            verseNumberPaint.Color = MultiplyAlpha(verseNumberPaint.Color, animAlphaMul);
+            borderPaint.Color = MultiplyAlpha(borderPaint.Color, animAlphaMul);
+            bgPaint.Color = MultiplyAlpha(bgPaint.Color, animAlphaMul);
+
+            bool isZoomIn = string.Equals(animationType, "ZoomIn", StringComparison.Ordinal);
+            bool isPushTop = string.Equals(animationType, "TopPush", StringComparison.Ordinal);
+            bool isPushBottom = string.Equals(animationType, "BottomPush", StringComparison.Ordinal);
+            bool needsClip = string.Equals(animationType, "TopReveal", StringComparison.Ordinal) ||
+                             string.Equals(animationType, "BottomReveal", StringComparison.Ordinal) ||
+                             isPushTop ||
+                             isPushBottom;
+
+            canvas.Save();
+            if (isZoomIn)
+            {
+                float cx = popupX + (popupWidth / 2f);
+                float cy = popupY + (popupHeight / 2f);
+                float scale = (float)(0.88 + (0.12 * animEase));
+                canvas.Translate(cx, cy);
+                canvas.Scale(scale, scale);
+                canvas.Translate(-cx, -cy);
+            }
+
+            if (isPushTop)
+            {
+                float dy = (float)(-Math.Min(80.0, popupHeight * 0.35) * (1.0 - animEase));
+                canvas.Translate(0f, dy);
+            }
+            else if (isPushBottom)
+            {
+                float dy = (float)(Math.Min(80.0, popupHeight * 0.35) * (1.0 - animEase));
+                canvas.Translate(0f, dy);
+            }
+
+            if (needsClip)
+            {
+                canvas.ClipRect(clipRect);
+            }
+
             var rect = new SKRoundRect(new SKRect(popupX, popupY, popupX + popupWidth, popupY + popupHeight), 16f, 16f);
             canvas.DrawRoundRect(rect, bgPaint);
             canvas.DrawRoundRect(rect, borderPaint);
@@ -1188,6 +1243,27 @@ namespace ImageColorChanger.UI
                 verseY += lineHeight;
             }
             canvas.Restore();
+            canvas.Restore();
+        }
+
+        private string ResolveBiblePopupAnimationType(BibleTextInsertConfig cfg)
+        {
+            string type = _biblePopupAnimationType;
+            return type switch
+            {
+                "FadeOnly" => "FadeOnly",
+                "TopPush" => "TopPush",
+                "BottomPush" => "BottomPush",
+                "TopReveal" => "TopReveal",
+                "BottomReveal" => "BottomReveal",
+                "ZoomIn" => "ZoomIn",
+                _ => cfg.PopupPosition switch
+                {
+                    BiblePopupPosition.Top => "TopReveal",
+                    BiblePopupPosition.Center => "ZoomIn",
+                    _ => "BottomReveal"
+                }
+            };
         }
 
         private sealed class BiblePopupVerseLayout
@@ -1257,6 +1333,38 @@ namespace ImageColorChanger.UI
             canvas.DrawText(numberPart, x, y, verseNumberPaint);
             float numberWidth = verseNumberPaint.MeasureText(numberPart);
             canvas.DrawText(restText, x + numberWidth, y, versePaint);
+        }
+
+        private static SKRect BuildPopupEnterClipRect(string animationType, float x, float y, float width, float height, float progress)
+        {
+            float revealHeight = Math.Max(1f, height * Math.Clamp(progress, 0f, 1f));
+            if (string.Equals(animationType, "BottomReveal", StringComparison.Ordinal) ||
+                string.Equals(animationType, "BottomPush", StringComparison.Ordinal))
+            {
+                return new SKRect(x, y + height - revealHeight, x + width, y + height);
+            }
+
+            if (string.Equals(animationType, "TopReveal", StringComparison.Ordinal) ||
+                string.Equals(animationType, "TopPush", StringComparison.Ordinal))
+            {
+                return new SKRect(x, y, x + width, y + revealHeight);
+            }
+
+            // FadeOnly / ZoomIn: 不依赖裁剪，返回全量区域。
+            return new SKRect(x, y, x + width, y + revealHeight);
+        }
+
+        private static double EaseOutCubic(double t)
+        {
+            t = Math.Clamp(t, 0.0, 1.0);
+            double inv = 1.0 - t;
+            return 1.0 - (inv * inv * inv);
+        }
+
+        private static SKColor MultiplyAlpha(SKColor color, float multiplier)
+        {
+            byte alpha = (byte)Math.Clamp((int)Math.Round(color.Alpha * Math.Clamp(multiplier, 0f, 1f)), 0, 255);
+            return new SKColor(color.Red, color.Green, color.Blue, alpha);
         }
 
         private static SKColor ToSkColor(string hex, int opacityPercent)

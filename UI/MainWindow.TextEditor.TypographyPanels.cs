@@ -248,15 +248,18 @@ namespace ImageColorChanger.UI
 
         private void BtnFloatingAnimation_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedTextBox == null)
+            bool popupMode = _selectedTextBox == null && _isBiblePopupOverlayVisible;
+            if (_selectedTextBox == null && !popupMode)
+            {
                 return;
+            }
 
             CloseOtherSidePanels("AnimationSettingsPopup");
             RestoreSidePanelOffset(AnimationSettingsPopup);
             AnimationSettingsPanel.BindTarget(_selectedTextBox);
             AnimationSettingsPanel.AnimationSettingsChanged -= AnimationSettingsPanel_AnimationSettingsChanged;
-            AnimationSettingsPanel.AnimationSettingsChanged += AnimationSettingsPanel_AnimationSettingsChanged;
             LoadAnimationSettingsToPanel();
+            AnimationSettingsPanel.AnimationSettingsChanged += AnimationSettingsPanel_AnimationSettingsChanged;
             AnimationSettingsPopup.IsOpen = true;
             e.Handled = true;
         }
@@ -268,6 +271,12 @@ namespace ImageColorChanger.UI
                 _projectionAnimationOpacity,
                 _projectionAnimationDuration
             );
+            AnimationSettingsPanel.SetBiblePopupAnimationSettings(
+                _biblePopupAnimationEnabled,
+                _biblePopupAnimationOpacity,
+                _biblePopupAnimationDuration,
+                _biblePopupAnimationType
+            );
         }
 
         private void AnimationSettingsPanel_AnimationSettingsChanged(object sender, EventArgs e)
@@ -277,6 +286,14 @@ namespace ImageColorChanger.UI
             _projectionAnimationOpacity = opacity;
             _projectionAnimationDuration = duration;
             SaveProjectionAnimationSettings();
+
+            var (popupEnabled, popupOpacity, popupDuration, popupType) = AnimationSettingsPanel.GetBiblePopupAnimationSettings();
+            _biblePopupAnimationEnabled = popupEnabled;
+            _biblePopupAnimationOpacity = popupOpacity;
+            _biblePopupAnimationDuration = popupDuration;
+            _biblePopupAnimationType = popupType;
+            SaveBiblePopupAnimationSettings();
+            ApplyBiblePopupAnimationSettingsImmediately();
         }
 
         private void SaveProjectionAnimationSettings()
@@ -286,6 +303,21 @@ namespace ImageColorChanger.UI
                 _configManager.ProjectionAnimationEnabled = _projectionAnimationEnabled;
                 _configManager.ProjectionAnimationOpacity = _projectionAnimationOpacity;
                 _configManager.ProjectionAnimationDuration = _projectionAnimationDuration;
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private void SaveBiblePopupAnimationSettings()
+        {
+            try
+            {
+                _configManager.BiblePopupAnimationEnabled = _biblePopupAnimationEnabled;
+                _configManager.BiblePopupAnimationOpacity = _biblePopupAnimationOpacity;
+                _configManager.BiblePopupAnimationDuration = _biblePopupAnimationDuration;
+                _configManager.BiblePopupAnimationType = _biblePopupAnimationType;
+                _configManager.SaveConfig();
             }
             catch (Exception)
             {
@@ -362,6 +394,7 @@ namespace ImageColorChanger.UI
                 textBox.SetSelected(false);
             }
             _selectedTextBox = null;
+            HideBibleFloatingToolbar();
 
             if (closePanels)
             {

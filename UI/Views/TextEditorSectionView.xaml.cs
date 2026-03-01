@@ -108,6 +108,7 @@ namespace ImageColorChanger.UI.Views
         private void EditorCanvas_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_MouseDown), sender, e);
         private void EditorCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_KeyDown), sender, e);
         private void MainBiblePopupClose_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MainBiblePopupClose_Click), sender, e);
+        private void MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown), sender, e);
         private void MainBiblePopupOverlayImage_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e) => ForwardToMainWindow(nameof(MainBiblePopupOverlayImage_PreviewMouseWheel), sender, e);
         private void BtnBibleInsertStyleSettings_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnBibleInsertStyleSettings_Click), sender, e);
         private void BtnFloatingBorder_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnFloatingBorder_Click), sender, e);

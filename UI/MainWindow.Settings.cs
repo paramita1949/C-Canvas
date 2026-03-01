@@ -46,6 +46,7 @@ namespace ImageColorChanger.UI
                 
                 // 加载投影动画设置
                 LoadProjectionAnimationSettings();
+                LoadBiblePopupAnimationSettings();
             }
             catch (Exception)
             {
@@ -70,6 +71,27 @@ namespace ImageColorChanger.UI
                 _projectionAnimationEnabled = true;   //  默认启用
                 _projectionAnimationOpacity = 0.1;    //  默认透明度 0.1
                 _projectionAnimationDuration = 800;    //  默认动画时长 800ms
+            }
+        }
+
+        /// <summary>
+        /// 加载圣经弹窗动画设置
+        /// </summary>
+        private void LoadBiblePopupAnimationSettings()
+        {
+            try
+            {
+                _biblePopupAnimationEnabled = _configManager.BiblePopupAnimationEnabled;
+                _biblePopupAnimationOpacity = _configManager.BiblePopupAnimationOpacity;
+                _biblePopupAnimationDuration = _configManager.BiblePopupAnimationDuration;
+                _biblePopupAnimationType = _configManager.BiblePopupAnimationType;
+            }
+            catch (Exception)
+            {
+                _biblePopupAnimationEnabled = true;
+                _biblePopupAnimationOpacity = 0.1;
+                _biblePopupAnimationDuration = 800;
+                _biblePopupAnimationType = "TopReveal";
             }
         }
 

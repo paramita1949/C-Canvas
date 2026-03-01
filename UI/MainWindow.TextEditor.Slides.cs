@@ -802,6 +802,26 @@ namespace ImageColorChanger.UI
             if (TextEditorPanel.Visibility != Visibility.Visible)
                 return;
 
+            // 统一逻辑：弹窗经文模式也复用同一套悬浮工具栏显示/隐藏链路。
+            // 当工具栏已打开且当前不是文本框编辑态，点击弹窗以外区域即隐藏。
+            if (BibleToolbar?.IsOpen == true && _selectedTextBox == null && _isBiblePopupOverlayVisible)
+            {
+                var originalSource = e.OriginalSource as DependencyObject;
+                bool inPopupOverlay =
+                    (MainBiblePopupOverlayImage != null && IsDescendantOf(originalSource, MainBiblePopupOverlayImage)) ||
+                    (MainBiblePopupOverlayCloseButton != null && IsDescendantOf(originalSource, MainBiblePopupOverlayCloseButton));
+
+                var popupChild = BibleToolbar.Child as DependencyObject;
+                bool inToolbarPopup = popupChild != null && IsDescendantOf(originalSource, popupChild);
+
+                bool inAnySidePanelPopup = IsClickInsideAnyTextEditorSidePopup(originalSource);
+
+                if (!inPopupOverlay && !inToolbarPopup && !inAnySidePanelPopup)
+                {
+                    HideBibleFloatingToolbar();
+                }
+            }
+
             //System.Diagnostics.Debug.WriteLine($"[TextEditorPanel_PreviewMouseDown] 开始处理");
             //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
 
@@ -845,6 +865,27 @@ namespace ImageColorChanger.UI
             // 只有当点击在EditorCanvas内的空白区域时才处理
             // 这个判断通过EditorCanvas_MouseDown事件来处理，这里不再重复处理
             //System.Diagnostics.Debug.WriteLine($"   -  点击在其他区域，交由EditorCanvas_MouseDown处理");
+        }
+
+        private bool IsClickInsideAnyTextEditorSidePopup(DependencyObject originalSource)
+        {
+            bool IsInPopup(Popup popup)
+            {
+                if (popup == null || !popup.IsOpen)
+                {
+                    return false;
+                }
+
+                var child = popup.Child as DependencyObject;
+                return child != null && IsDescendantOf(originalSource, child);
+            }
+
+            return IsInPopup(BorderSettingsPopup) ||
+                   IsInPopup(BackgroundSettingsPopup) ||
+                   IsInPopup(TextColorSettingsPopup) ||
+                   IsInPopup(ShadowSettingsPopup) ||
+                   IsInPopup(SpacingSettingsPopup) ||
+                   IsInPopup(AnimationSettingsPopup);
         }
 
         /// <summary>
@@ -1446,6 +1487,18 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             if (HandleBiblePopupOverlayMouseWheel(e))
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 经文弹窗预览层点击：呼出悬浮工具栏，便于直接调整动画参数。
+        /// </summary>
+        private void MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _ = sender;
+            if (TryOpenBibleToolbarForPopupOverlay())
             {
                 e.Handled = true;
             }

@@ -621,6 +621,7 @@
                                    Visibility="Collapsed"
                                    Stretch="Fill"
                                    IsHitTestVisible="True"
+                                   PreviewMouseLeftButtonDown="MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown"
                                    PreviewMouseWheel="MainBiblePopupOverlayImage_PreviewMouseWheel"
                                    Panel.ZIndex="379"/>
 

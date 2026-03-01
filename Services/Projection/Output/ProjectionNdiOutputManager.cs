@@ -7,9 +7,7 @@ namespace ImageColorChanger.Services.Projection.Output
         private readonly IProjectionNdiConfigProvider _configProvider;
         private readonly IProjectionNdiModeResolver _modeResolver;
         private readonly IProjectionNdiSender _sender;
-        private long _lastDisabledLogTick;
         private long _lastStartFailLogTick;
-        private long _lastPublishTraceTick;
 
         public ProjectionNdiOutputManager(
             IProjectionNdiConfigProvider configProvider,
@@ -31,7 +29,6 @@ namespace ImageColorChanger.Services.Projection.Output
             var mode = _modeResolver.Resolve(contentType);
             if (mode == ProjectionNdiTransmissionMode.Disabled)
             {
-                ThrottledLog(ref _lastDisabledLogTick, "PublishFrame skipped: NDI disabled by resolver.");
                 return false;
             }
 
@@ -51,9 +48,6 @@ namespace ImageColorChanger.Services.Projection.Output
                     frameToSend = transformed ?? frame;
                 }
 
-                ThrottledLog(ref _lastPublishTraceTick,
-                    $"PublishFrame: type={contentType}, mode={mode}, size={frameToSend.Width}x{frameToSend.Height}",
-                    intervalMs: 3000);
                 return _sender.SendFrame(frameToSend);
             }
             finally

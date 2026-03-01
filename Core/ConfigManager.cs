@@ -1254,6 +1254,26 @@ namespace ImageColorChanger.Core
         public int ProjectionAnimationDuration { get; set; } = 800;
 
         /// <summary>
+        /// 圣经弹窗动画是否启用（默认：true）
+        /// </summary>
+        public bool BiblePopupAnimationEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 圣经弹窗动画透明度（默认：0.1）
+        /// </summary>
+        public double BiblePopupAnimationOpacity { get; set; } = 0.1;
+
+        /// <summary>
+        /// 圣经弹窗动画时长（毫秒，默认：800）
+        /// </summary>
+        public int BiblePopupAnimationDuration { get; set; } = 800;
+
+        /// <summary>
+        /// 圣经弹窗动画类型（FadeOnly|TopPush|BottomPush|TopReveal|BottomReveal|ZoomIn）
+        /// </summary>
+        public string BiblePopupAnimationType { get; set; } = "TopReveal";
+
+        /// <summary>
         /// 是否启用歌词 NDI 输出（默认：关闭）
         /// </summary>
         public bool LyricsNdiEnabled { get; set; } = false;
@@ -1378,6 +1398,80 @@ namespace ImageColorChanger.Core
                 if (_config.ProjectionAnimationDuration != value)
                 {
                     _config.ProjectionAnimationDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经弹窗动画是否启用
+        /// </summary>
+        public bool BiblePopupAnimationEnabled
+        {
+            get => _config.BiblePopupAnimationEnabled;
+            set
+            {
+                if (_config.BiblePopupAnimationEnabled != value)
+                {
+                    _config.BiblePopupAnimationEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经弹窗动画透明度
+        /// </summary>
+        public double BiblePopupAnimationOpacity
+        {
+            get => _config.BiblePopupAnimationOpacity;
+            set
+            {
+                if (Math.Abs(_config.BiblePopupAnimationOpacity - value) > 0.001)
+                {
+                    _config.BiblePopupAnimationOpacity = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经弹窗动画时长（毫秒）
+        /// </summary>
+        public int BiblePopupAnimationDuration
+        {
+            get => _config.BiblePopupAnimationDuration;
+            set
+            {
+                if (_config.BiblePopupAnimationDuration != value)
+                {
+                    _config.BiblePopupAnimationDuration = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经弹窗动画类型（FadeOnly|TopPush|BottomPush|TopReveal|BottomReveal|ZoomIn）
+        /// </summary>
+        public string BiblePopupAnimationType
+        {
+            get => string.IsNullOrWhiteSpace(_config.BiblePopupAnimationType) ? "TopReveal" : _config.BiblePopupAnimationType;
+            set
+            {
+                string normalized = value switch
+                {
+                    "FadeOnly" => "FadeOnly",
+                    "TopPush" => "TopPush",
+                    "BottomPush" => "BottomPush",
+                    "BottomReveal" => "BottomReveal",
+                    "CenterFade" => "ZoomIn",
+                    "ZoomIn" => "ZoomIn",
+                    _ => "TopReveal"
+                };
+                if (!string.Equals(_config.BiblePopupAnimationType, normalized, StringComparison.Ordinal))
+                {
+                    _config.BiblePopupAnimationType = normalized;
                     SaveConfig();
                 }
             }

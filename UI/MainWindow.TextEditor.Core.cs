@@ -94,6 +94,10 @@ namespace ImageColorChanger.UI
         private bool _projectionAnimationEnabled = true;  //  默认启用
         private double _projectionAnimationOpacity = 0.1; //  默认透明度 0.1
         private int _projectionAnimationDuration = 800;   //  默认动画时长 800ms
+        private bool _biblePopupAnimationEnabled = true;
+        private double _biblePopupAnimationOpacity = 0.1;
+        private int _biblePopupAnimationDuration = 800;
+        private string _biblePopupAnimationType = "TopReveal";
 
         #endregion
 

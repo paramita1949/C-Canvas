@@ -282,13 +282,10 @@ namespace ImageColorChanger.UI
                     _selectedTextBox = null;
                     
                     // 隐藏圣经工具栏
-                    if (BibleToolbar != null)
-                    {
-                        BibleToolbar.IsOpen = false;
+                    HideBibleFloatingToolbar();
 //#if DEBUG
-//                        //System.Diagnostics.Debug.WriteLine($" [删除文本框] 圣经工具栏已隐藏");
+//                    //System.Diagnostics.Debug.WriteLine($" [删除文本框] 圣经工具栏已隐藏");
 //#endif
-                    }
                 }
 
                 // 标记已修改

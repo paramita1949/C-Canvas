@@ -117,6 +117,7 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(EditorCanvas_MouseDown), EditorCanvas_MouseDown);
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(EditorCanvas_KeyDown), EditorCanvas_KeyDown);
             BindTextEditorEvent<RoutedEventArgs>(nameof(MainBiblePopupClose_Click), MainBiblePopupClose_Click);
+            BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown), MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown);
             BindTextEditorEvent<System.Windows.Input.MouseWheelEventArgs>(nameof(MainBiblePopupOverlayImage_PreviewMouseWheel), MainBiblePopupOverlayImage_PreviewMouseWheel);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnBibleInsertStyleSettings_Click), BtnBibleInsertStyleSettings_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnFloatingBorder_Click), BtnFloatingBorder_Click);

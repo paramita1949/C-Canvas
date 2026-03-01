@@ -31,6 +31,9 @@ namespace ImageColorChanger.UI
         private double _biblePopupOverlayVerseScrollOffset;
         private double _biblePopupOverlayVerseMaxScroll;
         private List<double> _biblePopupOverlayVerseAnchors = new();
+        private DispatcherTimer _biblePopupOverlayAnimationTimer;
+        private DateTime _biblePopupOverlayAnimationStartUtc;
+        private double _biblePopupOverlayEnterProgress = 1.0;
         private Rect _biblePopupOverlayLastRect = Rect.Empty;
         private Rect _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
         private bool _suppressNextProjectionAnimation;
@@ -236,12 +239,14 @@ namespace ImageColorChanger.UI
             {
                 _biblePopupOverlayVerseScrollOffset = 0;
                 _biblePopupOverlayVerseAnchors.Clear();
+                StartBiblePopupOverlayEnterAnimation();
             }
             else
             {
                 _biblePopupOverlayVerseScrollOffset = 0;
                 _biblePopupOverlayVerseMaxScroll = 0;
                 _biblePopupOverlayVerseAnchors.Clear();
+                StopBiblePopupOverlayEnterAnimation(resetProgress: true);
                 _biblePopupOverlayLastRect = Rect.Empty;
                 _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
             }
@@ -312,6 +317,94 @@ namespace ImageColorChanger.UI
             _biblePopupOverlayVerseScrollOffset = next;
             RefreshMainBiblePopupOverlayPreview();
             RefreshProjectionForBiblePopupOverlay();
+            return true;
+        }
+
+        private void StartBiblePopupOverlayEnterAnimation()
+        {
+            if (!_biblePopupAnimationEnabled)
+            {
+                StopBiblePopupOverlayEnterAnimation(resetProgress: true);
+                return;
+            }
+
+            _biblePopupOverlayAnimationStartUtc = DateTime.UtcNow;
+            _biblePopupOverlayEnterProgress = 0.0;
+
+            if (_biblePopupOverlayAnimationTimer == null)
+            {
+                _biblePopupOverlayAnimationTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(16)
+                };
+                _biblePopupOverlayAnimationTimer.Tick += (_, __) => OnBiblePopupOverlayAnimationTick();
+            }
+
+            _biblePopupOverlayAnimationTimer.Stop();
+            _biblePopupOverlayAnimationTimer.Start();
+        }
+
+        private void StopBiblePopupOverlayEnterAnimation(bool resetProgress)
+        {
+            _biblePopupOverlayAnimationTimer?.Stop();
+            if (resetProgress)
+            {
+                _biblePopupOverlayEnterProgress = 1.0;
+            }
+        }
+
+        private void OnBiblePopupOverlayAnimationTick()
+        {
+            if (!_isBiblePopupOverlayVisible)
+            {
+                StopBiblePopupOverlayEnterAnimation(resetProgress: true);
+                return;
+            }
+
+            double durationMs = Math.Clamp(_biblePopupAnimationDuration, 100, 3000);
+            double elapsedMs = (DateTime.UtcNow - _biblePopupOverlayAnimationStartUtc).TotalMilliseconds;
+            _biblePopupOverlayEnterProgress = Math.Clamp(elapsedMs / durationMs, 0.0, 1.0);
+
+            RefreshMainBiblePopupOverlayPreview();
+            RefreshProjectionForBiblePopupOverlay();
+
+            if (_biblePopupOverlayEnterProgress >= 1.0)
+            {
+                StopBiblePopupOverlayEnterAnimation(resetProgress: false);
+            }
+        }
+
+        /// <summary>
+        /// 弹窗动画参数变更后立即生效：当前弹窗可见时重置进入动画并刷新主屏/投影。
+        /// </summary>
+        private void ApplyBiblePopupAnimationSettingsImmediately()
+        {
+            if (!_isBiblePopupOverlayVisible)
+            {
+                return;
+            }
+
+            if (_biblePopupAnimationEnabled)
+            {
+                StartBiblePopupOverlayEnterAnimation();
+            }
+            else
+            {
+                StopBiblePopupOverlayEnterAnimation(resetProgress: true);
+            }
+
+            RefreshMainBiblePopupOverlayPreview();
+            RefreshProjectionForBiblePopupOverlay();
+        }
+
+        private bool TryOpenBibleToolbarForPopupOverlay()
+        {
+            if (!_isBiblePopupOverlayVisible || BibleToolbar == null)
+            {
+                return false;
+            }
+
+            ShowBibleFloatingToolbar();
             return true;
         }
 
@@ -1091,10 +1184,7 @@ namespace ImageColorChanger.UI
             }
 
             // 关闭文本编辑悬浮工具栏（修复：切换到其他软件时工具栏仍显示）
-            if (BibleToolbar != null && BibleToolbar.IsOpen)
-            {
-                BibleToolbar.IsOpen = false;
-            }
+            HideBibleFloatingToolbar();
 
             // 隐藏圣经译本选择工具栏
             if (BibleVersionToolbar != null && BibleVersionToolbar.Visibility == Visibility.Visible)
@@ -1132,10 +1222,7 @@ namespace ImageColorChanger.UI
 
             if (WindowState == WindowState.Minimized)
             {
-                if (BibleToolbar != null)
-                {
-                    BibleToolbar.IsOpen = false;
-                }
+                HideBibleFloatingToolbar();
 
                 CloseAllSidePanels();
             }

@@ -34,6 +34,32 @@ namespace ImageColorChanger.UI
         #region 浮动工具栏
 
         /// <summary>
+        /// 显示圣经悬浮工具栏（统一入口）
+        /// </summary>
+        private void ShowBibleFloatingToolbar()
+        {
+            if (BibleToolbar == null)
+            {
+                return;
+            }
+
+            BibleToolbar.IsOpen = true;
+        }
+
+        /// <summary>
+        /// 隐藏圣经悬浮工具栏（统一入口）
+        /// </summary>
+        private void HideBibleFloatingToolbar()
+        {
+            if (BibleToolbar == null)
+            {
+                return;
+            }
+
+            BibleToolbar.IsOpen = false;
+        }
+
+        /// <summary>
         /// 显示文本框浮动工具栏（圣经工具栏）
         /// </summary>
         private void ShowTextBoxFloatingToolbar(DraggableTextBox textBox)
@@ -44,13 +70,7 @@ namespace ImageColorChanger.UI
             try
             {
                 // 显示圣经工具栏（悬浮在画布上方固定位置）
-                if (BibleToolbar != null)
-                {
-                    BibleToolbar.IsOpen = true;
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($" [圣经工具栏] 已显示");
-                    //#endif
-                }
+                ShowBibleFloatingToolbar();
             }
             catch (Exception ex)
             {
