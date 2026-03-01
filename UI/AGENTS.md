@@ -21,6 +21,8 @@
 - 分部类共享同一实例字段，新增状态前先确认是否已有同义字段可复用。
 - UI 状态更新默认走 `Dispatcher`；跨线程回调不得直接改控件。
 - 诊断日志统一 `#if DEBUG`，Release 不保留调试输出副作用。
+- 调试与修复必须遵循 `docs/rules/diagnostic-first.md`（先证据后修改，禁止盲改）。
+- 默认启用强化调试技能：`skills/systematic-debugging/SKILL.md`（遇到异常先复现与取证，再做单点修复）。
 
 ## ANTI-PATTERNS
 - 禁止直接 `Arrange()` Canvas 子元素做投影渲染。

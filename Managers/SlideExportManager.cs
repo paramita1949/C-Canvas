@@ -199,6 +199,7 @@ namespace ImageColorChanger.Managers
                     SplitMode = s.SplitMode,
                     SplitRegionsData = s.SplitRegionsData,
                     SplitStretchMode = s.SplitStretchMode,
+                    OutputMode = s.OutputMode,
                     VideoBackgroundEnabled = s.VideoBackgroundEnabled,
                     VideoLoopEnabled = s.VideoLoopEnabled,
                     VideoVolume = s.VideoVolume,
@@ -310,6 +311,7 @@ namespace ImageColorChanger.Managers
         public string SplitRegionsData { get; set; }
         [JsonConverter(typeof(LegacySplitImageDisplayModeJsonConverter))]
         public SplitImageDisplayMode SplitStretchMode { get; set; } = SplitImageDisplayMode.FitCenter;
+        public Database.Models.Enums.SlideOutputMode OutputMode { get; set; } = Database.Models.Enums.SlideOutputMode.Normal;
         public bool VideoBackgroundEnabled { get; set; } = false;
         public bool VideoLoopEnabled { get; set; } = true;
         public double VideoVolume { get; set; } = 0.0;

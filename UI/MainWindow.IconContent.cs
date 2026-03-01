@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Linq;
 using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
 using MediaBrush = System.Windows.Media.Brush;
@@ -37,6 +38,7 @@ namespace ImageColorChanger.UI
             }
 
             panel.Children.Add(path);
+
             panel.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
             return panel;
         }
@@ -94,11 +96,41 @@ namespace ImageColorChanger.UI
             BtnSplitStretchMode.Content = BuildIconLabelContent(iconKey, label);
         }
 
+        private void SetSlideOutputModeButtonContent(Database.Models.Enums.SlideOutputMode mode)
+        {
+            if (BtnSlideOutputMode == null)
+            {
+                return;
+            }
+
+            string label = mode == Database.Models.Enums.SlideOutputMode.Transparent ? "透明" : "普通";
+            BtnSlideOutputMode.Content = BuildIconLabelContent("IconLucideSparkles", label);
+            NormalizeSlideOutputModeTextStyle();
+        }
+
+        private void NormalizeSlideOutputModeTextStyle()
+        {
+            if (BtnSlideOutputMode?.Content is not StackPanel slidePanel)
+            {
+                return;
+            }
+
+            if (slidePanel.Children.OfType<TextBlock>().FirstOrDefault() is not TextBlock slideText)
+            {
+                return;
+            }
+
+            // 始终对齐“适中”按钮文字样式，避免“普通”按钮出现视觉不一致。
+            slideText.FontFamily = BtnSplitStretchMode?.FontFamily ?? slideText.FontFamily;
+            slideText.FontSize = BtnSplitStretchMode?.FontSize ?? slideText.FontSize;
+            slideText.FontWeight = BtnSplitStretchMode?.FontWeight ?? slideText.FontWeight;
+        }
+
         private void SetLockProjectionButtonContent(bool isLocked)
         {
             string iconKey = isLocked ? "IconLucideLock" : "IconLucideUnlock";
             MediaBrush stroke = System.Windows.Media.Brushes.White;
-            BtnLockProjection.Content = BuildIconLabelContent(iconKey, "锁定投影", stroke);
+            BtnLockProjection.Content = BuildIconLabelContent(iconKey, "锁定", stroke);
         }
 
         private void SetCompositePlayButtonContent(bool isPlaying)

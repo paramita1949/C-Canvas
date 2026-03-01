@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using ImageColorChanger.Core;
+using ImageColorChanger.Database.Models.Enums;
 
 namespace ImageColorChanger.Database.Models
 {
@@ -89,6 +90,12 @@ namespace ImageColorChanger.Database.Models
         public double VideoVolume { get; set; } = 0.5;
 
         /// <summary>
+        /// 输出模式（普通/透明）
+        /// </summary>
+        [Column("output_mode")]
+        public SlideOutputMode OutputMode { get; set; } = SlideOutputMode.Normal;
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         [Column("created_time")]
@@ -128,6 +135,9 @@ namespace ImageColorChanger.Database.Models
         /// </summary>
         [NotMapped]
         public string ThumbnailPath { get; set; }
+
+        [NotMapped]
+        public bool IsTransparentOutput => OutputMode == SlideOutputMode.Transparent;
 
     }
 }

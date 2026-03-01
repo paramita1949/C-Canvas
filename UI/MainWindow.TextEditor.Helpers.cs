@@ -474,7 +474,7 @@ namespace ImageColorChanger.UI
 
                     // NDI 全投影：锁定视频路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
                     var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
-                    _projectionNdiOutputManager?.PublishFrame(ndiFrame, ProjectionNdiContentType.Slide);
+                    PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
                     ndiFrame?.Dispose();
                 }
                 else
@@ -571,7 +571,7 @@ namespace ImageColorChanger.UI
 
             // NDI 全投影：视频背景路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
             var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
-            _projectionNdiOutputManager?.PublishFrame(ndiFrame, ProjectionNdiContentType.Slide);
+            PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
             ndiFrame?.Dispose();
 #if DEBUG
             updateStartTime.Stop();
@@ -616,7 +616,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 缓存命中，直接复用旧渲染结果");
 #endif
                 _projectionManager.UpdateProjectionText(cachedBitmap);
-                _projectionNdiOutputManager?.PublishFrame(cachedBitmap, ProjectionNdiContentType.Slide);
+                PublishSlideFrameToNdi(cachedBitmap);
                 return;
             }
 
@@ -643,7 +643,7 @@ namespace ImageColorChanger.UI
                         var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
 
                         _projectionManager.UpdateProjectionText(finalImage);
-                        _projectionNdiOutputManager?.PublishFrame(finalImage, ProjectionNdiContentType.Slide);
+                        PublishSlideFrameToNdi(finalImage, projWidth, projHeight);
                         _textEditorProjectionRenderStateService?.UpdateCache(cacheKey, finalImage);
                     },
                     beforeRenderAction: () =>
@@ -674,6 +674,29 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void PublishSlideFrameToNdi(SKBitmap frame, int projectionWidth = 0, int projectionHeight = 0)
+        {
+            if (_projectionNdiOutputManager == null || frame == null)
+            {
+                return;
+            }
+
+            if (_currentSlide?.OutputMode == SlideOutputMode.Transparent)
+            {
+                int targetWidth = projectionWidth > 0 ? projectionWidth : frame.Width;
+                int targetHeight = projectionHeight > 0 ? projectionHeight : frame.Height;
+                using var transparentFrame = ComposeCanvasWithSkia(
+                    targetWidth,
+                    targetHeight,
+                    transparentBackground: true,
+                    textOnlyOverlay: true);
+                _projectionNdiOutputManager.PublishFrame(transparentFrame, ProjectionNdiContentType.SlideTransparent);
+                return;
+            }
+
+            _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Slide);
+        }
+
         /// <summary>
         /// 使用SkiaSharp直接合成Canvas内容（跳过WPF的RenderTargetBitmap）
         /// 核心优化：直接访问Image控件的Source，避免WPF渲染管道
@@ -682,7 +705,12 @@ namespace ImageColorChanger.UI
         /// <param name="targetWidth">目标宽度（0表示使用Canvas实际宽度）</param>
         /// <param name="targetHeight">目标高度（0表示使用Canvas实际高度）</param>
         /// <param name="transparentBackground">是否使用透明背景（true=透明，false=使用幻灯片背景色）</param>
-        private SKBitmap ComposeCanvasWithSkia(int targetWidth = 0, int targetHeight = 0, bool transparentBackground = false)
+        /// <param name="textOnlyOverlay">是否只渲染文本层（忽略背景图、分割图与分割线）</param>
+        private SKBitmap ComposeCanvasWithSkia(
+            int targetWidth = 0,
+            int targetHeight = 0,
+            bool transparentBackground = false,
+            bool textOnlyOverlay = false)
         {
             // 编辑器画布的实际尺寸（用于计算缩放比例）
             double canvasWidth = EditorCanvas.ActualWidth;
@@ -784,7 +812,8 @@ namespace ImageColorChanger.UI
                 //#endif
                 
                 // 绘制背景图（如果有）
-                if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) &&
+                if (!textOnlyOverlay &&
+                    _currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundImagePath) &&
                     System.IO.File.Exists(_currentSlide.BackgroundImagePath))
                 {
                     try
@@ -826,10 +855,12 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 绘制所有区域图片
-                foreach (var kvp in _regionImages)
+                if (!textOnlyOverlay)
                 {
-                    var imageControl = kvp.Value;
-                    int regionIndex = kvp.Key;
+                    foreach (var kvp in _regionImages)
+                    {
+                        var imageControl = kvp.Value;
+                        int regionIndex = kvp.Key;
                     
                     //#if DEBUG
                     //var imgSw = System.Diagnostics.Stopwatch.StartNew();
@@ -913,8 +944,8 @@ namespace ImageColorChanger.UI
                         //#endif
                     }
                     
-                    if (skBitmap != null)
-                    {
+                        if (skBitmap != null)
+                        {
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"  [Compose] 加载耗时: {imgSw.ElapsedMilliseconds}ms");
                         //imgSw.Restart();
@@ -985,7 +1016,8 @@ namespace ImageColorChanger.UI
                         //System.Diagnostics.Debug.WriteLine($"  [Compose] 绘制耗时: {imgSw.ElapsedMilliseconds}ms");
                         //#endif
                         
-                        skBitmap.Dispose();
+                            skBitmap.Dispose();
+                        }
                     }
                 }
                 
@@ -1006,7 +1038,8 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 绘制分割线（如果有分割模式）
-                if (_currentSlide != null && _currentSlide.SplitMode >= 0)
+                if (!textOnlyOverlay &&
+                    _currentSlide != null && _currentSlide.SplitMode >= 0)
                 {
                     DrawSplitLinesToCanvas(canvas, (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode, canvasWidth, canvasHeight);
                 }

@@ -20,6 +20,7 @@ namespace ImageColorChanger.UI
         private WpfControls.Button BtnBackgroundColor => TextEditorSectionView?.BtnBackgroundColorButton;
         private WpfControls.Button BtnSplitView => TextEditorSectionView?.BtnSplitViewButton;
         private WpfControls.Button BtnSplitStretchMode => TextEditorSectionView?.BtnSplitStretchModeButton;
+        private WpfControls.Button BtnSlideOutputMode => TextEditorSectionView?.BtnSlideOutputModeButton;
         private WpfControls.ComboBox FontFamilySelector => TextEditorSectionView?.FontFamilySelectorControl;
         private WpfControls.ComboBox FontSizeSelector => TextEditorSectionView?.FontSizeSelectorControl;
         private WpfControls.Button BtnIncreaseFontSize => TextEditorSectionView?.BtnIncreaseFontSizeButton;
@@ -83,6 +84,7 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnBackgroundColor_Click), BtnBackgroundColor_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSplitView_Click), BtnSplitView_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSplitStretchMode_Click), BtnSplitStretchMode_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSlideOutputMode_Click), BtnSlideOutputMode_Click);
             BindTextEditorEvent<WpfControls.SelectionChangedEventArgs>(nameof(FontFamily_Changed), FontFamily_Changed);
             BindTextEditorEvent<RoutedEventArgs>(nameof(FontFamilySelector_GotFocus), FontFamilySelector_GotFocus);
             BindTextEditorEvent<WpfControls.SelectionChangedEventArgs>(nameof(FontSize_Changed), FontSize_Changed);

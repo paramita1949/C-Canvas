@@ -101,6 +101,7 @@ namespace ImageColorChanger.Managers
                                 SplitMode = slideData.SplitMode,
                                 SplitRegionsData = slideData.SplitRegionsData,
                                 SplitStretchMode = slideData.SplitStretchMode,
+                                OutputMode = slideData.OutputMode,
                                 // 视频背景相关属性（向后兼容：如果字段不存在，使用默认值）
                                 VideoBackgroundEnabled = slideData.VideoBackgroundEnabled,
                                 VideoLoopEnabled = slideData.VideoLoopEnabled,

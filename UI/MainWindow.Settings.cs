@@ -167,7 +167,7 @@ namespace ImageColorChanger.UI
             // 文本编辑器按钮（应用缩小比例）
             var textEditorButtons = new[]
             {
-                BtnAddText, BtnBackgroundImage, BtnBackgroundColor, BtnSplitView, BtnSplitStretchMode,
+                BtnAddText, BtnBackgroundImage, BtnBackgroundColor, BtnSplitView, BtnSplitStretchMode, BtnSlideOutputMode,
                 BtnDecreaseFontSize, BtnIncreaseFontSize, BtnBold, BtnTextColor, BtnSaveTextProject,
                 BtnLockProjection, BtnUpdateProjection, BtnCloseTextEditorInPanel
             };

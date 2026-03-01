@@ -38,8 +38,8 @@ namespace ImageColorChanger.Database
     public class CanvasDbContext : DbContext
     {
         private const string StartupSchemaBootstrapStampKey = "db.schema.bootstrap.version";
-        private const string StartupSchemaBootstrapVersion = "2026-02-24.1";
-        private const int StartupSchemaBootstrapUserVersion = 202602241;
+        private const string StartupSchemaBootstrapVersion = "2026-03-01.1";
+        private const int StartupSchemaBootstrapUserVersion = 202603011;
 
         /// <summary>
         /// 数据库文件路径
@@ -562,6 +562,9 @@ namespace ImageColorChanger.Database
 
                     // 富文本 v2（段落/Run边界）兼容升级
                     EnsureRichTextSpansV2SchemaExists();
+
+                    // 幻灯片输出模式（普通/透明）兼容升级
+                    EnsureSlideOutputModeSchemaExists();
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
@@ -1221,6 +1224,18 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($" EnsureRichTextSpansV2SchemaExists 失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureSlideOutputModeSchemaExists()
+        {
+            try
+            {
+                EnsureColumnExists("slides", "output_mode", "INTEGER NOT NULL DEFAULT 0");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" EnsureSlideOutputModeSchemaExists 失败: {ex.Message}");
             }
         }
 

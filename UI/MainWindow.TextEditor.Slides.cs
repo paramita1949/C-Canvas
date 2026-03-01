@@ -1240,7 +1240,8 @@ namespace ImageColorChanger.UI
                     BackgroundImagePath = sourceSlide.BackgroundImagePath,
                     SplitMode = sourceSlide.SplitMode,  // 复制分割模式
                     SplitStretchMode = sourceSlide.SplitStretchMode,  // 复制显示模式
-                    SplitRegionsData = sourceSlide.SplitRegionsData  // 复制区域数据
+                    SplitRegionsData = sourceSlide.SplitRegionsData,  // 复制区域数据
+                    OutputMode = sourceSlide.OutputMode // 复制输出模式（普通/透明）
                 };
 
                 await _textProjectService.AddSlideAsync(newSlide);

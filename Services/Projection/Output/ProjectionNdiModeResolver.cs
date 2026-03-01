@@ -27,6 +27,7 @@ namespace ImageColorChanger.Services.Projection.Output
                     ? ProjectionNdiTransmissionMode.Transparent
                     : ProjectionNdiTransmissionMode.FullFrame,
                 ProjectionNdiContentType.Bible => ProjectionNdiTransmissionMode.FullFrame,
+                ProjectionNdiContentType.SlideTransparent => ProjectionNdiTransmissionMode.Transparent,
                 _ => ProjectionNdiTransmissionMode.FullFrame
             };
         }

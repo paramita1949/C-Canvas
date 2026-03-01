@@ -18,6 +18,7 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnBackgroundColorButton => BtnBackgroundColor;
         public System.Windows.Controls.Button BtnSplitViewButton => BtnSplitView;
         public System.Windows.Controls.Button BtnSplitStretchModeButton => BtnSplitStretchMode;
+        public System.Windows.Controls.Button BtnSlideOutputModeButton => BtnSlideOutputMode;
         public System.Windows.Controls.ComboBox FontFamilySelectorControl => FontFamilySelector;
         public System.Windows.Controls.ComboBox FontSizeSelectorControl => FontSizeSelector;
         public System.Windows.Controls.Button BtnIncreaseFontSizeButton => BtnIncreaseFontSize;
@@ -74,6 +75,7 @@ namespace ImageColorChanger.UI.Views
         private void BtnBackgroundColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnBackgroundColor_Click), sender, e);
         private void BtnSplitView_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSplitView_Click), sender, e);
         private void BtnSplitStretchMode_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSplitStretchMode_Click), sender, e);
+        private void BtnSlideOutputMode_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSlideOutputMode_Click), sender, e);
         private void FontFamily_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontFamily_Changed), sender, e);
         private void FontFamilySelector_GotFocus(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(FontFamilySelector_GotFocus), sender, e);
         private void FontSize_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontSize_Changed), sender, e);

@@ -10,7 +10,7 @@ namespace ImageColorChanger.Services.Projection.Output
         Bible = 2,
         Slide = 3,
         Image = 4,
-        Video = 5
+        Video = 5,
+        SlideTransparent = 6
     }
 }
-

@@ -388,6 +388,89 @@ namespace ImageColorChanger.UI
             SetSplitStretchButtonContent(_splitImageDisplayMode);
         }
 
+        private void BtnSlideOutputMode_Click(object sender, RoutedEventArgs e)
+        {
+            _ = ToggleCurrentSlideOutputModeAsync();
+        }
+
+        private async Task ToggleCurrentSlideOutputModeAsync()
+        {
+            if (_currentSlide == null)
+            {
+                return;
+            }
+
+            var nextMode = _currentSlide.OutputMode == SlideOutputMode.Transparent
+                ? SlideOutputMode.Normal
+                : SlideOutputMode.Transparent;
+
+            bool saved = await SaveSlideOutputModeAsync(nextMode);
+            if (!saved)
+            {
+                return;
+            }
+
+            UpdateSlideOutputModeButton();
+            MarkContentAsModified();
+            RefreshNdiOnlyForSlideOutputModeChange();
+        }
+
+        private async Task<bool> SaveSlideOutputModeAsync(SlideOutputMode mode)
+        {
+            if (_currentSlide == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
+                if (slideToUpdate == null)
+                {
+                    return false;
+                }
+
+                slideToUpdate.OutputMode = mode;
+                slideToUpdate.ModifiedTime = DateTime.Now;
+                await _textProjectService.UpdateSlideAsync(slideToUpdate);
+
+                _currentSlide.OutputMode = mode;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void UpdateSlideOutputModeButton()
+        {
+            SetSlideOutputModeButtonContent(_currentSlide?.OutputMode ?? SlideOutputMode.Normal);
+        }
+
+        /// <summary>
+        /// 输出模式切换后仅刷新 NDI，不触发投影窗口刷新。
+        /// </summary>
+        private void RefreshNdiOnlyForSlideOutputModeChange()
+        {
+            try
+            {
+                if (_projectionNdiOutputManager == null || !(_configManager?.ProjectionNdiEnabled ?? false))
+                {
+                    return;
+                }
+
+                var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize()
+                                              ?? (_configManager?.ProjectionNdiWidth ?? 1920, _configManager?.ProjectionNdiHeight ?? 1080);
+                using var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+                PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
+            }
+            catch
+            {
+                // NDI 刷新失败不影响主流程
+            }
+        }
+
         private static IReadOnlyList<SplitImageDisplayMode> GetAlternativeSplitImageDisplayModes(SplitImageDisplayMode currentMode)
         {
             var allModes = new[]
@@ -1345,6 +1428,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                UpdateSlideOutputModeButton();
+
                 // 恢复显示模式
                 _splitImageDisplayMode = slide.SplitStretchMode;
                 UpdateStretchModeButton();
