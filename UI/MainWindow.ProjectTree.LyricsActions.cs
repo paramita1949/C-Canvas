@@ -61,6 +61,12 @@ namespace ImageColorChanger.UI
             var highlightColorItem = new MenuItem { Header = "标记高亮色" };
             highlightColorItem.Click += (s, args) => SetLyricsGroupHighlightColor(groupItem);
             contextMenu.Items.Add(highlightColorItem);
+            if (HasLyricsGroupHighlightColor(groupItem.Id))
+            {
+                var clearHighlightColorItem = new MenuItem { Header = "取消高亮色" };
+                clearHighlightColorItem.Click += (s, args) => ClearLyricsGroupHighlightColor(groupItem);
+                contextMenu.Items.Add(clearHighlightColorItem);
+            }
 
             var watermarkMenu = new MenuItem { Header = "水印" };
 
@@ -237,7 +243,7 @@ namespace ImageColorChanger.UI
                 manager.SetGroupHighlightColor(groupItem.Id, colorHex);
                 ShowStatus($"已设置歌词库 [{groupItem.Name}] 的高亮颜色: {colorHex}");
 
-                ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, groupItem.Id);
+                ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, groupItem.Id, expandTargetNode: false);
 
                 string searchTerm = SearchBox.Text?.Trim() ?? "";
                 if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -260,6 +266,56 @@ namespace ImageColorChanger.UI
             {
                 WpfMessageBox.Show(
                     $"设置歌词库高亮颜色失败: {ex.Message}",
+                    "错误",
+                    WpfMessageBoxButton.OK,
+                    WpfMessageBoxImage.Error);
+            }
+        }
+
+        private bool HasLyricsGroupHighlightColor(int groupId)
+        {
+            if (_dbContext == null || groupId <= 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                var manager = new Managers.LyricsGroupManager(_dbContext);
+                string existingColor = manager.GetGroupHighlightColor(groupId);
+                return !string.IsNullOrWhiteSpace(existingColor);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void ClearLyricsGroupHighlightColor(ProjectTreeItem groupItem)
+        {
+            if (_dbContext == null || groupItem == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var manager = new Managers.LyricsGroupManager(_dbContext);
+                string existingColor = manager.GetGroupHighlightColor(groupItem.Id);
+                if (string.IsNullOrWhiteSpace(existingColor))
+                {
+                    ShowStatus($"歌词库 [{groupItem.Name}] 当前没有高亮色");
+                    return;
+                }
+
+                manager.SetGroupHighlightColor(groupItem.Id, null);
+                ShowStatus($"已取消歌词库 [{groupItem.Name}] 的高亮颜色");
+                ReloadProjectsPreservingLyricsTreeState(TreeItemType.LyricsGroup, groupItem.Id, expandTargetNode: false);
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show(
+                    $"取消歌词库高亮颜色失败: {ex.Message}",
                     "错误",
                     WpfMessageBoxButton.OK,
                     WpfMessageBoxImage.Error);
@@ -388,11 +444,14 @@ namespace ImageColorChanger.UI
             ShowStatus($"已重命名歌曲: {song.Name}");
         }
 
-        private void ReloadProjectsPreservingLyricsTreeState(TreeItemType? preferredType = null, int preferredId = 0)
+        private void ReloadProjectsPreservingLyricsTreeState(
+            TreeItemType? preferredType = null,
+            int preferredId = 0,
+            bool expandTargetNode = true)
         {
             var state = CaptureLyricsTreeViewState();
             LoadProjects();
-            RestoreLyricsTreeViewState(state, preferredType, preferredId);
+            RestoreLyricsTreeViewState(state, preferredType, preferredId, expandTargetNode);
         }
 
         private LyricsTreeViewState CaptureLyricsTreeViewState()
@@ -427,7 +486,11 @@ namespace ImageColorChanger.UI
             return state;
         }
 
-        private void RestoreLyricsTreeViewState(LyricsTreeViewState state, TreeItemType? preferredType, int preferredId)
+        private void RestoreLyricsTreeViewState(
+            LyricsTreeViewState state,
+            TreeItemType? preferredType,
+            int preferredId,
+            bool expandTargetNode)
         {
             if (state == null)
             {
@@ -461,7 +524,10 @@ namespace ImageColorChanger.UI
                 var groupNode = _projectTreeItems.FirstOrDefault(x => x.Type == TreeItemType.LyricsGroup && x.Id == targetId);
                 if (groupNode != null)
                 {
-                    groupNode.IsExpanded = true;
+                    if (expandTargetNode)
+                    {
+                        groupNode.IsExpanded = true;
+                    }
                     groupNode.IsSelected = true;
                 }
                 return;
@@ -477,7 +543,10 @@ namespace ImageColorChanger.UI
                         continue;
                     }
 
-                    groupNode.IsExpanded = true;
+                    if (expandTargetNode)
+                    {
+                        groupNode.IsExpanded = true;
+                    }
                     songNode.IsSelected = true;
                     return;
                 }

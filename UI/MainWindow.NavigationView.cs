@@ -115,8 +115,12 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        (iconKind, iconColor) = ResolveFolderIcon(folder.Id, isManualSort, enableDetailedIcons, markedFolderIds, folderSequenceIds);
+                        // Keep folder badge-style icon variants (sync/download/cog) from the same source
+                        // so highlight recolor only changes color and never downgrades icon kind to plain Folder.
+                        (iconKind, iconColor) = _originalManager.GetFolderIconKind(folder.Id, isManualSort);
                     }
+                    iconColor = ResolveFolderHighlightIconColor(folder.Id, folder.HighlightColor, iconColor);
+                    bool hasCustomHighlightColor = !string.IsNullOrWhiteSpace(folder.HighlightColor);
 
                     var folderItem = new ProjectTreeItem
                     {
@@ -125,10 +129,13 @@ namespace ImageColorChanger.UI
                         Icon = iconKind,
                         IconKind = iconKind,
                         IconColor = iconColor,
+                        UseCustomIconColor = hasCustomHighlightColor,
                         Type = TreeItemType.Folder,
                         Path = folder.Path,
                         Children = new ObservableCollection<ProjectTreeItem>()
                     };
+
+                    // [Debug][FolderHighlight] LoadProjects log disabled after verification.
 
                     foreach (var file in files)
                     {
@@ -248,6 +255,25 @@ namespace ImageColorChanger.UI
             }
 
             return ("FolderSync", "#4ECDC4");
+        }
+
+        private string ResolveFolderHighlightIconColor(int folderId, string customHighlightColor, string fallbackIconColor)
+        {
+            if (string.IsNullOrWhiteSpace(customHighlightColor))
+            {
+                // [Debug][FolderHighlight] ResolveColor(null/empty) log disabled after verification.
+                return fallbackIconColor;
+            }
+
+            if (_configManager != null && folderId > 0)
+            {
+                string resolved = _configManager.GetFolderColor(folderId, customHighlightColor);
+                // [Debug][FolderHighlight] ResolveColor(resolved) log disabled after verification.
+                return resolved;
+            }
+
+            // [Debug][FolderHighlight] ResolveColor(direct) log disabled after verification.
+            return customHighlightColor;
         }
 
         private Dictionary<int, List<MediaFile>> BuildFolderMediaLookup(DatabaseManager dbManager, List<Folder> folders)
@@ -515,12 +541,14 @@ namespace ImageColorChanger.UI
                 }
 
                 var groups = _dbContext.LyricsGroups
+                    .AsNoTracking()
                     .Where(g => !g.IsSystem)
                     .OrderBy(g => g.SortOrder)
                     .ThenBy(g => g.Id)
                     .ToList();
 
                 var songs = _dbContext.LyricsProjects
+                    .AsNoTracking()
                     .OrderBy(p => p.SortOrder)
                     .ThenBy(p => p.Id)
                     .ToList();
@@ -540,6 +568,7 @@ namespace ImageColorChanger.UI
                         Icon = "FolderMusic",
                         IconKind = "FolderMusic",
                         IconColor = group.IsSystem ? "#9E9E9E" : groupHighlightColor,
+                        UseCustomIconColor = !group.IsSystem && !string.IsNullOrWhiteSpace(group.HighlightColor),
                         Type = TreeItemType.LyricsGroup,
                         Tag = group,
                         Children = new ObservableCollection<ProjectTreeItem>()

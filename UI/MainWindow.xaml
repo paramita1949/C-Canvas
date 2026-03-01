@@ -870,15 +870,29 @@
                                         </Image>
 
                                         <materialDesign:PackIcon Kind="{Binding IconKind}" 
-                                                                Foreground="{DynamicResource BrushGlobalIcon}"
                                                                 Width="22" 
                                                                 Height="22" 
                                                                 Margin="0,0,10,0"
                                                                 VerticalAlignment="Center">
                                             <materialDesign:PackIcon.Style>
                                                 <Style TargetType="materialDesign:PackIcon">
+                                                    <Setter Property="Foreground" Value="{DynamicResource BrushGlobalIcon}"/>
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Type}" Value="Folder"/>
+                                                                <Condition Binding="{Binding UseCustomIconColor}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Foreground" Value="{Binding IconColor}"/>
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Type}" Value="LyricsGroup"/>
+                                                                <Condition Binding="{Binding UseCustomIconColor}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Foreground" Value="{Binding IconColor}"/>
+                                                        </MultiDataTrigger>
                                                         <!-- 文件夹/歌词分组/歌词歌曲显示图标 -->
                                                         <DataTrigger Binding="{Binding Type}" Value="Folder">
                                                             <Setter Property="Visibility" Value="Visible"/>

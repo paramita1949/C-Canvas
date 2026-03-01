@@ -67,6 +67,21 @@ namespace ImageColorChanger.UI
         }
 
         public bool HasIconImagePath => !string.IsNullOrWhiteSpace(_iconImagePath);
+
+        private bool _useCustomIconColor;
+        public bool UseCustomIconColor
+        {
+            get => _useCustomIconColor;
+            set
+            {
+                if (_useCustomIconColor != value)
+                {
+                    _useCustomIconColor = value;
+                    OnPropertyChanged(nameof(UseCustomIconColor));
+                }
+            }
+        }
+
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }

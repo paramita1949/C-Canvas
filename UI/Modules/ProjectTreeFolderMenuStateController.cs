@@ -20,6 +20,7 @@ namespace ImageColorChanger.UI.Modules
         public ProjectTreeFolderMenuState GetState(int folderId)
         {
             var folderFiles = _databaseManager.GetMediaFilesByFolder(folderId);
+            string highlightColor = _databaseManager.GetFolderHighlightColor(folderId);
 
             return new ProjectTreeFolderMenuState
             {
@@ -27,6 +28,7 @@ namespace ImageColorChanger.UI.Modules
                 HasImages = folderFiles.Any(f => f.FileType == FileType.Image),
                 HasFolderOriginalMark = _originalManager.CheckOriginalMark(ItemType.Folder, folderId),
                 HasColorEffectMark = _databaseManager.HasFolderAutoColorEffect(folderId),
+                HasHighlightColor = !string.IsNullOrWhiteSpace(highlightColor),
                 CurrentPlayMode = _databaseManager.GetFolderVideoPlayMode(folderId),
                 IsManualSort = _databaseManager.IsManualSortFolder(folderId)
             };
@@ -39,6 +41,7 @@ namespace ImageColorChanger.UI.Modules
         public bool HasImages { get; set; }
         public bool HasFolderOriginalMark { get; set; }
         public bool HasColorEffectMark { get; set; }
+        public bool HasHighlightColor { get; set; }
         public string CurrentPlayMode { get; set; }
         public bool IsManualSort { get; set; }
     }

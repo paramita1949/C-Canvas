@@ -47,7 +47,8 @@ namespace ImageColorChanger.UI
         private bool _lyricsSplitBorderVisible = true; // 是否显示分割线
         private bool _lyricsPagingMode = false; // 分页模式开关（仅分割模式下有效）
         private bool _lyricsSliceModeEnabled = false; // 单画面切片模式
-        private int _lyricsSliceLinesPerPage = 2; // 每片行数（1/2/3）
+        private int _lyricsSliceLinesPerPage = 2; // 每片行数（支持自定义）
+        private bool _lyricsSliceRuleFromCustom = false; // 当前切片规则是否来自自定义滚动
         private readonly ObservableCollection<LyricsSliceViewItem> _lyricsSliceItems = new();
         private int _lyricsCurrentSliceIndex = 0; // 当前切片索引
         private bool _isUpdatingLyricsSliceList = false;
@@ -113,11 +114,13 @@ namespace ImageColorChanger.UI
         public sealed class LyricsModeContentData
         {
             public string SingleContent { get; set; } = "";
+            public string SingleColorHex { get; set; } = "";
             public LyricsSplitContentData SplitContent { get; set; } = new LyricsSplitContentData();
             public List<LyricsSplitContentData> SplitContents { get; set; } = new();
             public int ActiveMode { get; set; } = (int)ViewSplitMode.Single;
             public bool SliceModeEnabled { get; set; } = false;
             public int SliceLinesPerPage { get; set; } = 2;
+            public bool SliceRuleFromCustom { get; set; } = false;
             public int SliceCurrentIndex { get; set; } = 0;
             public double MainScreenFontSize { get; set; } = DefaultMainLyricsFontSize;
             public int ThemeMode { get; set; } = 0; // 0=黑底白字, 1=白底黑字
@@ -286,9 +289,6 @@ namespace ImageColorChanger.UI
             _lyricsThemeBackgroundHex = safeHex.ToUpperInvariant();
 
             var backgroundBrush = new SolidColorBrush(backgroundColor);
-            bool darkBackground = IsDarkColor(backgroundColor);
-            var foregroundBrush = darkBackground ? WpfBrushes.White : WpfBrushes.Black;
-            var caretBrush = foregroundBrush;
 
             if (LyricsEditorPanel != null)
             {
@@ -305,11 +305,10 @@ namespace ImageColorChanger.UI
                 LyricsSplitGrid.Background = backgroundBrush;
             }
 
+            // 主题只负责背景，不改歌词文字颜色（Foreground 由“颜色”功能单独控制）。
             ApplyLyricsEditorStyleToCurrentMode(tb =>
             {
                 tb.Background = WpfBrushes.Transparent;
-                tb.Foreground = foregroundBrush;
-                tb.CaretBrush = caretBrush;
             });
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -1298,7 +1297,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnLyricsTextColor_Click(object sender, RoutedEventArgs e)
         {
-            OpenLyricsCustomColorPicker();
+            OpenLyricsCustomColorPicker(forDefaultOnly: false);
         }
 
         private void BtnLyricsWatermark_Click(object sender, RoutedEventArgs e)
@@ -1499,21 +1498,31 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 打开自定义颜色选择器
         /// </summary>
-        private void OpenLyricsCustomColorPicker()
+        private void OpenLyricsCustomColorPicker(bool forDefaultOnly)
         {
             var colorDialog = new System.Windows.Forms.ColorDialog();
 
-            // 设置默认颜色为当前颜色
-            var currentColor = (GetActiveLyricsEditor().Foreground as System.Windows.Media.SolidColorBrush)?.Color 
-                ?? HexToColor(_configManager.DefaultLyricsColor);
+            // 菜单栏颜色：取当前编辑器颜色；右键默认色：取全局默认色
+            var currentColor = forDefaultOnly
+                ? HexToColor(_configManager.DefaultLyricsColor)
+                : (GetActiveLyricsEditor().Foreground as System.Windows.Media.SolidColorBrush)?.Color
+                    ?? HexToColor(_configManager.DefaultLyricsColor);
             colorDialog.Color = System.Drawing.Color.FromArgb(
                 currentColor.A, currentColor.R, currentColor.G, currentColor.B);
 
             if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 var color = colorDialog.Color;
-                SetLyricsColor(color.R, color.G, color.B);
-                ShowStatus("✨ 全局歌词颜色已更新");
+                if (forDefaultOnly)
+                {
+                    SetDefaultLyricsColor(color.R, color.G, color.B);
+                    ShowStatus("✨ 已更新新建歌词默认颜色");
+                }
+                else
+                {
+                    SetLyricsColor(color.R, color.G, color.B);
+                    ShowStatus("✨ 已更新当前歌词渲染颜色");
+                }
 
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-全局] 自定义颜色: #{color.R:X2}{color.G:X2}{color.B:X2}");
@@ -1522,20 +1531,11 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 设置歌词颜色（全局设置，应用到所有歌词）
+        /// 设置当前歌词颜色（用于菜单栏颜色功能）
         /// </summary>
         private void SetLyricsColor(byte r, byte g, byte b)
         {
-            // 转换为十六进制格式
-            string hexColor = $"#{r:X2}{g:X2}{b:X2}";
-
             bool isSplitMode = _lyricsSplitMode != (int)ViewSplitMode.Single;
-            // 单画面与分割模式都同步更新默认颜色，保持全局一致性
-            _configManager.DefaultLyricsColor = hexColor;
-
-//#if DEBUG
-//            Debug.WriteLine($"[歌词-全局] 颜色更改为 {hexColor}");
-//#endif
 
             // 更新当前UI显示
             var brush = new System.Windows.Media.SolidColorBrush(WpfColor.FromRgb(r, g, b));
@@ -1569,6 +1569,15 @@ namespace ImageColorChanger.UI
             {
                 SaveLyricsProject("LyricsColorChanged", suppressUserError: true);
             }
+        }
+
+        /// <summary>
+        /// 设置“新建歌词默认颜色”（不影响当前歌词渲染）
+        /// </summary>
+        private void SetDefaultLyricsColor(byte r, byte g, byte b)
+        {
+            string hexColor = $"#{r:X2}{g:X2}{b:X2}";
+            _configManager.DefaultLyricsColor = hexColor;
         }
 
         // ============================================
@@ -2336,9 +2345,8 @@ namespace ImageColorChanger.UI
                 Height = 36
             };
 
-            // 获取当前颜色
-            var currentColor = (GetActiveLyricsEditor().Foreground as System.Windows.Media.SolidColorBrush)?.Color 
-                ?? System.Windows.Media.Colors.White;
+            // 右键颜色仅维护“新建歌词默认色”
+            var defaultColor = HexToColor(_configManager.DefaultLyricsColor);
 
             // 预设颜色
             var builtInPresets = new List<Core.ColorPreset>
@@ -2354,17 +2362,17 @@ namespace ImageColorChanger.UI
                 {
                     Header = preset.Name,
                     IsCheckable = true,
-                    IsChecked = currentColor.R == preset.R && 
-                               currentColor.G == preset.G && 
-                               currentColor.B == preset.B,
+                    IsChecked = defaultColor.R == preset.R &&
+                               defaultColor.G == preset.G &&
+                               defaultColor.B == preset.B,
                     Height = 36
                 };
 
                 var currentPreset = preset;
                 colorItem.Click += (s, args) =>
                 {
-                    SetLyricsColor(currentPreset.R, currentPreset.G, currentPreset.B);
-                    ShowStatus($"✨ 全局歌词颜色: {currentPreset.Name}");
+                    SetDefaultLyricsColor(currentPreset.R, currentPreset.G, currentPreset.B);
+                    ShowStatus($"✨ 新建歌词默认颜色: {currentPreset.Name}");
                 };
 
                 colorMenuItem.Items.Add(colorItem);
@@ -2379,7 +2387,7 @@ namespace ImageColorChanger.UI
                 Header = "自定义颜色...",
                 Height = 36
             };
-            customColorItem.Click += (s, args) => OpenLyricsCustomColorPicker();
+            customColorItem.Click += (s, args) => OpenLyricsCustomColorPicker(forDefaultOnly: true);
             colorMenuItem.Items.Add(customColorItem);
 
             contextMenu.Items.Add(colorMenuItem);
@@ -2481,6 +2489,7 @@ namespace ImageColorChanger.UI
                 _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                 EnsureLyricsProjectManager();
                 LogLyricsSaveDebug($"[Load-Begin] targetProjectId={_currentLyricsProjectId}, db={GetLyricsDbPathSafe()}");
+                string loadedSingleColorHex = _configManager.DefaultLyricsColor;
 
                 if (_currentLyricsProjectId <= 0)
                 {
@@ -2527,6 +2536,7 @@ namespace ImageColorChanger.UI
                     if (TryParseModeLyricsContent(content, out var modeData))
                     {
                         LyricsTextBox.Text = modeData.SingleContent ?? "";
+                        loadedSingleColorHex = NormalizeLyricsColorHex(modeData.SingleColorHex, _configManager.DefaultLyricsColor);
                         if (modeData.SplitContents != null && modeData.SplitContents.Count > 0)
                         {
                             _lyricsSplitPages.AddRange(modeData.SplitContents.Where(p => p != null));
@@ -2538,7 +2548,8 @@ namespace ImageColorChanger.UI
                         NormalizeSplitPages();
                         _lyricsCurrentPageIndex = 0;
                         SetLyricsSplitMode((ViewSplitMode)modeData.ActiveMode, keepTextBridge: false);
-                        _lyricsSliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 3);
+                        _lyricsSliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 99);
+                        _lyricsSliceRuleFromCustom = modeData.SliceRuleFromCustom;
                         _lyricsCurrentSliceIndex = Math.Max(0, modeData.SliceCurrentIndex);
                         _lyricsSliceModeEnabled = modeData.SliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSizeForProject(modeData.MainScreenFontSize);
@@ -2559,6 +2570,7 @@ namespace ImageColorChanger.UI
                         SetLyricsSplitMode(loadedMode, keepTextBridge: false);
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceRuleFromCustom = false;
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
@@ -2573,6 +2585,7 @@ namespace ImageColorChanger.UI
                         SetLyricsSplitMode((ViewSplitMode)splitData.SplitMode, keepTextBridge: false);
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceRuleFromCustom = false;
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
@@ -2588,6 +2601,7 @@ namespace ImageColorChanger.UI
                         LyricsSplitTextBox4.Text = "";
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceRuleFromCustom = false;
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
@@ -2605,15 +2619,12 @@ namespace ImageColorChanger.UI
                         UpdateLyricsProjectionFontSizeDisplay();
                     }
 
-                    // 始终使用全局默认颜色（不从数据库读取）
-                    var textColor = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor));
+                    // 单画面：优先使用歌曲自身保存的颜色；未保存时回退到全局默认色。
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                     {
+                        var textColor = new System.Windows.Media.SolidColorBrush(HexToColor(loadedSingleColorHex));
                         ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = textColor);
                     }
-//#if DEBUG
-//                    Debug.WriteLine($"[歌词-颜色] 使用全局默认颜色: {_configManager.DefaultLyricsColor}");
-//#endif
 
                     // 恢复对齐方式
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
@@ -2628,6 +2639,11 @@ namespace ImageColorChanger.UI
                     }
 
                     ApplyLyricsTheme(loadedThemeName, loadedThemeHex, showStatus: false);
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        var textColor = new System.Windows.Media.SolidColorBrush(HexToColor(loadedSingleColorHex));
+                        ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = textColor);
+                    }
 
 //#if DEBUG
 //                    Debug.WriteLine($"[歌词] 加载项目完成: {_currentLyricsProject.Name}");
@@ -2668,11 +2684,13 @@ namespace ImageColorChanger.UI
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
                     _lyricsSliceModeEnabled = false;
                     _lyricsSliceLinesPerPage = 2;
+                    _lyricsSliceRuleFromCustom = false;
                     _lyricsCurrentSliceIndex = 0;
                     _lyricsThemeName = "黑色";
                     _lyricsThemeBackgroundHex = "#000000";
                     EnforceMainLyricsEditorFontSize();
                     ApplyLyricsTheme("黑色", "#000000", showStatus: false);
+                    ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
 
                     // 初始化对齐按钮状态
                     UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -2737,6 +2755,7 @@ namespace ImageColorChanger.UI
             LyricsSplitTextBox4.Text = "";
             _lyricsSliceModeEnabled = false;
             _lyricsSliceLinesPerPage = 2;
+            _lyricsSliceRuleFromCustom = false;
             _lyricsCurrentSliceIndex = 0;
             _lyricsThemeName = "黑色";
             _lyricsThemeBackgroundHex = "#000000";
@@ -2747,6 +2766,7 @@ namespace ImageColorChanger.UI
             UpdateLyricsProjectionFontSizeDisplay();
             EnforceMainLyricsEditorFontSize();
             ApplyLyricsTheme("黑色", "#000000", showStatus: false);
+            ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
             
             // 初始化对齐按钮状态
             UpdateAlignmentButtonsState(TextAlignment.Center);
@@ -2791,6 +2811,7 @@ namespace ImageColorChanger.UI
                 var modeData = new LyricsModeContentData
                 {
                     SingleContent = GetSingleLyricsContentForPersistence(),
+                    SingleColorHex = ColorToHex((LyricsTextBox.Foreground as SolidColorBrush)?.Color ?? HexToColor(_configManager.DefaultLyricsColor)),
                     SplitContent = splitSnapshot,
                     SplitContents = _lyricsSplitPages
                         .Where(p => p != null)
@@ -2808,7 +2829,8 @@ namespace ImageColorChanger.UI
                         .ToList(),
                     ActiveMode = _lyricsSplitMode,
                     SliceModeEnabled = _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single,
-                    SliceLinesPerPage = Math.Clamp(_lyricsSliceLinesPerPage, 1, 3),
+                    SliceLinesPerPage = Math.Clamp(_lyricsSliceLinesPerPage, 1, 99),
+                    SliceRuleFromCustom = _lyricsSliceRuleFromCustom,
                     SliceCurrentIndex = Math.Max(0, _lyricsCurrentSliceIndex),
                     MainScreenFontSize = Math.Clamp(_lyricsMainScreenFontSize, MinMainLyricsFontSize, MaxMainLyricsFontSize),
                     ThemeMode = string.Equals(_lyricsThemeName, "白色", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
@@ -3002,6 +3024,21 @@ namespace ImageColorChanger.UI
             }
 
             return System.Windows.Media.Colors.White;
+        }
+
+        private string NormalizeLyricsColorHex(string candidate, string fallback)
+        {
+            string value = string.IsNullOrWhiteSpace(candidate) ? fallback : candidate;
+            try
+            {
+                var color = HexToColor(value);
+                return ColorToHex(color);
+            }
+            catch
+            {
+                var color = HexToColor(fallback);
+                return ColorToHex(color);
+            }
         }
 
         // ============================================

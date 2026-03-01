@@ -706,9 +706,15 @@ namespace ImageColorChanger.UI
                             // 非媒体文件夹显示手动排序图标
                             (iconKind, iconColor) = _originalManager.GetFolderIconKind(folderId.Value, true);
                         }
+
+                        string folderHighlightColor = DatabaseManagerService.GetFolderHighlightColor(folderId.Value);
+                        iconColor = ResolveFolderHighlightIconColor(folderId.Value, folderHighlightColor, iconColor);
                         
                         folderItem.IconKind = iconKind;
                         folderItem.IconColor = iconColor;
+                        folderItem.UseCustomIconColor = !string.IsNullOrWhiteSpace(folderHighlightColor);
+
+                        // [Debug][FolderHighlight] DragRefresh log disabled after verification.
                     }
                 }
                 else

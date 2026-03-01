@@ -268,6 +268,14 @@ namespace ImageColorChanger.UI
             var highlightColorItem = new MenuItem { Header = "标记高亮色" };
             highlightColorItem.Click += (s, args) => SetFolderHighlightColor(item);
             contextMenu.Items.Add(highlightColorItem);
+
+            if (folderMenuState.HasHighlightColor)
+            {
+                var clearHighlightColorItem = new MenuItem { Header = "取消高亮色" };
+                clearHighlightColorItem.Click += (s, args) => ClearFolderHighlightColor(item);
+                contextMenu.Items.Add(clearHighlightColorItem);
+            }
+
             contextMenu.Items.Add(new Separator());
 
             var deleteItem = new MenuItem { Header = "删除文件夹" };

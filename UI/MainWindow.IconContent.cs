@@ -23,10 +23,17 @@ namespace ImageColorChanger.UI
                 StrokeEndLineCap = PenLineCap.Round,
                 StrokeLineJoin = PenLineJoin.Round,
                 Fill = System.Windows.Media.Brushes.Transparent,
-                Stroke = stroke ?? (FindResource("BrushIconDefault") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 6, 0)
             };
+            if (stroke != null)
+            {
+                path.Stroke = stroke;
+            }
+            else
+            {
+                path.SetResourceReference(Shape.StrokeProperty, "BrushIconDefault");
+            }
 
             panel.Children.Add(path);
             panel.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
@@ -35,7 +42,7 @@ namespace ImageColorChanger.UI
 
         private object BuildIconOnlyContent(string iconKey, MediaBrush stroke = null, double size = 16)
         {
-            return new Path
+            var path = new Path
             {
                 Data = FindResource(iconKey) as Geometry,
                 Width = size,
@@ -46,10 +53,20 @@ namespace ImageColorChanger.UI
                 StrokeEndLineCap = PenLineCap.Round,
                 StrokeLineJoin = PenLineJoin.Round,
                 Fill = System.Windows.Media.Brushes.Transparent,
-                Stroke = stroke ?? (FindResource("BrushIconDefault") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             };
+
+            if (stroke != null)
+            {
+                path.Stroke = stroke;
+            }
+            else
+            {
+                path.SetResourceReference(Shape.StrokeProperty, "BrushIconDefault");
+            }
+
+            return path;
         }
 
         private void SetProjectionButtonContent(bool isActive)

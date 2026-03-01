@@ -14,6 +14,9 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private const int MinLyricsSliceLinesPerPage = 1;
+        private const int MaxLyricsSliceLinesPerPage = 99;
+
         private sealed class LyricsSliceViewItem
         {
             public int Index { get; set; }
@@ -84,7 +87,7 @@ namespace ImageColorChanger.UI
                 {
                     return;
                 }
-                bool selected = _lyricsSliceLinesPerPage == value;
+                bool selected = !_lyricsSliceRuleFromCustom && _lyricsSliceLinesPerPage == value;
                 btn.Background = selected ? active : inactive;
                 btn.BorderBrush = selected ? borderActive : borderInactive;
             }
@@ -92,6 +95,15 @@ namespace ImageColorChanger.UI
             Apply(BtnLyricsSliceRule1, 1);
             Apply(BtnLyricsSliceRule2, 2);
             Apply(BtnLyricsSliceRule3, 3);
+            Apply(BtnLyricsSliceRule4, 4);
+
+            if (BtnLyricsSliceRuleCustom != null)
+            {
+                bool customSelected = _lyricsSliceRuleFromCustom || _lyricsSliceLinesPerPage < 1 || _lyricsSliceLinesPerPage > 4;
+                BtnLyricsSliceRuleCustom.Background = customSelected ? active : inactive;
+                BtnLyricsSliceRuleCustom.BorderBrush = customSelected ? borderActive : borderInactive;
+                BtnLyricsSliceRuleCustom.Content = customSelected ? $"{_lyricsSliceLinesPerPage}/切" : "自定义";
+            }
         }
 
         private void UpdateLyricsSliceStateText()
@@ -154,10 +166,11 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void SetLyricsSliceRule(int linesPerPage)
+        private void SetLyricsSliceRule(int linesPerPage, bool fromCustom = false)
         {
-            linesPerPage = Math.Clamp(linesPerPage, 1, 3);
+            linesPerPage = Math.Clamp(linesPerPage, MinLyricsSliceLinesPerPage, MaxLyricsSliceLinesPerPage);
             _lyricsSliceLinesPerPage = linesPerPage;
+            _lyricsSliceRuleFromCustom = fromCustom;
             UpdateSliceRuleButtonsVisual();
 
             if (_lyricsSliceModeEnabled)
@@ -331,9 +344,35 @@ namespace ImageColorChanger.UI
             ShowStatus(_lyricsSliceModeEnabled ? " 已启用切片模式" : " 已关闭切片模式");
         }
 
-        private void BtnLyricsSliceRule1_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(1);
-        private void BtnLyricsSliceRule2_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(2);
-        private void BtnLyricsSliceRule3_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(3);
+        private void BtnLyricsSliceRule1_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(1, fromCustom: false);
+        private void BtnLyricsSliceRule2_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(2, fromCustom: false);
+        private void BtnLyricsSliceRule3_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(3, fromCustom: false);
+        private void BtnLyricsSliceRule4_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(4, fromCustom: false);
+
+        private void BtnLyricsSliceRuleCustom_Click(object sender, RoutedEventArgs e)
+        {
+            ShowStatus("直接滚动鼠标即可切换每片行数（Shift=步进5）");
+        }
+
+        private void BtnLyricsSliceRuleCustom_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            int delta = e.Delta > 0 ? 1 : -1;
+            int next = Math.Clamp(
+                _lyricsSliceLinesPerPage + delta,
+                MinLyricsSliceLinesPerPage,
+                MaxLyricsSliceLinesPerPage);
+
+            if (next != _lyricsSliceLinesPerPage)
+            {
+                SetLyricsSliceRule(next, fromCustom: true);
+                if (!_lyricsSliceModeEnabled)
+                {
+                    ShowStatus($"切片规则：每片 {next} 行");
+                }
+            }
+
+            e.Handled = true;
+        }
 
         private void BtnLyricsSliceGenerate_Click(object sender, RoutedEventArgs e)
         {
