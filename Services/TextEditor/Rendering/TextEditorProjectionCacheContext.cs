@@ -10,5 +10,12 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
         public string SplitDisplayMode { get; init; }
         public string BackgroundColor { get; init; }
         public string BackgroundImagePath { get; init; }
+        public bool BiblePopupOverlayVisible { get; init; }
+        public string BiblePopupOverlayReference { get; init; }
+        public string BiblePopupOverlayContent { get; init; }
+        public string BiblePopupOverlayPosition { get; init; }
+        public string BiblePopupOverlayBackgroundColor { get; init; }
+        public int BiblePopupOverlayBackgroundOpacity { get; init; }
+        public double BiblePopupOverlayScrollOffset { get; init; }
     }
 }

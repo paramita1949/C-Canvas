@@ -4,6 +4,9 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SkiaSharp;
+using ImageColorChanger.Core;
+using WpfColor = System.Windows.Media.Color;
+using WpfFontFamily = System.Windows.Media.FontFamily;
 
 namespace ImageColorChanger.Managers
 {
@@ -12,6 +15,10 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public partial class ProjectionManager
     {
+        public bool HasBibleVersePopup =>
+            _projectionBiblePopupBorder != null &&
+            _projectionBiblePopupBorder.Visibility == Visibility.Visible;
+
         /// <summary>
         /// 设置投影窗口媒体文件名显示
         /// </summary>
@@ -36,6 +43,42 @@ namespace ImageColorChanger.Managers
             }
 
             RunOnMainDispatcher(() => { UpdateBibleTitleOnUi(title, visible); });
+        }
+
+        /// <summary>
+        /// 显示圣经弹窗（叠加在投影层，不切换模式）。
+        /// </summary>
+        public void ShowBibleVersePopup(string reference, string content, BibleTextInsertConfig config, int autoHideSeconds = 10)
+        {
+            if (_projectionWindow == null ||
+                _projectionBiblePopupBorder == null ||
+                _projectionBiblePopupReferenceText == null ||
+                _projectionBiblePopupContentText == null)
+            {
+                return;
+            }
+
+            RunOnMainDispatcher(() =>
+            {
+                ApplyBibleVersePopupStyle(config);
+                _projectionBiblePopupReferenceText.Text = reference ?? string.Empty;
+                _projectionBiblePopupContentText.Text = content ?? string.Empty;
+                _projectionBiblePopupBorder.Visibility = Visibility.Visible;
+                StartBibleVersePopupAutoHide(autoHideSeconds);
+            });
+        }
+
+        /// <summary>
+        /// 手动隐藏圣经弹窗。
+        /// </summary>
+        public void HideBibleVersePopup()
+        {
+            if (_projectionWindow == null || _projectionBiblePopupBorder == null)
+            {
+                return;
+            }
+
+            RunOnMainDispatcher(HideBibleVersePopupOnUi);
         }
 
         /// <summary>
@@ -206,6 +249,118 @@ namespace ImageColorChanger.Managers
 
             Marshal.Copy(pixels, 0, ptr, pixels.Length);
             return skBitmap;
+        }
+
+        private void ProjectionBiblePopupCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            HideBibleVersePopup();
+        }
+
+        private void ApplyBibleVersePopupStyle(BibleTextInsertConfig config)
+        {
+            config ??= new BibleTextInsertConfig();
+
+            if (_projectionBiblePopupReferenceText != null)
+            {
+                _projectionBiblePopupReferenceText.FontFamily = new WpfFontFamily(config.FontFamily);
+                _projectionBiblePopupReferenceText.FontSize = config.TitleStyle.FontSize;
+                _projectionBiblePopupReferenceText.FontWeight = config.TitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupReferenceText.Foreground = BuildSolidBrush(config.TitleStyle.ColorHex, 100);
+            }
+
+            if (_projectionBiblePopupContentText != null)
+            {
+                _projectionBiblePopupContentText.FontFamily = new WpfFontFamily(config.FontFamily);
+                _projectionBiblePopupContentText.FontSize = config.VerseStyle.FontSize;
+                _projectionBiblePopupContentText.FontWeight = config.VerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupContentText.Foreground = BuildSolidBrush(config.VerseStyle.ColorHex, 100);
+
+                double lineHeight = config.VerseStyle.FontSize * Math.Max(1.0, config.VerseStyle.VerseSpacing);
+                _projectionBiblePopupContentText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+                _projectionBiblePopupContentText.LineHeight = lineHeight;
+            }
+
+            if (_projectionBiblePopupBorder != null)
+            {
+                _projectionBiblePopupBorder.Background = BuildSolidBrush(
+                    config.PopupBackgroundColorHex,
+                    Math.Clamp(config.PopupBackgroundOpacity, 0, 100));
+                _projectionBiblePopupBorder.BorderBrush = new SolidColorBrush(WpfColor.FromArgb(60, 255, 255, 255));
+                ApplyBibleVersePopupPosition(config.PopupPosition);
+            }
+        }
+
+        private void ApplyBibleVersePopupPosition(BiblePopupPosition position)
+        {
+            if (_projectionBiblePopupBorder == null)
+            {
+                return;
+            }
+
+            switch (position)
+            {
+                case BiblePopupPosition.Top:
+                    _projectionBiblePopupBorder.VerticalAlignment = VerticalAlignment.Top;
+                    _projectionBiblePopupBorder.Margin = new Thickness(30, 0, 30, 0);
+                    break;
+                case BiblePopupPosition.Center:
+                    _projectionBiblePopupBorder.VerticalAlignment = VerticalAlignment.Center;
+                    _projectionBiblePopupBorder.Margin = new Thickness(30, 0, 30, 0);
+                    break;
+                default:
+                    _projectionBiblePopupBorder.VerticalAlignment = VerticalAlignment.Bottom;
+                    _projectionBiblePopupBorder.Margin = new Thickness(30, 0, 30, 40);
+                    break;
+            }
+
+            if (_projectionBiblePopupContentScrollViewer != null && _projectionBiblePopupContentText != null)
+            {
+                // 最多显示 3 行正文，多余内容通过滚轮滚动。
+                _projectionBiblePopupContentScrollViewer.MaxHeight = _projectionBiblePopupContentText.LineHeight * 3.0;
+                _projectionBiblePopupContentScrollViewer.ScrollToVerticalOffset(0);
+            }
+        }
+
+        private void StartBibleVersePopupAutoHide(int autoHideSeconds)
+        {
+            int safeSeconds = Math.Max(1, autoHideSeconds);
+            if (_projectionBiblePopupTimer == null)
+            {
+                _projectionBiblePopupTimer = new System.Windows.Threading.DispatcherTimer();
+                _projectionBiblePopupTimer.Tick += (_, __) => HideBibleVersePopupOnUi();
+            }
+
+            _projectionBiblePopupTimer.Stop();
+            _projectionBiblePopupTimer.Interval = TimeSpan.FromSeconds(safeSeconds);
+            _projectionBiblePopupTimer.Start();
+        }
+
+        private void HideBibleVersePopupOnUi()
+        {
+            _projectionBiblePopupTimer?.Stop();
+            if (_projectionBiblePopupBorder != null)
+            {
+                _projectionBiblePopupBorder.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private static SolidColorBrush BuildSolidBrush(string hexColor, int opacityPercent)
+        {
+            WpfColor baseColor;
+            try
+            {
+                baseColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(hexColor ?? "#000000");
+            }
+            catch
+            {
+                baseColor = WpfColor.FromRgb(0, 0, 0);
+            }
+
+            byte alpha = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+            var color = WpfColor.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B);
+            return new SolidColorBrush(color);
         }
     }
 }

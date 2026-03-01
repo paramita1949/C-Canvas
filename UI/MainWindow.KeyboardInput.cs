@@ -19,6 +19,13 @@ namespace ImageColorChanger.UI
 #endif
             var key = ResolveEffectiveKey(e);
 
+            if (key == Key.Escape && HasAnyBibleVersePopupVisible())
+            {
+                HideBibleVersePopupIfVisible();
+                e.Handled = true;
+                return;
+            }
+
             if (_isLyricsMode && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 // 让歌词编辑框自身处理 Ctrl+C/X/V/A，避免发布版路由差异导致行为不一致。

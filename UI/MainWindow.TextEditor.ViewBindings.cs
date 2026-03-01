@@ -41,6 +41,13 @@ namespace ImageColorChanger.UI
         private WpfControls.Button BtnBibleStyleIcon => TextEditorSectionView?.BtnBibleStyleIconButton;
         private WpfControls.Canvas EditorCanvas => TextEditorSectionView?.EditorCanvasControl;
         private WpfControls.Grid EditorCanvasContainer => TextEditorSectionView?.EditorCanvasContainerControl;
+        private WpfControls.Border MainBiblePopupBorder => TextEditorSectionView?.MainBiblePopupBorderControl;
+        private WpfControls.TextBlock MainBiblePopupReferenceText => TextEditorSectionView?.MainBiblePopupReferenceTextControl;
+        private WpfControls.ScrollViewer MainBiblePopupContentScrollViewer => TextEditorSectionView?.MainBiblePopupContentScrollViewerControl;
+        private WpfControls.TextBlock MainBiblePopupContentText => TextEditorSectionView?.MainBiblePopupContentTextControl;
+        private WpfControls.Button MainBiblePopupCloseButton => TextEditorSectionView?.MainBiblePopupCloseButtonControl;
+        private WpfControls.Image MainBiblePopupOverlayImage => TextEditorSectionView?.MainBiblePopupOverlayImageControl;
+        private WpfControls.Button MainBiblePopupOverlayCloseButton => TextEditorSectionView?.MainBiblePopupOverlayCloseButtonControl;
         private WpfControls.Button BtnFloatingBorder => TextEditorSectionView?.BtnFloatingBorderButton;
         private WpfControls.Button BtnFloatingBackground => TextEditorSectionView?.BtnFloatingBackgroundButton;
         private WpfControls.Button BtnFloatingShadow => TextEditorSectionView?.BtnFloatingShadowButton;
@@ -109,6 +116,8 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(SlideListBox_KeyDown), SlideListBox_KeyDown);
             BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(EditorCanvas_MouseDown), EditorCanvas_MouseDown);
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(EditorCanvas_KeyDown), EditorCanvas_KeyDown);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(MainBiblePopupClose_Click), MainBiblePopupClose_Click);
+            BindTextEditorEvent<System.Windows.Input.MouseWheelEventArgs>(nameof(MainBiblePopupOverlayImage_PreviewMouseWheel), MainBiblePopupOverlayImage_PreviewMouseWheel);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnBibleInsertStyleSettings_Click), BtnBibleInsertStyleSettings_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnFloatingBorder_Click), BtnFloatingBorder_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnFloatingBackground_Click), BtnFloatingBackground_Click);
@@ -125,6 +134,7 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(SidePanelDragHandle_MouseLeftButtonUp), SidePanelDragHandle_MouseLeftButtonUp);
             BindTextEditorEvent<RoutedEventArgs>(nameof(SidePanelHeaderClose_Click), SidePanelHeaderClose_Click);
             BindTextEditorEvent<System.Windows.Input.KeyEventArgs>(nameof(TextEditorPanel_KeyDown), TextEditorPanel_KeyDown);
+            BindTextEditorEvent<System.Windows.Input.MouseWheelEventArgs>(nameof(TextEditorPanel_PreviewMouseWheel), TextEditorPanel_PreviewMouseWheel);
             BindTextEditorEvent<System.Windows.Input.MouseButtonEventArgs>(nameof(TextEditorPanel_PreviewMouseDown), TextEditorPanel_PreviewMouseDown);
 
             TextEditorSectionView.EventForwarder = DispatchTextEditorSectionEvent;

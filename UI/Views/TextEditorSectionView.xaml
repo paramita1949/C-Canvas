@@ -4,6 +4,7 @@
              xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls">
                 <Grid x:Name="TextEditorPanel" Visibility="Collapsed" Background="#F0F0F0"
                       Focusable="True" PreviewKeyDown="TextEditorPanel_KeyDown"
+                      PreviewMouseWheel="TextEditorPanel_PreviewMouseWheel"
                       PreviewMouseDown="TextEditorPanel_PreviewMouseDown"
                       Panel.ZIndex="100">
                     <Grid.RowDefinitions>
@@ -601,7 +602,7 @@
                         <Grid Grid.Column="2" Background="#F5F5F5">
                             <Border Background="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
                                 <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
-                                    <Grid x:Name="EditorCanvasContainer" Width="1600" Height="900" Background="White">
+                                    <Grid x:Name="EditorCanvasContainer" Width="1600" Height="900" Background="White" ClipToBounds="True">
                             <Canvas x:Name="EditorCanvas"
                                     Width="1600" Height="900"
                                     Background="White"
@@ -614,6 +615,109 @@
                                 <!-- 背景图通过 Canvas.Background 的 ImageBrush 设置，不再使用 Image 控件 -->
                                 <!-- 文本框将动态添加到这里 -->
                             </Canvas>
+
+                            <!-- 圣经弹窗主屏预览层：与投影同源的 Skia 叠加位图 -->
+                            <Image x:Name="MainBiblePopupOverlayImage"
+                                   Visibility="Collapsed"
+                                   Stretch="Fill"
+                                   IsHitTestVisible="True"
+                                   PreviewMouseWheel="MainBiblePopupOverlayImage_PreviewMouseWheel"
+                                   Panel.ZIndex="379"/>
+
+                            <!-- 圣经弹窗关闭按钮（仅交互，不参与文字渲染） -->
+                            <Button x:Name="MainBiblePopupOverlayCloseButton"
+                                    Visibility="Collapsed"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="0"
+                                    Background="#80000000"
+                                    BorderBrush="#64FFFFFF"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    Panel.ZIndex="381"
+                                    Click="MainBiblePopupClose_Click">
+                                <Path Data="M18 6 L6 18 M6 6 L18 18"
+                                      Stroke="White"
+                                      StrokeThickness="2.2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Stretch="None"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                            </Button>
+
+                            <!-- 圣经弹窗（主屏：严格限制在幻灯片画布内） -->
+                            <Border x:Name="MainBiblePopupBorder"
+                                    Visibility="Collapsed"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Bottom"
+                                    Margin="30,0,30,40"
+                                    MaxWidth="1500"
+                                    Padding="36,24,16,24"
+                                    Background="#FF000000"
+                                    BorderBrush="#3CFFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="16"
+                                    Panel.ZIndex="380">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Vertical">
+                                        <TextBlock x:Name="MainBiblePopupReferenceText"
+                                                   Text=""
+                                                   FontFamily="Microsoft YaHei UI"
+                                                   FontSize="42"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#FFD54F"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,10"/>
+                                        <ScrollViewer x:Name="MainBiblePopupContentScrollViewer"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      CanContentScroll="True"
+                                                      MaxHeight="210">
+                                            <TextBlock x:Name="MainBiblePopupContentText"
+                                                       Text=""
+                                                       FontFamily="Microsoft YaHei UI"
+                                                       FontSize="56"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       TextWrapping="Wrap"
+                                                       LineStackingStrategy="BlockLineHeight"
+                                                       LineHeight="70"/>
+                                        </ScrollViewer>
+                                    </StackPanel>
+
+                                    <Button x:Name="MainBiblePopupCloseButton"
+                                            Grid.Column="1"
+                                            Width="36"
+                                            Height="36"
+                                            Padding="0"
+                                            Margin="12,0,0,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Background="#80000000"
+                                            BorderBrush="#64FFFFFF"
+                                            BorderThickness="1"
+                                            Cursor="Hand"
+                                            Click="MainBiblePopupClose_Click">
+                                        <Path Data="M18 6 L6 18 M6 6 L18 18"
+                                              Stroke="White"
+                                              StrokeThickness="2.2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              Stretch="None"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                                    </Button>
+                                </Grid>
+                            </Border>
                             
                             <!--  圣经经文工具栏（悬浮在画布上方中央） -->
                             <Popup x:Name="BibleToolbar"

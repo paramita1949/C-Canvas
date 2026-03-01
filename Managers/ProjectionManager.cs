@@ -15,6 +15,7 @@ using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 // using Screen = System.Windows.Forms.Screen;
 using LibVLCSharp.WPF;
 using Microsoft.Extensions.Caching.Memory;
+using System.Windows.Threading;
 namespace ImageColorChanger.Managers
 {
     /// <summary>
@@ -61,6 +62,12 @@ namespace ImageColorChanger.Managers
         // 圣经投影相关
         private Border _projectionBibleTitleBorder;  // 圣经标题容器（固定在顶部）
         private TextBlock _projectionBibleTitleText;  // 圣经标题文本
+        private Border _projectionBiblePopupBorder;  // 圣经弹窗容器
+        private TextBlock _projectionBiblePopupReferenceText; // 圣经弹窗引用文本
+        private ScrollViewer _projectionBiblePopupContentScrollViewer; // 圣经弹窗正文滚动容器
+        private TextBlock _projectionBiblePopupContentText; // 圣经弹窗正文文本
+        private System.Windows.Controls.Button _projectionBiblePopupCloseButton; // 圣经弹窗关闭按钮
+        private DispatcherTimer _projectionBiblePopupTimer; // 圣经弹窗自动关闭计时器
         
         // VisualBrush投影相关（圣经经文）
         private System.Windows.Shapes.Rectangle _projectionVisualBrushRect;  // 用于显示VisualBrush的矩形

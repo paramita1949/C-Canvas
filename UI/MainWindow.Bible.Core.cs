@@ -903,7 +903,7 @@ namespace ImageColorChanger.UI
                     Debug.WriteLine($" [圣经双击] 双击章节，自动插入整章: BookId={bookId}, Chapter={chapter}, 节范围: 1-{verseCount}");
                     #endif
                     
-                    await CreateBibleTextElements(bookId, chapter, 1, verseCount);
+                    await HandleBibleVerseSelectionInSlideModeAsync(bookId, chapter, 1, verseCount);
                 }
                 else
                 {
@@ -969,7 +969,7 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($" [圣经双击] 双击起始节，自动插入单节: BookId={bookId}, Chapter={chapter}, Verse={startVerse}");
                 //#endif
                 
-                await CreateBibleTextElements(bookId, chapter, startVerse, startVerse);
+                await HandleBibleVerseSelectionInSlideModeAsync(bookId, chapter, startVerse, startVerse);
             }
             else
             {
@@ -1124,7 +1124,7 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($" [圣经] 在幻灯片编辑模式，自动创建文本框元素");
                 //#endif
 
-                await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
+                await HandleBibleVerseSelectionInSlideModeAsync(bookId, chapter, startVerse, endVerse);
                 return;
             }
 

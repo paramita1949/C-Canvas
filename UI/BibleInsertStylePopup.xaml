@@ -32,6 +32,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
                 <!-- 标题 -->
@@ -290,6 +292,73 @@
                                       VerticalAlignment="Center"
                                       Checked="StyleChanged"
                                       Unchecked="StyleChanged"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 弹窗样式（位置 背景色 透明度） -->
+                <Border Grid.Row="10"
+                        Background="#3E3E42"
+                        CornerRadius="4"
+                        Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="弹窗经文"
+                                   FontSize="12"
+                                   Foreground="#CCCCCC"
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="5"/>
+                                <ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="15"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="5"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="15"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="5"/>
+                                <ColumnDefinition Width="80"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="位置:"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="2"
+                                      x:Name="CmbPopupPosition"
+                                      Height="26"
+                                      FontSize="11"
+                                      SelectionChanged="StyleChanged">
+                                <ComboBoxItem Content="顶部" Tag="Top"/>
+                                <ComboBoxItem Content="居中" Tag="Center"/>
+                                <ComboBoxItem Content="底部" Tag="Bottom"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Column="4"
+                                       Text="背景:"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="6"
+                                    x:Name="BtnPopupBackgroundColor"
+                                    Height="26"
+                                    Content="选择颜色"
+                                    FontSize="11"
+                                    Click="BtnPopupBackgroundColor_Click"/>
+
+                            <TextBlock Grid.Column="8"
+                                       Text="透明:"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="10"
+                                      x:Name="CmbPopupBackgroundOpacity"
+                                      Height="26"
+                                      FontSize="11"
+                                      SelectionChanged="StyleChanged"/>
                         </Grid>
                     </StackPanel>
                 </Border>

@@ -37,6 +37,13 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnBibleStyleIconButton => BtnBibleStyleIcon;
         public System.Windows.Controls.Canvas EditorCanvasControl => EditorCanvas;
         public System.Windows.Controls.Grid EditorCanvasContainerControl => EditorCanvasContainer;
+        public System.Windows.Controls.Border MainBiblePopupBorderControl => MainBiblePopupBorder;
+        public System.Windows.Controls.TextBlock MainBiblePopupReferenceTextControl => MainBiblePopupReferenceText;
+        public System.Windows.Controls.ScrollViewer MainBiblePopupContentScrollViewerControl => MainBiblePopupContentScrollViewer;
+        public System.Windows.Controls.TextBlock MainBiblePopupContentTextControl => MainBiblePopupContentText;
+        public System.Windows.Controls.Button MainBiblePopupCloseButtonControl => MainBiblePopupCloseButton;
+        public System.Windows.Controls.Image MainBiblePopupOverlayImageControl => MainBiblePopupOverlayImage;
+        public System.Windows.Controls.Button MainBiblePopupOverlayCloseButtonControl => MainBiblePopupOverlayCloseButton;
         public System.Windows.Controls.Button BtnFloatingBorderButton => BtnFloatingBorder;
         public System.Windows.Controls.Button BtnFloatingBackgroundButton => BtnFloatingBackground;
         public System.Windows.Controls.Button BtnFloatingShadowButton => BtnFloatingShadow;
@@ -100,6 +107,8 @@ namespace ImageColorChanger.UI.Views
         private void SlideListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_KeyDown), sender, e);
         private void EditorCanvas_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_MouseDown), sender, e);
         private void EditorCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(EditorCanvas_KeyDown), sender, e);
+        private void MainBiblePopupClose_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MainBiblePopupClose_Click), sender, e);
+        private void MainBiblePopupOverlayImage_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e) => ForwardToMainWindow(nameof(MainBiblePopupOverlayImage_PreviewMouseWheel), sender, e);
         private void BtnBibleInsertStyleSettings_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnBibleInsertStyleSettings_Click), sender, e);
         private void BtnFloatingBorder_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnFloatingBorder_Click), sender, e);
         private void BtnFloatingBackground_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnFloatingBackground_Click), sender, e);
@@ -116,6 +125,7 @@ namespace ImageColorChanger.UI.Views
         private void SidePanelDragHandle_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(SidePanelDragHandle_MouseLeftButtonUp), sender, e);
         private void SidePanelHeaderClose_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(SidePanelHeaderClose_Click), sender, e);
         private void TextEditorPanel_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => ForwardToMainWindow(nameof(TextEditorPanel_KeyDown), sender, e);
+        private void TextEditorPanel_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e) => ForwardToMainWindow(nameof(TextEditorPanel_PreviewMouseWheel), sender, e);
         private void TextEditorPanel_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(TextEditorPanel_PreviewMouseDown), sender, e);
     }
 }

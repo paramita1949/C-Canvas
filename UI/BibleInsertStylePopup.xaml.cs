@@ -97,6 +97,19 @@ namespace ImageColorChanger.UI
             _config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
 
             _config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
+            var popupPosition = _dbManager.GetBibleInsertConfigValue("popup_position", "Bottom");
+            _config.PopupPosition = popupPosition switch
+            {
+                "Top" => BiblePopupPosition.Top,
+                "Center" => BiblePopupPosition.Center,
+                _ => BiblePopupPosition.Bottom
+            };
+            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "100"), out var popupOpacity))
+            {
+                popupOpacity = 100;
+            }
+            _config.PopupBackgroundOpacity = Math.Clamp(popupOpacity, 0, 100);
             
             //#if DEBUG
             //Debug.WriteLine($"[BibleInsertStylePopup] 从数据库加载配置");
@@ -198,6 +211,16 @@ namespace ImageColorChanger.UI
             CmbVerseNumberSize.ItemsSource = verseNumberSizes;
             CmbVerseNumberSize.SelectedItem = (int)_config.VerseNumberStyle.FontSize;
             ChkVerseNumberBold.IsChecked = _config.VerseNumberStyle.IsBold;
+
+            CmbPopupPosition.SelectedIndex = _config.PopupPosition switch
+            {
+                BiblePopupPosition.Top => 0,
+                BiblePopupPosition.Center => 1,
+                _ => 2
+            };
+            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
+            CmbPopupBackgroundOpacity.ItemsSource = Enumerable.Range(0, 21).Select(i => i * 5).ToList();
+            CmbPopupBackgroundOpacity.SelectedItem = (_config.PopupBackgroundOpacity / 5) * 5;
         }
         
         /// <summary>
@@ -319,6 +342,24 @@ namespace ImageColorChanger.UI
                 _config.VerseNumberStyle.IsBold = ChkVerseNumberBold.IsChecked ?? true;
                 _dbManager.SetBibleInsertConfigValue("verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0");
 
+                if (CmbPopupPosition.SelectedItem is ComboBoxItem popupItem &&
+                    popupItem.Tag is string popupTag)
+                {
+                    _config.PopupPosition = popupTag switch
+                    {
+                        "Top" => BiblePopupPosition.Top,
+                        "Center" => BiblePopupPosition.Center,
+                        _ => BiblePopupPosition.Bottom
+                    };
+                    _dbManager.SetBibleInsertConfigValue("popup_position", popupTag);
+                }
+
+                if (CmbPopupBackgroundOpacity.SelectedItem is int opacity)
+                {
+                    _config.PopupBackgroundOpacity = Math.Clamp(opacity, 0, 100);
+                    _dbManager.SetBibleInsertConfigValue("popup_bg_opacity", _config.PopupBackgroundOpacity.ToString());
+                }
+
                 //#if DEBUG
                 //Debug.WriteLine($" [BibleInsertStylePopup] 配置已保存到数据库");
                 //Debug.WriteLine($"   样式布局: {_config.Style}");
@@ -438,6 +479,48 @@ namespace ImageColorChanger.UI
                 #else
                 _ = ex;  // 防止未使用变量警告
                 #endif
+            }
+        }
+
+        /// <summary>
+        /// 弹窗背景色按钮点击事件
+        /// </summary>
+        private void BtnPopupBackgroundColor_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var colorDialog = new System.Windows.Forms.ColorDialog();
+                var currentColor = ParseHexColor(_config.PopupBackgroundColorHex, "#000000");
+                colorDialog.Color = System.Drawing.Color.FromArgb(
+                    currentColor.Alpha, currentColor.Red, currentColor.Green, currentColor.Blue);
+
+                if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    var color = colorDialog.Color;
+                    _config.PopupBackgroundColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                    SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
+                    _dbManager.SetBibleInsertConfigValue("popup_bg_color", _config.PopupBackgroundColorHex);
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                Debug.WriteLine($" [BibleInsertStylePopup] 选择弹窗背景色失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        private static SKColor ParseHexColor(string hex, string fallbackHex)
+        {
+            try
+            {
+                return SKColor.Parse(hex);
+            }
+            catch
+            {
+                return SKColor.Parse(fallbackHex);
             }
         }
 

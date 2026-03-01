@@ -37,6 +37,21 @@ namespace ImageColorChanger.Core
         /// 高级选项 - 插入后自动隐藏导航栏
         /// </summary>
         public bool AutoHideNavigationAfterInsert { get; set; } = true;
+
+        /// <summary>
+        /// 弹窗经文位置
+        /// </summary>
+        public BiblePopupPosition PopupPosition { get; set; } = BiblePopupPosition.Bottom;
+
+        /// <summary>
+        /// 弹窗背景色（不含透明度）
+        /// </summary>
+        public string PopupBackgroundColorHex { get; set; } = "#000000";
+
+        /// <summary>
+        /// 弹窗背景透明度（0-100）
+        /// </summary>
+        public int PopupBackgroundOpacity { get; set; } = 100;
     }
 
     /// <summary>
@@ -195,6 +210,16 @@ namespace ImageColorChanger.Core
         /// 标注在末尾（默认）
         /// </summary>
         InlineAtEnd = 2
+    }
+
+    /// <summary>
+    /// 圣经弹窗位置
+    /// </summary>
+    public enum BiblePopupPosition
+    {
+        Top = 0,
+        Center = 1,
+        Bottom = 2
     }
 }
 

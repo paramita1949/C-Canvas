@@ -20,5 +20,10 @@ namespace ImageColorChanger.Managers
         public System.Windows.Controls.TextBlock ProjectionMediaFileNameText { get; init; }
         public System.Windows.Controls.Border ProjectionBibleTitleBorder { get; init; }
         public System.Windows.Controls.TextBlock ProjectionBibleTitleText { get; init; }
+        public System.Windows.Controls.Border ProjectionBiblePopupBorder { get; init; }
+        public System.Windows.Controls.TextBlock ProjectionBiblePopupReferenceText { get; init; }
+        public System.Windows.Controls.ScrollViewer ProjectionBiblePopupContentScrollViewer { get; init; }
+        public System.Windows.Controls.TextBlock ProjectionBiblePopupContentText { get; init; }
+        public System.Windows.Controls.Button ProjectionBiblePopupCloseButton { get; init; }
     }
 }

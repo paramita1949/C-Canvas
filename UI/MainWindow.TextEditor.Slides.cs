@@ -1428,6 +1428,30 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 文本编辑器面板滚轮事件：经文弹窗显示时用于滚动经文并同步投影。
+        /// </summary>
+        private void TextEditorPanel_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            _ = sender;
+            if (HandleBiblePopupOverlayMouseWheel(e))
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 经文弹窗预览层滚轮：优先用于经文滚动并同步投影。
+        /// </summary>
+        private void MainBiblePopupOverlayImage_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            _ = sender;
+            if (HandleBiblePopupOverlayMouseWheel(e))
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
         /// 加载幻灯片列表
         /// </summary>
         private async Task LoadSlideList()

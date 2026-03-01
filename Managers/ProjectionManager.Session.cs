@@ -46,9 +46,18 @@ namespace ImageColorChanger.Managers
             _projectionMediaFileNameText = layout.ProjectionMediaFileNameText;
             _projectionBibleTitleBorder = layout.ProjectionBibleTitleBorder;
             _projectionBibleTitleText = layout.ProjectionBibleTitleText;
+            _projectionBiblePopupBorder = layout.ProjectionBiblePopupBorder;
+            _projectionBiblePopupReferenceText = layout.ProjectionBiblePopupReferenceText;
+            _projectionBiblePopupContentScrollViewer = layout.ProjectionBiblePopupContentScrollViewer;
+            _projectionBiblePopupContentText = layout.ProjectionBiblePopupContentText;
+            _projectionBiblePopupCloseButton = layout.ProjectionBiblePopupCloseButton;
 
             _projectionWindow.KeyDown += ProjectionWindow_KeyDown;
             _projectionWindow.Closed += ProjectionWindow_Closed;
+            if (_projectionBiblePopupCloseButton != null)
+            {
+                _projectionBiblePopupCloseButton.Click += ProjectionBiblePopupCloseButton_Click;
+            }
         }
 
         private void ProjectionWindow_Closed(object sender, EventArgs e)
@@ -224,6 +233,17 @@ namespace ImageColorChanger.Managers
             _projectionMediaFileNameText = null;
             _projectionBibleTitleBorder = null;
             _projectionBibleTitleText = null;
+            if (_projectionBiblePopupCloseButton != null)
+            {
+                _projectionBiblePopupCloseButton.Click -= ProjectionBiblePopupCloseButton_Click;
+            }
+            _projectionBiblePopupBorder = null;
+            _projectionBiblePopupReferenceText = null;
+            _projectionBiblePopupContentScrollViewer = null;
+            _projectionBiblePopupContentText = null;
+            _projectionBiblePopupCloseButton = null;
+            _projectionBiblePopupTimer?.Stop();
+            _projectionBiblePopupTimer = null;
             _currentBibleScrollViewer = null;
             _projectionMediaElement = null;
             _cachedTextLayerBitmap = null;

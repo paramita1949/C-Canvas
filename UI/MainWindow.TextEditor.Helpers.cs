@@ -27,6 +27,7 @@ using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfColor = System.Windows.Media.Color;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
 using SkiaSharp;
+using System.Text.RegularExpressions;
 
 namespace ImageColorChanger.UI
 {
@@ -419,7 +420,14 @@ namespace ImageColorChanger.UI
                 SplitMode = _currentSlide?.SplitMode.ToString(),
                 SplitDisplayMode = _splitImageDisplayMode.ToString(),
                 BackgroundColor = _currentSlide?.BackgroundColor,
-                BackgroundImagePath = _currentSlide?.BackgroundImagePath
+                BackgroundImagePath = _currentSlide?.BackgroundImagePath,
+                BiblePopupOverlayVisible = _isBiblePopupOverlayVisible,
+                BiblePopupOverlayReference = _biblePopupOverlayReference,
+                BiblePopupOverlayContent = _biblePopupOverlayContent,
+                BiblePopupOverlayPosition = (_biblePopupOverlayConfig?.PopupPosition ?? BiblePopupPosition.Bottom).ToString(),
+                BiblePopupOverlayBackgroundColor = _biblePopupOverlayConfig?.PopupBackgroundColorHex,
+                BiblePopupOverlayBackgroundOpacity = _biblePopupOverlayConfig?.PopupBackgroundOpacity ?? 100,
+                BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset
             };
         }
         
@@ -436,11 +444,13 @@ namespace ImageColorChanger.UI
             //System.Diagnostics.Debug.WriteLine($"[更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
             //System.Diagnostics.Debug.WriteLine($"[更新投影] 文本框数量: {_textBoxes.Count}");
             //System.Diagnostics.Debug.WriteLine($" [更新投影] 视频背景: {(_currentSlide?.VideoBackgroundEnabled == true ? "已启用" : "未启用")}");
+            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] UpdateProjectionFromCanvas enter: overlayVisible={_isBiblePopupOverlayVisible}, textEditorVisible={TextEditorPanel?.Visibility}, projectionActive={_projectionManager?.IsProjectionActive}");
 #endif
+            bool suppressAnimationThisCall = ConsumeSuppressNextProjectionAnimation();
             _textEditorProjectionComposer?.Compose(new Services.TextEditor.Rendering.TextEditorProjectionComposeRequest
             {
                 IsProjectionActive = _projectionManager.IsProjectionActive,
-                AnimationEnabled = _projectionAnimationEnabled,
+                AnimationEnabled = _projectionAnimationEnabled && !suppressAnimationThisCall,
                 AnimationOpacity = _projectionAnimationOpacity,
                 AnimationDurationMs = _projectionAnimationDuration,
                 GetProjectionContainer = () => _projectionManager.GetProjectionContainer(),
@@ -597,10 +607,12 @@ namespace ImageColorChanger.UI
 
             // 渲染节流 - 避免过于频繁的更新
             var now = DateTime.UtcNow;
-            if (_textEditorProjectionRenderStateService?.ShouldThrottle(now, CanvasUpdateThrottleMs) == true)
+            if (!_isBiblePopupOverlayVisible &&
+                _textEditorProjectionRenderStateService?.ShouldThrottle(now, CanvasUpdateThrottleMs) == true)
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 节流跳过");
+                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender throttled: overlayVisible={_isBiblePopupOverlayVisible}");
 #endif
                 return;
             }
@@ -614,14 +626,16 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 缓存命中，直接复用旧渲染结果");
+                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender cache-hit: overlayVisible={_isBiblePopupOverlayVisible}, cacheKey={cacheKey}");
 #endif
-                _projectionManager.UpdateProjectionText(cachedBitmap);
+                _projectionManager.UpdateProjectionTextFullFrame(cachedBitmap);
                 PublishSlideFrameToNdi(cachedBitmap);
                 return;
             }
 
 #if DEBUG
             //System.Diagnostics.Debug.WriteLine($"[静态投影] 缓存未命中，开始完整渲染");
+            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender cache-miss: overlayVisible={_isBiblePopupOverlayVisible}, cacheKey={cacheKey}");
 #endif
 
             // 保存辅助线的可见性状态
@@ -642,7 +656,7 @@ namespace ImageColorChanger.UI
                         var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
                         var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
 
-                        _projectionManager.UpdateProjectionText(finalImage);
+                        _projectionManager.UpdateProjectionTextFullFrame(finalImage);
                         PublishSlideFrameToNdi(finalImage, projWidth, projHeight);
                         _textEditorProjectionRenderStateService?.UpdateCache(cacheKey, finalImage);
                     },
@@ -1043,6 +1057,10 @@ namespace ImageColorChanger.UI
                 {
                     DrawSplitLinesToCanvas(canvas, (Database.Models.Enums.ViewSplitMode)_currentSlide.SplitMode, canvasWidth, canvasHeight);
                 }
+
+                // 圣经弹窗作为“幻灯片画布衍生层”参与同一合成链路，
+                // 保证投影与主屏遵循同一坐标体系与缩放关系。
+                DrawBiblePopupOverlayToCanvas(canvas, canvasWidth, canvasHeight);
                 
                 // 如果是GPU表面，需要刷新并获取快照
                 if (surface != null)
@@ -1067,6 +1085,228 @@ namespace ImageColorChanger.UI
             }
             
             return bitmap;
+        }
+
+        private void DrawBiblePopupOverlayToCanvas(SKCanvas canvas, double canvasWidth, double canvasHeight)
+        {
+            if (!_isBiblePopupOverlayVisible || canvas == null || canvasWidth <= 0 || canvasHeight <= 0)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] Draw skipped: visible={_isBiblePopupOverlayVisible}, canvasNull={canvas == null}, size={canvasWidth:0.##}x{canvasHeight:0.##}");
+#endif
+                return;
+            }
+
+            var cfg = _biblePopupOverlayConfig ?? new BibleTextInsertConfig();
+            float maxPopupWidth = (float)Math.Min(canvasWidth - 60.0, 1500.0);
+            float popupWidth = Math.Max(480f, maxPopupWidth);
+            float popupX = (float)((canvasWidth - popupWidth) / 2.0);
+
+            using var titlePaint = new SKPaint
+            {
+                IsAntialias = true,
+                Color = ToSkColor(cfg.TitleStyle.ColorHex, 100),
+                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
+                TextSize = Math.Max(16f, cfg.TitleStyle.FontSize),
+                SubpixelText = true,
+                LcdRenderText = true
+            };
+            using var versePaint = new SKPaint
+            {
+                IsAntialias = true,
+                Color = ToSkColor(cfg.VerseStyle.ColorHex, 100),
+                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
+                TextSize = Math.Max(16f, cfg.VerseStyle.FontSize),
+                SubpixelText = true,
+                LcdRenderText = true
+            };
+            using var verseNumberPaint = new SKPaint
+            {
+                IsAntialias = true,
+                Color = ToSkColor(cfg.VerseNumberStyle.ColorHex, 100),
+                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
+                TextSize = Math.Max(16f, cfg.VerseNumberStyle.FontSize),
+                SubpixelText = true,
+                LcdRenderText = true
+            };
+            using var borderPaint = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1f,
+                Color = new SKColor(255, 255, 255, 60)
+            };
+            using var bgPaint = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+                Color = ToSkColor(cfg.PopupBackgroundColorHex, Math.Clamp(cfg.PopupBackgroundOpacity, 0, 100))
+            };
+
+            float lineHeight = Math.Max(versePaint.TextSize * (float)Math.Max(1.0, cfg.VerseStyle.VerseSpacing), versePaint.TextSize * 1.2f);
+            float titleHeight = titlePaint.TextSize * 1.25f;
+            float titleBottomGap = 10f;
+            float leftPad = 36f;
+            float rightPad = 36f;
+            float topPad = 24f;
+            float bottomPad = 24f;
+            float textMaxWidth = popupWidth - leftPad - rightPad;
+
+            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titlePaint, textMaxWidth);
+            var verseLines = WrapTextByWidth(_biblePopupOverlayContent ?? string.Empty, versePaint, textMaxWidth);
+            int titleCount = Math.Max(1, titleLines.Count);
+            int verseCount = Math.Max(1, verseLines.Count);
+            float verseViewportHeight = lineHeight * 3.0f;
+            float verseContentHeight = verseCount * lineHeight;
+            _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseContentHeight - verseViewportHeight);
+            _biblePopupOverlayVerseScrollOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
+
+            float contentHeight = titleCount * titleHeight + titleBottomGap + verseViewportHeight;
+            float popupHeight = topPad + contentHeight + bottomPad;
+
+            float popupY = cfg.PopupPosition switch
+            {
+                BiblePopupPosition.Top => 0f,
+                BiblePopupPosition.Center => (float)((canvasHeight - popupHeight) / 2.0),
+                _ => (float)(canvasHeight - popupHeight - 40.0)
+            };
+            if (popupY < 0f) popupY = 0f;
+            _biblePopupOverlayLastRect = new Rect(popupX, popupY, popupWidth, popupHeight);
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] Draw start: canvas={canvasWidth:0.##}x{canvasHeight:0.##}, popup={popupWidth:0.##}x{popupHeight:0.##}, pos={cfg.PopupPosition}, x={popupX:0.##}, y={popupY:0.##}, titleLines={titleLines.Count}, verseLines={verseLines.Count}");
+#endif
+
+            var rect = new SKRoundRect(new SKRect(popupX, popupY, popupX + popupWidth, popupY + popupHeight), 16f, 16f);
+            canvas.DrawRoundRect(rect, bgPaint);
+            canvas.DrawRoundRect(rect, borderPaint);
+
+            float y = popupY + topPad + titlePaint.TextSize;
+            foreach (var line in titleLines)
+            {
+                canvas.DrawText(line, popupX + leftPad, y, titlePaint);
+                y += titleHeight;
+            }
+
+            y += titleBottomGap;
+            var verseViewportRect = new SKRect(
+                popupX + leftPad,
+                y - versePaint.TextSize,
+                popupX + popupWidth - rightPad,
+                y - versePaint.TextSize + verseViewportHeight);
+            _biblePopupOverlayLastVerseViewportRect = new Rect(
+                verseViewportRect.Left,
+                verseViewportRect.Top,
+                verseViewportRect.Width,
+                verseViewportRect.Height);
+
+            canvas.Save();
+            canvas.ClipRect(verseViewportRect);
+            float verseY = y - (float)_biblePopupOverlayVerseScrollOffset;
+            foreach (var line in verseLines)
+            {
+                DrawPopupVerseLineWithNumberStyle(canvas, line, popupX + leftPad, verseY, versePaint, verseNumberPaint);
+                verseY += lineHeight;
+            }
+            canvas.Restore();
+        }
+
+        private static void DrawPopupVerseLineWithNumberStyle(
+            SKCanvas canvas,
+            string line,
+            float x,
+            float y,
+            SKPaint versePaint,
+            SKPaint verseNumberPaint)
+        {
+            if (canvas == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(line))
+            {
+                canvas.DrawText(string.Empty, x, y, versePaint);
+                return;
+            }
+
+            var match = Regex.Match(line, @"^\s*(?<num>\d+(?:[、,，\-]\d+)*)\s+(?<rest>.+)$");
+            if (!match.Success)
+            {
+                canvas.DrawText(line, x, y, versePaint);
+                return;
+            }
+
+            string numberText = match.Groups["num"].Value;
+            string numberLeadSpaces = line.Substring(0, match.Groups["num"].Index);
+            string restText = match.Groups["rest"].Value;
+            string separator = " ";
+            string numberPart = numberLeadSpaces + numberText + separator;
+
+            canvas.DrawText(numberPart, x, y, verseNumberPaint);
+            float numberWidth = verseNumberPaint.MeasureText(numberPart);
+            canvas.DrawText(restText, x + numberWidth, y, versePaint);
+        }
+
+        private static SKColor ToSkColor(string hex, int opacityPercent)
+        {
+            try
+            {
+                string value = string.IsNullOrWhiteSpace(hex) ? "#000000" : hex;
+                if (SKColor.TryParse(value, out var color))
+                {
+                    byte alpha = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+                    return new SKColor(color.Red, color.Green, color.Blue, alpha);
+                }
+            }
+            catch
+            {
+            }
+
+            byte fallbackA = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+            return new SKColor(0, 0, 0, fallbackA);
+        }
+
+        private static List<string> WrapTextByWidth(string text, SKPaint paint, float maxWidth)
+        {
+            var lines = new List<string>();
+            if (string.IsNullOrEmpty(text))
+            {
+                lines.Add(string.Empty);
+                return lines;
+            }
+
+            var paragraphs = text.Replace("\r\n", "\n").Split('\n');
+            foreach (var paragraph in paragraphs)
+            {
+                if (string.IsNullOrEmpty(paragraph))
+                {
+                    lines.Add(string.Empty);
+                    continue;
+                }
+
+                var current = string.Empty;
+                foreach (char ch in paragraph)
+                {
+                    string next = current + ch;
+                    if (!string.IsNullOrEmpty(current) && paint.MeasureText(next) > maxWidth)
+                    {
+                        lines.Add(current);
+                        current = ch.ToString();
+                    }
+                    else
+                    {
+                        current = next;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(current))
+                {
+                    lines.Add(current);
+                }
+            }
+
+            return lines.Count == 0 ? new List<string> { string.Empty } : lines;
         }
         
         /// <summary>

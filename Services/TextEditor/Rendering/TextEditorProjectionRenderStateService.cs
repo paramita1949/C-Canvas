@@ -54,7 +54,14 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 context.SplitMode ?? string.Empty,
                 context.SplitDisplayMode ?? string.Empty,
                 context.BackgroundColor ?? string.Empty,
-                context.BackgroundImagePath ?? string.Empty);
+                context.BackgroundImagePath ?? string.Empty,
+                context.BiblePopupOverlayVisible ? "1" : "0",
+                context.BiblePopupOverlayReference ?? string.Empty,
+                context.BiblePopupOverlayContent ?? string.Empty,
+                context.BiblePopupOverlayPosition ?? string.Empty,
+                context.BiblePopupOverlayBackgroundColor ?? string.Empty,
+                context.BiblePopupOverlayBackgroundOpacity.ToString(CultureInfo.InvariantCulture),
+                context.BiblePopupOverlayScrollOffset.ToString("G17", CultureInfo.InvariantCulture));
         }
 
         public bool TryGetCached(string cacheKey, out SKBitmap cachedBitmap)
