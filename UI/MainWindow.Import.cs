@@ -184,6 +184,8 @@ namespace ImageColorChanger.UI
 
             // 主题设置
             contextMenu.Items.Add(BuildThemeMenuItem());
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(BuildNdiSubMenu());
 
             contextMenu.Items.Add(new Separator());
 

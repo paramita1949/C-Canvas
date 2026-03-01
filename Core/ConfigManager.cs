@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Diagnostics;
+using ImageColorChanger.Services.Lyrics.Output;
+using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
 
 namespace ImageColorChanger.Core
@@ -12,7 +14,7 @@ namespace ImageColorChanger.Core
     /// <summary>
     /// 配置管理器 - 统一管理应用程序配置
     /// </summary>
-    public partial class ConfigManager
+    public partial class ConfigManager : ILyricsNdiConfigProvider, IProjectionNdiConfigProvider
     {
         private static ConfigManager _instance;
         private static readonly object _lock = new object();
@@ -118,6 +120,16 @@ namespace ImageColorChanger.Core
                 {
                     string json = File.ReadAllText(_configFilePath);
                     _config = JsonSerializer.Deserialize<AppConfig>(json);
+                    if (_config == null)
+                    {
+                        _config = new AppConfig();
+                    }
+
+                    bool migrated = MigrateLegacyNdiConfig();
+                    if (migrated)
+                    {
+                        SaveConfig();
+                    }
                     
                     //  确保最近颜色列表不为 null
                     
@@ -480,6 +492,22 @@ namespace ImageColorChanger.Core
                 if (Math.Abs(_config.LyricsMainScreenFontSize - value) > 0.001)
                 {
                     _config.LyricsMainScreenFontSize = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词文字水印字号
+        /// </summary>
+        public double LyricsTextWatermarkFontSize
+        {
+            get => _config.LyricsTextWatermarkFontSize;
+            set
+            {
+                if (Math.Abs(_config.LyricsTextWatermarkFontSize - value) > 0.001)
+                {
+                    _config.LyricsTextWatermarkFontSize = value;
                     SaveConfig();
                 }
             }
@@ -1041,6 +1069,64 @@ namespace ImageColorChanger.Core
         }
 
         #endregion
+
+        private bool MigrateLegacyNdiConfig()
+        {
+            if (_config == null)
+            {
+                return false;
+            }
+
+            bool changed = false;
+            bool projectionLooksDefault =
+                !_config.ProjectionNdiEnabled &&
+                string.Equals(_config.ProjectionNdiSenderName ?? "CanvasCast-Projection", "CanvasCast-Projection", StringComparison.Ordinal) &&
+                _config.ProjectionNdiWidth == 1920 &&
+                _config.ProjectionNdiHeight == 1080 &&
+                _config.ProjectionNdiFps == 30 &&
+                _config.ProjectionNdiPreferAlpha &&
+                _config.ProjectionNdiLyricsTransparentEnabled &&
+                _config.ProjectionNdiBibleTransparentEnabled;
+
+            if (projectionLooksDefault && _config.LyricsNdiEnabled)
+            {
+                _config.ProjectionNdiEnabled = true;
+                changed = true;
+            }
+
+            if (projectionLooksDefault && !string.IsNullOrWhiteSpace(_config.LyricsNdiSenderName) &&
+                !string.Equals(_config.LyricsNdiSenderName, "CanvasCast-Lyrics", StringComparison.Ordinal))
+            {
+                _config.ProjectionNdiSenderName = _config.LyricsNdiSenderName;
+                changed = true;
+            }
+
+            if (projectionLooksDefault && _config.LyricsNdiWidth > 0 && _config.LyricsNdiWidth != 1920)
+            {
+                _config.ProjectionNdiWidth = _config.LyricsNdiWidth;
+                changed = true;
+            }
+
+            if (projectionLooksDefault && _config.LyricsNdiHeight > 0 && _config.LyricsNdiHeight != 1080)
+            {
+                _config.ProjectionNdiHeight = _config.LyricsNdiHeight;
+                changed = true;
+            }
+
+            if (projectionLooksDefault && _config.LyricsNdiFps > 0 && _config.LyricsNdiFps != 30)
+            {
+                _config.ProjectionNdiFps = _config.LyricsNdiFps;
+                changed = true;
+            }
+
+            if (projectionLooksDefault && !_config.LyricsNdiPreferAlpha)
+            {
+                _config.ProjectionNdiPreferAlpha = false;
+                changed = true;
+            }
+
+            return changed;
+        }
     }
 
     /// <summary>
@@ -1168,6 +1254,76 @@ namespace ImageColorChanger.Core
         public int ProjectionAnimationDuration { get; set; } = 800;
 
         /// <summary>
+        /// 是否启用歌词 NDI 输出（默认：关闭）
+        /// </summary>
+        public bool LyricsNdiEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 歌词 NDI 发送端名称
+        /// </summary>
+        public string LyricsNdiSenderName { get; set; } = "CanvasCast-Lyrics";
+
+        /// <summary>
+        /// 歌词 NDI 输出宽度
+        /// </summary>
+        public int LyricsNdiWidth { get; set; } = 1920;
+
+        /// <summary>
+        /// 歌词 NDI 输出高度
+        /// </summary>
+        public int LyricsNdiHeight { get; set; } = 1080;
+
+        /// <summary>
+        /// 歌词 NDI 输出帧率
+        /// </summary>
+        public int LyricsNdiFps { get; set; } = 30;
+
+        /// <summary>
+        /// 歌词 NDI 是否优先 alpha 输出
+        /// </summary>
+        public bool LyricsNdiPreferAlpha { get; set; } = true;
+
+        /// <summary>
+        /// 是否启用全投影 NDI 输出（默认关闭）
+        /// </summary>
+        public bool ProjectionNdiEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 全投影 NDI 发送端名称
+        /// </summary>
+        public string ProjectionNdiSenderName { get; set; } = "YongMu-NDI";
+
+        /// <summary>
+        /// 全投影 NDI 输出宽度
+        /// </summary>
+        public int ProjectionNdiWidth { get; set; } = 1920;
+
+        /// <summary>
+        /// 全投影 NDI 输出高度
+        /// </summary>
+        public int ProjectionNdiHeight { get; set; } = 1080;
+
+        /// <summary>
+        /// 全投影 NDI 输出帧率
+        /// </summary>
+        public int ProjectionNdiFps { get; set; } = 30;
+
+        /// <summary>
+        /// 全投影 NDI 是否优先 alpha 输出
+        /// </summary>
+        public bool ProjectionNdiPreferAlpha { get; set; } = true;
+
+        /// <summary>
+        /// 歌词投影是否允许透明输出（可选）
+        /// </summary>
+        public bool ProjectionNdiLyricsTransparentEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 圣经投影是否允许透明输出（可选）
+        /// </summary>
+        public bool ProjectionNdiBibleTransparentEnabled { get; set; } = true;
+
+        /// <summary>
         /// 画布宽高比（默认：16:9）
         /// 可选值："16:9" 或 "4:3"
         /// </summary>
@@ -1228,6 +1384,247 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 是否启用歌词 NDI 输出
+        /// </summary>
+        public bool LyricsNdiEnabled
+        {
+            get => _config.LyricsNdiEnabled;
+            set
+            {
+                if (_config.LyricsNdiEnabled != value)
+                {
+                    _config.LyricsNdiEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词 NDI 发送端名称
+        /// </summary>
+        public string LyricsNdiSenderName
+        {
+            get => _config.LyricsNdiSenderName ?? "CanvasCast-Lyrics";
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "CanvasCast-Lyrics" : value.Trim();
+                if (!string.Equals(_config.LyricsNdiSenderName, next, StringComparison.Ordinal))
+                {
+                    _config.LyricsNdiSenderName = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词 NDI 输出宽度
+        /// </summary>
+        public int LyricsNdiWidth
+        {
+            get => _config.LyricsNdiWidth;
+            set
+            {
+                int normalized = Math.Max(320, value);
+                if (_config.LyricsNdiWidth != normalized)
+                {
+                    _config.LyricsNdiWidth = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词 NDI 输出高度
+        /// </summary>
+        public int LyricsNdiHeight
+        {
+            get => _config.LyricsNdiHeight;
+            set
+            {
+                int normalized = Math.Max(180, value);
+                if (_config.LyricsNdiHeight != normalized)
+                {
+                    _config.LyricsNdiHeight = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词 NDI 输出帧率
+        /// </summary>
+        public int LyricsNdiFps
+        {
+            get => _config.LyricsNdiFps;
+            set
+            {
+                int normalized = Math.Clamp(value, 1, 120);
+                if (_config.LyricsNdiFps != normalized)
+                {
+                    _config.LyricsNdiFps = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词 NDI 是否优先 alpha 输出
+        /// </summary>
+        public bool LyricsNdiPreferAlpha
+        {
+            get => _config.LyricsNdiPreferAlpha;
+            set
+            {
+                if (_config.LyricsNdiPreferAlpha != value)
+                {
+                    _config.LyricsNdiPreferAlpha = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否启用全投影 NDI 输出
+        /// </summary>
+        public bool ProjectionNdiEnabled
+        {
+            get => _config.ProjectionNdiEnabled;
+            set
+            {
+                if (_config.ProjectionNdiEnabled != value)
+                {
+                    _config.ProjectionNdiEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 发送端名称
+        /// </summary>
+        public string ProjectionNdiSenderName
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(_config.ProjectionNdiSenderName) ||
+                    string.Equals(_config.ProjectionNdiSenderName, "CanvasCast-Projection", StringComparison.Ordinal))
+                {
+                    return "YongMu-NDI";
+                }
+
+                return _config.ProjectionNdiSenderName;
+            }
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "YongMu-NDI" : value.Trim();
+                if (!string.Equals(_config.ProjectionNdiSenderName, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiSenderName = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 输出宽度
+        /// </summary>
+        public int ProjectionNdiWidth
+        {
+            get => _config.ProjectionNdiWidth > 0 ? _config.ProjectionNdiWidth : 1920;
+            set
+            {
+                int normalized = Math.Max(320, value);
+                if (_config.ProjectionNdiWidth != normalized)
+                {
+                    _config.ProjectionNdiWidth = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 输出高度
+        /// </summary>
+        public int ProjectionNdiHeight
+        {
+            get => _config.ProjectionNdiHeight > 0 ? _config.ProjectionNdiHeight : 1080;
+            set
+            {
+                int normalized = Math.Max(180, value);
+                if (_config.ProjectionNdiHeight != normalized)
+                {
+                    _config.ProjectionNdiHeight = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 输出帧率
+        /// </summary>
+        public int ProjectionNdiFps
+        {
+            get => _config.ProjectionNdiFps > 0 ? _config.ProjectionNdiFps : 30;
+            set
+            {
+                int normalized = Math.Clamp(value, 1, 120);
+                if (_config.ProjectionNdiFps != normalized)
+                {
+                    _config.ProjectionNdiFps = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 是否优先 alpha 输出
+        /// </summary>
+        public bool ProjectionNdiPreferAlpha
+        {
+            get => _config.ProjectionNdiPreferAlpha;
+            set
+            {
+                if (_config.ProjectionNdiPreferAlpha != value)
+                {
+                    _config.ProjectionNdiPreferAlpha = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 歌词透明投影开关（可选透明）
+        /// </summary>
+        public bool ProjectionNdiLyricsTransparentEnabled
+        {
+            get => _config.ProjectionNdiLyricsTransparentEnabled;
+            set
+            {
+                if (_config.ProjectionNdiLyricsTransparentEnabled != value)
+                {
+                    _config.ProjectionNdiLyricsTransparentEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经透明投影开关（可选透明）
+        /// </summary>
+        public bool ProjectionNdiBibleTransparentEnabled
+        {
+            get => _config.ProjectionNdiBibleTransparentEnabled;
+            set
+            {
+                if (_config.ProjectionNdiBibleTransparentEnabled != value)
+                {
+                    _config.ProjectionNdiBibleTransparentEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 画布宽高比
         /// </summary>
         public string CanvasAspectRatio
@@ -1263,6 +1660,11 @@ namespace ImageColorChanger.Core
         /// 歌词主屏字号（默认：40）
         /// </summary>
         public double LyricsMainScreenFontSize { get; set; } = 40.0;
+
+        /// <summary>
+        /// 歌词文字水印字号（默认：60）
+        /// </summary>
+        public double LyricsTextWatermarkFontSize { get; set; } = 60.0;
 
         /// <summary>
         /// 应用最后一次运行版本（默认：空）

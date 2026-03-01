@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using ImageColorChanger.Services.Projection.Output;
 
 namespace ImageColorChanger.UI
 {
@@ -49,6 +50,10 @@ namespace ImageColorChanger.UI
                         _originalMode,
                         _originalDisplayMode
                     );
+
+                    _projectionNdiOutputManager?.PublishFrame(
+                        _imageProcessor.CurrentImage,
+                        ProjectionNdiContentType.Image);
                 }
             }
         }

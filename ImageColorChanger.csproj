@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.0.2.6</Version>
-    <FileVersion>6.0.2.6</FileVersion>
-    <AssemblyVersion>6.0.2.6</AssemblyVersion>
+    <Version>6.0.2.7</Version>
+    <FileVersion>6.0.2.7</FileVersion>
+    <AssemblyVersion>6.0.2.7</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -159,10 +159,35 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Link>data\icon\geci.png</Link>
     </None>
+    <None Include="data\NDI6Runtime.exe" Condition="Exists('data\NDI6Runtime.exe')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>data\NDI6Runtime.exe</Link>
+    </None>
   </ItemGroup>
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <!-- NDI Runtime 自动打包：优先项目内 third_party，其次系统安装目录 -->
+  <PropertyGroup>
+    <NdiRuntimeAutoCopy>false</NdiRuntimeAutoCopy>
+    <NdiRuntimeDllName>Processing.NDI.Lib.x64.dll</NdiRuntimeDllName>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(MSBuildProjectDirectory)\third_party\ndi\$(NdiRuntimeDllName)')">$(MSBuildProjectDirectory)\third_party\ndi\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles)\NDI\NDI 6 Runtime\v6\$(NdiRuntimeDllName)')">$(ProgramFiles)\NDI\NDI 6 Runtime\v6\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles)\NDI\NDI 6 Tools\Runtime\$(NdiRuntimeDllName)')">$(ProgramFiles)\NDI\NDI 6 Tools\Runtime\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles)\NDI\NDI 5 Runtime\v5\$(NdiRuntimeDllName)')">$(ProgramFiles)\NDI\NDI 5 Runtime\v5\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles(x86))\NDI\NDI 6 Runtime\v6\$(NdiRuntimeDllName)')">$(ProgramFiles(x86))\NDI\NDI 6 Runtime\v6\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles(x86))\NDI\NDI 6 Tools\Runtime\$(NdiRuntimeDllName)')">$(ProgramFiles(x86))\NDI\NDI 6 Tools\Runtime\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+    <NdiRuntimeSourcePath Condition="'$(NdiRuntimeSourcePath)'=='' and Exists('$(ProgramFiles(x86))\NDI\NDI 5 Runtime\v5\$(NdiRuntimeDllName)')">$(ProgramFiles(x86))\NDI\NDI 5 Runtime\v5\$(NdiRuntimeDllName)</NdiRuntimeSourcePath>
+  </PropertyGroup>
+  <Target Name="CopyNdiRuntimeToOutput" AfterTargets="Build" Condition="'$(NdiRuntimeAutoCopy)'=='true' and Exists('$(NdiRuntimeSourcePath)')">
+    <Message Text="[NDI] Runtime source: $(NdiRuntimeSourcePath)" Importance="high" Condition="Exists('$(NdiRuntimeSourcePath)')" />
+    <Copy SourceFiles="$(NdiRuntimeSourcePath)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(NdiRuntimeSourcePath)')" />
+  </Target>
+  <Target Name="CopyNdiRuntimeToPublish" AfterTargets="Publish" Condition="'$(NdiRuntimeAutoCopy)'=='true' and Exists('$(NdiRuntimeSourcePath)')">
+    <Message Text="[NDI] Copy runtime to publish: $(PublishDir)" Importance="high" />
+    <Copy SourceFiles="$(NdiRuntimeSourcePath)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
   <!-- 🔧 清理运行时输出 -->
   <Target Name="CleanupRuntimeOutput" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
     <Message Text="[清理] 移除不需要的运行时文件..." Importance="high" />

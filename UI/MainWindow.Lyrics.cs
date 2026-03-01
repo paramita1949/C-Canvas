@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.IO;
@@ -64,6 +65,9 @@ namespace ImageColorChanger.UI
         private const double MaxMainLyricsFontSize = 120;
         private const double MinLyricsFontSize = 20;
         private const double MaxLyricsFontSize = 250;
+        private const double DefaultLyricsTextWatermarkFontSize = 60;
+        private const double MinLyricsTextWatermarkFontSize = 20;
+        private const double MaxLyricsTextWatermarkFontSize = 250;
         private const double LyricsFontWheelStep = 4;
         private const double LyricsFontWheelFastStep = 8;
         private const int LyricsTypingSaveDelayMs = 800;
@@ -81,6 +85,7 @@ namespace ImageColorChanger.UI
         private bool _lyricsClipboardUpdateQueued;
         private readonly double[] _lyricsSplitProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize };
         private double _lyricsMainScreenFontSize = DefaultMainLyricsFontSize;
+        private double _lyricsTextWatermarkFontSize = DefaultLyricsTextWatermarkFontSize;
         private string _lyricsThemeName = "黑色";
         private string _lyricsThemeBackgroundHex = "#000000";
 
@@ -470,6 +475,59 @@ namespace ImageColorChanger.UI
             }
 
             return ResolveMainLyricsFontSize();
+        }
+
+        private double ResolveLyricsTextWatermarkFontSize()
+        {
+            double configured = _configManager?.LyricsTextWatermarkFontSize ?? DefaultLyricsTextWatermarkFontSize;
+            return Math.Clamp(configured, MinLyricsTextWatermarkFontSize, MaxLyricsTextWatermarkFontSize);
+        }
+
+        private void SetLyricsTextWatermarkFontSize(double value, bool showStatus = true)
+        {
+            double next = Math.Clamp(value, MinLyricsTextWatermarkFontSize, MaxLyricsTextWatermarkFontSize);
+            if (Math.Abs(next - _lyricsTextWatermarkFontSize) < 0.001)
+            {
+                return;
+            }
+
+            _lyricsTextWatermarkFontSize = next;
+            if (_configManager != null)
+            {
+                _configManager.LyricsTextWatermarkFontSize = next;
+            }
+
+            if (showStatus)
+            {
+                ShowStatus($"文字水印大小: {next:0}");
+            }
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+        }
+
+        private void ShowLyricsTextWatermarkFontSizeDialog()
+        {
+            string input = PromptTextDialog(
+                "文字水印大小",
+                $"请输入文字水印大小（{MinLyricsTextWatermarkFontSize:0} - {MaxLyricsTextWatermarkFontSize:0}）",
+                _lyricsTextWatermarkFontSize.ToString("0"));
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return;
+            }
+
+            if (!double.TryParse(input, NumberStyles.Float, CultureInfo.CurrentCulture, out double size)
+                && !double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out size))
+            {
+                ShowStatus("文字水印大小格式无效");
+                return;
+            }
+
+            SetLyricsTextWatermarkFontSize(size);
         }
 
         private void SetMainLyricsFontSize(double value)
@@ -1099,6 +1157,7 @@ namespace ImageColorChanger.UI
 //            Debug.WriteLine("[歌词] 进入歌词模式");
 //#endif
             _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
+            _lyricsTextWatermarkFontSize = ResolveLyricsTextWatermarkFontSize();
 
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -2392,6 +2451,7 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(colorMenuItem);
             AddMainLyricsFontItemsToContextMenu(contextMenu);
+            AddLyricsTextWatermarkFontSizeItemsToContextMenu(contextMenu);
 
             AddWatermarkSelectionItemsToContextMenu(contextMenu);
             
@@ -2432,6 +2492,47 @@ namespace ImageColorChanger.UI
             }
 
             contextMenu.Items.Add(fontMenuItem);
+        }
+
+        private void AddLyricsTextWatermarkFontSizeItemsToContextMenu(ContextMenu contextMenu)
+        {
+            if (contextMenu == null)
+            {
+                return;
+            }
+
+            var watermarkFontMenuItem = new MenuItem
+            {
+                Header = "文字水印大小",
+                Height = 36
+            };
+
+            int[] candidates = { 40, 50, 60, 72, 84, 96 };
+            foreach (int size in candidates)
+            {
+                var item = new MenuItem
+                {
+                    Header = size.ToString(),
+                    Height = 36,
+                    IsCheckable = true,
+                    IsChecked = Math.Abs(_lyricsTextWatermarkFontSize - size) < 0.001
+                };
+
+                int selected = size;
+                item.Click += (s, e) => SetLyricsTextWatermarkFontSize(selected);
+                watermarkFontMenuItem.Items.Add(item);
+            }
+
+            watermarkFontMenuItem.Items.Add(new Separator());
+            var customItem = new MenuItem
+            {
+                Header = "自定义...",
+                Height = 36
+            };
+            customItem.Click += (s, e) => ShowLyricsTextWatermarkFontSizeDialog();
+            watermarkFontMenuItem.Items.Add(customItem);
+
+            contextMenu.Items.Add(watermarkFontMenuItem);
         }
 
         private void AddSplitMenuItem(MenuItem parent, string title, ViewSplitMode mode)

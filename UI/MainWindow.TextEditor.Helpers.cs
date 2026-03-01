@@ -17,6 +17,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
@@ -470,6 +471,11 @@ namespace ImageColorChanger.UI
                         _currentSlide.BackgroundImagePath,
                         _currentSlide.VideoLoopEnabled,
                         textLayer);
+
+                    // NDI 全投影：锁定视频路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
+                    var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+                    _projectionNdiOutputManager?.PublishFrame(ndiFrame, ProjectionNdiContentType.Slide);
+                    ndiFrame?.Dispose();
                 }
                 else
                 {
@@ -562,6 +568,11 @@ namespace ImageColorChanger.UI
             var updateStartTime = System.Diagnostics.Stopwatch.StartNew();
 #endif
             _projectionManager.UpdateProjectionWithVideo(visualBrush, textLayer);
+
+            // NDI 全投影：视频背景路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
+            var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+            _projectionNdiOutputManager?.PublishFrame(ndiFrame, ProjectionNdiContentType.Slide);
+            ndiFrame?.Dispose();
 #if DEBUG
             updateStartTime.Stop();
             //System.Diagnostics.Debug.WriteLine($"[视频投影] ProjectionManager.UpdateProjectionWithVideo 完成 (耗时: {updateStartTime.ElapsedMilliseconds} ms)");
@@ -605,6 +616,7 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" [静态投影] 缓存命中，直接复用旧渲染结果");
 #endif
                 _projectionManager.UpdateProjectionText(cachedBitmap);
+                _projectionNdiOutputManager?.PublishFrame(cachedBitmap, ProjectionNdiContentType.Slide);
                 return;
             }
 
@@ -631,6 +643,7 @@ namespace ImageColorChanger.UI
                         var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
 
                         _projectionManager.UpdateProjectionText(finalImage);
+                        _projectionNdiOutputManager?.PublishFrame(finalImage, ProjectionNdiContentType.Slide);
                         _textEditorProjectionRenderStateService?.UpdateCache(cacheKey, finalImage);
                     },
                     beforeRenderAction: () =>

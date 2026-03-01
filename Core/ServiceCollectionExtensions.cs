@@ -7,6 +7,8 @@ using ImageColorChanger.Managers;
 using ImageColorChanger.Managers.Keyframes;
 using ImageColorChanger.Services;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.Services.Lyrics.Output;
+using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.StateMachine;
 
 namespace ImageColorChanger.Core
@@ -97,6 +99,13 @@ namespace ImageColorChanger.Core
         {
             // 配置管理器（Singleton）- 全局唯一配置
             services.AddSingleton<ConfigManager>();
+            services.AddSingleton<ILyricsNdiConfigProvider>(sp => sp.GetRequiredService<ConfigManager>());
+            services.AddSingleton<IProjectionNdiConfigProvider>(sp => sp.GetRequiredService<ConfigManager>());
+            services.AddSingleton<ILyricsNdiSender, NoopLyricsNdiSender>();
+            services.AddSingleton<IProjectionNdiSender, NativeProjectionNdiSender>();
+            services.AddSingleton<IProjectionNdiModeResolver, ProjectionNdiModeResolver>();
+            services.AddSingleton<LyricsNdiOutputManager>();
+            services.AddSingleton<ProjectionNdiOutputManager>();
             services.AddSingleton<IVideoBackgroundManager, VideoBackgroundManager>();
             services.AddSingleton<PakManager>();
             services.AddSingleton<GPUContext>();

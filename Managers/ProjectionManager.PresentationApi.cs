@@ -1,4 +1,9 @@
 using System;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using SkiaSharp;
 
 namespace ImageColorChanger.Managers
 {
@@ -122,6 +127,85 @@ namespace ImageColorChanger.Managers
         private void NavigateToNextImage()
         {
             RunOnMainDispatcher(() => { _host.SwitchToNextSimilarImage(); });
+        }
+
+        /// <summary>
+        /// 捕获投影窗口当前最终可见帧（用于 NDI，确保与投影窗口显示一致）。
+        /// </summary>
+        public SKBitmap CaptureProjectionViewportFrameForNdi()
+        {
+            if (_projectionWindow == null)
+            {
+                return null;
+            }
+
+            return RunOnMainDispatcher(CaptureProjectionViewportFrameForNdiOnUiThread);
+        }
+
+        private SKBitmap CaptureProjectionViewportFrameForNdiOnUiThread()
+        {
+            if (_projectionWindow == null)
+            {
+                return null;
+            }
+
+            FrameworkElement visual = _projectionScrollViewer as FrameworkElement
+                ?? _projectionContainer as FrameworkElement
+                ?? _projectionWindow.Content as FrameworkElement;
+
+            if (visual == null)
+            {
+                return null;
+            }
+
+            visual.UpdateLayout();
+
+            double dipWidth = _projectionWindow.ActualWidth > 1 ? _projectionWindow.ActualWidth : visual.ActualWidth;
+            double dipHeight = _projectionWindow.ActualHeight > 1 ? _projectionWindow.ActualHeight : visual.ActualHeight;
+            if (dipWidth <= 1 || dipHeight <= 1)
+            {
+                return null;
+            }
+
+            var dpi = VisualTreeHelper.GetDpi(_projectionWindow);
+            int pixelWidth = Math.Max(1, (int)Math.Round(dipWidth * dpi.DpiScaleX));
+            int pixelHeight = Math.Max(1, (int)Math.Round(dipHeight * dpi.DpiScaleY));
+
+            var renderBitmap = new RenderTargetBitmap(
+                pixelWidth,
+                pixelHeight,
+                dpi.PixelsPerInchX,
+                dpi.PixelsPerInchY,
+                PixelFormats.Pbgra32);
+            renderBitmap.Render(visual);
+            renderBitmap.Freeze();
+
+            return ConvertBitmapSourceToSkBitmap(renderBitmap);
+        }
+
+        private static SKBitmap ConvertBitmapSourceToSkBitmap(BitmapSource bitmapSource)
+        {
+            int width = bitmapSource.PixelWidth;
+            int height = bitmapSource.PixelHeight;
+            if (width <= 0 || height <= 0)
+            {
+                return null;
+            }
+
+            int stride = width * 4;
+            byte[] pixels = new byte[height * stride];
+            bitmapSource.CopyPixels(pixels, stride, 0);
+
+            var skBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            IntPtr ptr = skBitmap.GetPixels();
+            if (ptr == IntPtr.Zero)
+            {
+                skBitmap.Dispose();
+                return null;
+            }
+
+            Marshal.Copy(pixels, 0, ptr, pixels.Length);
+            return skBitmap;
         }
     }
 }

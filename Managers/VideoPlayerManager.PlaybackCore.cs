@@ -379,6 +379,28 @@ namespace ImageColorChanger.Managers
             }
         }
 
+        /// <summary>
+        /// 抓取当前播放帧快照到文件（用于外部输出链路，如 NDI 全投影视频发送）。
+        /// </summary>
+        public bool CaptureSnapshot(string outputPath, int width, int height)
+        {
+            try
+            {
+                if (_mediaPlayer == null || string.IsNullOrWhiteSpace(outputPath))
+                {
+                    return false;
+                }
+
+                uint w = (uint)Math.Max(1, width);
+                uint h = (uint)Math.Max(1, height);
+                return _mediaPlayer.TakeSnapshot(0, outputPath, w, h);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         private void OnMediaPlayerPlaying(object sender, EventArgs e)
         {
             _mainWindow.Dispatcher.BeginInvoke(new Action(() =>

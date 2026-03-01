@@ -73,6 +73,10 @@ namespace ImageColorChanger.UI
                 else
                 {
                     _projectionManager.ToggleProjection();
+                    if (_projectionManager.IsProjectionActive)
+                    {
+                        UpdateProjection();
+                    }
                 }
             }
             catch (Exception ex)
@@ -194,6 +198,8 @@ namespace ImageColorChanger.UI
                     SetProjectionButtonContent(false);
                     BtnProjection.Background = System.Windows.Media.Brushes.Transparent;
                     DisableGlobalHotKeys();
+                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
+                    StopVideoNdiTimer();
 
                     if (_projectionTimeoutTimer != null)
                     {
@@ -292,10 +298,18 @@ namespace ImageColorChanger.UI
                 {
                     OnBibleProjectionStateChanged(isActive);
                 }
-
-                if (_isLyricsMode)
+                else if (_isLyricsMode)
                 {
                     OnProjectionStateChanged(isActive);
+                }
+                else if (isActive && TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
+                {
+                    UpdateProjectionFromCanvas();
+                }
+                else if (isActive)
+                {
+                    // 非歌词/非圣经模式：开启投影后立即推送当前画面（含 NDI 首帧）。
+                    UpdateProjection();
                 }
             });
         }

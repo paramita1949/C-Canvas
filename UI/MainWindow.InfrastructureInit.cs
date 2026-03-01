@@ -5,6 +5,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Utils;
 using MessageBox = System.Windows.MessageBox;
 
@@ -31,6 +32,9 @@ namespace ImageColorChanger.UI
                 }
 
                 _configManager = _mainWindowServices.GetRequired<ConfigManager>();
+                // NDI 开关改为会话级：每次启动强制回到关闭状态，需手动重新开启。
+                _configManager.ProjectionNdiEnabled = false;
+                _projectionNdiOutputManager = _mainWindowServices.GetRequired<ProjectionNdiOutputManager>();
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
                 dbManager.NormalizeFolderVideoPlayModes("random");

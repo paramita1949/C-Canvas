@@ -193,6 +193,25 @@ jobs:
             exit 1
           }
         }
+
+        # 处理 NDI Runtime 安装包
+        if (Test-Path "publish\data\NDI6Runtime.exe") {
+          echo "✅ NDI6Runtime.exe 已存在"
+          $ndiInfo = Get-Item "publish\data\NDI6Runtime.exe"
+          echo "NDI6Runtime.exe 大小: $([math]::Round($ndiInfo.Length / 1MB, 2)) MB"
+        } else {
+          echo "⚠️ NDI6Runtime.exe 不存在于publish目录，尝试复制..."
+          if (Test-Path "data\NDI6Runtime.exe") {
+            New-Item -ItemType Directory -Path "publish\data" -Force | Out-Null
+            Copy-Item "data\NDI6Runtime.exe" "publish\data\NDI6Runtime.exe"
+            echo "✅ NDI6Runtime.exe 已复制到publish目录"
+            $ndiInfo = Get-Item "publish\data\NDI6Runtime.exe"
+            echo "NDI6Runtime.exe 大小: $([math]::Round($ndiInfo.Length / 1MB, 2)) MB"
+          } else {
+            echo "❌ 错误: 源代码中也没有 NDI6Runtime.exe 文件"
+            exit 1
+          }
+        }
         
         # 删除publish目录中的bin文件夹（如果存在）
         if (Test-Path "publish\bin") {
@@ -264,7 +283,7 @@ jobs:
           echo "❌ 错误: CanvasCast.dll 不存在"
           exit 1
         }
-        
+
         if (Test-Path $pakFile) {
           Compress-Archive -Path $pakFile -DestinationPath $resourcesZipName
           $resourcesZipSize = (Get-Item $resourcesZipName).Length / 1MB

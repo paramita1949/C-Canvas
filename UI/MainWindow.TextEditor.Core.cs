@@ -410,6 +410,9 @@ namespace ImageColorChanger.UI
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
             TextEditorPanel.Visibility = Visibility.Visible;
+            UpdateBoldButtonState(false);
+            UpdateUnderlineButtonState(false);
+            UpdateItalicButtonState(false);
 
             //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.Visibility: {TextEditorPanel.Visibility}");
             //System.Diagnostics.Debug.WriteLine($"   TextEditorPanel.IsVisible: {TextEditorPanel.IsVisible}");
@@ -548,6 +551,9 @@ namespace ImageColorChanger.UI
             _textEditorProjectionRenderStateService?.ClearCache();
             _textBoxes.Clear();
             _selectedTextBox = null;
+            UpdateBoldButtonState(false);
+            UpdateUnderlineButtonState(false);
+            UpdateItalicButtonState(false);
             
             // 清除所有文本框
             var textBoxesToRemove = EditorCanvas.Children.OfType<DraggableTextBox>().ToList();

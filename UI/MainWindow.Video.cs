@@ -24,6 +24,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Projection.Output;
 using LibVLCSharp.WPF;
 
 namespace ImageColorChanger.UI
@@ -33,6 +34,9 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private bool _currentMediaHasVideoTrack = true;
+        private DispatcherTimer _videoNdiTimer;
+
         #region 视频播放相关
         
         /// <summary>
@@ -60,10 +64,13 @@ namespace ImageColorChanger.UI
                             //System.Diagnostics.Debug.WriteLine(" 已在投影模式播放，跳过重复启用");
                         }
                     }
+
+                    StartVideoNdiTimer();
                 }
                 else
                 {
                     SetMediaPlayPauseButtonContent(false);
+                    StopVideoNdiTimer();
                 }
             });
         }
@@ -185,6 +192,7 @@ namespace ImageColorChanger.UI
                     
                     _isUpdatingProgress = false;
                 }
+
             });
         }
         
@@ -373,6 +381,7 @@ namespace ImageColorChanger.UI
                 // 更新状态栏
                 string type = hasVideo ? "视频" : "音频";
                 ShowStatus($"{type}: {fileName}");
+                _currentMediaHasVideoTrack = hasVideo;
             }
             catch (Exception)
             {
@@ -553,6 +562,121 @@ namespace ImageColorChanger.UI
             {
                 //System.Diagnostics.Debug.WriteLine($" 禁用视频投屏失败: {ex.Message}");
             }
+        }
+
+        private void TryPublishVideoProjectionFrameToNdi()
+        {
+            if (_projectionNdiOutputManager == null || _videoPlayerManager == null || !_videoPlayerManager.IsPlaying)
+            {
+                return;
+            }
+
+            if (!(_configManager?.ProjectionNdiEnabled ?? false))
+            {
+                return;
+            }
+
+            SKBitmap frame = null;
+            try
+            {
+                var (width, height) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
+                int targetWidth = Math.Max(320, width);
+                int targetHeight = Math.Max(180, height);
+
+                // 有视频轨道优先走 VLC snapshot；无视频轨道（纯音频）走 UI 截帧。
+                if (_currentMediaHasVideoTrack)
+                {
+                    string snapshotPath = Path.Combine(Path.GetTempPath(), "canvascast_ndi_video_snapshot.png");
+                    bool captured = _videoPlayerManager.CaptureSnapshot(snapshotPath, targetWidth, targetHeight);
+                    if (captured && File.Exists(snapshotPath))
+                    {
+                        frame = SKBitmap.Decode(snapshotPath);
+                    }
+                }
+
+                frame ??= CaptureUiElementToSkBitmap(VideoContainer, targetWidth, targetHeight);
+                if (frame == null)
+                {
+                    return;
+                }
+
+                _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Video);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                frame?.Dispose();
+            }
+        }
+
+        private void EnsureVideoNdiTimer()
+        {
+            if (_videoNdiTimer != null)
+            {
+                return;
+            }
+
+            _videoNdiTimer = new DispatcherTimer(DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+            _videoNdiTimer.Tick += (_, _) => TryPublishVideoProjectionFrameToNdi();
+        }
+
+        private void StartVideoNdiTimer()
+        {
+            EnsureVideoNdiTimer();
+
+            int fps = Math.Clamp(_configManager?.ProjectionNdiFps ?? 10, 1, 60);
+            int intervalMs = Math.Max(16, 1000 / fps);
+            _videoNdiTimer.Interval = TimeSpan.FromMilliseconds(intervalMs);
+            _videoNdiTimer.Start();
+        }
+
+        private void StopVideoNdiTimer()
+        {
+            if (_videoNdiTimer != null && _videoNdiTimer.IsEnabled)
+            {
+                _videoNdiTimer.Stop();
+            }
+        }
+
+        private SKBitmap CaptureUiElementToSkBitmap(FrameworkElement element, int width, int height)
+        {
+            if (element == null)
+            {
+                return null;
+            }
+
+            double targetW = width;
+            double targetH = height;
+            if (targetW <= 0 || targetH <= 0)
+            {
+                return null;
+            }
+
+            var rtb = new RenderTargetBitmap(
+                (int)targetW,
+                (int)targetH,
+                96,
+                96,
+                PixelFormats.Pbgra32);
+
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                var brush = new VisualBrush(element)
+                {
+                    Stretch = Stretch.Fill
+                };
+                dc.DrawRectangle(brush, null, new Rect(0, 0, targetW, targetH));
+            }
+
+            rtb.Render(dv);
+            rtb.Freeze();
+            return ConvertToSKBitmap(rtb);
         }
         
         #endregion

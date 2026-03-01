@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
+using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.Interfaces;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
@@ -340,6 +341,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    PublishBibleFrameToNdi(new List<BibleVerse> { verse });
                     
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影经文: {verse.Reference}");
@@ -418,26 +420,42 @@ namespace ImageColorChanger.UI
 
             try
             {
-                // 使用主屏幕的实际宽度来渲染，确保与主屏幕显示一致
+
+                // 优先使用投影窗口物理尺寸，确保 NDI 与投影画面一致（避免“内容变小”）。
                 double screenWidth = 0;
                 double screenHeight = 0;
-                
-                Dispatcher.Invoke(() =>
+                string sizeSource = "Unknown";
+                if (_projectionManager != null && _projectionManager.IsProjecting)
                 {
-                    if (BibleVerseScrollViewer != null)
+                    var (physicalWidth, physicalHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
+                    screenWidth = physicalWidth;
+                    screenHeight = physicalHeight;
+                    sizeSource = $"ProjectionPhysical({physicalWidth}x{physicalHeight})";
+                }
+
+                // 后备：使用主屏可视区域尺寸。
+                if (screenWidth <= 0 || screenHeight <= 0)
+                {
+                    Dispatcher.Invoke(() =>
                     {
-                        screenWidth = BibleVerseScrollViewer.ActualWidth;
-                        screenHeight = BibleVerseScrollViewer.ActualHeight;
-                    }
-                });
-                
-                // 如果获取失败，使用投影屏幕尺寸作为后备
+                        if (BibleVerseScrollViewer != null)
+                        {
+                            screenWidth = BibleVerseScrollViewer.ActualWidth;
+                            screenHeight = BibleVerseScrollViewer.ActualHeight;
+                            sizeSource = $"BibleScrollViewerActual({screenWidth:0.##}x{screenHeight:0.##})";
+                        }
+                    });
+                }
+
+                // 再后备：投影屏幕尺寸（WPF 单位）。
                 if (screenWidth <= 0 || screenHeight <= 0)
                 {
                     var (projWidth, projHeight) = _projectionManager.GetProjectionScreenSize();
                     screenWidth = projWidth;
                     screenHeight = projHeight;
+                    sizeSource = $"ProjectionScreenWpf({projWidth:0.##}x{projHeight:0.##})";
                 }
+
 
                 
 //#if DEBUG
@@ -604,18 +622,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 获取当前显示的所有经文
-                var versesList = new List<BibleVerse>();
-                var verses = BibleVerseList.ItemsSource as System.Collections.IEnumerable;
-                if (verses != null)
-                {
-                    foreach (var item in verses)
-                    {
-                        if (item is BibleVerse verse)
-                        {
-                            versesList.Add(verse);
-                        }
-                    }
-                }
+                var versesList = GetCurrentBibleVersesSnapshot();
 
                 if (versesList.Count == 0)
                 {
@@ -629,6 +636,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    PublishBibleFrameToNdi(versesList);
 
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($" [圣经投影-RenderTargetBitmap] 投影完成，共{versesList.Count}节");
@@ -647,12 +655,231 @@ namespace ImageColorChanger.UI
 //#endif
         }
 
+        private List<BibleVerse> GetCurrentBibleVersesSnapshot()
+        {
+            var versesList = new List<BibleVerse>();
+            var verses = BibleVerseList?.ItemsSource as System.Collections.IEnumerable;
+            if (verses == null)
+            {
+                return versesList;
+            }
+
+            foreach (var item in verses)
+            {
+                if (item is BibleVerse verse)
+                {
+                    versesList.Add(verse);
+                }
+            }
+
+            return versesList;
+        }
+
+        private void PublishBibleFrameToNdi(List<BibleVerse> verses)
+        {
+            if (_projectionNdiOutputManager == null || verses == null || verses.Count == 0)
+            {
+                LogBibleNdiDebug("PublishBibleFrameToNdi skipped: manager null or verses empty.");
+                return;
+            }
+            
+            SKBitmap frame = null;
+            SKBitmap projectionViewportFrame = null;
+            SKBitmap frameToSend = null;
+            SKBitmap viewportFrame = null;
+            SKBitmap capturedViewportFrame = null;
+            try
+            {
+                // 优先：完全复用投影窗口最终可见帧，确保 DPI/缩放/全屏与投影一致。
+                projectionViewportFrame = _projectionManager?.CaptureProjectionViewportFrameForNdi();
+                if (projectionViewportFrame != null)
+                {
+                    frameToSend = projectionViewportFrame;
+                    // 主路径：投影最终帧复用。成功路径不重复刷日志，避免调试窗口噪声。
+                }
+                else
+                {
+                    // 兜底：沿用旧路径，避免极端情况下无输出。
+                    frame = RenderVersesToProjection(verses);
+                    if (frame == null)
+                    {
+                        LogBibleNdiDebug("PublishBibleFrameToNdi skipped: rendered fallback frame is null.");
+                        return;
+                    }
+
+                    capturedViewportFrame = BuildBibleNdiFrameFromVisibleViewport();
+                    if (capturedViewportFrame != null)
+                    {
+                        frameToSend = capturedViewportFrame;
+                    }
+                    else
+                    {
+                        viewportFrame = BuildBibleNdiViewportFrame(frame);
+                        if (viewportFrame != null)
+                        {
+                            frameToSend = viewportFrame;
+                            LogBibleNdiDebug($"PublishBibleFrameToNdi: using fallback crop frame {frameToSend.Width}x{frameToSend.Height}");
+                        }
+                        else
+                        {
+                            frameToSend = frame;
+                            LogBibleNdiDebug($"PublishBibleFrameToNdi: using raw fallback frame {frameToSend.Width}x{frameToSend.Height}");
+                        }
+                    }
+                }
+
+                var key = HexToColor(_configManager?.BibleBackgroundColor ?? "#000000");
+                if (frameToSend == null)
+                {
+                    LogBibleNdiDebug("PublishBibleFrameToNdi skipped: frameToSend is null.");
+                    return;
+                }
+
+                bool sent = _projectionNdiOutputManager.PublishFrame(
+                    frameToSend,
+                    ProjectionNdiContentType.Bible,
+                    new SKColor(key.R, key.G, key.B, key.A));
+                if (projectionViewportFrame != null)
+                {
+                    // 主路径发送成功不打印逐帧日志。
+                }
+                else
+                {
+                    string rawSize = frame != null ? $"{frame.Width}x{frame.Height}" : "n/a";
+                    LogBibleNdiDebug($"PublishBibleFrameToNdi: sent={sent}, source=Fallback, rawFrame={rawSize}, sendFrame={frameToSend.Width}x{frameToSend.Height}, key=#{key.R:X2}{key.G:X2}{key.B:X2}, ndiEnabled={_configManager?.ProjectionNdiEnabled == true}, ndiSender={_configManager?.ProjectionNdiSenderName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogBibleNdiDebug($"PublishBibleFrameToNdi exception: {ex.Message}");
+            }
+            finally
+            {
+                projectionViewportFrame?.Dispose();
+                capturedViewportFrame?.Dispose();
+                viewportFrame?.Dispose();
+                frame?.Dispose();
+            }
+        }
+
+        private SKBitmap BuildBibleNdiFrameFromVisibleViewport()
+        {
+            if (_projectionManager == null || BibleVerseScrollViewer == null)
+            {
+                return null;
+            }
+
+            var (targetWidth, targetHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
+            if (targetWidth <= 0 || targetHeight <= 0)
+            {
+                return null;
+            }
+
+            int viewportWidth = (int)Math.Round(BibleVerseScrollViewer.ViewportWidth > 0
+                ? BibleVerseScrollViewer.ViewportWidth
+                : BibleVerseScrollViewer.ActualWidth);
+            int viewportHeight = (int)Math.Round(BibleVerseScrollViewer.ViewportHeight > 0
+                ? BibleVerseScrollViewer.ViewportHeight
+                : BibleVerseScrollViewer.ActualHeight);
+
+            if (viewportWidth <= 2 || viewportHeight <= 2)
+            {
+                LogBibleNdiDebug($"BuildBibleNdiFrameFromVisibleViewport skipped: invalid viewport {viewportWidth}x{viewportHeight}");
+                return null;
+            }
+
+            try
+            {
+                var rtb = new RenderTargetBitmap(viewportWidth, viewportHeight, 96, 96, WpfPixelFormats.Pbgra32);
+                rtb.Render(BibleVerseScrollViewer);
+                rtb.Freeze();
+
+                var captured = ConvertToSKBitmap(rtb);
+                if (captured == null)
+                {
+                    return null;
+                }
+
+                if (captured.Width == targetWidth && captured.Height == targetHeight)
+                {
+                    return captured;
+                }
+
+                var resized = new SKBitmap(targetWidth, targetHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
+                using (var canvas = new SKCanvas(resized))
+                {
+                    canvas.Clear(SKColors.Black);
+                    canvas.DrawBitmap(captured, new SKRect(0, 0, targetWidth, targetHeight));
+                    canvas.Flush();
+                }
+
+                // 主路径成功不打印每帧尺寸/偏移日志。
+                captured.Dispose();
+                return resized;
+            }
+            catch (Exception ex)
+            {
+                LogBibleNdiDebug($"BuildBibleNdiFrameFromVisibleViewport exception: {ex.Message}");
+                return null;
+            }
+        }
+
+        private SKBitmap BuildBibleNdiViewportFrame(SKBitmap sourceFrame)
+        {
+            if (sourceFrame == null || _projectionManager == null)
+            {
+                return null;
+            }
+
+            var (targetWidth, targetHeight) = _projectionManager.GetCurrentProjectionPhysicalSize();
+            if (targetWidth <= 0 || targetHeight <= 0)
+            {
+                return null;
+            }
+
+            int outWidth = Math.Max(1, targetWidth);
+            int outHeight = Math.Max(1, targetHeight);
+            int srcWidth = sourceFrame.Width;
+            int srcHeight = sourceFrame.Height;
+
+            if (srcWidth <= 0 || srcHeight <= 0)
+            {
+                return null;
+            }
+
+            double scrollRatio = 0;
+            if (BibleVerseScrollViewer != null && BibleVerseScrollViewer.ScrollableHeight > 0)
+            {
+                scrollRatio = BibleVerseScrollViewer.VerticalOffset / BibleVerseScrollViewer.ScrollableHeight;
+                scrollRatio = Math.Clamp(scrollRatio, 0, 1);
+            }
+
+            // 仅裁切纵向视口，横向按当前宽度缩放到投影宽度，避免发送“整页长图”导致接收端整体缩小。
+            int cropHeight = Math.Min(srcHeight, outHeight);
+            int maxCropY = Math.Max(0, srcHeight - cropHeight);
+            int cropY = (int)Math.Round(maxCropY * scrollRatio);
+            cropY = Math.Clamp(cropY, 0, maxCropY);
+
+            var output = new SKBitmap(outWidth, outHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var canvas = new SKCanvas(output);
+            canvas.Clear(SKColors.Black);
+
+            var srcRect = new SKRect(0, cropY, srcWidth, cropY + cropHeight);
+            var dstRect = new SKRect(0, 0, outWidth, outHeight);
+            canvas.DrawBitmap(sourceFrame, srcRect, dstRect);
+            canvas.Flush();
+
+            // 兜底裁切路径，仅在最终发送时打印一条 fallback 结果日志。
+            return output;
+        }
+
         /// <summary>
         /// 投影状态改变时的回调（供主窗口调用）
         /// 当投影开启时，如果在圣经模式，自动投影圣经
         /// </summary>
         public void OnBibleProjectionStateChanged(bool isProjecting)
         {
+            LogBibleNdiDebug($"OnBibleProjectionStateChanged: isProjecting={isProjecting}, isBibleMode={_isBibleMode}, projectionActive={_projectionManager?.IsProjectionActive == true}, isProjectingFlag={_projectionManager?.IsProjecting == true}");
 //#if DEBUG
 //            Debug.WriteLine($"[圣经] 投影状态改变 - IsProjecting: {isProjecting}, _isBibleMode: {_isBibleMode}");
 //#endif
@@ -696,6 +923,12 @@ namespace ImageColorChanger.UI
                 };
                 timer.Start();
             }
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
+        private void LogBibleNdiDebug(string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Bible-NDI] {message}");
         }
 
         #endregion

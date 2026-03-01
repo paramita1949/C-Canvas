@@ -6,12 +6,14 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfFontFamily = System.Windows.Media.FontFamily;
 using WpfSize = System.Windows.Size;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfImage = System.Windows.Controls.Image;
 
@@ -22,6 +24,8 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private bool _lyricsTransparentIdleFramePushed;
+
         private void RenderLyricsToProjection()
         {
             if (!Dispatcher.CheckAccess())
@@ -42,58 +46,32 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                var canvas = new Canvas
+                var skBitmap = BuildSingleLyricsProjectionBitmap(physicalWidth, physicalHeight, ndiInvertedLayout: false);
+                if (skBitmap == null)
                 {
-                    Width = physicalWidth,
-                    Height = physicalHeight,
-                    Background = new SolidColorBrush(GetCurrentLyricsThemeBackgroundColor())
-                };
-
-                double actualHeight = physicalHeight;
-                var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
-                double fontScale = physicalWidth / wpfWidth;
-
-                var textBlock = new TextBlock
-                {
-                    Text = GetCurrentSingleLyricsProjectionText(),
-                    FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
-                    FontSize = _lyricsProjectionFontSize * fontScale,
-                    Foreground = LyricsTextBox.Foreground,
-                    TextAlignment = LyricsTextBox.TextAlignment,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = physicalWidth,
-                    Padding = new Thickness(60 * fontScale, 40 * fontScale, 60 * fontScale, 40 * fontScale),
-                    VerticalAlignment = VerticalAlignment.Top,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left
-                };
-
-                textBlock.Measure(new WpfSize(physicalWidth, double.PositiveInfinity));
-                double textBlockHeight = textBlock.DesiredSize.Height;
-                if (textBlockHeight > physicalHeight)
-                {
-                    actualHeight = textBlockHeight;
-                    canvas.Height = actualHeight;
+                    return;
                 }
 
-                Canvas.SetLeft(textBlock, 0);
-                Canvas.SetTop(textBlock, 0);
-                canvas.Children.Add(textBlock);
-                AddImageWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale);
-                AddSongNameWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale);
-
-                canvas.Measure(new WpfSize(physicalWidth, actualHeight));
-                canvas.Arrange(new Rect(0, 0, physicalWidth, actualHeight));
-                canvas.UpdateLayout();
-
-                var renderBitmap = new RenderTargetBitmap(
-                    (int)physicalWidth, (int)Math.Ceiling(actualHeight), 96, 96, PixelFormats.Pbgra32);
-                renderBitmap.Render(canvas);
-                renderBitmap.Freeze();
-
-                var skBitmap = ConvertToSKBitmap(renderBitmap);
-                if (skBitmap != null)
+                SKBitmap ndiBitmap = skBitmap;
+                SKBitmap ndiOwnedBitmap = null;
+                try
                 {
                     _projectionManager?.UpdateProjectionText(skBitmap);
+
+                    if (ShouldUseNdiInvertedLyricsLayout())
+                    {
+                        ndiOwnedBitmap = BuildSingleLyricsProjectionBitmap(physicalWidth, physicalHeight, ndiInvertedLayout: true);
+                        if (ndiOwnedBitmap != null)
+                        {
+                            ndiBitmap = ndiOwnedBitmap;
+                        }
+                    }
+
+                    TryPublishLyricsFrameToNdi(ndiBitmap);
+                }
+                finally
+                {
+                    ndiOwnedBitmap?.Dispose();
                     skBitmap.Dispose();
                 }
             }
@@ -167,6 +145,7 @@ namespace ImageColorChanger.UI
             if (skBitmap != null)
             {
                 _projectionManager?.UpdateProjectionText(skBitmap);
+                TryPublishLyricsFrameToNdi(skBitmap);
                 skBitmap.Dispose();
             }
         }
@@ -205,8 +184,127 @@ namespace ImageColorChanger.UI
             if (skBitmap != null)
             {
                 _projectionManager?.UpdateProjectionText(skBitmap);
+                TryPublishLyricsFrameToNdi(skBitmap);
                 skBitmap.Dispose();
             }
+        }
+
+        private void TryPublishLyricsFrameToNdi(SKBitmap frame)
+        {
+            try
+            {
+                if (_projectionNdiOutputManager == null || frame == null)
+                {
+                    return;
+                }
+
+                bool transparentEnabled = _configManager?.ProjectionNdiEnabled == true
+                    && _configManager.ProjectionNdiLyricsTransparentEnabled;
+
+                bool transparentLyricsMode = IsLyricsTransparentNdiMode();
+
+                // 透明已开启但未进入“歌词切片透明模式”时，不发送歌词内容，仅保持透明空帧通道。
+                if (transparentEnabled && !transparentLyricsMode)
+                {
+                    PushTransparentIdleFrameToNdi(frame);
+                    return;
+                }
+
+                if (transparentLyricsMode)
+                {
+                    var bg = GetCurrentLyricsThemeBackgroundColor();
+                    _projectionNdiOutputManager.PublishFrame(
+                        frame,
+                        ProjectionNdiContentType.Lyrics,
+                        new SKColor(bg.R, bg.G, bg.B, bg.A));
+                    _lyricsTransparentIdleFramePushed = false;
+                }
+                else
+                {
+                    _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Slide);
+                    _lyricsTransparentIdleFramePushed = false;
+                }
+            }
+            catch
+            {
+                // NDI 输出异常不影响本地投影显示。
+            }
+        }
+
+        private void PushTransparentIdleFrameToNdi(SKBitmap referenceFrame)
+        {
+            if (_lyricsTransparentIdleFramePushed || referenceFrame == null || _projectionNdiOutputManager == null)
+            {
+                return;
+            }
+
+            using var transparentFrame = new SKBitmap(
+                referenceFrame.Width,
+                referenceFrame.Height,
+                SKColorType.Bgra8888,
+                SKAlphaType.Premul);
+            transparentFrame.Erase(new SKColor(0, 0, 0, 0));
+            _projectionNdiOutputManager.PublishFrame(transparentFrame, ProjectionNdiContentType.Lyrics);
+            _lyricsTransparentIdleFramePushed = true;
+        }
+
+        private SKBitmap BuildSingleLyricsProjectionBitmap(double physicalWidth, double physicalHeight, bool ndiInvertedLayout)
+        {
+            var canvas = new Canvas
+            {
+                Width = physicalWidth,
+                Height = physicalHeight,
+                Background = new SolidColorBrush(GetCurrentLyricsThemeBackgroundColor())
+            };
+
+            double actualHeight = physicalHeight;
+            var (wpfWidth, _) = _projectionManager.GetProjectionScreenSize();
+            double fontScale = physicalWidth / wpfWidth;
+
+            var textBlock = new TextBlock
+            {
+                Text = GetCurrentSingleLyricsProjectionText(),
+                FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                FontSize = _lyricsProjectionFontSize * fontScale,
+                Foreground = LyricsTextBox.Foreground,
+                TextAlignment = LyricsTextBox.TextAlignment,
+                TextWrapping = TextWrapping.Wrap,
+                Width = physicalWidth,
+                Padding = new Thickness(60 * fontScale, 40 * fontScale, 60 * fontScale, 40 * fontScale),
+                VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+            };
+
+            textBlock.Measure(new WpfSize(physicalWidth, double.PositiveInfinity));
+            double textBlockHeight = textBlock.DesiredSize.Height;
+            if (textBlockHeight > physicalHeight)
+            {
+                actualHeight = textBlockHeight;
+                canvas.Height = actualHeight;
+            }
+
+            Canvas.SetLeft(textBlock, 0);
+            Canvas.SetTop(textBlock, ndiInvertedLayout ? Math.Max(0, actualHeight - textBlockHeight) : 0);
+            canvas.Children.Add(textBlock);
+            AddImageWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale, placeTop: ndiInvertedLayout);
+            AddSongNameWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale, placeTop: ndiInvertedLayout);
+
+            canvas.Measure(new WpfSize(physicalWidth, actualHeight));
+            canvas.Arrange(new Rect(0, 0, physicalWidth, actualHeight));
+            canvas.UpdateLayout();
+
+            var renderBitmap = new RenderTargetBitmap(
+                (int)physicalWidth, (int)Math.Ceiling(actualHeight), 96, 96, PixelFormats.Pbgra32);
+            renderBitmap.Render(canvas);
+            renderBitmap.Freeze();
+
+            return ConvertToSKBitmap(renderBitmap);
+        }
+
+        private bool ShouldUseNdiInvertedLyricsLayout()
+        {
+            return _configManager?.ProjectionNdiEnabled == true
+                && _configManager.ProjectionNdiLyricsTransparentEnabled;
         }
 
         private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale, double regionFontSize)
@@ -328,7 +426,7 @@ namespace ImageColorChanger.UI
             canvas.Children.Add(label);
         }
 
-        private void AddSongNameWatermarkToProjection(Canvas canvas, double width, double height, double fontScale)
+        private void AddSongNameWatermarkToProjection(Canvas canvas, double width, double height, double fontScale, bool placeTop = false)
         {
             string watermark = GetCurrentLyricsSongWatermarkText();
             if (string.IsNullOrWhiteSpace(watermark))
@@ -338,26 +436,38 @@ namespace ImageColorChanger.UI
 
             double marginX = Math.Max(22, 18 * fontScale);
             double marginY = Math.Max(18, 14 * fontScale);
-            double fontSize = Math.Max(60, 60 * fontScale);
+            double fontSize = Math.Max(MinLyricsTextWatermarkFontSize, _lyricsTextWatermarkFontSize * fontScale);
+            var lyricsColor = ResolveCurrentLyricsProjectionTextColor();
+            var watermarkColor = WpfColor.FromArgb(128, lyricsColor.R, lyricsColor.G, lyricsColor.B);
 
             var text = new TextBlock
             {
                 Text = watermark,
                 FontSize = fontSize,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(WpfColor.FromArgb(190, 255, 255, 255)),
+                Foreground = new SolidColorBrush(watermarkColor),
                 IsHitTestVisible = false
             };
 
             text.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
             var size = text.DesiredSize;
             Canvas.SetLeft(text, marginX);
-            Canvas.SetTop(text, Math.Max(0, height - size.Height - marginY));
+            Canvas.SetTop(text, placeTop ? marginY : Math.Max(0, height - size.Height - marginY));
             Canvas.SetZIndex(text, 1200);
             canvas.Children.Add(text);
         }
 
-        private void AddImageWatermarkToProjection(Canvas canvas, double width, double height, double fontScale)
+        private WpfColor ResolveCurrentLyricsProjectionTextColor()
+        {
+            if (LyricsTextBox?.Foreground is WpfSolidColorBrush brush)
+            {
+                return brush.Color;
+            }
+
+            return WpfColor.FromRgb(255, 255, 255);
+        }
+
+        private void AddImageWatermarkToProjection(Canvas canvas, double width, double height, double fontScale, bool placeTop = false)
         {
             string imagePath = GetCurrentLyricsWatermarkImagePath();
             if (string.IsNullOrWhiteSpace(imagePath))
@@ -400,7 +510,7 @@ namespace ImageColorChanger.UI
                 };
 
                 Canvas.SetLeft(image, Math.Max(0, width - drawWidth - marginX));
-                Canvas.SetTop(image, Math.Max(0, height - drawHeight - marginY));
+                Canvas.SetTop(image, placeTop ? marginY : Math.Max(0, height - drawHeight - marginY));
                 Canvas.SetZIndex(image, 1300);
                 canvas.Children.Add(image);
             }
@@ -408,6 +518,14 @@ namespace ImageColorChanger.UI
             {
                 // 水印加载失败不影响歌词投影
             }
+        }
+
+        private bool IsLyricsTransparentNdiMode()
+        {
+            return _configManager?.ProjectionNdiEnabled == true
+                && _configManager.ProjectionNdiLyricsTransparentEnabled
+                && _lyricsSliceModeEnabled
+                && _lyricsSplitMode == (int)ViewSplitMode.Single;
         }
 
         private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text, int RegionIndex)> GetSplitRenderRegions(double width, double height)

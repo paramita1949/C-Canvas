@@ -46,6 +46,10 @@ namespace ImageColorChanger.UI
                     _projectionManager.ProjectionVideoViewLoaded -= OnProjectionVideoViewLoaded;
                 }
 
+                _projectionNdiOutputManager?.Stop();
+                StopVideoNdiTimer();
+                StopNdiDiscoveryTimer();
+
                 // 清理视频背景管理器
                 _videoBackgroundManager?.Dispose();
                 _textEditorProjectionRenderStateService?.ClearCache();

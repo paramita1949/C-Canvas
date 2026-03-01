@@ -63,6 +63,8 @@ namespace ImageColorChanger.UI
         
         // 导航栏同步标志（防止同步时触发不必要的事件）
         private bool _isNavigationSyncing = false;
+        private bool _bibleNdiScrollPublishQueued = false;
+        private long _lastBibleNdiScrollPublishTick = 0;
         
         // 圣经样式设置 Popup（复用实例）
         private BibleInsertStylePopup _bibleStylePopup = null;
@@ -1558,6 +1560,39 @@ namespace ImageColorChanger.UI
                 // 圣经滚动同步：直接使用主屏滚动位置（与歌词投影完全一致）
                 // 因为两者使用相同的渲染逻辑，内容高度一致，直接同步滚动偏移
                 _projectionManager.SyncBibleScroll(BibleVerseScrollViewer);
+
+                // 滚动后在渲染阶段补发一帧 NDI，避免“投影已滚动但 NDI 还没滚动”的时序差。
+                if (_projectionNdiOutputManager != null && _configManager?.ProjectionNdiEnabled == true)
+                {
+                    long now = Environment.TickCount64;
+                    if (now - _lastBibleNdiScrollPublishTick < 25)
+                    {
+                        return;
+                    }
+
+                    _lastBibleNdiScrollPublishTick = now;
+                    if (_bibleNdiScrollPublishQueued)
+                    {
+                        return;
+                    }
+
+                    _bibleNdiScrollPublishQueued = true;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            var verses = GetCurrentBibleVersesSnapshot();
+                            if (verses.Count > 0)
+                            {
+                                PublishBibleFrameToNdi(verses);
+                            }
+                        }
+                        finally
+                        {
+                            _bibleNdiScrollPublishQueued = false;
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Render);
+                }
             }
         }
 
