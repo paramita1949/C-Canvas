@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using ImageColorChanger.Core;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using Microsoft.EntityFrameworkCore;
@@ -306,7 +308,8 @@ namespace ImageColorChanger.Managers
         public string BackgroundColor { get; set; }
         public int SplitMode { get; set; }
         public string SplitRegionsData { get; set; }
-        public bool SplitStretchMode { get; set; }
+        [JsonConverter(typeof(LegacySplitImageDisplayModeJsonConverter))]
+        public SplitImageDisplayMode SplitStretchMode { get; set; } = SplitImageDisplayMode.FitCenter;
         public bool VideoBackgroundEnabled { get; set; } = false;
         public bool VideoLoopEnabled { get; set; } = true;
         public double VideoVolume { get; set; } = 0.0;

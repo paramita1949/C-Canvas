@@ -79,7 +79,7 @@ namespace ImageColorChanger.UI
         private Dictionary<int, System.Windows.Controls.Image> _regionImages = new Dictionary<int, System.Windows.Controls.Image>(); // 区域图片控件
         private Dictionary<int, string> _regionImagePaths = new Dictionary<int, string>(); // 区域图片路径
         private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
-        private bool _splitStretchMode = false; // false = 适中显示(Uniform), true = 拉伸显示(Fill)
+        private SplitImageDisplayMode _splitImageDisplayMode = SplitImageDisplayMode.FitCenter; // 分割图片显示模式
         
         // 渲染节流（避免过于频繁的更新）
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
@@ -285,7 +285,7 @@ namespace ImageColorChanger.UI
                     SortOrder = 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
+                    SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                 };
                 await _textProjectService.AddSlideAsync(firstSlide);
 
@@ -355,7 +355,7 @@ namespace ImageColorChanger.UI
                         SortOrder = 1,
                         BackgroundColor = "#000000",  // 默认黑色背景
                         SplitMode = -1,  // 默认无分割模式
-                        SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
+                        SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                     };
                     await _textProjectService.AddSlideAsync(firstSlide);
                     

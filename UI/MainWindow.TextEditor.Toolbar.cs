@@ -334,60 +334,167 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 原图拉伸模式切换按钮点击
+        /// 分割图片显示模式按钮点击（弹出可选模式菜单）
         /// </summary>
-        private async void BtnSplitStretchMode_Click(object sender, RoutedEventArgs e)
+        private void BtnSplitStretchMode_Click(object sender, RoutedEventArgs e)
         {
             if (_currentTextProject == null || _currentSlide == null)
                 return;
-            
-            // 如果没有区域图片，不执行操作
+
             if (_regionImages.Count == 0)
                 return;
-            
-            // 检查当前第一个区域图片的拉伸模式
-            var firstImage = _regionImages.Values.FirstOrDefault();
-            if (firstImage == null)
+
+            var anchor = sender as FrameworkElement ?? BtnSplitStretchMode;
+            if (anchor == null)
                 return;
-            
-            // 根据当前状态切换
-            bool isCurrentlyFill = firstImage.Stretch == System.Windows.Media.Stretch.Fill;
-            var newStretch = isCurrentlyFill ? 
-                System.Windows.Media.Stretch.Uniform :  // 当前是拉伸 → 切换为适中
-                System.Windows.Media.Stretch.Fill;      // 当前是适中 → 切换为拉伸
-            
-            // 应用到所有区域图片（包括单画面模式的区域0）
-            foreach (var kvp in _regionImages)
+
+            var modeMenu = new ContextMenu
             {
-                kvp.Value.Stretch = newStretch;
+                PlacementTarget = anchor,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+                Style = (Style)FindResource("NoBorderContextMenuStyle")
+            };
+
+            foreach (var mode in GetAlternativeSplitImageDisplayModes(_splitImageDisplayMode))
+            {
+                var item = new MenuItem
+                {
+                    Header = GetSplitImageDisplayModeLabel(mode),
+                    Tag = mode
+                };
+
+                item.Click += async (_, __) =>
+                {
+                    await ApplySelectedSplitImageDisplayModeAsync(mode);
+                };
+
+                modeMenu.Items.Add(item);
             }
-            
-            // 更新内部状态和按钮显示
-            _splitStretchMode = (newStretch == System.Windows.Media.Stretch.Fill);
+
+            if (modeMenu.Items.Count == 0)
+            {
+                return;
+            }
+
+            anchor.ContextMenu = modeMenu;
+            modeMenu.IsOpen = true;
+        }
+        
+        /// <summary>
+        /// 更新显示模式按钮显示
+        /// </summary>
+        private void UpdateStretchModeButton()
+        {
+            SetSplitStretchButtonContent(_splitImageDisplayMode);
+        }
+
+        private static IReadOnlyList<SplitImageDisplayMode> GetAlternativeSplitImageDisplayModes(SplitImageDisplayMode currentMode)
+        {
+            var allModes = new[]
+            {
+                SplitImageDisplayMode.FitCenter,
+                SplitImageDisplayMode.Fill,
+                SplitImageDisplayMode.FitTop
+            };
+
+            return allModes.Where(mode => mode != currentMode).ToArray();
+        }
+
+        private static string GetSplitImageDisplayModeLabel(SplitImageDisplayMode mode)
+        {
+            return mode switch
+            {
+                SplitImageDisplayMode.Fill => "拉伸",
+                SplitImageDisplayMode.FitTop => "置顶",
+                _ => "适中"
+            };
+        }
+
+        private async Task ApplySelectedSplitImageDisplayModeAsync(SplitImageDisplayMode mode)
+        {
+            if (_splitImageDisplayMode == mode)
+                return;
+
+            _splitImageDisplayMode = mode;
+            ApplySplitImageDisplayModeToAllRegions();
             UpdateStretchModeButton();
-            
-            // 保存到数据库
+
             await SaveSplitStretchModeAsync();
 
             // 作为全局偏好长期保存（下次分割图沿用）
             SaveSettings();
 
-            // 非锁定投影下，切换后立即同步投影显示
             if (!_isProjectionLocked && _projectionManager?.IsProjectionActive == true)
             {
                 UpdateProjectionFromCanvas();
             }
         }
-        
-        /// <summary>
-        /// 更新拉伸模式按钮显示（根据当前图片的实际拉伸模式）
-        /// </summary>
-        private void UpdateStretchModeButton()
+
+        private void ApplySplitImageDisplayModeToAllRegions()
         {
-            // 按钮显示当前的实际模式：
-            // - 如果图片是拉伸模式(Fill)，显示"拉伸"
-            // - 如果图片是适中模式(Uniform)，显示"适中"
-            SetSplitStretchButtonContent(_splitStretchMode);
+            foreach (var kvp in _regionImages)
+            {
+                if (kvp.Key >= 0 && kvp.Key < _splitRegionBorders.Count)
+                {
+                    ApplySplitImageDisplayModeToRegion(kvp.Value, kvp.Key);
+                }
+            }
+        }
+
+        private void ApplySplitImageDisplayModeToRegion(System.Windows.Controls.Image imageControl, int regionIndex)
+        {
+            if (imageControl == null || regionIndex < 0 || regionIndex >= _splitRegionBorders.Count)
+                return;
+
+            var border = _splitRegionBorders[regionIndex];
+            double regionLeft = Canvas.GetLeft(border);
+            double regionTop = Canvas.GetTop(border);
+            double regionWidth = border.Width;
+            double regionHeight = border.Height;
+
+            // 保持控件区域和分割区域一致，置顶模式通过向上平移去掉 Uniform 的上方留白。
+            imageControl.Width = regionWidth;
+            imageControl.Height = regionHeight;
+            Canvas.SetLeft(imageControl, regionLeft);
+
+            if (_splitImageDisplayMode == SplitImageDisplayMode.Fill)
+            {
+                imageControl.Stretch = System.Windows.Media.Stretch.Fill;
+                Canvas.SetTop(imageControl, regionTop);
+                return;
+            }
+
+            imageControl.Stretch = System.Windows.Media.Stretch.Uniform;
+            if (_splitImageDisplayMode == SplitImageDisplayMode.FitCenter)
+            {
+                Canvas.SetTop(imageControl, regionTop);
+                return;
+            }
+
+            // FitTop：对于“横图”向上偏移一半留白，达到置顶效果。
+            double topOffset = CalculateUniformVerticalCenterOffset(imageControl.Source, regionWidth, regionHeight);
+            Canvas.SetTop(imageControl, regionTop - topOffset);
+        }
+
+        private static double CalculateUniformVerticalCenterOffset(ImageSource source, double regionWidth, double regionHeight)
+        {
+            if (source is not BitmapSource bitmap || regionWidth <= 0 || regionHeight <= 0 || bitmap.PixelHeight <= 0)
+            {
+                return 0;
+            }
+
+            double imageAspect = (double)bitmap.PixelWidth / bitmap.PixelHeight;
+            double regionAspect = regionWidth / regionHeight;
+
+            if (imageAspect <= regionAspect)
+            {
+                // 竖图或接近区域比例时，Uniform按高度撑满，无垂直留白。
+                return 0;
+            }
+
+            // 横图以宽度为准，产生上下留白。
+            double drawHeight = regionWidth / imageAspect;
+            return Math.Max(0, (regionHeight - drawHeight) / 2.0);
         }
         
         /// <summary>
@@ -403,15 +510,15 @@ namespace ImageColorChanger.UI
                 var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
                 if (slideToUpdate != null)
                 {
-                    slideToUpdate.SplitStretchMode = _splitStretchMode;
+                    slideToUpdate.SplitStretchMode = _splitImageDisplayMode;
                     slideToUpdate.ModifiedTime = DateTime.Now;
                     await _textProjectService.UpdateSlideAsync(slideToUpdate);
                     
                     // 更新本地缓存
-                    _currentSlide.SplitStretchMode = _splitStretchMode;
+                    _currentSlide.SplitStretchMode = _splitImageDisplayMode;
                     
                     //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[SaveSplitStretchMode] 已保存拉伸模式: {_splitStretchMode}");
+                    //System.Diagnostics.Debug.WriteLine($"[SaveSplitStretchMode] 已保存显示模式: {_splitImageDisplayMode}");
                     //#endif
                 }
             }
@@ -838,18 +945,13 @@ namespace ImageColorChanger.UI
                     return bitmap;
                 });
                 
-                // 分割模式下严格按用户设置（适中/拉伸）
-                System.Windows.Media.Stretch stretchMode = _splitStretchMode
-                    ? System.Windows.Media.Stretch.Fill
-                    : System.Windows.Media.Stretch.Uniform;
-                
-                // 创建 Image 控件，应用拉伸模式
+                // 创建 Image 控件（显示模式由统一方法应用）
                 var imageControl = new System.Windows.Controls.Image
                 {
                     Source = bitmapSource,
                     Width = width,
                     Height = height,
-                    Stretch = stretchMode,
+                    Stretch = System.Windows.Media.Stretch.Uniform,
                     Tag = $"RegionImage_{_selectedRegionIndex}",
                     CacheMode = new BitmapCache // 启用GPU缓存，减少重复渲染
                     {
@@ -877,8 +979,8 @@ namespace ImageColorChanger.UI
                 // 更新边框样式（有图片的区域显示黄色）
                 border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0)); // 金色
                 
-                // 同步更新拉伸按钮显示
-                _splitStretchMode = (stretchMode == System.Windows.Media.Stretch.Fill);
+                // 应用当前全局显示模式，并同步按钮显示
+                ApplySplitImageDisplayModeToRegion(imageControl, _selectedRegionIndex);
                 UpdateStretchModeButton();
                 
                 //#if DEBUG
@@ -1243,8 +1345,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 恢复拉伸模式
-                _splitStretchMode = slide.SplitStretchMode;
+                // 恢复显示模式
+                _splitImageDisplayMode = slide.SplitStretchMode;
                 UpdateStretchModeButton();
                 
                 // 检查是否有分割模式（-1 表示无分割模式）
@@ -1455,18 +1557,13 @@ namespace ImageColorChanger.UI
                         bitmap = bmp;
                     }
                     
-                    // 分割模式下严格按用户设置（适中/拉伸）
-                    System.Windows.Media.Stretch stretchMode = _splitStretchMode
-                        ? System.Windows.Media.Stretch.Fill
-                        : System.Windows.Media.Stretch.Uniform;
-                    
-                    // 创建 Image 控件，应用拉伸模式
+                    // 创建 Image 控件（显示模式由统一方法应用）
                     var imageControl = new System.Windows.Controls.Image
                     {
                         Source = bitmap,
                         Width = width,
                         Height = height,
-                        Stretch = stretchMode,
+                        Stretch = System.Windows.Media.Stretch.Uniform,
                         Tag = $"RegionImage_{regionData.RegionIndex}",
                         CacheMode = new BitmapCache // 启用GPU缓存
                         {
@@ -1485,6 +1582,7 @@ namespace ImageColorChanger.UI
                     _regionImages[regionData.RegionIndex] = imageControl;
                     _regionImagePaths[regionData.RegionIndex] = regionData.ImagePath;
                     _regionImageColorEffects[regionData.RegionIndex] = shouldApplyColorEffect; // 记录是否需要变色效果
+                    ApplySplitImageDisplayModeToRegion(imageControl, regionData.RegionIndex);
                     
                     // 更新边框样式（有图片的区域显示金色）
                     border.Stroke = new SolidColorBrush(WpfColor.FromRgb(255, 215, 0));
@@ -1494,20 +1592,8 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
                 
-                // 最终同步：检查实际加载的图片拉伸模式，确保按钮显示正确
-                if (_regionImages.Count > 0)
-                {
-                    var firstImage = _regionImages.Values.FirstOrDefault();
-                    if (firstImage != null)
-                    {
-                        bool actualStretchMode = (firstImage.Stretch == System.Windows.Media.Stretch.Fill);
-                        if (_splitStretchMode != actualStretchMode)
-                        {
-                            _splitStretchMode = actualStretchMode;
-                            UpdateStretchModeButton();
-                        }
-                    }
-                }
+                // 最终同步按钮显示
+                UpdateStretchModeButton();
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($" [RestoreSplitConfig] 分割配置恢复完成");

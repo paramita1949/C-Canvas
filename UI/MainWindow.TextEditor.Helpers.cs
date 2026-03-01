@@ -416,7 +416,7 @@ namespace ImageColorChanger.UI
                 RegionImagePaths = _regionImagePaths,
                 TextStates = textStates,
                 SplitMode = _currentSlide?.SplitMode.ToString(),
-                SplitStretchMode = _splitStretchMode,
+                SplitDisplayMode = _splitImageDisplayMode.ToString(),
                 BackgroundColor = _currentSlide?.BackgroundColor,
                 BackgroundImagePath = _currentSlide?.BackgroundImagePath
             };
@@ -822,13 +822,11 @@ namespace ImageColorChanger.UI
                     //var imgSw = System.Diagnostics.Stopwatch.StartNew();
                     //#endif
                     
-                    // 关键修复：获取Image控件的位置和边框的尺寸
-                    // Image控件的ActualWidth/Height在Uniform模式下会小于设置的Width/Height
-                    // 应该使用边框的尺寸作为控件区域，才能正确计算居中位置
-                    double left = Canvas.GetLeft(imageControl);
-                    double top = Canvas.GetTop(imageControl);
-                    double width = _splitRegionBorders[regionIndex].Width;  // 使用边框宽度，不是Image的ActualWidth
-                    double height = _splitRegionBorders[regionIndex].Height; // 使用边框高度，不是Image的ActualHeight
+                    // 统一使用分割区域边框的位置和尺寸，避免 Image 控件为置顶模式偏移后影响投影计算。
+                    double left = Canvas.GetLeft(_splitRegionBorders[regionIndex]);
+                    double top = Canvas.GetTop(_splitRegionBorders[regionIndex]);
+                    double width = _splitRegionBorders[regionIndex].Width;
+                    double height = _splitRegionBorders[regionIndex].Height;
                     
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"[Compose] 区域 {regionIndex} - Image控件位置: ({left}, {top}), 尺寸: {width}×{height}, Stretch: {imageControl.Stretch}");
@@ -909,11 +907,17 @@ namespace ImageColorChanger.UI
                         //imgSw.Restart();
                         //#endif
                         
-                        // 关键修复：根据Image控件的Stretch属性计算实际绘制区域
+                        // 根据分割图片显示模式计算实际绘制区域
                         SKRect destRect;
-                        if (imageControl.Stretch == System.Windows.Media.Stretch.Uniform)
+                        if (_splitImageDisplayMode == SplitImageDisplayMode.Fill)
                         {
-                            // Uniform模式：保持比例，居中显示
+                            // Fill模式：拉伸填满整个控件区域
+                            destRect = new SKRect((float)left, (float)top,
+                                                   (float)(left + width), (float)(top + height));
+                        }
+                        else
+                        {
+                            // FitCenter / FitTop：保持比例
                             double imageAspect = (double)skBitmap.Width / skBitmap.Height;
                             double controlAspect = width / height;
                             
@@ -931,40 +935,25 @@ namespace ImageColorChanger.UI
                             }
                             else if (imageAspect > controlAspect)
                             {
-                                // 图片更宽（更扁），以宽度为准，垂直居中
+                                // 图片更宽（更扁），以宽度为准
                                 drawWidth = width;
                                 drawHeight = width / imageAspect;
                                 drawLeft = left;
-                                drawTop = top + (height - drawHeight) / 2; // 垂直居中
+                                drawTop = _splitImageDisplayMode == SplitImageDisplayMode.FitTop
+                                    ? top
+                                    : top + (height - drawHeight) / 2; // FitCenter 垂直居中
                             }
                             else
                             {
-                                // 图片更高（更瘦），以高度为准，水平居中
+                                // 图片更高（更瘦），以高度为准
                                 drawHeight = height;
                                 drawWidth = height * imageAspect;
                                 drawLeft = left + (width - drawWidth) / 2; // 水平居中
-                                drawTop = top + (height - drawHeight) / 2; // 垂直也居中！
+                                drawTop = top; // 高图天然撑满高度，顶部即为区域顶部
                             }
                             
                             destRect = new SKRect((float)drawLeft, (float)drawTop,
                                                    (float)(drawLeft + drawWidth), (float)(drawTop + drawHeight));
-
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"[Compose] 区域 {regionIndex} - Uniform模式计算:");
-                            //System.Diagnostics.Debug.WriteLine($"    图片宽高比: {imageAspect:F3}, 控件宽高比: {controlAspect:F3}");
-                            //System.Diagnostics.Debug.WriteLine($"    绘制位置: ({drawLeft:F1}, {drawTop:F1}), 绘制尺寸: {drawWidth:F1}×{drawHeight:F1}");
-                            //System.Diagnostics.Debug.WriteLine($"    destRect: Left={destRect.Left:F1}, Top={destRect.Top:F1}, Right={destRect.Right:F1}, Bottom={destRect.Bottom:F1}");
-                            //#endif
-                        }
-                        else
-                        {
-                            // Fill模式：拉伸填满整个控件区域
-                            destRect = new SKRect((float)left, (float)top,
-                                                   (float)(left + width), (float)(top + height));
-                            
-                            //#if DEBUG
-                            //System.Diagnostics.Debug.WriteLine($"[Compose] 区域 {regionIndex} - Fill模式: 直接填满控件区域");
-                            //#endif
                         }
                         
                         // 使用高质量过滤模式，确保投影质量

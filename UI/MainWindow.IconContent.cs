@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
 using MediaBrush = System.Windows.Media.Brush;
 
@@ -74,10 +75,23 @@ namespace ImageColorChanger.UI
             BtnProjection.Content = BuildIconLabelContent("IconLucideMonitor", isActive ? "结束" : "投影");
         }
 
-        private void SetSplitStretchButtonContent(bool isStretch)
+        private void SetSplitStretchButtonContent(SplitImageDisplayMode mode)
         {
-            string iconKey = isStretch ? "IconLucideMaximize" : "IconLucideMinimize";
-            BtnSplitStretchMode.Content = BuildIconLabelContent(iconKey, isStretch ? "拉伸" : "适中");
+            string iconKey = mode switch
+            {
+                SplitImageDisplayMode.Fill => "IconLucideMaximize",
+                SplitImageDisplayMode.FitTop => "IconLucideAlignStartVertical",
+                _ => "IconLucideMinimize"
+            };
+
+            string label = mode switch
+            {
+                SplitImageDisplayMode.Fill => "拉伸",
+                SplitImageDisplayMode.FitTop => "置顶",
+                _ => "适中"
+            };
+
+            BtnSplitStretchMode.Content = BuildIconLabelContent(iconKey, label);
         }
 
         private void SetLockProjectionButtonContent(bool isLocked)

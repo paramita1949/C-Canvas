@@ -65,7 +65,7 @@
                             <!-- 原图模式切换按钮 -->
                             <Button x:Name="BtnSplitStretchMode"
                                     Style="{StaticResource MenuButtonStyle}"
-                                    ToolTip="切换图片拉伸模式（适中/拉伸）"
+                                    ToolTip="切换图片显示模式（适中/拉伸/置顶）"
                                     Click="BtnSplitStretchMode_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource IconLucideMinimize}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>

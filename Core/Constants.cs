@@ -140,5 +140,20 @@ namespace ImageColorChanger.Core
         /// <summary>拉伸模式 - 宽度填满，高度按比例</summary>
         Stretch
     }
+
+    /// <summary>
+    /// 分割图片显示模式
+    /// </summary>
+    public enum SplitImageDisplayMode
+    {
+        /// <summary>适中居中 - 等比缩放并居中显示</summary>
+        FitCenter = 0,
+
+        /// <summary>拉伸填充 - 拉伸填满区域</summary>
+        Fill = 1,
+
+        /// <summary>适中置顶 - 等比缩放并置顶显示</summary>
+        FitTop = 2
+    }
 }
 

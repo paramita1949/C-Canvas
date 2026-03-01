@@ -80,7 +80,7 @@ namespace ImageColorChanger.UI
                         BackgroundImagePath = imagePath,
                         BackgroundColor = null,
                         SplitMode = -1,
-                        SplitStretchMode = _splitStretchMode,
+                        SplitStretchMode = _splitImageDisplayMode,
                         CreatedTime = DateTime.Now,
                         ModifiedTime = DateTime.Now
                     };

@@ -52,7 +52,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 imagePart,
                 textPart,
                 context.SplitMode ?? string.Empty,
-                context.SplitStretchMode ? "1" : "0",
+                context.SplitDisplayMode ?? string.Empty,
                 context.BackgroundColor ?? string.Empty,
                 context.BackgroundImagePath ?? string.Empty);
         }

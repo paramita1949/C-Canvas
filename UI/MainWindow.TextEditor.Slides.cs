@@ -1156,7 +1156,7 @@ namespace ImageColorChanger.UI
                     SortOrder = maxOrder + 1,
                     BackgroundColor = "#000000",  // 默认黑色背景
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = _splitStretchMode  // 使用当前分割拉伸偏好
+                    SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                 };
 
                 await _textProjectService.AddSlideAsync(newSlide);
@@ -1217,7 +1217,7 @@ namespace ImageColorChanger.UI
                     BackgroundColor = sourceSlide.BackgroundColor,
                     BackgroundImagePath = sourceSlide.BackgroundImagePath,
                     SplitMode = sourceSlide.SplitMode,  // 复制分割模式
-                    SplitStretchMode = sourceSlide.SplitStretchMode,  // 复制拉伸模式
+                    SplitStretchMode = sourceSlide.SplitStretchMode,  // 复制显示模式
                     SplitRegionsData = sourceSlide.SplitRegionsData  // 复制区域数据
                 };
 

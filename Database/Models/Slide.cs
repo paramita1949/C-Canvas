@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Database.Models
 {
@@ -64,10 +65,10 @@ namespace ImageColorChanger.Database.Models
         public string SplitRegionsData { get; set; }
 
         /// <summary>
-        /// 分割图片拉伸模式（false=适中显示Uniform, true=拉伸显示Fill）
+        /// 分割图片显示模式（0=适中居中, 1=拉伸, 2=适中置顶）
         /// </summary>
         [Column("split_stretch_mode")]
-        public bool SplitStretchMode { get; set; } = false;
+        public SplitImageDisplayMode SplitStretchMode { get; set; } = SplitImageDisplayMode.FitCenter;
 
         /// <summary>
         /// 是否启用视频背景（当此值为true时，BackgroundImagePath应指向视频文件）

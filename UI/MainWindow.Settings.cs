@@ -19,8 +19,8 @@ namespace ImageColorChanger.UI
                 _originalDisplayMode = _configManager.OriginalDisplayMode;
                 _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
 
-                // 加载分割拉伸模式偏好（默认适中）
-                _splitStretchMode = _configManager.SplitStretchMode;
+                // 加载分割图片显示模式偏好（默认适中居中）
+                _splitImageDisplayMode = _configManager.SplitImageDisplayMode;
                 
                 // 加载缩放比例
                 _currentZoom = _configManager.ZoomRatio;
@@ -83,8 +83,8 @@ namespace ImageColorChanger.UI
                 // 保存原图显示模式到 ConfigManager
                 _configManager.OriginalDisplayMode = _originalDisplayMode;
 
-                // 保存分割拉伸模式偏好到 ConfigManager
-                _configManager.SplitStretchMode = _splitStretchMode;
+                // 保存分割图片显示模式偏好到 ConfigManager
+                _configManager.SplitImageDisplayMode = _splitImageDisplayMode;
                 
                 // 保存缩放比例
                 _configManager.ZoomRatio = _currentZoom;

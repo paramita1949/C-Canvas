@@ -69,7 +69,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
                     }
                 },
                 SplitMode = "Horizontal",
-                SplitStretchMode = true,
+                SplitDisplayMode = "Fill",
                 BackgroundColor = "#111111",
                 BackgroundImagePath = "bg.png"
             };
@@ -79,6 +79,36 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
 
             Assert.Equal(key1, key2);
             Assert.False(string.IsNullOrWhiteSpace(key1));
+        }
+
+        [Fact]
+        public void BuildCanvasCacheKey_Changes_WhenSplitDisplayModeChanges()
+        {
+            var service = new TextEditorProjectionRenderStateService();
+            var baseContext = new TextEditorProjectionCacheContext
+            {
+                RegionImagePaths = new Dictionary<int, string> { [0] = "a.png" },
+                TextStates = Array.Empty<TextEditorProjectionTextState>(),
+                SplitMode = "Horizontal",
+                SplitDisplayMode = "FitCenter",
+                BackgroundColor = "#111111",
+                BackgroundImagePath = "bg.png"
+            };
+
+            var topContext = new TextEditorProjectionCacheContext
+            {
+                RegionImagePaths = baseContext.RegionImagePaths,
+                TextStates = baseContext.TextStates,
+                SplitMode = baseContext.SplitMode,
+                SplitDisplayMode = "FitTop",
+                BackgroundColor = baseContext.BackgroundColor,
+                BackgroundImagePath = baseContext.BackgroundImagePath
+            };
+
+            var keyCenter = service.BuildCanvasCacheKey(baseContext);
+            var keyTop = service.BuildCanvasCacheKey(topContext);
+
+            Assert.NotEqual(keyCenter, keyTop);
         }
     }
 }

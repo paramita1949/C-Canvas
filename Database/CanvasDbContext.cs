@@ -1357,7 +1357,7 @@ namespace ImageColorChanger.Database
                         SortOrder = 1,
                         BackgroundColor = "#000000",  // 默认黑色背景
                         SplitMode = -1,  // 默认无分割模式
-                        SplitStretchMode = false  // 默认适中模式
+                        SplitStretchMode = Core.SplitImageDisplayMode.FitCenter  // 默认适中模式
                     };
                     Slides.Add(firstSlide1);
                     SaveChanges();
@@ -1389,7 +1389,7 @@ namespace ImageColorChanger.Database
                             SortOrder = 1,
                             BackgroundColor = "#000000",  // 默认黑色背景
                             SplitMode = -1,  // 默认无分割模式
-                            SplitStretchMode = false  // 默认适中模式
+                            SplitStretchMode = Core.SplitImageDisplayMode.FitCenter  // 默认适中模式
                         };
                         Slides.Add(firstSlide2);
                         SaveChanges();

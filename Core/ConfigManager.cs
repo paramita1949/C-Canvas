@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Diagnostics;
 using SkiaSharp;
 
@@ -437,16 +438,16 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
-        /// 分割拉伸模式
+        /// 分割图片显示模式
         /// </summary>
-        public bool SplitStretchMode
+        public SplitImageDisplayMode SplitImageDisplayMode
         {
-            get => _config.SplitStretchMode;
+            get => _config.SplitImageDisplayMode;
             set
             {
-                if (_config.SplitStretchMode != value)
+                if (_config.SplitImageDisplayMode != value)
                 {
-                    _config.SplitStretchMode = value;
+                    _config.SplitImageDisplayMode = value;
                     SaveConfig();
                 }
             }
@@ -1053,10 +1054,11 @@ namespace ImageColorChanger.Core
         public OriginalDisplayMode OriginalDisplayMode { get; set; } = OriginalDisplayMode.Fit;
 
         /// <summary>
-        /// 分割图片拉伸模式（默认：适中）
-        /// false=适中(Uniform), true=拉伸(Fill)
+        /// 分割图片显示模式（默认：适中居中）
         /// </summary>
-        public bool SplitStretchMode { get; set; } = false;
+        [JsonPropertyName("SplitStretchMode")]
+        [JsonConverter(typeof(LegacySplitImageDisplayModeJsonConverter))]
+        public SplitImageDisplayMode SplitImageDisplayMode { get; set; } = SplitImageDisplayMode.FitCenter;
 
         /// <summary>
         /// 窗口状态（默认：最大化）
