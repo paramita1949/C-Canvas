@@ -289,8 +289,8 @@ namespace ImageColorChanger.UI
 
             var (popupEnabled, popupOpacity, popupDuration, popupType) = AnimationSettingsPanel.GetBiblePopupAnimationSettings();
             _biblePopupAnimationEnabled = popupEnabled;
-            _biblePopupAnimationOpacity = popupOpacity;
-            _biblePopupAnimationDuration = popupDuration;
+            _biblePopupAnimationOpacity = Math.Clamp(popupOpacity, 0.0, 1.0);
+            _biblePopupAnimationDuration = Math.Clamp(popupDuration, 100, 3000);
             _biblePopupAnimationType = popupType;
             SaveBiblePopupAnimationSettings();
             ApplyBiblePopupAnimationSettingsImmediately();

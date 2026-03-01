@@ -1091,7 +1091,8 @@ namespace ImageColorChanger.UI
                 Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
                 TextSize = Math.Max(16f, cfg.TitleStyle.FontSize),
                 SubpixelText = true,
-                LcdRenderText = true
+                // 弹窗支持透明动画，关闭 LCD 文本以避免 alpha 表现异常。
+                LcdRenderText = false
             };
             using var versePaint = new SKPaint
             {
@@ -1100,7 +1101,7 @@ namespace ImageColorChanger.UI
                 Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
                 TextSize = Math.Max(16f, cfg.VerseStyle.FontSize),
                 SubpixelText = true,
-                LcdRenderText = true
+                LcdRenderText = false
             };
             using var verseNumberPaint = new SKPaint
             {
@@ -1109,7 +1110,7 @@ namespace ImageColorChanger.UI
                 Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
                 TextSize = Math.Max(16f, cfg.VerseNumberStyle.FontSize),
                 SubpixelText = true,
-                LcdRenderText = true
+                LcdRenderText = false
             };
             using var borderPaint = new SKPaint
             {

@@ -82,8 +82,8 @@ namespace ImageColorChanger.UI
             try
             {
                 _biblePopupAnimationEnabled = _configManager.BiblePopupAnimationEnabled;
-                _biblePopupAnimationOpacity = _configManager.BiblePopupAnimationOpacity;
-                _biblePopupAnimationDuration = _configManager.BiblePopupAnimationDuration;
+                _biblePopupAnimationOpacity = Math.Clamp(_configManager.BiblePopupAnimationOpacity, 0.0, 1.0);
+                _biblePopupAnimationDuration = Math.Clamp(_configManager.BiblePopupAnimationDuration, 100, 3000);
                 _biblePopupAnimationType = _configManager.BiblePopupAnimationType;
             }
             catch (Exception)
