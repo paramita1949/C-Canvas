@@ -99,10 +99,6 @@ namespace ImageColorChanger.UI
                 var filesMenu = CreateNoBorderContextMenu();
 
                 var newLibraryItem = new MenuItem { Header = " 新建歌词库" };
-                newLibraryItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
-                newLibraryItem.Foreground = Brushes.White;
-                newLibraryItem.BorderThickness = new Thickness(0);
-                newLibraryItem.BorderBrush = Brushes.Transparent;
                 newLibraryItem.Click += (s, args) => CreateLyricsLibrary();
                 filesMenu.Items.Add(newLibraryItem);
 
@@ -120,10 +116,6 @@ namespace ImageColorChanger.UI
             var contextMenu = CreateNoBorderContextMenu();
 
             var newProjectItem = new MenuItem { Header = "新建项目" };
-            newProjectItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
-            newProjectItem.Foreground = Brushes.White;
-            newProjectItem.BorderThickness = new Thickness(0);
-            newProjectItem.BorderBrush = Brushes.Transparent;
             newProjectItem.Click += async (s, args) =>
             {
                 string projectName = await GenerateDefaultProjectNameAsync();
@@ -133,10 +125,6 @@ namespace ImageColorChanger.UI
             contextMenu.Items.Add(new Separator());
 
             var exportAllItem = new MenuItem { Header = "导出所有项目" };
-            exportAllItem.Background = new SolidColorBrush(Color.FromRgb(45, 45, 48));
-            exportAllItem.Foreground = Brushes.White;
-            exportAllItem.BorderThickness = new Thickness(0);
-            exportAllItem.BorderBrush = Brushes.Transparent;
             exportAllItem.Click += async (s, args) => await ExportAllProjectsAsync();
             contextMenu.Items.Add(exportAllItem);
 
