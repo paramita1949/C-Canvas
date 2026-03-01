@@ -439,13 +439,6 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void UpdateProjectionFromCanvas()
         {
-#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"[更新投影] ===== 开始更新投影 =====");
-            //System.Diagnostics.Debug.WriteLine($"[更新投影] 投影状态: {(_projectionManager.IsProjectionActive ? "已开启" : "未开启")}");
-            //System.Diagnostics.Debug.WriteLine($"[更新投影] 文本框数量: {_textBoxes.Count}");
-            //System.Diagnostics.Debug.WriteLine($" [更新投影] 视频背景: {(_currentSlide?.VideoBackgroundEnabled == true ? "已启用" : "未启用")}");
-            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] UpdateProjectionFromCanvas enter: overlayVisible={_isBiblePopupOverlayVisible}, textEditorVisible={TextEditorPanel?.Visibility}, projectionActive={_projectionManager?.IsProjectionActive}");
-#endif
             bool suppressAnimationThisCall = ConsumeSuppressNextProjectionAnimation();
             _textEditorProjectionComposer?.Compose(new Services.TextEditor.Rendering.TextEditorProjectionComposeRequest
             {
@@ -610,10 +603,6 @@ namespace ImageColorChanger.UI
             if (!_isBiblePopupOverlayVisible &&
                 _textEditorProjectionRenderStateService?.ShouldThrottle(now, CanvasUpdateThrottleMs) == true)
             {
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($" [静态投影] 节流跳过");
-                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender throttled: overlayVisible={_isBiblePopupOverlayVisible}");
-#endif
                 return;
             }
 
@@ -624,19 +613,10 @@ namespace ImageColorChanger.UI
 #endif
             if (_textEditorProjectionRenderStateService?.TryGetCached(cacheKey, out var cachedBitmap) == true && cachedBitmap != null)
             {
-#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($" [静态投影] 缓存命中，直接复用旧渲染结果");
-                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender cache-hit: overlayVisible={_isBiblePopupOverlayVisible}, cacheKey={cacheKey}");
-#endif
                 _projectionManager.UpdateProjectionTextFullFrame(cachedBitmap);
                 PublishSlideFrameToNdi(cachedBitmap);
                 return;
             }
-
-#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"[静态投影] 缓存未命中，开始完整渲染");
-            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] StaticRender cache-miss: overlayVisible={_isBiblePopupOverlayVisible}, cacheKey={cacheKey}");
-#endif
 
             // 保存辅助线的可见性状态
             var guidesVisibility = AlignmentGuidesCanvas.Visibility;
@@ -1091,9 +1071,6 @@ namespace ImageColorChanger.UI
         {
             if (!_isBiblePopupOverlayVisible || canvas == null || canvasWidth <= 0 || canvasHeight <= 0)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] Draw skipped: visible={_isBiblePopupOverlayVisible}, canvasNull={canvas == null}, size={canvasWidth:0.##}x{canvasHeight:0.##}");
-#endif
                 return;
             }
 
@@ -1153,13 +1130,19 @@ namespace ImageColorChanger.UI
             float textMaxWidth = popupWidth - leftPad - rightPad;
 
             var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titlePaint, textMaxWidth);
-            var verseLines = WrapTextByWidth(_biblePopupOverlayContent ?? string.Empty, versePaint, textMaxWidth);
+            var verseLayout = BuildPopupVerseLayout(_biblePopupOverlayContent ?? string.Empty, versePaint, textMaxWidth, lineHeight);
+            var verseLines = verseLayout.WrappedLines;
             int titleCount = Math.Max(1, titleLines.Count);
             int verseCount = Math.Max(1, verseLines.Count);
             float verseViewportHeight = lineHeight * 3.0f;
             float verseContentHeight = verseCount * lineHeight;
             _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseContentHeight - verseViewportHeight);
             _biblePopupOverlayVerseScrollOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
+            _biblePopupOverlayVerseAnchors = verseLayout.VerseStartOffsets
+                .Select(offset => (double)Math.Clamp(offset, 0, _biblePopupOverlayVerseMaxScroll))
+                .Distinct()
+                .OrderBy(v => v)
+                .ToList();
 
             float contentHeight = titleCount * titleHeight + titleBottomGap + verseViewportHeight;
             float popupHeight = topPad + contentHeight + bottomPad;
@@ -1172,10 +1155,6 @@ namespace ImageColorChanger.UI
             };
             if (popupY < 0f) popupY = 0f;
             _biblePopupOverlayLastRect = new Rect(popupX, popupY, popupWidth, popupHeight);
-
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine($"[BiblePopupOverlay] Draw start: canvas={canvasWidth:0.##}x{canvasHeight:0.##}, popup={popupWidth:0.##}x{popupHeight:0.##}, pos={cfg.PopupPosition}, x={popupX:0.##}, y={popupY:0.##}, titleLines={titleLines.Count}, verseLines={verseLines.Count}");
-#endif
 
             var rect = new SKRoundRect(new SKRect(popupX, popupY, popupX + popupWidth, popupY + popupHeight), 16f, 16f);
             canvas.DrawRoundRect(rect, bgPaint);
@@ -1209,6 +1188,38 @@ namespace ImageColorChanger.UI
                 verseY += lineHeight;
             }
             canvas.Restore();
+        }
+
+        private sealed class BiblePopupVerseLayout
+        {
+            public List<string> WrappedLines { get; } = new();
+            public List<float> VerseStartOffsets { get; } = new();
+        }
+
+        private static BiblePopupVerseLayout BuildPopupVerseLayout(string content, SKPaint paint, float maxWidth, float lineHeight)
+        {
+            var result = new BiblePopupVerseLayout();
+            var paragraphs = (content ?? string.Empty).Replace("\r\n", "\n").Split('\n');
+            float currentOffset = 0f;
+
+            foreach (var paragraph in paragraphs)
+            {
+                result.VerseStartOffsets.Add(currentOffset);
+                var wrapped = WrapTextByWidth(paragraph, paint, maxWidth);
+                foreach (var line in wrapped)
+                {
+                    result.WrappedLines.Add(line);
+                    currentOffset += lineHeight;
+                }
+            }
+
+            if (result.WrappedLines.Count == 0)
+            {
+                result.WrappedLines.Add(string.Empty);
+                result.VerseStartOffsets.Add(0f);
+            }
+
+            return result;
         }
 
         private static void DrawPopupVerseLineWithNumberStyle(

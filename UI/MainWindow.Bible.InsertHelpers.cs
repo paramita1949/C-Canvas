@@ -30,6 +30,7 @@ namespace ImageColorChanger.UI
         private BibleTextInsertConfig _biblePopupOverlayConfig = new();
         private double _biblePopupOverlayVerseScrollOffset;
         private double _biblePopupOverlayVerseMaxScroll;
+        private List<double> _biblePopupOverlayVerseAnchors = new();
         private Rect _biblePopupOverlayLastRect = Rect.Empty;
         private Rect _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
         private bool _suppressNextProjectionAnimation;
@@ -100,9 +101,6 @@ namespace ImageColorChanger.UI
         {
             if (MainBiblePopupOverlayImage == null || MainBiblePopupOverlayCloseButton == null)
             {
-#if DEBUG
-                Debug.WriteLine("[BiblePopup] ShowMainBibleVersePopup aborted: overlay controls are null.");
-#endif
                 return;
             }
 
@@ -110,9 +108,6 @@ namespace ImageColorChanger.UI
 
             Dispatcher.Invoke(() =>
             {
-#if DEBUG
-                Debug.WriteLine($"[BiblePopup] Show request: ref='{reference}', contentLen={content?.Length ?? 0}, pos={config.PopupPosition}, autoHide={autoHideSeconds}s");
-#endif
                 MainBiblePopupReferenceText.Text = reference ?? string.Empty;
                 MainBiblePopupContentText.Text = content ?? string.Empty;
                 ApplyMainBibleVersePopupStyle(config);
@@ -221,9 +216,6 @@ namespace ImageColorChanger.UI
             {
                 MainBiblePopupOverlayCloseButton.Visibility = Visibility.Collapsed;
             }
-#if DEBUG
-            Debug.WriteLine("[BiblePopup] HideMainBibleVersePopup called.");
-#endif
             RefreshProjectionForBiblePopupOverlay();
         }
 
@@ -243,40 +235,29 @@ namespace ImageColorChanger.UI
             if (visible)
             {
                 _biblePopupOverlayVerseScrollOffset = 0;
+                _biblePopupOverlayVerseAnchors.Clear();
             }
             else
             {
                 _biblePopupOverlayVerseScrollOffset = 0;
                 _biblePopupOverlayVerseMaxScroll = 0;
+                _biblePopupOverlayVerseAnchors.Clear();
                 _biblePopupOverlayLastRect = Rect.Empty;
                 _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
             }
-#if DEBUG
-            Debug.WriteLine($"[BiblePopupOverlay] State updated: visible={_isBiblePopupOverlayVisible}, refLen={_biblePopupOverlayReference.Length}, contentLen={_biblePopupOverlayContent.Length}, pos={_biblePopupOverlayConfig.PopupPosition}");
-#endif
         }
 
         private void RefreshProjectionForBiblePopupOverlay()
         {
             if (_projectionManager?.IsProjectionActive != true)
             {
-#if DEBUG
-                Debug.WriteLine("[BiblePopupOverlay] Skip projection refresh: projection not active.");
-#endif
                 return;
             }
 
             if (TextEditorPanel?.Visibility != Visibility.Visible)
             {
-#if DEBUG
-                Debug.WriteLine($"[BiblePopupOverlay] Skip projection refresh: TextEditorPanel.Visibility={TextEditorPanel?.Visibility}.");
-#endif
                 return;
             }
-
-#if DEBUG
-            Debug.WriteLine("[BiblePopupOverlay] Trigger UpdateProjectionFromCanvas.");
-#endif
             _suppressNextProjectionAnimation = true;
             UpdateProjectionFromCanvas();
         }
@@ -322,21 +303,51 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            double step = Math.Max(12.0, GetBiblePopupOverlayLineHeight() * 0.9);
-            double delta = e.Delta < 0 ? step : -step;
-            double next = Math.Clamp(_biblePopupOverlayVerseScrollOffset + delta, 0, _biblePopupOverlayVerseMaxScroll);
+            double next = GetNextBiblePopupVerseAnchorOffset(e.Delta);
             if (Math.Abs(next - _biblePopupOverlayVerseScrollOffset) < 0.5)
             {
                 return true;
             }
 
             _biblePopupOverlayVerseScrollOffset = next;
-#if DEBUG
-            Debug.WriteLine($"[BiblePopupOverlay] Wheel scroll: offset={_biblePopupOverlayVerseScrollOffset:0.##}/{_biblePopupOverlayVerseMaxScroll:0.##}");
-#endif
             RefreshMainBiblePopupOverlayPreview();
             RefreshProjectionForBiblePopupOverlay();
             return true;
+        }
+
+        private double GetNextBiblePopupVerseAnchorOffset(int wheelDelta)
+        {
+            if (_biblePopupOverlayVerseAnchors == null || _biblePopupOverlayVerseAnchors.Count == 0)
+            {
+                return _biblePopupOverlayVerseScrollOffset;
+            }
+
+            const double epsilon = 0.5;
+            double current = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
+            var anchors = _biblePopupOverlayVerseAnchors;
+
+            if (wheelDelta < 0)
+            {
+                for (int i = 0; i < anchors.Count; i++)
+                {
+                    if (anchors[i] > current + epsilon)
+                    {
+                        return anchors[i];
+                    }
+                }
+
+                return _biblePopupOverlayVerseMaxScroll;
+            }
+
+            for (int i = anchors.Count - 1; i >= 0; i--)
+            {
+                if (anchors[i] < current - epsilon)
+                {
+                    return anchors[i];
+                }
+            }
+
+            return 0;
         }
 
         private void RefreshMainBiblePopupOverlayPreview()
