@@ -17,6 +17,21 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class BibleInsertStylePopup : Popup
     {
+        private sealed class PopupNumericOption
+        {
+            public PopupNumericOption(int value, string label)
+            {
+                Value = value;
+                Label = label;
+            }
+
+            public int Value { get; }
+
+            public string Label { get; }
+
+            public override string ToString() => Label;
+        }
+
         private BibleTextInsertConfig _config;
         private readonly Database.DatabaseManager _dbManager;
         private Dictionary<string, string> _fontDisplayMap; // 字体显示名（中文）-> FontFamily（英文）
@@ -125,6 +140,18 @@ namespace ImageColorChanger.UI
                 popupOpacity = 0;
             }
             _config.PopupBackgroundOpacity = Math.Clamp(popupOpacity, 0, 100);
+
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_duration_minutes", "3"), out var popupDurationMinutes))
+            {
+                popupDurationMinutes = 3;
+            }
+            _config.PopupDurationMinutes = popupDurationMinutes;
+
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_verse_count", "3"), out var popupVerseCount))
+            {
+                popupVerseCount = 3;
+            }
+            _config.PopupVerseCount = popupVerseCount;
             
             //#if DEBUG
             //Debug.WriteLine($"[BibleInsertStylePopup] 从数据库加载配置");
@@ -195,7 +222,7 @@ namespace ImageColorChanger.UI
             }
             
             // 标题样式
-            SetColorButton(BtnTitleColor, _config.TitleStyle.GetSKColor());
+            SetColorButton(BtnTitleColor, _config.TitleStyle.GetSKColor(), forceBlackText: true);
             // 生成字体大小选项：10-200（与幻灯片一致）
             var titleSizes = Enumerable.Range(10, 191).ToList(); // 10 到 200
             CmbTitleSize.ItemsSource = titleSizes;
@@ -252,7 +279,7 @@ namespace ImageColorChanger.UI
                 CmbPopupFont.SelectedIndex = 0;
             }
 
-            SetColorButton(BtnPopupTitleColor, _config.PopupTitleStyle.GetSKColor());
+            SetColorButton(BtnPopupTitleColor, _config.PopupTitleStyle.GetSKColor(), forceBlackText: true);
             CmbPopupTitleSize.ItemsSource = titleSizes;
             CmbPopupTitleSize.SelectedItem = (int)_config.PopupTitleStyle.FontSize;
             ChkPopupTitleBold.IsChecked = _config.PopupTitleStyle.IsBold;
@@ -269,9 +296,25 @@ namespace ImageColorChanger.UI
             CmbPopupVerseNumberSize.SelectedItem = (int)_config.PopupVerseNumberStyle.FontSize;
             ChkPopupVerseNumberBold.IsChecked = _config.PopupVerseNumberStyle.IsBold;
 
-            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
+            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"), forceBlackText: true);
             CmbPopupBackgroundOpacity.ItemsSource = Enumerable.Range(0, 21).Select(i => i * 5).ToList();
             CmbPopupBackgroundOpacity.SelectedItem = (_config.PopupBackgroundOpacity / 5) * 5;
+
+            var popupDurationOptions = Enumerable.Range(1, 10)
+                .Select(v => new PopupNumericOption(v, $"{v} 分钟"))
+                .ToList();
+            CmbPopupDurationMinutes.ItemsSource = popupDurationOptions;
+            CmbPopupDurationMinutes.SelectedItem = popupDurationOptions
+                .FirstOrDefault(v => v.Value == _config.PopupDurationMinutes)
+                ?? popupDurationOptions.First();
+
+            var popupVerseCountOptions = Enumerable.Range(1, 10)
+                .Select(v => new PopupNumericOption(v, $"{v}节"))
+                .ToList();
+            CmbPopupVerseCount.ItemsSource = popupVerseCountOptions;
+            CmbPopupVerseCount.SelectedItem = popupVerseCountOptions
+                .FirstOrDefault(v => v.Value == _config.PopupVerseCount)
+                ?? popupVerseCountOptions.First();
 
             // 默认打开“插入样式”页签
             SwitchStyleTab(false);
@@ -316,18 +359,25 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 设置颜色按钮（背景色 + 自动前景色）
         /// </summary>
-        private void SetColorButton(System.Windows.Controls.Button button, SKColor skColor)
+        private void SetColorButton(System.Windows.Controls.Button button, SKColor skColor, bool forceBlackText = false)
         {
             try
             {
                 var bgColor = System.Windows.Media.Color.FromArgb(skColor.Alpha, skColor.Red, skColor.Green, skColor.Blue);
                 button.Background = new SolidColorBrush(bgColor);
-                
-                // 根据背景色亮度自动设置前景色（黑色或白色）
-                double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B) / 255;
-                button.Foreground = luminance > 0.5 
-                    ? new SolidColorBrush(Colors.Black) 
-                    : new SolidColorBrush(Colors.White);
+
+                if (forceBlackText)
+                {
+                    button.Foreground = new SolidColorBrush(Colors.Black);
+                }
+                else
+                {
+                    // 根据背景色亮度自动设置前景色（黑色或白色）
+                    double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B) / 255;
+                    button.Foreground = luminance > 0.5
+                        ? new SolidColorBrush(Colors.Black)
+                        : new SolidColorBrush(Colors.White);
+                }
             }
             catch (Exception ex)
             {
@@ -337,7 +387,7 @@ namespace ImageColorChanger.UI
                 _ = ex;  // 防止未使用变量警告
                 #endif
                 button.Background = new SolidColorBrush(Colors.Gray);
-                button.Foreground = new SolidColorBrush(Colors.White);
+                button.Foreground = new SolidColorBrush(forceBlackText ? Colors.Black : Colors.White);
             }
         }
         
@@ -487,6 +537,28 @@ namespace ImageColorChanger.UI
                     _dbManager.SetBibleInsertConfigValue("popup_bg_opacity", _config.PopupBackgroundOpacity.ToString());
                 }
 
+                if (CmbPopupDurationMinutes.SelectedItem is PopupNumericOption popupDurationOption)
+                {
+                    _config.PopupDurationMinutes = popupDurationOption.Value;
+                    _dbManager.SetBibleInsertConfigValue("popup_duration_minutes", _config.PopupDurationMinutes.ToString());
+                }
+                else if (CmbPopupDurationMinutes.SelectedItem is int popupDurationMinutes)
+                {
+                    _config.PopupDurationMinutes = popupDurationMinutes;
+                    _dbManager.SetBibleInsertConfigValue("popup_duration_minutes", _config.PopupDurationMinutes.ToString());
+                }
+
+                if (CmbPopupVerseCount.SelectedItem is PopupNumericOption popupVerseCountOption)
+                {
+                    _config.PopupVerseCount = popupVerseCountOption.Value;
+                    _dbManager.SetBibleInsertConfigValue("popup_verse_count", _config.PopupVerseCount.ToString());
+                }
+                else if (CmbPopupVerseCount.SelectedItem is int popupVerseCount)
+                {
+                    _config.PopupVerseCount = popupVerseCount;
+                    _dbManager.SetBibleInsertConfigValue("popup_verse_count", _config.PopupVerseCount.ToString());
+                }
+
                 //#if DEBUG
                 //Debug.WriteLine($" [BibleInsertStylePopup] 配置已保存到数据库");
                 //Debug.WriteLine($"   样式布局: {_config.Style}");
@@ -524,7 +596,7 @@ namespace ImageColorChanger.UI
                 {
                     var color = colorDialog.Color;
                     _config.TitleStyle.SetSKColor(new SKColor(color.R, color.G, color.B, color.A));
-                    SetColorButton(BtnTitleColor, _config.TitleStyle.GetSKColor());
+                    SetColorButton(BtnTitleColor, _config.TitleStyle.GetSKColor(), forceBlackText: true);
                     _dbManager.SetBibleInsertConfigValue("title_color", _config.TitleStyle.ColorHex);
                     
                     #if DEBUG
@@ -626,7 +698,7 @@ namespace ImageColorChanger.UI
                 {
                     var color = colorDialog.Color;
                     _config.PopupBackgroundColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-                    SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
+                    SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"), forceBlackText: true);
                     _dbManager.SetBibleInsertConfigValue("popup_bg_color", _config.PopupBackgroundColorHex);
                     NotifyPopupStyleChanged();
                 }
@@ -646,7 +718,7 @@ namespace ImageColorChanger.UI
             if (TrySelectColor(_config.PopupTitleStyle.GetSKColor(), out var newColor))
             {
                 _config.PopupTitleStyle.SetSKColor(newColor);
-                SetColorButton(BtnPopupTitleColor, newColor);
+                SetColorButton(BtnPopupTitleColor, newColor, forceBlackText: true);
                 _dbManager.SetBibleInsertConfigValue("popup_title_color", _config.PopupTitleStyle.ColorHex);
                 NotifyPopupStyleChanged();
             }

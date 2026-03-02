@@ -424,7 +424,7 @@
                             Background="#F0F0F0"
                             BorderBrush="#E0E0E0"
                             BorderThickness="0,0,0,1"
-                            Margin="190,0,0,0"
+                            Margin="0"
                             Padding="8,4"
                             Visibility="Visible">
                         <Border.Resources>
@@ -558,7 +558,55 @@
                                 <Setter Property="Padding" Value="8,4"/>
                             </Style>
                         </Border.Resources>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Grid.Column="0"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Stretch">
+                                <Button x:Name="BtnCloseTextEditorInPanel"
+                                        Width="80"
+                                        Height="34"
+                                        FontSize="14"
+                                        FontWeight="Bold"
+                                        HorizontalAlignment="Left"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="退出文本编辑器，返回图片/视频浏览"
+                                        Click="BtnCloseTextEditor_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconLucideX}"
+                                              Style="{StaticResource LucideIconPathStyle}"
+                                              Width="13"
+                                              Height="13"
+                                              Stroke="#D32F2F"
+                                              Margin="0,0,4,0"/>
+                                        <TextBlock Text="退出"
+                                                   Foreground="#D32F2F"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="14"
+                                                   FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="BtnCanvasAspectRatioInPanel"
+                                        Content="宽屏幕"
+                                        Width="86"
+                                        Height="34"
+                                        FontSize="14"
+                                        FontWeight="Bold"
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        Foreground="#555B62"
+                                        ToolTip="切换画布比例"
+                                        Click="BtnCanvasAspectRatio_Click"/>
+                            </Grid>
+
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Margin="8,0,0,0">
                             <Button x:Name="BtnSecondLayerSelect"
                                     Width="32"
                                     Height="30"
@@ -895,7 +943,8 @@
                                     </Grid>
                                 </Button>
                             </StackPanel>
-                        </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!--  圣经导航面板（在幻灯片编辑模式下显示，与主界面共享同一个面板） -->
@@ -917,87 +966,14 @@
                                     <RowDefinition Height="*"/>     <!-- 幻灯片列表 -->
                                 </Grid.RowDefinitions>
 
-                                <!-- 标题栏 - 退出编辑按钮和画布比例按钮 -->
+                                <!-- 标题栏 -->
                                 <Border Grid.Row="0" Background="#FAFAFA" Padding="8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
                                     <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="BtnCloseTextEditorInPanel"
-                                                Height="36"
-                                                Width="80"
-                                                FontSize="14"
-                                                FontWeight="SemiBold"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Foreground="#D32F2F"
-                                                HorizontalAlignment="Left"
-                                                HorizontalContentAlignment="Left"
-                                                Cursor="Hand"
-                                                Click="BtnCloseTextEditor_Click"
-                                                ToolTip="退出文本编辑器，返回图片/视频浏览">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Path Data="{StaticResource IconLucideX}" Style="{StaticResource LucideIconPathStyle}" Stroke="#D32F2F" Margin="0,0,5,0"/>
-                                                <TextBlock Text="退出" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="Button">
-                                                                <Border Background="{TemplateBinding Background}"
-                                                                        Padding="4,0">
-                                                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                                                    VerticalAlignment="Center"/>
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter Property="Foreground" Value="#F44336"/>
-                                                                        <Setter Property="FontSize" Value="15"/>
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-
-                                        <!-- 画布比例切换按钮 -->
-                                        <Button x:Name="BtnCanvasAspectRatioInPanel"
-                                                Content="宽屏幕"
-                                                Height="36"
-                                                Width="80"
-                                                FontSize="14"
-                                                FontWeight="SemiBold"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Foreground="#666666"
-                                                HorizontalAlignment="Left"
-                                                HorizontalContentAlignment="Center"
-                                                Margin="8,0,0,0"
-                                                Cursor="Hand"
-                                                Click="BtnCanvasAspectRatio_Click"
-                                                ToolTip="切换画布比例">
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="Button">
-                                                                <Border Background="{TemplateBinding Background}"
-                                                                        Padding="4,0">
-                                                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                                                    VerticalAlignment="Center"/>
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter Property="Foreground" Value="#2196F3"/>
-                                                                        <Setter Property="FontSize" Value="15"/>
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                        <TextBlock Text="幻灯片列表"
+                                                   Foreground="#5F6368"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
 

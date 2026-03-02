@@ -288,11 +288,11 @@ namespace ImageColorChanger.Managers
                     config.PopupBackgroundColorHex,
                     Math.Clamp(config.PopupBackgroundOpacity, 0, 100));
                 _projectionBiblePopupBorder.BorderBrush = new SolidColorBrush(WpfColor.FromArgb(60, 255, 255, 255));
-                ApplyBibleVersePopupPosition(config.PopupPosition);
+                ApplyBibleVersePopupPosition(config.PopupPosition, config.PopupVerseCount);
             }
         }
 
-        private void ApplyBibleVersePopupPosition(BiblePopupPosition position)
+        private void ApplyBibleVersePopupPosition(BiblePopupPosition position, int popupVerseCount)
         {
             if (_projectionBiblePopupBorder == null)
             {
@@ -317,8 +317,8 @@ namespace ImageColorChanger.Managers
 
             if (_projectionBiblePopupContentScrollViewer != null && _projectionBiblePopupContentText != null)
             {
-                // 最多显示 3 行正文，多余内容通过滚轮滚动。
-                _projectionBiblePopupContentScrollViewer.MaxHeight = _projectionBiblePopupContentText.LineHeight * 3.0;
+                int visibleVerseCount = Math.Clamp(popupVerseCount, 1, 10);
+                _projectionBiblePopupContentScrollViewer.MaxHeight = _projectionBiblePopupContentText.LineHeight * visibleVerseCount;
                 _projectionBiblePopupContentScrollViewer.ScrollToVerticalOffset(0);
             }
         }

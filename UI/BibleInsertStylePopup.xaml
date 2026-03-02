@@ -17,7 +17,7 @@
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
 
         <Style x:Key="SectionHeaderBarStyle" TargetType="Border">
@@ -25,41 +25,41 @@
             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="2,0,0,0"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="8,2,0,2"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Padding" Value="6,1,0,1"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
         </Style>
 
         <Style x:Key="SectionHeaderIconStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,7,0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
 
         <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
         <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
         <Style x:Key="FieldCheckStyle" TargetType="CheckBox">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
         <Style x:Key="TopTabButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="14,0"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="10.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
@@ -94,7 +94,7 @@
             <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
             <Setter Property="BorderBrush" Value="#D3DAE6"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,1"/>
+            <Setter Property="Padding" Value="6,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
@@ -102,7 +102,7 @@
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
             <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="6,3"/>
         </Style>
 
         <Style TargetType="Button">
@@ -110,7 +110,7 @@
             <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
             <Setter Property="BorderBrush" Value="#D3DAE6"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Padding" Value="6,2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -141,8 +141,8 @@
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
             CornerRadius="10"
-            Padding="12"
-            Width="560">
+            Padding="8"
+            Width="432">
         <Border.Effect>
             <DropShadowEffect Color="#22000000"
                               Direction="270"
@@ -163,28 +163,28 @@
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                    Padding="4">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button x:Name="BtnInsertStyleTab"
-                            Grid.Column="0"
                             Style="{StaticResource TopTabButtonStyle}"
+                            Width="116"
+                            Margin="0,0,8,0"
                             Content="插入样式"
                             Click="BtnInsertStyleTab_Click"/>
                     <Button x:Name="BtnPopupStyleTab"
-                            Grid.Column="1"
                             Style="{StaticResource TopTabButtonStyle}"
+                            Width="116"
                             Content="弹窗样式"
                             Click="BtnPopupStyleTab_Click"/>
-                </Grid>
+                </StackPanel>
             </Border>
 
             <Grid Grid.Row="2">
                 <ScrollViewer x:Name="InsertStylePanel" VerticalScrollBarVisibility="Auto" MaxHeight="460">
-                    <Grid>
+                    <Grid RenderTransformOrigin="0,0">
+                        <Grid.LayoutTransform>
+                            <ScaleTransform ScaleX="0.88" ScaleY="0.88"/>
+                        </Grid.LayoutTransform>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="10"/>
@@ -391,8 +391,13 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="PopupStylePanel" VerticalScrollBarVisibility="Auto" MaxHeight="460" Visibility="Collapsed">
-                    <Grid>
+                    <Grid RenderTransformOrigin="0,0">
+                        <Grid.LayoutTransform>
+                            <ScaleTransform ScaleX="0.88" ScaleY="0.88"/>
+                        </Grid.LayoutTransform>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="10"/>
                             <RowDefinition Height="Auto"/>
@@ -618,6 +623,54 @@
                                     <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="透明:"/>
                                     <ComboBox Grid.Column="10"
                                               x:Name="CmbPopupBackgroundOpacity"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="10" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE823;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="弹窗参数"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0"
+                                               Style="{StaticResource FieldLabelStyle}"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               Text="&#xE823;"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource FieldLabelStyle}" Text="时间:"/>
+                                    <ComboBox Grid.Column="4"
+                                              x:Name="CmbPopupDurationMinutes"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+
+                                    <TextBlock Grid.Column="6"
+                                               Style="{StaticResource FieldLabelStyle}"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               Text="&#xE8FD;"/>
+                                    <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="节数:"/>
+                                    <ComboBox Grid.Column="10"
+                                              x:Name="CmbPopupVerseCount"
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged"/>

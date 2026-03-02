@@ -8,6 +8,9 @@ namespace ImageColorChanger.Core
     /// </summary>
     public class BibleTextInsertConfig
     {
+        private int _popupDurationMinutes = 3;
+        private int _popupVerseCount = 3;
+
         /// <summary>
         /// 样式布局（默认：标题在上面）
         /// </summary>
@@ -72,6 +75,24 @@ namespace ImageColorChanger.Core
         /// 弹窗背景透明度（0=不透明，100=完全透明）
         /// </summary>
         public int PopupBackgroundOpacity { get; set; } = 0;
+
+        /// <summary>
+        /// 弹窗自动关闭时间（分钟，范围 1-10，默认 3）
+        /// </summary>
+        public int PopupDurationMinutes
+        {
+            get => _popupDurationMinutes;
+            set => _popupDurationMinutes = Math.Clamp(value, 1, 10);
+        }
+
+        /// <summary>
+        /// 弹窗显示节数（范围 1-10，默认 3）
+        /// </summary>
+        public int PopupVerseCount
+        {
+            get => _popupVerseCount;
+            set => _popupVerseCount = Math.Clamp(value, 1, 10);
+        }
     }
 
     /// <summary>

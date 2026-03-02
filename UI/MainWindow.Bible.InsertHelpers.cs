@@ -22,7 +22,6 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
-        private const int BiblePopupAutoHideSeconds = 180;
         private DispatcherTimer _mainBiblePopupTimer;
         private bool _isBiblePopupOverlayVisible;
         private string _biblePopupOverlayReference = string.Empty;
@@ -90,7 +89,8 @@ namespace ImageColorChanger.UI
 
             var config = LoadBibleInsertConfigFromDatabase();
             string content = FormatVerseWithNumbers(verses);
-            ShowMainBibleVersePopup(reference, content, config, BiblePopupAutoHideSeconds);
+            int popupAutoHideSeconds = config.PopupDurationMinutes * 60;
+            ShowMainBibleVersePopup(reference, content, config, popupAutoHideSeconds);
         }
 
         private void HideBibleVersePopupIfVisible()
@@ -204,6 +204,7 @@ namespace ImageColorChanger.UI
                 var refreshedConfig = LoadBibleInsertConfigFromDatabase();
                 _biblePopupOverlayConfig = refreshedConfig;
                 ApplyMainBibleVersePopupStyle(refreshedConfig);
+                StartMainBiblePopupAutoHide(refreshedConfig.PopupDurationMinutes * 60);
                 RefreshMainBiblePopupOverlayPreview();
                 RefreshProjectionForBiblePopupOverlay();
             });
@@ -1409,6 +1410,18 @@ namespace ImageColorChanger.UI
                 popupOpacity = 0;
             }
             config.PopupBackgroundOpacity = Math.Clamp(popupOpacity, 0, 100);
+
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_duration_minutes", "3"), out var popupDurationMinutes))
+            {
+                popupDurationMinutes = 3;
+            }
+            config.PopupDurationMinutes = popupDurationMinutes;
+
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_verse_count", "3"), out var popupVerseCount))
+            {
+                popupVerseCount = 3;
+            }
+            config.PopupVerseCount = popupVerseCount;
             
             //#if DEBUG
             //Debug.WriteLine($"[圣经插入] 从数据库加载配置");

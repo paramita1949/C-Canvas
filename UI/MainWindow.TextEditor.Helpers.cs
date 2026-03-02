@@ -1299,7 +1299,7 @@ namespace ImageColorChanger.UI
             var verseLines = verseLayout.WrappedLines;
             int titleCount = Math.Max(1, titleLines.Count);
             int verseCount = Math.Max(1, verseLines.Count);
-            float verseViewportHeight = lineHeight * 3.0f;
+            float verseViewportHeight = lineHeight * Math.Clamp(cfg.PopupVerseCount, 1, 10);
             float verseContentHeight = verseCount * lineHeight;
             _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseContentHeight - verseViewportHeight);
             _biblePopupOverlayVerseScrollOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
