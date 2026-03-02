@@ -20,6 +20,7 @@ namespace ImageColorChanger.UI
         private BibleTextInsertConfig _config;
         private readonly Database.DatabaseManager _dbManager;
         private Dictionary<string, string> _fontDisplayMap; // 字体显示名（中文）-> FontFamily（英文）
+        public event Action PopupStyleChanged;
         
         /// <summary>
         /// 构造函数
@@ -119,9 +120,9 @@ namespace ImageColorChanger.UI
             _config.PopupVerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
 
             _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
-            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "100"), out var popupOpacity))
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
-                popupOpacity = 100;
+                popupOpacity = 0;
             }
             _config.PopupBackgroundOpacity = Math.Clamp(popupOpacity, 0, 100);
             
@@ -494,6 +495,7 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"   经文: {_config.VerseStyle.FontSize}pt, 粗体={_config.VerseStyle.IsBold}, 节距={_config.VerseStyle.VerseSpacing}px");
                 //Debug.WriteLine($"   节号: 粗体={_config.VerseNumberStyle.IsBold}");
                 //#endif
+                NotifyPopupStyleChanged();
             }
             catch (Exception ex)
             {
@@ -626,6 +628,7 @@ namespace ImageColorChanger.UI
                     _config.PopupBackgroundColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
                     SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
                     _dbManager.SetBibleInsertConfigValue("popup_bg_color", _config.PopupBackgroundColorHex);
+                    NotifyPopupStyleChanged();
                 }
             }
             catch (Exception ex)
@@ -645,6 +648,7 @@ namespace ImageColorChanger.UI
                 _config.PopupTitleStyle.SetSKColor(newColor);
                 SetColorButton(BtnPopupTitleColor, newColor);
                 _dbManager.SetBibleInsertConfigValue("popup_title_color", _config.PopupTitleStyle.ColorHex);
+                NotifyPopupStyleChanged();
             }
         }
 
@@ -655,6 +659,7 @@ namespace ImageColorChanger.UI
                 _config.PopupVerseStyle.SetSKColor(newColor);
                 SetColorButton(BtnPopupVerseColor, newColor);
                 _dbManager.SetBibleInsertConfigValue("popup_verse_color", _config.PopupVerseStyle.ColorHex);
+                NotifyPopupStyleChanged();
             }
         }
 
@@ -665,7 +670,13 @@ namespace ImageColorChanger.UI
                 _config.PopupVerseNumberStyle.SetSKColor(newColor);
                 SetColorButton(BtnPopupVerseNumberColor, newColor);
                 _dbManager.SetBibleInsertConfigValue("popup_verse_number_color", _config.PopupVerseNumberStyle.ColorHex);
+                NotifyPopupStyleChanged();
             }
+        }
+
+        private void NotifyPopupStyleChanged()
+        {
+            PopupStyleChanged?.Invoke();
         }
 
         private static bool TrySelectColor(SKColor currentColor, out SKColor selectedColor)

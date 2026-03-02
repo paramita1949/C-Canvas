@@ -127,19 +127,23 @@ namespace ImageColorChanger.UI
             MainBiblePopupReferenceText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
             MainBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
             MainBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-            MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.PopupTitleStyle.ColorHex, 100);
+            MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.PopupTitleStyle.ColorHex, 0);
 
             MainBiblePopupContentText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
             MainBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
             MainBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-            MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.PopupVerseStyle.ColorHex, 100);
+            MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.PopupVerseStyle.ColorHex, 0);
             MainBiblePopupContentText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
             MainBiblePopupContentText.LineHeight = config.PopupVerseStyle.FontSize * Math.Max(1.0, config.PopupVerseStyle.VerseSpacing);
 
+            bool hideBorder = BiblePopupOpacity.ShouldHideBorder(config.PopupBackgroundOpacity);
             MainBiblePopupBorder.Background = BuildMainPopupBrush(
                 config.PopupBackgroundColorHex,
                 Math.Clamp(config.PopupBackgroundOpacity, 0, 100));
-            MainBiblePopupBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
+            MainBiblePopupBorder.BorderThickness = hideBorder ? new Thickness(0) : new Thickness(1);
+            MainBiblePopupBorder.BorderBrush = hideBorder
+                ? System.Windows.Media.Brushes.Transparent
+                : new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
 
             switch (config.PopupPosition)
             {
@@ -172,7 +176,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private static SolidColorBrush BuildMainPopupBrush(string hex, int opacityPercent)
+        private static SolidColorBrush BuildMainPopupBrush(string hex, int transparencyPercent)
         {
             System.Windows.Media.Color baseColor;
             try
@@ -184,8 +188,25 @@ namespace ImageColorChanger.UI
                 baseColor = System.Windows.Media.Color.FromRgb(0, 0, 0);
             }
 
-            byte alpha = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+            byte alpha = BiblePopupOpacity.ToAlphaFromTransparencyPercent(transparencyPercent);
             return new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+        }
+
+        private void ApplyVisibleBiblePopupStyleImmediately()
+        {
+            if (!_isBiblePopupOverlayVisible)
+            {
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                var refreshedConfig = LoadBibleInsertConfigFromDatabase();
+                _biblePopupOverlayConfig = refreshedConfig;
+                ApplyMainBibleVersePopupStyle(refreshedConfig);
+                RefreshMainBiblePopupOverlayPreview();
+                RefreshProjectionForBiblePopupOverlay();
+            });
         }
 
         private void StartMainBiblePopupAutoHide(int autoHideSeconds)
@@ -1383,9 +1404,9 @@ namespace ImageColorChanger.UI
             config.PopupVerseNumberStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_verse_number_size", config.VerseNumberStyle.FontSize.ToString()));
             config.PopupVerseNumberStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
             config.PopupBackgroundColorHex = dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
-            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "100"), out var popupOpacity))
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
-                popupOpacity = 100;
+                popupOpacity = 0;
             }
             config.PopupBackgroundOpacity = Math.Clamp(popupOpacity, 0, 100);
             

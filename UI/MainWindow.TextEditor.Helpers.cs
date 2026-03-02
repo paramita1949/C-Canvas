@@ -573,7 +573,7 @@ namespace ImageColorChanger.UI
                 BiblePopupOverlayContent = _biblePopupOverlayContent,
                 BiblePopupOverlayPosition = (_biblePopupOverlayConfig?.PopupPosition ?? BiblePopupPosition.Bottom).ToString(),
                 BiblePopupOverlayBackgroundColor = _biblePopupOverlayConfig?.PopupBackgroundColorHex,
-                BiblePopupOverlayBackgroundOpacity = _biblePopupOverlayConfig?.PopupBackgroundOpacity ?? 100,
+                BiblePopupOverlayBackgroundOpacity = _biblePopupOverlayConfig?.PopupBackgroundOpacity ?? 0,
                 BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset
             };
         }
@@ -1258,17 +1258,17 @@ namespace ImageColorChanger.UI
             using var titlePaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.PopupTitleStyle.ColorHex, 100)
+                Color = ToSkColor(cfg.PopupTitleStyle.ColorHex, 0)
             };
             using var versePaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.PopupVerseStyle.ColorHex, 100)
+                Color = ToSkColor(cfg.PopupVerseStyle.ColorHex, 0)
             };
             using var verseNumberPaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.PopupVerseNumberStyle.ColorHex, 100)
+                Color = ToSkColor(cfg.PopupVerseNumberStyle.ColorHex, 0)
             };
             using var borderPaint = new SKPaint
             {
@@ -1283,6 +1283,7 @@ namespace ImageColorChanger.UI
                 Style = SKPaintStyle.Fill,
                 Color = ToSkColor(cfg.PopupBackgroundColorHex, Math.Clamp(cfg.PopupBackgroundOpacity, 0, 100))
             };
+            bool hideBorder = BiblePopupOpacity.ShouldHideBorder(cfg.PopupBackgroundOpacity);
 
             float lineHeight = Math.Max(verseFont.Size * (float)Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing), verseFont.Size * 1.2f);
             float titleHeight = titleFont.Size * 1.25f;
@@ -1372,7 +1373,10 @@ namespace ImageColorChanger.UI
 
             var rect = new SKRoundRect(new SKRect(popupX, popupY, popupX + popupWidth, popupY + popupHeight), 16f, 16f);
             canvas.DrawRoundRect(rect, bgPaint);
-            canvas.DrawRoundRect(rect, borderPaint);
+            if (!hideBorder)
+            {
+                canvas.DrawRoundRect(rect, borderPaint);
+            }
 
             float y = popupY + topPad + titleFont.Size;
             foreach (var line in titleLines)
@@ -1528,14 +1532,14 @@ namespace ImageColorChanger.UI
             return new SKColor(color.Red, color.Green, color.Blue, alpha);
         }
 
-        private static SKColor ToSkColor(string hex, int opacityPercent)
+        private static SKColor ToSkColor(string hex, int transparencyPercent)
         {
             try
             {
                 string value = string.IsNullOrWhiteSpace(hex) ? "#000000" : hex;
                 if (SKColor.TryParse(value, out var color))
                 {
-                    byte alpha = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+                    byte alpha = BiblePopupOpacity.ToAlphaFromTransparencyPercent(transparencyPercent);
                     return new SKColor(color.Red, color.Green, color.Blue, alpha);
                 }
             }
@@ -1543,7 +1547,7 @@ namespace ImageColorChanger.UI
             {
             }
 
-            byte fallbackA = (byte)Math.Clamp((int)Math.Round(opacityPercent * 2.55), 0, 255);
+            byte fallbackA = BiblePopupOpacity.ToAlphaFromTransparencyPercent(transparencyPercent);
             return new SKColor(0, 0, 0, fallbackA);
         }
 

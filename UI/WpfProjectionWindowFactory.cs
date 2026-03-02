@@ -235,9 +235,9 @@ namespace ImageColorChanger.UI
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(12, 0, 0, 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
-                Background = new SolidColorBrush(WpfColor.FromArgb(128, 0, 0, 0)),
-                BorderBrush = new SolidColorBrush(WpfColor.FromArgb(100, 255, 255, 255)),
-                BorderThickness = new Thickness(1),
+                Background = WpfBrushes.Transparent,
+                BorderBrush = WpfBrushes.Transparent,
+                BorderThickness = new Thickness(0),
                 Visibility = Visibility.Collapsed,
                 IsHitTestVisible = false
             };

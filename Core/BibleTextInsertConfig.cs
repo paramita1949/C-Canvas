@@ -69,9 +69,9 @@ namespace ImageColorChanger.Core
         public string PopupBackgroundColorHex { get; set; } = "#000000";
 
         /// <summary>
-        /// 弹窗背景透明度（0-100）
+        /// 弹窗背景透明度（0=不透明，100=完全透明）
         /// </summary>
-        public int PopupBackgroundOpacity { get; set; } = 100;
+        public int PopupBackgroundOpacity { get; set; } = 0;
     }
 
     /// <summary>

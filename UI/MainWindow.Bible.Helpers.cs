@@ -845,6 +845,7 @@ namespace ImageColorChanger.UI
                 if (_bibleStylePopup == null)
                 {
                     _bibleStylePopup = new BibleInsertStylePopup(DatabaseManagerService);
+                    _bibleStylePopup.PopupStyleChanged += ApplyVisibleBiblePopupStyleImmediately;
                     
                     // 设置 Popup 的位置目标为工具栏按钮
                     _bibleStylePopup.PlacementTarget = sender as UIElement;
