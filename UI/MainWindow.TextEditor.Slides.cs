@@ -1195,7 +1195,7 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = maxOrder + 1,
-                    BackgroundColor = "#000000",  // 默认黑色背景
+                    BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = -1,  // 默认无分割模式
                     SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                 };

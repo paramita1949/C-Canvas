@@ -15,7 +15,7 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
-        private const bool EnableTextDriftTrace = true;
+        private const bool EnableTextDriftTrace = false;
         private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
         private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
 

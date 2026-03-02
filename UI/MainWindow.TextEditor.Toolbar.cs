@@ -85,7 +85,7 @@ namespace ImageColorChanger.UI
                     Content = "双击编辑",
                     FontSize = 60,  // 默认字号60
                     FontFamily = defaultFontFamily,  //  始终使用微软雅黑
-                    FontColor = "#FFFFFF",  // 默认白色字体
+                    FontColor = GetDefaultTextColorForSlide(_currentSlide),
                     ZIndex = maxZIndex + 1  // 新文本在最上层
                 };
 
@@ -427,6 +427,49 @@ namespace ImageColorChanger.UI
                 };
                 item.IsChecked = currentMode == mode;
             }
+        }
+
+        private async void BtnMenuSlideThemeDark_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideThemeAsync(SlideThemeMode.Dark);
+        }
+
+        private async void BtnMenuSlideThemeLight_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideThemeAsync(SlideThemeMode.Light);
+        }
+
+        private void MenuSlideTheme_SubmenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem themeRoot)
+            {
+                return;
+            }
+
+            foreach (var itemObj in themeRoot.Items)
+            {
+                if (itemObj is not MenuItem item)
+                {
+                    continue;
+                }
+
+                var itemMode = string.Equals(item.Tag as string, "Light", StringComparison.OrdinalIgnoreCase)
+                    ? SlideThemeMode.Light
+                    : SlideThemeMode.Dark;
+                item.IsChecked = itemMode == _slideThemeMode;
+            }
+        }
+
+        private async Task ApplySlideThemeAsync(SlideThemeMode mode)
+        {
+            _slideThemeMode = mode;
+            SaveSlideThemePreference();
+            ShowStatus($"默认主题: {(mode == SlideThemeMode.Light ? "白底黑字" : "黑底白字")}（仅新建幻灯片生效）");
+            await Task.CompletedTask;
         }
 
         private void BtnComponent_Click(object sender, RoutedEventArgs e)

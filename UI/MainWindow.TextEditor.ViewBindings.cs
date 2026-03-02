@@ -117,6 +117,9 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(MenuNdiOutput_SubmenuOpened), MenuNdiOutput_SubmenuOpened);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiComplete_Click), BtnMenuNdiComplete_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiTransparent_Click), BtnMenuNdiTransparent_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(MenuSlideTheme_SubmenuOpened), MenuSlideTheme_SubmenuOpened);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSlideThemeDark_Click), BtnMenuSlideThemeDark_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSlideThemeLight_Click), BtnMenuSlideThemeLight_Click);
             BindTextEditorEvent<WpfControls.SelectionChangedEventArgs>(nameof(FontFamily_Changed), FontFamily_Changed);
             BindTextEditorEvent<RoutedEventArgs>(nameof(FontFamilySelector_GotFocus), FontFamilySelector_GotFocus);
             BindTextEditorEvent<WpfControls.SelectionChangedEventArgs>(nameof(FontSize_Changed), FontSize_Changed);

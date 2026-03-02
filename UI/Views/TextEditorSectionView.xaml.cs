@@ -130,6 +130,9 @@ namespace ImageColorChanger.UI.Views
         private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuNdiOutput_SubmenuOpened), sender, e);
         private void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiComplete_Click), sender, e);
         private void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiTransparent_Click), sender, e);
+        private void MenuSlideTheme_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuSlideTheme_SubmenuOpened), sender, e);
+        private void BtnMenuSlideThemeDark_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSlideThemeDark_Click), sender, e);
+        private void BtnMenuSlideThemeLight_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSlideThemeLight_Click), sender, e);
         private void FontFamily_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontFamily_Changed), sender, e);
         private void FontFamilySelector_GotFocus(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(FontFamilySelector_GotFocus), sender, e);
         private void FontSize_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontSize_Changed), sender, e);

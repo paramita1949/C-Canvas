@@ -51,6 +51,17 @@
                                                       IsCheckable="True"
                                                       Click="BtnMenuNdiTransparent_Click"/>
                                         </MenuItem>
+                                        <MenuItem Header="主题背景"
+                                                  SubmenuOpened="MenuSlideTheme_SubmenuOpened">
+                                            <MenuItem Header="黑底白字"
+                                                      Tag="Dark"
+                                                      IsCheckable="True"
+                                                      Click="BtnMenuSlideThemeDark_Click"/>
+                                            <MenuItem Header="白底黑字"
+                                                      Tag="Light"
+                                                      IsCheckable="True"
+                                                      Click="BtnMenuSlideThemeLight_Click"/>
+                                        </MenuItem>
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>
@@ -1166,7 +1177,12 @@
 
                         <!-- 右侧：编辑画布区域 -->
                         <Grid Grid.Column="2" Background="#F5F5F5">
-                            <Border Background="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
+                            <Border Background="White"
+                                    BorderBrush="#D0D0D0"
+                                    BorderThickness="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="40">
                                 <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
                                     <Grid x:Name="EditorCanvasContainer" Width="1600" Height="900" Background="White" ClipToBounds="True">
                             <Canvas x:Name="EditorCanvas"

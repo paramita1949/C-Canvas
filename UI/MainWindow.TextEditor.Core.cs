@@ -53,6 +53,7 @@ namespace ImageColorChanger.UI
         private ITextEditorThumbnailService _textEditorThumbnailService;
         private ITextEditorProjectionRenderStateService _textEditorProjectionRenderStateService;
         private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
+        private SlideThemeMode _slideThemeMode = SlideThemeMode.Dark;
 
         // 辅助线相关
         private const double SNAP_THRESHOLD = 10.0; // 吸附阈值（像素）
@@ -98,6 +99,9 @@ namespace ImageColorChanger.UI
         private double _biblePopupAnimationOpacity = 0.1;
         private int _biblePopupAnimationDuration = 800;
         private string _biblePopupAnimationType = "TopReveal";
+        private const string SlideThemeSettingKey = "TextEditorSlideTheme";
+        private const string SlideThemeDarkValue = "Dark";
+        private const string SlideThemeLightValue = "Light";
 
         #endregion
 
@@ -122,6 +126,7 @@ namespace ImageColorChanger.UI
             _textEditorProjectionRenderStateService = _mainWindowServices.GetRequired<ITextEditorProjectionRenderStateService>();
             _textEditorRenderSafetyService = _mainWindowServices.GetRequired<ITextEditorRenderSafetyService>();
             _textEditorSaveOrchestrator = _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>();
+            LoadSlideThemePreference();
 
             // 加载系统字体
             LoadSystemFonts();
@@ -228,6 +233,71 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private enum SlideThemeMode
+        {
+            Dark,
+            Light
+        }
+
+        private void LoadSlideThemePreference()
+        {
+            try
+            {
+                var savedValue = DatabaseManagerService.GetUISetting(SlideThemeSettingKey, SlideThemeDarkValue);
+                _slideThemeMode = string.Equals(savedValue, SlideThemeLightValue, StringComparison.OrdinalIgnoreCase)
+                    ? SlideThemeMode.Light
+                    : SlideThemeMode.Dark;
+            }
+            catch
+            {
+                _slideThemeMode = SlideThemeMode.Dark;
+            }
+
+            _currentTextColor = GetCurrentSlideThemeTextColorHex();
+        }
+
+        private void SaveSlideThemePreference()
+        {
+            try
+            {
+                var value = _slideThemeMode == SlideThemeMode.Light ? SlideThemeLightValue : SlideThemeDarkValue;
+                DatabaseManagerService.SaveUISetting(SlideThemeSettingKey, value);
+            }
+            catch
+            {
+                // 忽略持久化失败，保持当前会话主题可用
+            }
+        }
+
+        private string GetCurrentSlideThemeBackgroundColorHex()
+        {
+            return _slideThemeMode == SlideThemeMode.Light ? "#FFFFFF" : "#000000";
+        }
+
+        private string GetCurrentSlideThemeTextColorHex()
+        {
+            return _slideThemeMode == SlideThemeMode.Light ? "#000000" : "#FFFFFF";
+        }
+
+        private string GetDefaultTextColorForSlide(Slide slide)
+        {
+            if (!string.IsNullOrWhiteSpace(slide?.BackgroundColor))
+            {
+                try
+                {
+                    var background = (WpfColor)WpfColorConverter.ConvertFromString(slide.BackgroundColor);
+                    double luminance = (0.299 * background.R) + (0.587 * background.G) + (0.114 * background.B);
+                    return luminance >= 160 ? "#000000" : "#FFFFFF";
+                }
+                catch
+                {
+                    // 忽略异常，回退到主题默认文本色
+                }
+            }
+
+            return GetCurrentSlideThemeTextColorHex();
+        }
+
         #endregion
 
         #region 项目管理
@@ -287,7 +357,7 @@ namespace ImageColorChanger.UI
                     ProjectId = _currentTextProject.Id,
                     Title = "幻灯片 1",
                     SortOrder = 1,
-                    BackgroundColor = "#000000",  // 默认黑色背景
+                    BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = -1,  // 默认无分割模式
                     SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                 };
@@ -357,7 +427,7 @@ namespace ImageColorChanger.UI
                         ProjectId = _currentTextProject.Id,
                         Title = "幻灯片 1",
                         SortOrder = 1,
-                        BackgroundColor = "#000000",  // 默认黑色背景
+                        BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                         SplitMode = -1,  // 默认无分割模式
                         SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
                     };

@@ -257,7 +257,7 @@ namespace ImageColorChanger.UI
                         ProjectId = projectId,
                         Title = "幻灯片 1",
                         SortOrder = 1,
-                        BackgroundColor = "#000000",
+                        BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                         SplitMode = (int)splitMode,
                         SplitRegionsData = splitRegionsJson,
                         SplitStretchMode = _splitImageDisplayMode,
@@ -269,7 +269,7 @@ namespace ImageColorChanger.UI
                     return newSlide;
                 }
 
-                firstSlide.BackgroundColor = "#000000";
+                firstSlide.BackgroundColor = GetCurrentSlideThemeBackgroundColorHex();
                 firstSlide.BackgroundImagePath = null;
                 firstSlide.SplitMode = (int)splitMode;
                 firstSlide.SplitRegionsData = splitRegionsJson;
@@ -423,7 +423,7 @@ namespace ImageColorChanger.UI
                     ProjectId = projectId,
                     Title = $"幻灯片 {slideCount + 1}",
                     SortOrder = slideCount + 1,
-                    BackgroundColor = "#000000",  // 黑色背景
+                    BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = (int)ViewSplitMode.Single,  // 单画面
                     SplitRegionsData = splitRegionsJson,
                     SplitStretchMode = _splitImageDisplayMode,  // 使用当前分割显示偏好
