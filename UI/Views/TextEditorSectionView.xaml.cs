@@ -13,12 +13,14 @@ namespace ImageColorChanger.UI.Views
         }
 
         public System.Windows.Controls.Grid TextEditorPanelRoot => TextEditorPanel;
+        public System.Windows.Controls.Button BtnToolbarMenuButton => BtnToolbarMenu;
         public System.Windows.Controls.Button BtnAddTextButton => BtnAddText;
         public System.Windows.Controls.Button BtnBackgroundImageButton => BtnBackgroundImage;
         public System.Windows.Controls.Button BtnBackgroundColorButton => BtnBackgroundColor;
         public System.Windows.Controls.Button BtnSplitViewButton => BtnSplitView;
         public System.Windows.Controls.Button BtnSplitStretchModeButton => BtnSplitStretchMode;
         public System.Windows.Controls.Button BtnSlideOutputModeButton => BtnSlideOutputMode;
+        public System.Windows.Controls.Button BtnComponentButton => BtnComponent;
         public System.Windows.Controls.ComboBox FontFamilySelectorControl => FontFamilySelector;
         public System.Windows.Controls.ComboBox FontSizeSelectorControl => FontSizeSelector;
         public System.Windows.Controls.Button BtnIncreaseFontSizeButton => BtnIncreaseFontSize;
@@ -30,11 +32,18 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnUpdateProjectionButton => BtnUpdateProjection;
         public System.Windows.Controls.Button BtnCloseTextEditorInPanelButton => BtnCloseTextEditorInPanel;
         public System.Windows.Controls.Button BtnCanvasAspectRatioInPanelButton => BtnCanvasAspectRatioInPanel;
+        public System.Windows.Controls.Border TextEditorMiniToolbarControl => TextEditorMiniToolbar;
+        public System.Windows.Controls.Button BtnSecondLayerSelectButton => BtnSecondLayerSelect;
+        public System.Windows.Controls.Button BtnSecondLayerAddTextButton => BtnSecondLayerAddText;
+        public System.Windows.Controls.Button BtnSecondLayerBoldButton => BtnSecondLayerBold;
+        public System.Windows.Controls.StackPanel SecondLayerSelectedActionsControl => SecondLayerSelectedActions;
+        public System.Windows.Shapes.Rectangle SecondLayerTextColorBarControl => SecondLayerTextColorBar;
+        public System.Windows.Controls.Button BtnSecondLayerTextHighlightColorButton => BtnSecondLayerTextHighlightColor;
+        public System.Windows.Shapes.Rectangle SecondLayerTextHighlightBarControl => SecondLayerTextHighlightBar;
         public System.Windows.Controls.Border SlidePanelBorderControl => SlidePanelBorder;
         public System.Windows.Controls.ScrollViewer SlideScrollViewerControl => SlideScrollViewer;
         public System.Windows.Controls.ListBox SlideListBoxControl => SlideListBox;
         public System.Windows.Controls.Primitives.Popup BibleToolbarPopup => BibleToolbar;
-        public System.Windows.Controls.Button BtnBibleStyleIconButton => BtnBibleStyleIcon;
         public System.Windows.Controls.Canvas EditorCanvasControl => EditorCanvas;
         public System.Windows.Controls.Grid EditorCanvasContainerControl => EditorCanvasContainer;
         public System.Windows.Controls.Border MainBiblePopupBorderControl => MainBiblePopupBorder;
@@ -44,17 +53,17 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button MainBiblePopupCloseButtonControl => MainBiblePopupCloseButton;
         public System.Windows.Controls.Image MainBiblePopupOverlayImageControl => MainBiblePopupOverlayImage;
         public System.Windows.Controls.Button MainBiblePopupOverlayCloseButtonControl => MainBiblePopupOverlayCloseButton;
-        public System.Windows.Controls.Button BtnFloatingBorderButton => BtnFloatingBorder;
-        public System.Windows.Controls.Button BtnFloatingBackgroundButton => BtnFloatingBackground;
-        public System.Windows.Controls.Button BtnFloatingShadowButton => BtnFloatingShadow;
-        public System.Windows.Controls.Button BtnFloatingSpacingButton => BtnFloatingSpacing;
-        public System.Windows.Controls.Button BtnFloatingAnimationButton => BtnFloatingAnimation;
-        public System.Windows.Controls.Button BtnFloatingItalicButton => BtnFloatingItalic;
-        public System.Windows.Controls.Button BtnFloatingUnderlineButton => BtnFloatingUnderline;
-        public System.Windows.Controls.Button BtnFloatingAlignLeftButton => BtnFloatingAlignLeft;
-        public System.Windows.Controls.Button BtnFloatingAlignCenterButton => BtnFloatingAlignCenter;
-        public System.Windows.Controls.Button BtnFloatingAlignRightButton => BtnFloatingAlignRight;
+        public System.Windows.Controls.Button BtnSecondLayerItalicButton => BtnSecondLayerItalic;
+        public System.Windows.Controls.Button BtnSecondLayerUnderlineButton => BtnSecondLayerUnderline;
+        public System.Windows.Controls.Button BtnSecondLayerAlignLeftButton => BtnSecondLayerAlignLeft;
+        public System.Windows.Controls.Button BtnSecondLayerAlignCenterButton => BtnSecondLayerAlignCenter;
+        public System.Windows.Controls.Button BtnSecondLayerAlignRightButton => BtnSecondLayerAlignRight;
+        public System.Windows.Controls.Button BtnSecondLayerAlignJustifyButton => BtnSecondLayerAlignJustify;
+        public System.Windows.Controls.Button BtnSecondLayerAlignTopButton => BtnSecondLayerAlignTop;
+        public System.Windows.Controls.Button BtnSecondLayerAlignMiddleButton => BtnSecondLayerAlignMiddle;
+        public System.Windows.Controls.Button BtnSecondLayerAlignBottomButton => BtnSecondLayerAlignBottom;
         public System.Windows.Controls.Primitives.Popup BorderSettingsPopupControl => BorderSettingsPopup;
+        public System.Windows.Controls.Primitives.Popup AlignmentSettingsPopupControl => AlignmentSettingsPopup;
         public UI.Controls.BorderSettingsPanel BorderSettingsPanelControl => BorderSettingsPanel;
         public System.Windows.Controls.Primitives.Popup BackgroundSettingsPopupControl => BackgroundSettingsPopup;
         public UI.Controls.BackgroundSettingsPanel BackgroundSettingsPanelControl => BackgroundSettingsPanel;
@@ -77,12 +86,50 @@ namespace ImageColorChanger.UI.Views
             EventForwarder?.Invoke(methodName, sender, args);
         }
 
+        private void BtnToolbarMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnToolbarMenu?.ContextMenu == null)
+            {
+                return;
+            }
+
+            BtnToolbarMenu.ContextMenu.PlacementTarget = BtnToolbarMenu;
+            BtnToolbarMenu.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            BtnToolbarMenu.ContextMenu.IsOpen = true;
+        }
+
         private void BtnAddText_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAddText_Click), sender, e);
         private void BtnBackgroundImage_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnBackgroundImage_Click), sender, e);
         private void BtnBackgroundColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnBackgroundColor_Click), sender, e);
         private void BtnSplitView_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSplitView_Click), sender, e);
         private void BtnSplitStretchMode_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSplitStretchMode_Click), sender, e);
         private void BtnSlideOutputMode_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSlideOutputMode_Click), sender, e);
+        private void BtnComponent_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnComponent?.ContextMenu == null)
+            {
+                return;
+            }
+
+            BtnComponent.ContextMenu.PlacementTarget = BtnComponent;
+            BtnComponent.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            BtnComponent.ContextMenu.IsOpen = true;
+        }
+        private void BtnComponentClock_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnComponentClock_Click), sender, e);
+        private void BtnComponentCountdown_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnComponentCountdown_Click), sender, e);
+        private void BtnComponentNotice_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnComponentNotice_Click), sender, e);
+        private void MenuSplit_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuSplit_SubmenuOpened), sender, e);
+        private void BtnMenuImportSingle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuImportSingle_Click), sender, e);
+        private void BtnMenuImportMulti_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuImportMulti_Click), sender, e);
+        private void BtnMenuImportVideo_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuImportVideo_Click), sender, e);
+        private void BtnMenuSplitSingle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitSingle_Click), sender, e);
+        private void BtnMenuSplitHorizontal_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitHorizontal_Click), sender, e);
+        private void BtnMenuSplitVertical_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitVertical_Click), sender, e);
+        private void BtnMenuSplitTriple_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitTriple_Click), sender, e);
+        private void BtnMenuSplitQuad_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitQuad_Click), sender, e);
+        private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuNdiOutput_SubmenuOpened), sender, e);
+        private void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiComplete_Click), sender, e);
+        private void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiTransparent_Click), sender, e);
         private void FontFamily_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontFamily_Changed), sender, e);
         private void FontFamilySelector_GotFocus(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(FontFamilySelector_GotFocus), sender, e);
         private void FontSize_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(FontSize_Changed), sender, e);
@@ -96,6 +143,12 @@ namespace ImageColorChanger.UI.Views
         private void BtnUpdateProjection_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnUpdateProjection_Click), sender, e);
         private void BtnCloseTextEditor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnCloseTextEditor_Click), sender, e);
         private void BtnCanvasAspectRatio_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnCanvasAspectRatio_Click), sender, e);
+        private void BtnSecondLayerSelect_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerSelect_Click), sender, e);
+        private void BtnSecondLayerAddText_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerAddText_Click), sender, e);
+        private void BtnSecondLayerFillColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerFillColor_Click), sender, e);
+        private void BtnSecondLayerAlignmentMenu_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerAlignmentMenu_Click), sender, e);
+        private void BtnSecondLayerBorder_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerBorder_Click), sender, e);
+        private void BtnTextHighlightColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnTextHighlightColor_Click), sender, e);
         private void SlideScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e) => ForwardToMainWindow(nameof(SlideScrollViewer_PreviewMouseWheel), sender, e);
         private void SlideListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_SelectionChanged), sender, e);
         private void SlideListBox_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(SlideListBox_RightClick), sender, e);
@@ -121,6 +174,10 @@ namespace ImageColorChanger.UI.Views
         private void BtnAlignLeft_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignLeft_Click), sender, e);
         private void BtnAlignCenter_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignCenter_Click), sender, e);
         private void BtnAlignRight_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignRight_Click), sender, e);
+        private void BtnAlignJustify_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignJustify_Click), sender, e);
+        private void BtnAlignTop_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignTop_Click), sender, e);
+        private void BtnAlignMiddle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignMiddle_Click), sender, e);
+        private void BtnAlignBottom_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnAlignBottom_Click), sender, e);
         private void SidePanelDragHandle_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(SidePanelDragHandle_MouseLeftButtonDown), sender, e);
         private void SidePanelDragHandle_MouseMove(object sender, System.Windows.Input.MouseEventArgs e) => ForwardToMainWindow(nameof(SidePanelDragHandle_MouseMove), sender, e);
         private void SidePanelDragHandle_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => ForwardToMainWindow(nameof(SidePanelDragHandle_MouseLeftButtonUp), sender, e);

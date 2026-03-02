@@ -122,6 +122,10 @@ namespace ImageColorChanger.UI.Controls
                 //  隐藏滚动条
                 VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden
             };
+            _richTextBox.UseLayoutRounding = true;
+            _richTextBox.SnapsToDevicePixels = true;
+            System.Windows.Media.TextOptions.SetTextFormattingMode(_richTextBox, System.Windows.Media.TextFormattingMode.Display);
+            System.Windows.Media.TextOptions.SetTextRenderingMode(_richTextBox, System.Windows.Media.TextRenderingMode.ClearType);
 
             ApplyTextLayoutProfile();
 
@@ -131,6 +135,24 @@ namespace ImageColorChanger.UI.Controls
                 // 防止同步过程中的循环调用
                 if (_isSyncing)
                     return;
+
+                // 仅文本内容发生变化时才重排行高与同步内容。
+                // 颜色/加粗等样式变更也会触发 TextChanged，若在此重排行高，
+                // 会导致重启后已有文本在改颜色时出现“位置偏移错觉”。
+                bool hasTextMutation = false;
+                foreach (var change in e.Changes)
+                {
+                    if (change.AddedLength > 0 || change.RemovedLength > 0)
+                    {
+                        hasTextMutation = true;
+                        break;
+                    }
+                }
+
+                if (!hasTextMutation)
+                {
+                    return;
+                }
 
                 //  动态应用行高到所有段落（包括新创建的段落）
                 ApplyLineHeightToAllParagraphs();
@@ -146,8 +168,7 @@ namespace ImageColorChanger.UI.Controls
                 // 触发事件通知 MainWindow 更新工具栏
                 TextSelectionChanged?.Invoke(this, EventArgs.Empty);
 
-                //  优化光标样式：防止光标继承斜体样式
-                FixCaretStyle();
+                //  避免在 SelectionChanged 中改写文档样式（会导致点击工具栏时出现瞬时重排/漂移错觉）
                 UpdateCaretBrushForCurrentPosition();
             };
 
@@ -160,6 +181,18 @@ namespace ImageColorChanger.UI.Controls
             grid.Children.Add(_dragAreaRight);
 
             // WPF RichTextBox 自动处理鼠标事件，无需手动处理
+
+            // 可配置边框描边层（支持实线/虚线/点线）
+            _borderStrokeRect = new System.Windows.Shapes.Rectangle
+            {
+                Stroke = WpfBrushes.Transparent,
+                StrokeThickness = 0,
+                Fill = WpfBrushes.Transparent,
+                IsHitTestVisible = false,
+                RadiusX = 0,
+                RadiusY = 0
+            };
+            grid.Children.Add(_borderStrokeRect);
 
             // 虚线选中框（叠加在文本框上方）
             _selectionRect = new System.Windows.Shapes.Rectangle
@@ -275,7 +308,8 @@ namespace ImageColorChanger.UI.Controls
             // 监听尺寸变化
             base.SizeChanged += (s, e) =>
             {
-                // WPF RichTextBox 自动处理尺寸变化，无需手动渲染
+                // 文本框尺寸变化后，重算内部文本垂直对齐（上/中/下）。
+                ApplyTextLayoutProfile();
             };
         }
 

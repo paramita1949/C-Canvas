@@ -80,6 +80,10 @@
     <Geometry x:Key="IconLucideWand2">M4 20L20 4 M12 4V7 M4 12H7 M17 17H20 M17 20V17</Geometry>
     <Geometry x:Key="IconLucideFileText">M6 3H14L19 8V21H6V3Z M14 3V8H19 M9 12H16 M9 16H16 M9 20H13</Geometry>
     <Geometry x:Key="IconLucideTimerReset">M12 6V12L16 14 M6 3H18 M9 3V1 M15 3V1 M4 8A8 8 0 1 0 6.5 5.5 M4 4V8H8</Geometry>
+    <Geometry x:Key="IconLucideLayoutGrid">M4 4H10V10H4Z M14 4H20V10H14Z M4 14H10V20H4Z M14 14H20V20H14Z</Geometry>
+    <Geometry x:Key="IconLucideComponentBlocks">M4 4H10V10H4Z M14 4H20V10H14Z M9 14H15V20H9Z</Geometry>
+    <Geometry x:Key="IconLucideMousePointer">M5 4L18 12L12 13.5L14.5 20L11.5 21L9 14.5L5 18V4Z</Geometry>
+    <Geometry x:Key="IconLucideDualT">M4 6H11 M7.5 6V18 M13 10H20 M16.5 10V17</Geometry>
 
     <Style x:Key="LucideIconPathStyle" TargetType="Path">
         <Setter Property="StrokeThickness" Value="2"/>

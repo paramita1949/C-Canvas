@@ -156,6 +156,7 @@ namespace ImageColorChanger.Services.TextEditor.Application
                 IsUnderline = source.IsUnderline,
                 IsItalic = source.IsItalic,
                 TextAlign = source.TextAlign,
+                TextVerticalAlign = source.TextVerticalAlign,
                 BorderColor = source.BorderColor,
                 BorderWidth = source.BorderWidth,
                 BorderRadius = source.BorderRadius,

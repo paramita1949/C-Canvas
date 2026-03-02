@@ -67,12 +67,20 @@ namespace ImageColorChanger.UI
                         $"Version={currentVersion}");
                 }
 
+                // 垂直文本对齐为增量列能力：无论版本戳是否命中，都做一次轻量补齐检查。
+                using (var incrementalRunner = new DatabaseMigrationRunner(_dbContext))
+                {
+                    incrementalRunner.MigrateAddTextVerticalAlignSupport();
+                }
+
 
                 // 显式注入设置存储，避免控件直接依赖 DatabaseManager
                 _uiSettingsStore = _mainWindowServices.GetRequired<Services.Interfaces.IUiSettingsStore>();
                 BackgroundSettingsPanel.SettingsStore = _uiSettingsStore;
                 BorderSettingsPanel.SettingsStore = _uiSettingsStore;
                 TextColorSettingsPanel.SettingsStore = _uiSettingsStore;
+                TextColorSettingsPanel.ColorApplied -= OnTextColorAppliedFromPanel;
+                TextColorSettingsPanel.ColorApplied += OnTextColorAppliedFromPanel;
                 InitializeThemeSettings();
 
                 // 搜索范围在 Window_Loaded 的项目树刷新后统一加载，避免启动阶段重复查询。

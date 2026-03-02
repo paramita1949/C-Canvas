@@ -178,6 +178,12 @@ namespace ImageColorChanger.UI.Controls
 
                         break;
 
+                    case "Justify":
+
+                        _richTextBox.Document.TextAlignment = System.Windows.TextAlignment.Justify;
+
+                        break;
+
                 }
 
 
@@ -243,8 +249,14 @@ namespace ImageColorChanger.UI.Controls
                 {
 
                     _border.BorderThickness = new System.Windows.Thickness(0);
-
                     _border.BorderBrush = WpfBrushes.Transparent;
+                    if (_borderStrokeRect != null)
+                    {
+                        _borderStrokeRect.StrokeThickness = 0;
+                        _borderStrokeRect.Stroke = WpfBrushes.Transparent;
+                        _borderStrokeRect.StrokeDashArray = null;
+                        _borderStrokeRect.Margin = new System.Windows.Thickness(0);
+                    }
 
                     return;
 
@@ -266,13 +278,42 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 设置边框
-
-                _border.BorderBrush = new WpfSolidColorBrush(borderColorWithAlpha);
-
-                _border.BorderThickness = new System.Windows.Thickness(Data.BorderWidth);
-
+                // 使用描边层统一渲染边框，支持虚线/点线。
+                _border.BorderThickness = new System.Windows.Thickness(0);
+                _border.BorderBrush = WpfBrushes.Transparent;
                 _border.CornerRadius = new System.Windows.CornerRadius(Data.BorderRadius);
+
+                if (_borderStrokeRect != null)
+                {
+                    _borderStrokeRect.Stroke = new WpfSolidColorBrush(borderColorWithAlpha);
+                    _borderStrokeRect.StrokeThickness = Data.BorderWidth;
+                    _borderStrokeRect.RadiusX = Data.BorderRadius;
+                    _borderStrokeRect.RadiusY = Data.BorderRadius;
+                    _borderStrokeRect.Margin = new System.Windows.Thickness(Data.BorderWidth / 2.0);
+                    _borderStrokeRect.StrokeDashCap = System.Windows.Media.PenLineCap.Round;
+                    _borderStrokeRect.StrokeStartLineCap = System.Windows.Media.PenLineCap.Round;
+                    _borderStrokeRect.StrokeEndLineCap = System.Windows.Media.PenLineCap.Round;
+
+                    switch (_borderLineStyle)
+                    {
+                        case BorderLineStyle.Dashed:
+                            _borderStrokeRect.StrokeDashArray = new System.Windows.Media.DoubleCollection { 6, 3 };
+                            break;
+                        case BorderLineStyle.Dotted:
+                            _borderStrokeRect.StrokeDashArray = new System.Windows.Media.DoubleCollection { 1, 2.2 };
+                            break;
+                        case BorderLineStyle.DashDot:
+                            _borderStrokeRect.StrokeDashArray = new System.Windows.Media.DoubleCollection { 6, 2.6, 1, 2.6 };
+                            break;
+                        case BorderLineStyle.LongDash:
+                            _borderStrokeRect.StrokeDashArray = new System.Windows.Media.DoubleCollection { 10, 4 };
+                            break;
+                        case BorderLineStyle.Solid:
+                        default:
+                            _borderStrokeRect.StrokeDashArray = null;
+                            break;
+                    }
+                }
 
             }
 
@@ -314,6 +355,56 @@ namespace ImageColorChanger.UI.Controls
 
                     return;
 
+                }
+
+                // 渐变背景：优先于纯色背景渲染。
+                if (_useBackgroundGradient &&
+                    !string.IsNullOrWhiteSpace(_backgroundGradientStartColor) &&
+                    !string.IsNullOrWhiteSpace(_backgroundGradientEndColor))
+                {
+                    var startColorRaw = (WpfColor)WpfColorConverter.ConvertFromString(_backgroundGradientStartColor);
+                    var endColorRaw = (WpfColor)WpfColorConverter.ConvertFromString(_backgroundGradientEndColor);
+
+                    byte gradientAlpha = (byte)(255 * (100 - Data.BackgroundOpacity) / 100.0);
+                    var startColor = WpfColor.FromArgb(gradientAlpha, startColorRaw.R, startColorRaw.G, startColorRaw.B);
+                    var endColor = WpfColor.FromArgb(gradientAlpha, endColorRaw.R, endColorRaw.G, endColorRaw.B);
+
+                    System.Windows.Media.Brush gradientBrush;
+                    switch (_backgroundGradientDirection)
+                    {
+                        case BackgroundGradientDirection.TopToBottom:
+                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
+                                startColor, endColor, new System.Windows.Point(0, 0), new System.Windows.Point(0, 1));
+                            break;
+                        case BackgroundGradientDirection.BottomToTop:
+                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
+                                startColor, endColor, new System.Windows.Point(0, 1), new System.Windows.Point(0, 0));
+                            break;
+                        case BackgroundGradientDirection.RadialCenter:
+                            gradientBrush = new System.Windows.Media.RadialGradientBrush
+                            {
+                                GradientOrigin = new System.Windows.Point(0.5, 0.5),
+                                Center = new System.Windows.Point(0.5, 0.5),
+                                RadiusX = 0.68,
+                                RadiusY = 0.68,
+                                GradientStops = new System.Windows.Media.GradientStopCollection
+                                {
+                                    new System.Windows.Media.GradientStop(startColor, 0),
+                                    new System.Windows.Media.GradientStop(endColor, 1)
+                                }
+                            };
+                            break;
+                        case BackgroundGradientDirection.LeftToRight:
+                        default:
+                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
+                                startColor, endColor, new System.Windows.Point(0, 0), new System.Windows.Point(1, 0));
+                            break;
+                    }
+
+                    _border.Background = gradientBrush;
+                    _richTextBox.Background = WpfBrushes.Transparent;
+                    ApplyBackgroundCornerRadius();
+                    return;
                 }
 
 

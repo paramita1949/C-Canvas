@@ -92,10 +92,16 @@ namespace ImageColorChanger.Database.Models
         public int IsBold { get; set; } = 0;
 
         /// <summary>
-        /// 文本对齐方式（Left/Center/Right）
+        /// 文本对齐方式（Left/Center/Right/Justify）
         /// </summary>
         [Column("text_align")]
         public string TextAlign { get; set; } = "Left";
+
+        /// <summary>
+        /// 文本框内垂直对齐方式（Top/Middle/Bottom）
+        /// </summary>
+        [Column("text_vertical_align")]
+        public string TextVerticalAlign { get; set; } = "Top";
 
         /// <summary>
         /// 是否下划线（0=否，1=是）

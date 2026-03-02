@@ -4,366 +4,629 @@
        AllowsTransparency="True"
        StaysOpen="False"
        Placement="Bottom">
-    
-    <Border Background="#2D2D30" 
-            BorderBrush="#555555"
+    <Popup.Resources>
+        <SolidColorBrush x:Key="BgPageBrush" Color="#F7F8FA"/>
+        <SolidColorBrush x:Key="BgCardBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E3E7EE"/>
+        <SolidColorBrush x:Key="TextMainBrush" Color="#1F2937"/>
+        <SolidColorBrush x:Key="TextSubBrush" Color="#6B7280"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#2563EB"/>
+
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderBarStyle" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="2,0,0,0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="8,2,0,2"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderIconStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,7,0"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="FieldCheckStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="TopTabButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="tabBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tabBorder" Property="Background" Value="#F3F6FB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="tabBorder" Property="Background" Value="#EBF1FC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
+            <Setter Property="BorderBrush" Value="#D3DAE6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMainBrush}"/>
+            <Setter Property="BorderBrush" Value="#D3DAE6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="buttonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="buttonBorder" Property="BorderBrush" Value="#93C5FD"/>
+                                <Setter TargetName="buttonBorder" Property="Background" Value="#F8FBFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="buttonBorder" Property="Background" Value="#EFF6FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Popup.Resources>
+
+    <Border Background="{StaticResource BgPageBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
-            CornerRadius="4"
-            Padding="15"
-            Width="550">
+            CornerRadius="10"
+            Padding="12"
+            Width="560">
         <Border.Effect>
-            <DropShadowEffect Color="Black" 
-                            Direction="270" 
-                            ShadowDepth="3" 
-                            BlurRadius="10" 
-                            Opacity="0.5"/>
+            <DropShadowEffect Color="#22000000"
+                              Direction="270"
+                              ShadowDepth="2"
+                              BlurRadius="10"
+                              Opacity="0.20"/>
         </Border.Effect>
-        
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      MaxHeight="500">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                
-                <!-- 标题 -->
-                <StackPanel Grid.Row="0"
-                            Orientation="Horizontal"
-                            Margin="0,0,0,5">
-                    <TextBlock Text="经文样式设置"
-                               FontSize="14"
-                               FontWeight="Bold"
-                               Foreground="White"/>
-                </StackPanel>
-                
-                <!-- 样式布局 + 统一字体（紧凑布局） -->
-                <Border Grid.Row="2" 
-                        Background="#3E3E42"
-                        CornerRadius="4"
-                        Padding="10">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Background="#FFFFFF"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="BtnInsertStyleTab"
+                            Grid.Column="0"
+                            Style="{StaticResource TopTabButtonStyle}"
+                            Content="插入样式"
+                            Click="BtnInsertStyleTab_Click"/>
+                    <Button x:Name="BtnPopupStyleTab"
+                            Grid.Column="1"
+                            Style="{StaticResource TopTabButtonStyle}"
+                            Content="弹窗样式"
+                            Click="BtnPopupStyleTab_Click"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <ScrollViewer x:Name="InsertStylePanel" VerticalScrollBarVisibility="Auto" MaxHeight="460">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <!-- 样式布局 -->
-                        <TextBlock Grid.Column="0"
-                                   Text="样式布局:" 
-                                   FontSize="12" 
-                                   Foreground="#CCCCCC"
-                                   VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="2"
-                                  x:Name="CmbStyleLayout"
-                                  Height="28"
-                                  FontSize="12"
-                                  SelectionChanged="StyleChanged">
-                            <ComboBoxItem Content="标题在上面" Tag="0" IsSelected="True"/>
-                            <ComboBoxItem Content="标题在下面" Tag="1"/>
-                            <ComboBoxItem Content="标注在末尾" Tag="2"/>
-                        </ComboBox>
-                        
-                        <!-- 统一字体 -->
-                        <TextBlock Grid.Column="4"
-                                   Text="字体:" 
-                                   FontSize="12" 
-                                   Foreground="#CCCCCC"
-                                   VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="6"
-                                  x:Name="CmbFont"
-                                  Height="28"
-                                  FontSize="12"
-                                  SelectionChanged="StyleChanged"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8D2;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="样式与字体"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="样式布局:"/>
+                                    <ComboBox Grid.Column="2"
+                                              x:Name="CmbStyleLayout"
+                                              Height="28"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged">
+                                        <ComboBoxItem Content="标题在上面" Tag="0" IsSelected="True"/>
+                                        <ComboBoxItem Content="标题在下面" Tag="1"/>
+                                        <ComboBoxItem Content="标注在末尾" Tag="2"/>
+                                    </ComboBox>
+
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="字体:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbFont"
+                                              Height="28"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8D2;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="标题样式"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnTitleColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnTitleColor_Click"/>
+
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbTitleSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="TitleSizeChanged"/>
+
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkTitleBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="4" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8A5;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="经文样式"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnVerseColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnVerseColor_Click"/>
+
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbVerseSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="VerseSizeChanged"/>
+
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkVerseBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+
+                                    <TextBlock Grid.Column="10" Style="{StaticResource FieldLabelStyle}" Text="节距:"/>
+                                    <ComboBox Grid.Column="12"
+                                              x:Name="CmbVerseSpacing"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="6" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8EF;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="节号样式"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnVerseNumberColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnVerseNumberColor_Click"/>
+
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbVerseNumberSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="VerseNumberSizeChanged"/>
+
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkVerseNumberBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                     </Grid>
-                </Border>
-                
-                <!-- 标题样式（横向排列：颜色 大小 粗体） -->
-                <Border Grid.Row="4" 
-                        Background="#3E3E42"
-                        CornerRadius="4"
-                        Padding="10">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <TextBlock Text="标题样式"
-                                       FontSize="12"
-                                       Foreground="#CCCCCC"
-                                       FontWeight="Bold"/>
-                        </StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <!-- 颜色 -->
-                            <TextBlock Grid.Column="0" 
-                                       Text="颜色:" 
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="2"
-                                    x:Name="BtnTitleColor"
-                                    Height="26"
-                                    Content="选择颜色"
-                                    FontSize="11"
-                                    Click="BtnTitleColor_Click"/>
-                            
-                            <!-- 大小 -->
-                            <TextBlock Grid.Column="4" 
-                                       Text="大小:" 
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="6"
-                                      x:Name="CmbTitleSize"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="TitleSizeChanged"/>
-                            
-                            <!-- 粗体 -->
-                            <CheckBox Grid.Column="8"
-                                      x:Name="ChkTitleBold"
-                                      Content="粗体"
-                                      Foreground="White"
-                                      FontSize="11"
-                                      VerticalAlignment="Center"
-                                      Checked="StyleChanged"
-                                      Unchecked="StyleChanged"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-                
-                <!-- 经文样式（横向排列：颜色 大小 粗体 节距） -->
-                <Border Grid.Row="6"
-                        Background="#3E3E42"
-                        CornerRadius="4"
-                        Padding="10">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <TextBlock Text="经文样式"
-                                       FontSize="12"
-                                       Foreground="#CCCCCC"
-                                       FontWeight="Bold"/>
-                        </StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
+                </ScrollViewer>
 
-                            <!-- 颜色 -->
-                            <TextBlock Grid.Column="0"
-                                       Text="颜色:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="2"
-                                    x:Name="BtnVerseColor"
-                                    Height="26"
-                                    Content="选择颜色"
-                                    FontSize="11"
-                                    Click="BtnVerseColor_Click"/>
+                <ScrollViewer x:Name="PopupStylePanel" VerticalScrollBarVisibility="Auto" MaxHeight="460" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- 大小 -->
-                            <TextBlock Grid.Column="4"
-                                       Text="大小:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="6"
-                                      x:Name="CmbVerseSize"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="VerseSizeChanged"/>
+                        <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8D2;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="字体"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="字体:"/>
+                                    <ComboBox Grid.Column="2"
+                                              x:Name="CmbPopupFont"
+                                              Height="28"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                            <!-- 粗体 -->
-                            <CheckBox Grid.Column="8"
-                                      x:Name="ChkVerseBold"
-                                      Content="粗体"
-                                      Foreground="White"
-                                      FontSize="11"
-                                      VerticalAlignment="Center"
-                                      Checked="StyleChanged"
-                                      Unchecked="StyleChanged"/>
+                        <Border Grid.Row="2" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8D2;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="标题样式"/>
+                                    </StackPanel>
+                                </Border>
 
-                            <!-- 节距 -->
-                            <TextBlock Grid.Column="10"
-                                       Text="节距:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="12"
-                                      x:Name="CmbVerseSpacing"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="StyleChanged"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                <!-- 节号样式（横向排列：颜色 大小 粗体） -->
-                <Border Grid.Row="8"
-                        Background="#3E3E42"
-                        CornerRadius="4"
-                        Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="节号样式"
-                                   FontSize="12"
-                                   Foreground="#CCCCCC"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnPopupTitleColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnPopupTitleColor_Click"/>
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbPopupTitleSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkPopupTitleBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                            <!-- 颜色 -->
-                            <TextBlock Grid.Column="0"
-                                       Text="颜色:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="2"
-                                    x:Name="BtnVerseNumberColor"
-                                    Height="26"
-                                    Content="选择颜色"
-                                    FontSize="11"
-                                    Click="BtnVerseNumberColor_Click"/>
+                        <Border Grid.Row="4" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8A5;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="经文样式"/>
+                                    </StackPanel>
+                                </Border>
 
-                            <!-- 大小 -->
-                            <TextBlock Grid.Column="4"
-                                       Text="大小:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="6"
-                                      x:Name="CmbVerseNumberSize"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="VerseNumberSizeChanged"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                    </Grid.ColumnDefinitions>
 
-                            <!-- 粗体 -->
-                            <CheckBox Grid.Column="8"
-                                      x:Name="ChkVerseNumberBold"
-                                      Content="粗体"
-                                      Foreground="White"
-                                      FontSize="11"
-                                      VerticalAlignment="Center"
-                                      Checked="StyleChanged"
-                                      Unchecked="StyleChanged"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnPopupVerseColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnPopupVerseColor_Click"/>
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbPopupVerseSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkPopupVerseBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+                                    <TextBlock Grid.Column="10" Style="{StaticResource FieldLabelStyle}" Text="节距:"/>
+                                    <ComboBox Grid.Column="12"
+                                              x:Name="CmbPopupVerseSpacing"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                <!-- 弹窗样式（位置 背景色 透明度） -->
-                <Border Grid.Row="10"
-                        Background="#3E3E42"
-                        CornerRadius="4"
-                        Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="弹窗经文"
-                                   FontSize="12"
-                                   Foreground="#CCCCCC"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="90"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="5"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
+                        <Border Grid.Row="6" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8EF;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="节号样式"/>
+                                    </StackPanel>
+                                </Border>
 
-                            <TextBlock Grid.Column="0"
-                                       Text="位置:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="2"
-                                      x:Name="CmbPopupPosition"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="StyleChanged">
-                                <ComboBoxItem Content="顶部" Tag="Top"/>
-                                <ComboBoxItem Content="居中" Tag="Center"/>
-                                <ComboBoxItem Content="底部" Tag="Bottom"/>
-                            </ComboBox>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="4"
-                                       Text="背景:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="6"
-                                    x:Name="BtnPopupBackgroundColor"
-                                    Height="26"
-                                    Content="选择颜色"
-                                    FontSize="11"
-                                    Click="BtnPopupBackgroundColor_Click"/>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="颜色:"/>
+                                    <Button Grid.Column="2"
+                                            x:Name="BtnPopupVerseNumberColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnPopupVerseNumberColor_Click"/>
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="大小:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbPopupVerseNumberSize"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                    <CheckBox Grid.Column="8"
+                                              x:Name="ChkPopupVerseNumberBold"
+                                              Style="{StaticResource FieldCheckStyle}"
+                                              Content="粗体"
+                                              Checked="StyleChanged"
+                                              Unchecked="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                            <TextBlock Grid.Column="8"
-                                       Text="透明:"
-                                       Foreground="White"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="10"
-                                      x:Name="CmbPopupBackgroundOpacity"
-                                      Height="26"
-                                      FontSize="11"
-                                      SelectionChanged="StyleChanged"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                        <Border Grid.Row="8" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel>
+                                <Border Style="{StaticResource SectionHeaderBarStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource SectionHeaderIconStyle}" Text="&#xE8BD;"/>
+                                        <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="弹窗面板"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="90"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="位置:"/>
+                                    <ComboBox Grid.Column="2"
+                                              x:Name="CmbPopupPosition"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged">
+                                        <ComboBoxItem Content="顶部" Tag="Top"/>
+                                        <ComboBoxItem Content="居中" Tag="Center"/>
+                                        <ComboBoxItem Content="底部" Tag="Bottom"/>
+                                    </ComboBox>
+
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="背景:"/>
+                                    <Button Grid.Column="6"
+                                            x:Name="BtnPopupBackgroundColor"
+                                            Height="26"
+                                            Content="选择颜色"
+                                            FontSize="12"
+                                            Click="BtnPopupBackgroundColor_Click"/>
+
+                                    <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="透明:"/>
+                                    <ComboBox Grid.Column="10"
+                                              x:Name="CmbPopupBackgroundOpacity"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
-        </ScrollViewer>
+        </Grid>
     </Border>
 </Popup>
-

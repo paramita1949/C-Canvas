@@ -389,6 +389,8 @@ namespace ImageColorChanger.UI.Controls
 
                                         FontColor = span.FontColor,
 
+                                        BackgroundColor = span.BackgroundColor,
+
                                         IsBold = span.IsBold,
 
                                         IsItalic = span.IsItalic,

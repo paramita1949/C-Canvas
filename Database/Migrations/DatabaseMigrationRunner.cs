@@ -46,6 +46,7 @@ namespace ImageColorChanger.Database.Migrations
             MigrateCreateRichTextSpansTable();
             MigrateUpgradeRichTextSpansV2Schema();
             MigrateAddShadowTypeAndPreset();
+            MigrateAddTextVerticalAlignSupport();
             MigrateAddVideoBackgroundSupport();
         }
 
@@ -312,6 +313,32 @@ namespace ImageColorChanger.Database.Migrations
                 }
             }
             catch (Exception)
+            {
+            }
+        }
+
+        public void MigrateAddTextVerticalAlignSupport()
+        {
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                const string checkSql = "SELECT COUNT(*) FROM pragma_table_info('text_elements') WHERE name='text_vertical_align'";
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        _context.Database.ExecuteSqlRaw("ALTER TABLE text_elements ADD COLUMN text_vertical_align TEXT NOT NULL DEFAULT 'Top'");
+                    }
+                }
+            }
+            catch
             {
             }
         }

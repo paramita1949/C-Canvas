@@ -314,8 +314,9 @@ namespace ImageColorChanger.UI
             }
 
             EnsureTextEditorMenuController();
+            var anchor = sender as UIElement ?? BtnToolbarMenu ?? BtnBackgroundImage;
             _textEditorMenuController.ShowBackgroundImportMenu(
-                BtnBackgroundImage,
+                anchor,
                 (Style)FindResource("NoBorderContextMenuStyle"),
                 ImportSingleImageAsSlide,
                 ImportMultipleImagesAsSlidesAsync,
@@ -390,6 +391,229 @@ namespace ImageColorChanger.UI
             _ = ToggleCurrentSlideOutputModeAsync();
         }
 
+        private async void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await SetCurrentSlideOutputModeAsync(SlideOutputMode.Normal);
+        }
+
+        private async void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await SetCurrentSlideOutputModeAsync(SlideOutputMode.Transparent);
+        }
+
+        private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem ndiRoot)
+            {
+                return;
+            }
+
+            var currentMode = _currentSlide?.OutputMode ?? SlideOutputMode.Normal;
+            foreach (var itemObj in ndiRoot.Items)
+            {
+                if (itemObj is not MenuItem item)
+                {
+                    continue;
+                }
+
+                var mode = (item.Tag as string) switch
+                {
+                    "Transparent" => SlideOutputMode.Transparent,
+                    _ => SlideOutputMode.Normal
+                };
+                item.IsChecked = currentMode == mode;
+            }
+        }
+
+        private void BtnComponent_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            ShowToast("请选择具体组件：时间 / 倒计时 / 通知");
+        }
+
+        private void BtnComponentClock_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            ShowToast("时间组件功能即将上线");
+        }
+
+        private void BtnComponentCountdown_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            ShowToast("倒计时组件功能即将上线");
+        }
+
+        private void BtnComponentNotice_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            ShowToast("通知组件功能即将上线");
+        }
+
+        private void BtnMenuImportSingle_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先创建或选择一个文本项目", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            ImportSingleImageAsSlide();
+        }
+
+        private async void BtnMenuImportMulti_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先创建或选择一个文本项目", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            await ImportMultipleImagesAsSlidesAsync();
+        }
+
+        private async void BtnMenuImportVideo_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先创建或选择一个文本项目", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            await ImportVideoAsSlideAsync();
+        }
+
+        private void BtnMenuSplitSingle_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            SetSplitMode(Database.Models.Enums.ViewSplitMode.Single);
+        }
+
+        private void BtnMenuSplitHorizontal_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            SetSplitMode(Database.Models.Enums.ViewSplitMode.Horizontal);
+        }
+
+        private void BtnMenuSplitVertical_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            SetSplitMode(Database.Models.Enums.ViewSplitMode.Vertical);
+        }
+
+        private void BtnMenuSplitTriple_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            SetSplitMode(Database.Models.Enums.ViewSplitMode.TripleSplit);
+        }
+
+        private void BtnMenuSplitQuad_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            SetSplitMode(Database.Models.Enums.ViewSplitMode.Quad);
+        }
+
+        private void MenuSplit_SubmenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem splitRoot)
+            {
+                return;
+            }
+
+            int currentMode = _currentSlide?.SplitMode ?? (int)Database.Models.Enums.ViewSplitMode.Single;
+            foreach (var itemObj in splitRoot.Items)
+            {
+                if (itemObj is not MenuItem item)
+                {
+                    continue;
+                }
+
+                var mode = ParseSplitModeTag(item.Tag);
+                if (mode == null)
+                {
+                    continue;
+                }
+
+                string title = GetSplitModeMenuTitle(mode.Value);
+                item.Header = currentMode == (int)mode.Value ? $"✓ {title}" : $"   {title}";
+            }
+        }
+
+        private void BtnSecondLayerAddText_Click(object sender, RoutedEventArgs e)
+        {
+            BtnAddText_Click(sender, e);
+        }
+
+        private void BtnSecondLayerSelect_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (_textBoxes == null || _textBoxes.Count == 0)
+            {
+                ShowToast("当前无可选文本框");
+                return;
+            }
+
+            foreach (var tb in _textBoxes)
+            {
+                tb.SetSelected(true);
+            }
+
+            _selectedTextBox = _textBoxes.LastOrDefault();
+            ShowToast($"已选中 {_textBoxes.Count} 个文本框");
+        }
+
+        private static Database.Models.Enums.ViewSplitMode? ParseSplitModeTag(object tag)
+        {
+            return (tag as string) switch
+            {
+                "Single" => Database.Models.Enums.ViewSplitMode.Single,
+                "Horizontal" => Database.Models.Enums.ViewSplitMode.Horizontal,
+                "Vertical" => Database.Models.Enums.ViewSplitMode.Vertical,
+                "TripleSplit" => Database.Models.Enums.ViewSplitMode.TripleSplit,
+                "Quad" => Database.Models.Enums.ViewSplitMode.Quad,
+                _ => null
+            };
+        }
+
+        private static string GetSplitModeMenuTitle(Database.Models.Enums.ViewSplitMode mode)
+        {
+            return mode switch
+            {
+                Database.Models.Enums.ViewSplitMode.Single => "单画面",
+                Database.Models.Enums.ViewSplitMode.Horizontal => "左右分割",
+                Database.Models.Enums.ViewSplitMode.Vertical => "上下分割",
+                Database.Models.Enums.ViewSplitMode.TripleSplit => "三分割",
+                Database.Models.Enums.ViewSplitMode.Quad => "四宫格",
+                _ => "单画面"
+            };
+        }
+
         private async Task ToggleCurrentSlideOutputModeAsync()
         {
             if (_currentSlide == null)
@@ -402,6 +626,24 @@ namespace ImageColorChanger.UI
                 : SlideOutputMode.Transparent;
 
             bool saved = await SaveSlideOutputModeAsync(nextMode);
+            if (!saved)
+            {
+                return;
+            }
+
+            UpdateSlideOutputModeButton();
+            MarkContentAsModified();
+            RefreshNdiOnlyForSlideOutputModeChange();
+        }
+
+        private async Task SetCurrentSlideOutputModeAsync(SlideOutputMode mode)
+        {
+            if (_currentSlide == null || _currentSlide.OutputMode == mode)
+            {
+                return;
+            }
+
+            bool saved = await SaveSlideOutputModeAsync(mode);
             if (!saved)
             {
                 return;
@@ -619,8 +861,9 @@ namespace ImageColorChanger.UI
                 return;
 
             EnsureTextEditorMenuController();
+            var anchor = sender as UIElement ?? BtnToolbarMenu ?? BtnSplitView;
             _textEditorMenuController.ShowSplitModeMenu(
-                sender as UIElement ?? BtnSplitView,
+                anchor,
                 (Style)FindResource("NoBorderContextMenuStyle"),
                 _currentSlide.SplitMode,
                 SetSplitMode);

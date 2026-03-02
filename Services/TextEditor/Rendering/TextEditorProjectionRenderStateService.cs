@@ -126,6 +126,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 state.IsItalic ? "1" : "0",
                 state.IsUnderline ? "1" : "0",
                 state.TextAlign ?? string.Empty,
+                state.TextVerticalAlign ?? string.Empty,
                 state.ZIndex.ToString(CultureInfo.InvariantCulture),
                 state.BorderColor ?? string.Empty,
                 FormatInvariant(state.BorderWidth),

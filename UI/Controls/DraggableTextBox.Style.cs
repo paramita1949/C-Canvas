@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI.Controls
 
         public void ApplyStyle(string fontFamily = null, double? fontSize = null,
 
-                               string color = null, bool? isBold = null, string textAlign = null,
+                               string color = null, bool? isBold = null, string textAlign = null, string textVerticalAlign = null,
 
                                bool? isUnderline = null, bool? isItalic = null,
 
@@ -76,6 +76,17 @@ namespace ImageColorChanger.UI.Controls
 
             }
 
+            bool hasTypographyStyleParams = fontFamily != null || fontSize.HasValue ||
+                                            color != null || isBold.HasValue || textAlign != null || textVerticalAlign != null ||
+                                            isUnderline.HasValue || isItalic.HasValue ||
+                                            lineSpacing.HasValue || letterSpacing.HasValue;
+            bool hasBorderStyleParams = borderColor != null || borderWidth.HasValue ||
+                                        borderRadius.HasValue || borderOpacity.HasValue;
+            bool hasBackgroundStyleParams = backgroundColor != null || backgroundRadius.HasValue ||
+                                            backgroundOpacity.HasValue;
+            bool hasShadowStyleParams = shadowColor != null || shadowOffsetX.HasValue ||
+                                        shadowOffsetY.HasValue || shadowBlur.HasValue ||
+                                        shadowOpacity.HasValue;
 
 
             bool needsRichTextResync = false;
@@ -178,6 +189,11 @@ namespace ImageColorChanger.UI.Controls
 
                 Data.TextAlign = textAlign;
 
+            }
+
+            if (textVerticalAlign != null)
+            {
+                Data.TextVerticalAlign = textVerticalAlign;
             }
 
 
@@ -287,6 +303,9 @@ namespace ImageColorChanger.UI.Controls
             {
 
                 Data.BackgroundColor = backgroundColor;
+                _useBackgroundGradient = false;
+                _backgroundGradientStartColor = null;
+                _backgroundGradientEndColor = null;
 
             }
 
@@ -386,24 +405,32 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-            // 如果更新了 RichTextSpans，需要重新渲染
-
+            // 仅文字排版相关参数才触发 RichTextBox 排版链路；
+            // 填充/边框/阴影走容器样式更新，避免触发布局重排造成“漂移错觉”。
             if (needsRichTextResync)
-
             {
-
                 SyncTextToRichTextBox();
-
             }
-
-            else
-
+            else if (hasTypographyStyleParams)
             {
-
-                // 应用样式到 RichTextBox
-
                 ApplyStylesToRichTextBox();
+            }
+            else
+            {
+                if (hasBorderStyleParams)
+                {
+                    ApplyBorderStyle();
+                }
 
+                if (hasBackgroundStyleParams)
+                {
+                    ApplyBackgroundStyle();
+                }
+
+                if (hasShadowStyleParams)
+                {
+                    ApplyShadowStyle();
+                }
             }
 
 
@@ -412,6 +439,67 @@ namespace ImageColorChanger.UI.Controls
 
             ContentChanged?.Invoke(this, Data.Content);
 
+        }
+
+        public void SetTextVerticalAlign(string textVerticalAlign)
+        {
+            if (string.IsNullOrWhiteSpace(textVerticalAlign))
+            {
+                return;
+            }
+
+            if (string.Equals(Data.TextVerticalAlign, textVerticalAlign, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Data.TextVerticalAlign = textVerticalAlign;
+            ApplyTextLayoutProfile();
+            ContentChanged?.Invoke(this, Data.Content);
+        }
+
+        public void ApplyBackgroundGradient(string startColor, string endColor, BackgroundGradientDirection direction = BackgroundGradientDirection.LeftToRight, double? backgroundRadius = null, int? backgroundOpacity = null)
+        {
+            if (string.IsNullOrWhiteSpace(startColor) || string.IsNullOrWhiteSpace(endColor))
+            {
+                return;
+            }
+
+            _useBackgroundGradient = true;
+            _backgroundGradientStartColor = startColor;
+            _backgroundGradientEndColor = endColor;
+            _backgroundGradientDirection = direction;
+
+            if (backgroundRadius.HasValue)
+            {
+                Data.BackgroundRadius = backgroundRadius.Value;
+            }
+
+            if (backgroundOpacity.HasValue)
+            {
+                Data.BackgroundOpacity = backgroundOpacity.Value;
+            }
+
+            // 仍写入一个基色，保证旧链路存储/回放至少有可见背景。
+            Data.BackgroundColor = startColor;
+
+            ApplyBackgroundStyle();
+            ContentChanged?.Invoke(this, Data.Content);
+        }
+
+        public void ClearBackgroundGradient()
+        {
+            _useBackgroundGradient = false;
+            _backgroundGradientStartColor = null;
+            _backgroundGradientEndColor = null;
+            _backgroundGradientDirection = BackgroundGradientDirection.LeftToRight;
+        }
+
+        public void ApplyBorderLineStyle(BorderLineStyle style)
+        {
+            _borderLineStyle = style;
+            ApplyBorderStyle();
+            ContentChanged?.Invoke(this, Data.Content);
         }
 
         public void ApplyStyleToSelection(System.Windows.Media.FontFamily fontFamilyObj = null,
@@ -482,7 +570,7 @@ namespace ImageColorChanger.UI.Controls
 
                 {
 
-                    ApplyStyle(null, null, null, null, null, null, null,
+                    ApplyStyle(null, null, null, null, null, null, null, null,
 
                               borderColor, borderWidth, borderRadius, borderOpacity,
 
@@ -868,6 +956,39 @@ namespace ImageColorChanger.UI.Controls
 
             ContentChanged?.Invoke(this, Data.Content);
 
+        }
+
+        public void ApplyHighlightToSelection(string highlightColor)
+        {
+            if (_richTextBox == null || _richTextBox.Selection.IsEmpty)
+            {
+                return;
+            }
+
+            var selection = _richTextBox.Selection;
+
+            if (string.IsNullOrWhiteSpace(highlightColor) ||
+                string.Equals(highlightColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                selection.ApplyPropertyValue(System.Windows.Documents.TextElement.BackgroundProperty, null);
+                ApplyTextLayoutProfile();
+                ContentChanged?.Invoke(this, Data.Content);
+                return;
+            }
+
+            try
+            {
+                var color = (WpfColor)WpfColorConverter.ConvertFromString(highlightColor);
+                selection.ApplyPropertyValue(
+                    System.Windows.Documents.TextElement.BackgroundProperty,
+                    new WpfSolidColorBrush(color));
+                ApplyTextLayoutProfile();
+                ContentChanged?.Invoke(this, Data.Content);
+            }
+            catch
+            {
+                // ignore invalid highlight color input
+            }
         }
 
         private void ApplyLineHeightToAllParagraphs()

@@ -1,350 +1,654 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using WpfColor = System.Windows.Media.Color;
+using WpfPoint = System.Windows.Point;
 
 namespace ImageColorChanger.UI.Controls
 {
     /// <summary>
-    /// 文字颜色设置侧边面板
+    /// 文字颜色面板（纯色 + 自定义）
     /// </summary>
     public partial class TextColorSettingsPanel : System.Windows.Controls.UserControl
     {
-        /// <summary>
-        /// 由宿主显式注入的设置存储。
-        /// </summary>
+        public enum ApplyMode
+        {
+            FontColor = 0,
+            TextHighlight = 1
+        }
+
         public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
+        public event Action<string, ApplyMode> ColorApplied;
 
         private DraggableTextBox _targetTextBox;
-        private string _currentColor = "#000000";
-        private List<string> _recentColors = new List<string>();
+        private readonly List<string> _recentColors = new();
+        private readonly List<Border> _colorChips = new();
+        private bool _isUpdatingInputs;
+        private bool _isDraggingSv;
+        private ApplyMode _applyMode = ApplyMode.FontColor;
+        private bool _isTransparentHighlightSelected;
 
-        // 常用颜色色板 (6x4 = 24色) - 与边框样式一致
-        private readonly string[] _colorPalette = new string[]
+        private double _hue;
+        private double _saturation;
+        private double _value;
+
+        private readonly string[] _quickColors =
         {
-            // 第1行：红橙黄系
-            "#EF9A9A", "#EF5350", "#FF7043", "#FF9800", "#FFEB3B", "#FFF59D",
-            // 第2行：绿青系
-            "#A5D6A7", "#66BB6A", "#26A69A", "#4FC3F7", "#42A5F5", "#2196F3",
-            // 第3行：蓝紫粉系
-            "#1976D2", "#5C6BC0", "#9C27B0", "#BA68C8", "#F48FB1", "#CE93D8",
-            // 第4行：灰度系
-            "#B0BEC5", "#757575", "#424242", "#212121", "#FFFFFF", "#000000"
+            "#000000", "#FFFFFF", "#5F6368", "#D4D4D4", "#4A86E8", "#202124", "#78909C", "#F4A43A", "#0E9BA8", "#E0E72A"
+        };
+
+        private readonly string[] _paletteColors =
+        {
+            "#000000","#444444","#666666","#999999","#AAAAAA","#BEBEBE","#C8C8C8","#D8D8D8","#E2E2E2","#EFEFEF",
+            "#B30000","#F8160D","#FF9800","#FFF100","#00EE00","#1CD7DE","#4D7FD8","#1A1AE9","#9013FE","#E90BE9",
+            "#E6B8AF","#EBC1C1","#EEDDC5","#EEE0B5","#C2D9B7","#C5D8DD","#B8CAE8","#BACCE2","#C4BFE0","#D3BECC",
+            "#D97C66","#DE8A8A","#EDC38F","#F0D57F","#9BC48D","#98BBC2","#8EAFDF","#8CB1DA","#A59CD1","#C792B0",
+            "#D84A2A","#DD6565","#EDAE64","#F2CC57","#83BB6E","#73A8B6","#6493D8","#689FD1","#8678C2","#B6719D",
+            "#B73411","#D90000","#E7922E","#E9BB2E","#68AA4A","#4A8A9B","#467AD0","#3F82C2","#6D5AB6","#AA4E82",
+            "#98210B","#B40000","#B86D00","#C09300","#3E8621","#165F70","#2154C1","#17588E","#3E2A8C","#7A1A55",
+            "#701400","#980000","#8D5200","#8C6B00","#2B6618","#0E4352","#244F97","#0E426C","#2C1D76","#5F1643"
         };
 
         public TextColorSettingsPanel()
         {
             InitializeComponent();
-            InitializeColorPalette();
-            //  延迟加载：在 BindTarget 时再加载（确保数据库已初始化）
-            // LoadRecentColors();
+            BuildQuickColors();
+            BuildPaletteColors();
+            UpdateRecentColorPreviews();
+            SetCurrentColorHex("#000000", updateInputs: true);
         }
 
-        /// <summary>
-        /// 绑定目标文本框
-        /// </summary>
+        public void SetApplyMode(ApplyMode mode)
+        {
+            _applyMode = mode;
+            UpdateTransparentButtonVisibility();
+        }
+
         public void BindTarget(DraggableTextBox textBox)
         {
             _targetTextBox = textBox;
 
-            //  如果最近颜色还没有加载，现在加载（延迟加载，确保数据库已初始化）
             if (_recentColors.Count == 0)
             {
                 LoadRecentColors();
             }
 
-            // 从文本框读取当前文字颜色
-            if (_targetTextBox != null && _targetTextBox.Data != null)
+            var colorHex = _targetTextBox?.Data?.FontColor;
+            if (_applyMode == ApplyMode.TextHighlight)
             {
-                _currentColor = _targetTextBox.Data.FontColor;
-                if (string.IsNullOrEmpty(_currentColor))
+                colorHex = GetSelectionHighlightColorHex();
+                _isTransparentHighlightSelected = string.IsNullOrWhiteSpace(colorHex);
+            }
+            else
+            {
+                _isTransparentHighlightSelected = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                colorHex = "#000000";
+            }
+
+            SetCurrentColorHex(NormalizeColorHex(colorHex), updateInputs: true);
+            UpdateColorChipSelectionVisual();
+            UpdateTransparentButtonVisual();
+            UpdateTransparentButtonVisibility();
+            PaletteView.Visibility = Visibility.Visible;
+            CustomEditorView.Visibility = Visibility.Collapsed;
+        }
+
+        private void BuildQuickColors()
+        {
+            QuickColorPanel.Children.Clear();
+            _colorChips.Clear();
+            foreach (var hex in _quickColors)
+            {
+                QuickColorPanel.Children.Add(CreateColorChip(hex, 21, 3, applyImmediately: true));
+            }
+            UpdateColorChipSelectionVisual();
+        }
+
+        private void BuildPaletteColors()
+        {
+            PaletteGrid.Children.Clear();
+            foreach (var hex in _paletteColors)
+            {
+                PaletteGrid.Children.Add(CreateColorChip(hex, 21, 3, applyImmediately: true));
+            }
+            UpdateColorChipSelectionVisual();
+        }
+
+        private Border CreateColorChip(string colorHex, double size, double margin, bool applyImmediately)
+        {
+            var color = ParseColor(colorHex);
+            var chip = new Border
+            {
+                Width = size,
+                Height = size,
+                Margin = new Thickness(margin / 2),
+                CornerRadius = new CornerRadius(size / 2),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(198, 198, 198)),
+                Background = new SolidColorBrush(color),
+                Tag = NormalizeColorHex(colorHex),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            _colorChips.Add(chip);
+
+            chip.MouseLeftButtonDown += (_, _) =>
+            {
+                var hex = chip.Tag as string;
+                if (string.IsNullOrWhiteSpace(hex))
                 {
-                    _currentColor = "#000000";
+                    return;
                 }
 
-                // 更新UI控件
-                TxtRgbInput.Text = _currentColor;
+                _isTransparentHighlightSelected = false;
+                SetCurrentColorHex(hex, updateInputs: true);
+                UpdateColorChipSelectionVisual();
+                UpdateTransparentButtonVisual();
+                if (applyImmediately)
+                {
+                    ApplyCurrentColor();
+                }
+            };
+
+            return chip;
+        }
+
+        private void BtnOpenCustomEditor_Click(object sender, RoutedEventArgs e)
+        {
+            PaletteView.Visibility = Visibility.Collapsed;
+            CustomEditorView.Visibility = Visibility.Visible;
+        }
+
+        private void BtnCustomCancel_Click(object sender, RoutedEventArgs e)
+        {
+            PaletteView.Visibility = Visibility.Visible;
+            CustomEditorView.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnCustomConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            _isTransparentHighlightSelected = false;
+            ApplyCurrentColor();
+            UpdateColorChipSelectionVisual();
+            UpdateTransparentButtonVisual();
+            PaletteView.Visibility = Visibility.Visible;
+            CustomEditorView.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnHighlightTransparent_Click(object sender, RoutedEventArgs e)
+        {
+            if (_applyMode != ApplyMode.TextHighlight || _targetTextBox == null)
+            {
+                return;
+            }
+
+            _targetTextBox.ApplyHighlightToSelection("Transparent");
+            _isTransparentHighlightSelected = true;
+            UpdateColorChipSelectionVisual();
+            UpdateTransparentButtonVisual();
+            ColorApplied?.Invoke("Transparent", _applyMode);
+        }
+
+        private void HueSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isUpdatingInputs)
+            {
+                return;
+            }
+
+            _hue = e.NewValue;
+            UpdateSvHueBase();
+            RefreshCurrentColorFromHsv(updateInputs: true);
+        }
+
+        private void SvPickerHost_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            _isDraggingSv = true;
+            SvPickerHost.CaptureMouse();
+            UpdateSvFromPoint(e.GetPosition(SvPickerHost));
+        }
+
+        private void SvPickerHost_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_isDraggingSv)
+            {
+                return;
+            }
+
+            UpdateSvFromPoint(e.GetPosition(SvPickerHost));
+        }
+
+        private void SvPickerHost_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            _isDraggingSv = false;
+            SvPickerHost.ReleaseMouseCapture();
+        }
+
+        private void SvPickerHost_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateSvSelectorVisual();
+        }
+
+        private void TxtHex_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isUpdatingInputs)
+            {
+                return;
+            }
+
+            var normalized = NormalizeColorHex(TxtHex.Text);
+            if (normalized == null)
+            {
+                return;
+            }
+
+            SetCurrentColorHex(normalized, updateInputs: true);
+        }
+
+        private void TxtRgb_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isUpdatingInputs)
+            {
+                return;
+            }
+
+            if (!byte.TryParse(TxtR.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var r) ||
+                !byte.TryParse(TxtG.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var g) ||
+                !byte.TryParse(TxtB.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var b))
+            {
+                return;
+            }
+
+            var color = WpfColor.FromRgb(r, g, b);
+            SetCurrentColor(color, updateInputs: true);
+        }
+
+        private void SetCurrentColorHex(string colorHex, bool updateInputs)
+        {
+            var color = ParseColor(colorHex);
+            SetCurrentColor(color, updateInputs);
+        }
+
+        private void SetCurrentColor(WpfColor color, bool updateInputs)
+        {
+            RgbToHsv(color, out _hue, out _saturation, out _value);
+            UpdateSvHueBase();
+            UpdateSvSelectorVisual();
+            CurrentColorPreview.Fill = new SolidColorBrush(color);
+            _isTransparentHighlightSelected = false;
+            UpdateRecentColorPreviews();
+            UpdateColorChipSelectionVisual();
+            UpdateTransparentButtonVisual();
+
+            if (!updateInputs)
+            {
+                return;
+            }
+
+            _isUpdatingInputs = true;
+            var hex = ToHex(color);
+            TxtHex.Text = hex;
+            TxtR.Text = color.R.ToString(CultureInfo.InvariantCulture);
+            TxtG.Text = color.G.ToString(CultureInfo.InvariantCulture);
+            TxtB.Text = color.B.ToString(CultureInfo.InvariantCulture);
+            HueSlider.Value = _hue;
+            _isUpdatingInputs = false;
+        }
+
+        private void RefreshCurrentColorFromHsv(bool updateInputs)
+        {
+            var color = HsvToRgb(_hue, _saturation, _value);
+            CurrentColorPreview.Fill = new SolidColorBrush(color);
+            UpdateSvSelectorVisual();
+
+            if (updateInputs)
+            {
+                _isUpdatingInputs = true;
+                TxtHex.Text = ToHex(color);
+                TxtR.Text = color.R.ToString(CultureInfo.InvariantCulture);
+                TxtG.Text = color.G.ToString(CultureInfo.InvariantCulture);
+                TxtB.Text = color.B.ToString(CultureInfo.InvariantCulture);
+                _isUpdatingInputs = false;
             }
         }
 
-        /// <summary>
-        /// 初始化色板
-        /// </summary>
-        private void InitializeColorPalette()
+        private void UpdateSvFromPoint(WpfPoint point)
         {
-            ColorGrid.Children.Clear();
-
-            foreach (var colorHex in _colorPalette)
+            if (SvPickerHost.ActualWidth <= 1 || SvPickerHost.ActualHeight <= 1)
             {
-                var border = new Border
+                return;
+            }
+
+            var x = Math.Max(0, Math.Min(SvPickerHost.ActualWidth, point.X));
+            var y = Math.Max(0, Math.Min(SvPickerHost.ActualHeight, point.Y));
+            _saturation = x / SvPickerHost.ActualWidth;
+            _value = 1 - (y / SvPickerHost.ActualHeight);
+            RefreshCurrentColorFromHsv(updateInputs: true);
+        }
+
+        private void UpdateSvHueBase()
+        {
+            var hueColor = HsvToRgb(_hue, 1, 1);
+            SvHueBaseRect.Fill = new SolidColorBrush(hueColor);
+        }
+
+        private void UpdateSvSelectorVisual()
+        {
+            if (SvPickerHost.ActualWidth <= 1 || SvPickerHost.ActualHeight <= 1)
+            {
+                return;
+            }
+
+            var x = _saturation * SvPickerHost.ActualWidth;
+            var y = (1 - _value) * SvPickerHost.ActualHeight;
+            Canvas.SetLeft(SvSelector, x - (SvSelector.Width / 2));
+            Canvas.SetTop(SvSelector, y - (SvSelector.Height / 2));
+        }
+
+        private void ApplyCurrentColor()
+        {
+            if (CurrentColorPreview.Fill is not SolidColorBrush brush)
+            {
+                return;
+            }
+
+            var hex = ToHex(brush.Color);
+            AddToRecentColors(hex);
+
+            if (_targetTextBox != null)
+            {
+                if (_applyMode == ApplyMode.TextHighlight)
                 {
-                    Width = 36,
-                    Height = 36,
-                    Margin = new Thickness(2),
-                    Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex)),
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(204, 204, 204)),
-                    CornerRadius = new CornerRadius(6),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = colorHex
-                };
-                border.MouseLeftButtonDown += (s, e) =>
+                    _targetTextBox.ApplyHighlightToSelection(hex);
+                }
+                else
                 {
-                    if (s is Border b && b.Tag is string color)
+                    _targetTextBox.Data.FontColor = hex;
+                    if (_targetTextBox.HasTextSelection())
                     {
-                        _currentColor = color;
-                        TxtRgbInput.Text = color;
-                        AddToRecentColors(color);
-                        ApplyTextColor(color);
+                        _targetTextBox.ApplyStyleToSelection(color: hex);
                     }
-                };
-                ColorGrid.Children.Add(border);
+                }
             }
+
+            ColorApplied?.Invoke(hex, _applyMode);
         }
 
-        /// <summary>
-        /// 颜色按钮点击
-        /// </summary>
-        private void ColorButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateColorChipSelectionVisual()
         {
-            if (sender is System.Windows.Controls.Button btn && btn.Tag is string colorHex)
+            var selectedHex = CurrentColorPreview.Fill is SolidColorBrush brush
+                ? ToHex(brush.Color)
+                : null;
+
+            foreach (var chip in _colorChips)
             {
-                _currentColor = colorHex;
-                TxtRgbInput.Text = colorHex;
-                AddToRecentColors(colorHex);
-                ApplyTextColor(colorHex);
+                if (chip == null)
+                {
+                    continue;
+                }
+
+                bool selected = !_isTransparentHighlightSelected &&
+                                string.Equals(chip.Tag as string, selectedHex, StringComparison.OrdinalIgnoreCase);
+
+                chip.BorderThickness = selected ? new Thickness(2) : new Thickness(1);
+                chip.BorderBrush = selected
+                    ? new SolidColorBrush(WpfColor.FromRgb(60, 60, 60))
+                    : new SolidColorBrush(WpfColor.FromRgb(198, 198, 198));
+
+                chip.Child = selected ? BuildCheckmarkVisual(chip.Background as SolidColorBrush) : null;
             }
         }
 
-        /// <summary>
-        /// 使用RGB按钮点击
-        /// </summary>
-        private void BtnUseRgb_Click(object sender, RoutedEventArgs e)
+        private UIElement BuildCheckmarkVisual(SolidColorBrush chipBrush)
         {
-            var colorHex = TxtRgbInput.Text.Trim();
-            if (colorHex.StartsWith("#") && (colorHex.Length == 7 || colorHex.Length == 9))
+            var color = chipBrush?.Color ?? WpfColor.FromRgb(0, 0, 0);
+            double luminance = (0.299 * color.R) + (0.587 * color.G) + (0.114 * color.B);
+            var markBrush = luminance > 160
+                ? new SolidColorBrush(WpfColor.FromRgb(20, 20, 20))
+                : new SolidColorBrush(WpfColor.FromRgb(255, 255, 255));
+
+            return new Viewbox
             {
-                _currentColor = colorHex;
-                AddToRecentColors(colorHex);
-                ApplyTextColor(colorHex);
-            }
+                Width = 14,
+                Height = 14,
+                Child = new Path
+                {
+                    Data = Geometry.Parse("M4 10L8 14L16 6"),
+                    Stroke = markBrush,
+                    StrokeThickness = 2.2,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    Fill = System.Windows.Media.Brushes.Transparent
+                }
+            };
         }
 
-        /// <summary>
-        /// 添加到最近使用颜色
-        /// </summary>
+        private void UpdateTransparentButtonVisibility()
+        {
+            if (BtnHighlightTransparent == null)
+            {
+                return;
+            }
+
+            BtnHighlightTransparent.Visibility = _applyMode == ApplyMode.TextHighlight
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        private void UpdateTransparentButtonVisual()
+        {
+            if (BtnHighlightTransparent == null)
+            {
+                return;
+            }
+
+            BtnHighlightTransparent.BorderBrush = _isTransparentHighlightSelected
+                ? new SolidColorBrush(WpfColor.FromRgb(66, 133, 244))
+                : new SolidColorBrush(WpfColor.FromRgb(207, 207, 207));
+            BtnHighlightTransparent.BorderThickness = _isTransparentHighlightSelected ? new Thickness(2) : new Thickness(1);
+        }
+
+        private string GetSelectionHighlightColorHex()
+        {
+            if (_targetTextBox?.RichTextBox?.Selection == null || !_targetTextBox.HasTextSelection())
+            {
+                return null;
+            }
+
+            var value = _targetTextBox.RichTextBox.Selection
+                .GetPropertyValue(System.Windows.Documents.TextElement.BackgroundProperty);
+
+            if (value == DependencyProperty.UnsetValue || value == null)
+            {
+                return null;
+            }
+
+            if (value is SolidColorBrush brush)
+            {
+                if (brush.Color.A == 0)
+                {
+                    return null;
+                }
+
+                return ToHex(brush.Color);
+            }
+
+            return null;
+        }
+
         private void AddToRecentColors(string colorHex)
         {
-            if (_recentColors.Contains(colorHex))
-                _recentColors.Remove(colorHex);
+            var normalized = NormalizeColorHex(colorHex);
+            if (normalized == null)
+            {
+                return;
+            }
 
-            _recentColors.Insert(0, colorHex);
+            _recentColors.RemoveAll(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase));
+            _recentColors.Insert(0, normalized);
             if (_recentColors.Count > 6)
-                _recentColors.RemoveAt(6);
+            {
+                _recentColors.RemoveRange(6, _recentColors.Count - 6);
+            }
 
-            UpdateRecentColorsGrid();
+            UpdateRecentColorPreviews();
             SaveRecentColors();
         }
 
-        /// <summary>
-        /// 加载最近使用颜色（从数据库）
-        /// </summary>
+        private void UpdateRecentColorPreviews()
+        {
+            RecentColorPreview1.Background = new SolidColorBrush(ParseColor(_recentColors.ElementAtOrDefault(0) ?? "#EBEFF3"));
+            RecentColorPreview2.Background = new SolidColorBrush(ParseColor(_recentColors.ElementAtOrDefault(1) ?? "#8B4747"));
+        }
+
         private void LoadRecentColors()
         {
             try
             {
-                var settingsStore = SettingsStore;
-                if (settingsStore == null)
+                var jsonValue = SettingsStore?.GetValue("TextColorRecentColors");
+                if (string.IsNullOrWhiteSpace(jsonValue))
                 {
-                    //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($" [文本颜色面板] 无法访问数据库，使用空列表");
-                    //#endif
-                    _recentColors = new List<string>();
-                    UpdateRecentColorsGrid();
+                    _recentColors.Clear();
+                    UpdateRecentColorPreviews();
                     return;
                 }
 
-                var jsonValue = settingsStore.GetValue("TextColorRecentColors");
-                if (string.IsNullOrEmpty(jsonValue))
-                {
-                    //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"[文本颜色面板] 数据库中没有最近颜色");
-                    //#endif
-                    _recentColors = new List<string>();
-                }
-                else
-                {
-                    var savedColors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonValue) ?? new List<string>();
-                    //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($"[文本颜色面板] 从数据库加载: {string.Join(", ", savedColors)} (数量={savedColors.Count})");
-                    //#endif
-                    _recentColors = savedColors.Take(6).ToList();
-                }
+                var saved = JsonSerializer.Deserialize<List<string>>(jsonValue) ?? new List<string>();
+                _recentColors.Clear();
+                _recentColors.AddRange(saved
+                    .Select(NormalizeColorHex)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Take(6));
             }
             catch
             {
-                //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($" [文本颜色面板] 加载失败: {ex.Message}");
-                //#endif
-                _recentColors = new List<string>();
+                _recentColors.Clear();
             }
-            UpdateRecentColorsGrid();
+
+            UpdateRecentColorPreviews();
         }
 
-        /// <summary>
-        /// 保存最近使用颜色（到数据库）
-        /// </summary>
         private void SaveRecentColors()
         {
             try
             {
-                var settingsStore = SettingsStore;
-                if (settingsStore == null)
+                if (SettingsStore == null)
                 {
-                    //#if DEBUG
-                    //                    System.Diagnostics.Debug.WriteLine($" [文本颜色面板] 无法访问数据库，保存失败");
-                    //#endif
                     return;
                 }
 
-                var colorsToSave = _recentColors.Take(6).ToList();
-                var jsonValue = System.Text.Json.JsonSerializer.Serialize(colorsToSave);
-                settingsStore.SaveValue("TextColorRecentColors", jsonValue);
-                //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($"[文本颜色面板] 保存到数据库: {string.Join(", ", colorsToSave)}");
-                //#endif
+                var jsonValue = JsonSerializer.Serialize(_recentColors.Take(6).ToList());
+                SettingsStore.SaveValue("TextColorRecentColors", jsonValue);
             }
             catch
             {
-                //#if DEBUG
-                //                System.Diagnostics.Debug.WriteLine($" [文本颜色面板] 保存失败: {ex.Message}");
-                //#endif
+                // ignore persistence failures
             }
         }
 
-        /// <summary>
-        /// 更新最近颜色网格
-        /// </summary>
-        private void UpdateRecentColorsGrid()
+        private static string NormalizeColorHex(string colorHex)
         {
-            RecentColorsGrid.Children.Clear();
-
-            foreach (var colorHex in _recentColors)
+            if (string.IsNullOrWhiteSpace(colorHex))
             {
-                var border = new Border
+                return null;
+            }
+
+            var value = colorHex.Trim();
+            if (!value.StartsWith("#", StringComparison.Ordinal))
+            {
+                value = "#" + value;
+            }
+
+            if (value.Length == 7 || value.Length == 9)
+            {
+                for (var i = 1; i < value.Length; i++)
                 {
-                    Width = 36,
-                    Height = 36,
-                    Margin = new Thickness(2),
-                    Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex)),
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(204, 204, 204)),
-                    CornerRadius = new CornerRadius(6),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = colorHex
-                };
-                border.MouseLeftButtonDown += (s, e) =>
-                {
-                    if (s is Border b && b.Tag is string color)
+                    if (!Uri.IsHexDigit(value[i]))
                     {
-                        _currentColor = color;
-                        TxtRgbInput.Text = color;
-                        AddToRecentColors(color);
-                        ApplyTextColor(color);
+                        return null;
                     }
-                };
-                RecentColorsGrid.Children.Add(border);
-            }
-        }
-
-        /// <summary>
-        /// 无颜色按钮点击（透明）
-        /// </summary>
-        private void BtnNoColor_Click(object sender, RoutedEventArgs e)
-        {
-            _currentColor = "Transparent";
-            TxtRgbInput.Text = "透明";
-            ApplyTextColor("Transparent");
-        }
-
-        /// <summary>
-        /// 自定义色盘按钮点击
-        /// </summary>
-        private void BtnCustomColor_Click(object sender, RoutedEventArgs e)
-        {
-            var colorDialog = new System.Windows.Forms.ColorDialog();
-            if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                var color = colorDialog.Color;
-                var colorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-                _currentColor = colorHex;
-                TxtRgbInput.Text = colorHex;
-                AddToRecentColors(colorHex);
-                ApplyTextColor(colorHex);
-            }
-        }
-
-        /// <summary>
-        /// 应用文字颜色
-        /// </summary>
-        private void ApplyTextColor(string colorHex)
-        {
-            if (_targetTextBox == null)
-                return;
-
-            //  只允许选中文字后修改颜色
-            if (_targetTextBox.HasTextSelection())
-            {
-                if (colorHex == "Transparent")
-                {
-                    // 透明颜色需要特殊处理
-                    _targetTextBox.ApplyStyleToSelection(color: "#00000000");
                 }
-                else
-                {
-                    _targetTextBox.ApplyStyleToSelection(color: colorHex);
-                }
-                
-                // 主窗口会通过监听文本框的变化来标记内容已修改
-            }
-        }
 
-        /// <summary>
-        /// 关闭按钮点击
-        /// </summary>
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            // 关闭面板（通过查找父窗口的 Popup）
-            var popup = FindParentPopup(this);
-            if (popup != null)
-            {
-                popup.IsOpen = false;
+                return value.ToUpperInvariant();
             }
-        }
 
-        /// <summary>
-        /// 查找父 Popup
-        /// </summary>
-        private System.Windows.Controls.Primitives.Popup FindParentPopup(DependencyObject element)
-        {
-            var parent = System.Windows.Media.VisualTreeHelper.GetParent(element);
-            while (parent != null)
-            {
-                if (parent is System.Windows.Controls.Primitives.Popup popup)
-                {
-                    return popup;
-                }
-                parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
-            }
             return null;
+        }
+
+        private static WpfColor ParseColor(string colorHex)
+        {
+            try
+            {
+                var converted = System.Windows.Media.ColorConverter.ConvertFromString(NormalizeColorHex(colorHex) ?? "#000000");
+                if (converted is WpfColor color)
+                {
+                    return color;
+                }
+            }
+            catch
+            {
+            }
+
+            return Colors.Black;
+        }
+
+        private static string ToHex(WpfColor color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
+        private static WpfColor HsvToRgb(double h, double s, double v)
+        {
+            h = (h % 360 + 360) % 360;
+            s = Math.Max(0, Math.Min(1, s));
+            v = Math.Max(0, Math.Min(1, v));
+
+            var c = v * s;
+            var x = c * (1 - Math.Abs((h / 60.0) % 2 - 1));
+            var m = v - c;
+
+            double r1, g1, b1;
+            if (h < 60) { r1 = c; g1 = x; b1 = 0; }
+            else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+            else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+            else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+            else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+            else { r1 = c; g1 = 0; b1 = x; }
+
+            return WpfColor.FromRgb(
+                (byte)Math.Round((r1 + m) * 255),
+                (byte)Math.Round((g1 + m) * 255),
+                (byte)Math.Round((b1 + m) * 255));
+        }
+
+        private static void RgbToHsv(WpfColor color, out double h, out double s, out double v)
+        {
+            var r = color.R / 255.0;
+            var g = color.G / 255.0;
+            var b = color.B / 255.0;
+
+            var max = Math.Max(r, Math.Max(g, b));
+            var min = Math.Min(r, Math.Min(g, b));
+            var delta = max - min;
+
+            h = 0;
+            if (delta > 0)
+            {
+                if (Math.Abs(max - r) < 0.0001) h = 60 * (((g - b) / delta) % 6);
+                else if (Math.Abs(max - g) < 0.0001) h = 60 * (((b - r) / delta) + 2);
+                else h = 60 * (((r - g) / delta) + 4);
+            }
+
+            if (h < 0) h += 360;
+            s = max <= 0 ? 0 : delta / max;
+            v = max;
         }
     }
 }
-
-
-
-
-

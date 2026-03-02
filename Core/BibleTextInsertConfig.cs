@@ -44,6 +44,26 @@ namespace ImageColorChanger.Core
         public BiblePopupPosition PopupPosition { get; set; } = BiblePopupPosition.Bottom;
 
         /// <summary>
+        /// 弹窗统一字体（标题和经文共用）
+        /// </summary>
+        public string PopupFontFamily { get; set; } = "DengXian";
+
+        /// <summary>
+        /// 弹窗标题样式
+        /// </summary>
+        public BibleTitleStyle PopupTitleStyle { get; set; } = new BibleTitleStyle();
+
+        /// <summary>
+        /// 弹窗经文样式
+        /// </summary>
+        public BibleVerseStyle PopupVerseStyle { get; set; } = new BibleVerseStyle();
+
+        /// <summary>
+        /// 弹窗节号样式
+        /// </summary>
+        public BibleVerseNumberStyle PopupVerseNumberStyle { get; set; } = new BibleVerseNumberStyle();
+
+        /// <summary>
         /// 弹窗背景色（不含透明度）
         /// </summary>
         public string PopupBackgroundColorHex { get; set; } = "#000000";

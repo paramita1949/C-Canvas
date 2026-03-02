@@ -53,10 +53,14 @@ namespace ImageColorChanger.UI
         {
             if (BibleToolbar == null)
             {
+                HideTextEditorMiniToolbar();
+                UpdateSecondLayerSelectedActionsVisibility(false);
                 return;
             }
 
             BibleToolbar.IsOpen = false;
+            HideTextEditorMiniToolbar();
+            UpdateSecondLayerSelectedActionsVisibility(false);
         }
 
         /// <summary>
@@ -71,6 +75,8 @@ namespace ImageColorChanger.UI
             {
                 // 显示圣经工具栏（悬浮在画布上方固定位置）
                 ShowBibleFloatingToolbar();
+                ShowTextEditorMiniToolbar();
+                UpdateSecondLayerSelectedActionsVisibility(true);
             }
             catch (Exception ex)
             {
@@ -79,6 +85,37 @@ namespace ImageColorChanger.UI
                 //#else
                 _ = ex;  // 防止未使用变量警告
                 //#endif
+            }
+        }
+
+        private void ShowTextEditorMiniToolbar()
+        {
+            if (TextEditorMiniToolbar == null)
+            {
+                return;
+            }
+
+            TextEditorMiniToolbar.Visibility = Visibility.Visible;
+            UpdateSecondLayerSelectedActionsVisibility(_selectedTextBox != null);
+        }
+
+        private void HideTextEditorMiniToolbar()
+        {
+            if (TextEditorMiniToolbar == null)
+            {
+                return;
+            }
+
+            // 第二层工具条改为常驻显示：此处不再隐藏
+            TextEditorMiniToolbar.Visibility = Visibility.Visible;
+            UpdateSecondLayerSelectedActionsVisibility(_selectedTextBox != null);
+        }
+
+        private void UpdateSecondLayerSelectedActionsVisibility(bool isTextSelected)
+        {
+            if (SecondLayerSelectedActions != null)
+            {
+                SecondLayerSelectedActions.Visibility = isTextSelected ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 

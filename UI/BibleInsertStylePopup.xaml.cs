@@ -104,6 +104,20 @@ namespace ImageColorChanger.UI
                 "Center" => BiblePopupPosition.Center,
                 _ => BiblePopupPosition.Bottom
             };
+            _config.PopupFontFamily = _dbManager.GetBibleInsertConfigValue("popup_font_family", _config.FontFamily);
+            _config.PopupTitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_title_color", _config.TitleStyle.ColorHex);
+            _config.PopupTitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_title_size", _config.TitleStyle.FontSize.ToString()));
+            _config.PopupTitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_title_bold", _config.TitleStyle.IsBold ? "1" : "0") == "1";
+
+            _config.PopupVerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_verse_color", _config.VerseStyle.ColorHex);
+            _config.PopupVerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_size", _config.VerseStyle.FontSize.ToString()));
+            _config.PopupVerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_bold", _config.VerseStyle.IsBold ? "1" : "0") == "1";
+            _config.PopupVerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_spacing", _config.VerseStyle.VerseSpacing.ToString("F1")));
+
+            _config.PopupVerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_verse_number_color", _config.VerseNumberStyle.ColorHex);
+            _config.PopupVerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_number_size", _config.VerseNumberStyle.FontSize.ToString()));
+            _config.PopupVerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
+
             _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
             if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "100"), out var popupOpacity))
             {
@@ -218,9 +232,84 @@ namespace ImageColorChanger.UI
                 BiblePopupPosition.Center => 1,
                 _ => 2
             };
+            CmbPopupFont.ItemsSource = fontDisplayNames;
+            string popupDisplayName = null;
+            foreach (var kvp in _fontDisplayMap)
+            {
+                if (kvp.Value == _config.PopupFontFamily)
+                {
+                    popupDisplayName = kvp.Key;
+                    break;
+                }
+            }
+            if (popupDisplayName != null)
+            {
+                CmbPopupFont.SelectedItem = popupDisplayName;
+            }
+            else if (fontDisplayNames.Count > 0)
+            {
+                CmbPopupFont.SelectedIndex = 0;
+            }
+
+            SetColorButton(BtnPopupTitleColor, _config.PopupTitleStyle.GetSKColor());
+            CmbPopupTitleSize.ItemsSource = titleSizes;
+            CmbPopupTitleSize.SelectedItem = (int)_config.PopupTitleStyle.FontSize;
+            ChkPopupTitleBold.IsChecked = _config.PopupTitleStyle.IsBold;
+
+            SetColorButton(BtnPopupVerseColor, _config.PopupVerseStyle.GetSKColor());
+            CmbPopupVerseSize.ItemsSource = verseSizes;
+            CmbPopupVerseSize.SelectedItem = (int)_config.PopupVerseStyle.FontSize;
+            ChkPopupVerseBold.IsChecked = _config.PopupVerseStyle.IsBold;
+            CmbPopupVerseSpacing.ItemsSource = verseSpacingOptions;
+            CmbPopupVerseSpacing.SelectedItem = Math.Round(_config.PopupVerseStyle.VerseSpacing, 1);
+
+            SetColorButton(BtnPopupVerseNumberColor, _config.PopupVerseNumberStyle.GetSKColor());
+            CmbPopupVerseNumberSize.ItemsSource = verseNumberSizes;
+            CmbPopupVerseNumberSize.SelectedItem = (int)_config.PopupVerseNumberStyle.FontSize;
+            ChkPopupVerseNumberBold.IsChecked = _config.PopupVerseNumberStyle.IsBold;
+
             SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"));
             CmbPopupBackgroundOpacity.ItemsSource = Enumerable.Range(0, 21).Select(i => i * 5).ToList();
             CmbPopupBackgroundOpacity.SelectedItem = (_config.PopupBackgroundOpacity / 5) * 5;
+
+            // 默认打开“插入样式”页签
+            SwitchStyleTab(false);
+        }
+
+        private void BtnInsertStyleTab_Click(object sender, RoutedEventArgs e) => SwitchStyleTab(false);
+
+        private void BtnPopupStyleTab_Click(object sender, RoutedEventArgs e) => SwitchStyleTab(true);
+
+        private void SwitchStyleTab(bool showPopupStyle)
+        {
+            InsertStylePanel.Visibility = showPopupStyle ? Visibility.Collapsed : Visibility.Visible;
+            PopupStylePanel.Visibility = showPopupStyle ? Visibility.Visible : Visibility.Collapsed;
+
+            if (showPopupStyle)
+            {
+                BtnInsertStyleTab.Background = new SolidColorBrush(System.Windows.Media.Colors.White);
+                BtnInsertStyleTab.Foreground = new SolidColorBrush(ParseUiColor("#6B7280"));
+                BtnInsertStyleTab.BorderBrush = System.Windows.Media.Brushes.Transparent;
+
+                BtnPopupStyleTab.Background = new SolidColorBrush(ParseUiColor("#EFF6FF"));
+                BtnPopupStyleTab.Foreground = new SolidColorBrush(ParseUiColor("#2563EB"));
+                BtnPopupStyleTab.BorderBrush = new SolidColorBrush(ParseUiColor("#BFDBFE"));
+            }
+            else
+            {
+                BtnPopupStyleTab.Background = new SolidColorBrush(System.Windows.Media.Colors.White);
+                BtnPopupStyleTab.Foreground = new SolidColorBrush(ParseUiColor("#6B7280"));
+                BtnPopupStyleTab.BorderBrush = System.Windows.Media.Brushes.Transparent;
+
+                BtnInsertStyleTab.Background = new SolidColorBrush(ParseUiColor("#EFF6FF"));
+                BtnInsertStyleTab.Foreground = new SolidColorBrush(ParseUiColor("#2563EB"));
+                BtnInsertStyleTab.BorderBrush = new SolidColorBrush(ParseUiColor("#BFDBFE"));
+            }
+        }
+
+        private static System.Windows.Media.Color ParseUiColor(string hex)
+        {
+            return (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
         }
         
         /// <summary>
@@ -353,6 +442,43 @@ namespace ImageColorChanger.UI
                     };
                     _dbManager.SetBibleInsertConfigValue("popup_position", popupTag);
                 }
+
+                if (CmbPopupFont.SelectedItem is string popupFontDisplayName &&
+                    _fontDisplayMap != null &&
+                    _fontDisplayMap.TryGetValue(popupFontDisplayName, out string popupFontFamily))
+                {
+                    _config.PopupFontFamily = popupFontFamily;
+                    _dbManager.SetBibleInsertConfigValue("popup_font_family", popupFontFamily);
+                }
+
+                if (CmbPopupTitleSize.SelectedItem != null)
+                {
+                    _config.PopupTitleStyle.FontSize = (int)CmbPopupTitleSize.SelectedItem;
+                    _dbManager.SetBibleInsertConfigValue("popup_title_size", _config.PopupTitleStyle.FontSize.ToString());
+                }
+                _config.PopupTitleStyle.IsBold = ChkPopupTitleBold.IsChecked ?? _config.PopupTitleStyle.IsBold;
+                _dbManager.SetBibleInsertConfigValue("popup_title_bold", _config.PopupTitleStyle.IsBold ? "1" : "0");
+
+                if (CmbPopupVerseSize.SelectedItem != null)
+                {
+                    _config.PopupVerseStyle.FontSize = (int)CmbPopupVerseSize.SelectedItem;
+                    _dbManager.SetBibleInsertConfigValue("popup_verse_size", _config.PopupVerseStyle.FontSize.ToString());
+                }
+                _config.PopupVerseStyle.IsBold = ChkPopupVerseBold.IsChecked ?? _config.PopupVerseStyle.IsBold;
+                _dbManager.SetBibleInsertConfigValue("popup_verse_bold", _config.PopupVerseStyle.IsBold ? "1" : "0");
+                if (CmbPopupVerseSpacing.SelectedItem != null)
+                {
+                    _config.PopupVerseStyle.VerseSpacing = (float)(double)CmbPopupVerseSpacing.SelectedItem;
+                    _dbManager.SetBibleInsertConfigValue("popup_verse_spacing", _config.PopupVerseStyle.VerseSpacing.ToString("F1"));
+                }
+
+                if (CmbPopupVerseNumberSize.SelectedItem != null)
+                {
+                    _config.PopupVerseNumberStyle.FontSize = (int)CmbPopupVerseNumberSize.SelectedItem;
+                    _dbManager.SetBibleInsertConfigValue("popup_verse_number_size", _config.PopupVerseNumberStyle.FontSize.ToString());
+                }
+                _config.PopupVerseNumberStyle.IsBold = ChkPopupVerseNumberBold.IsChecked ?? _config.PopupVerseNumberStyle.IsBold;
+                _dbManager.SetBibleInsertConfigValue("popup_verse_number_bold", _config.PopupVerseNumberStyle.IsBold ? "1" : "0");
 
                 if (CmbPopupBackgroundOpacity.SelectedItem is int opacity)
                 {
@@ -509,6 +635,61 @@ namespace ImageColorChanger.UI
 #else
                 _ = ex;
 #endif
+            }
+        }
+
+        private void BtnPopupTitleColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (TrySelectColor(_config.PopupTitleStyle.GetSKColor(), out var newColor))
+            {
+                _config.PopupTitleStyle.SetSKColor(newColor);
+                SetColorButton(BtnPopupTitleColor, newColor);
+                _dbManager.SetBibleInsertConfigValue("popup_title_color", _config.PopupTitleStyle.ColorHex);
+            }
+        }
+
+        private void BtnPopupVerseColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (TrySelectColor(_config.PopupVerseStyle.GetSKColor(), out var newColor))
+            {
+                _config.PopupVerseStyle.SetSKColor(newColor);
+                SetColorButton(BtnPopupVerseColor, newColor);
+                _dbManager.SetBibleInsertConfigValue("popup_verse_color", _config.PopupVerseStyle.ColorHex);
+            }
+        }
+
+        private void BtnPopupVerseNumberColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (TrySelectColor(_config.PopupVerseNumberStyle.GetSKColor(), out var newColor))
+            {
+                _config.PopupVerseNumberStyle.SetSKColor(newColor);
+                SetColorButton(BtnPopupVerseNumberColor, newColor);
+                _dbManager.SetBibleInsertConfigValue("popup_verse_number_color", _config.PopupVerseNumberStyle.ColorHex);
+            }
+        }
+
+        private static bool TrySelectColor(SKColor currentColor, out SKColor selectedColor)
+        {
+            selectedColor = currentColor;
+            try
+            {
+                var colorDialog = new System.Windows.Forms.ColorDialog
+                {
+                    Color = System.Drawing.Color.FromArgb(currentColor.Alpha, currentColor.Red, currentColor.Green, currentColor.Blue)
+                };
+
+                if (colorDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return false;
+                }
+
+                var color = colorDialog.Color;
+                selectedColor = new SKColor(color.R, color.G, color.B, color.A);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

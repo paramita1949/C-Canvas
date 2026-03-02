@@ -122,6 +122,25 @@ namespace ImageColorChanger.UI.Controls
 
             }
 
+            // 应用文字高亮背景（选区背景色，区别于文本框容器背景）
+            if (!string.IsNullOrEmpty(span.BackgroundColor) &&
+                !string.Equals(span.BackgroundColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var backgroundColor = (WpfColor)WpfColorConverter.ConvertFromString(span.BackgroundColor);
+                    run.Background = new WpfSolidColorBrush(backgroundColor);
+                }
+                catch
+                {
+                    run.Background = null;
+                }
+            }
+            else
+            {
+                run.Background = null;
+            }
+
             
 
             // 应用粗体
@@ -270,6 +289,14 @@ namespace ImageColorChanger.UI.Controls
 
                             span.FontColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
 
+                        }
+
+                        if (run.Background is WpfSolidColorBrush backgroundBrush)
+                        {
+                            var bgColor = backgroundBrush.Color;
+                            span.BackgroundColor = bgColor.A < 255
+                                ? $"#{bgColor.A:X2}{bgColor.R:X2}{bgColor.G:X2}{bgColor.B:X2}"
+                                : $"#{bgColor.R:X2}{bgColor.G:X2}{bgColor.B:X2}";
                         }
 
                         span.IsBold = (run.FontWeight == System.Windows.FontWeights.Bold) ? 1 : 0;

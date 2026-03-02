@@ -224,6 +224,10 @@ namespace ImageColorChanger.UI
 
             // 更新下划线按钮状态（使用选中文字的实际样式）
             UpdateUnderlineButtonState(_selectedTextBox.IsSelectionUnderline());
+
+            // 颜色图标色条跟随当前选中文字颜色
+            UpdateSecondLayerTextColorIndicator(GetSelectedTextColorHex() ?? _selectedTextBox.Data?.FontColor);
+            UpdateSecondLayerTextHighlightIndicator(GetSelectedTextHighlightColorHex());
         }
 
         /// <summary>
@@ -276,6 +280,10 @@ namespace ImageColorChanger.UI
                 _currentTextColor = _selectedTextBox.Data.FontColor;
             }
 
+            // 同步第二层颜色图标色条
+            UpdateSecondLayerTextColorIndicator(_selectedTextBox.Data.FontColor);
+            UpdateSecondLayerTextHighlightIndicator(GetSelectedTextHighlightColorHex());
+
             // 更新加粗按钮状态
             UpdateBoldButtonState(_selectedTextBox.Data.IsBoldBool);
 
@@ -294,17 +302,34 @@ namespace ImageColorChanger.UI
             var themeBrush = System.Windows.Application.Current?.Resources["BrushGlobalIcon"] as SolidColorBrush;
             var activeBrush = themeBrush ?? new SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
 
-            if (isBold)
+            if (BtnBold != null)
             {
-                // 加粗状态：按钮背景使用当前主题色
-                BtnBold.Background = activeBrush;
-                BtnBold.Foreground = new SolidColorBrush(Colors.White);
+                if (isBold)
+                {
+                    // 顶部按钮：高亮底色
+                    BtnBold.Background = activeBrush;
+                    BtnBold.Foreground = new SolidColorBrush(Colors.White);
+                }
+                else
+                {
+                    BtnBold.Background = new SolidColorBrush(Colors.White);
+                    BtnBold.Foreground = activeBrush;
+                }
             }
-            else
+
+            if (BtnSecondLayerBold != null)
             {
-                // 非加粗状态：恢复默认样式
-                BtnBold.Background = new SolidColorBrush(Colors.White);
-                BtnBold.Foreground = activeBrush;
+                if (isBold)
+                {
+                    // 第二层按钮：与需求一致，B 高亮色块
+                    BtnSecondLayerBold.Background = activeBrush;
+                    BtnSecondLayerBold.Foreground = new SolidColorBrush(Colors.White);
+                }
+                else
+                {
+                    BtnSecondLayerBold.Background = new SolidColorBrush(Colors.Transparent);
+                    BtnSecondLayerBold.Foreground = activeBrush;
+                }
             }
         }
 
@@ -353,6 +378,130 @@ namespace ImageColorChanger.UI
                 BtnFloatingItalic.Foreground = activeBrush;
             }
         }
+
+        private void UpdateSecondLayerTextColorIndicator(string colorHex)
+        {
+            if (SecondLayerTextColorBar == null)
+            {
+                return;
+            }
+
+            var fallback = System.Windows.Application.Current?.Resources["BrushIconDefault"] as SolidColorBrush
+                ?? System.Windows.Application.Current?.Resources["BrushGlobalIcon"] as SolidColorBrush
+                ?? new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 64, 67));
+
+            if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                SecondLayerTextColorBar.Fill = fallback;
+                return;
+            }
+
+            try
+            {
+                var converted = WpfColorConverter.ConvertFromString(colorHex);
+                if (converted is WpfColor color)
+                {
+                    SecondLayerTextColorBar.Fill = new SolidColorBrush(color);
+                    _currentTextColor = colorHex;
+                    return;
+                }
+            }
+            catch
+            {
+                // ignore and use fallback
+            }
+
+            SecondLayerTextColorBar.Fill = fallback;
+        }
+
+        private void UpdateSecondLayerTextHighlightIndicator(string colorHex)
+        {
+            if (SecondLayerTextHighlightBar == null)
+            {
+                return;
+            }
+
+            var fallback = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#FF9800"));
+
+            if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                SecondLayerTextHighlightBar.Fill = fallback;
+                return;
+            }
+
+            try
+            {
+                var converted = WpfColorConverter.ConvertFromString(colorHex);
+                if (converted is WpfColor color)
+                {
+                    SecondLayerTextHighlightBar.Fill = new SolidColorBrush(color);
+                    return;
+                }
+            }
+            catch
+            {
+                // ignore and use fallback
+            }
+
+            SecondLayerTextHighlightBar.Fill = fallback;
+        }
+
+        private string GetSelectedTextColorHex()
+        {
+            if (_selectedTextBox?.RichTextBox?.Selection == null)
+            {
+                return null;
+            }
+
+            var value = _selectedTextBox.RichTextBox.Selection
+                .GetPropertyValue(System.Windows.Documents.TextElement.ForegroundProperty);
+
+            if (value == DependencyProperty.UnsetValue || value == null)
+            {
+                return null;
+            }
+
+            if (value is SolidColorBrush brush)
+            {
+                var c = brush.Color;
+                return c.A < 255
+                    ? $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}"
+                    : $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            }
+
+            return null;
+        }
+
+        private string GetSelectedTextHighlightColorHex()
+        {
+            if (_selectedTextBox?.RichTextBox?.Selection == null)
+            {
+                return null;
+            }
+
+            var value = _selectedTextBox.RichTextBox.Selection
+                .GetPropertyValue(System.Windows.Documents.TextElement.BackgroundProperty);
+
+            if (value == DependencyProperty.UnsetValue || value == null)
+            {
+                return null;
+            }
+
+            if (value is SolidColorBrush brush)
+            {
+                var c = brush.Color;
+                if (c.A == 0)
+                {
+                    return null;
+                }
+
+                return c.A < 255
+                    ? $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}"
+                    : $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            }
+
+            return null;
+        }
         
         /// <summary>
         /// 查找可视化树中的子元素
@@ -397,6 +546,7 @@ namespace ImageColorChanger.UI
                     IsItalic = tb.Data.IsItalicBool,
                     IsUnderline = tb.Data.IsUnderlineBool,
                     TextAlign = tb.Data.TextAlign,
+                    TextVerticalAlign = tb.Data.TextVerticalAlign,
                     ZIndex = tb.Data.ZIndex,
                     BorderColor = tb.Data.BorderColor,
                     BorderWidth = tb.Data.BorderWidth,
@@ -1084,33 +1234,41 @@ namespace ImageColorChanger.UI
             float popupWidth = Math.Max(480f, maxPopupWidth);
             float popupX = (float)((canvasWidth - popupWidth) / 2.0);
 
+            using var titleFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var verseFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var verseNumberFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupVerseNumberStyle.FontSize),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
             using var titlePaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.TitleStyle.ColorHex, 100),
-                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
-                TextSize = Math.Max(16f, cfg.TitleStyle.FontSize),
-                SubpixelText = true,
-                // 弹窗支持透明动画，关闭 LCD 文本以避免 alpha 表现异常。
-                LcdRenderText = false
+                Color = ToSkColor(cfg.PopupTitleStyle.ColorHex, 100)
             };
             using var versePaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.VerseStyle.ColorHex, 100),
-                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
-                TextSize = Math.Max(16f, cfg.VerseStyle.FontSize),
-                SubpixelText = true,
-                LcdRenderText = false
+                Color = ToSkColor(cfg.PopupVerseStyle.ColorHex, 100)
             };
             using var verseNumberPaint = new SKPaint
             {
                 IsAntialias = true,
-                Color = ToSkColor(cfg.VerseNumberStyle.ColorHex, 100),
-                Typeface = SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
-                TextSize = Math.Max(16f, cfg.VerseNumberStyle.FontSize),
-                SubpixelText = true,
-                LcdRenderText = false
+                Color = ToSkColor(cfg.PopupVerseNumberStyle.ColorHex, 100)
             };
             using var borderPaint = new SKPaint
             {
@@ -1126,8 +1284,8 @@ namespace ImageColorChanger.UI
                 Color = ToSkColor(cfg.PopupBackgroundColorHex, Math.Clamp(cfg.PopupBackgroundOpacity, 0, 100))
             };
 
-            float lineHeight = Math.Max(versePaint.TextSize * (float)Math.Max(1.0, cfg.VerseStyle.VerseSpacing), versePaint.TextSize * 1.2f);
-            float titleHeight = titlePaint.TextSize * 1.25f;
+            float lineHeight = Math.Max(verseFont.Size * (float)Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing), verseFont.Size * 1.2f);
+            float titleHeight = titleFont.Size * 1.25f;
             float titleBottomGap = 10f;
             float leftPad = 36f;
             float rightPad = 36f;
@@ -1135,8 +1293,8 @@ namespace ImageColorChanger.UI
             float bottomPad = 24f;
             float textMaxWidth = popupWidth - leftPad - rightPad;
 
-            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titlePaint, textMaxWidth);
-            var verseLayout = BuildPopupVerseLayout(_biblePopupOverlayContent ?? string.Empty, versePaint, textMaxWidth, lineHeight);
+            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titleFont, titlePaint, textMaxWidth);
+            var verseLayout = BuildPopupVerseLayout(_biblePopupOverlayContent ?? string.Empty, verseFont, versePaint, textMaxWidth, lineHeight);
             var verseLines = verseLayout.WrappedLines;
             int titleCount = Math.Max(1, titleLines.Count);
             int verseCount = Math.Max(1, verseLines.Count);
@@ -1216,19 +1374,19 @@ namespace ImageColorChanger.UI
             canvas.DrawRoundRect(rect, bgPaint);
             canvas.DrawRoundRect(rect, borderPaint);
 
-            float y = popupY + topPad + titlePaint.TextSize;
+            float y = popupY + topPad + titleFont.Size;
             foreach (var line in titleLines)
             {
-                canvas.DrawText(line, popupX + leftPad, y, titlePaint);
+                canvas.DrawText(line, popupX + leftPad, y, SKTextAlign.Left, titleFont, titlePaint);
                 y += titleHeight;
             }
 
             y += titleBottomGap;
             var verseViewportRect = new SKRect(
                 popupX + leftPad,
-                y - versePaint.TextSize,
+                y - verseFont.Size,
                 popupX + popupWidth - rightPad,
-                y - versePaint.TextSize + verseViewportHeight);
+                y - verseFont.Size + verseViewportHeight);
             _biblePopupOverlayLastVerseViewportRect = new Rect(
                 verseViewportRect.Left,
                 verseViewportRect.Top,
@@ -1240,7 +1398,7 @@ namespace ImageColorChanger.UI
             float verseY = y - (float)_biblePopupOverlayVerseScrollOffset;
             foreach (var line in verseLines)
             {
-                DrawPopupVerseLineWithNumberStyle(canvas, line, popupX + leftPad, verseY, versePaint, verseNumberPaint);
+                DrawPopupVerseLineWithNumberStyle(canvas, line, popupX + leftPad, verseY, verseFont, versePaint, verseNumberFont, verseNumberPaint);
                 verseY += lineHeight;
             }
             canvas.Restore();
@@ -1273,7 +1431,7 @@ namespace ImageColorChanger.UI
             public List<float> VerseStartOffsets { get; } = new();
         }
 
-        private static BiblePopupVerseLayout BuildPopupVerseLayout(string content, SKPaint paint, float maxWidth, float lineHeight)
+        private static BiblePopupVerseLayout BuildPopupVerseLayout(string content, SKFont font, SKPaint paint, float maxWidth, float lineHeight)
         {
             var result = new BiblePopupVerseLayout();
             var paragraphs = (content ?? string.Empty).Replace("\r\n", "\n").Split('\n');
@@ -1282,7 +1440,7 @@ namespace ImageColorChanger.UI
             foreach (var paragraph in paragraphs)
             {
                 result.VerseStartOffsets.Add(currentOffset);
-                var wrapped = WrapTextByWidth(paragraph, paint, maxWidth);
+                var wrapped = WrapTextByWidth(paragraph, font, paint, maxWidth);
                 foreach (var line in wrapped)
                 {
                     result.WrappedLines.Add(line);
@@ -1304,7 +1462,9 @@ namespace ImageColorChanger.UI
             string line,
             float x,
             float y,
+            SKFont verseFont,
             SKPaint versePaint,
+            SKFont verseNumberFont,
             SKPaint verseNumberPaint)
         {
             if (canvas == null)
@@ -1314,14 +1474,14 @@ namespace ImageColorChanger.UI
 
             if (string.IsNullOrEmpty(line))
             {
-                canvas.DrawText(string.Empty, x, y, versePaint);
+                canvas.DrawText(string.Empty, x, y, SKTextAlign.Left, verseFont, versePaint);
                 return;
             }
 
             var match = Regex.Match(line, @"^\s*(?<num>\d+(?:[、,，\-]\d+)*)\s+(?<rest>.+)$");
             if (!match.Success)
             {
-                canvas.DrawText(line, x, y, versePaint);
+                canvas.DrawText(line, x, y, SKTextAlign.Left, verseFont, versePaint);
                 return;
             }
 
@@ -1331,9 +1491,9 @@ namespace ImageColorChanger.UI
             string separator = " ";
             string numberPart = numberLeadSpaces + numberText + separator;
 
-            canvas.DrawText(numberPart, x, y, verseNumberPaint);
-            float numberWidth = verseNumberPaint.MeasureText(numberPart);
-            canvas.DrawText(restText, x + numberWidth, y, versePaint);
+            canvas.DrawText(numberPart, x, y, SKTextAlign.Left, verseNumberFont, verseNumberPaint);
+            float numberWidth = verseNumberFont.MeasureText(numberPart, verseNumberPaint);
+            canvas.DrawText(restText, x + numberWidth, y, SKTextAlign.Left, verseFont, versePaint);
         }
 
         private static SKRect BuildPopupEnterClipRect(string animationType, float x, float y, float width, float height, float progress)
@@ -1387,7 +1547,7 @@ namespace ImageColorChanger.UI
             return new SKColor(0, 0, 0, fallbackA);
         }
 
-        private static List<string> WrapTextByWidth(string text, SKPaint paint, float maxWidth)
+        private static List<string> WrapTextByWidth(string text, SKFont font, SKPaint paint, float maxWidth)
         {
             var lines = new List<string>();
             if (string.IsNullOrEmpty(text))
@@ -1409,7 +1569,7 @@ namespace ImageColorChanger.UI
                 foreach (char ch in paragraph)
                 {
                     string next = current + ch;
-                    if (!string.IsNullOrEmpty(current) && paint.MeasureText(next) > maxWidth)
+                    if (!string.IsNullOrEmpty(current) && font.MeasureText(next, paint) > maxWidth)
                     {
                         lines.Add(current);
                         current = ch.ToString();
@@ -1819,12 +1979,25 @@ namespace ImageColorChanger.UI
             
             // 绘制文本（支持多行）
             string[] lines = data.Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            float lineHeight = font.Spacing;
+            float lineSpacingFactor = data.LineSpacing > 0 ? (float)data.LineSpacing : 1.2f;
+            float lineHeight = font.Size * lineSpacingFactor;
+            float totalTextHeight = lines.Length * lineHeight;
+
+            float textTopY = y;
+            string verticalAlign = (data.TextVerticalAlign ?? "Top").Trim();
+            if (string.Equals(verticalAlign, "Middle", StringComparison.OrdinalIgnoreCase))
+            {
+                textTopY = y + Math.Max(0, (height - totalTextHeight) / 2f);
+            }
+            else if (string.Equals(verticalAlign, "Bottom", StringComparison.OrdinalIgnoreCase))
+            {
+                textTopY = y + Math.Max(0, height - totalTextHeight);
+            }
             
             // 正确计算第一行基线位置
             // 使用 FontMetrics 获取字体度量信息
             var fontMetrics = font.Metrics;
-            float firstLineBaseline = y - fontMetrics.Ascent; // Ascent是负值，表示基线到顶部的距离
+            float firstLineBaseline = textTopY - fontMetrics.Ascent; // Ascent是负值，表示基线到顶部的距离
             float currentY = firstLineBaseline;
             
             #if DEBUG

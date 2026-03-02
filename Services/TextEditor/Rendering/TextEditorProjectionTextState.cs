@@ -14,6 +14,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
         public bool IsItalic { get; init; }
         public bool IsUnderline { get; init; }
         public string TextAlign { get; init; }
+        public string TextVerticalAlign { get; init; }
         public int ZIndex { get; init; }
         public string BorderColor { get; init; }
         public double BorderWidth { get; init; }

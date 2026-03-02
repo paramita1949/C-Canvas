@@ -28,6 +28,23 @@ namespace ImageColorChanger.UI.Controls
 {
     public partial class DraggableTextBox : WpfUserControl
     {
+        public enum BorderLineStyle
+        {
+            Solid = 0,
+            Dashed = 1,
+            Dotted = 2,
+            DashDot = 3,
+            LongDash = 4
+        }
+
+        public enum BackgroundGradientDirection
+        {
+            LeftToRight = 0,
+            TopToBottom = 1,
+            BottomToTop = 2,
+            RadialCenter = 3
+        }
+
         #region 字段
 
         private bool _isDragging = false;
@@ -49,6 +66,7 @@ namespace ImageColorChanger.UI.Controls
         private WpfThumb _resizeThumbBottomLeft;  // 下左
         private WpfThumb _resizeThumbBottomCenter; // 下中
         private WpfThumb _resizeThumbBottomRight; // 下右（即原_resizeThumb）
+        private System.Windows.Shapes.Rectangle _borderStrokeRect; // 支持虚线/点线边框
         private System.Windows.Shapes.Rectangle _selectionRect;  // 虚线选中框
         private bool _isPlaceholderText = false;  // 标记是否是占位符文字
         private const string DEFAULT_PLACEHOLDER = "双击编辑文字";  // 默认占位符
@@ -57,6 +75,11 @@ namespace ImageColorChanger.UI.Controls
         private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
         private readonly TextLayoutProfile _textLayoutProfile = TextLayoutProfile.Default;
         private static readonly ITextLayoutService _textLayoutService = new TextLayoutService();
+        private bool _useBackgroundGradient;
+        private string _backgroundGradientStartColor;
+        private string _backgroundGradientEndColor;
+        private BackgroundGradientDirection _backgroundGradientDirection = BackgroundGradientDirection.LeftToRight;
+        private BorderLineStyle _borderLineStyle = BorderLineStyle.Solid;
 
         // 四个拖动区域（用于在编辑模式下拖动文本框）
         private WpfBorder _dragAreaTop;
@@ -166,33 +189,8 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         private void FixCaretStyle()
         {
-            if (_richTextBox == null || _richTextBox.Selection == null)
-                return;
-
-            try
-            {
-                // 当光标位置没有选中文本时（插入点），重置字体样式为 Normal
-                if (_richTextBox.Selection.IsEmpty)
-                {
-                    // 获取当前插入点的字体样式
-                    var currentFontStyle = _richTextBox.Selection.GetPropertyValue(
-                        System.Windows.Documents.TextElement.FontStyleProperty);
-
-                    // 如果是斜体，临时重置为 Normal（仅影响光标，不影响已有文本）
-                    if (currentFontStyle != null &&
-                        currentFontStyle.Equals(System.Windows.FontStyles.Italic))
-                    {
-                        // 使用 ApplyPropertyValue 设置插入点的默认样式
-                        _richTextBox.Selection.ApplyPropertyValue(
-                            System.Windows.Documents.TextElement.FontStyleProperty,
-                            System.Windows.FontStyles.Normal);
-                    }
-                }
-            }
-            catch
-            {
-                // 忽略异常，避免影响正常编辑
-            }
+            // no-op: 历史实现会在 SelectionChanged 时改写文档样式，
+            // 导致点击颜色/填充/高亮按钮时出现瞬时重排与“漂移错觉”。
         }
 
         /// <summary>

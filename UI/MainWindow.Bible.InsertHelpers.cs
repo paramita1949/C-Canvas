@@ -124,17 +124,17 @@ namespace ImageColorChanger.UI
 
         private void ApplyMainBibleVersePopupStyle(BibleTextInsertConfig config)
         {
-            MainBiblePopupReferenceText.FontFamily = new System.Windows.Media.FontFamily(config.FontFamily);
-            MainBiblePopupReferenceText.FontSize = config.TitleStyle.FontSize;
-            MainBiblePopupReferenceText.FontWeight = config.TitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-            MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.TitleStyle.ColorHex, 100);
+            MainBiblePopupReferenceText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
+            MainBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
+            MainBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+            MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.PopupTitleStyle.ColorHex, 100);
 
-            MainBiblePopupContentText.FontFamily = new System.Windows.Media.FontFamily(config.FontFamily);
-            MainBiblePopupContentText.FontSize = config.VerseStyle.FontSize;
-            MainBiblePopupContentText.FontWeight = config.VerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-            MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.VerseStyle.ColorHex, 100);
+            MainBiblePopupContentText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
+            MainBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
+            MainBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+            MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.PopupVerseStyle.ColorHex, 100);
             MainBiblePopupContentText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
-            MainBiblePopupContentText.LineHeight = config.VerseStyle.FontSize * Math.Max(1.0, config.VerseStyle.VerseSpacing);
+            MainBiblePopupContentText.LineHeight = config.PopupVerseStyle.FontSize * Math.Max(1.0, config.PopupVerseStyle.VerseSpacing);
 
             MainBiblePopupBorder.Background = BuildMainPopupBrush(
                 config.PopupBackgroundColorHex,
@@ -270,7 +270,7 @@ namespace ImageColorChanger.UI
         private double GetBiblePopupOverlayLineHeight()
         {
             var cfg = _biblePopupOverlayConfig ?? new BibleTextInsertConfig();
-            return Math.Max(16.0, cfg.VerseStyle.FontSize * Math.Max(1.0, cfg.VerseStyle.VerseSpacing));
+            return Math.Max(16.0, cfg.PopupVerseStyle.FontSize * Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing));
         }
 
         internal bool ConsumeSuppressNextProjectionAnimation()
@@ -504,24 +504,28 @@ namespace ImageColorChanger.UI
             double popupWidth = Math.Max(480.0, Math.Min(canvasWidth - 60.0, 1500.0));
             float textMaxWidth = (float)Math.Max(1.0, popupWidth - 72.0);
 
-            using var titlePaint = new SkiaSharp.SKPaint
+            using var titleFont = new SkiaSharp.SKFont
             {
-                IsAntialias = true,
-                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
-                TextSize = Math.Max(16f, cfg.TitleStyle.FontSize)
+                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize),
+                Subpixel = true,
+                Edging = SkiaSharp.SKFontEdging.Antialias
             };
-            using var versePaint = new SkiaSharp.SKPaint
+            using var verseFont = new SkiaSharp.SKFont
             {
-                IsAntialias = true,
-                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.FontFamily ?? "Microsoft YaHei UI"),
-                TextSize = Math.Max(16f, cfg.VerseStyle.FontSize)
+                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize),
+                Subpixel = true,
+                Edging = SkiaSharp.SKFontEdging.Antialias
             };
+            using var titlePaint = new SkiaSharp.SKPaint { IsAntialias = true };
+            using var versePaint = new SkiaSharp.SKPaint { IsAntialias = true };
 
-            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titlePaint, textMaxWidth);
-            var verseLines = WrapTextByWidth(_biblePopupOverlayContent ?? string.Empty, versePaint, textMaxWidth);
+            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titleFont, titlePaint, textMaxWidth);
+            var verseLines = WrapTextByWidth(_biblePopupOverlayContent ?? string.Empty, verseFont, versePaint, textMaxWidth);
 
-            float titleHeight = titlePaint.TextSize * 1.25f;
-            float lineHeight = Math.Max(versePaint.TextSize * (float)Math.Max(1.0, cfg.VerseStyle.VerseSpacing), versePaint.TextSize * 1.2f);
+            float titleHeight = titleFont.Size * 1.25f;
+            float lineHeight = Math.Max(verseFont.Size * (float)Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing), verseFont.Size * 1.2f);
             float contentHeight = Math.Max(1, titleLines.Count) * titleHeight + 10f + Math.Max(1, verseLines.Count) * lineHeight;
             return 24f + contentHeight + 24f;
         }
@@ -1367,6 +1371,17 @@ namespace ImageColorChanger.UI
                 "Center" => BiblePopupPosition.Center,
                 _ => BiblePopupPosition.Bottom
             };
+            config.PopupFontFamily = dbManager.GetBibleInsertConfigValue("popup_font_family", config.FontFamily);
+            config.PopupTitleStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_title_color", config.TitleStyle.ColorHex);
+            config.PopupTitleStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_title_size", config.TitleStyle.FontSize.ToString()));
+            config.PopupTitleStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_title_bold", config.TitleStyle.IsBold ? "1" : "0") == "1";
+            config.PopupVerseStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_verse_color", config.VerseStyle.ColorHex);
+            config.PopupVerseStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_verse_size", config.VerseStyle.FontSize.ToString()));
+            config.PopupVerseStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_verse_bold", config.VerseStyle.IsBold ? "1" : "0") == "1";
+            config.PopupVerseStyle.VerseSpacing = float.Parse(dbManager.GetBibleInsertConfigValue("popup_verse_spacing", config.VerseStyle.VerseSpacing.ToString("F1")));
+            config.PopupVerseNumberStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_verse_number_color", config.VerseNumberStyle.ColorHex);
+            config.PopupVerseNumberStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_verse_number_size", config.VerseNumberStyle.FontSize.ToString()));
+            config.PopupVerseNumberStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
             config.PopupBackgroundColorHex = dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
             if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "100"), out var popupOpacity))
             {
