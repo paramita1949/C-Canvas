@@ -619,7 +619,6 @@
                                         FontWeight="Bold"
                                         HorizontalAlignment="Left"
                                         Style="{StaticResource SecondLayerFlatButtonStyle}"
-                                        ToolTip="退出文本编辑器，返回图片/视频浏览"
                                         Click="BtnCloseTextEditor_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource IconLucideX}"
