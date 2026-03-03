@@ -331,42 +331,52 @@
 
                         <Button x:Name="BtnGradientDirTopToBottom"
                                 Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                                Width="24"
-                                Height="22"
-                                Margin="0,0,2,0"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
                                 ToolTip="上渐变"
                                 Click="BtnGradientDirection_Click"
                                 Tag="TopToBottom">
-                            <TextBlock Text="上" FontSize="11" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="上" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         <Button x:Name="BtnGradientDirBottomToTop"
                                 Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                                Width="24"
-                                Height="22"
-                                Margin="0,0,2,0"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
                                 ToolTip="下渐变"
                                 Click="BtnGradientDirection_Click"
                                 Tag="BottomToTop">
-                            <TextBlock Text="下" FontSize="11" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="下" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         <Button x:Name="BtnGradientDirLeftToRight"
                                 Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                                Width="24"
-                                Height="22"
-                                Margin="0,0,2,0"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
                                 ToolTip="左到右"
                                 Click="BtnGradientDirection_Click"
                                 Tag="LeftToRight">
-                            <TextBlock Text="左" FontSize="11" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="左" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="BtnGradientDirRightToLeft"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                ToolTip="右到左"
+                                Click="BtnGradientDirection_Click"
+                                Tag="RightToLeft">
+                            <TextBlock Text="右" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         <Button x:Name="BtnGradientDirRadialCenter"
                                 Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                                Width="24"
-                                Height="22"
+                                Width="28"
+                                Height="24"
                                 ToolTip="中间渐变"
                                 Click="BtnGradientDirection_Click"
                                 Tag="RadialCenter">
-                            <TextBlock Text="中" FontSize="11" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="中" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
 
@@ -381,6 +391,7 @@
                 <Separator Grid.Row="2" Margin="0,8,0,12"/>
 
                 <StackPanel Grid.Row="3">
+                    <StackPanel x:Name="CornerRadiusSection">
                     <TextBlock x:Name="TxtCornerRadiusLabel"
                                Text="圆角 0 px"
                                Foreground="#666666"
@@ -394,6 +405,7 @@
                             IsSnapToTickEnabled="True"
                             Margin="0,0,0,16"
                             ValueChanged="CornerRadiusSlider_ValueChanged"/>
+                    </StackPanel>
 
                     <TextBlock x:Name="TxtOpacityLabel"
                                Text="透明度 100%"

@@ -333,6 +333,44 @@ namespace ImageColorChanger.UI
             BackgroundSettingsPopup.IsOpen = true;
         }
 
+        private void OpenSlideBackgroundSettingsPopup(UIElement placementTarget)
+        {
+            if (_currentSlide == null)
+            {
+                ShowToast("请先选择一个幻灯片");
+                return;
+            }
+
+            CloseOtherSidePanels("BackgroundSettingsPopup");
+
+            var direction = Enum.IsDefined(typeof(DraggableTextBox.BackgroundGradientDirection), _currentSlide.BackgroundGradientDirection)
+                ? (DraggableTextBox.BackgroundGradientDirection)_currentSlide.BackgroundGradientDirection
+                : DraggableTextBox.BackgroundGradientDirection.TopToBottom;
+
+            BackgroundSettingsPanel.BindCanvasBackground(
+                _currentSlide.BackgroundColor,
+                HasSlideGradientBackground(_currentSlide),
+                _currentSlide.BackgroundGradientStartColor,
+                _currentSlide.BackgroundGradientEndColor,
+                direction,
+                _currentSlide.BackgroundOpacity,
+                selection => _ = ApplySlideBackgroundStyleAsync(selection));
+
+            if (placementTarget != null)
+            {
+                BackgroundSettingsPopup.PlacementTarget = placementTarget;
+                BackgroundSettingsPopup.Placement = PlacementMode.Bottom;
+                BackgroundSettingsPopup.HorizontalOffset = 0;
+                BackgroundSettingsPopup.VerticalOffset = 6;
+            }
+            else
+            {
+                RestoreSidePanelOffset(BackgroundSettingsPopup);
+            }
+
+            BackgroundSettingsPopup.IsOpen = true;
+        }
+
         private void BtnFloatingShadow_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedTextBox == null)

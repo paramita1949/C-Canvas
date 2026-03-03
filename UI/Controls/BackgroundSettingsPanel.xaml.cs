@@ -15,6 +15,17 @@ namespace ImageColorChanger.UI.Controls
     /// </summary>
     public partial class BackgroundSettingsPanel : System.Windows.Controls.UserControl
     {
+        public sealed class BackgroundStyleSelection
+        {
+            public bool UseGradient { get; init; }
+            public string BackgroundColor { get; init; }
+            public string GradientStartColor { get; init; }
+            public string GradientEndColor { get; init; }
+            public DraggableTextBox.BackgroundGradientDirection GradientDirection { get; init; }
+            public int CornerRadius { get; init; }
+            public int Opacity { get; init; }
+        }
+
         private enum FillMode
         {
             Solid = 0,
@@ -24,6 +35,8 @@ namespace ImageColorChanger.UI.Controls
         public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
 
         private DraggableTextBox _targetTextBox;
+        private Action<BackgroundStyleSelection> _backgroundChangedCallback;
+        private bool _isCanvasBackgroundMode;
         private FillMode _fillMode = FillMode.Solid;
         private int _cornerRadius;
         private int _opacity = 100;
@@ -81,6 +94,12 @@ namespace ImageColorChanger.UI.Controls
         public void BindTarget(DraggableTextBox textBox)
         {
             _targetTextBox = textBox;
+            _backgroundChangedCallback = null;
+            _isCanvasBackgroundMode = false;
+            if (CornerRadiusSection != null)
+            {
+                CornerRadiusSection.Visibility = Visibility.Visible;
+            }
             if (_recentColors.Count == 0)
             {
                 LoadRecentColors();
@@ -108,6 +127,62 @@ namespace ImageColorChanger.UI.Controls
             UpdateGradientDirectionButtons();
 
             // 某些控件在赋值后会异步触发 ValueChanged，延迟一拍再解锁可避免“打开即应用样式”。
+            Dispatcher.BeginInvoke(new Action(() => _isBindingTarget = false), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        public void BindCanvasBackground(
+            string solidColorHex,
+            bool useGradient,
+            string gradientStartColor,
+            string gradientEndColor,
+            DraggableTextBox.BackgroundGradientDirection gradientDirection,
+            int opacity,
+            Action<BackgroundStyleSelection> onApply)
+        {
+            _targetTextBox = null;
+            _backgroundChangedCallback = onApply;
+            _isCanvasBackgroundMode = true;
+            if (CornerRadiusSection != null)
+            {
+                CornerRadiusSection.Visibility = Visibility.Collapsed;
+            }
+
+            if (_recentColors.Count == 0)
+            {
+                LoadRecentColors();
+            }
+
+            _isBindingTarget = true;
+
+            _cornerRadius = 0;
+            _opacity = Math.Clamp(opacity, 0, 100);
+            _gradientDirection = gradientDirection;
+
+            if (useGradient &&
+                !string.IsNullOrWhiteSpace(gradientStartColor) &&
+                !string.IsNullOrWhiteSpace(gradientEndColor))
+            {
+                _selectedGradientKey = $"canvas|{gradientStartColor}|{gradientEndColor}";
+                _gradientStartColor = NormalizeColorHex(gradientStartColor);
+                _gradientEndColor = NormalizeColorHex(gradientEndColor);
+                _currentColor = MixColors(_gradientStartColor, _gradientEndColor, 0.5);
+                SetFillMode(FillMode.Gradient);
+            }
+            else
+            {
+                _selectedGradientKey = string.Empty;
+                _gradientStartColor = null;
+                _gradientEndColor = null;
+                _currentColor = NormalizeColorHex(solidColorHex) ?? "#000000";
+                SetFillMode(FillMode.Solid);
+            }
+
+            CornerRadiusSlider.Value = _cornerRadius;
+            OpacitySlider.Value = _opacity;
+            UpdateOpacityLabel();
+            UpdateSelectionVisuals();
+            UpdateGradientDirectionButtons();
+
             Dispatcher.BeginInvoke(new Action(() => _isBindingTarget = false), System.Windows.Threading.DispatcherPriority.Background);
         }
 
@@ -306,6 +381,7 @@ namespace ImageColorChanger.UI.Controls
                 "TopToBottom" => DraggableTextBox.BackgroundGradientDirection.TopToBottom,
                 "BottomToTop" => DraggableTextBox.BackgroundGradientDirection.BottomToTop,
                 "LeftToRight" => DraggableTextBox.BackgroundGradientDirection.LeftToRight,
+                "RightToLeft" => DraggableTextBox.BackgroundGradientDirection.RightToLeft,
                 "RadialCenter" => DraggableTextBox.BackgroundGradientDirection.RadialCenter,
                 _ => _gradientDirection
             };
@@ -319,6 +395,7 @@ namespace ImageColorChanger.UI.Controls
             SetDirButtonState(BtnGradientDirTopToBottom, _gradientDirection == DraggableTextBox.BackgroundGradientDirection.TopToBottom);
             SetDirButtonState(BtnGradientDirBottomToTop, _gradientDirection == DraggableTextBox.BackgroundGradientDirection.BottomToTop);
             SetDirButtonState(BtnGradientDirLeftToRight, _gradientDirection == DraggableTextBox.BackgroundGradientDirection.LeftToRight);
+            SetDirButtonState(BtnGradientDirRightToLeft, _gradientDirection == DraggableTextBox.BackgroundGradientDirection.RightToLeft);
             SetDirButtonState(BtnGradientDirRadialCenter, _gradientDirection == DraggableTextBox.BackgroundGradientDirection.RadialCenter);
         }
 
@@ -354,6 +431,11 @@ namespace ImageColorChanger.UI.Controls
             if (TxtCornerRadiusLabel != null)
             {
                 TxtCornerRadiusLabel.Text = $"圆角 {_cornerRadius} px";
+            }
+
+            if (_isCanvasBackgroundMode)
+            {
+                return;
             }
 
             if (_isBindingTarget)
@@ -459,15 +541,32 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-            if (_targetTextBox == null)
+            if (_targetTextBox == null && _backgroundChangedCallback == null)
             {
                 return;
             }
 
-            if (_fillMode == FillMode.Gradient &&
-                !string.IsNullOrWhiteSpace(_gradientStartColor) &&
-                !string.IsNullOrWhiteSpace(_gradientEndColor) &&
-                !string.Equals(_currentColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+            bool useGradient = _fillMode == FillMode.Gradient &&
+                               !string.IsNullOrWhiteSpace(_gradientStartColor) &&
+                               !string.IsNullOrWhiteSpace(_gradientEndColor) &&
+                               !string.Equals(_currentColor, "Transparent", StringComparison.OrdinalIgnoreCase);
+
+            if (_backgroundChangedCallback != null)
+            {
+                _backgroundChangedCallback.Invoke(new BackgroundStyleSelection
+                {
+                    UseGradient = useGradient,
+                    BackgroundColor = _currentColor,
+                    GradientStartColor = _gradientStartColor,
+                    GradientEndColor = _gradientEndColor,
+                    GradientDirection = _gradientDirection,
+                    CornerRadius = _cornerRadius,
+                    Opacity = _opacity
+                });
+                return;
+            }
+
+            if (useGradient)
             {
                 _targetTextBox.ApplyBackgroundGradient(
                     _gradientStartColor,

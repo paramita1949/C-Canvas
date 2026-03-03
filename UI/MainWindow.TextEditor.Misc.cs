@@ -117,6 +117,11 @@ namespace ImageColorChanger.UI
             {
                 SecondLayerSelectedActions.Visibility = isTextSelected ? Visibility.Visible : Visibility.Collapsed;
             }
+
+            if (SecondLayerCanvasActions != null)
+            {
+                SecondLayerCanvasActions.Visibility = isTextSelected ? Visibility.Collapsed : Visibility.Visible;
+            }
         }
 
         #endregion

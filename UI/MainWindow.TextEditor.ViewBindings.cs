@@ -39,6 +39,7 @@ namespace ImageColorChanger.UI
         private WpfControls.Border TextEditorMiniToolbar => TextEditorSectionView?.TextEditorMiniToolbarControl;
         private WpfControls.Button BtnSecondLayerSelect => TextEditorSectionView?.BtnSecondLayerSelectButton;
         private WpfControls.Button BtnSecondLayerAddText => TextEditorSectionView?.BtnSecondLayerAddTextButton;
+        private WpfControls.StackPanel SecondLayerCanvasActions => TextEditorSectionView?.SecondLayerCanvasActionsControl;
         private WpfControls.Button BtnSecondLayerBold => TextEditorSectionView?.BtnSecondLayerBoldButton;
         private WpfControls.Button BtnSecondLayerTextHighlightColor => TextEditorSectionView?.BtnSecondLayerTextHighlightColorButton;
         private WpfControls.StackPanel SecondLayerSelectedActions => TextEditorSectionView?.SecondLayerSelectedActionsControl;
@@ -114,6 +115,12 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSplitVertical_Click), BtnMenuSplitVertical_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSplitTriple_Click), BtnMenuSplitTriple_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSplitQuad_Click), BtnMenuSplitQuad_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutGallery_Click), BtnMenuLayoutGallery_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutTitleSubtitle_Click), BtnMenuLayoutTitleSubtitle_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutSectionTitleCentered_Click), BtnMenuLayoutSectionTitleCentered_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutTitleBody_Click), BtnMenuLayoutTitleBody_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutTitleTopOnly_Click), BtnMenuLayoutTitleTopOnly_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutBodyKeyPoints_Click), BtnMenuLayoutBodyKeyPoints_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(MenuNdiOutput_SubmenuOpened), MenuNdiOutput_SubmenuOpened);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiComplete_Click), BtnMenuNdiComplete_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiTransparent_Click), BtnMenuNdiTransparent_Click);
@@ -135,6 +142,8 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnCanvasAspectRatio_Click), BtnCanvasAspectRatio_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerSelect_Click), BtnSecondLayerSelect_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerAddText_Click), BtnSecondLayerAddText_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerCanvasBackground_Click), BtnSecondLayerCanvasBackground_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerCanvasLayout_Click), BtnSecondLayerCanvasLayout_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerFillColor_Click), BtnSecondLayerFillColor_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerAlignmentMenu_Click), BtnSecondLayerAlignmentMenu_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerBorder_Click), BtnSecondLayerBorder_Click);

@@ -568,6 +568,11 @@ namespace ImageColorChanger.UI
                 SplitDisplayMode = _splitImageDisplayMode.ToString(),
                 BackgroundColor = _currentSlide?.BackgroundColor,
                 BackgroundImagePath = _currentSlide?.BackgroundImagePath,
+                BackgroundGradientEnabled = _currentSlide?.BackgroundGradientEnabled ?? false,
+                BackgroundGradientStartColor = _currentSlide?.BackgroundGradientStartColor,
+                BackgroundGradientEndColor = _currentSlide?.BackgroundGradientEndColor,
+                BackgroundGradientDirection = _currentSlide?.BackgroundGradientDirection ?? 1,
+                BackgroundOpacity = _currentSlide?.BackgroundOpacity ?? 0,
                 BiblePopupOverlayVisible = _isBiblePopupOverlayVisible,
                 BiblePopupOverlayReference = _biblePopupOverlayReference,
                 BiblePopupOverlayContent = _biblePopupOverlayContent,
@@ -917,39 +922,37 @@ namespace ImageColorChanger.UI
             
             try
             {
-                // 根据参数选择背景色
-                SKColor backgroundColor = SKColors.Transparent; // 默认透明
-                
-                if (!transparentBackground)
-                {
-                    // 使用幻灯片设置的背景色
-                    backgroundColor = SKColors.Black; // 默认黑色
-                    if (_currentSlide != null && !string.IsNullOrEmpty(_currentSlide.BackgroundColor))
-                    {
-                        try
-                        {
-                            // 解析十六进制颜色（如 #FFFFFF）
-                            string hexColor = _currentSlide.BackgroundColor.TrimStart('#');
-                            if (hexColor.Length == 6)
-                            {
-                                byte r = Convert.ToByte(hexColor.Substring(0, 2), 16);
-                                byte g = Convert.ToByte(hexColor.Substring(2, 2), 16);
-                                byte b = Convert.ToByte(hexColor.Substring(4, 2), 16);
-                                backgroundColor = new SKColor(r, g, b);
+                bool useSlideGradientBackground =
+                    !transparentBackground &&
+                    _currentSlide != null &&
+                    HasSlideGradientBackground(_currentSlide);
 
-                                //#if DEBUG
-                                //System.Diagnostics.Debug.WriteLine($"  [Compose] 背景色: {_currentSlide.BackgroundColor} -> RGB({r},{g},{b})");
-                                //#endif
-                            }
-                        }
-                        catch
+                if (transparentBackground)
+                {
+                    canvas.Clear(SKColors.Transparent);
+                }
+                else if (useSlideGradientBackground)
+                {
+                    canvas.Clear(SKColors.Transparent);
+                    using var gradientShader = BuildSlideBackgroundGradientShader(_currentSlide, targetWidth, targetHeight);
+                    if (gradientShader != null)
+                    {
+                        using var gradientPaint = new SKPaint
                         {
-                            // 解析失败，使用默认黑色
-                        }
+                            IsAntialias = true,
+                            Shader = gradientShader
+                        };
+                        canvas.DrawRect(new SKRect(0, 0, targetWidth, targetHeight), gradientPaint);
+                    }
+                    else
+                    {
+                        canvas.Clear(GetSlideSolidBackgroundColor(_currentSlide));
                     }
                 }
-
-                canvas.Clear(backgroundColor);
+                else
+                {
+                    canvas.Clear(GetSlideSolidBackgroundColor(_currentSlide));
+                }
 
                 // 应用缩放变换（X 和 Y 方向可以不同，铺满整个投影屏幕）
                 // 注意：文本框使用 WPF 原生渲染，已经是最终视觉效果，缩放不会影响行间距
@@ -1524,6 +1527,81 @@ namespace ImageColorChanger.UI
             t = Math.Clamp(t, 0.0, 1.0);
             double inv = 1.0 - t;
             return 1.0 - (inv * inv * inv);
+        }
+
+        private static byte ToSlideBackgroundAlpha(int opacity)
+        {
+            return (byte)Math.Clamp((int)Math.Round(255 * (100 - Math.Clamp(opacity, 0, 100)) / 100.0), 0, 255);
+        }
+
+        private static SKColor GetSlideSolidBackgroundColor(Slide slide)
+        {
+            byte alpha = ToSlideBackgroundAlpha(slide?.BackgroundOpacity ?? 0);
+
+            if (slide != null && !string.IsNullOrWhiteSpace(slide.BackgroundColor) && SKColor.TryParse(slide.BackgroundColor, out var parsed))
+            {
+                return new SKColor(parsed.Red, parsed.Green, parsed.Blue, alpha);
+            }
+
+            return new SKColor(0, 0, 0, alpha);
+        }
+
+        private static SKShader BuildSlideBackgroundGradientShader(Slide slide, int width, int height)
+        {
+            if (slide == null ||
+                string.IsNullOrWhiteSpace(slide.BackgroundGradientStartColor) ||
+                string.IsNullOrWhiteSpace(slide.BackgroundGradientEndColor))
+            {
+                return null;
+            }
+
+            if (!SKColor.TryParse(slide.BackgroundGradientStartColor, out var startBase) ||
+                !SKColor.TryParse(slide.BackgroundGradientEndColor, out var endBase))
+            {
+                return null;
+            }
+
+            byte alpha = ToSlideBackgroundAlpha(slide.BackgroundOpacity);
+            var start = new SKColor(startBase.Red, startBase.Green, startBase.Blue, alpha);
+            var end = new SKColor(endBase.Red, endBase.Green, endBase.Blue, alpha);
+
+            var direction = Enum.IsDefined(typeof(DraggableTextBox.BackgroundGradientDirection), slide.BackgroundGradientDirection)
+                ? (DraggableTextBox.BackgroundGradientDirection)slide.BackgroundGradientDirection
+                : DraggableTextBox.BackgroundGradientDirection.LeftToRight;
+
+            return direction switch
+            {
+                DraggableTextBox.BackgroundGradientDirection.TopToBottom => SKShader.CreateLinearGradient(
+                    new SKPoint(0, 0),
+                    new SKPoint(0, height),
+                    new[] { start, end },
+                    new[] { 0f, 1f },
+                    SKShaderTileMode.Clamp),
+                DraggableTextBox.BackgroundGradientDirection.BottomToTop => SKShader.CreateLinearGradient(
+                    new SKPoint(0, height),
+                    new SKPoint(0, 0),
+                    new[] { start, end },
+                    new[] { 0f, 1f },
+                    SKShaderTileMode.Clamp),
+                DraggableTextBox.BackgroundGradientDirection.RightToLeft => SKShader.CreateLinearGradient(
+                    new SKPoint(width, 0),
+                    new SKPoint(0, 0),
+                    new[] { start, end },
+                    new[] { 0f, 1f },
+                    SKShaderTileMode.Clamp),
+                DraggableTextBox.BackgroundGradientDirection.RadialCenter => SKShader.CreateRadialGradient(
+                    new SKPoint(width / 2f, height / 2f),
+                    MathF.Min(width, height) * 0.68f,
+                    new[] { start, end },
+                    new[] { 0f, 1f },
+                    SKShaderTileMode.Clamp),
+                _ => SKShader.CreateLinearGradient(
+                    new SKPoint(0, 0),
+                    new SKPoint(width, 0),
+                    new[] { start, end },
+                    new[] { 0f, 1f },
+                    SKShaderTileMode.Clamp)
+            };
         }
 
         private static SKColor MultiplyAlpha(SKColor color, float multiplier)

@@ -148,6 +148,11 @@ namespace ImageColorChanger.UI
                 _currentSlide.VideoBackgroundEnabled = true;
                 _currentSlide.VideoLoopEnabled = true;
                 _currentSlide.VideoVolume = 0.0;
+                _currentSlide.BackgroundGradientEnabled = false;
+                _currentSlide.BackgroundGradientStartColor = null;
+                _currentSlide.BackgroundGradientEndColor = null;
+                _currentSlide.BackgroundGradientDirection = 1;
+                _currentSlide.BackgroundOpacity = 0;
 
                 await SaveVideoBackgroundSettingsAsync();
 
@@ -238,11 +243,21 @@ namespace ImageColorChanger.UI
                     {
                         slideToUpdate.BackgroundImagePath = dialog.FileName;
                         slideToUpdate.BackgroundColor = null;
+                        slideToUpdate.BackgroundGradientEnabled = false;
+                        slideToUpdate.BackgroundGradientStartColor = null;
+                        slideToUpdate.BackgroundGradientEndColor = null;
+                        slideToUpdate.BackgroundGradientDirection = 1;
+                        slideToUpdate.BackgroundOpacity = 0;
                         slideToUpdate.ModifiedTime = DateTime.Now;
                         await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                         _currentSlide.BackgroundImagePath = dialog.FileName;
                         _currentSlide.BackgroundColor = null;
+                        _currentSlide.BackgroundGradientEnabled = false;
+                        _currentSlide.BackgroundGradientStartColor = null;
+                        _currentSlide.BackgroundGradientEndColor = null;
+                        _currentSlide.BackgroundGradientDirection = 1;
+                        _currentSlide.BackgroundOpacity = 0;
                     }
 
                     await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, dialog.FileName);
@@ -304,11 +319,21 @@ namespace ImageColorChanger.UI
                     {
                         slideToUpdate.BackgroundColor = hexColor;
                         slideToUpdate.BackgroundImagePath = null;
+                        slideToUpdate.BackgroundGradientEnabled = false;
+                        slideToUpdate.BackgroundGradientStartColor = null;
+                        slideToUpdate.BackgroundGradientEndColor = null;
+                        slideToUpdate.BackgroundGradientDirection = 1;
+                        slideToUpdate.BackgroundOpacity = 0;
                         slideToUpdate.ModifiedTime = DateTime.Now;
                         await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                         _currentSlide.BackgroundColor = hexColor;
                         _currentSlide.BackgroundImagePath = null;
+                        _currentSlide.BackgroundGradientEnabled = false;
+                        _currentSlide.BackgroundGradientStartColor = null;
+                        _currentSlide.BackgroundGradientEndColor = null;
+                        _currentSlide.BackgroundGradientDirection = 1;
+                        _currentSlide.BackgroundOpacity = 0;
                     }
 
                     await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
@@ -338,11 +363,21 @@ namespace ImageColorChanger.UI
                 {
                     slideToUpdate.BackgroundColor = "#FFFFFF";
                     slideToUpdate.BackgroundImagePath = null;
+                    slideToUpdate.BackgroundGradientEnabled = false;
+                    slideToUpdate.BackgroundGradientStartColor = null;
+                    slideToUpdate.BackgroundGradientEndColor = null;
+                    slideToUpdate.BackgroundGradientDirection = 1;
+                    slideToUpdate.BackgroundOpacity = 0;
                     slideToUpdate.ModifiedTime = DateTime.Now;
                     await _textProjectService.UpdateSlideAsync(slideToUpdate);
 
                     _currentSlide.BackgroundColor = "#FFFFFF";
                     _currentSlide.BackgroundImagePath = null;
+                    _currentSlide.BackgroundGradientEnabled = false;
+                    _currentSlide.BackgroundGradientStartColor = null;
+                    _currentSlide.BackgroundGradientEndColor = null;
+                    _currentSlide.BackgroundGradientDirection = 1;
+                    _currentSlide.BackgroundOpacity = 0;
                 }
 
                 await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
@@ -352,6 +387,144 @@ namespace ImageColorChanger.UI
             {
                 WpfMessageBox.Show($"清除背景失败: {ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static bool HasSlideGradientBackground(Slide slide)
+        {
+            return slide != null
+                   && slide.BackgroundGradientEnabled
+                   && !string.IsNullOrWhiteSpace(slide.BackgroundGradientStartColor)
+                   && !string.IsNullOrWhiteSpace(slide.BackgroundGradientEndColor);
+        }
+
+        private static System.Windows.Media.Brush BuildSlideGradientBrush(Slide slide)
+        {
+            var startRaw = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(slide.BackgroundGradientStartColor);
+            var endRaw = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(slide.BackgroundGradientEndColor);
+            byte alpha = (byte)(255 * (100 - Math.Clamp(slide.BackgroundOpacity, 0, 100)) / 100.0);
+            var start = System.Windows.Media.Color.FromArgb(alpha, startRaw.R, startRaw.G, startRaw.B);
+            var end = System.Windows.Media.Color.FromArgb(alpha, endRaw.R, endRaw.G, endRaw.B);
+
+            var direction = (DraggableTextBox.BackgroundGradientDirection)slide.BackgroundGradientDirection;
+            return direction switch
+            {
+                DraggableTextBox.BackgroundGradientDirection.TopToBottom =>
+                    new LinearGradientBrush(start, end, new System.Windows.Point(0, 0), new System.Windows.Point(0, 1)),
+                DraggableTextBox.BackgroundGradientDirection.BottomToTop =>
+                    new LinearGradientBrush(start, end, new System.Windows.Point(0, 1), new System.Windows.Point(0, 0)),
+                DraggableTextBox.BackgroundGradientDirection.RightToLeft =>
+                    new LinearGradientBrush(start, end, new System.Windows.Point(1, 0), new System.Windows.Point(0, 0)),
+                DraggableTextBox.BackgroundGradientDirection.RadialCenter => new RadialGradientBrush
+                {
+                    GradientOrigin = new System.Windows.Point(0.5, 0.5),
+                    Center = new System.Windows.Point(0.5, 0.5),
+                    RadiusX = 0.68,
+                    RadiusY = 0.68,
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(start, 0),
+                        new GradientStop(end, 1)
+                    }
+                },
+                _ => new LinearGradientBrush(start, end, new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+        }
+
+        private System.Windows.Media.Brush BuildSlideBackgroundBrush(Slide slide)
+        {
+            if (slide == null)
+            {
+                return new SolidColorBrush(Colors.White);
+            }
+
+            if (HasSlideGradientBackground(slide))
+            {
+                try
+                {
+                    return BuildSlideGradientBrush(slide);
+                }
+                catch
+                {
+                    // 渐变解析失败，回退纯色
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(slide.BackgroundColor))
+            {
+                try
+                {
+                    var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(slide.BackgroundColor);
+                    byte alpha = (byte)(255 * (100 - Math.Clamp(slide.BackgroundOpacity, 0, 100)) / 100.0);
+                    return new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, color.R, color.G, color.B));
+                }
+                catch
+                {
+                    // 颜色解析失败，回退白色
+                }
+            }
+
+            return new SolidColorBrush(Colors.White);
+        }
+
+        private async Task ApplySlideBackgroundStyleAsync(BackgroundSettingsPanel.BackgroundStyleSelection selection)
+        {
+            if (_currentSlide == null || selection == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _currentSlide.BackgroundImagePath = null;
+                _currentSlide.BackgroundOpacity = Math.Clamp(selection.Opacity, 0, 100);
+                _currentSlide.BackgroundGradientEnabled = selection.UseGradient;
+                _currentSlide.BackgroundGradientDirection = (int)selection.GradientDirection;
+
+                if (selection.UseGradient &&
+                    !string.IsNullOrWhiteSpace(selection.GradientStartColor) &&
+                    !string.IsNullOrWhiteSpace(selection.GradientEndColor))
+                {
+                    _currentSlide.BackgroundGradientStartColor = selection.GradientStartColor;
+                    _currentSlide.BackgroundGradientEndColor = selection.GradientEndColor;
+                    _currentSlide.BackgroundColor = selection.BackgroundColor;
+                }
+                else
+                {
+                    _currentSlide.BackgroundGradientStartColor = null;
+                    _currentSlide.BackgroundGradientEndColor = null;
+                    _currentSlide.BackgroundGradientDirection = 1;
+                    _currentSlide.BackgroundGradientEnabled = false;
+                    _currentSlide.BackgroundColor = selection.BackgroundColor;
+                }
+
+                EditorCanvas.Background = BuildSlideBackgroundBrush(_currentSlide);
+
+                var slideToUpdate = await _textProjectService.GetSlideByIdAsync(_currentSlide.Id);
+                if (slideToUpdate != null)
+                {
+                    slideToUpdate.BackgroundImagePath = null;
+                    slideToUpdate.BackgroundColor = _currentSlide.BackgroundColor;
+                    slideToUpdate.BackgroundGradientEnabled = _currentSlide.BackgroundGradientEnabled;
+                    slideToUpdate.BackgroundGradientStartColor = _currentSlide.BackgroundGradientStartColor;
+                    slideToUpdate.BackgroundGradientEndColor = _currentSlide.BackgroundGradientEndColor;
+                    slideToUpdate.BackgroundGradientDirection = _currentSlide.BackgroundGradientDirection;
+                    slideToUpdate.BackgroundOpacity = _currentSlide.BackgroundOpacity;
+                    slideToUpdate.ModifiedTime = DateTime.Now;
+                    await _textProjectService.UpdateSlideAsync(slideToUpdate);
+                }
+
+                await _textProjectService.UpdateBackgroundImageAsync(_currentTextProject.Id, null);
+                MarkContentAsModified();
+
+                if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
+                {
+                    UpdateProjectionFromCanvas();
+                }
+            }
+            catch
+            {
+                // 面板拖动时会频繁触发，失败不弹窗打断操作
             }
         }
 

@@ -162,9 +162,7 @@ namespace ImageColorChanger.UI
                 _ = ex;
 #endif
                 // 失败时使用纯色背景
-                EditorCanvas.Background = !string.IsNullOrEmpty(slide.BackgroundColor)
-                    ? (SolidColorBrush)new BrushConverter().ConvertFrom(slide.BackgroundColor)
-                    : new SolidColorBrush(Colors.Black);
+                EditorCanvas.Background = BuildSlideBackgroundBrush(slide);
             }
         }
 
@@ -1093,14 +1091,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     // 无背景图：设置Canvas背景色
-                    if (!string.IsNullOrEmpty(slide.BackgroundColor))
-                    {
-                        EditorCanvas.Background = (SolidColorBrush)new BrushConverter().ConvertFrom(slide.BackgroundColor);
-                    }
-                    else
-                    {
-                        EditorCanvas.Background = new SolidColorBrush(Colors.White);
-                    }
+                    EditorCanvas.Background = BuildSlideBackgroundBrush(slide);
                 }
 
                 // 加载文本元素（包含富文本片段）

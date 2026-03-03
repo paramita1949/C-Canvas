@@ -16,7 +16,6 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
-using ImageColorChanger.UI.Modules;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -32,7 +31,27 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
-        private TextEditorMenuController _textEditorMenuController;
+        private enum SlideLayoutPreset
+        {
+            TitleSubtitle,
+            SectionTitleCentered,
+            TitleBody,
+            TitleTopOnly,
+            BodyKeyPoints
+        }
+
+        private sealed class SlideLayoutTextSpec
+        {
+            public double X { get; set; }
+            public double Y { get; set; }
+            public double Width { get; set; }
+            public double Height { get; set; }
+            public double FontSize { get; set; }
+            public string Content { get; set; }
+            public string TextAlign { get; set; } = "Left";
+            public string TextVerticalAlign { get; set; } = "Top";
+            public bool IsBold { get; set; }
+        }
 
         #region 工具栏事件处理
 
@@ -313,14 +332,16 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            EnsureTextEditorMenuController();
-            var anchor = sender as UIElement ?? BtnToolbarMenu ?? BtnBackgroundImage;
-            _textEditorMenuController.ShowBackgroundImportMenu(
-                anchor,
-                (Style)FindResource("NoBorderContextMenuStyle"),
-                ImportSingleImageAsSlide,
-                ImportMultipleImagesAsSlidesAsync,
-                ImportVideoAsSlideAsync);
+            var anchor = sender as FrameworkElement ?? BtnBackgroundImage;
+            if (anchor?.ContextMenu == null)
+            {
+                return;
+            }
+
+            anchor.ContextMenu.PlacementTarget = anchor;
+            anchor.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            anchor.ContextMenu.IsOpen = true;
+            e.Handled = true;
         }
 
         /// <summary>
@@ -580,6 +601,425 @@ namespace ImageColorChanger.UI
             SetSplitMode(Database.Models.Enums.ViewSplitMode.Quad);
         }
 
+        private async void BtnMenuLayoutGallery_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            var selectedPreset = ShowSlideLayoutPickerDialog();
+            if (selectedPreset.HasValue)
+            {
+                await ApplySlideLayoutAsync(selectedPreset.Value);
+            }
+        }
+
+        private SlideLayoutPreset? ShowSlideLayoutPickerDialog()
+        {
+            var orderedPresets = new[]
+            {
+                SlideLayoutPreset.TitleSubtitle,
+                SlideLayoutPreset.SectionTitleCentered,
+                SlideLayoutPreset.TitleBody,
+                SlideLayoutPreset.TitleTopOnly,
+                SlideLayoutPreset.BodyKeyPoints
+            };
+
+            SlideLayoutPreset? selected = null;
+
+            var pickerWindow = new Window
+            {
+                Title = "应用布局",
+                Width = 820,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(WpfColor.FromRgb(244, 244, 244))
+            };
+
+            var root = new Grid { Margin = new Thickness(16) };
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var header = new TextBlock
+            {
+                Text = "选择布局",
+                FontSize = 18,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(42, 42, 42)),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+            Grid.SetRow(scrollViewer, 1);
+            root.Children.Add(scrollViewer);
+
+            var cardPanel = new WrapPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            foreach (var preset in orderedPresets)
+            {
+                cardPanel.Children.Add(CreateSlideLayoutCardButton(preset, pickerWindow, () =>
+                {
+                    selected = preset;
+                }));
+            }
+
+            scrollViewer.Content = cardPanel;
+            pickerWindow.Content = root;
+
+            return pickerWindow.ShowDialog() == true ? selected : null;
+        }
+
+        private System.Windows.Controls.Button CreateSlideLayoutCardButton(SlideLayoutPreset preset, Window ownerWindow, Action onSelected)
+        {
+            var previewBorder = new Border
+            {
+                Width = 230,
+                Height = 132,
+                Background = new SolidColorBrush(WpfColor.FromRgb(250, 250, 250)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(206, 206, 206)),
+                BorderThickness = new Thickness(1),
+                Child = BuildSlideLayoutPreviewVisual(preset)
+            };
+
+            var title = new TextBlock
+            {
+                Text = GetSlideLayoutDisplayName(preset),
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(38, 38, 38)),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+
+            var stack = new StackPanel();
+            stack.Children.Add(previewBorder);
+            stack.Children.Add(title);
+
+            var cardShell = new Border
+            {
+                Background = System.Windows.Media.Brushes.Transparent,
+                BorderBrush = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(2),
+                Child = stack
+            };
+
+            var button = new System.Windows.Controls.Button
+            {
+                Width = 246,
+                Height = 182,
+                Margin = new Thickness(4),
+                BorderThickness = new Thickness(0),
+                Background = System.Windows.Media.Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Content = cardShell
+            };
+
+            button.MouseEnter += (_, _) =>
+            {
+                cardShell.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(140, 140, 140));
+                previewBorder.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(120, 120, 120));
+            };
+
+            button.MouseLeave += (_, _) =>
+            {
+                cardShell.BorderBrush = System.Windows.Media.Brushes.Transparent;
+                previewBorder.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(206, 206, 206));
+            };
+
+            button.Click += (_, _) =>
+            {
+                onSelected?.Invoke();
+                ownerWindow.DialogResult = true;
+                ownerWindow.Close();
+            };
+
+            return button;
+        }
+
+        private static UIElement BuildSlideLayoutPreviewVisual(SlideLayoutPreset preset)
+        {
+            var canvas = new Canvas
+            {
+                Width = 230,
+                Height = 132,
+                Background = new SolidColorBrush(WpfColor.FromRgb(248, 248, 248))
+            };
+
+            var slideFrame = new WpfRectangle
+            {
+                Width = 216,
+                Height = 118,
+                Stroke = new SolidColorBrush(WpfColor.FromRgb(200, 200, 200)),
+                StrokeThickness = 1,
+                Fill = new SolidColorBrush(WpfColor.FromRgb(252, 252, 252))
+            };
+            Canvas.SetLeft(slideFrame, 7);
+            Canvas.SetTop(slideFrame, 7);
+            canvas.Children.Add(slideFrame);
+
+            void AddRect(double x, double y, double width, double height)
+            {
+                var rect = new WpfRectangle
+                {
+                    Width = width,
+                    Height = height,
+                    Stroke = new SolidColorBrush(WpfColor.FromRgb(186, 186, 186)),
+                    StrokeThickness = 1,
+                    Fill = System.Windows.Media.Brushes.Transparent
+                };
+                Canvas.SetLeft(rect, x);
+                Canvas.SetTop(rect, y);
+                canvas.Children.Add(rect);
+            }
+
+            switch (preset)
+            {
+                case SlideLayoutPreset.TitleSubtitle:
+                    AddRect(16, 24, 198, 38);
+                    AddRect(16, 66, 198, 14);
+                    break;
+                case SlideLayoutPreset.SectionTitleCentered:
+                    AddRect(28, 53, 174, 22);
+                    break;
+                case SlideLayoutPreset.TitleBody:
+                    AddRect(16, 16, 198, 14);
+                    AddRect(16, 34, 198, 72);
+                    break;
+                case SlideLayoutPreset.TitleTopOnly:
+                    AddRect(16, 18, 198, 20);
+                    break;
+                case SlideLayoutPreset.BodyKeyPoints:
+                    AddRect(16, 18, 198, 88);
+                    break;
+            }
+
+            return canvas;
+        }
+
+        private async void BtnMenuLayoutTitleSubtitle_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideLayoutAsync(SlideLayoutPreset.TitleSubtitle);
+        }
+
+        private async void BtnMenuLayoutSectionTitleCentered_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideLayoutAsync(SlideLayoutPreset.SectionTitleCentered);
+        }
+
+        private async void BtnMenuLayoutTitleBody_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideLayoutAsync(SlideLayoutPreset.TitleBody);
+        }
+
+        private async void BtnMenuLayoutTitleTopOnly_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideLayoutAsync(SlideLayoutPreset.TitleTopOnly);
+        }
+
+        private async void BtnMenuLayoutBodyKeyPoints_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            await ApplySlideLayoutAsync(SlideLayoutPreset.BodyKeyPoints);
+        }
+
+        private async Task ApplySlideLayoutAsync(SlideLayoutPreset preset)
+        {
+            if (_currentTextProject == null || _currentSlide == null)
+            {
+                WpfMessageBox.Show("请先创建或选择一个文本项目，并选中幻灯片。", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (HasMeaningfulTextBoxes())
+            {
+                var result = WpfMessageBox.Show(
+                    "应用布局会清空当前幻灯片已有文本框，是否继续？",
+                    "应用布局",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                foreach (var tb in _textBoxes.ToList())
+                {
+                    await _textProjectService.DeleteElementAsync(tb.Data.Id);
+                    EditorCanvas.Children.Remove(tb);
+                }
+
+                _textBoxes.Clear();
+                _selectedTextBox = null;
+                HideBibleFloatingToolbar();
+
+                string textColor = GetDefaultTextColorForSlide(_currentSlide);
+                string defaultFontFamily = "Microsoft YaHei UI";
+                int nextZIndex = 1;
+
+                foreach (var spec in GetSlideLayoutSpecs(preset))
+                {
+                    var element = new TextElement
+                    {
+                        SlideId = _currentSlide.Id,
+                        X = spec.X,
+                        Y = spec.Y,
+                        Width = spec.Width,
+                        Height = spec.Height,
+                        Content = spec.Content,
+                        FontSize = spec.FontSize,
+                        FontFamily = defaultFontFamily,
+                        FontColor = textColor,
+                        TextAlign = spec.TextAlign,
+                        TextVerticalAlign = spec.TextVerticalAlign,
+                        IsBold = spec.IsBold ? 1 : 0,
+                        ZIndex = nextZIndex++
+                    };
+
+                    await _textProjectService.AddElementAsync(element);
+
+                    var textBox = new DraggableTextBox(element);
+                    AddTextBoxToCanvas(textBox);
+                }
+
+                MarkContentAsModified();
+                ShowToast($"已应用布局：{GetSlideLayoutDisplayName(preset)}");
+
+                if (_projectionManager.IsProjectionActive && !_isProjectionLocked)
+                {
+                    UpdateProjectionFromCanvas();
+                }
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"应用布局失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private bool HasMeaningfulTextBoxes()
+        {
+            return _textBoxes.Any(tb => !IsLayoutPlaceholderContent(tb?.Data?.Content));
+        }
+
+        private static bool IsLayoutPlaceholderContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return true;
+            }
+
+            string normalized = content.Replace("\r\n", "\n").Trim();
+            return normalized switch
+            {
+                "双击编辑文字" => true,
+                "双击编辑" => true,
+                "点击可添加标题" => true,
+                "点击可添加副标题" => true,
+                "点击可添加小节标题" => true,
+                "点击可添加正文" => true,
+                "点击可添加正文要点\n• 要点 1\n• 要点 2\n• 要点 3" => true,
+                _ => false
+            };
+        }
+
+        private static string GetSlideLayoutDisplayName(SlideLayoutPreset preset)
+        {
+            return preset switch
+            {
+                SlideLayoutPreset.TitleSubtitle => "标题+副标题",
+                SlideLayoutPreset.SectionTitleCentered => "小节标题（居中）",
+                SlideLayoutPreset.TitleBody => "标题+正文",
+                SlideLayoutPreset.TitleTopOnly => "仅标题（顶部）",
+                SlideLayoutPreset.BodyKeyPoints => "正文要点",
+                _ => "布局"
+            };
+        }
+
+        private static List<SlideLayoutTextSpec> GetSlideLayoutSpecs(SlideLayoutPreset preset)
+        {
+            return preset switch
+            {
+                SlideLayoutPreset.TitleSubtitle => new List<SlideLayoutTextSpec>
+                {
+                    new SlideLayoutTextSpec
+                    {
+                        X = 180, Y = 210, Width = 1240, Height = 150, FontSize = 84,
+                        Content = "点击可添加标题", TextAlign = "Center", TextVerticalAlign = "Middle", IsBold = true
+                    },
+                    new SlideLayoutTextSpec
+                    {
+                        X = 250, Y = 392, Width = 1100, Height = 90, FontSize = 46,
+                        Content = "点击可添加副标题", TextAlign = "Center", TextVerticalAlign = "Middle"
+                    }
+                },
+                SlideLayoutPreset.SectionTitleCentered => new List<SlideLayoutTextSpec>
+                {
+                    new SlideLayoutTextSpec
+                    {
+                        X = 190, Y = 300, Width = 1220, Height = 170, FontSize = 96,
+                        Content = "点击可添加小节标题", TextAlign = "Center", TextVerticalAlign = "Middle", IsBold = true
+                    }
+                },
+                SlideLayoutPreset.TitleBody => new List<SlideLayoutTextSpec>
+                {
+                    new SlideLayoutTextSpec
+                    {
+                        X = 150, Y = 70, Width = 1300, Height = 110, FontSize = 64,
+                        Content = "点击可添加标题", TextAlign = "Left", TextVerticalAlign = "Middle", IsBold = true
+                    },
+                    new SlideLayoutTextSpec
+                    {
+                        X = 150, Y = 205, Width = 1300, Height = 620, FontSize = 50,
+                        Content = "点击可添加正文", TextAlign = "Left", TextVerticalAlign = "Top"
+                    }
+                },
+                SlideLayoutPreset.TitleTopOnly => new List<SlideLayoutTextSpec>
+                {
+                    new SlideLayoutTextSpec
+                    {
+                        X = 150, Y = 70, Width = 1300, Height = 120, FontSize = 70,
+                        Content = "点击可添加标题", TextAlign = "Left", TextVerticalAlign = "Middle", IsBold = true
+                    }
+                },
+                SlideLayoutPreset.BodyKeyPoints => new List<SlideLayoutTextSpec>
+                {
+                    new SlideLayoutTextSpec
+                    {
+                        X = 130, Y = 80, Width = 1340, Height = 740, FontSize = 58,
+                        Content = "点击可添加正文要点\n• 要点 1\n• 要点 2\n• 要点 3", TextAlign = "Left", TextVerticalAlign = "Top", IsBold = false
+                    }
+                },
+                _ => new List<SlideLayoutTextSpec>()
+            };
+        }
+
         private void MenuSplit_SubmenuOpened(object sender, RoutedEventArgs e)
         {
             if (sender is not MenuItem splitRoot)
@@ -609,6 +1049,26 @@ namespace ImageColorChanger.UI
         private void BtnSecondLayerAddText_Click(object sender, RoutedEventArgs e)
         {
             BtnAddText_Click(sender, e);
+        }
+
+        private void BtnSecondLayerCanvasLayout_Click(object sender, RoutedEventArgs e)
+        {
+            var anchor = sender as FrameworkElement ?? BtnToolbarMenu;
+            if (anchor == null)
+            {
+                return;
+            }
+
+            var layoutMenu = CreateDirectLayoutThumbnailContextMenu(anchor);
+            anchor.ContextMenu = layoutMenu;
+            layoutMenu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        private void BtnSecondLayerCanvasBackground_Click(object sender, RoutedEventArgs e)
+        {
+            OpenSlideBackgroundSettingsPopup(sender as UIElement);
+            e.Handled = true;
         }
 
         private void BtnSecondLayerSelect_Click(object sender, RoutedEventArgs e)
@@ -903,18 +1363,34 @@ namespace ImageColorChanger.UI
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
-            EnsureTextEditorMenuController();
-            var anchor = sender as UIElement ?? BtnToolbarMenu ?? BtnSplitView;
-            _textEditorMenuController.ShowSplitModeMenu(
-                anchor,
-                (Style)FindResource("NoBorderContextMenuStyle"),
-                _currentSlide.SplitMode,
-                SetSplitMode);
-        }
+            var anchor = sender as FrameworkElement ?? BtnSplitView;
+            if (anchor?.ContextMenu == null)
+            {
+                return;
+            }
 
-        private void EnsureTextEditorMenuController()
-        {
-            _textEditorMenuController ??= new TextEditorMenuController();
+            int currentMode = _currentSlide.SplitMode;
+            foreach (var itemObj in anchor.ContextMenu.Items)
+            {
+                if (itemObj is not MenuItem menuItem)
+                {
+                    continue;
+                }
+
+                var mode = ParseSplitModeTag(menuItem.Tag);
+                if (mode == null)
+                {
+                    continue;
+                }
+
+                string title = GetSplitModeMenuTitle(mode.Value);
+                menuItem.Header = currentMode == (int)mode.Value ? $"✓ {title}" : $"   {title}";
+            }
+
+            anchor.ContextMenu.PlacementTarget = anchor;
+            anchor.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            anchor.ContextMenu.IsOpen = true;
+            e.Handled = true;
         }
 
         /// <summary>

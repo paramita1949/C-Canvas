@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.TextEditor;
@@ -42,7 +43,8 @@ namespace ImageColorChanger.UI.Controls
             LeftToRight = 0,
             TopToBottom = 1,
             BottomToTop = 2,
-            RadialCenter = 3
+            RadialCenter = 3,
+            RightToLeft = 4
         }
 
         #region 字段
@@ -70,6 +72,17 @@ namespace ImageColorChanger.UI.Controls
         private System.Windows.Shapes.Rectangle _selectionRect;  // 虚线选中框
         private bool _isPlaceholderText = false;  // 标记是否是占位符文字
         private const string DEFAULT_PLACEHOLDER = "双击编辑文字";  // 默认占位符
+        private string _placeholderText = DEFAULT_PLACEHOLDER;
+        private static readonly HashSet<string> PlaceholderTexts = new HashSet<string>(StringComparer.Ordinal)
+        {
+            DEFAULT_PLACEHOLDER,
+            "双击编辑",
+            "点击可添加标题",
+            "点击可添加副标题",
+            "点击可添加小节标题",
+            "点击可添加正文",
+            "点击可添加正文要点\n• 要点 1\n• 要点 2\n• 要点 3"
+        };
         private DateTime _lastClickTime = DateTime.MinValue;  // 记录上次点击时间，用于双击检测
         private const int DOUBLE_CLICK_INTERVAL = 500;  // 双击间隔（毫秒）
         private bool _isNewlyCreated = false;  // 标记是否是新创建的文本框
@@ -235,6 +248,17 @@ namespace ImageColorChanger.UI.Controls
         {
             get => _isNewlyCreated;
             set => _isNewlyCreated = value;
+        }
+
+        private static bool IsPlaceholderContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return false;
+            }
+
+            string normalized = content.Replace("\r\n", "\n").Trim();
+            return PlaceholderTexts.Contains(normalized);
         }
 
         #endregion

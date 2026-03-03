@@ -54,6 +54,8 @@ namespace ImageColorChanger.UI.Controls
 
                 _isPlaceholderText = false;
 
+                SyncTextToRichTextBox();
+
             }
 
 
@@ -162,7 +164,7 @@ namespace ImageColorChanger.UI.Controls
 
             {
 
-                Data.Content = DEFAULT_PLACEHOLDER;
+                Data.Content = string.IsNullOrWhiteSpace(_placeholderText) ? DEFAULT_PLACEHOLDER : _placeholderText;
 
                 _isPlaceholderText = true;
 

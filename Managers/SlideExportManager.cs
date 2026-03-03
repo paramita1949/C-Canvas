@@ -196,6 +196,11 @@ namespace ImageColorChanger.Managers
                     SortOrder = s.SortOrder,
                     BackgroundImagePath = s.BackgroundImagePath,
                     BackgroundColor = s.BackgroundColor,
+                    BackgroundGradientEnabled = s.BackgroundGradientEnabled,
+                    BackgroundGradientStartColor = s.BackgroundGradientStartColor,
+                    BackgroundGradientEndColor = s.BackgroundGradientEndColor,
+                    BackgroundGradientDirection = s.BackgroundGradientDirection,
+                    BackgroundOpacity = s.BackgroundOpacity,
                     SplitMode = s.SplitMode,
                     SplitRegionsData = s.SplitRegionsData,
                     SplitStretchMode = s.SplitStretchMode,
@@ -307,6 +312,11 @@ namespace ImageColorChanger.Managers
         public int SortOrder { get; set; }
         public string BackgroundImagePath { get; set; }
         public string BackgroundColor { get; set; }
+        public bool BackgroundGradientEnabled { get; set; } = false;
+        public string BackgroundGradientStartColor { get; set; }
+        public string BackgroundGradientEndColor { get; set; }
+        public int BackgroundGradientDirection { get; set; } = 1;
+        public int BackgroundOpacity { get; set; } = 0;
         public int SplitMode { get; set; }
         public string SplitRegionsData { get; set; }
         [JsonConverter(typeof(LegacySplitImageDisplayModeJsonConverter))]

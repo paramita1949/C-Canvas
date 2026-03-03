@@ -181,7 +181,7 @@ namespace ImageColorChanger.UI
 
             var pasteItem = new MenuItem
             {
-                Header = "粘贴",
+                Header = BuildEditorCanvasMenuHeader("粘贴", "IconLucideFileText"),
                 FontSize = 14,
                 IsEnabled = _textBoxClipboardElement != null
             };
@@ -190,11 +190,207 @@ namespace ImageColorChanger.UI
                 await PasteTextBoxFromClipboardAsync(null);
             };
             contextMenu.Items.Add(pasteItem);
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(CreateEditorCanvasLayoutMenuItem());
+            contextMenu.Items.Add(CreateEditorCanvasThemeMenuItem());
 
             EditorCanvas.ContextMenu = contextMenu;
             contextMenu.PlacementTarget = EditorCanvas;
             contextMenu.IsOpen = true;
             e.Handled = true;
+        }
+
+        private MenuItem CreateEditorCanvasLayoutMenuItem()
+        {
+            var layoutRoot = new MenuItem
+            {
+                Header = BuildEditorCanvasMenuHeader("应用布局", "IconLucideLayoutGrid"),
+                FontSize = 14
+            };
+
+            ConfigureLayoutThumbnailItemsPanel(layoutRoot);
+            PopulateLayoutThumbnailMenuItems(layoutRoot.Items);
+            return layoutRoot;
+        }
+
+        private ContextMenu CreateDirectLayoutThumbnailContextMenu(FrameworkElement anchor)
+        {
+            var layoutMenu = new ContextMenu
+            {
+                PlacementTarget = anchor,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+                Background = (System.Windows.Media.Brush)FindResource("BrushMenuSurface"),
+                Foreground = (System.Windows.Media.Brush)FindResource("BrushMenuText"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BrushMenuBorder"),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(4),
+                FontSize = 14
+            };
+
+            try
+            {
+                var menuItemStyle = (Style)FindResource("CompactContextMenuItemStyle");
+                layoutMenu.Resources.Add(typeof(MenuItem), menuItemStyle);
+            }
+            catch
+            {
+                // 忽略样式缺失，退回系统默认样式
+            }
+
+            ConfigureLayoutThumbnailItemsPanel(layoutMenu);
+            PopulateLayoutThumbnailMenuItems(layoutMenu.Items);
+            return layoutMenu;
+        }
+
+        private MenuItem CreateEditorCanvasThemeMenuItem()
+        {
+            var themeRoot = new MenuItem
+            {
+                Header = BuildEditorCanvasMenuHeader("主题", "IconLucidePalette"),
+                FontSize = 14
+            };
+
+            var darkItem = new MenuItem
+            {
+                Header = "黑底白字",
+                IsCheckable = true,
+                IsChecked = _slideThemeMode == SlideThemeMode.Dark
+            };
+            darkItem.Click += async (_, _) =>
+            {
+                await ApplySlideThemeAsync(SlideThemeMode.Dark);
+            };
+
+            var lightItem = new MenuItem
+            {
+                Header = "白底黑字",
+                IsCheckable = true,
+                IsChecked = _slideThemeMode == SlideThemeMode.Light
+            };
+            lightItem.Click += async (_, _) =>
+            {
+                await ApplySlideThemeAsync(SlideThemeMode.Light);
+            };
+
+            themeRoot.Items.Add(darkItem);
+            themeRoot.Items.Add(lightItem);
+            return themeRoot;
+        }
+
+        private static void ConfigureLayoutThumbnailItemsPanel(ItemsControl host)
+        {
+            if (host == null)
+            {
+                return;
+            }
+
+            var itemsPanelFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Primitives.UniformGrid));
+            itemsPanelFactory.SetValue(System.Windows.Controls.Primitives.UniformGrid.ColumnsProperty, 3);
+            itemsPanelFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(2));
+            host.ItemsPanel = new ItemsPanelTemplate(itemsPanelFactory);
+        }
+
+        private void PopulateLayoutThumbnailMenuItems(ItemCollection items)
+        {
+            if (items == null)
+            {
+                return;
+            }
+
+            items.Clear();
+            items.Add(CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset.TitleSubtitle));
+            items.Add(CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset.SectionTitleCentered));
+            items.Add(CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset.TitleBody));
+            items.Add(CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset.TitleTopOnly));
+            items.Add(CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset.BodyKeyPoints));
+        }
+
+        private MenuItem CreateLayoutPresetThumbnailMenuItem(SlideLayoutPreset preset)
+        {
+            var previewHost = new Border
+            {
+                Width = 180,
+                Height = 92,
+                Background = new SolidColorBrush(WpfColor.FromRgb(252, 252, 252)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(184, 184, 184)),
+                BorderThickness = new Thickness(1)
+            };
+
+            previewHost.Child = new Viewbox
+            {
+                Stretch = Stretch.Fill,
+                Child = BuildSlideLayoutPreviewVisual(preset)
+            };
+
+            var header = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Vertical,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            header.Children.Add(previewHost);
+            header.Children.Add(new TextBlock
+            {
+                Text = GetSlideLayoutDisplayName(preset),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 5, 0, 0),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold
+            });
+
+            var item = new MenuItem
+            {
+                Header = header,
+                Width = 210,
+                Padding = new Thickness(6),
+                FontSize = 13
+            };
+
+            item.Click += async (_, _) =>
+            {
+                await ApplySlideLayoutAsync(preset);
+            };
+
+            return item;
+        }
+
+        private object BuildEditorCanvasMenuHeader(string text, string iconResourceKey)
+        {
+            var headerPanel = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal
+            };
+
+            try
+            {
+                if (TryFindResource(iconResourceKey) is Geometry iconGeometry)
+                {
+                    var icon = new System.Windows.Shapes.Path
+                    {
+                        Data = iconGeometry,
+                        Width = 16,
+                        Height = 16,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    };
+
+                    if (TryFindResource("LucideIconPathStyle") is Style iconStyle)
+                    {
+                        icon.Style = iconStyle;
+                    }
+
+                    headerPanel.Children.Add(icon);
+                }
+            }
+            catch
+            {
+            }
+
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = text,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            return headerPanel;
         }
 
         #endregion

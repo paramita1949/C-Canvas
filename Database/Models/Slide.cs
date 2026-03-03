@@ -54,6 +54,36 @@ namespace ImageColorChanger.Database.Models
         public string BackgroundColor { get; set; }
 
         /// <summary>
+        /// 是否启用背景渐变
+        /// </summary>
+        [Column("background_gradient_enabled")]
+        public bool BackgroundGradientEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 渐变起始色
+        /// </summary>
+        [Column("background_gradient_start_color")]
+        public string BackgroundGradientStartColor { get; set; }
+
+        /// <summary>
+        /// 渐变结束色
+        /// </summary>
+        [Column("background_gradient_end_color")]
+        public string BackgroundGradientEndColor { get; set; }
+
+        /// <summary>
+        /// 渐变方向（0=左到右,1=上到下,2=下到上,3=中心径向）
+        /// </summary>
+        [Column("background_gradient_direction")]
+        public int BackgroundGradientDirection { get; set; } = 1;
+
+        /// <summary>
+        /// 背景透明度（0=不透明,100=全透明）
+        /// </summary>
+        [Column("background_opacity")]
+        public int BackgroundOpacity { get; set; } = 0;
+
+        /// <summary>
         /// 画面分割模式（0=单画面, 1=左右, 2=上下, 3=四宫格）
         /// </summary>
         [Column("split_mode")]

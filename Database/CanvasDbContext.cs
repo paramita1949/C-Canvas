@@ -38,8 +38,8 @@ namespace ImageColorChanger.Database
     public class CanvasDbContext : DbContext
     {
         private const string StartupSchemaBootstrapStampKey = "db.schema.bootstrap.version";
-        private const string StartupSchemaBootstrapVersion = "2026-03-01.1";
-        private const int StartupSchemaBootstrapUserVersion = 202603011;
+        private const string StartupSchemaBootstrapVersion = "2026-03-03.1";
+        private const int StartupSchemaBootstrapUserVersion = 202603031;
 
         /// <summary>
         /// 数据库文件路径
@@ -565,6 +565,8 @@ namespace ImageColorChanger.Database
 
                     // 幻灯片输出模式（普通/透明）兼容升级
                     EnsureSlideOutputModeSchemaExists();
+                    // 幻灯片渐变背景兼容升级
+                    EnsureSlideBackgroundGradientSchemaExists();
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
@@ -1236,6 +1238,22 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($" EnsureSlideOutputModeSchemaExists 失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureSlideBackgroundGradientSchemaExists()
+        {
+            try
+            {
+                EnsureColumnExists("slides", "background_gradient_enabled", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumnExists("slides", "background_gradient_start_color", "TEXT NULL");
+                EnsureColumnExists("slides", "background_gradient_end_color", "TEXT NULL");
+                EnsureColumnExists("slides", "background_gradient_direction", "INTEGER NOT NULL DEFAULT 1");
+                EnsureColumnExists("slides", "background_opacity", "INTEGER NOT NULL DEFAULT 0");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" EnsureSlideBackgroundGradientSchemaExists 失败: {ex.Message}");
             }
         }
 

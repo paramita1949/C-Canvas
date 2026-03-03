@@ -380,6 +380,10 @@ namespace ImageColorChanger.UI.Controls
                             gradientBrush = new System.Windows.Media.LinearGradientBrush(
                                 startColor, endColor, new System.Windows.Point(0, 1), new System.Windows.Point(0, 0));
                             break;
+                        case BackgroundGradientDirection.RightToLeft:
+                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
+                                startColor, endColor, new System.Windows.Point(1, 0), new System.Windows.Point(0, 0));
+                            break;
                         case BackgroundGradientDirection.RadialCenter:
                             gradientBrush = new System.Windows.Media.RadialGradientBrush
                             {

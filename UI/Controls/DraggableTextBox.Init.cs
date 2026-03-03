@@ -325,8 +325,11 @@ namespace ImageColorChanger.UI.Controls
             Height = Data.Height;
             WpfPanel.SetZIndex(this, Data.ZIndex);
 
-            // 检查是否是占位符文字
-            _isPlaceholderText = (Data.Content == DEFAULT_PLACEHOLDER);
+            // 检查是否是占位符文字（支持布局占位词）
+            _isPlaceholderText = IsPlaceholderContent(Data.Content);
+            _placeholderText = _isPlaceholderText
+                ? (Data.Content?.Replace("\r\n", "\n").Trim() ?? DEFAULT_PLACEHOLDER)
+                : DEFAULT_PLACEHOLDER;
 
             // 同步文本到 RichTextBox
             SyncTextToRichTextBox();

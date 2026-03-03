@@ -35,6 +35,7 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Border TextEditorMiniToolbarControl => TextEditorMiniToolbar;
         public System.Windows.Controls.Button BtnSecondLayerSelectButton => BtnSecondLayerSelect;
         public System.Windows.Controls.Button BtnSecondLayerAddTextButton => BtnSecondLayerAddText;
+        public System.Windows.Controls.StackPanel SecondLayerCanvasActionsControl => SecondLayerCanvasActions;
         public System.Windows.Controls.Button BtnSecondLayerBoldButton => BtnSecondLayerBold;
         public System.Windows.Controls.StackPanel SecondLayerSelectedActionsControl => SecondLayerSelectedActions;
         public System.Windows.Shapes.Rectangle SecondLayerTextColorBarControl => SecondLayerTextColorBar;
@@ -127,6 +128,12 @@ namespace ImageColorChanger.UI.Views
         private void BtnMenuSplitVertical_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitVertical_Click), sender, e);
         private void BtnMenuSplitTriple_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitTriple_Click), sender, e);
         private void BtnMenuSplitQuad_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSplitQuad_Click), sender, e);
+        private void BtnMenuLayoutGallery_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutGallery_Click), sender, e);
+        private void BtnMenuLayoutTitleSubtitle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutTitleSubtitle_Click), sender, e);
+        private void BtnMenuLayoutSectionTitleCentered_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutSectionTitleCentered_Click), sender, e);
+        private void BtnMenuLayoutTitleBody_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutTitleBody_Click), sender, e);
+        private void BtnMenuLayoutTitleTopOnly_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutTitleTopOnly_Click), sender, e);
+        private void BtnMenuLayoutBodyKeyPoints_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutBodyKeyPoints_Click), sender, e);
         private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuNdiOutput_SubmenuOpened), sender, e);
         private void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiComplete_Click), sender, e);
         private void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiTransparent_Click), sender, e);
@@ -148,6 +155,8 @@ namespace ImageColorChanger.UI.Views
         private void BtnCanvasAspectRatio_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnCanvasAspectRatio_Click), sender, e);
         private void BtnSecondLayerSelect_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerSelect_Click), sender, e);
         private void BtnSecondLayerAddText_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerAddText_Click), sender, e);
+        private void BtnSecondLayerCanvasBackground_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerCanvasBackground_Click), sender, e);
+        private void BtnSecondLayerCanvasLayout_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerCanvasLayout_Click), sender, e);
         private void BtnSecondLayerFillColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerFillColor_Click), sender, e);
         private void BtnSecondLayerAlignmentMenu_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerAlignmentMenu_Click), sender, e);
         private void BtnSecondLayerBorder_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerBorder_Click), sender, e);

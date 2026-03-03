@@ -51,7 +51,7 @@
                                                       IsCheckable="True"
                                                       Click="BtnMenuNdiTransparent_Click"/>
                                         </MenuItem>
-                                        <MenuItem Header="主题背景"
+                                        <MenuItem Header="主题"
                                                   SubmenuOpened="MenuSlideTheme_SubmenuOpened">
                                             <MenuItem Header="黑底白字"
                                                       Tag="Dark"
@@ -80,18 +80,30 @@
 
                             <Button x:Name="BtnBackgroundImage"
                                     Style="{StaticResource MenuButtonStyle}"
-                                    ToolTip="导入图片为幻灯片"
+                                    ToolTip="插入素材到幻灯片"
                                     Click="BtnBackgroundImage_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource IconLucideUpload}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
-                                    <TextBlock Text="导入" VerticalAlignment="Center"/>
+                                    <TextBlock Text="插入" VerticalAlignment="Center"/>
                                 </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="InsertMenuContext"
+                                                 Style="{StaticResource NoBorderContextMenuStyle}">
+                                        <MenuItem Header="插入单图"
+                                                  Click="BtnMenuImportSingle_Click"/>
+                                        <MenuItem Header="插入多图"
+                                                  Click="BtnMenuImportMulti_Click"/>
+                                        <MenuItem Header="插入视频"
+                                                  Click="BtnMenuImportVideo_Click"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
                             </Button>
 
                             <!-- 背景颜色按钮 -->
                             <Button x:Name="BtnBackgroundColor"
                                     Style="{StaticResource MenuButtonStyle}"
                                     ToolTip="选择背景颜色"
+                                    Visibility="Collapsed"
                                     Click="BtnBackgroundColor_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource IconLucidePalette}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
@@ -107,6 +119,26 @@
                                     <Path Data="{StaticResource IconLucideImage}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
                                     <TextBlock Text="分割" VerticalAlignment="Center"/>
                                 </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="SplitMenuContext"
+                                                 Style="{StaticResource NoBorderContextMenuStyle}">
+                                        <MenuItem Header="单画面"
+                                                  Tag="Single"
+                                                  Click="BtnMenuSplitSingle_Click"/>
+                                        <MenuItem Header="左右分割"
+                                                  Tag="Horizontal"
+                                                  Click="BtnMenuSplitHorizontal_Click"/>
+                                        <MenuItem Header="上下分割"
+                                                  Tag="Vertical"
+                                                  Click="BtnMenuSplitVertical_Click"/>
+                                        <MenuItem Header="三分割"
+                                                  Tag="TripleSplit"
+                                                  Click="BtnMenuSplitTriple_Click"/>
+                                        <MenuItem Header="四宫格"
+                                                  Tag="Quad"
+                                                  Click="BtnMenuSplitQuad_Click"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
                             </Button>
 
                             <!-- 原图模式切换按钮 -->
@@ -576,11 +608,13 @@
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0"
+                                  Margin="-14,0,0,0"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Stretch">
                                 <Button x:Name="BtnCloseTextEditorInPanel"
                                         Width="80"
                                         Height="34"
+                                        Margin="0,0,0,0"
                                         FontSize="14"
                                         FontWeight="Bold"
                                         HorizontalAlignment="Left"
@@ -643,6 +677,36 @@
                                       Width="14"
                                       Height="14"/>
                             </Button>
+
+                            <StackPanel x:Name="SecondLayerCanvasActions"
+                                        Orientation="Horizontal"
+                                        Visibility="Visible">
+                                <Button x:Name="BtnSecondLayerCanvasBackground"
+                                        Width="44"
+                                        Height="30"
+                                        Margin="0,0,6,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="幻灯片背景"
+                                        Click="BtnSecondLayerCanvasBackground_Click">
+                                    <TextBlock Text="背景"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+
+                                <Button x:Name="BtnSecondLayerCanvasLayout"
+                                        Width="44"
+                                        Height="30"
+                                        Margin="0,0,6,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="应用布局"
+                                        Click="BtnSecondLayerCanvasLayout_Click">
+                                    <TextBlock Text="布局"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+                            </StackPanel>
 
                             <StackPanel x:Name="SecondLayerSelectedActions"
                                         Orientation="Horizontal"
