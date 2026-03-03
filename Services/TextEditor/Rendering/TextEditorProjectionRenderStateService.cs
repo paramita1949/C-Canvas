@@ -141,7 +141,9 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 FormatInvariant(state.BackgroundRadius),
                 FormatInvariant(state.BackgroundOpacity),
                 FormatInvariant(state.LineSpacing),
-                FormatInvariant(state.LetterSpacing));
+                FormatInvariant(state.LetterSpacing),
+                state.ComponentType ?? string.Empty,
+                state.ComponentConfigJson ?? string.Empty);
         }
 
         private static string FormatInvariant(double value)

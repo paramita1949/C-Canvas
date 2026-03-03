@@ -81,6 +81,8 @@ namespace ImageColorChanger.UI
                 TextColorSettingsPanel.SettingsStore = _uiSettingsStore;
                 TextColorSettingsPanel.ColorApplied -= OnTextColorAppliedFromPanel;
                 TextColorSettingsPanel.ColorApplied += OnTextColorAppliedFromPanel;
+                NoticeSettingsPanel.ConfigChanged -= OnNoticeConfigChangedFromPanel;
+                NoticeSettingsPanel.ConfigChanged += OnNoticeConfigChangedFromPanel;
                 InitializeThemeSettings();
 
                 // 搜索范围在 Window_Loaded 的项目树刷新后统一加载，避免启动阶段重复查询。

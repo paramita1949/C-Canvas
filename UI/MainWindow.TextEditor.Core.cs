@@ -19,6 +19,7 @@ using ImageColorChanger.Repositories.TextEditor;
 using ImageColorChanger.Services.TextEditor;
 using ImageColorChanger.Services.TextEditor.Application;
 using ImageColorChanger.Services.TextEditor.Rendering;
+using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -53,6 +54,17 @@ namespace ImageColorChanger.UI
         private ITextEditorThumbnailService _textEditorThumbnailService;
         private ITextEditorProjectionRenderStateService _textEditorProjectionRenderStateService;
         private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
+        private readonly NoticeRuntimeService _noticeRuntimeService = new NoticeRuntimeService();
+        private static readonly TimeSpan NoticeAnimationFrameInterval = TimeSpan.FromMilliseconds(16);
+        private const int NoticeProjectionFrameIntervalMs = 33;
+        private static bool EnableNoticeDebugLogs => System.Diagnostics.Debugger.IsAttached;
+#if DEBUG
+        private long _lastNoticeGpuDebugLogMs;
+#endif
+        private bool _noticeRenderingSubscribed;
+        private long _lastNoticeProjectionUpdateMs;
+        private bool _noticeProjectionRefreshPending;
+        private bool _hideNoticeOnProjection;
         private SlideThemeMode _slideThemeMode = SlideThemeMode.Dark;
 
         // 辅助线相关
@@ -102,6 +114,8 @@ namespace ImageColorChanger.UI
         private const string SlideThemeSettingKey = "TextEditorSlideTheme";
         private const string SlideThemeDarkValue = "Dark";
         private const string SlideThemeLightValue = "Light";
+        private const string NoticeDefaultConfigSettingKey = "TextEditorNoticeDefaultConfig";
+        private NoticeComponentConfig _noticeDefaultConfig = new NoticeComponentConfig();
 
         #endregion
 
@@ -127,6 +141,7 @@ namespace ImageColorChanger.UI
             _textEditorRenderSafetyService = _mainWindowServices.GetRequired<ITextEditorRenderSafetyService>();
             _textEditorSaveOrchestrator = _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>();
             LoadSlideThemePreference();
+            LoadNoticeDefaultConfigPreference();
 
             // 加载系统字体
             LoadSystemFonts();
@@ -267,6 +282,45 @@ namespace ImageColorChanger.UI
             {
                 // 忽略持久化失败，保持当前会话主题可用
             }
+        }
+
+        private void LoadNoticeDefaultConfigPreference()
+        {
+            try
+            {
+                string savedJson = DatabaseManagerService.GetUISetting(NoticeDefaultConfigSettingKey, string.Empty);
+                var parsed = NoticeComponentConfigCodec.Deserialize(savedJson);
+                var normalized = NoticeComponentConfigCodec.Normalize(parsed);
+                normalized.ScrollingEnabled = false;
+                _noticeDefaultConfig = normalized;
+            }
+            catch
+            {
+                _noticeDefaultConfig = new NoticeComponentConfig();
+                _noticeDefaultConfig.ScrollingEnabled = false;
+            }
+        }
+
+        private void SaveNoticeDefaultConfigPreference(NoticeComponentConfig config)
+        {
+            try
+            {
+                var normalized = NoticeComponentConfigCodec.Normalize(config);
+                normalized.ScrollingEnabled = false;
+                _noticeDefaultConfig = normalized;
+                DatabaseManagerService.SaveUISetting(NoticeDefaultConfigSettingKey, NoticeComponentConfigCodec.Serialize(normalized));
+            }
+            catch
+            {
+                // 忽略持久化失败，当前会话继续使用内存默认值。
+            }
+        }
+
+        private NoticeComponentConfig GetNoticeDefaultConfig()
+        {
+            var normalized = NoticeComponentConfigCodec.Normalize(_noticeDefaultConfig);
+            normalized.ScrollingEnabled = false;
+            return normalized;
         }
 
         private string GetCurrentSlideThemeBackgroundColorHex()
@@ -514,6 +568,7 @@ namespace ImageColorChanger.UI
         private void HideTextEditor()
         {
             //System.Diagnostics.Debug.WriteLine(" [HideTextEditor] 开始隐藏文本编辑器");
+            StopNoticeAnimationLoop(resetPreviewOffsets: true);
 
             // 1. 隐藏幻灯片面板
             TextEditorPanel.Visibility = Visibility.Collapsed;
@@ -565,6 +620,7 @@ namespace ImageColorChanger.UI
             _currentTextProject = null;
             _currentSlide = null;
             _textBoxes.Clear();
+            _noticeRuntimeService.Clear();
             EditorCanvas.Children.Clear();
 
             // 重置 Canvas 背景为白色
@@ -625,6 +681,7 @@ namespace ImageColorChanger.UI
             _textEditorProjectionRenderStateService?.ClearCache();
             _textBoxes.Clear();
             _selectedTextBox = null;
+            StopNoticeAnimationLoop(resetPreviewOffsets: false);
             UpdateBoldButtonState(false);
             UpdateUnderlineButtonState(false);
             UpdateItalicButtonState(false);
@@ -689,3 +746,5 @@ namespace ImageColorChanger.UI
 
     }
 }
+
+

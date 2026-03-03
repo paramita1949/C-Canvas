@@ -110,5 +110,62 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
 
             Assert.NotEqual(keyCenter, keyTop);
         }
+
+        [Fact]
+        public void BuildCanvasCacheKey_Changes_WhenNoticeConfigChanges()
+        {
+            var service = new TextEditorProjectionRenderStateService();
+
+            var baseContext = new TextEditorProjectionCacheContext
+            {
+                TextStates = new[]
+                {
+                    new TextEditorProjectionTextState
+                    {
+                        Content = "notice",
+                        X = 100,
+                        Y = 80,
+                        Width = 1200,
+                        Height = 120,
+                        FontSize = 54,
+                        FontFamily = "Microsoft YaHei UI",
+                        FontColor = "#FFFFFF",
+                        TextAlign = "Left",
+                        TextVerticalAlign = "Middle",
+                        ZIndex = 2,
+                        ComponentType = "Notice",
+                        ComponentConfigJson = "{\"Direction\":1,\"Speed\":50,\"DurationMinutes\":3,\"AutoClose\":true}"
+                    }
+                }
+            };
+
+            var changedContext = new TextEditorProjectionCacheContext
+            {
+                TextStates = new[]
+                {
+                    new TextEditorProjectionTextState
+                    {
+                        Content = "notice",
+                        X = 100,
+                        Y = 80,
+                        Width = 1200,
+                        Height = 120,
+                        FontSize = 54,
+                        FontFamily = "Microsoft YaHei UI",
+                        FontColor = "#FFFFFF",
+                        TextAlign = "Left",
+                        TextVerticalAlign = "Middle",
+                        ZIndex = 2,
+                        ComponentType = "Notice",
+                        ComponentConfigJson = "{\"Direction\":0,\"Speed\":70,\"DurationMinutes\":5,\"AutoClose\":true}"
+                    }
+                }
+            };
+
+            var key1 = service.BuildCanvasCacheKey(baseContext);
+            var key2 = service.BuildCanvasCacheKey(changedContext);
+
+            Assert.NotEqual(key1, key2);
+        }
     }
 }

@@ -1116,6 +1116,8 @@ namespace ImageColorChanger.UI
                     AddTextBoxToCanvas(textBox);
                 }
 
+                EnsureNoticeAnimationLoopState();
+
                 //System.Diagnostics.Debug.WriteLine($" 加载幻灯片成功: ID={slide.Id}, Title={slide.Title}, Elements={elements.Count}");
                 
                 // 恢复分割配置

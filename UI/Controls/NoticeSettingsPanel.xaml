@@ -1,0 +1,251 @@
+<UserControl x:Class="ImageColorChanger.UI.Controls.NoticeSettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="290">
+    <UserControl.Resources>
+        <Style x:Key="NoticePositionCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box"
+                                    Grid.Column="0"
+                                    Width="16"
+                                    Height="16"
+                                    BorderBrush="#6B7280"
+                                    BorderThickness="1.4"
+                                    Background="#FFFFFF"
+                                    CornerRadius="3"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Mark"
+                                      Data="M3,8 L6.6,11.4 L13,4.6"
+                                      Stroke="#FFFFFF"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="6,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="#2563EB"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#1D4ED8"/>
+                                <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="NoticeColorSwatchButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="#FF8A00"/>
+            <Setter Property="BorderBrush" Value="#9CA3AF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Border Background="#F7F7F7"
+            BorderBrush="#D8D8D8"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0"
+                       Text="通知参数"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#1F2937"
+                       Margin="0,0,0,10"/>
+
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="位置"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <WrapPanel Grid.Column="1"
+                           Orientation="Horizontal"
+                           VerticalAlignment="Center">
+                    <CheckBox x:Name="PositionTopCheckBox"
+                              Style="{StaticResource NoticePositionCheckBoxStyle}"
+                              Content="顶部"
+                              Checked="PositionCheckBox_Changed"
+                              Unchecked="PositionCheckBox_Changed"/>
+                    <CheckBox x:Name="PositionCenterCheckBox"
+                              Style="{StaticResource NoticePositionCheckBoxStyle}"
+                              Content="居中"
+                              Checked="PositionCheckBox_Changed"
+                              Unchecked="PositionCheckBox_Changed"/>
+                    <CheckBox x:Name="PositionBottomCheckBox"
+                              Style="{StaticResource NoticePositionCheckBoxStyle}"
+                              Content="底部"
+                              Checked="PositionCheckBox_Changed"
+                              Unchecked="PositionCheckBox_Changed"/>
+                </WrapPanel>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="方向"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <ComboBox x:Name="DirectionComboBox"
+                          Grid.Column="1"
+                          Height="30"
+                          SelectionChanged="DirectionComboBox_SelectionChanged">
+                    <ComboBoxItem Content="左→右" Tag="LeftToRight"/>
+                    <ComboBoxItem Content="右→左" Tag="RightToLeft"/>
+                    <ComboBoxItem Content="左右往返" Tag="PingPong"/>
+                </ComboBox>
+            </Grid>
+
+            <Grid Grid.Row="3" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="高度"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <ComboBox x:Name="BarHeightLevelComboBox"
+                          Grid.Column="1"
+                          Width="84"
+                          Height="30"
+                          HorizontalAlignment="Left"
+                          SelectionChanged="BarHeightLevelComboBox_SelectionChanged">
+                    <ComboBoxItem Content="1" Tag="1"/>
+                    <ComboBoxItem Content="2" Tag="2"/>
+                    <ComboBoxItem Content="3" Tag="3"/>
+                    <ComboBoxItem Content="4" Tag="4"/>
+                </ComboBox>
+            </Grid>
+
+            <Grid Grid.Row="4" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="时长"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ComboBox x:Name="DurationComboBox"
+                              Width="84"
+                              Height="30"
+                              SelectionChanged="DurationComboBox_SelectionChanged">
+                        <ComboBoxItem Content="1 分钟" Tag="1"/>
+                        <ComboBoxItem Content="2 分钟" Tag="2"/>
+                        <ComboBoxItem Content="3 分钟" Tag="3"/>
+                        <ComboBoxItem Content="4 分钟" Tag="4"/>
+                        <ComboBoxItem Content="5 分钟" Tag="5"/>
+                        <ComboBoxItem Content="6 分钟" Tag="6"/>
+                        <ComboBoxItem Content="7 分钟" Tag="7"/>
+                        <ComboBoxItem Content="8 分钟" Tag="8"/>
+                        <ComboBoxItem Content="9 分钟" Tag="9"/>
+                        <ComboBoxItem Content="10 分钟" Tag="10"/>
+                    </ComboBox>
+                    <CheckBox x:Name="AutoCloseCheckBox"
+                              Margin="10,0,0,0"
+                              VerticalAlignment="Center"
+                              Content="自动关闭"
+                              Checked="AutoCloseCheckBox_Changed"
+                              Unchecked="AutoCloseCheckBox_Changed"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="5" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="速度"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <Slider x:Name="SpeedSlider"
+                        Grid.Column="1"
+                        Minimum="0"
+                        Maximum="100"
+                        TickFrequency="5"
+                        IsSnapToTickEnabled="False"
+                        ValueChanged="SpeedSlider_ValueChanged"/>
+                <TextBlock x:Name="SpeedValueText"
+                           Grid.Column="2"
+                           Text="50"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           Foreground="#111827"/>
+            </Grid>
+
+            <Grid Grid.Row="6" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="颜色"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <WrapPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="ColorSwatchOrange" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#FF8A00" Tag="#FF8A00" Click="DefaultColorSwatch_Click"/>
+                    <Button x:Name="ColorSwatchRed" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#FF3B30" Tag="#FF3B30" Click="DefaultColorSwatch_Click"/>
+                    <Button x:Name="ColorSwatchBlue" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#0EA5E9" Tag="#0EA5E9" Click="DefaultColorSwatch_Click"/>
+                    <Button x:Name="ColorSwatchGreen" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#22C55E" Tag="#22C55E" Click="DefaultColorSwatch_Click"/>
+                    <Button x:Name="ColorSwatchBlack" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#111111" Tag="#111111" Click="DefaultColorSwatch_Click"/>
+                    <Button x:Name="ColorSwatchWhite" Style="{StaticResource NoticeColorSwatchButtonStyle}" Background="#FFFFFF" Tag="#FFFFFF" Click="DefaultColorSwatch_Click"/>
+                </WrapPanel>
+            </Grid>
+
+        </Grid>
+    </Border>
+</UserControl>

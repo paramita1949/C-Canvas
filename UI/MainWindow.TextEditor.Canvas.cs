@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
@@ -167,7 +168,7 @@ namespace ImageColorChanger.UI
                 {
                     return;
                 }
-                source = VisualTreeHelper.GetParent(source);
+                source = GetDependencyParent(source);
             }
 
             var contextMenu = new ContextMenu();
@@ -190,6 +191,18 @@ namespace ImageColorChanger.UI
                 await PasteTextBoxFromClipboardAsync(null);
             };
             contextMenu.Items.Add(pasteItem);
+
+            var insertNoticeItem = new MenuItem
+            {
+                Header = BuildEditorCanvasMenuHeader("插入通知", "IconLucideFileText"),
+                FontSize = 14,
+                IsEnabled = _currentSlide != null
+            };
+            insertNoticeItem.Click += async (_, _) =>
+            {
+                await InsertNoticeComponentAsync();
+            };
+            contextMenu.Items.Add(insertNoticeItem);
             contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(CreateEditorCanvasLayoutMenuItem());
             contextMenu.Items.Add(CreateEditorCanvasThemeMenuItem());
@@ -198,6 +211,37 @@ namespace ImageColorChanger.UI
             contextMenu.PlacementTarget = EditorCanvas;
             contextMenu.IsOpen = true;
             e.Handled = true;
+        }
+
+        private static DependencyObject GetDependencyParent(DependencyObject source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            if (source is Visual || source is Visual3D)
+            {
+                return VisualTreeHelper.GetParent(source);
+            }
+
+            if (source is System.Windows.Documents.TextElement textElement)
+            {
+                return textElement.Parent;
+            }
+
+            if (source is FrameworkContentElement frameworkContent)
+            {
+                return frameworkContent.Parent;
+            }
+
+            if (source is ContentElement contentElement)
+            {
+                return ContentOperations.GetParent(contentElement) as DependencyObject
+                    ?? LogicalTreeHelper.GetParent(contentElement);
+            }
+
+            return LogicalTreeHelper.GetParent(source);
         }
 
         private MenuItem CreateEditorCanvasLayoutMenuItem()

@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.UI.Controls;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
@@ -294,6 +295,8 @@ namespace ImageColorChanger.UI
                 // 从画布移除
                 EditorCanvas.Children.Remove(textBox);
                 _textBoxes.Remove(textBox);
+                _noticeRuntimeService.RemoveState(textBox.Data.Id);
+                EnsureNoticeAnimationLoopState();
 
                 // 如果删除的是当前选中项，清除选中状态并隐藏工具栏
                 if (_selectedTextBox == textBox)
@@ -497,7 +500,7 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
-            ShowToast("请选择具体组件：时间 / 倒计时 / 通知");
+            ShowToast("请选择具体组件：通知 / 时钟 / 倒计时");
         }
 
         private void BtnComponentClock_Click(object sender, RoutedEventArgs e)
@@ -518,7 +521,68 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
-            ShowToast("通知组件功能即将上线");
+            _ = InsertNoticeComponentAsync();
+        }
+
+        private async Task InsertNoticeComponentAsync()
+        {
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先创建或打开一个项目！", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_currentSlide == null)
+            {
+                WpfMessageBox.Show("请先选择一个幻灯片！", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_textBoxes.Any(tb => IsNoticeComponent(tb?.Data)))
+            {
+                ShowToast("已存在通知组件");
+                return;
+            }
+
+            try
+            {
+                int maxZIndex = _textBoxes.Count > 0 ? _textBoxes.Max(tb => tb.Data.ZIndex) : 0;
+                var element = NoticeComponentFactory.BuildDefault(
+                    slideId: _currentSlide.Id,
+                    canvasWidth: _currentTextProject.CanvasWidth,
+                    canvasHeight: _currentTextProject.CanvasHeight,
+                    zIndex: maxZIndex + 1,
+                    defaultTextColor: GetDefaultTextColorForSlide(_currentSlide),
+                    defaultConfig: GetNoticeDefaultConfig());
+
+                await _textProjectService.AddElementAsync(element);
+
+                var textBox = new DraggableTextBox(element);
+                AddTextBoxToCanvas(textBox);
+                textBox.Focus();
+                textBox.EnterEditModeForNew();
+                ShowToast("已插入通知组件");
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"插入通知组件失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static bool IsNoticeComponent(TextElement element)
+        {
+            return string.Equals(
+                element?.ComponentType,
+                NoticeComponentFactory.NoticeComponentType,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool IsSelectedTextBoxNoticeComponent()
+        {
+            return IsNoticeComponent(_selectedTextBox?.Data);
         }
 
         private void BtnMenuImportSingle_Click(object sender, RoutedEventArgs e)
@@ -1204,7 +1268,11 @@ namespace ImageColorChanger.UI
 
                 var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize()
                                               ?? (_configManager?.ProjectionNdiWidth ?? 1920, _configManager?.ProjectionNdiHeight ?? 1080);
-                using var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+                using var ndiFrame = ComposeCanvasWithSkia(
+                    projWidth,
+                    projHeight,
+                    transparentBackground: false,
+                    hideNoticeComponents: _hideNoticeOnProjection);
                 PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
             }
             catch

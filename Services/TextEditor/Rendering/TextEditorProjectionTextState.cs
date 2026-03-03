@@ -25,5 +25,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
         public double BackgroundOpacity { get; init; }
         public double LineSpacing { get; init; }
         public double LetterSpacing { get; init; }
+        public string ComponentType { get; init; }
+        public string ComponentConfigJson { get; init; }
     }
 }

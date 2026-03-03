@@ -28,13 +28,20 @@ namespace ImageColorChanger.UI.Controls
     {
         #region 渲染输出
 
-        public System.Windows.Media.Imaging.BitmapSource GetRenderedBitmap(double scaleX = 1.0, double scaleY = 1.0)
+        public System.Windows.Media.Imaging.BitmapSource GetRenderedBitmap(double scaleX = 1.0, double scaleY = 1.0, double textOffsetX = 0.0)
 
         {
 
             if (_border == null)
 
                 return null;
+
+            var previousTransform = _richTextBox?.RenderTransform;
+            bool appliedNoticeOffset = _richTextBox != null && Math.Abs(textOffsetX) > 0.01;
+            if (appliedNoticeOffset)
+            {
+                _richTextBox.RenderTransform = new System.Windows.Media.TranslateTransform(textOffsetX, 0);
+            }
 
 
 
@@ -48,83 +55,93 @@ namespace ImageColorChanger.UI.Controls
 
             // 如果缩放比例为1.0，使用简单渲染（向后兼容）
 
-            if (Math.Abs(scaleX - 1.0) < 0.01 && Math.Abs(scaleY - 1.0) < 0.01)
-
+            try
             {
-
-                var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
-
-                    (int)ActualWidth,
-
-                    (int)ActualHeight,
-
-                    96, 96,
-
-                    System.Windows.Media.PixelFormats.Pbgra32);
-
-                renderTarget.Render(_border);
-
-                return renderTarget;
-
-            }
-
-
-
-            // 高清渲染模式：使用 DrawingVisual 进行缩放渲染
-
-            var drawingVisual = new System.Windows.Media.DrawingVisual();
-
-            using (var context = drawingVisual.RenderOpen())
-
-            {
-
-                // 创建 VisualBrush 来捕获 _border 的内容
-
-                var visualBrush = new System.Windows.Media.VisualBrush(_border)
+                if (Math.Abs(scaleX - 1.0) < 0.01 && Math.Abs(scaleY - 1.0) < 0.01)
 
                 {
 
-                    Stretch = System.Windows.Media.Stretch.None,
+                    var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
 
-                    ViewboxUnits = System.Windows.Media.BrushMappingMode.Absolute,
+                        (int)ActualWidth,
 
-                    Viewbox = new WpfRect(0, 0, ActualWidth, ActualHeight)
+                        (int)ActualHeight,
 
-                };
+                        96, 96,
+
+                        System.Windows.Media.PixelFormats.Pbgra32);
+
+                    renderTarget.Render(_border);
+
+                    return renderTarget;
+
+                }
 
 
 
-                // 应用缩放变换
+                // 高清渲染模式：使用 DrawingVisual 进行缩放渲染
 
-                context.PushTransform(new System.Windows.Media.ScaleTransform(scaleX, scaleY));
+                var drawingVisual = new System.Windows.Media.DrawingVisual();
+
+                using (var context = drawingVisual.RenderOpen())
+
+                {
+
+                    // 创建 VisualBrush 来捕获 _border 的内容
+
+                    var visualBrush = new System.Windows.Media.VisualBrush(_border)
+
+                    {
+
+                        Stretch = System.Windows.Media.Stretch.None,
+
+                        ViewboxUnits = System.Windows.Media.BrushMappingMode.Absolute,
+
+                        Viewbox = new WpfRect(0, 0, ActualWidth, ActualHeight)
+
+                    };
 
 
 
-                // 绘制内容
+                    // 应用缩放变换
 
-                context.DrawRectangle(visualBrush, null, new WpfRect(0, 0, ActualWidth, ActualHeight));
+                    context.PushTransform(new System.Windows.Media.ScaleTransform(scaleX, scaleY));
 
+
+
+                    // 绘制内容
+
+                    context.DrawRectangle(visualBrush, null, new WpfRect(0, 0, ActualWidth, ActualHeight));
+
+                }
+
+
+
+                // 渲染到高分辨率位图（DPI 仍然标记为 96，避免 WPF 自动缩放）
+
+                var renderTargetHD = new System.Windows.Media.Imaging.RenderTargetBitmap(
+
+                    physicalWidth,
+
+                    physicalHeight,
+
+                    96, 96,  //  固定 96 DPI，避免 DPI 元数据导致的缩放问题
+
+                    System.Windows.Media.PixelFormats.Pbgra32);
+
+
+
+                renderTargetHD.Render(drawingVisual);
+
+                return renderTargetHD;
             }
-
-
-
-            // 渲染到高分辨率位图（DPI 仍然标记为 96，避免 WPF 自动缩放）
-
-            var renderTargetHD = new System.Windows.Media.Imaging.RenderTargetBitmap(
-
-                physicalWidth,
-
-                physicalHeight,
-
-                96, 96,  //  固定 96 DPI，避免 DPI 元数据导致的缩放问题
-
-                System.Windows.Media.PixelFormats.Pbgra32);
-
-
-
-            renderTargetHD.Render(drawingVisual);
-
-            return renderTargetHD;
+            finally
+            {
+                if (_richTextBox != null)
+                {
+                    _richTextBox.RenderTransform = previousTransform;
+                }
+            }
 
         }
 

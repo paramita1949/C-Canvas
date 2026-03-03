@@ -56,14 +56,18 @@ namespace ImageColorChanger.UI.Controls
                 _selectionRect.Visibility = System.Windows.Visibility.Visible;
                 //  不覆盖用户设置的背景色，保持当前背景
 
-                _resizeThumbTopLeft.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbTopCenter.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbTopRight.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbLeftCenter.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbRightCenter.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbBottomLeft.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbBottomCenter.Visibility = System.Windows.Visibility.Visible;
-                _resizeThumbBottomRight.Visibility = System.Windows.Visibility.Visible;
+                var resizeVisibility = IsNoticeComponentElement()
+                    ? System.Windows.Visibility.Collapsed
+                    : System.Windows.Visibility.Visible;
+
+                _resizeThumbTopLeft.Visibility = resizeVisibility;
+                _resizeThumbTopCenter.Visibility = resizeVisibility;
+                _resizeThumbTopRight.Visibility = resizeVisibility;
+                _resizeThumbLeftCenter.Visibility = resizeVisibility;
+                _resizeThumbRightCenter.Visibility = resizeVisibility;
+                _resizeThumbBottomLeft.Visibility = resizeVisibility;
+                _resizeThumbBottomCenter.Visibility = resizeVisibility;
+                _resizeThumbBottomRight.Visibility = resizeVisibility;
             }
             else
             {

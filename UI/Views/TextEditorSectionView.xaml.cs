@@ -41,6 +41,13 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Shapes.Rectangle SecondLayerTextColorBarControl => SecondLayerTextColorBar;
         public System.Windows.Controls.Button BtnSecondLayerTextHighlightColorButton => BtnSecondLayerTextHighlightColor;
         public System.Windows.Shapes.Rectangle SecondLayerTextHighlightBarControl => SecondLayerTextHighlightBar;
+        public System.Windows.Controls.Border SecondLayerNoticeSeparatorControl => SecondLayerNoticeSeparator;
+        public System.Windows.Controls.Button BtnSecondLayerNoticeSettingsButton => BtnSecondLayerNoticeSettings;
+        public System.Windows.Controls.Button BtnSecondLayerNoticeProjectionToggleButton => BtnSecondLayerNoticeProjectionToggle;
+        public System.Windows.Controls.TextBlock SecondLayerNoticeProjectionToggleTextBlock => SecondLayerNoticeProjectionToggleText;
+        public System.Windows.Controls.Button BtnSecondLayerNoticeToggleButton => BtnSecondLayerNoticeToggle;
+        public System.Windows.Controls.Button BtnSecondLayerNoticeDeleteButton => BtnSecondLayerNoticeDelete;
+        public System.Windows.Shapes.Path SecondLayerNoticeToggleIconPath => SecondLayerNoticeToggleIcon;
         public System.Windows.Controls.Border SlidePanelBorderControl => SlidePanelBorder;
         public System.Windows.Controls.ScrollViewer SlideScrollViewerControl => SlideScrollViewer;
         public System.Windows.Controls.ListBox SlideListBoxControl => SlideListBox;
@@ -70,6 +77,8 @@ namespace ImageColorChanger.UI.Views
         public UI.Controls.BackgroundSettingsPanel BackgroundSettingsPanelControl => BackgroundSettingsPanel;
         public System.Windows.Controls.Primitives.Popup TextColorSettingsPopupControl => TextColorSettingsPopup;
         public UI.Controls.TextColorSettingsPanel TextColorSettingsPanelControl => TextColorSettingsPanel;
+        public System.Windows.Controls.Primitives.Popup NoticeSettingsPopupControl => NoticeSettingsPopup;
+        public UI.Controls.NoticeSettingsPanel NoticeSettingsPanelControl => NoticeSettingsPanel;
         public System.Windows.Controls.Primitives.Popup ShadowSettingsPopupControl => ShadowSettingsPopup;
         public UI.Controls.ShadowSettingsPanel ShadowSettingsPanelControl => ShadowSettingsPanel;
         public System.Windows.Controls.Primitives.Popup SpacingSettingsPopupControl => SpacingSettingsPopup;
@@ -158,6 +167,10 @@ namespace ImageColorChanger.UI.Views
         private void BtnSecondLayerCanvasBackground_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerCanvasBackground_Click), sender, e);
         private void BtnSecondLayerCanvasLayout_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerCanvasLayout_Click), sender, e);
         private void BtnSecondLayerFillColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerFillColor_Click), sender, e);
+        private void BtnSecondLayerNoticeSettings_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerNoticeSettings_Click), sender, e);
+        private void BtnSecondLayerNoticeProjectionToggle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerNoticeProjectionToggle_Click), sender, e);
+        private void BtnSecondLayerNoticeToggle_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerNoticeToggle_Click), sender, e);
+        private void BtnSecondLayerNoticeDelete_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerNoticeDelete_Click), sender, e);
         private void BtnSecondLayerAlignmentMenu_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerAlignmentMenu_Click), sender, e);
         private void BtnSecondLayerBorder_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnSecondLayerBorder_Click), sender, e);
         private void BtnTextHighlightColor_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnTextHighlightColor_Click), sender, e);

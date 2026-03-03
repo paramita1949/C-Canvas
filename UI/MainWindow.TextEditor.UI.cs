@@ -270,7 +270,11 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($" [BtnLockProjection] 循环播放: {_currentSlide.VideoLoopEnabled}");
 #endif
                     var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
-                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    var textLayer = ComposeCanvasWithSkia(
+                        projWidth,
+                        projHeight,
+                        transparentBackground: true,
+                        hideNoticeComponents: _hideNoticeOnProjection);
                     _projectionManager.UpdateProjectionWithLockedVideo(
                         _currentSlide.BackgroundImagePath,
                         _currentSlide.VideoLoopEnabled,

@@ -75,6 +75,13 @@ namespace ImageColorChanger.UI.Controls
                 // 只在选中后才给整个控件焦点（防止RichTextBox获得焦点）
                 base.Focus();
 
+                // 通知组件固定在参数位置，不允许鼠标拖动。
+                if (IsNoticeComponentElement())
+                {
+                    e.Handled = true;
+                    return;
+                }
+
                 // 启动拖拽
                 _isDragging = true;
                 _dragStartPoint = e.GetPosition(Parent as System.Windows.UIElement);
@@ -85,6 +92,11 @@ namespace ImageColorChanger.UI.Controls
 
         private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (IsNoticeComponentElement())
+            {
+                return;
+            }
+
             if (_isDragging && IsMouseCaptured)
             {
                 WpfPoint currentPoint = e.GetPosition(Parent as System.Windows.UIElement);
@@ -183,6 +195,12 @@ namespace ImageColorChanger.UI.Controls
             if (e.ChangedButton != WpfMouseButton.Left)
                 return;
 
+            if (IsNoticeComponentElement())
+            {
+                e.Handled = true;
+                return;
+            }
+
             // 启动拖动
             _isDragging = true;
             _dragStartPoint = e.GetPosition(Parent as System.Windows.UIElement);
@@ -199,6 +217,11 @@ namespace ImageColorChanger.UI.Controls
         private void OnDragAreaMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             var dragArea = sender as WpfBorder;
+
+            if (IsNoticeComponentElement())
+            {
+                return;
+            }
 
             // 只在拖动状态下处理
             if (!_isDragging || dragArea == null || !dragArea.IsMouseCaptured)

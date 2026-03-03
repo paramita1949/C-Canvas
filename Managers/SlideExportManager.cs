@@ -219,6 +219,8 @@ namespace ImageColorChanger.Managers
                         Height = e.Height,
                         ZIndex = e.ZIndex,
                         Content = e.Content,
+                        ComponentType = e.ComponentType,
+                        ComponentConfigJson = e.ComponentConfigJson,
                         FontFamily = e.FontFamily,
                         FontSize = e.FontSize,
                         FontColor = e.FontColor,
@@ -342,6 +344,8 @@ namespace ImageColorChanger.Managers
         public double Height { get; set; }
         public int ZIndex { get; set; }
         public string Content { get; set; }
+        public string ComponentType { get; set; }
+        public string ComponentConfigJson { get; set; }
         public string FontFamily { get; set; }
         public double FontSize { get; set; }
         public string FontColor { get; set; }

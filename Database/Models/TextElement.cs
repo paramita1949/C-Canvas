@@ -68,6 +68,18 @@ namespace ImageColorChanger.Database.Models
         public string Content { get; set; } = "";
 
         /// <summary>
+        /// 组件类型（空=普通文本框，Notice=通知组件）
+        /// </summary>
+        [Column("component_type")]
+        public string ComponentType { get; set; } = "";
+
+        /// <summary>
+        /// 组件配置JSON
+        /// </summary>
+        [Column("component_config_json")]
+        public string ComponentConfigJson { get; set; } = "";
+
+        /// <summary>
         /// 字体名称
         /// </summary>
         [Column("font_family")]

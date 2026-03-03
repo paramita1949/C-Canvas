@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.UI.Controls;
 
 namespace ImageColorChanger.UI
@@ -16,8 +17,11 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const bool EnableTextDriftTrace = false;
+        private const bool EnableNoticeHeightDebugTrace = false;
         private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
         private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
+        private const string NoticeTogglePlayIconData = "M5 3L19 12L5 21V3Z";
+        private const string NoticeTogglePauseIconData = "M6 4H10V20H6V4ZM14 4H18V20H14V4Z";
 
         private bool _isSidePanelDragging;
         private System.Windows.Point _sidePanelDragStartPoint;
@@ -291,6 +295,36 @@ namespace ImageColorChanger.UI
             e.Handled = true;
         }
 
+        private void BtnSecondLayerNoticeSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsSelectedTextBoxNoticeComponent())
+            {
+                return;
+            }
+
+            CloseOtherSidePanels("NoticeSettingsPopup");
+            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            if (!string.IsNullOrWhiteSpace(_selectedTextBox.Data.BackgroundColor))
+            {
+                cfg.DefaultColorHex = _selectedTextBox.Data.BackgroundColor;
+            }
+            cfg.BarHeight = _selectedTextBox.ActualHeight > 1 ? _selectedTextBox.ActualHeight : _selectedTextBox.Data.Height;
+            cfg.PositionFlags = ResolveNoticePositionFlagsForBinding(cfg, _selectedTextBox);
+            cfg.Position = NoticeComponentConfig.GetPrimaryPosition(cfg.PositionFlags);
+            NoticeSettingsPanel.BindConfig(cfg);
+
+            if (NoticeSettingsPopup != null)
+            {
+                NoticeSettingsPopup.PlacementTarget = sender as UIElement;
+                NoticeSettingsPopup.Placement = PlacementMode.Bottom;
+                NoticeSettingsPopup.HorizontalOffset = 0;
+                NoticeSettingsPopup.VerticalOffset = 6;
+                NoticeSettingsPopup.IsOpen = !NoticeSettingsPopup.IsOpen;
+            }
+
+            e.Handled = true;
+        }
+
         private void BtnSecondLayerAlignmentMenu_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedTextBox == null)
@@ -494,6 +528,10 @@ namespace ImageColorChanger.UI
             }
             BackgroundSettingsPopup.IsOpen = false;
             TextColorSettingsPopup.IsOpen = false;
+            if (NoticeSettingsPopup != null)
+            {
+                NoticeSettingsPopup.IsOpen = false;
+            }
             ShadowSettingsPopup.IsOpen = false;
             SpacingSettingsPopup.IsOpen = false;
             AnimationSettingsPopup.IsOpen = false;
@@ -516,6 +554,10 @@ namespace ImageColorChanger.UI
             if (keepPopupName != "TextColorSettingsPopup")
             {
                 TextColorSettingsPopup.IsOpen = false;
+            }
+            if (keepPopupName != "NoticeSettingsPopup" && NoticeSettingsPopup != null)
+            {
+                NoticeSettingsPopup.IsOpen = false;
             }
             if (keepPopupName != "ShadowSettingsPopup")
             {
@@ -708,6 +750,326 @@ namespace ImageColorChanger.UI
             MarkContentAsModified();
         }
 
+        private void OnNoticeConfigChangedFromPanel(NoticeComponentConfig cfg)
+        {
+            if (!IsSelectedTextBoxNoticeComponent())
+            {
+                return;
+            }
+
+            var existing = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            var normalized = NoticeComponentConfigCodec.Normalize(cfg);
+            var globalDefault = NoticeComponentConfigCodec.Normalize(normalized);
+            globalDefault.ScrollingEnabled = false;
+            SaveNoticeDefaultConfigPreference(globalDefault);
+            normalized.ScrollingEnabled = existing.ScrollingEnabled;
+            _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(normalized);
+            string autoAlign = normalized.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
+            _selectedTextBox.ApplyStyle(
+                backgroundColor: normalized.DefaultColorHex,
+                textAlign: autoAlign,
+                textVerticalAlign: "Middle");
+            ApplyNoticeBarHeightToTextBox(_selectedTextBox, normalized.BarHeight);
+            ApplyNoticePositionToTextBox(_selectedTextBox, normalized.PositionFlags);
+            MarkContentAsModified();
+            EnsureNoticeAnimationLoopState();
+            UpdateNoticeToggleButtonState();
+            if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
+            {
+                UpdateProjectionContent();
+            }
+        }
+
+        private void ApplyNoticePositionToTextBox(DraggableTextBox textBox, NoticePositionFlags positionFlags)
+        {
+            if (textBox?.Data == null)
+            {
+                return;
+            }
+
+            double canvasHeight = EditorCanvas?.ActualHeight > 1
+                ? EditorCanvas.ActualHeight
+                : (_currentTextProject?.CanvasHeight > 0 ? _currentTextProject.CanvasHeight : 900);
+            double boxHeight = textBox.ActualHeight > 1 ? textBox.ActualHeight : Math.Max(1, textBox.Data.Height);
+            var targetPosition = ResolveNoticePositionForCanvas(positionFlags, textBox);
+
+            double y = targetPosition switch
+            {
+                NoticePosition.Center => Math.Max(0, (canvasHeight - boxHeight) / 2.0),
+                NoticePosition.Bottom => Math.Max(0, canvasHeight - boxHeight),
+                _ => 0
+            };
+
+            textBox.Data.Y = y;
+            Canvas.SetTop(textBox, y);
+            Canvas.SetLeft(textBox, textBox.Data.X);
+        }
+
+        private NoticePositionFlags ResolveNoticePositionFlagsForBinding(NoticeComponentConfig cfg, DraggableTextBox textBox)
+        {
+            if (cfg == null)
+            {
+                return NoticePositionFlags.Top;
+            }
+
+            var normalized = NoticeComponentConfig.NormalizePositionFlags(cfg.PositionFlags);
+            if (normalized != NoticePositionFlags.Top)
+            {
+                return normalized;
+            }
+
+            // 兼容旧配置：未设置多选 flags 时，用当前 Y 推断一个位置。
+            return NoticeComponentConfig.ToFlags(DetectNoticePositionFromCurrentY(textBox));
+        }
+
+        private NoticePosition ResolveNoticePositionForCanvas(NoticePositionFlags positionFlags, DraggableTextBox textBox)
+        {
+            var normalized = NoticeComponentConfig.NormalizePositionFlags(positionFlags);
+            var current = DetectNoticePositionFromCurrentY(textBox);
+            if (NoticeComponentConfig.HasPosition(normalized, current))
+            {
+                return current;
+            }
+
+            return NoticeComponentConfig.GetPrimaryPosition(normalized);
+        }
+
+        private void ApplyNoticeBarHeightToTextBox(DraggableTextBox textBox, double height)
+        {
+            if (textBox?.Data == null)
+            {
+                return;
+            }
+
+            TraceNoticeHeightAlignment("BeforeHeightApply", textBox);
+            double clampedHeight = Math.Clamp(height, 40, 320);
+            textBox.Data.Height = clampedHeight;
+            textBox.Height = clampedHeight;
+            textBox.SetTextVerticalAlign("Middle");
+            textBox.RefreshTextLayoutProfile();
+            TraceNoticeHeightAlignment("AfterImmediateRefresh", textBox);
+            textBox.Dispatcher?.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() =>
+            {
+                textBox.RefreshTextLayoutProfile();
+                TraceNoticeHeightAlignment("AfterRenderRefresh", textBox);
+            }));
+        }
+
+        private void TraceNoticeHeightAlignment(string tag, DraggableTextBox textBox)
+        {
+#if !DEBUG
+            _ = tag;
+            _ = textBox;
+            return;
+#else
+            if (!EnableNoticeHeightDebugTrace || textBox?.Data == null || !IsNoticeComponent(textBox.Data))
+            {
+                return;
+            }
+
+            try
+            {
+                var rtb = textBox.RichTextBox;
+                if (rtb == null)
+                {
+                    Debug.WriteLine($"[NoticeVAlignDebug] {tag} Id={textBox.Data.Id} RichTextBox=null");
+                    return;
+                }
+
+                var rtbPadding = rtb.Padding;
+                var docPadding = rtb.Document?.PagePadding ?? new Thickness(0);
+                double contentHeight = rtb.ExtentHeight;
+                if (contentHeight <= 0.1 || double.IsNaN(contentHeight) || double.IsInfinity(contentHeight))
+                {
+                    var start = rtb.Document?.ContentStart;
+                    var end = rtb.Document?.ContentEnd;
+                    if (start != null && end != null)
+                    {
+                        var startRect = start.GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
+                        var endRect = end.GetCharacterRect(System.Windows.Documents.LogicalDirection.Backward);
+                        contentHeight = Math.Max(0, endRect.Bottom - startRect.Top);
+                    }
+                }
+
+                double availableHeight = Math.Max(0, rtb.ActualHeight - rtbPadding.Top - rtbPadding.Bottom);
+                Debug.WriteLine(
+                    $"[NoticeVAlignDebug] {tag} Id={textBox.Data.Id} " +
+                    $"BoxH={textBox.Data.Height:F1}/{textBox.ActualHeight:F1} " +
+                    $"RtbH={rtb.ActualHeight:F1} Avail={availableHeight:F1} Content={contentHeight:F1} " +
+                    $"VAlign={textBox.Data.TextVerticalAlign} " +
+                    $"RtbPad=({rtbPadding.Left:F1},{rtbPadding.Top:F1},{rtbPadding.Right:F1},{rtbPadding.Bottom:F1}) " +
+                    $"DocPad=({docPadding.Left:F1},{docPadding.Top:F1},{docPadding.Right:F1},{docPadding.Bottom:F1})");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[NoticeVAlignDebug] {tag} ERROR: {ex.Message}");
+            }
+#endif
+        }
+
+        private NoticePosition DetectNoticePositionFromCurrentY(DraggableTextBox textBox)
+        {
+            if (textBox?.Data == null)
+            {
+                return NoticePosition.Top;
+            }
+
+            double canvasHeight = EditorCanvas?.ActualHeight > 1
+                ? EditorCanvas.ActualHeight
+                : (_currentTextProject?.CanvasHeight > 0 ? _currentTextProject.CanvasHeight : 900);
+            double boxHeight = textBox.ActualHeight > 1 ? textBox.ActualHeight : Math.Max(1, textBox.Data.Height);
+            double y = textBox.Data.Y;
+            double centerY = Math.Max(0, (canvasHeight - boxHeight) / 2.0);
+            double bottomY = Math.Max(0, canvasHeight - boxHeight);
+
+            const double threshold = 24.0;
+            if (Math.Abs(y - centerY) <= threshold)
+            {
+                return NoticePosition.Center;
+            }
+
+            if (Math.Abs(y - bottomY) <= threshold)
+            {
+                return NoticePosition.Bottom;
+            }
+
+            return NoticePosition.Top;
+        }
+
+        private void BtnSecondLayerNoticeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsSelectedTextBoxNoticeComponent())
+            {
+                return;
+            }
+
+            _ = sender;
+            _ = e;
+
+            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            string autoAlign = cfg.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
+            _selectedTextBox.ApplyStyle(textAlign: autoAlign);
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var state = _noticeRuntimeService.GetOrCreateState(_selectedTextBox.Data.Id, nowMs);
+            bool isRunning = cfg.ScrollingEnabled && !state.IsAutoPausedByTimeout;
+
+            if (isRunning)
+            {
+                cfg.ScrollingEnabled = false;
+                _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
+                MarkContentAsModified();
+                ShowToast("滚动已暂停");
+            }
+            else
+            {
+                cfg.ScrollingEnabled = true;
+                _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
+                if (state.IsManuallyClosed || state.IsAutoPausedByTimeout)
+                {
+                    _noticeRuntimeService.Reopen(_selectedTextBox.Data.Id, nowMs);
+                }
+                else
+                {
+                    _noticeRuntimeService.Resume(_selectedTextBox.Data.Id, nowMs);
+                }
+                MarkContentAsModified();
+                ShowToast("滚动已开启");
+            }
+
+            EnsureNoticeAnimationLoopState();
+            UpdateNoticeToggleButtonState();
+            if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
+            {
+                UpdateProjectionContent();
+            }
+        }
+
+        private void BtnSecondLayerNoticeProjectionToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsSelectedTextBoxNoticeComponent())
+            {
+                return;
+            }
+
+            _ = sender;
+            _ = e;
+
+            _hideNoticeOnProjection = !_hideNoticeOnProjection;
+            _textEditorProjectionRenderStateService?.ClearCache();
+            UpdateNoticeProjectionToggleButtonState();
+
+            if (_projectionManager?.IsProjectionActive == true)
+            {
+                UpdateProjectionContent();
+            }
+
+            ShowToast(_hideNoticeOnProjection ? "投影已隐藏通知" : "投影已显示通知");
+        }
+
+        private async void BtnSecondLayerNoticeDelete_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (!IsSelectedTextBoxNoticeComponent() || _selectedTextBox == null)
+            {
+                return;
+            }
+
+            var target = _selectedTextBox;
+            await DeleteTextBoxAsync(target);
+            EnsureNoticeAnimationLoopState();
+            ShowToast("通知已删除");
+        }
+
+        private void UpdateNoticeToggleButtonState()
+        {
+            if (BtnSecondLayerNoticeToggle == null || SecondLayerNoticeToggleIcon == null)
+            {
+                return;
+            }
+
+            if (!IsSelectedTextBoxNoticeComponent())
+            {
+                SecondLayerNoticeToggleIcon.Data = Geometry.Parse(NoticeTogglePlayIconData);
+                BtnSecondLayerNoticeToggle.ToolTip = "开启滚动";
+                return;
+            }
+
+            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            var state = _noticeRuntimeService.GetOrCreateState(_selectedTextBox.Data.Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            bool isRunning = cfg.ScrollingEnabled && !state.IsManuallyClosed && !state.IsAutoPausedByTimeout;
+
+            SecondLayerNoticeToggleIcon.Data = Geometry.Parse(isRunning ? NoticeTogglePauseIconData : NoticeTogglePlayIconData);
+            BtnSecondLayerNoticeToggle.ToolTip = isRunning ? "暂停滚动" : "开启滚动";
+        }
+
+        private void UpdateNoticeProjectionToggleButtonState()
+        {
+            if (BtnSecondLayerNoticeProjectionToggle == null)
+            {
+                return;
+            }
+
+            if (SecondLayerNoticeProjectionToggleText != null)
+            {
+                SecondLayerNoticeProjectionToggleText.Text = _hideNoticeOnProjection ? "显示" : "隐藏";
+            }
+
+            BtnSecondLayerNoticeProjectionToggle.ToolTip = _hideNoticeOnProjection
+                ? "投影隐藏通知（点击显示）"
+                : "投影显示通知（点击隐藏）";
+
+            if (_hideNoticeOnProjection)
+            {
+                BtnSecondLayerNoticeProjectionToggle.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38));
+            }
+            else
+            {
+                BtnSecondLayerNoticeProjectionToggle.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
+            }
+        }
+
         private void SidePanelDragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement dragHandle || dragHandle.Tag is not string popupName)
@@ -782,6 +1144,7 @@ namespace ImageColorChanger.UI
                 "AlignmentSettingsPopup" => AlignmentSettingsPopup,
                 "BackgroundSettingsPopup" => BackgroundSettingsPopup,
                 "TextColorSettingsPopup" => TextColorSettingsPopup,
+                "NoticeSettingsPopup" => NoticeSettingsPopup,
                 "ShadowSettingsPopup" => ShadowSettingsPopup,
                 "SpacingSettingsPopup" => SpacingSettingsPopup,
                 "AnimationSettingsPopup" => AnimationSettingsPopup,

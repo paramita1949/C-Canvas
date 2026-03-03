@@ -38,8 +38,8 @@ namespace ImageColorChanger.Database
     public class CanvasDbContext : DbContext
     {
         private const string StartupSchemaBootstrapStampKey = "db.schema.bootstrap.version";
-        private const string StartupSchemaBootstrapVersion = "2026-03-03.1";
-        private const int StartupSchemaBootstrapUserVersion = 202603031;
+        private const string StartupSchemaBootstrapVersion = "2026-03-03.2";
+        private const int StartupSchemaBootstrapUserVersion = 202603032;
 
         /// <summary>
         /// 数据库文件路径
@@ -567,6 +567,8 @@ namespace ImageColorChanger.Database
                     EnsureSlideOutputModeSchemaExists();
                     // 幻灯片渐变背景兼容升级
                     EnsureSlideBackgroundGradientSchemaExists();
+                    // 文本元素组件字段兼容升级
+                    EnsureTextElementComponentSchemaExists();
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
@@ -1254,6 +1256,19 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($" EnsureSlideBackgroundGradientSchemaExists 失败: {ex.Message}");
+            }
+        }
+
+        private void EnsureTextElementComponentSchemaExists()
+        {
+            try
+            {
+                EnsureColumnExists("text_elements", "component_type", "TEXT NULL");
+                EnsureColumnExists("text_elements", "component_config_json", "TEXT NULL");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" EnsureTextElementComponentSchemaExists 失败: {ex.Message}");
             }
         }
 

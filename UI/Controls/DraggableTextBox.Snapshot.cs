@@ -40,5 +40,10 @@ namespace ImageColorChanger.UI.Controls
         {
             _textLayoutService.ApplyLayout(_richTextBox, _textLayoutProfile, Data);
         }
+
+        public void RefreshTextLayoutProfile()
+        {
+            ApplyTextLayoutProfile();
+        }
     }
 }

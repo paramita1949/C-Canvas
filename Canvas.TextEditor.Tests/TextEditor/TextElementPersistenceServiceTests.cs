@@ -76,6 +76,37 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.TextEditor
             Assert.Equal(9, spanRepo.DeletedByElementIdCalls[0]);
         }
 
+        [Fact]
+        public async Task SaveAsync_Should_KeepComponentFields()
+        {
+            var elementRepo = new FakeTextElementRepository();
+            var spanRepo = new FakeRichTextSpanRepository();
+            var sessionService = new FakeEditSessionService();
+            var serializer = new RichTextSerializer();
+            var service = new TextElementPersistenceService(elementRepo, spanRepo, sessionService, serializer);
+
+            var element = new TextElement
+            {
+                Id = 100,
+                Content = "notice",
+                ComponentType = "Notice",
+                ComponentConfigJson = "{\"durationMinutes\":3}"
+            };
+
+            var snapshot = new TextBoxSnapshot(
+                element,
+                "notice-updated",
+                new List<RichTextSpan>(),
+                TextLayoutProfile.Default,
+                wasInEditMode: false);
+
+            await service.SaveAsync(new[] { snapshot });
+
+            Assert.Single(elementRepo.UpdatedElements);
+            Assert.Equal("Notice", elementRepo.UpdatedElements[0].ComponentType);
+            Assert.Equal("{\"durationMinutes\":3}", elementRepo.UpdatedElements[0].ComponentConfigJson);
+        }
+
         private sealed class FakeTextElementRepository : ITextElementRepository
         {
             public int UpdateRangeCallCount { get; private set; }

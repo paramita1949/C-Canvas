@@ -59,6 +59,11 @@ namespace ImageColorChanger.UI.Controls
             System.Windows.Controls.Primitives.DragDeltaEventArgs e,
             int xDir, int yDir, bool adjustX, bool adjustY)
         {
+            if (IsNoticeComponentElement())
+            {
+                return;
+            }
+
             double newWidth = Width + (e.HorizontalChange * xDir);
             double newHeight = Height + (e.VerticalChange * yDir);
 
@@ -95,6 +100,11 @@ namespace ImageColorChanger.UI.Controls
             System.Windows.Controls.Primitives.DragDeltaEventArgs e,
             int xDir, int yDir, bool adjustX, bool adjustY)
         {
+            if (IsNoticeComponentElement())
+            {
+                return;
+            }
+
             if (xDir != 0)
             {
                 double newWidth = Width + (e.HorizontalChange * xDir);

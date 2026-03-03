@@ -149,6 +149,8 @@ namespace ImageColorChanger.Services.TextEditor.Application
                 Height = source.Height,
                 ZIndex = source.ZIndex,
                 Content = source.Content,
+                ComponentType = source.ComponentType,
+                ComponentConfigJson = source.ComponentConfigJson,
                 FontFamily = source.FontFamily,
                 FontSize = source.FontSize,
                 FontColor = source.FontColor,

@@ -141,6 +141,8 @@ namespace ImageColorChanger.Managers
                                         Height = elementData.Height,
                                         ZIndex = elementData.ZIndex,
                                         Content = elementData.Content,
+                                        ComponentType = elementData.ComponentType ?? string.Empty,
+                                        ComponentConfigJson = elementData.ComponentConfigJson ?? string.Empty,
                                         FontFamily = elementData.FontFamily,
                                         FontSize = elementData.FontSize,
                                         FontColor = elementData.FontColor,

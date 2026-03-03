@@ -122,6 +122,39 @@ namespace ImageColorChanger.UI
             {
                 SecondLayerCanvasActions.Visibility = isTextSelected ? Visibility.Collapsed : Visibility.Visible;
             }
+
+            bool showNoticeSettings = isTextSelected && IsSelectedTextBoxNoticeComponent();
+            if (SecondLayerNoticeSeparator != null)
+            {
+                SecondLayerNoticeSeparator.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (BtnSecondLayerNoticeSettings != null)
+            {
+                BtnSecondLayerNoticeSettings.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (BtnSecondLayerNoticeProjectionToggle != null)
+            {
+                BtnSecondLayerNoticeProjectionToggle.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (BtnSecondLayerNoticeToggle != null)
+            {
+                BtnSecondLayerNoticeToggle.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (BtnSecondLayerNoticeDelete != null)
+            {
+                BtnSecondLayerNoticeDelete.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (!showNoticeSettings && NoticeSettingsPopup != null)
+            {
+                NoticeSettingsPopup.IsOpen = false;
+            }
+
+            if (showNoticeSettings)
+            {
+                UpdateNoticeToggleButtonState();
+                UpdateNoticeProjectionToggleButtonState();
+            }
         }
 
         #endregion

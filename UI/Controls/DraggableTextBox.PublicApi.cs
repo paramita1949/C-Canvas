@@ -27,5 +27,28 @@ namespace ImageColorChanger.UI.Controls
     public partial class DraggableTextBox
     {
         // 已拆分：样式/生命周期/渲染见 DraggableTextBox.Style|Lifecycle|Render.cs
+
+        public void SetNoticeTextOffset(double offsetX)
+        {
+            if (_richTextBox == null)
+            {
+                return;
+            }
+
+            if (double.IsNaN(offsetX) || double.IsInfinity(offsetX))
+            {
+                offsetX = 0;
+            }
+
+            var transform = _richTextBox.RenderTransform as System.Windows.Media.TranslateTransform;
+            if (transform == null)
+            {
+                transform = new System.Windows.Media.TranslateTransform();
+                _richTextBox.RenderTransform = transform;
+            }
+
+            transform.X = Math.Abs(offsetX) < 0.01 ? 0 : offsetX;
+            transform.Y = 0;
+        }
     }
 }

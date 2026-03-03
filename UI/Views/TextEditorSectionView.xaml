@@ -177,24 +177,24 @@
                                 <Button.ContextMenu>
                                     <ContextMenu x:Name="ComponentMenuContext"
                                                  Style="{StaticResource NoBorderContextMenuStyle}">
-                                        <MenuItem Header="时间组件"
-                                                  Click="BtnComponentClock_Click">
+                                        <MenuItem Header="通知"
+                                                  Click="BtnComponentNotice_Click">
+                                            <MenuItem.Icon>
+                                                <Path Data="{StaticResource IconLucideFileText}"
+                                                      Style="{StaticResource LucideIconPathStyle}"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="时钟"
+                                                  IsEnabled="False">
                                             <MenuItem.Icon>
                                                 <Path Data="{StaticResource IconLucideClock3}"
                                                       Style="{StaticResource LucideIconPathStyle}"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="倒计时组件"
-                                                  Click="BtnComponentCountdown_Click">
+                                        <MenuItem Header="倒计时"
+                                                  IsEnabled="False">
                                             <MenuItem.Icon>
                                                 <Path Data="{StaticResource IconLucideTimerReset}"
-                                                      Style="{StaticResource LucideIconPathStyle}"/>
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="通知组件"
-                                                  Click="BtnComponentNotice_Click">
-                                            <MenuItem.Icon>
-                                                <Path Data="{StaticResource IconLucideFileText}"
                                                       Style="{StaticResource LucideIconPathStyle}"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
@@ -1016,6 +1016,75 @@
                                         </StackPanel>
                                     </Grid>
                                 </Button>
+
+                                <Border x:Name="SecondLayerNoticeSeparator"
+                                        Width="1"
+                                        Height="22"
+                                        Margin="0,0,6,0"
+                                        VerticalAlignment="Center"
+                                        Background="{StaticResource BrushMenuBorder}"
+                                        Visibility="Collapsed"/>
+
+                                <Button x:Name="BtnSecondLayerNoticeSettings"
+                                        Width="44"
+                                        Height="30"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="通知参数"
+                                        Visibility="Collapsed"
+                                        Click="BtnSecondLayerNoticeSettings_Click">
+                                    <TextBlock Text="参数"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+
+                                <Button x:Name="BtnSecondLayerNoticeProjectionToggle"
+                                        Width="38"
+                                        Height="30"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="投影显示通知"
+                                        Visibility="Collapsed"
+                                        Click="BtnSecondLayerNoticeProjectionToggle_Click">
+                                    <TextBlock x:Name="SecondLayerNoticeProjectionToggleText"
+                                               Text="隐藏"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+
+                                <Button x:Name="BtnSecondLayerNoticeToggle"
+                                        Width="30"
+                                        Height="30"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="开启滚动"
+                                        Visibility="Collapsed"
+                                        Click="BtnSecondLayerNoticeToggle_Click">
+                                    <Path x:Name="SecondLayerNoticeToggleIcon"
+                                          Width="13"
+                                          Height="13"
+                                          Stretch="Fill"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          Data="M5 3L19 12L5 21V3Z"/>
+                                </Button>
+
+                                <Button x:Name="BtnSecondLayerNoticeDelete"
+                                        Width="30"
+                                        Height="30"
+                                        Margin="0,0,6,0"
+                                        Style="{StaticResource SecondLayerFlatButtonStyle}"
+                                        ToolTip="删除通知"
+                                        Foreground="#DC2626"
+                                        Visibility="Collapsed"
+                                        Click="BtnSecondLayerNoticeDelete_Click">
+                                    <Path Width="13"
+                                          Height="13"
+                                          Stretch="Fill"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          Data="M3 6H21V8H20V20C20 21.1 19.1 22 18 22H6C4.9 22 4 21.1 4 20V8H3V6ZM8 10V19H10V10H8ZM14 10V19H16V10H14ZM9 2H15L16 4H21V6H3V4H8L9 2Z"/>
+                                </Button>
                             </StackPanel>
                             </StackPanel>
                         </Grid>
@@ -1586,6 +1655,26 @@
                                         <DropShadowEffect ShadowDepth="0" BlurRadius="16" Opacity="0.22" Color="#000000"/>
                                     </Border.Effect>
                                     <controls:TextColorSettingsPanel x:Name="TextColorSettingsPanel"/>
+                                </Border>
+                            </Popup>
+
+                            <Popup x:Name="NoticeSettingsPopup"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   Placement="Bottom"
+                                   PlacementTarget="{Binding ElementName=BtnSecondLayerNoticeSettings}"
+                                   HorizontalOffset="0"
+                                   VerticalOffset="6"
+                                   IsOpen="False">
+                                <Border Background="#F7F7F7"
+                                        BorderBrush="#D8D8D8"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="6">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="0" BlurRadius="16" Opacity="0.22" Color="#000000"/>
+                                    </Border.Effect>
+                                    <controls:NoticeSettingsPanel x:Name="NoticeSettingsPanel"/>
                                 </Border>
                             </Popup>
 

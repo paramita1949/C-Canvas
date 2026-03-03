@@ -261,6 +261,11 @@ namespace ImageColorChanger.UI.Controls
             return PlaceholderTexts.Contains(normalized);
         }
 
+        private bool IsNoticeComponentElement()
+        {
+            return string.Equals(Data?.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase);
+        }
+
         #endregion
 
         #region 事件

@@ -45,6 +45,13 @@ namespace ImageColorChanger.UI
         private WpfControls.StackPanel SecondLayerSelectedActions => TextEditorSectionView?.SecondLayerSelectedActionsControl;
         private WpfShapes.Rectangle SecondLayerTextColorBar => TextEditorSectionView?.SecondLayerTextColorBarControl;
         private WpfShapes.Rectangle SecondLayerTextHighlightBar => TextEditorSectionView?.SecondLayerTextHighlightBarControl;
+        private WpfControls.Border SecondLayerNoticeSeparator => TextEditorSectionView?.SecondLayerNoticeSeparatorControl;
+        private WpfControls.Button BtnSecondLayerNoticeSettings => TextEditorSectionView?.BtnSecondLayerNoticeSettingsButton;
+        private WpfControls.Button BtnSecondLayerNoticeProjectionToggle => TextEditorSectionView?.BtnSecondLayerNoticeProjectionToggleButton;
+        private WpfControls.TextBlock SecondLayerNoticeProjectionToggleText => TextEditorSectionView?.SecondLayerNoticeProjectionToggleTextBlock;
+        private WpfControls.Button BtnSecondLayerNoticeToggle => TextEditorSectionView?.BtnSecondLayerNoticeToggleButton;
+        private WpfControls.Button BtnSecondLayerNoticeDelete => TextEditorSectionView?.BtnSecondLayerNoticeDeleteButton;
+        private WpfShapes.Path SecondLayerNoticeToggleIcon => TextEditorSectionView?.SecondLayerNoticeToggleIconPath;
         private WpfControls.Border SlidePanelBorder => TextEditorSectionView?.SlidePanelBorderControl;
         private WpfControls.ScrollViewer SlideScrollViewer => TextEditorSectionView?.SlideScrollViewerControl;
         private WpfControls.ListBox SlideListBox => TextEditorSectionView?.SlideListBoxControl;
@@ -75,6 +82,8 @@ namespace ImageColorChanger.UI
         private BackgroundSettingsPanel BackgroundSettingsPanel => TextEditorSectionView?.BackgroundSettingsPanelControl;
         private WpfPrimitives.Popup TextColorSettingsPopup => TextEditorSectionView?.TextColorSettingsPopupControl;
         private TextColorSettingsPanel TextColorSettingsPanel => TextEditorSectionView?.TextColorSettingsPanelControl;
+        private WpfPrimitives.Popup NoticeSettingsPopup => TextEditorSectionView?.NoticeSettingsPopupControl;
+        private NoticeSettingsPanel NoticeSettingsPanel => TextEditorSectionView?.NoticeSettingsPanelControl;
         private WpfPrimitives.Popup ShadowSettingsPopup => TextEditorSectionView?.ShadowSettingsPopupControl;
         private ShadowSettingsPanel ShadowSettingsPanel => TextEditorSectionView?.ShadowSettingsPanelControl;
         private WpfPrimitives.Popup SpacingSettingsPopup => TextEditorSectionView?.SpacingSettingsPopupControl;
@@ -145,6 +154,10 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerCanvasBackground_Click), BtnSecondLayerCanvasBackground_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerCanvasLayout_Click), BtnSecondLayerCanvasLayout_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerFillColor_Click), BtnSecondLayerFillColor_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerNoticeSettings_Click), BtnSecondLayerNoticeSettings_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerNoticeProjectionToggle_Click), BtnSecondLayerNoticeProjectionToggle_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerNoticeToggle_Click), BtnSecondLayerNoticeToggle_Click);
+            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerNoticeDelete_Click), BtnSecondLayerNoticeDelete_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerAlignmentMenu_Click), BtnSecondLayerAlignmentMenu_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnSecondLayerBorder_Click), BtnSecondLayerBorder_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnTextHighlightColor_Click), BtnTextHighlightColor_Click);

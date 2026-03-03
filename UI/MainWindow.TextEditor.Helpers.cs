@@ -18,6 +18,7 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.Projection.Output;
+using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
@@ -28,6 +29,7 @@ using WpfColor = System.Windows.Media.Color;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
 using SkiaSharp;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace ImageColorChanger.UI
 {
@@ -134,6 +136,8 @@ namespace ImageColorChanger.UI
                     UpdateToolbarButtonStatesFromSelection();
                 }
             };
+
+            EnsureNoticeAnimationLoopState();
         }
 
         private List<TextBoxSnapshot> CaptureTextBoxSnapshotsForSave(IEnumerable<DraggableTextBox> sourceTextBoxes = null)
@@ -556,7 +560,9 @@ namespace ImageColorChanger.UI
                     BackgroundRadius = tb.Data.BackgroundRadius,
                     BackgroundOpacity = tb.Data.BackgroundOpacity,
                     LineSpacing = tb.Data.LineSpacing,
-                    LetterSpacing = tb.Data.LetterSpacing
+                    LetterSpacing = tb.Data.LetterSpacing,
+                    ComponentType = tb.Data.ComponentType,
+                    ComponentConfigJson = tb.Data.ComponentConfigJson
                 })
                 .ToArray();
 
@@ -582,6 +588,600 @@ namespace ImageColorChanger.UI
                 BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset
             };
         }
+
+        private bool HasActiveNoticeAnimation(long nowMs)
+        {
+            foreach (var tb in _textBoxes)
+            {
+                if (!IsNoticeComponent(tb?.Data))
+                {
+                    continue;
+                }
+
+                var cfg = NoticeComponentConfigCodec.Deserialize(tb.Data.ComponentConfigJson);
+                var state = _noticeRuntimeService.GetOrCreateState(tb.Data.Id, nowMs);
+
+                if (state.IsManuallyClosed)
+                {
+                    continue;
+                }
+                if (state.IsAutoPausedByTimeout)
+                {
+                    continue;
+                }
+
+                long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
+                if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+                {
+                    state.PausedElapsedMs = elapsed;
+                    if (!state.IsAutoPausedByTimeout)
+                    {
+                        state.IsAutoPausedByTimeout = true;
+                        state.HasLastOffset = false;
+                        QueueNoticeProjectionRefresh();
+                    }
+                    continue;
+                }
+
+                if (cfg.ScrollingEnabled)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void QueueNoticeProjectionRefresh()
+        {
+            _noticeProjectionRefreshPending = true;
+            _textEditorProjectionRenderStateService?.ClearCache();
+        }
+
+        private bool TryGetNoticeRenderOffset(DraggableTextBox textBox, long nowMs, out double offsetX, bool isProjectionRender = false)
+        {
+            offsetX = 0;
+            if (!IsNoticeComponent(textBox?.Data))
+            {
+                return true;
+            }
+
+            var cfg = NoticeComponentConfigCodec.Deserialize(textBox.Data.ComponentConfigJson);
+            var state = _noticeRuntimeService.GetOrCreateState(textBox.Data.Id, nowMs);
+            if (state.IsManuallyClosed)
+            {
+                return false;
+            }
+            if (state.IsAutoPausedByTimeout)
+            {
+                // 超时后：主屏保持静止显示，投影隐藏。
+                return !isProjectionRender;
+            }
+
+            if (!cfg.ScrollingEnabled)
+            {
+                offsetX = 0;
+                return true;
+            }
+
+            long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
+            if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+            {
+                state.PausedElapsedMs = elapsed;
+                if (!state.IsAutoPausedByTimeout)
+                {
+                    state.IsAutoPausedByTimeout = true;
+                    state.HasLastOffset = false;
+                    QueueNoticeProjectionRefresh();
+                }
+                return !isProjectionRender;
+            }
+
+            double viewportWidth = Math.Max(1.0, textBox.ActualWidth > 0 ? textBox.ActualWidth : textBox.Data.Width);
+            double laneStartX = EstimateNoticeContentStartInset(textBox);
+            double laneEndX = EstimateNoticeContentEndInset(textBox);
+            double contentWidth = EstimateNoticeContentWidth(textBox);
+            // 对单向循环限制内容宽度，避免测宽误差导致回卷阈值失真；
+            // 往返模式需保留真实宽度，否则“内容宽于轨道”时会出现近似静止。
+            double visibleLaneWidth = Math.Max(1.0, viewportWidth - laneStartX - laneEndX);
+            if (cfg.Direction != NoticeDirection.PingPong)
+            {
+                contentWidth = Math.Min(contentWidth, visibleLaneWidth);
+            }
+            double contentStartX = EstimateNoticeContentStartXByDirection(
+                textBox,
+                cfg.Direction,
+                viewportWidth,
+                contentWidth,
+                laneStartX,
+                laneEndX);
+            double contentEndX = laneEndX;
+            offsetX = _noticeRuntimeService.GetLoopingOffset(
+                elapsed,
+                cfg.Speed,
+                cfg.Direction,
+                viewportWidth,
+                contentWidth,
+                laneStartX,
+                laneEndX,
+                contentStartX);
+
+#if DEBUG
+            TraceNoticeScrollDebug(
+                textBox,
+                cfg,
+                state,
+                nowMs,
+                elapsed,
+                viewportWidth,
+                contentWidth,
+                contentStartX,
+                contentEndX,
+                offsetX);
+#endif
+            return true;
+        }
+
+        private double EstimateNoticeContentWidth(DraggableTextBox textBox)
+        {
+            if (textBox == null)
+            {
+                return 1.0;
+            }
+
+            string content = string.Empty;
+            if (textBox.RichTextBox?.Document != null)
+            {
+                var range = new System.Windows.Documents.TextRange(
+                    textBox.RichTextBox.Document.ContentStart,
+                    textBox.RichTextBox.Document.ContentEnd);
+                content = range.Text ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                content = textBox.Data?.Content ?? string.Empty;
+            }
+
+            content = (content ?? string.Empty).Replace("\r\n", "\n").TrimEnd('\r', '\n');
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return Math.Max(1.0, (textBox.ActualWidth > 0 ? textBox.ActualWidth : textBox.Data?.Width ?? 1.0) * 0.2);
+            }
+
+            string fontFamily = CleanFontFamilyName(textBox.Data?.FontFamily);
+            float fontSize = (float)Math.Max(8.0, textBox.Data?.FontSize ?? 24.0);
+            using var typeface = SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+            using var font = new SKFont
+            {
+                Typeface = typeface,
+                Size = fontSize,
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var paint = new SKPaint { IsAntialias = true };
+
+            float maxLineWidth = 0f;
+            var lines = content.Split('\n');
+            foreach (var line in lines)
+            {
+                float width = font.MeasureText(line ?? string.Empty, paint);
+                if (width > maxLineWidth)
+                {
+                    maxLineWidth = width;
+                }
+            }
+
+            // 单一路径：Skia + FormattedText + 启发式兜底。
+            // 不再参与 WPF 文档/Extent，避免不同测量链路互相“打架”。
+            double formattedWidth = EstimateNoticeContentWidthFromFormattedText(textBox, content, fontFamily, fontSize);
+            // 按字符类型估算宽度，避免测量异常时得到“接近0”的宽度，导致碰撞点过晚。
+            double heuristicWidth = EstimateNoticeContentWidthFromHeuristic(content, fontSize);
+
+            // 主测量值：Skia 与 FormattedText 取大值，保证对字体回退更稳健。
+            double primaryWidth = Math.Max(maxLineWidth, formattedWidth);
+            if (primaryWidth < 1.0)
+            {
+                primaryWidth = heuristicWidth;
+            }
+
+            // 略偏保守地靠近启发式，优先避免“宽度偏小”导致离场后等待。
+            double measuredWidth = Math.Max(primaryWidth, heuristicWidth * 0.8);
+
+            // 当测量值显著偏小（例如仅 1~2px）时，使用启发式兜底。
+            if (measuredWidth < heuristicWidth * 0.35)
+            {
+                measuredWidth = heuristicWidth;
+            }
+
+            return Math.Max(1.0, measuredWidth);
+        }
+
+        private double EstimateNoticeContentWidthFromFormattedText(
+            DraggableTextBox textBox,
+            string content,
+            string fontFamily,
+            float fontSize)
+        {
+            try
+            {
+                var family = new System.Windows.Media.FontFamily(string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily);
+                var style = textBox.Data?.IsItalicBool == true ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal;
+                var weight = textBox.Data?.IsBoldBool == true ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal;
+                var typeface = new Typeface(family, style, weight, FontStretches.Normal);
+                double pixelsPerDip = 1.0;
+                if (EditorCanvas != null)
+                {
+                    pixelsPerDip = VisualTreeHelper.GetDpi(EditorCanvas).PixelsPerDip;
+                }
+
+                double maxWidth = 0;
+                foreach (var line in (content ?? string.Empty).Split('\n'))
+                {
+                    var formatted = new FormattedText(
+                        line ?? string.Empty,
+                        CultureInfo.CurrentUICulture,
+                        System.Windows.FlowDirection.LeftToRight,
+                        typeface,
+                        fontSize,
+                        System.Windows.Media.Brushes.Black,
+                        pixelsPerDip);
+
+                    maxWidth = Math.Max(maxWidth, formatted.WidthIncludingTrailingWhitespace);
+                }
+
+                return double.IsNaN(maxWidth) || double.IsInfinity(maxWidth) ? 0 : maxWidth;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static double EstimateNoticeContentWidthFromHeuristic(string content, float fontSize)
+        {
+            if (string.IsNullOrEmpty(content))
+            {
+                return fontSize * 0.8;
+            }
+
+            var lines = content.Split('\n');
+            double maxUnits = 0;
+            foreach (var line in lines)
+            {
+                double units = 0;
+                foreach (char c in line ?? string.Empty)
+                {
+                    if (char.IsWhiteSpace(c))
+                    {
+                        units += 0.35;
+                    }
+                    else if (c <= 0x7F)
+                    {
+                        units += 0.55;
+                    }
+                    else
+                    {
+                        units += 1.0;
+                    }
+                }
+                maxUnits = Math.Max(maxUnits, units);
+            }
+
+            if (maxUnits <= 0.1)
+            {
+                maxUnits = 1.0;
+            }
+
+            return maxUnits * fontSize;
+        }
+
+        private static double EstimateNoticeContentStartInset(DraggableTextBox textBox)
+        {
+            if (textBox?.RichTextBox == null)
+            {
+                return 0;
+            }
+
+            double inset = 0;
+            inset += Math.Max(0, textBox.RichTextBox.Padding.Left);
+            inset += Math.Max(0, textBox.RichTextBox.Document?.PagePadding.Left ?? 0);
+            return inset;
+        }
+
+        private static double EstimateNoticeContentEndInset(DraggableTextBox textBox)
+        {
+            if (textBox?.RichTextBox == null)
+            {
+                return 0;
+            }
+
+            double inset = 0;
+            inset += Math.Max(0, textBox.RichTextBox.Padding.Right);
+            inset += Math.Max(0, textBox.RichTextBox.Document?.PagePadding.Right ?? 0);
+            return inset;
+        }
+
+        private static double EstimateNoticeContentStartXByDirection(
+            DraggableTextBox textBox,
+            NoticeDirection direction,
+            double viewportWidth,
+            double contentWidth,
+            double laneStartX,
+            double laneEndX)
+        {
+            if (textBox == null)
+            {
+                return laneStartX;
+            }
+
+            double viewport = Math.Max(1.0, viewportWidth);
+            double laneStart = Math.Max(0.0, laneStartX);
+            double laneEnd = Math.Max(0.0, laneEndX);
+            double laneWidth = Math.Max(1.0, viewport - laneStart - laneEnd);
+            _ = textBox;
+            double width = Math.Min(Math.Max(1.0, contentWidth), laneWidth);
+            return direction == NoticeDirection.RightToLeft
+                ? laneStart + Math.Max(0.0, laneWidth - width)
+                : laneStart;
+        }
+
+        private static void TraceNoticeScrollDebug(
+            DraggableTextBox textBox,
+            NoticeComponentConfig cfg,
+            NoticeRuntimeState state,
+            long nowMs,
+            long elapsed,
+            double viewportWidth,
+            double contentWidth,
+            double contentStartX,
+            double contentEndX,
+            double offsetX)
+        {
+#if DEBUG
+            if (!EnableNoticeDebugLogs && (cfg?.DebugEnabled != true))
+            {
+                return;
+            }
+#endif
+            if (textBox?.Data == null || cfg == null || state == null)
+            {
+                return;
+            }
+
+            bool wrapped = false;
+            if (state.HasLastOffset)
+            {
+                wrapped = cfg.Direction == NoticeDirection.RightToLeft
+                    ? (offsetX - state.LastOffsetX) > 5
+                    : (state.LastOffsetX - offsetX) > 5;
+            }
+
+            bool shouldLog = wrapped || (nowMs - state.LastDebugLogTimestampMs >= 500);
+            if (shouldLog)
+            {
+                string dir = cfg.Direction switch
+                {
+                    NoticeDirection.RightToLeft => "R->L",
+                    NoticeDirection.PingPong => "Bounce",
+                    _ => "L->R"
+                };
+                string align = textBox.Data.TextAlign ?? "Left";
+                double rightWall = Math.Max(contentStartX, viewportWidth - contentEndX - contentWidth);
+                double leftX = contentStartX + offsetX;
+                double rightX = leftX + contentWidth;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[NoticeScrollDebug] Id={textBox.Data.Id} Dir={dir} Align={align} " +
+                    $"Speed={cfg.Speed} Elapsed={elapsed}ms Offset={offsetX:F2} " +
+                    $"Viewport={viewportWidth:F1} Content={contentWidth:F1} Start={contentStartX:F1} End={contentEndX:F1} " +
+                    $"LeftX={leftX:F1} RightX={rightX:F1} RightWall={rightWall:F1} Wrapped={(wrapped ? 1 : 0)}");
+                state.LastDebugLogTimestampMs = nowMs;
+            }
+
+            state.LastOffsetX = offsetX;
+            state.HasLastOffset = true;
+        }
+
+        private void EnsureNoticeAnimationLoopState()
+        {
+            if (TextEditorPanel == null || TextEditorPanel.Visibility != Visibility.Visible)
+            {
+                StopNoticeAnimationLoop(resetPreviewOffsets: true);
+                UpdateNoticeToggleButtonState();
+                return;
+            }
+
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool hasActive = HasActiveNoticeAnimation(nowMs);
+            ApplyNoticePreviewOffsets(nowMs);
+
+            if (hasActive)
+            {
+                StartNoticeAnimationLoop();
+            }
+            else
+            {
+                StopNoticeAnimationLoop(resetPreviewOffsets: false);
+            }
+
+            UpdateNoticeToggleButtonState();
+        }
+
+        private void StartNoticeAnimationLoop()
+        {
+            if (!_noticeRenderingSubscribed)
+            {
+                System.Windows.Media.CompositionTarget.Rendering += NoticeAnimationRendering;
+                _noticeRenderingSubscribed = true;
+            }
+        }
+
+        private void StopNoticeAnimationLoop(bool resetPreviewOffsets)
+        {
+            if (_noticeRenderingSubscribed)
+            {
+                System.Windows.Media.CompositionTarget.Rendering -= NoticeAnimationRendering;
+                _noticeRenderingSubscribed = false;
+            }
+
+            if (resetPreviewOffsets)
+            {
+                ResetNoticePreviewOffsets();
+            }
+        }
+
+        private void NoticeAnimationRendering(object sender, EventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (TextEditorPanel == null || TextEditorPanel.Visibility != Visibility.Visible)
+            {
+                StopNoticeAnimationLoop(resetPreviewOffsets: true);
+                UpdateNoticeToggleButtonState();
+                return;
+            }
+
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool hasActive = HasActiveNoticeAnimation(nowMs);
+            TraceNoticeGpuStatus(nowMs);
+
+            ApplyNoticePreviewOffsets(nowMs);
+
+            if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
+            {
+                bool forceProjectionRefresh = _noticeProjectionRefreshPending;
+                if (forceProjectionRefresh || nowMs - _lastNoticeProjectionUpdateMs >= NoticeProjectionFrameIntervalMs)
+                {
+                    _lastNoticeProjectionUpdateMs = nowMs;
+                    UpdateProjectionContent();
+                }
+            }
+
+            if (!hasActive)
+            {
+                StopNoticeAnimationLoop(resetPreviewOffsets: false);
+            }
+
+            if (IsSelectedTextBoxNoticeComponent())
+            {
+                UpdateNoticeToggleButtonState();
+            }
+        }
+
+        private void TraceNoticeGpuStatus(long nowMs)
+        {
+#if !DEBUG
+            _ = nowMs;
+            return;
+#else
+            if (!EnableNoticeDebugLogs)
+            {
+                _ = nowMs;
+                return;
+            }
+
+            if (nowMs - _lastNoticeGpuDebugLogMs < 2000)
+            {
+                return;
+            }
+
+            foreach (var tb in _textBoxes)
+            {
+                if (!IsNoticeComponent(tb?.Data))
+                {
+                    continue;
+                }
+
+                bool gpuEnabled = _gpuContext?.IsGpuAvailable == true;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[NoticeScrollDebug] GPU={(gpuEnabled ? "Enabled" : "Disabled")} " +
+                    $"ProjectionActive={(_projectionManager?.IsProjectionActive == true ? 1 : 0)} " +
+                    $"FrameIntervalMs={NoticeAnimationFrameInterval.TotalMilliseconds:F0} " +
+                    $"ProjectionIntervalMs={NoticeProjectionFrameIntervalMs}");
+                _lastNoticeGpuDebugLogMs = nowMs;
+                return;
+            }
+#endif
+        }
+
+        private void ApplyNoticePreviewOffsets(long nowMs)
+        {
+            foreach (var textBox in _textBoxes)
+            {
+                if (!IsNoticeComponent(textBox?.Data))
+                {
+                    continue;
+                }
+
+                if (!TryGetNoticeRenderOffset(textBox, nowMs, out double offsetX, isProjectionRender: false))
+                {
+                    textBox.SetNoticeTextOffset(0);
+                    textBox.Visibility = Visibility.Visible;
+                    continue;
+                }
+
+                Canvas.SetLeft(textBox, textBox.Data.X);
+                Canvas.SetTop(textBox, textBox.Data.Y);
+                textBox.Visibility = Visibility.Visible;
+                textBox.SetNoticeTextOffset(offsetX);
+            }
+        }
+
+        private void ResetNoticePreviewOffsets()
+        {
+            foreach (var textBox in _textBoxes)
+            {
+                if (!IsNoticeComponent(textBox?.Data))
+                {
+                    continue;
+                }
+
+                Canvas.SetLeft(textBox, textBox.Data.X);
+                Canvas.SetTop(textBox, textBox.Data.Y);
+                textBox.SetNoticeTextOffset(0);
+                textBox.Visibility = Visibility.Visible;
+            }
+        }
+
+        private static IEnumerable<NoticePosition> EnumerateNoticePositions(NoticePositionFlags flags)
+        {
+            var normalized = NoticeComponentConfig.NormalizePositionFlags(flags);
+            if ((normalized & NoticePositionFlags.Top) == NoticePositionFlags.Top)
+            {
+                yield return NoticePosition.Top;
+            }
+
+            if ((normalized & NoticePositionFlags.Center) == NoticePositionFlags.Center)
+            {
+                yield return NoticePosition.Center;
+            }
+
+            if ((normalized & NoticePositionFlags.Bottom) == NoticePositionFlags.Bottom)
+            {
+                yield return NoticePosition.Bottom;
+            }
+        }
+
+        private double CalculateNoticePositionY(DraggableTextBox textBox, NoticePosition position)
+        {
+            if (textBox?.Data == null)
+            {
+                return 0;
+            }
+
+            double canvasHeight = EditorCanvas?.ActualHeight > 1
+                ? EditorCanvas.ActualHeight
+                : (_currentTextProject?.CanvasHeight > 0 ? _currentTextProject.CanvasHeight : 900);
+            double boxHeight = textBox.ActualHeight > 1 ? textBox.ActualHeight : Math.Max(1, textBox.Data.Height);
+
+            return position switch
+            {
+                NoticePosition.Center => Math.Max(0, (canvasHeight - boxHeight) / 2.0),
+                NoticePosition.Bottom => Math.Max(0, canvasHeight - boxHeight),
+                _ => 0
+            };
+        }
         
         /// <summary>
         /// 从Canvas更新投影（核心投影功能）
@@ -592,6 +1192,16 @@ namespace ImageColorChanger.UI
         private void UpdateProjectionFromCanvas()
         {
             bool suppressAnimationThisCall = ConsumeSuppressNextProjectionAnimation();
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool noticeAnimationActive = HasActiveNoticeAnimation(nowMs);
+            bool noticeSelected = IsSelectedTextBoxNoticeComponent();
+
+            if (noticeAnimationActive || noticeSelected)
+            {
+                // 通知组件只参与内容刷新，不参与幻灯片淡入淡出动画刷新。
+                suppressAnimationThisCall = true;
+            }
+
             if (_isBiblePopupOverlayVisible && _biblePopupOverlayEnterProgress < 0.999)
             {
                 // 弹窗进入动画期间，强制关闭投影链路的二次淡入，避免主屏/投影透明度不一致。
@@ -626,14 +1236,22 @@ namespace ImageColorChanger.UI
                 {
                     // 主屏幕有视频：更新投影的独立 MediaElement
                     var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
-                    var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+                    var textLayer = ComposeCanvasWithSkia(
+                        projWidth,
+                        projHeight,
+                        transparentBackground: true,
+                        hideNoticeComponents: _hideNoticeOnProjection);
                     _projectionManager.UpdateProjectionWithLockedVideo(
                         _currentSlide.BackgroundImagePath,
                         _currentSlide.VideoLoopEnabled,
                         textLayer);
 
                     // NDI 全投影：锁定视频路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
-                    var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+                    var ndiFrame = ComposeCanvasWithSkia(
+                        projWidth,
+                        projHeight,
+                        transparentBackground: false,
+                        hideNoticeComponents: _hideNoticeOnProjection);
                     PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
                     ndiFrame?.Dispose();
                 }
@@ -658,6 +1276,8 @@ namespace ImageColorChanger.UI
                     UpdateProjectionWithStaticBackground();
                 }
             }
+
+            _noticeProjectionRefreshPending = false;
         }
 
         /// <summary>
@@ -717,7 +1337,11 @@ namespace ImageColorChanger.UI
 #if DEBUG
             var textLayerStartTime = System.Diagnostics.Stopwatch.StartNew();
 #endif
-            var textLayer = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: true);
+            var textLayer = ComposeCanvasWithSkia(
+                projWidth,
+                projHeight,
+                transparentBackground: true,
+                hideNoticeComponents: _hideNoticeOnProjection);
 #if DEBUG
             textLayerStartTime.Stop();
             //System.Diagnostics.Debug.WriteLine($"[视频投影] 文本层渲染完成 (耗时: {textLayerStartTime.ElapsedMilliseconds} ms)");
@@ -730,7 +1354,11 @@ namespace ImageColorChanger.UI
             _projectionManager.UpdateProjectionWithVideo(visualBrush, textLayer);
 
             // NDI 全投影：视频背景路径下尽力输出整帧（视频帧采集未接入前，使用当前画布合成结果兜底）
-            var ndiFrame = ComposeCanvasWithSkia(projWidth, projHeight, transparentBackground: false);
+            var ndiFrame = ComposeCanvasWithSkia(
+                projWidth,
+                projHeight,
+                transparentBackground: false,
+                hideNoticeComponents: _hideNoticeOnProjection);
             PublishSlideFrameToNdi(ndiFrame, projWidth, projHeight);
             ndiFrame?.Dispose();
 #if DEBUG
@@ -757,7 +1385,12 @@ namespace ImageColorChanger.UI
 
             // 渲染节流 - 避免过于频繁的更新
             var now = DateTime.UtcNow;
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool hasNoticeAnimation = HasActiveNoticeAnimation(nowMs);
+            bool forceProjectionRefresh = _noticeProjectionRefreshPending;
             if (!_isBiblePopupOverlayVisible &&
+                !hasNoticeAnimation &&
+                !forceProjectionRefresh &&
                 _textEditorProjectionRenderStateService?.ShouldThrottle(now, CanvasUpdateThrottleMs) == true)
             {
                 return;
@@ -766,10 +1399,14 @@ namespace ImageColorChanger.UI
             // 缓存检查 - 如果Canvas内容没变，直接复用上次的渲染结果
             string cacheKey = _textEditorProjectionRenderStateService?.BuildCanvasCacheKey(BuildProjectionCacheContext()) ?? string.Empty;
             bool bypassCacheForPopupAnimation = _isBiblePopupOverlayVisible && _biblePopupOverlayEnterProgress < 0.999;
+            bool bypassCacheForNoticeAnimation = hasNoticeAnimation;
+            bool bypassCacheForForcedNoticeRefresh = forceProjectionRefresh;
 #if DEBUG
             //System.Diagnostics.Debug.WriteLine($"[静态投影-缓存] 检查缓存键: {cacheKey}");
 #endif
             if (!bypassCacheForPopupAnimation &&
+                !bypassCacheForNoticeAnimation &&
+                !bypassCacheForForcedNoticeRefresh &&
                 _textEditorProjectionRenderStateService?.TryGetCached(cacheKey, out var cachedBitmap) == true &&
                 cachedBitmap != null)
             {
@@ -794,7 +1431,10 @@ namespace ImageColorChanger.UI
 
                         // 使用物理像素分辨率（而非WPF单位），获得最高质量
                         var (projWidth, projHeight) = _projectionManager?.GetCurrentProjectionPhysicalSize() ?? (1920, 1080);
-                        var finalImage = ComposeCanvasWithSkia(projWidth, projHeight);
+                        var finalImage = ComposeCanvasWithSkia(
+                            projWidth,
+                            projHeight,
+                            hideNoticeComponents: _hideNoticeOnProjection);
 
                         _projectionManager.UpdateProjectionTextFullFrame(finalImage);
                         PublishSlideFrameToNdi(finalImage, projWidth, projHeight);
@@ -843,7 +1483,8 @@ namespace ImageColorChanger.UI
                     targetWidth,
                     targetHeight,
                     transparentBackground: true,
-                    textOnlyOverlay: true);
+                    textOnlyOverlay: true,
+                    hideNoticeComponents: _hideNoticeOnProjection);
                 _projectionNdiOutputManager.PublishFrame(transparentFrame, ProjectionNdiContentType.SlideTransparent);
                 return;
             }
@@ -860,11 +1501,13 @@ namespace ImageColorChanger.UI
         /// <param name="targetHeight">目标高度（0表示使用Canvas实际高度）</param>
         /// <param name="transparentBackground">是否使用透明背景（true=透明，false=使用幻灯片背景色）</param>
         /// <param name="textOnlyOverlay">是否只渲染文本层（忽略背景图、分割图与分割线）</param>
+        /// <param name="hideNoticeComponents">是否跳过通知组件绘制（用于仅投影隐藏通知）</param>
         private SKBitmap ComposeCanvasWithSkia(
             int targetWidth = 0,
             int targetHeight = 0,
             bool transparentBackground = false,
-            bool textOnlyOverlay = false)
+            bool textOnlyOverlay = false,
+            bool hideNoticeComponents = false)
         {
             // 编辑器画布的实际尺寸（用于计算缩放比例）
             double canvasWidth = EditorCanvas.ActualWidth;
@@ -1174,14 +1817,42 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 绘制所有文本框
+                long nowMsForNotice = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 foreach (var textBox in _textBoxes)
                 {
                     //#if DEBUG
                     //var textSw = System.Diagnostics.Stopwatch.StartNew();
                     //System.Diagnostics.Debug.WriteLine($"  [Compose] 文本框位置: ({textBox.Data.X}, {textBox.Data.Y}), 尺寸: {textBox.Data.Width}×{textBox.Data.Height}");
                     //#endif
-                    
-                    DrawTextBoxToCanvas(canvas, textBox);
+
+                    if (hideNoticeComponents && IsNoticeComponent(textBox?.Data))
+                    {
+                        continue;
+                    }
+
+                    if (!TryGetNoticeRenderOffset(textBox, nowMsForNotice, out double noticeOffsetX, isProjectionRender: true))
+                    {
+                        continue;
+                    }
+
+                    if (IsNoticeComponent(textBox?.Data))
+                    {
+                        var cfg = NoticeComponentConfigCodec.Deserialize(textBox.Data.ComponentConfigJson);
+                        var flags = NoticeComponentConfig.NormalizePositionFlags(cfg.PositionFlags);
+                        var currentPosition = DetectNoticePositionFromCurrentY(textBox);
+
+                        foreach (var position in EnumerateNoticePositions(flags))
+                        {
+                            double? topOverride = position == currentPosition
+                                ? null
+                                : CalculateNoticePositionY(textBox, position);
+                            DrawTextBoxToCanvas(canvas, textBox, noticeOffsetX, topOverride);
+                        }
+                    }
+                    else
+                    {
+                        DrawTextBoxToCanvas(canvas, textBox, noticeOffsetX);
+                    }
                     
                     //#if DEBUG
                     //textSw.Stop();
@@ -1801,13 +2472,13 @@ namespace ImageColorChanger.UI
         /// 将文本框绘制到SkiaSharp画布上
         ///  使用 WPF 原生 RenderTargetBitmap 渲染 RichTextBox，确保行间距与主屏幕完全一致
         /// </summary>
-        private void DrawTextBoxToCanvas(SKCanvas canvas, DraggableTextBox textBox)
+        private void DrawTextBoxToCanvas(SKCanvas canvas, DraggableTextBox textBox, double textOffsetX = 0, double? topOverride = null)
         {
             var data = textBox.Data;
 
             // 获取文本框在Canvas上的实际位置（而不是Data中的值）
             double actualLeft = Canvas.GetLeft(textBox);
-            double actualTop = Canvas.GetTop(textBox);
+            double actualTop = topOverride ?? Canvas.GetTop(textBox);
             double actualWidth = textBox.ActualWidth;
             double actualHeight = textBox.ActualHeight;
 
@@ -1835,7 +2506,7 @@ namespace ImageColorChanger.UI
 //#endif
 
                     //  使用 WPF 原生方法渲染 RichTextBox，传入缩放比例以获得高清效果
-                    var wpfBitmap = textBox.GetRenderedBitmap(_currentCanvasScaleX, _currentCanvasScaleY);
+                    var wpfBitmap = textBox.GetRenderedBitmap(_currentCanvasScaleX, _currentCanvasScaleY, textOffsetX);
 
                     if (wpfBitmap != null)
                     {
