@@ -40,6 +40,9 @@ namespace ImageColorChanger.UI.Controls
                 offsetX = 0;
             }
 
+            bool scrolling = Math.Abs(offsetX) >= 0.01;
+            SetNoticeScrollGpuCache(scrolling);
+
             var transform = _richTextBox.RenderTransform as System.Windows.Media.TranslateTransform;
             if (transform == null)
             {
@@ -49,6 +52,32 @@ namespace ImageColorChanger.UI.Controls
 
             transform.X = Math.Abs(offsetX) < 0.01 ? 0 : offsetX;
             transform.Y = 0;
+        }
+
+        private void SetNoticeScrollGpuCache(bool enabled)
+        {
+            if (_richTextBox == null || _noticeGpuCacheEnabled == enabled)
+            {
+                return;
+            }
+
+            if (enabled)
+            {
+                _richTextBox.CacheMode = new System.Windows.Media.BitmapCache
+                {
+                    EnableClearType = true,
+                    RenderAtScale = 1.0,
+                    SnapsToDevicePixels = true
+                };
+                System.Windows.Media.RenderOptions.SetCachingHint(_richTextBox, System.Windows.Media.CachingHint.Cache);
+            }
+            else
+            {
+                _richTextBox.CacheMode = null;
+                System.Windows.Media.RenderOptions.SetCachingHint(_richTextBox, System.Windows.Media.CachingHint.Unspecified);
+            }
+
+            _noticeGpuCacheEnabled = enabled;
         }
     }
 }

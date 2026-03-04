@@ -13,6 +13,8 @@ namespace ImageColorChanger.Managers
         public System.Windows.Controls.Grid ProjectionContainer { get; init; }
         public System.Windows.Controls.Image ProjectionImageControl { get; init; }
         public System.Windows.Shapes.Rectangle ProjectionVisualBrushRect { get; init; }
+        public System.Windows.Controls.Grid ProjectionNoticeOverlayContainer { get; init; }
+        public System.Windows.Controls.Image ProjectionNoticeOverlayImage { get; init; }
         public System.Windows.Controls.Grid ProjectionVideoContainer { get; init; }
         public System.Windows.Controls.Image ProjectionVideoImage { get; init; }
         public VideoView ProjectionVideoView { get; init; }

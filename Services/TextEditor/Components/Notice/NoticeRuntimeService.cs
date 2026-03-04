@@ -28,8 +28,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                     IsManuallyClosed = false,
                     IsAutoPausedByTimeout = false,
                     HasLastOffset = false,
-                    LastOffsetX = 0,
-                    LastDebugLogTimestampMs = 0
+                    LastOffsetX = 0
                 };
                 _states[textElementId] = created;
                 return created;
@@ -100,7 +99,6 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 state.PausedElapsedMs = 0;
                 state.HasLastOffset = false;
                 state.LastOffsetX = 0;
-                state.LastDebugLogTimestampMs = 0;
             }
         }
 
@@ -250,9 +248,9 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 return positionX - startX;
             }
 
-            // L->R：文本尾部触达轨道右边界后即回卷，无等待空白。
-            double rightWallX = laneRight - content;
-            double ltrTravel = rightWallX - startX;
+            // L->R：首字符完全离开轨道右边界后回卷（与 R->L 的离场判定对称）。
+            double leaveRightX = laneRight;
+            double ltrTravel = leaveRightX - startX;
             if (ltrTravel <= 1)
             {
                 // 长文本兜底：保持移动，不锁死在 0~几像素。

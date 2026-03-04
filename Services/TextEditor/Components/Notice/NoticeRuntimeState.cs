@@ -8,6 +8,5 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
         public long PausedElapsedMs { get; set; }
         public bool HasLastOffset { get; set; }
         public double LastOffsetX { get; set; }
-        public long LastDebugLogTimestampMs { get; set; }
     }
 }

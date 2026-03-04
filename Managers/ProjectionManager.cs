@@ -52,6 +52,8 @@ namespace ImageColorChanger.Managers
         private Grid _projectionContainer;  // 容器Grid,用于控制滚动区域
         private System.Windows.Controls.Image _projectionImageControl;
         private BitmapSource _projectionImage;
+        private Grid _projectionNoticeOverlayContainer; // 通知覆盖层容器
+        private System.Windows.Controls.Image _projectionNoticeOverlayImage; // 通知覆盖层图像
         
         // 视频投影相关
         private Grid _projectionVideoContainer;  // 视频容器

@@ -12,6 +12,75 @@ namespace ImageColorChanger.Managers
     public partial class ProjectionManager
     {
         /// <summary>
+        /// 更新通知覆盖层（透明叠加，不改动底图）。
+        /// </summary>
+        public void UpdateProjectionNoticeOverlay(SKBitmap noticeOverlayFrame)
+        {
+            if (_projectionWindow == null || noticeOverlayFrame == null)
+            {
+                return;
+            }
+
+            try
+            {
+                RunOnMainDispatcher(() =>
+                {
+                    if (_projectionNoticeOverlayImage == null || _projectionNoticeOverlayContainer == null)
+                    {
+                        return;
+                    }
+
+                    var bitmapSource = ConvertToBitmapSource(noticeOverlayFrame);
+                    if (bitmapSource == null)
+                    {
+                        HideProjectionNoticeOverlayOnUi();
+                        return;
+                    }
+
+                    _projectionNoticeOverlayImage.Source = bitmapSource;
+                    _projectionNoticeOverlayImage.Visibility = Visibility.Visible;
+                    _projectionNoticeOverlayContainer.Visibility = Visibility.Visible;
+                });
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
+        /// 隐藏通知覆盖层。
+        /// </summary>
+        public void HideProjectionNoticeOverlay()
+        {
+            if (_projectionWindow == null)
+            {
+                return;
+            }
+
+            try
+            {
+                RunOnMainDispatcher(HideProjectionNoticeOverlayOnUi);
+            }
+            catch
+            {
+            }
+        }
+
+        private void HideProjectionNoticeOverlayOnUi()
+        {
+            if (_projectionNoticeOverlayImage != null)
+            {
+                _projectionNoticeOverlayImage.Source = null;
+                _projectionNoticeOverlayImage.Visibility = Visibility.Collapsed;
+            }
+
+            if (_projectionNoticeOverlayContainer != null)
+            {
+                _projectionNoticeOverlayContainer.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
         /// 更新投影文字内容（专门用于歌词/文本编辑器）
         /// </summary>
         public void UpdateProjectionText(SKBitmap renderedTextImage)
@@ -138,6 +207,8 @@ namespace ImageColorChanger.Managers
                 _projectionImageControl.Visibility = Visibility.Visible;
                 _projectionImageControl.Source = null;
             }
+
+            HideProjectionNoticeOverlayOnUi();
 
             _currentBibleScrollViewer = null;
         }

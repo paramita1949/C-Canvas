@@ -17,7 +17,6 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const bool EnableTextDriftTrace = false;
-        private const bool EnableNoticeHeightDebugTrace = false;
         private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
         private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
         private const string NoticeTogglePlayIconData = "M5 3L19 12L5 21V3Z";
@@ -841,70 +840,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            TraceNoticeHeightAlignment("BeforeHeightApply", textBox);
             double clampedHeight = Math.Clamp(height, 40, 320);
             textBox.Data.Height = clampedHeight;
             textBox.Height = clampedHeight;
             textBox.SetTextVerticalAlign("Middle");
             textBox.RefreshTextLayoutProfile();
-            TraceNoticeHeightAlignment("AfterImmediateRefresh", textBox);
             textBox.Dispatcher?.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() =>
             {
                 textBox.RefreshTextLayoutProfile();
-                TraceNoticeHeightAlignment("AfterRenderRefresh", textBox);
             }));
-        }
-
-        private void TraceNoticeHeightAlignment(string tag, DraggableTextBox textBox)
-        {
-#if !DEBUG
-            _ = tag;
-            _ = textBox;
-            return;
-#else
-            if (!EnableNoticeHeightDebugTrace || textBox?.Data == null || !IsNoticeComponent(textBox.Data))
-            {
-                return;
-            }
-
-            try
-            {
-                var rtb = textBox.RichTextBox;
-                if (rtb == null)
-                {
-                    Debug.WriteLine($"[NoticeVAlignDebug] {tag} Id={textBox.Data.Id} RichTextBox=null");
-                    return;
-                }
-
-                var rtbPadding = rtb.Padding;
-                var docPadding = rtb.Document?.PagePadding ?? new Thickness(0);
-                double contentHeight = rtb.ExtentHeight;
-                if (contentHeight <= 0.1 || double.IsNaN(contentHeight) || double.IsInfinity(contentHeight))
-                {
-                    var start = rtb.Document?.ContentStart;
-                    var end = rtb.Document?.ContentEnd;
-                    if (start != null && end != null)
-                    {
-                        var startRect = start.GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
-                        var endRect = end.GetCharacterRect(System.Windows.Documents.LogicalDirection.Backward);
-                        contentHeight = Math.Max(0, endRect.Bottom - startRect.Top);
-                    }
-                }
-
-                double availableHeight = Math.Max(0, rtb.ActualHeight - rtbPadding.Top - rtbPadding.Bottom);
-                Debug.WriteLine(
-                    $"[NoticeVAlignDebug] {tag} Id={textBox.Data.Id} " +
-                    $"BoxH={textBox.Data.Height:F1}/{textBox.ActualHeight:F1} " +
-                    $"RtbH={rtb.ActualHeight:F1} Avail={availableHeight:F1} Content={contentHeight:F1} " +
-                    $"VAlign={textBox.Data.TextVerticalAlign} " +
-                    $"RtbPad=({rtbPadding.Left:F1},{rtbPadding.Top:F1},{rtbPadding.Right:F1},{rtbPadding.Bottom:F1}) " +
-                    $"DocPad=({docPadding.Left:F1},{docPadding.Top:F1},{docPadding.Right:F1},{docPadding.Bottom:F1})");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[NoticeVAlignDebug] {tag} ERROR: {ex.Message}");
-            }
-#endif
         }
 
         private NoticePosition DetectNoticePositionFromCurrentY(DraggableTextBox textBox)
@@ -936,9 +880,52 @@ namespace ImageColorChanger.UI
             return NoticePosition.Top;
         }
 
+        private bool IsNoticeScrollingRunning(DraggableTextBox textBox, long nowMs)
+        {
+            if (!IsNoticeComponent(textBox?.Data))
+            {
+                return false;
+            }
+
+            var cfg = NoticeComponentConfigCodec.Deserialize(textBox.Data.ComponentConfigJson);
+            var state = _noticeRuntimeService.GetOrCreateState(textBox.Data.Id, nowMs);
+            if (state.IsManuallyClosed || state.IsAutoPausedByTimeout)
+            {
+                return false;
+            }
+
+            long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
+            if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+            {
+                return false;
+            }
+
+            return cfg.ScrollingEnabled;
+        }
+
+        private DraggableTextBox ResolveNoticeToggleTargetTextBox()
+        {
+            if (IsSelectedTextBoxNoticeComponent())
+            {
+                return _selectedTextBox;
+            }
+
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            foreach (var textBox in _textBoxes)
+            {
+                if (IsNoticeScrollingRunning(textBox, nowMs))
+                {
+                    return textBox;
+                }
+            }
+
+            return null;
+        }
+
         private void BtnSecondLayerNoticeToggle_Click(object sender, RoutedEventArgs e)
         {
-            if (!IsSelectedTextBoxNoticeComponent())
+            var noticeTextBox = ResolveNoticeToggleTargetTextBox();
+            if (noticeTextBox == null)
             {
                 return;
             }
@@ -946,37 +933,38 @@ namespace ImageColorChanger.UI
             _ = sender;
             _ = e;
 
-            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            var cfg = NoticeComponentConfigCodec.Deserialize(noticeTextBox.Data.ComponentConfigJson);
             string autoAlign = cfg.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
-            _selectedTextBox.ApplyStyle(textAlign: autoAlign);
+            noticeTextBox.ApplyStyle(textAlign: autoAlign);
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var state = _noticeRuntimeService.GetOrCreateState(_selectedTextBox.Data.Id, nowMs);
+            var state = _noticeRuntimeService.GetOrCreateState(noticeTextBox.Data.Id, nowMs);
             bool isRunning = cfg.ScrollingEnabled && !state.IsAutoPausedByTimeout;
 
             if (isRunning)
             {
                 cfg.ScrollingEnabled = false;
-                _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
+                noticeTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
                 MarkContentAsModified();
                 ShowToast("滚动已暂停");
             }
             else
             {
                 cfg.ScrollingEnabled = true;
-                _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
+                noticeTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
                 if (state.IsManuallyClosed || state.IsAutoPausedByTimeout)
                 {
-                    _noticeRuntimeService.Reopen(_selectedTextBox.Data.Id, nowMs);
+                    _noticeRuntimeService.Reopen(noticeTextBox.Data.Id, nowMs);
                 }
                 else
                 {
-                    _noticeRuntimeService.Resume(_selectedTextBox.Data.Id, nowMs);
+                    _noticeRuntimeService.Resume(noticeTextBox.Data.Id, nowMs);
                 }
                 MarkContentAsModified();
                 ShowToast("滚动已开启");
             }
 
             EnsureNoticeAnimationLoopState();
+            UpdateSecondLayerSelectedActionsVisibility(_selectedTextBox != null);
             UpdateNoticeToggleButtonState();
             if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
             {
@@ -1024,24 +1012,42 @@ namespace ImageColorChanger.UI
 
         private void UpdateNoticeToggleButtonState()
         {
-            if (BtnSecondLayerNoticeToggle == null || SecondLayerNoticeToggleIcon == null)
+            if ((BtnSecondLayerNoticeToggle == null || SecondLayerNoticeToggleIcon == null)
+                && (BtnSecondLayerNoticeStickyToggle == null || SecondLayerNoticeStickyToggleIcon == null))
             {
                 return;
             }
 
-            if (!IsSelectedTextBoxNoticeComponent())
+            void ApplyVisual(bool isRunning)
             {
-                SecondLayerNoticeToggleIcon.Data = Geometry.Parse(NoticeTogglePlayIconData);
-                BtnSecondLayerNoticeToggle.ToolTip = "开启滚动";
+                Geometry iconData = Geometry.Parse(isRunning ? NoticeTogglePauseIconData : NoticeTogglePlayIconData);
+                string tooltip = isRunning ? "暂停滚动" : "开启滚动";
+
+                if (BtnSecondLayerNoticeToggle != null && SecondLayerNoticeToggleIcon != null)
+                {
+                    SecondLayerNoticeToggleIcon.Data = iconData;
+                    BtnSecondLayerNoticeToggle.ToolTip = tooltip;
+                }
+
+                if (BtnSecondLayerNoticeStickyToggle != null && SecondLayerNoticeStickyToggleIcon != null)
+                {
+                    SecondLayerNoticeStickyToggleIcon.Data = iconData;
+                    BtnSecondLayerNoticeStickyToggle.ToolTip = tooltip;
+                }
+            }
+
+            var targetNotice = ResolveNoticeToggleTargetTextBox();
+            if (targetNotice == null)
+            {
+                ApplyVisual(isRunning: false);
                 return;
             }
 
-            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
-            var state = _noticeRuntimeService.GetOrCreateState(_selectedTextBox.Data.Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            var cfg = NoticeComponentConfigCodec.Deserialize(targetNotice.Data.ComponentConfigJson);
+            var state = _noticeRuntimeService.GetOrCreateState(targetNotice.Data.Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             bool isRunning = cfg.ScrollingEnabled && !state.IsManuallyClosed && !state.IsAutoPausedByTimeout;
 
-            SecondLayerNoticeToggleIcon.Data = Geometry.Parse(isRunning ? NoticeTogglePauseIconData : NoticeTogglePlayIconData);
-            BtnSecondLayerNoticeToggle.ToolTip = isRunning ? "暂停滚动" : "开启滚动";
+            ApplyVisual(isRunning);
         }
 
         private void UpdateNoticeProjectionToggleButtonState()

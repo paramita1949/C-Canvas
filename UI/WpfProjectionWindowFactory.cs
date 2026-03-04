@@ -73,6 +73,33 @@ namespace ImageColorChanger.UI
             projectionContainer.Children.Add(projectionImageControl);
             projectionScrollViewer.Content = projectionContainer;
 
+            var projectionNoticeOverlayContainer = new Grid
+            {
+                HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ClipToBounds = true,
+                IsHitTestVisible = false,
+                Visibility = Visibility.Collapsed
+            };
+
+            var projectionNoticeOverlayImage = new WpfImage
+            {
+                Stretch = Stretch.Fill,
+                HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false,
+                CacheMode = new BitmapCache
+                {
+                    EnableClearType = false,
+                    RenderAtScale = 1.0,
+                    SnapsToDevicePixels = true
+                }
+            };
+            RenderOptions.SetBitmapScalingMode(projectionNoticeOverlayImage, BitmapScalingMode.LowQuality);
+            RenderOptions.SetCachingHint(projectionNoticeOverlayImage, CachingHint.Cache);
+            projectionNoticeOverlayContainer.Children.Add(projectionNoticeOverlayImage);
+
             var projectionVideoContainer = new Grid
             {
                 Background = WpfBrushes.Black,
@@ -264,6 +291,7 @@ namespace ImageColorChanger.UI
             };
             mainGrid.Children.Add(projectionScrollViewer);
             mainGrid.Children.Add(projectionVideoContainer);
+            mainGrid.Children.Add(projectionNoticeOverlayContainer);
             mainGrid.Children.Add(projectionBibleTitleBorder);
             // 弹窗必须挂在可视视口层（mainGrid），不能挂在可滚动内容层（projectionContainer）。
             // projectionContainer 高度会动态扩展为 imageHeight + viewportHeight，挂在其上会导致定位偏移/裁切。
@@ -277,6 +305,8 @@ namespace ImageColorChanger.UI
                 ProjectionContainer = projectionContainer,
                 ProjectionImageControl = projectionImageControl,
                 ProjectionVisualBrushRect = projectionVisualBrushRect,
+                ProjectionNoticeOverlayContainer = projectionNoticeOverlayContainer,
+                ProjectionNoticeOverlayImage = projectionNoticeOverlayImage,
                 ProjectionVideoContainer = projectionVideoContainer,
                 ProjectionVideoImage = projectionVideoImage,
                 ProjectionVideoView = projectionVideoView,

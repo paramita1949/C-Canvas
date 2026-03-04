@@ -62,6 +62,10 @@ namespace ImageColorChanger.UI
                 {
                     ShowStatus($"GPU加速已启用 - {gpuContext.GpuInfo}");
                 }
+                else if (isWpfGpuEnabled)
+                {
+                    ShowStatus("WPF硬件加速已启用（通知滚动使用GPU缓存合成）");
+                }
                 else
                 {
                     ShowStatus("GPU不可用，已降级到CPU渲染");

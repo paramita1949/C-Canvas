@@ -39,6 +39,8 @@ namespace ImageColorChanger.Managers
             _projectionContainer = layout.ProjectionContainer;
             _projectionImageControl = layout.ProjectionImageControl;
             _projectionVisualBrushRect = layout.ProjectionVisualBrushRect;
+            _projectionNoticeOverlayContainer = layout.ProjectionNoticeOverlayContainer;
+            _projectionNoticeOverlayImage = layout.ProjectionNoticeOverlayImage;
             _projectionVideoContainer = layout.ProjectionVideoContainer;
             _projectionVideoImage = layout.ProjectionVideoImage;
             _projectionVideoView = layout.ProjectionVideoView;
@@ -226,6 +228,8 @@ namespace ImageColorChanger.Managers
             _projectionImageControl = null;
             _projectionImage = null;
             _projectionVisualBrushRect = null;
+            _projectionNoticeOverlayContainer = null;
+            _projectionNoticeOverlayImage = null;
             _projectionVideoContainer = null;
             _projectionVideoImage = null;
             _projectionVideoView = null;

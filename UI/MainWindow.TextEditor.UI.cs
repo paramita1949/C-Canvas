@@ -274,11 +274,12 @@ namespace ImageColorChanger.UI
                         projWidth,
                         projHeight,
                         transparentBackground: true,
-                        hideNoticeComponents: _hideNoticeOnProjection);
+                        hideNoticeComponents: true);
                     _projectionManager.UpdateProjectionWithLockedVideo(
                         _currentSlide.BackgroundImagePath,
                         _currentSlide.VideoLoopEnabled,
                         textLayer);
+                    UpdateProjectionNoticeOverlay();
                 }
 #if DEBUG
                 //else

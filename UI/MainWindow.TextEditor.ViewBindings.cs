@@ -52,6 +52,9 @@ namespace ImageColorChanger.UI
         private WpfControls.Button BtnSecondLayerNoticeToggle => TextEditorSectionView?.BtnSecondLayerNoticeToggleButton;
         private WpfControls.Button BtnSecondLayerNoticeDelete => TextEditorSectionView?.BtnSecondLayerNoticeDeleteButton;
         private WpfShapes.Path SecondLayerNoticeToggleIcon => TextEditorSectionView?.SecondLayerNoticeToggleIconPath;
+        private WpfControls.Border SecondLayerNoticeStickySeparator => TextEditorSectionView?.SecondLayerNoticeStickySeparatorControl;
+        private WpfControls.Button BtnSecondLayerNoticeStickyToggle => TextEditorSectionView?.BtnSecondLayerNoticeStickyToggleButton;
+        private WpfShapes.Path SecondLayerNoticeStickyToggleIcon => TextEditorSectionView?.SecondLayerNoticeStickyToggleIconPath;
         private WpfControls.Border SlidePanelBorder => TextEditorSectionView?.SlidePanelBorderControl;
         private WpfControls.ScrollViewer SlideScrollViewer => TextEditorSectionView?.SlideScrollViewerControl;
         private WpfControls.ListBox SlideListBox => TextEditorSectionView?.SlideListBoxControl;

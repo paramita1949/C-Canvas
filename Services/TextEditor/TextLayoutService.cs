@@ -1,15 +1,12 @@
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using System;
-using System.Diagnostics;
 using System.Linq;
 
 namespace ImageColorChanger.Services.TextEditor
 {
     public sealed class TextLayoutService : ITextLayoutService
     {
-        private const bool EnableNoticeVerticalAlignDebugTrace = false;
-
         public void ApplyLayout(System.Windows.Controls.RichTextBox richTextBox, TextLayoutProfile profile, TextElement textElement)
         {
             if (richTextBox == null)
@@ -62,64 +59,6 @@ namespace ImageColorChanger.Services.TextEditor
             ApplyVerticalTextAlignment(richTextBox, profile, textElement);
         }
 
-        private static bool ShouldTraceNoticeVerticalAlign(TextElement textElement)
-        {
-#if !DEBUG
-            _ = textElement;
-            return false;
-#else
-            if (!EnableNoticeVerticalAlignDebugTrace || textElement == null)
-            {
-                return false;
-            }
-
-            return string.Equals(textElement.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase);
-#endif
-        }
-
-        private static void TraceNoticeVerticalAlign(
-            string stage,
-            System.Windows.Controls.RichTextBox richTextBox,
-            TextLayoutProfile profile,
-            TextElement textElement,
-            string vAlign,
-            double contentHeight,
-            double availableHeight,
-            double extra,
-            double topPad,
-            double bottomPad)
-        {
-#if !DEBUG
-            _ = stage;
-            _ = richTextBox;
-            _ = profile;
-            _ = textElement;
-            _ = vAlign;
-            _ = contentHeight;
-            _ = availableHeight;
-            _ = extra;
-            _ = topPad;
-            _ = bottomPad;
-            return;
-#else
-            if (!ShouldTraceNoticeVerticalAlign(textElement) || richTextBox?.Document == null || profile == null)
-            {
-                return;
-            }
-
-            var rtbPadding = richTextBox.Padding;
-            var docPadding = richTextBox.Document.PagePadding;
-            Debug.WriteLine(
-                $"[NoticeVAlignDebug] {stage} Id={textElement.Id} VAlign={vAlign} " +
-                $"ElementH={textElement.Height:F1} RtbH={richTextBox.ActualHeight:F1} " +
-                $"Avail={availableHeight:F1} Content={contentHeight:F1} Extra={extra:F1} " +
-                $"TopPad={topPad:F1} BottomPad={bottomPad:F1} " +
-                $"BasePad=({profile.DocumentPagePadding.Left:F1},{profile.DocumentPagePadding.Top:F1},{profile.DocumentPagePadding.Right:F1},{profile.DocumentPagePadding.Bottom:F1}) " +
-                $"RtbPad=({rtbPadding.Left:F1},{rtbPadding.Top:F1},{rtbPadding.Right:F1},{rtbPadding.Bottom:F1}) " +
-                $"DocPadNow=({docPadding.Left:F1},{docPadding.Top:F1},{docPadding.Right:F1},{docPadding.Bottom:F1})");
-#endif
-        }
-
         private static void ApplyVerticalTextAlignment(
             System.Windows.Controls.RichTextBox richTextBox,
             TextLayoutProfile profile,
@@ -135,34 +74,12 @@ namespace ImageColorChanger.Services.TextEditor
                 !string.Equals(vAlign, "Bottom", StringComparison.OrdinalIgnoreCase))
             {
                 richTextBox.Document.PagePadding = profile.DocumentPagePadding;
-                TraceNoticeVerticalAlign(
-                    "ApplyVerticalAlign-TopPath",
-                    richTextBox,
-                    profile,
-                    textElement,
-                    vAlign,
-                    contentHeight: 0,
-                    availableHeight: 0,
-                    extra: 0,
-                    topPad: profile.DocumentPagePadding.Top,
-                    bottomPad: profile.DocumentPagePadding.Bottom);
                 return;
             }
 
             if (richTextBox.ActualHeight <= 0)
             {
                 richTextBox.Document.PagePadding = profile.DocumentPagePadding;
-                TraceNoticeVerticalAlign(
-                    "ApplyVerticalAlign-NoActualHeight",
-                    richTextBox,
-                    profile,
-                    textElement,
-                    vAlign,
-                    contentHeight: 0,
-                    availableHeight: 0,
-                    extra: 0,
-                    topPad: profile.DocumentPagePadding.Top,
-                    bottomPad: profile.DocumentPagePadding.Bottom);
                 return;
             }
 
@@ -190,17 +107,6 @@ namespace ImageColorChanger.Services.TextEditor
             if (contentHeight <= 0.1 || double.IsNaN(contentHeight) || double.IsInfinity(contentHeight))
             {
                 richTextBox.Document.PagePadding = profile.DocumentPagePadding;
-                TraceNoticeVerticalAlign(
-                    "ApplyVerticalAlign-InvalidContentHeight",
-                    richTextBox,
-                    profile,
-                    textElement,
-                    vAlign,
-                    contentHeight,
-                    availableHeight: 0,
-                    extra: 0,
-                    topPad: profile.DocumentPagePadding.Top,
-                    bottomPad: profile.DocumentPagePadding.Bottom);
                 return;
             }
 
@@ -227,18 +133,6 @@ namespace ImageColorChanger.Services.TextEditor
                 profile.DocumentPagePadding.Left,
                 topPad,
                 profile.DocumentPagePadding.Right,
-                bottomPad);
-
-            TraceNoticeVerticalAlign(
-                "ApplyVerticalAlign-Computed",
-                richTextBox,
-                profile,
-                textElement,
-                vAlign,
-                contentHeight,
-                availableHeight,
-                extra,
-                topPad,
                 bottomPad);
         }
     }

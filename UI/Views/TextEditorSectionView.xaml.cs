@@ -48,6 +48,9 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnSecondLayerNoticeToggleButton => BtnSecondLayerNoticeToggle;
         public System.Windows.Controls.Button BtnSecondLayerNoticeDeleteButton => BtnSecondLayerNoticeDelete;
         public System.Windows.Shapes.Path SecondLayerNoticeToggleIconPath => SecondLayerNoticeToggleIcon;
+        public System.Windows.Controls.Border SecondLayerNoticeStickySeparatorControl => SecondLayerNoticeStickySeparator;
+        public System.Windows.Controls.Button BtnSecondLayerNoticeStickyToggleButton => BtnSecondLayerNoticeStickyToggle;
+        public System.Windows.Shapes.Path SecondLayerNoticeStickyToggleIconPath => SecondLayerNoticeStickyToggleIcon;
         public System.Windows.Controls.Border SlidePanelBorderControl => SlidePanelBorder;
         public System.Windows.Controls.ScrollViewer SlideScrollViewerControl => SlideScrollViewer;
         public System.Windows.Controls.ListBox SlideListBoxControl => SlideListBox;

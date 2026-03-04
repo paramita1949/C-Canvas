@@ -93,6 +93,7 @@ namespace ImageColorChanger.UI.Controls
         private string _backgroundGradientEndColor;
         private BackgroundGradientDirection _backgroundGradientDirection = BackgroundGradientDirection.LeftToRight;
         private BorderLineStyle _borderLineStyle = BorderLineStyle.Solid;
+        private bool _noticeGpuCacheEnabled;
 
         // 四个拖动区域（用于在编辑模式下拖动文本框）
         private WpfBorder _dragAreaTop;

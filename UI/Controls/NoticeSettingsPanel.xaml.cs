@@ -13,7 +13,6 @@ namespace ImageColorChanger.UI.Controls
 
         private bool _isBinding;
         private string _selectedDefaultColorHex = NoticeComponentConfig.DefaultNoticeColorHex;
-        private bool _debugEnabled;
 
         public NoticeSettingsPanel()
         {
@@ -35,7 +34,6 @@ namespace ImageColorChanger.UI.Controls
                 AutoCloseCheckBox.IsChecked = normalized.AutoClose;
                 DurationComboBox.IsEnabled = normalized.AutoClose;
                 SelectDefaultColor(normalized.DefaultColorHex);
-                _debugEnabled = normalized.DebugEnabled;
             }
             finally
             {
@@ -136,8 +134,7 @@ namespace ImageColorChanger.UI.Controls
                 DurationMinutes = GetSelectedDuration(),
                 BarHeight = GetSelectedBarHeight(),
                 DefaultColorHex = GetSelectedDefaultColor(),
-                AutoClose = AutoCloseCheckBox.IsChecked == true,
-                DebugEnabled = _debugEnabled
+                AutoClose = AutoCloseCheckBox.IsChecked == true
             };
 
             return NoticeComponentConfigCodec.Normalize(cfg);

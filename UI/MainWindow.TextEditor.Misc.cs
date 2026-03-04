@@ -123,10 +123,15 @@ namespace ImageColorChanger.UI
                 SecondLayerCanvasActions.Visibility = isTextSelected ? Visibility.Collapsed : Visibility.Visible;
             }
 
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool noticeScrollingActive = HasActiveNoticeAnimation(nowMs);
             bool showNoticeSettings = isTextSelected && IsSelectedTextBoxNoticeComponent();
+            bool showNoticeToggleOnly = !showNoticeSettings && noticeScrollingActive;
             if (SecondLayerNoticeSeparator != null)
             {
-                SecondLayerNoticeSeparator.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+                SecondLayerNoticeSeparator.Visibility = showNoticeSettings
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeSettings != null)
             {
@@ -138,11 +143,25 @@ namespace ImageColorChanger.UI
             }
             if (BtnSecondLayerNoticeToggle != null)
             {
-                BtnSecondLayerNoticeToggle.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+                BtnSecondLayerNoticeToggle.Visibility = showNoticeSettings
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeDelete != null)
             {
                 BtnSecondLayerNoticeDelete.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (SecondLayerNoticeStickySeparator != null)
+            {
+                SecondLayerNoticeStickySeparator.Visibility = showNoticeToggleOnly
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+            if (BtnSecondLayerNoticeStickyToggle != null)
+            {
+                BtnSecondLayerNoticeStickyToggle.Visibility = showNoticeToggleOnly
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
 
             if (!showNoticeSettings && NoticeSettingsPopup != null)
@@ -150,9 +169,13 @@ namespace ImageColorChanger.UI
                 NoticeSettingsPopup.IsOpen = false;
             }
 
-            if (showNoticeSettings)
+            if (showNoticeSettings || showNoticeToggleOnly)
             {
                 UpdateNoticeToggleButtonState();
+            }
+
+            if (showNoticeSettings)
+            {
                 UpdateNoticeProjectionToggleButtonState();
             }
         }

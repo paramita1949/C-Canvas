@@ -192,9 +192,9 @@ namespace ImageColorChanger.Managers
                 return null;
             }
 
-            FrameworkElement visual = _projectionScrollViewer as FrameworkElement
-                ?? _projectionContainer as FrameworkElement
-                ?? _projectionWindow.Content as FrameworkElement;
+            FrameworkElement visual = _projectionWindow.Content as FrameworkElement
+                ?? _projectionScrollViewer as FrameworkElement
+                ?? _projectionContainer as FrameworkElement;
 
             if (visual == null)
             {

@@ -57,10 +57,6 @@ namespace ImageColorChanger.UI
         private readonly NoticeRuntimeService _noticeRuntimeService = new NoticeRuntimeService();
         private static readonly TimeSpan NoticeAnimationFrameInterval = TimeSpan.FromMilliseconds(16);
         private const int NoticeProjectionFrameIntervalMs = 33;
-        private static bool EnableNoticeDebugLogs => System.Diagnostics.Debugger.IsAttached;
-#if DEBUG
-        private long _lastNoticeGpuDebugLogMs;
-#endif
         private bool _noticeRenderingSubscribed;
         private long _lastNoticeProjectionUpdateMs;
         private bool _noticeProjectionRefreshPending;
