@@ -681,6 +681,8 @@ namespace ImageColorChanger.UI
             double laneStartX = EstimateNoticeContentStartInset(textBox);
             double laneEndX = EstimateNoticeContentEndInset(textBox);
             double contentWidth = EstimateNoticeContentWidth(textBox);
+            double laneLeft = Math.Max(0.0, laneStartX);
+            double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
             double contentStartX;
 
             // 优先使用“实际字符可视边界”参与碰撞计算，避免估算宽度与肉眼不一致。
@@ -690,10 +692,10 @@ namespace ImageColorChanger.UI
                 // 否则在 R->L 模式下会把轨道左边界错当成首字符位置，导致过早回卷。
                 double visualStartX = Math.Max(0, visualFirstX);
                 double visualEndX = Math.Max(visualStartX, visualLastX);
-                contentWidth = Math.Max(1.0, visualEndX - visualStartX);
+                double visualWidth = Math.Max(1.0, visualEndX - visualStartX);
+                // 使用保守宽度避免“实际文本先越界再回卷”。
+                contentWidth = Math.Max(contentWidth, visualWidth);
 
-                double laneLeft = Math.Max(0.0, laneStartX);
-                double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
                 double maxStartX = Math.Max(laneLeft, laneRight - contentWidth);
                 contentStartX = Math.Clamp(visualStartX, laneLeft, maxStartX);
             }
@@ -710,17 +712,20 @@ namespace ImageColorChanger.UI
 
             // 对单向循环限制内容宽度，避免测宽误差导致回卷阈值失真；
             // 往返模式需保留真实宽度，否则“内容宽于轨道”时会出现近似静止。
-            double visibleLaneWidth = Math.Max(1.0, viewportWidth - laneStartX - laneEndX);
-            if (cfg.Direction != NoticeDirection.PingPong)
+            double collisionWidth = Math.Max(1.0, contentWidth);
+            if (cfg.Direction == NoticeDirection.LeftToRight)
             {
-                contentWidth = Math.Min(contentWidth, visibleLaneWidth);
+                // 保持极小安全余量，避免可视上“越界1px后才回卷”。
+                double maxExtraSafety = Math.Max(0.0, laneRight - contentStartX - collisionWidth - 2.0);
+                double safety = Math.Min(1.0, maxExtraSafety);
+                collisionWidth += safety;
             }
             offsetX = _noticeRuntimeService.GetLoopingOffset(
                 elapsed,
                 cfg.Speed,
                 cfg.Direction,
                 viewportWidth,
-                contentWidth,
+                collisionWidth,
                 laneStartX,
                 laneEndX,
                 contentStartX);
@@ -945,28 +950,79 @@ namespace ImageColorChanger.UI
 
             try
             {
-                var start = doc.ContentStart?.GetInsertionPosition(System.Windows.Documents.LogicalDirection.Forward);
-                var end = doc.ContentEnd?.GetInsertionPosition(System.Windows.Documents.LogicalDirection.Backward);
-                if (start == null || end == null || start.CompareTo(end) >= 0)
+                var pointer = doc.ContentStart?.GetInsertionPosition(System.Windows.Documents.LogicalDirection.Forward);
+                var docEnd = doc.ContentEnd?.GetInsertionPosition(System.Windows.Documents.LogicalDirection.Backward);
+                if (pointer == null || docEnd == null || pointer.CompareTo(docEnd) > 0)
                 {
                     return false;
                 }
 
-                var firstRect = start.GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
-                var lastRect = end.GetCharacterRect(System.Windows.Documents.LogicalDirection.Backward);
-                if (firstRect.IsEmpty || lastRect.IsEmpty)
+                bool hasAnyRect = false;
+                double minLeft = double.MaxValue;
+                double maxRight = double.MinValue;
+                int guard = 0;
+                const int maxProbeCount = 4096;
+
+                while (pointer != null)
+                {
+                    AccumulateCharacterRect(pointer, System.Windows.Documents.LogicalDirection.Forward, ref hasAnyRect, ref minLeft, ref maxRight);
+                    AccumulateCharacterRect(pointer, System.Windows.Documents.LogicalDirection.Backward, ref hasAnyRect, ref minLeft, ref maxRight);
+
+                    if (pointer.CompareTo(docEnd) >= 0)
+                    {
+                        break;
+                    }
+
+                    var next = pointer.GetNextInsertionPosition(System.Windows.Documents.LogicalDirection.Forward);
+                    if (next == null || next.CompareTo(pointer) <= 0)
+                    {
+                        break;
+                    }
+
+                    pointer = next;
+                    guard++;
+                    if (guard > maxProbeCount)
+                    {
+                        break;
+                    }
+                }
+
+                if (!hasAnyRect || maxRight <= minLeft)
                 {
                     return false;
                 }
 
-                firstX = Math.Max(0, firstRect.Left);
-                lastX = Math.Max(firstX, lastRect.Right);
+                firstX = Math.Max(0, minLeft);
+                lastX = Math.Max(firstX, maxRight);
                 return (lastX - firstX) > 0.5;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static void AccumulateCharacterRect(
+            System.Windows.Documents.TextPointer pointer,
+            System.Windows.Documents.LogicalDirection direction,
+            ref bool hasAnyRect,
+            ref double minLeft,
+            ref double maxRight)
+        {
+            if (pointer == null)
+            {
+                return;
+            }
+
+            var rect = pointer.GetCharacterRect(direction);
+            if (rect.IsEmpty)
+            {
+                return;
+            }
+
+            hasAnyRect = true;
+            minLeft = Math.Min(minLeft, rect.Left);
+            maxRight = Math.Max(maxRight, rect.Right);
         }
 
         private void EnsureNoticeAnimationLoopState()

@@ -86,10 +86,10 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         {
             var service = new NoticeRuntimeService();
 
-            // speed=100 => 130px/s。viewport=200, startX=0, content=60, travel=200。
-            // 首字符离开右边界后应立即回卷到接近 0。
-            double beforeLeave = service.GetLoopingOffset(1530, speed: 100, NoticeDirection.LeftToRight, viewportWidth: 200, contentWidth: 60);
-            double afterLeave = service.GetLoopingOffset(1545, speed: 100, NoticeDirection.LeftToRight, viewportWidth: 200, contentWidth: 60);
+            // speed=100 => 130px/s。viewport=200, startX=0, content=60, travel=140。
+            // 文本右边缘触达右边界后应立即回卷到接近 0。
+            double beforeLeave = service.GetLoopingOffset(1070, speed: 100, NoticeDirection.LeftToRight, viewportWidth: 200, contentWidth: 60);
+            double afterLeave = service.GetLoopingOffset(1080, speed: 100, NoticeDirection.LeftToRight, viewportWidth: 200, contentWidth: 60);
 
             Assert.True(beforeLeave > 0);
             Assert.True(afterLeave >= 0);
@@ -97,26 +97,26 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         }
 
         [Fact]
-        public void GetLoopingOffset_LeftToRight_Should_WrapAfterFirstCharacterLeavesRightEdge()
+        public void GetLoopingOffset_LeftToRight_Should_WrapWhenRightEdgeHitsRightBoundary()
         {
             var service = new NoticeRuntimeService();
 
             // speed=100 => 130px/s。viewport=200, content=60, startX=0。
-            // 期望回卷点为 leftX≈200（首字符完全离开右侧边界）附近，而不是 rightX 触边就回卷。
+            // 期望回卷点为 rightX≈200（文本右边缘触边）附近。
             double beforeWrap = service.GetLoopingOffset(
-                elapsedMs: 1530, // delta≈198.9
+                elapsedMs: 1070, // delta≈139.1
                 speed: 100,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 200,
                 contentWidth: 60);
             double afterWrap = service.GetLoopingOffset(
-                elapsedMs: 1545, // delta≈200.85
+                elapsedMs: 1080, // delta≈140.4
                 speed: 100,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 200,
                 contentWidth: 60);
 
-            Assert.True(beforeWrap > 180);
+            Assert.True(beforeWrap > 100);
             Assert.True(afterWrap >= 0);
             Assert.True(afterWrap < 10);
         }
@@ -127,16 +127,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
             var service = new NoticeRuntimeService();
 
             // viewport=200, content=60, startX=20:
-            // 离场阈值为 laneRight-startX=180。超过后应立刻回卷到接近 0。
+            // 触边阈值为 laneRight-content-startX=120。超过后应立刻回卷到接近 0。
             double beforeLeave = service.GetLoopingOffset(
-                elapsedMs: 1380, // delta≈179.4
+                elapsedMs: 920, // delta≈119.6
                 speed: 100,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 200,
                 contentWidth: 60,
                 contentStartX: 20);
             double afterLeave = service.GetLoopingOffset(
-                elapsedMs: 1390, // delta≈180.7
+                elapsedMs: 930, // delta≈120.9
                 speed: 100,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 200,
@@ -181,16 +181,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
             var service = new NoticeRuntimeService();
 
             // 真实场景近似：viewport=1920, content=378, startX=20, speed=45 => 64px/s。
-            // 在离场阈值 laneRight-startX=1900 附近，回卷后应立即回到接近0的正偏移。
+            // 在触边阈值 laneRight-content-startX=1522 附近，回卷后应立即回到接近0的正偏移。
             double beforeWrap = service.GetLoopingOffset(
-                elapsedMs: 29670, // delta≈1898.88
+                elapsedMs: 23778, // delta≈1521.79
                 speed: 45,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 1920,
                 contentWidth: 378,
                 contentStartX: 20);
             double afterWrap = service.GetLoopingOffset(
-                elapsedMs: 29695, // delta≈1900.48
+                elapsedMs: 23810, // delta≈1523.84
                 speed: 45,
                 direction: NoticeDirection.LeftToRight,
                 viewportWidth: 1920,
@@ -198,7 +198,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
                 contentStartX: 20);
 
             Assert.True(beforeWrap > 0);
-            Assert.True(beforeWrap < 1900);
+            Assert.True(beforeWrap < 1522);
             Assert.True(afterWrap >= 0);
             Assert.True(afterWrap < 10);
         }

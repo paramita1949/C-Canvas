@@ -248,8 +248,8 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 return positionX - startX;
             }
 
-            // L->R：首字符完全离开轨道右边界后回卷（与 R->L 的离场判定对称）。
-            double leaveRightX = laneRight;
+            // L->R：文本右边缘触达轨道右边界后即回卷，无等待空白。
+            double leaveRightX = laneRight - content;
             double ltrTravel = leaveRightX - startX;
             if (ltrTravel <= 1)
             {

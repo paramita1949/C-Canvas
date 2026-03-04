@@ -113,43 +113,48 @@ namespace ImageColorChanger.UI
 
         private void UpdateSecondLayerSelectedActionsVisibility(bool isTextSelected)
         {
+            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            bool noticeScrollingActive = HasActiveNoticeAnimation(nowMs);
+            // 滚动开启时，二层完整工具区保持常显，不再退化为仅暂停按钮。
+            bool keepFullSecondLayer = isTextSelected || noticeScrollingActive;
+
             if (SecondLayerSelectedActions != null)
             {
-                SecondLayerSelectedActions.Visibility = isTextSelected ? Visibility.Visible : Visibility.Collapsed;
+                SecondLayerSelectedActions.Visibility = keepFullSecondLayer ? Visibility.Visible : Visibility.Collapsed;
             }
 
             if (SecondLayerCanvasActions != null)
             {
-                SecondLayerCanvasActions.Visibility = isTextSelected ? Visibility.Collapsed : Visibility.Visible;
+                SecondLayerCanvasActions.Visibility = keepFullSecondLayer ? Visibility.Collapsed : Visibility.Visible;
             }
 
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            bool noticeScrollingActive = HasActiveNoticeAnimation(nowMs);
             bool showNoticeSettings = isTextSelected && IsSelectedTextBoxNoticeComponent();
-            bool showNoticeToggleOnly = !showNoticeSettings && noticeScrollingActive;
+            // 只要通知在滚动，就显示完整通知工具组（参数/投影/暂停/删除）。
+            bool showNoticeFullGroup = showNoticeSettings || noticeScrollingActive;
+            bool showNoticeToggleOnly = false;
             if (SecondLayerNoticeSeparator != null)
             {
-                SecondLayerNoticeSeparator.Visibility = showNoticeSettings
+                SecondLayerNoticeSeparator.Visibility = showNoticeFullGroup
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeSettings != null)
             {
-                BtnSecondLayerNoticeSettings.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+                BtnSecondLayerNoticeSettings.Visibility = showNoticeFullGroup ? Visibility.Visible : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeProjectionToggle != null)
             {
-                BtnSecondLayerNoticeProjectionToggle.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+                BtnSecondLayerNoticeProjectionToggle.Visibility = showNoticeFullGroup ? Visibility.Visible : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeToggle != null)
             {
-                BtnSecondLayerNoticeToggle.Visibility = showNoticeSettings
+                BtnSecondLayerNoticeToggle.Visibility = showNoticeFullGroup
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
             if (BtnSecondLayerNoticeDelete != null)
             {
-                BtnSecondLayerNoticeDelete.Visibility = showNoticeSettings ? Visibility.Visible : Visibility.Collapsed;
+                BtnSecondLayerNoticeDelete.Visibility = showNoticeFullGroup ? Visibility.Visible : Visibility.Collapsed;
             }
             if (SecondLayerNoticeStickySeparator != null)
             {
@@ -169,12 +174,12 @@ namespace ImageColorChanger.UI
                 NoticeSettingsPopup.IsOpen = false;
             }
 
-            if (showNoticeSettings || showNoticeToggleOnly)
+            if (showNoticeFullGroup || showNoticeToggleOnly)
             {
                 UpdateNoticeToggleButtonState();
             }
 
-            if (showNoticeSettings)
+            if (showNoticeFullGroup)
             {
                 UpdateNoticeProjectionToggleButtonState();
             }
