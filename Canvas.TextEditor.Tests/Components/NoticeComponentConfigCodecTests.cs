@@ -16,6 +16,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
                 Speed = 50,
                 DurationMinutes = 3,
                 DefaultColorHex = "#0EA5E9",
+                BackgroundOpacity = 35,
                 BarHeight = 180,
                 AutoClose = true,
                 DebugEnabled = true
@@ -30,6 +31,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
             Assert.Equal(cfg.Speed, parsed.Speed);
             Assert.Equal(cfg.DurationMinutes, parsed.DurationMinutes);
             Assert.Equal(cfg.DefaultColorHex, parsed.DefaultColorHex);
+            Assert.Equal(cfg.BackgroundOpacity, parsed.BackgroundOpacity);
             Assert.Equal(cfg.BarHeight, parsed.BarHeight);
             Assert.Equal(cfg.AutoClose, parsed.AutoClose);
             Assert.Equal(cfg.DebugEnabled, parsed.DebugEnabled);
@@ -46,6 +48,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
             Assert.Equal(45, parsed.Speed);
             Assert.Equal(3, parsed.DurationMinutes);
             Assert.Equal(NoticeComponentConfig.DefaultNoticeColorHex, parsed.DefaultColorHex);
+            Assert.Equal(0, parsed.BackgroundOpacity);
             Assert.Equal(120, parsed.BarHeight);
             Assert.True(parsed.AutoClose);
             Assert.False(parsed.DebugEnabled);
@@ -145,6 +148,24 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
 
             var normalized = NoticeComponentConfigCodec.Normalize(cfg);
             Assert.Equal(NoticeDirection.PingPong, normalized.Direction);
+        }
+
+        [Theory]
+        [InlineData(-10, 0)]
+        [InlineData(0, 0)]
+        [InlineData(20, 20)]
+        [InlineData(100, 100)]
+        [InlineData(999, 100)]
+        public void Normalize_Should_ClampBackgroundOpacityToRange0To100(int input, int expected)
+        {
+            var cfg = new NoticeComponentConfig
+            {
+                BackgroundOpacity = input
+            };
+
+            var normalized = NoticeComponentConfigCodec.Normalize(cfg);
+
+            Assert.Equal(expected, normalized.BackgroundOpacity);
         }
 
         [Theory]

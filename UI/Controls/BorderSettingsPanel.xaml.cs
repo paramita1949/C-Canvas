@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using ImageColorChanger.UI.Controls.Common;
 using WpfColor = System.Windows.Media.Color;
 
 namespace ImageColorChanger.UI.Controls
@@ -15,6 +16,12 @@ namespace ImageColorChanger.UI.Controls
     /// </summary>
     public partial class BorderSettingsPanel : System.Windows.Controls.UserControl
     {
+        private enum FillMode
+        {
+            Solid = 0,
+            Gradient = 1
+        }
+
         public Services.Interfaces.IUiSettingsStore SettingsStore { get; set; }
 
         private DraggableTextBox _targetTextBox;
@@ -23,33 +30,21 @@ namespace ImageColorChanger.UI.Controls
         private int _opacity;
         private bool _isBindingTarget;
         private string _currentColor = "#FFFFFF";
+        private FillMode _fillMode = FillMode.Solid;
+        private string _gradientStartColor = "#212121";
+        private string _gradientEndColor = "#5C5C5C";
+        private string _gradientDirection = "LeftToRight";
+        private string _selectedGradientChipTag = string.Empty;
         private DraggableTextBox.BorderLineStyle _lineStyle = DraggableTextBox.BorderLineStyle.Solid;
         private readonly List<string> _recentColors = new();
         private readonly List<Border> _colorChips = new();
 
-        private readonly string[] _quickColors =
-        {
-            "#000000", "#FFFFFF", "#5F6368", "#D4D4D4", "#4A86E8", "#202124", "#78909C", "#F4A43A", "#0E9BA8", "#A8B81C"
-        };
-
-        private readonly string[] _paletteColors =
-        {
-            "#000000","#444444","#666666","#999999","#AAAAAA","#BEBEBE","#C8C8C8","#D8D8D8","#E2E2E2","#EFEFEF",
-            "#B30000","#F8160D","#FF9800","#FFF100","#00EE00","#1CD7DE","#4D7FD8","#1A1AE9","#9013FE","#E90BE9",
-            "#E6B8AF","#EBC1C1","#EEDDC5","#EEE0B5","#C2D9B7","#C5D8DD","#B8CAE8","#BACCE2","#C4BFE0","#D3BECC",
-            "#D97C66","#DE8A8A","#EDC38F","#F0D57F","#9BC48D","#98BBC2","#8EAFDF","#8CB1DA","#A59CD1","#C792B0",
-            "#D84A2A","#DD6565","#EDAE64","#F2CC57","#83BB6E","#73A8B6","#6493D8","#689FD1","#8678C2","#B6719D",
-            "#B73411","#D90000","#E7922E","#E9BB2E","#68AA4A","#4A8A9B","#467AD0","#3F82C2","#6D5AB6","#AA4E82",
-            "#98210B","#B40000","#B86D00","#C09300","#3E8621","#165F70","#2154C1","#17588E","#3E2A8C","#7A1A55",
-            "#701400","#980000","#8D5200","#8C6B00","#2B6618","#0E4352","#244F97","#0E426C","#2C1D76","#5F1643"
-        };
-
         public BorderSettingsPanel()
         {
             InitializeComponent();
-            BuildColorPalette();
             UpdateRecentColorPreviews();
             UpdateLineStyleButtonStates();
+            SetFillMode(FillMode.Solid, rebuildPalette: true);
         }
 
         public void BindTarget(DraggableTextBox textBox)
@@ -65,7 +60,21 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-            _currentColor = NormalizeColorHex(_targetTextBox.Data.BorderColor) ?? "#FFFFFF";
+            var rawBorder = NormalizeColorHex(_targetTextBox.Data.BorderColor) ?? "#FFFFFF";
+            if (SharedColorModule.TryParseGradientSpec(rawBorder, out var gradientSpec))
+            {
+                _fillMode = FillMode.Gradient;
+                _gradientStartColor = ToRgbHex(ParseColor(gradientSpec.StartColor));
+                _gradientEndColor = ToRgbHex(ParseColor(gradientSpec.EndColor));
+                _gradientDirection = gradientSpec.Direction;
+                _selectedGradientChipTag = SharedColorBoardBuilder.BuildGradientChipTag(_gradientStartColor, _gradientEndColor);
+                _currentColor = rawBorder;
+            }
+            else
+            {
+                _fillMode = FillMode.Solid;
+                _currentColor = rawBorder;
+            }
             _borderWidth = (int)Math.Round(_targetTextBox.Data.BorderWidth);
             _cornerRadius = (int)Math.Round(_targetTextBox.Data.BorderRadius);
             _opacity = Math.Clamp(_targetTextBox.Data.BorderOpacity, 0, 100);
@@ -74,76 +83,126 @@ namespace ImageColorChanger.UI.Controls
                 // 与填充一致：默认进入可见态，点颜色即可生效。
                 _opacity = 0;
             }
+            if (_fillMode == FillMode.Gradient)
+            {
+                _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
+            }
 
             _isBindingTarget = true;
             WidthSlider.Value = _borderWidth;
             CornerRadiusSlider.Value = _cornerRadius;
             OpacitySlider.Value = _opacity;
             UpdateOpacityLabel();
+            SetFillMode(_fillMode, rebuildPalette: true);
             UpdateColorSelectionVisual();
+            UpdateGradientDirectionButtons();
             UpdateLineStyleButtonStates();
             Dispatcher.BeginInvoke(new Action(() => _isBindingTarget = false), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void BuildColorPalette()
         {
-            QuickColorPanel.Children.Clear();
-            PaletteGrid.Children.Clear();
-            _colorChips.Clear();
+            SharedColorBoardBuilder.BuildChips(
+                QuickColorPanel,
+                PaletteGrid,
+                _colorChips,
+                gradientMode: _fillMode == FillMode.Gradient,
+                opacity: _opacity,
+                gradientDirection: _gradientDirection,
+                onChipSelected: selection =>
+                {
+                    if (selection.IsGradient)
+                    {
+                        _gradientStartColor = selection.GradientStartHex;
+                        _gradientEndColor = selection.GradientEndHex;
+                        _selectedGradientChipTag = selection.ChipTag;
+                        _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
+                        AddToRecentColors(_gradientStartColor);
+                    }
+                    else
+                    {
+                        _currentColor = selection.SolidColorHex;
+                        AddToRecentColors(_currentColor);
+                    }
 
-            foreach (var hex in _quickColors)
-            {
-                var chip = CreateColorChip(hex, 21);
-                _colorChips.Add(chip);
-                QuickColorPanel.Children.Add(chip);
-            }
-
-            foreach (var hex in _paletteColors)
-            {
-                var chip = CreateColorChip(hex, 21);
-                _colorChips.Add(chip);
-                PaletteGrid.Children.Add(chip);
-            }
-        }
-
-        private Border CreateColorChip(string colorHex, double size)
-        {
-            var normalized = NormalizeColorHex(colorHex) ?? "#FFFFFF";
-            var chip = new Border
-            {
-                Width = size,
-                Height = size,
-                Margin = new Thickness(2),
-                CornerRadius = new CornerRadius(size / 2),
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(198, 198, 198)),
-                Background = new SolidColorBrush(ParseColor(normalized)),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = normalized
-            };
-
-            chip.MouseLeftButtonDown += (_, _) =>
-            {
-                _currentColor = normalized;
-                AddToRecentColors(_currentColor);
-                UpdateColorSelectionVisual();
-                ApplyBorderStyle();
-            };
-
-            return chip;
+                    UpdateColorSelectionVisual();
+                    ApplyBorderStyle();
+                });
         }
 
         private void BtnOpenCustomColor_Click(object sender, RoutedEventArgs e)
         {
-            using var colorDialog = new System.Windows.Forms.ColorDialog();
-            if (colorDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            var baseColor = _fillMode == FillMode.Gradient ? _gradientStartColor : _currentColor;
+            var picked = SharedColorModule.PickSystemColor(baseColor);
+            if (string.IsNullOrWhiteSpace(picked))
             {
                 return;
             }
 
-            var c = colorDialog.Color;
-            _currentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-            AddToRecentColors(_currentColor);
+            if (_fillMode == FillMode.Gradient)
+            {
+                _gradientStartColor = ToRgbHex(ParseColor(picked));
+                _gradientEndColor = SharedColorModule.ShiftBrightness(_gradientStartColor, 0.35);
+                _selectedGradientChipTag = SharedColorBoardBuilder.BuildGradientChipTag(_gradientStartColor, _gradientEndColor);
+                _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
+                AddToRecentColors(_gradientStartColor);
+                BuildColorPalette();
+            }
+            else
+            {
+                _currentColor = picked;
+                AddToRecentColors(_currentColor);
+            }
+
+            UpdateColorSelectionVisual();
+            ApplyBorderStyle();
+        }
+
+        private void BtnSolidTab_Click(object sender, RoutedEventArgs e)
+        {
+            SetFillMode(FillMode.Solid, rebuildPalette: true);
+            if (SharedColorModule.TryParseGradientSpec(_currentColor, out var spec))
+            {
+                _currentColor = ToRgbHex(ParseColor(spec.StartColor));
+            }
+            UpdateColorSelectionVisual();
+            ApplyBorderStyle();
+        }
+
+        private void BtnGradientTab_Click(object sender, RoutedEventArgs e)
+        {
+            SetFillMode(FillMode.Gradient, rebuildPalette: true);
+            _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
+            UpdateColorSelectionVisual();
+            ApplyBorderStyle();
+        }
+
+        private void BtnGradientDirection_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button btn || btn.Tag is not string tag)
+            {
+                return;
+            }
+
+            _gradientDirection = tag switch
+            {
+                "TopToBottom" => "TopToBottom",
+                "BottomToTop" => "BottomToTop",
+                "LeftToRight" => "LeftToRight",
+                "RightToLeft" => "RightToLeft",
+                "RadialCenter" => "RadialCenter",
+                _ => "LeftToRight"
+            };
+
+            BuildColorPalette();
+            UpdateGradientDirectionButtons();
+
+            if (_fillMode != FillMode.Gradient)
+            {
+                return;
+            }
+
+            _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
             UpdateColorSelectionVisual();
             ApplyBorderStyle();
         }
@@ -166,6 +225,13 @@ namespace ImageColorChanger.UI.Controls
             if (_isBindingTarget)
             {
                 return;
+            }
+
+            if (_fillMode == FillMode.Gradient)
+            {
+                _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
+                BuildColorPalette();
+                UpdateColorSelectionVisual();
             }
 
             ApplyBorderStyle();
@@ -195,6 +261,12 @@ namespace ImageColorChanger.UI.Controls
             if (_isBindingTarget)
             {
                 return;
+            }
+
+            if (_fillMode == FillMode.Gradient)
+            {
+                BuildColorPalette();
+                UpdateColorSelectionVisual();
             }
 
             ApplyBorderStyle();
@@ -272,6 +344,21 @@ namespace ImageColorChanger.UI.Controls
 
         private void UpdateColorSelectionVisual()
         {
+            if (_fillMode == FillMode.Gradient)
+            {
+                foreach (var chip in _colorChips)
+                {
+                    bool isSelected = !string.Equals(_currentColor, "Transparent", StringComparison.OrdinalIgnoreCase) &&
+                                      string.Equals(chip.Tag as string, _selectedGradientChipTag, StringComparison.OrdinalIgnoreCase);
+                    chip.BorderThickness = isSelected ? new Thickness(2) : new Thickness(1);
+                    chip.BorderBrush = isSelected
+                        ? new SolidColorBrush(WpfColor.FromRgb(60, 60, 60))
+                        : new SolidColorBrush(WpfColor.FromRgb(198, 198, 198));
+                    chip.Child = isSelected ? BuildCheckmarkVisual(chip.Background as System.Windows.Media.Brush) : null;
+                }
+                return;
+            }
+
             var selected = NormalizeColorHex(_currentColor);
             foreach (var chip in _colorChips)
             {
@@ -281,13 +368,21 @@ namespace ImageColorChanger.UI.Controls
                 chip.BorderBrush = isSelected
                     ? new SolidColorBrush(WpfColor.FromRgb(60, 60, 60))
                     : new SolidColorBrush(WpfColor.FromRgb(198, 198, 198));
-                chip.Child = isSelected ? BuildCheckmarkVisual(chip.Background as SolidColorBrush) : null;
+                chip.Child = isSelected ? BuildCheckmarkVisual(chip.Background as System.Windows.Media.Brush) : null;
             }
         }
 
-        private static UIElement BuildCheckmarkVisual(SolidColorBrush chipBrush)
+        private static UIElement BuildCheckmarkVisual(System.Windows.Media.Brush chipBrush)
         {
-            var color = chipBrush?.Color ?? WpfColor.FromRgb(0, 0, 0);
+            WpfColor color = WpfColor.FromRgb(0, 0, 0);
+            if (chipBrush is SolidColorBrush solid)
+            {
+                color = solid.Color;
+            }
+            else if (chipBrush is GradientBrush gradient && gradient.GradientStops?.Count > 0)
+            {
+                color = gradient.GradientStops[0].Color;
+            }
             double luminance = (0.299 * color.R) + (0.587 * color.G) + (0.114 * color.B);
             var markBrush = luminance > 160
                 ? new SolidColorBrush(WpfColor.FromRgb(20, 20, 20))
@@ -315,6 +410,11 @@ namespace ImageColorChanger.UI.Controls
             if (_targetTextBox == null)
             {
                 return;
+            }
+
+            if (_fillMode == FillMode.Gradient && !string.Equals(_currentColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                _currentColor = BuildGradientSpec(_gradientStartColor, _gradientEndColor, _gradientDirection, _opacity);
             }
 
             _targetTextBox.ApplyStyle(
@@ -392,42 +492,96 @@ namespace ImageColorChanger.UI.Controls
             }
         }
 
+        private void SetFillMode(FillMode mode, bool rebuildPalette)
+        {
+            _fillMode = mode;
+            if (BtnSolidTab == null || BtnGradientTab == null)
+            {
+                return;
+            }
+
+            bool isSolid = mode == FillMode.Solid;
+            if (TxtSolidTab != null && TxtGradientTab != null && SolidTabUnderline != null && GradientTabUnderline != null)
+            {
+                TxtSolidTab.Foreground = isSolid ? new SolidColorBrush(WpfColor.FromRgb(34, 34, 34)) : new SolidColorBrush(WpfColor.FromRgb(102, 102, 102));
+                TxtGradientTab.Foreground = isSolid ? new SolidColorBrush(WpfColor.FromRgb(102, 102, 102)) : new SolidColorBrush(WpfColor.FromRgb(34, 34, 34));
+                SolidTabUnderline.Visibility = isSolid ? Visibility.Visible : Visibility.Collapsed;
+                GradientTabUnderline.Visibility = isSolid ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            if (TxtPaletteTitle != null)
+            {
+                TxtPaletteTitle.Text = isSolid ? "纯浅色" : "渐变";
+            }
+
+            if (GradientDirectionPanel != null)
+            {
+                GradientDirectionPanel.Visibility = isSolid ? Visibility.Collapsed : Visibility.Visible;
+            }
+            UpdateGradientDirectionButtons();
+
+            if (rebuildPalette)
+            {
+                BuildColorPalette();
+            }
+        }
+
+        private void UpdateGradientDirectionButtons()
+        {
+            SetDirButtonState(BtnGradientDirTopToBottom, _gradientDirection == "TopToBottom");
+            SetDirButtonState(BtnGradientDirBottomToTop, _gradientDirection == "BottomToTop");
+            SetDirButtonState(BtnGradientDirLeftToRight, _gradientDirection == "LeftToRight");
+            SetDirButtonState(BtnGradientDirRightToLeft, _gradientDirection == "RightToLeft");
+            SetDirButtonState(BtnGradientDirRadialCenter, _gradientDirection == "RadialCenter");
+        }
+
+        private static void SetDirButtonState(System.Windows.Controls.Button button, bool selected)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.Background = selected
+                ? new SolidColorBrush(WpfColor.FromArgb(36, 33, 150, 243))
+                : System.Windows.Media.Brushes.Transparent;
+            button.BorderBrush = selected
+                ? new SolidColorBrush(WpfColor.FromRgb(33, 150, 243))
+                : System.Windows.Media.Brushes.Transparent;
+            button.BorderThickness = selected ? new Thickness(1) : new Thickness(0);
+        }
+
+        private static string BuildGradientSpec(string startHex, string endHex, string direction, int opacity)
+        {
+            var start = ToRgbHex(ParseColor(startHex));
+            var end = ToRgbHex(ParseColor(endHex));
+            if (opacity <= 0)
+            {
+                return SharedColorModule.BuildGradientSpec(start, end, direction);
+            }
+
+            return SharedColorModule.BuildGradientSpec(
+                SharedColorModule.ApplyOpacityToHex(start, opacity),
+                SharedColorModule.ApplyOpacityToHex(end, opacity),
+                direction);
+        }
+
         private static string NormalizeColorHex(string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return null;
-            }
-
-            var trimmed = value.Trim();
-            if (string.Equals(trimmed, "Transparent", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Transparent";
-            }
-
-            if (!trimmed.StartsWith("#", StringComparison.Ordinal))
-            {
-                trimmed = "#" + trimmed;
-            }
-
-            return (trimmed.Length == 7 || trimmed.Length == 9) ? trimmed.ToUpperInvariant() : null;
+            return SharedColorModule.NormalizeColorHex(value);
         }
 
         private static WpfColor ParseColor(string colorHex)
         {
-            try
+            if (SharedColorModule.TryCreateBrush(colorHex, out var brush) &&
+                SharedColorModule.TryGetRepresentativeColor(brush, out var representative))
             {
-                if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
-                {
-                    return WpfColor.FromArgb(0, 0, 0, 0);
-                }
+                return representative;
+            }
 
-                return (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(colorHex);
-            }
-            catch
-            {
-                return WpfColor.FromRgb(255, 255, 255);
-            }
+            return SharedColorModule.ParseColor(colorHex, WpfColor.FromRgb(255, 255, 255));
         }
+
+        private static string ToRgbHex(WpfColor color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
     }
 }

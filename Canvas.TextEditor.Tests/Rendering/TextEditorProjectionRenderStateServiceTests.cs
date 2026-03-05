@@ -167,5 +167,50 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
 
             Assert.NotEqual(key1, key2);
         }
+
+        [Fact]
+        public void BuildCanvasCacheKey_HandlesGradientSpecWithSeparators()
+        {
+            var service = new TextEditorProjectionRenderStateService();
+
+            var contextA = new TextEditorProjectionCacheContext
+            {
+                TextStates = new[]
+                {
+                    new TextEditorProjectionTextState
+                    {
+                        Content = "A|B",
+                        FontColor = "GRAD|#FF0000|#00FF00|LeftToRight",
+                        BackgroundColor = "GRAD|#220000FF|#2200FFFF|TopToBottom",
+                        BorderColor = "#FF00FF",
+                        Width = 100,
+                        Height = 40
+                    }
+                }
+            };
+
+            var contextB = new TextEditorProjectionCacheContext
+            {
+                TextStates = new[]
+                {
+                    new TextEditorProjectionTextState
+                    {
+                        Content = "A|B",
+                        FontColor = "GRAD|#FF0000|#00FF00|RightToLeft",
+                        BackgroundColor = "GRAD|#220000FF|#2200FFFF|TopToBottom",
+                        BorderColor = "#FF00FF",
+                        Width = 100,
+                        Height = 40
+                    }
+                }
+            };
+
+            var key1 = service.BuildCanvasCacheKey(contextA);
+            var key2 = service.BuildCanvasCacheKey(contextA);
+            var key3 = service.BuildCanvasCacheKey(contextB);
+
+            Assert.Equal(key1, key2);
+            Assert.NotEqual(key1, key3);
+        }
     }
 }

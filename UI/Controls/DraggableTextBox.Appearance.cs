@@ -21,6 +21,7 @@ using WpfMouseButton = System.Windows.Input.MouseButton;
 using WpfPoint = System.Windows.Point;
 using WpfSize = System.Windows.Size;
 using WpfRect = System.Windows.Rect;
+using ImageColorChanger.UI.Controls.Common;
 
 namespace ImageColorChanger.UI.Controls
 {
@@ -48,9 +49,22 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 解析文本颜色（用于光标颜色）
+                // 解析文本颜色（用于文字/光标）
+                var hasTextBrush = SharedColorModule.TryCreateBrush(Data.FontColor, out var textBrush);
+                if (!hasTextBrush)
+                {
+                    textBrush = new WpfSolidColorBrush(System.Windows.Media.Colors.Black);
+                }
 
-                var color = (WpfColor)WpfColorConverter.ConvertFromString(Data.FontColor);
+                var caretColor = System.Windows.Media.Colors.Black;
+                if (textBrush is WpfSolidColorBrush caretSolid)
+                {
+                    caretColor = caretSolid.Color;
+                }
+                else if (!SharedColorModule.TryGetRepresentativeColor(textBrush, out caretColor))
+                {
+                    caretColor = System.Windows.Media.Colors.Black;
+                }
 
 
 
@@ -124,7 +138,7 @@ namespace ImageColorChanger.UI.Controls
 
                     // 设置文本颜色
 
-                    _richTextBox.Foreground = new WpfSolidColorBrush(color);
+                    _richTextBox.Foreground = textBrush;
 
                 }
 
@@ -138,7 +152,7 @@ namespace ImageColorChanger.UI.Controls
 
                 // 设置光标颜色为文本颜色（确保可见）
 
-                _richTextBox.CaretBrush = new WpfSolidColorBrush(color);
+                _richTextBox.CaretBrush = new WpfSolidColorBrush(WpfColor.FromArgb(255, caretColor.R, caretColor.G, caretColor.B));
 
 
 
@@ -264,17 +278,17 @@ namespace ImageColorChanger.UI.Controls
 
 
 
-                // 解析边框颜色
+                System.Windows.Media.Brush borderBrush = null;
+                if (!string.IsNullOrWhiteSpace(Data.BorderColor) &&
+                    !string.Equals(Data.BorderColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+                {
+                    SharedColorModule.TryCreateBrush(Data.BorderColor, out borderBrush, Data.BorderOpacity);
+                }
 
-                var borderColor = (WpfColor)WpfColorConverter.ConvertFromString(Data.BorderColor);
-
-
-
-                //  应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
-
-                byte alpha = (byte)(255 * (100 - Data.BorderOpacity) / 100.0);
-
-                var borderColorWithAlpha = WpfColor.FromArgb(alpha, borderColor.R, borderColor.G, borderColor.B);
+                if (borderBrush == null)
+                {
+                    borderBrush = WpfBrushes.Transparent;
+                }
 
 
 
@@ -285,7 +299,7 @@ namespace ImageColorChanger.UI.Controls
 
                 if (_borderStrokeRect != null)
                 {
-                    _borderStrokeRect.Stroke = new WpfSolidColorBrush(borderColorWithAlpha);
+                    _borderStrokeRect.Stroke = borderBrush;
                     _borderStrokeRect.StrokeThickness = Data.BorderWidth;
                     _borderStrokeRect.RadiusX = Data.BorderRadius;
                     _borderStrokeRect.RadiusY = Data.BorderRadius;
@@ -338,13 +352,6 @@ namespace ImageColorChanger.UI.Controls
             try
 
             {
-                bool isNoticeComponent = string.Equals(Data?.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase);
-                if (isNoticeComponent)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[NoticeColorTrace][Render] ApplyBackgroundStyle: id={Data?.Id}, bg={Data?.BackgroundColor}, opacity={Data?.BackgroundOpacity}, gradient={_useBackgroundGradient}");
-                }
-
                 // 背景透明度为 100% 时，使用透明背景
 
                 if (Data.BackgroundOpacity >= 100)
@@ -355,11 +362,6 @@ namespace ImageColorChanger.UI.Controls
 
                     _richTextBox.Background = WpfBrushes.Transparent;
 
-                    if (isNoticeComponent)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[NoticeColorTrace][Render][WARN] 背景透明度=100，视觉不可见");
-                    }
-
                     // 圆角仍然应用到 Border（与边框圆角共享）
 
                     ApplyBackgroundCornerRadius();
@@ -368,101 +370,28 @@ namespace ImageColorChanger.UI.Controls
 
                 }
 
-                // 渐变背景：优先于纯色背景渲染。
+                string backgroundSpec = Data.BackgroundColor;
                 if (_useBackgroundGradient &&
                     !string.IsNullOrWhiteSpace(_backgroundGradientStartColor) &&
                     !string.IsNullOrWhiteSpace(_backgroundGradientEndColor))
                 {
-                    var startColorRaw = (WpfColor)WpfColorConverter.ConvertFromString(_backgroundGradientStartColor);
-                    var endColorRaw = (WpfColor)WpfColorConverter.ConvertFromString(_backgroundGradientEndColor);
-
-                    byte gradientAlpha = (byte)(255 * (100 - Data.BackgroundOpacity) / 100.0);
-                    var startColor = WpfColor.FromArgb(gradientAlpha, startColorRaw.R, startColorRaw.G, startColorRaw.B);
-                    var endColor = WpfColor.FromArgb(gradientAlpha, endColorRaw.R, endColorRaw.G, endColorRaw.B);
-
-                    System.Windows.Media.Brush gradientBrush;
-                    switch (_backgroundGradientDirection)
-                    {
-                        case BackgroundGradientDirection.TopToBottom:
-                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
-                                startColor, endColor, new System.Windows.Point(0, 0), new System.Windows.Point(0, 1));
-                            break;
-                        case BackgroundGradientDirection.BottomToTop:
-                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
-                                startColor, endColor, new System.Windows.Point(0, 1), new System.Windows.Point(0, 0));
-                            break;
-                        case BackgroundGradientDirection.RightToLeft:
-                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
-                                startColor, endColor, new System.Windows.Point(1, 0), new System.Windows.Point(0, 0));
-                            break;
-                        case BackgroundGradientDirection.RadialCenter:
-                            gradientBrush = new System.Windows.Media.RadialGradientBrush
-                            {
-                                GradientOrigin = new System.Windows.Point(0.5, 0.5),
-                                Center = new System.Windows.Point(0.5, 0.5),
-                                RadiusX = 0.68,
-                                RadiusY = 0.68,
-                                GradientStops = new System.Windows.Media.GradientStopCollection
-                                {
-                                    new System.Windows.Media.GradientStop(startColor, 0),
-                                    new System.Windows.Media.GradientStop(endColor, 1)
-                                }
-                            };
-                            break;
-                        case BackgroundGradientDirection.LeftToRight:
-                        default:
-                            gradientBrush = new System.Windows.Media.LinearGradientBrush(
-                                startColor, endColor, new System.Windows.Point(0, 0), new System.Windows.Point(1, 0));
-                            break;
-                    }
-
-                    _border.Background = gradientBrush;
-                    _richTextBox.Background = WpfBrushes.Transparent;
-                    ApplyBackgroundCornerRadius();
-                    return;
+                    backgroundSpec = SharedColorModule.BuildGradientSpec(
+                        _backgroundGradientStartColor,
+                        _backgroundGradientEndColor,
+                        ToSharedGradientDirection(_backgroundGradientDirection));
                 }
 
-
-
-                // 解析背景颜色
-
-                WpfColor backgroundColor;
-
-                if (Data.BackgroundColor == "Transparent" || string.IsNullOrEmpty(Data.BackgroundColor))
-
+                if (string.IsNullOrWhiteSpace(backgroundSpec) ||
+                    string.Equals(backgroundSpec, "Transparent", StringComparison.OrdinalIgnoreCase) ||
+                    !SharedColorModule.TryCreateBrush(backgroundSpec, out var backgroundBrush, Data.BackgroundOpacity))
                 {
-
                     _border.Background = WpfBrushes.Transparent;
-
                     _richTextBox.Background = WpfBrushes.Transparent;
-
                     ApplyBackgroundCornerRadius();
-
                     return;
-
                 }
 
-                else
-
-                {
-
-                    backgroundColor = (WpfColor)WpfColorConverter.ConvertFromString(Data.BackgroundColor);
-
-                }
-
-
-
-                //  应用透明度（反转逻辑：0% = 完全不透明，100% = 完全透明）
-
-                byte alpha = (byte)(255 * (100 - Data.BackgroundOpacity) / 100.0);
-
-                var backgroundColorWithAlpha = WpfColor.FromArgb(alpha, backgroundColor.R, backgroundColor.G, backgroundColor.B);
-
-
-
-                //  设置背景到 Border 容器（支持圆角）
-
-                _border.Background = new WpfSolidColorBrush(backgroundColorWithAlpha);
+                _border.Background = backgroundBrush;
 
                 // RichTextBox 保持透明，让 Border 的背景透过
 
@@ -476,17 +405,24 @@ namespace ImageColorChanger.UI.Controls
 
             }
 
-            catch (Exception ex)
+            catch (Exception)
 
             {
-                if (string.Equals(Data?.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase))
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[NoticeColorTrace][Render][ERROR] 背景应用失败: id={Data?.Id}, bg={Data?.BackgroundColor}, opacity={Data?.BackgroundOpacity}, ex={ex.Message}");
-                }
 
             }
 
+        }
+
+        private static string ToSharedGradientDirection(BackgroundGradientDirection direction)
+        {
+            return direction switch
+            {
+                BackgroundGradientDirection.TopToBottom => "TopToBottom",
+                BackgroundGradientDirection.BottomToTop => "BottomToTop",
+                BackgroundGradientDirection.RightToLeft => "RightToLeft",
+                BackgroundGradientDirection.RadialCenter => "RadialCenter",
+                _ => "LeftToRight"
+            };
         }
 
         private void ApplyBackgroundCornerRadius()

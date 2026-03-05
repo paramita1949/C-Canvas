@@ -39,7 +39,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                     "|",
                     context.RegionImagePaths
                         .OrderBy(kv => kv.Key)
-                        .Select(kv => $"{kv.Key}:{kv.Value}"));
+                        .Select(kv => $"{kv.Key}:{EncodePart(kv.Value)}"));
 
             var textPart = context.TextStates == null
                 ? string.Empty
@@ -49,22 +49,22 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
 
             return string.Join(
                 "#",
-                imagePart,
-                textPart,
-                context.SplitMode ?? string.Empty,
-                context.SplitDisplayMode ?? string.Empty,
-                context.BackgroundColor ?? string.Empty,
-                context.BackgroundImagePath ?? string.Empty,
+                EncodePart(imagePart),
+                EncodePart(textPart),
+                EncodePart(context.SplitMode),
+                EncodePart(context.SplitDisplayMode),
+                EncodePart(context.BackgroundColor),
+                EncodePart(context.BackgroundImagePath),
                 context.BackgroundGradientEnabled ? "1" : "0",
-                context.BackgroundGradientStartColor ?? string.Empty,
-                context.BackgroundGradientEndColor ?? string.Empty,
+                EncodePart(context.BackgroundGradientStartColor),
+                EncodePart(context.BackgroundGradientEndColor),
                 context.BackgroundGradientDirection.ToString(CultureInfo.InvariantCulture),
                 context.BackgroundOpacity.ToString(CultureInfo.InvariantCulture),
                 context.BiblePopupOverlayVisible ? "1" : "0",
-                context.BiblePopupOverlayReference ?? string.Empty,
-                context.BiblePopupOverlayContent ?? string.Empty,
-                context.BiblePopupOverlayPosition ?? string.Empty,
-                context.BiblePopupOverlayBackgroundColor ?? string.Empty,
+                EncodePart(context.BiblePopupOverlayReference),
+                EncodePart(context.BiblePopupOverlayContent),
+                EncodePart(context.BiblePopupOverlayPosition),
+                EncodePart(context.BiblePopupOverlayBackgroundColor),
                 context.BiblePopupOverlayBackgroundOpacity.ToString(CultureInfo.InvariantCulture),
                 context.BiblePopupOverlayScrollOffset.ToString("G17", CultureInfo.InvariantCulture));
         }
@@ -119,36 +119,42 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
 
             return string.Join(
                 "_",
-                state.Content ?? string.Empty,
-                FormatInvariant(state.X),
-                FormatInvariant(state.Y),
-                FormatInvariant(state.Width),
-                FormatInvariant(state.Height),
-                FormatInvariant(state.FontSize),
-                state.FontFamily ?? string.Empty,
-                state.FontColor ?? string.Empty,
+                EncodePart(state.Content),
+                EncodePart(FormatInvariant(state.X)),
+                EncodePart(FormatInvariant(state.Y)),
+                EncodePart(FormatInvariant(state.Width)),
+                EncodePart(FormatInvariant(state.Height)),
+                EncodePart(FormatInvariant(state.FontSize)),
+                EncodePart(state.FontFamily),
+                EncodePart(state.FontColor),
                 state.IsBold ? "1" : "0",
                 state.IsItalic ? "1" : "0",
                 state.IsUnderline ? "1" : "0",
-                state.TextAlign ?? string.Empty,
-                state.TextVerticalAlign ?? string.Empty,
+                EncodePart(state.TextAlign),
+                EncodePart(state.TextVerticalAlign),
                 state.ZIndex.ToString(CultureInfo.InvariantCulture),
-                state.BorderColor ?? string.Empty,
-                FormatInvariant(state.BorderWidth),
-                FormatInvariant(state.BorderRadius),
-                FormatInvariant(state.BorderOpacity),
-                state.BackgroundColor ?? string.Empty,
-                FormatInvariant(state.BackgroundRadius),
-                FormatInvariant(state.BackgroundOpacity),
-                FormatInvariant(state.LineSpacing),
-                FormatInvariant(state.LetterSpacing),
-                state.ComponentType ?? string.Empty,
-                state.ComponentConfigJson ?? string.Empty);
+                EncodePart(state.BorderColor),
+                EncodePart(FormatInvariant(state.BorderWidth)),
+                EncodePart(FormatInvariant(state.BorderRadius)),
+                EncodePart(FormatInvariant(state.BorderOpacity)),
+                EncodePart(state.BackgroundColor),
+                EncodePart(FormatInvariant(state.BackgroundRadius)),
+                EncodePart(FormatInvariant(state.BackgroundOpacity)),
+                EncodePart(FormatInvariant(state.LineSpacing)),
+                EncodePart(FormatInvariant(state.LetterSpacing)),
+                EncodePart(state.ComponentType),
+                EncodePart(state.ComponentConfigJson));
         }
 
         private static string FormatInvariant(double value)
         {
             return value.ToString("G17", CultureInfo.InvariantCulture);
+        }
+
+        private static string EncodePart(string value)
+        {
+            var safe = value ?? string.Empty;
+            return $"{safe.Length}:{safe}";
         }
     }
 }

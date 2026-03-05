@@ -129,6 +129,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0"
@@ -302,6 +303,32 @@
             </Grid>
 
             <Grid Grid.Row="6" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="透明"
+                           VerticalAlignment="Center"
+                           Foreground="#4B5563"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Slider x:Name="BackgroundOpacitySlider"
+                            Width="200"
+                            Minimum="0"
+                            Maximum="100"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            ValueChanged="BackgroundOpacitySlider_ValueChanged"/>
+                    <TextBlock x:Name="BackgroundOpacityValueText"
+                               Margin="10,0,0,0"
+                               Width="42"
+                               VerticalAlignment="Center"
+                               Foreground="#4B5563"
+                               Text="0%"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="7" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="72"/>
                     <ColumnDefinition Width="*"/>

@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,7 +12,6 @@ namespace ImageColorChanger.UI.Controls
 {
     public partial class NoticeSettingsPanel : System.Windows.Controls.UserControl
     {
-        private const bool EnableNoticeColorTrace = true;
         public event Action<NoticeComponentConfig> ConfigChanged;
 
         private bool _isBinding;
@@ -44,6 +42,7 @@ namespace ImageColorChanger.UI.Controls
                 SelectSpeedLevel(normalized.Speed);
                 SelectDuration(normalized.DurationMinutes);
                 SelectBarHeightLevel(normalized.BarHeight);
+                SelectBackgroundOpacity(normalized.BackgroundOpacity);
                 AutoCloseCheckBox.IsChecked = normalized.AutoClose;
                 DurationComboBox.IsEnabled = normalized.AutoClose;
                 SelectDefaultColor(normalized.DefaultColorHex);
@@ -100,6 +99,14 @@ namespace ImageColorChanger.UI.Controls
             RaiseConfigChanged();
         }
 
+        private void BackgroundOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            _ = sender;
+            _ = e;
+            UpdateBackgroundOpacityText((int)Math.Round(e.NewValue));
+            RaiseConfigChanged();
+        }
+
         private void AutoCloseCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             _ = sender;
@@ -118,10 +125,6 @@ namespace ImageColorChanger.UI.Controls
             {
                 _selectedDefaultColorHex = color.Trim().ToUpperInvariant();
                 UpdateColorSwatchSelectionVisual();
-                if (EnableNoticeColorTrace)
-                {
-                    Debug.WriteLine($"[NoticeColorTrace][Panel] 预设色点击: {_selectedDefaultColorHex}");
-                }
             }
             _ = e;
             RaiseConfigChanged();
@@ -168,15 +171,7 @@ namespace ImageColorChanger.UI.Controls
                 var selected = colorDialog.Color;
                 _selectedDefaultColorHex = $"#{selected.R:X2}{selected.G:X2}{selected.B:X2}";
                 UpdateColorSwatchSelectionVisual();
-                if (EnableNoticeColorTrace)
-                {
-                    Debug.WriteLine($"[NoticeColorTrace][Panel] 系统色盘选择: {_selectedDefaultColorHex}");
-                }
                 RaiseConfigChanged(forceWhenUnloaded: true);
-            }
-            else if (EnableNoticeColorTrace)
-            {
-                Debug.WriteLine("[NoticeColorTrace][Panel] 系统色盘取消");
             }
         }
 
@@ -184,22 +179,10 @@ namespace ImageColorChanger.UI.Controls
         {
             if (_isBinding || (!IsLoaded && !forceWhenUnloaded))
             {
-                if (EnableNoticeColorTrace)
-                {
-                    Debug.WriteLine(
-                        $"[NoticeColorTrace][Panel] 跳过回调: isBinding={_isBinding}, isLoaded={IsLoaded}, " +
-                        $"forceWhenUnloaded={forceWhenUnloaded}, color={_selectedDefaultColorHex}");
-                }
                 return;
             }
 
             var current = GetCurrentConfig();
-            if (EnableNoticeColorTrace)
-            {
-                Debug.WriteLine(
-                    $"[NoticeColorTrace][Panel] 触发回调: color={current.DefaultColorHex}, speed={current.Speed}, " +
-                    $"height={current.BarHeight:F0}, isLoaded={IsLoaded}, forceWhenUnloaded={forceWhenUnloaded}");
-            }
             ConfigChanged?.Invoke(current);
         }
 
@@ -212,6 +195,7 @@ namespace ImageColorChanger.UI.Controls
                 Speed = GetSelectedSpeed(),
                 DurationMinutes = GetSelectedDuration(),
                 BarHeight = GetSelectedBarHeight(),
+                BackgroundOpacity = GetSelectedBackgroundOpacity(),
                 DefaultColorHex = GetSelectedDefaultColor(),
                 AutoClose = AutoCloseCheckBox.IsChecked == true
             };
@@ -322,6 +306,16 @@ namespace ImageColorChanger.UI.Controls
             return NoticeComponentConfig.GetBarHeightByLevel(GetSelectedBarHeightLevel());
         }
 
+        private int GetSelectedBackgroundOpacity()
+        {
+            if (BackgroundOpacitySlider == null)
+            {
+                return 0;
+            }
+
+            return Math.Clamp((int)Math.Round(BackgroundOpacitySlider.Value), 0, 100);
+        }
+
         private void SelectDirection(NoticeDirection direction)
         {
             DirectionLeftToRightOption.IsChecked = direction == NoticeDirection.LeftToRight;
@@ -363,6 +357,25 @@ namespace ImageColorChanger.UI.Controls
             BarHeightLevel2Option.IsChecked = level == 2;
             BarHeightLevel3Option.IsChecked = level == 3;
             BarHeightLevel4Option.IsChecked = level == 4;
+        }
+
+        private void SelectBackgroundOpacity(int opacity)
+        {
+            int clamped = Math.Clamp(opacity, 0, 100);
+            if (BackgroundOpacitySlider != null)
+            {
+                BackgroundOpacitySlider.Value = clamped;
+            }
+
+            UpdateBackgroundOpacityText(clamped);
+        }
+
+        private void UpdateBackgroundOpacityText(int opacity)
+        {
+            if (BackgroundOpacityValueText != null)
+            {
+                BackgroundOpacityValueText.Text = $"{Math.Clamp(opacity, 0, 100)}%";
+            }
         }
 
         private string GetSelectedDefaultColor()

@@ -11,16 +11,14 @@ using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfThumb = System.Windows.Controls.Primitives.Thumb;
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfBrushes = System.Windows.Media.Brushes;
-using WpfColor = System.Windows.Media.Color;
-using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfFontFamily = System.Windows.Media.FontFamily;
-using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfKey = System.Windows.Input.Key;
 using WpfMouseButton = System.Windows.Input.MouseButton;
 using WpfPoint = System.Windows.Point;
 using WpfSize = System.Windows.Size;
 using WpfRect = System.Windows.Rect;
+using ImageColorChanger.UI.Controls.Common;
 
 namespace ImageColorChanger.UI.Controls
 {
@@ -507,21 +505,12 @@ namespace ImageColorChanger.UI.Controls
 
                         // 应用颜色
 
-                        if (!string.IsNullOrEmpty(Data.FontColor))
+                        if (!string.IsNullOrEmpty(Data.FontColor) &&
+                            SharedColorModule.TryCreateBrush(Data.FontColor, out var fontBrush))
 
                         {
 
-                            try
-
-                            {
-
-                                var color = (WpfColor)WpfColorConverter.ConvertFromString(Data.FontColor);
-
-                                run.Foreground = new WpfSolidColorBrush(color);
-
-                            }
-
-                            catch { }
+                            run.Foreground = fontBrush;
 
                         }
 

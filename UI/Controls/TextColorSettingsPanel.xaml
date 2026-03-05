@@ -46,20 +46,79 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <TextBlock Text="纯浅色"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               Foreground="#2F2F2F"
-                               VerticalAlignment="Center"/>
-                    <TextBlock DockPanel.Dock="Right"
-                               Text="✎"
-                               FontSize="20"
-                               Foreground="#555555"
-                               VerticalAlignment="Center"/>
-                </DockPanel>
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="BtnSolidTab"
+                                Grid.Column="0"
+                                Height="34"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="BtnSolidTab_Click">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtSolidTab"
+                                           Text="纯色"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Foreground="#222222"
+                                           HorizontalAlignment="Center"/>
+                                <Border x:Name="SolidTabUnderline"
+                                        Height="3"
+                                        Margin="8,4,8,0"
+                                        Background="#F7C100"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button x:Name="BtnGradientTab"
+                                Grid.Column="1"
+                                Height="34"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="BtnGradientTab_Click">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGradientTab"
+                                           Text="渐变"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Foreground="#666666"
+                                           HorizontalAlignment="Center"/>
+                                <Border x:Name="GradientTabUnderline"
+                                        Height="3"
+                                        Margin="8,4,8,0"
+                                        Background="#F7C100"
+                                        Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <DockPanel Grid.Row="1">
+                        <TextBlock x:Name="TxtPaletteTitle"
+                                   Text="纯浅色"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#2F2F2F"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="✎"
+                                   FontSize="16"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Grid>
 
                 <WrapPanel x:Name="QuickColorPanel"
                            Grid.Row="1"
@@ -77,73 +136,134 @@
                            Margin="0,0,0,10"/>
 
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,14">
-                    <Border x:Name="RecentColorPreview1"
-                            Width="22"
-                            Height="22"
-                            Margin="0,0,7,0"
-                            CornerRadius="16"
-                            BorderBrush="#C6C6C6"
-                            BorderThickness="1"
-                            Background="#EBEFF3"/>
-                    <Border x:Name="RecentColorPreview2"
-                            Width="22"
-                            Height="22"
-                            Margin="0,0,7,0"
-                            CornerRadius="16"
-                            BorderBrush="#C6C6C6"
-                            BorderThickness="1"
-                            Background="#8B4747"/>
-                    <Button x:Name="BtnOpenCustomEditor"
-                            Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                            Width="22"
-                            Height="22"
-                            Margin="0,0,7,0"
-                            Cursor="Hand"
-                            Click="BtnOpenCustomEditor_Click"
-                            ToolTip="自定义颜色">
-                        <Viewbox Width="20" Height="20" Stretch="Uniform">
-                            <Grid Width="24" Height="24">
-                                <Ellipse Width="22"
-                                         Height="22"
-                                         HorizontalAlignment="Center"
-                                         VerticalAlignment="Center"
-                                         Stroke="{DynamicResource BrushIconDefault}"
-                                         StrokeThickness="2"
-                                         Fill="Transparent"/>
-                                <Path Data="{StaticResource IconLucidePlus}"
-                                      Width="12"
-                                      Height="12"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="RecentColorPreview1"
+                                Width="22"
+                                Height="22"
+                                Margin="0,0,7,0"
+                                CornerRadius="16"
+                                BorderBrush="#C6C6C6"
+                                BorderThickness="1"
+                                Background="#EBEFF3"/>
+                        <Border x:Name="RecentColorPreview2"
+                                Width="22"
+                                Height="22"
+                                Margin="0,0,7,0"
+                                CornerRadius="16"
+                                BorderBrush="#C6C6C6"
+                                BorderThickness="1"
+                                Background="#8B4747"/>
+                        <Button x:Name="BtnOpenCustomEditor"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="22"
+                                Height="22"
+                                Margin="0,0,7,0"
+                                Cursor="Hand"
+                                Click="BtnOpenCustomEditor_Click"
+                                ToolTip="自定义颜色">
+                            <Viewbox Width="20" Height="20" Stretch="Uniform">
+                                <Grid Width="24" Height="24">
+                                    <Ellipse Width="22"
+                                             Height="22"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"
+                                             Stroke="{DynamicResource BrushIconDefault}"
+                                             StrokeThickness="2"
+                                             Fill="Transparent"/>
+                                    <Path Data="{StaticResource IconLucidePlus}"
+                                          Width="12"
+                                          Height="12"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Stretch="Uniform"
+                                          Stroke="{DynamicResource BrushIconDefault}"
+                                          StrokeThickness="2.4"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"/>
+                                </Grid>
+                            </Viewbox>
+                        </Button>
+                        <Button x:Name="BtnPicker"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="22"
+                                Height="22"
+                                Cursor="Hand"
+                                ToolTip="吸管（预留）">
+                            <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                <Path Data="{StaticResource IconLocalPipette}"
+                                      Width="24"
+                                      Height="24"
                                       Stretch="Uniform"
                                       Stroke="{DynamicResource BrushIconDefault}"
-                                      StrokeThickness="2.4"
+                                      StrokeThickness="2.1"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round"
                                       Fill="Transparent"/>
-                            </Grid>
-                        </Viewbox>
-                    </Button>
-                    <Button x:Name="BtnPicker"
-                            Style="{StaticResource ColorPanelFlatIconButtonStyle}"
-                            Width="22"
-                            Height="22"
-                            Cursor="Hand"
-                            ToolTip="吸管（预留）">
-                        <Viewbox Width="14" Height="14" Stretch="Uniform">
-                            <Path Data="{StaticResource IconLocalPipette}"
-                                  Width="24"
-                                  Height="24"
-                                  Stretch="Uniform"
-                                  Stroke="{DynamicResource BrushIconDefault}"
-                                  StrokeThickness="2.1"
-                                  StrokeStartLineCap="Round"
-                                  StrokeEndLineCap="Round"
-                                  StrokeLineJoin="Round"
-                                  Fill="Transparent"/>
-                        </Viewbox>
-                    </Button>
+                            </Viewbox>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel x:Name="GradientDirectionPanel"
+                                Orientation="Horizontal"
+                                Visibility="Collapsed">
+                        <Border Width="1"
+                                Height="18"
+                                Margin="2,0,6,0"
+                                VerticalAlignment="Center"
+                                Background="#D0D0D0"/>
+                        <Button x:Name="BtnGradientDirTopToBottom"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                ToolTip="上渐变"
+                                Click="BtnGradientDirection_Click"
+                                Tag="TopToBottom">
+                            <TextBlock Text="上" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="BtnGradientDirBottomToTop"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                ToolTip="下渐变"
+                                Click="BtnGradientDirection_Click"
+                                Tag="BottomToTop">
+                            <TextBlock Text="下" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="BtnGradientDirLeftToRight"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                ToolTip="左到右"
+                                Click="BtnGradientDirection_Click"
+                                Tag="LeftToRight">
+                            <TextBlock Text="左" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="BtnGradientDirRightToLeft"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                ToolTip="右到左"
+                                Click="BtnGradientDirection_Click"
+                                Tag="RightToLeft">
+                            <TextBlock Text="右" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="BtnGradientDirRadialCenter"
+                                Style="{StaticResource ColorPanelFlatIconButtonStyle}"
+                                Width="28"
+                                Height="24"
+                                ToolTip="中间渐变"
+                                Click="BtnGradientDirection_Click"
+                                Tag="RadialCenter">
+                            <TextBlock Text="中" FontSize="14" FontWeight="SemiBold" Foreground="#444444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
 
                 <Separator Grid.Row="5" Margin="0,0,0,10" VerticalAlignment="Top"/>
@@ -153,8 +273,23 @@
                              Margin="0,18,0,0"
                              Columns="10"/>
 
+                <StackPanel Grid.Row="6" Margin="0,12,0,0">
+                    <TextBlock x:Name="TxtOpacityLabel"
+                               Text="透明度 0%"
+                               Foreground="#666666"
+                               FontSize="12"
+                               Margin="0,0,0,6"/>
+                    <Slider x:Name="OpacitySlider"
+                            Minimum="0"
+                            Maximum="100"
+                            Value="0"
+                            TickFrequency="1"
+                            IsSnapToTickEnabled="True"
+                            ValueChanged="OpacitySlider_ValueChanged"/>
+                </StackPanel>
+
                 <Button x:Name="BtnHighlightTransparent"
-                        Grid.Row="6"
+                        Grid.Row="7"
                         Height="32"
                         Margin="0,12,0,0"
                         Padding="0"

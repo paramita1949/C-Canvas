@@ -21,6 +21,7 @@ using WpfMouseButton = System.Windows.Input.MouseButton;
 using WpfPoint = System.Windows.Point;
 using WpfSize = System.Windows.Size;
 using WpfRect = System.Windows.Rect;
+using ImageColorChanger.UI.Controls.Common;
 
 namespace ImageColorChanger.UI.Controls
 {
@@ -673,14 +674,14 @@ namespace ImageColorChanger.UI.Controls
                 try
 
                 {
+                    if (SharedColorModule.TryCreateBrush(color, out var textBrush))
+                    {
+                        selection.ApplyPropertyValue(
 
-                    var wpfColor = (WpfColor)WpfColorConverter.ConvertFromString(color);
+                            System.Windows.Documents.TextElement.ForegroundProperty,
 
-                    selection.ApplyPropertyValue(
-
-                        System.Windows.Documents.TextElement.ForegroundProperty,
-
-                        new WpfSolidColorBrush(wpfColor));
+                            textBrush);
+                    }
 
 #if DEBUG
 
@@ -976,19 +977,16 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-            try
+            if (!SharedColorModule.TryCreateBrush(highlightColor, out var backgroundBrush))
             {
-                var color = (WpfColor)WpfColorConverter.ConvertFromString(highlightColor);
-                selection.ApplyPropertyValue(
-                    System.Windows.Documents.TextElement.BackgroundProperty,
-                    new WpfSolidColorBrush(color));
-                ApplyTextLayoutProfile();
-                ContentChanged?.Invoke(this, Data.Content);
+                return;
             }
-            catch
-            {
-                // ignore invalid highlight color input
-            }
+
+            selection.ApplyPropertyValue(
+                System.Windows.Documents.TextElement.BackgroundProperty,
+                backgroundBrush);
+            ApplyTextLayoutProfile();
+            ContentChanged?.Invoke(this, Data.Content);
         }
 
         private void ApplyLineHeightToAllParagraphs()

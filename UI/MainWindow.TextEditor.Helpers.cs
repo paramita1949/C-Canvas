@@ -22,6 +22,7 @@ using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
+using ImageColorChanger.UI.Controls.Common;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
@@ -402,25 +403,13 @@ namespace ImageColorChanger.UI
                 ?? System.Windows.Application.Current?.Resources["BrushGlobalIcon"] as SolidColorBrush
                 ?? new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 64, 67));
 
-            if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(colorHex) &&
+                !string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase) &&
+                SharedColorModule.TryCreateBrush(colorHex, out var brush))
             {
-                SecondLayerTextColorBar.Fill = fallback;
+                SecondLayerTextColorBar.Fill = brush;
+                _currentTextColor = colorHex;
                 return;
-            }
-
-            try
-            {
-                var converted = WpfColorConverter.ConvertFromString(colorHex);
-                if (converted is WpfColor color)
-                {
-                    SecondLayerTextColorBar.Fill = new SolidColorBrush(color);
-                    _currentTextColor = colorHex;
-                    return;
-                }
-            }
-            catch
-            {
-                // ignore and use fallback
             }
 
             SecondLayerTextColorBar.Fill = fallback;
@@ -435,24 +424,12 @@ namespace ImageColorChanger.UI
 
             var fallback = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#FF9800"));
 
-            if (string.IsNullOrWhiteSpace(colorHex) || string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(colorHex) &&
+                !string.Equals(colorHex, "Transparent", StringComparison.OrdinalIgnoreCase) &&
+                SharedColorModule.TryCreateBrush(colorHex, out var brush))
             {
-                SecondLayerTextHighlightBar.Fill = fallback;
+                SecondLayerTextHighlightBar.Fill = brush;
                 return;
-            }
-
-            try
-            {
-                var converted = WpfColorConverter.ConvertFromString(colorHex);
-                if (converted is WpfColor color)
-                {
-                    SecondLayerTextHighlightBar.Fill = new SolidColorBrush(color);
-                    return;
-                }
-            }
-            catch
-            {
-                // ignore and use fallback
             }
 
             SecondLayerTextHighlightBar.Fill = fallback;
@@ -473,12 +450,9 @@ namespace ImageColorChanger.UI
                 return null;
             }
 
-            if (value is SolidColorBrush brush)
+            if (value is System.Windows.Media.Brush brush)
             {
-                var c = brush.Color;
-                return c.A < 255
-                    ? $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}"
-                    : $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+                return SharedColorModule.EncodeBrush(brush);
             }
 
             return null;
@@ -499,17 +473,14 @@ namespace ImageColorChanger.UI
                 return null;
             }
 
-            if (value is SolidColorBrush brush)
+            if (value is System.Windows.Media.Brush brush)
             {
-                var c = brush.Color;
-                if (c.A == 0)
+                if (brush is SolidColorBrush solid && solid.Color.A == 0)
                 {
                     return null;
                 }
 
-                return c.A < 255
-                    ? $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}"
-                    : $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+                return SharedColorModule.EncodeBrush(brush);
             }
 
             return null;

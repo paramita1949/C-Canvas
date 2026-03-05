@@ -4,6 +4,7 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.TextEditor;
 using ImageColorChanger.Services.TextEditor.Models;
+using ImageColorChanger.UI.Controls.Common;
 using ImageColorChanger.Utils;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfCanvas = System.Windows.Controls.Canvas;
@@ -231,7 +232,11 @@ namespace ImageColorChanger.UI.Controls
                     }
                     else if (!string.IsNullOrEmpty(Data?.FontColor))
                     {
-                        caretColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(Data.FontColor);
+                        if (SharedColorModule.TryCreateBrush(Data.FontColor, out var parsedBrush) &&
+                            SharedColorModule.TryGetRepresentativeColor(parsedBrush, out var representative))
+                        {
+                            caretColor = representative;
+                        }
                     }
                 }
 

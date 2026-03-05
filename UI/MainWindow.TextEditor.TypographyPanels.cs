@@ -19,7 +19,6 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const bool EnableTextDriftTrace = false;
-        private const bool EnableNoticeColorTrace = true;
         private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
         private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
         private const string NoticeTogglePlayIconData = "M5 3L19 12L5 21V3Z";
@@ -312,16 +311,11 @@ namespace ImageColorChanger.UI
             {
                 cfg.DefaultColorHex = _noticeSettingsTargetTextBox.Data.BackgroundColor;
             }
+            cfg.BackgroundOpacity = Math.Clamp(_noticeSettingsTargetTextBox.Data.BackgroundOpacity, 0, 100);
             cfg.BarHeight = _noticeSettingsTargetTextBox.ActualHeight > 1 ? _noticeSettingsTargetTextBox.ActualHeight : _noticeSettingsTargetTextBox.Data.Height;
             cfg.PositionFlags = ResolveNoticePositionFlagsForBinding(cfg, _noticeSettingsTargetTextBox);
             cfg.Position = NoticeComponentConfig.GetPrimaryPosition(cfg.PositionFlags);
             NoticeSettingsPanel.BindConfig(cfg);
-            if (EnableNoticeColorTrace)
-            {
-                Debug.WriteLine(
-                    $"[NoticeColorTrace][Main] 打开通知设置: id={_noticeSettingsTargetTextBox.Data.Id}, " +
-                    $"bg={_noticeSettingsTargetTextBox.Data.BackgroundColor}, opacity={_noticeSettingsTargetTextBox.Data.BackgroundOpacity}, cfgColor={cfg.DefaultColorHex}");
-            }
 
             if (NoticeSettingsPopup != null)
             {
@@ -765,18 +759,7 @@ namespace ImageColorChanger.UI
             var targetTextBox = ResolveNoticeSettingsTargetTextBox();
             if (targetTextBox?.Data == null || !IsNoticeComponent(targetTextBox.Data))
             {
-                if (EnableNoticeColorTrace)
-                {
-                    Debug.WriteLine("[NoticeColorTrace][Main] 回调被丢弃: 没有有效通知目标");
-                }
                 return;
-            }
-
-            if (EnableNoticeColorTrace)
-            {
-                Debug.WriteLine(
-                    $"[NoticeColorTrace][Main] 收到回调: id={targetTextBox.Data.Id}, incomingColor={cfg?.DefaultColorHex}, " +
-                    $"beforeBg={targetTextBox.Data.BackgroundColor}, beforeOpacity={targetTextBox.Data.BackgroundOpacity}");
             }
 
             var existing = NoticeComponentConfigCodec.Deserialize(targetTextBox.Data.ComponentConfigJson);
@@ -789,6 +772,7 @@ namespace ImageColorChanger.UI
             string autoAlign = normalized.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
             targetTextBox.ApplyStyle(
                 backgroundColor: normalized.DefaultColorHex,
+                backgroundOpacity: normalized.BackgroundOpacity,
                 textAlign: autoAlign,
                 textVerticalAlign: "Middle");
             ApplyNoticeBarHeightToTextBox(targetTextBox, normalized.BarHeight);
@@ -796,17 +780,6 @@ namespace ImageColorChanger.UI
             ScheduleNoticeConfigPersist(targetTextBox);
             EnsureNoticeAnimationLoopState();
             UpdateNoticeToggleButtonState();
-
-            if (EnableNoticeColorTrace)
-            {
-                Debug.WriteLine(
-                    $"[NoticeColorTrace][Main] 应用完成: id={targetTextBox.Data.Id}, afterBg={targetTextBox.Data.BackgroundColor}, " +
-                    $"afterOpacity={targetTextBox.Data.BackgroundOpacity}, cfgColor={normalized.DefaultColorHex}");
-                if (targetTextBox.Data.BackgroundOpacity >= 100)
-                {
-                    Debug.WriteLine("[NoticeColorTrace][Main][WARN] 背景透明度=100，颜色已写入但视觉上不可见");
-                }
-            }
 
             if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
             {
@@ -860,11 +833,6 @@ namespace ImageColorChanger.UI
                     }
 
                     await PersistTextElementsAsync(new[] { textBox });
-                    if (EnableNoticeColorTrace)
-                    {
-                        Debug.WriteLine(
-                            $"[NoticeColorTrace][Persist] 已持久化: id={textBox.Data?.Id}, bg={textBox.Data?.BackgroundColor}, opacity={textBox.Data?.BackgroundOpacity}");
-                    }
                 }
                 finally
                 {

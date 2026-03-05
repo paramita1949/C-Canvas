@@ -11,16 +11,14 @@ using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfThumb = System.Windows.Controls.Primitives.Thumb;
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfBrushes = System.Windows.Media.Brushes;
-using WpfColor = System.Windows.Media.Color;
-using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfFontFamily = System.Windows.Media.FontFamily;
-using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfKey = System.Windows.Input.Key;
 using WpfMouseButton = System.Windows.Input.MouseButton;
 using WpfPoint = System.Windows.Point;
 using WpfSize = System.Windows.Size;
 using WpfRect = System.Windows.Rect;
+using ImageColorChanger.UI.Controls.Common;
 
 namespace ImageColorChanger.UI.Controls
 {
@@ -104,37 +102,20 @@ namespace ImageColorChanger.UI.Controls
 
             // 应用颜色
 
-            if (!string.IsNullOrEmpty(span.FontColor))
+            if (!string.IsNullOrEmpty(span.FontColor) &&
+                SharedColorModule.TryCreateBrush(span.FontColor, out var fontBrush))
 
             {
-
-                try
-
-                {
-
-                    var color = (WpfColor)WpfColorConverter.ConvertFromString(span.FontColor);
-
-                    run.Foreground = new WpfSolidColorBrush(color);
-
-                }
-
-                catch { }
+                run.Foreground = fontBrush;
 
             }
 
             // 应用文字高亮背景（选区背景色，区别于文本框容器背景）
             if (!string.IsNullOrEmpty(span.BackgroundColor) &&
-                !string.Equals(span.BackgroundColor, "Transparent", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(span.BackgroundColor, "Transparent", StringComparison.OrdinalIgnoreCase) &&
+                SharedColorModule.TryCreateBrush(span.BackgroundColor, out var backgroundBrush))
             {
-                try
-                {
-                    var backgroundColor = (WpfColor)WpfColorConverter.ConvertFromString(span.BackgroundColor);
-                    run.Background = new WpfSolidColorBrush(backgroundColor);
-                }
-                catch
-                {
-                    run.Background = null;
-                }
+                run.Background = backgroundBrush;
             }
             else
             {
@@ -281,22 +262,24 @@ namespace ImageColorChanger.UI.Controls
 
                         }
 
-                        if (run.Foreground is WpfSolidColorBrush brush)
+                        if (run.Foreground is System.Windows.Media.Brush foregroundBrush)
 
                         {
-
-                            var color = brush.Color;
-
-                            span.FontColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                            var encodedForeground = SharedColorModule.EncodeBrush(foregroundBrush);
+                            if (!string.IsNullOrWhiteSpace(encodedForeground))
+                            {
+                                span.FontColor = encodedForeground;
+                            }
 
                         }
 
-                        if (run.Background is WpfSolidColorBrush backgroundBrush)
+                        if (run.Background is System.Windows.Media.Brush backgroundBrush)
                         {
-                            var bgColor = backgroundBrush.Color;
-                            span.BackgroundColor = bgColor.A < 255
-                                ? $"#{bgColor.A:X2}{bgColor.R:X2}{bgColor.G:X2}{bgColor.B:X2}"
-                                : $"#{bgColor.R:X2}{bgColor.G:X2}{bgColor.B:X2}";
+                            var encodedBackground = SharedColorModule.EncodeBrush(backgroundBrush);
+                            if (!string.IsNullOrWhiteSpace(encodedBackground))
+                            {
+                                span.BackgroundColor = encodedBackground;
+                            }
                         }
 
                         span.IsBold = (run.FontWeight == System.Windows.FontWeights.Bold) ? 1 : 0;

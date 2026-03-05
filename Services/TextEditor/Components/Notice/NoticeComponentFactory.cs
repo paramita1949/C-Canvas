@@ -6,7 +6,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
     {
         public const string NoticeComponentType = "Notice";
         public const string DefaultNoticeBackgroundColor = "#FF8A00";
-        public const int DefaultNoticeBackgroundOpacity = 20;
+        public const int DefaultNoticeBackgroundOpacity = 0;
         public const string DefaultNoticeContent = "请输入通知内容";
 
         public static TextElement BuildDefault(
@@ -48,7 +48,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 TextAlign = textAlign,
                 TextVerticalAlign = "Middle",
                 BackgroundColor = cfg.DefaultColorHex,
-                BackgroundOpacity = DefaultNoticeBackgroundOpacity,
+                BackgroundOpacity = cfg.BackgroundOpacity,
                 ComponentType = NoticeComponentType,
                 ComponentConfigJson = NoticeComponentConfigCodec.Serialize(cfg)
             };

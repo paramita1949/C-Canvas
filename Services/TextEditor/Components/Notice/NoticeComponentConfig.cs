@@ -37,6 +37,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
         private int _speed = 45;
         private int _durationMinutes = 3;
         private string _defaultColorHex = DefaultNoticeColorHex;
+        private int _backgroundOpacity = 0;
         private double _barHeight = 120;
         private NoticePositionFlags _positionFlags = NoticePositionFlags.Top;
 
@@ -83,6 +84,15 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
         {
             get => string.IsNullOrWhiteSpace(_defaultColorHex) ? DefaultNoticeColorHex : _defaultColorHex;
             set => _defaultColorHex = string.IsNullOrWhiteSpace(value) ? DefaultNoticeColorHex : value.Trim();
+        }
+
+        /// <summary>
+        /// 通知背景透明度（0-100）。0=不透明，100=完全透明。
+        /// </summary>
+        public int BackgroundOpacity
+        {
+            get => _backgroundOpacity;
+            set => _backgroundOpacity = Math.Clamp(value, 0, 100);
         }
 
         /// <summary>

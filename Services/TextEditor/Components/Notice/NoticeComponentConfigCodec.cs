@@ -47,6 +47,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 Speed = cfg.Speed,
                 DurationMinutes = cfg.DurationMinutes,
                 DefaultColorHex = NormalizeColorHex(cfg.DefaultColorHex),
+                BackgroundOpacity = cfg.BackgroundOpacity,
                 BarHeight = cfg.BarHeight,
                 AutoClose = cfg.AutoClose,
                 DebugEnabled = cfg.DebugEnabled
