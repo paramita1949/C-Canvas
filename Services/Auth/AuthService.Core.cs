@@ -67,7 +67,7 @@ namespace ImageColorChanger.Services
         public string LastAuthFailureReason => _lastAuthFailureReason;
         public PaymentInfo LastPaymentInfo => _lastPaymentInfo;
         public DateTime? ExpiresAt => _expiresAt;
-        public int RemainingDays => _remainingDays;
+        public int RemainingDays => GetEffectiveRemainingDays();
         public DeviceInfo DeviceBindingInfo => _deviceInfo;
         public int ResetDeviceCount => _resetDeviceCount;
 
@@ -91,7 +91,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
             System.Diagnostics.Trace.WriteLine(
                 $" [AuthService] InitializeAsync完成: IsAuthenticated={_isAuthenticated}, " +
-                $"Username={_username ?? "null"}, RemainingDays={_remainingDays}");
+                $"Username={_username ?? "null"}, RemainingDays={RemainingDays}");
 #endif
         }
 

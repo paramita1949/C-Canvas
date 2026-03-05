@@ -111,12 +111,12 @@ namespace ImageColorChanger.Services
                 return "账号已过期";
             }
 
-            if (_remainingDays <= 7)
+            if (RemainingDays <= 7)
             {
-                return $"账号即将过期（剩余{_remainingDays}天）";
+                return $"账号即将过期（剩余{RemainingDays}天）";
             }
 
-            return $"已登录 - {_username}（剩余{_remainingDays}天）";
+            return $"已登录 - {_username}（剩余{RemainingDays}天）";
         }
 
         public string GetDeviceBindingSummary()

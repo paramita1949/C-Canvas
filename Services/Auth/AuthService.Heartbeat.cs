@@ -131,7 +131,7 @@ namespace ImageColorChanger.Services
                 ApplyServerAuthData(authResponse.Data, source: "refresh", updateLastSuccessfulHeartbeat: false, persistLocalCache: true);
 
 #if DEBUG
-                System.Diagnostics.Trace.WriteLine($" [刷新] 成功，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                System.Diagnostics.Trace.WriteLine($" [刷新] 成功，剩余{RemainingDays}天，解绑{_resetDeviceCount}次");
                 if (_deviceInfo != null)
                 {
                     System.Diagnostics.Trace.WriteLine($" [刷新] 设备: 已绑定{_deviceInfo.BoundDevices}/{_deviceInfo.MaxDevices}, 剩余{_deviceInfo.RemainingSlots}");
@@ -373,7 +373,7 @@ namespace ImageColorChanger.Services
 
 #if DEBUG
                 var nextHeartbeat = DateTime.Now.Add(AUTH_HEARTBEAT_INTERVAL);
-                System.Diagnostics.Trace.WriteLine($" [心跳] 心跳正常，剩余{_remainingDays}天，解绑{_resetDeviceCount}次");
+                System.Diagnostics.Trace.WriteLine($" [心跳] 心跳正常，剩余{RemainingDays}天，解绑{_resetDeviceCount}次");
                 System.Diagnostics.Trace.WriteLine($" [心跳] 下次心跳时间: {nextHeartbeat:HH:mm:ss}");
 #endif
             }

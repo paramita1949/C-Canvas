@@ -104,7 +104,7 @@ namespace ImageColorChanger.Services
                     Username = _username,
                     Token = _token,
                     ExpiresAt = _expiresAt?.ToString("O"),
-                    RemainingDays = _remainingDays,
+                    RemainingDays = RemainingDays,
                     LastServerTime = _lastServerTime?.ToString("O"),
                     LastLocalTime = _lastLocalTime?.ToString("O"),
                     LastTickCount = _lastTickCount,

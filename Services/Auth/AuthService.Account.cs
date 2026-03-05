@@ -65,7 +65,7 @@ namespace ImageColorChanger.Services
                 }
 
                 await ApplyLoginSuccessAsync(username, authResponse);
-                return (true, $"登录成功！账号有效期剩余 {_remainingDays} 天");
+                return (true, $"登录成功！账号有效期剩余 {RemainingDays} 天");
             }
             catch (HttpRequestException ex)
             {

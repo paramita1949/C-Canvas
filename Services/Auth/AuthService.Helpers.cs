@@ -48,6 +48,21 @@ namespace ImageColorChanger.Services
             _resetDeviceCount = data?.ResetDeviceCount ?? 0;
         }
 
+        private int GetEffectiveRemainingDays()
+        {
+            if (!_expiresAt.HasValue)
+            {
+                return Math.Max(0, _remainingDays);
+            }
+
+            DateTime now = _lastServerTime.HasValue
+                ? GetEstimatedServerTime()
+                : DateTime.Now;
+
+            double remainingDays = (_expiresAt.Value - now).TotalDays;
+            return Math.Max(0, (int)Math.Ceiling(remainingDays));
+        }
+
         private void UpdateServerTimeBaseline(string serverTimeString)
         {
             if (!string.IsNullOrEmpty(serverTimeString) && DateTime.TryParse(serverTimeString, out var serverTime))
@@ -172,7 +187,7 @@ namespace ImageColorChanger.Services
             });
 
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($" [AuthService] 登录成功: {_username}, 剩余{_remainingDays}天");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 登录成功: {_username}, 剩余{RemainingDays}天");
 #endif
         }
 
@@ -438,7 +453,7 @@ namespace ImageColorChanger.Services
                 IsAutoLogin = true
             });
 #if DEBUG
-            System.Diagnostics.Trace.WriteLine($" [AuthService] 自动登录成功: {_username}, 剩余{_remainingDays}天");
+            System.Diagnostics.Trace.WriteLine($" [AuthService] 自动登录成功: {_username}, 剩余{RemainingDays}天");
 #endif
         }
 
