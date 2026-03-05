@@ -54,6 +54,7 @@ namespace ImageColorChanger.UI
         private ITextEditorThumbnailService _textEditorThumbnailService;
         private ITextEditorProjectionRenderStateService _textEditorProjectionRenderStateService;
         private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
+        private TextEditorNoticeOverlayRenderService _textEditorNoticeOverlayRenderService;
         private readonly NoticeRuntimeService _noticeRuntimeService = new NoticeRuntimeService();
         private static readonly TimeSpan NoticeAnimationFrameInterval = TimeSpan.FromMilliseconds(16);
         private const int NoticeProjectionFrameIntervalMs = 16;
@@ -136,6 +137,7 @@ namespace ImageColorChanger.UI
             _textEditorThumbnailService = _mainWindowServices.GetRequired<ITextEditorThumbnailService>();
             _textEditorProjectionRenderStateService = _mainWindowServices.GetRequired<ITextEditorProjectionRenderStateService>();
             _textEditorRenderSafetyService = _mainWindowServices.GetRequired<ITextEditorRenderSafetyService>();
+            _textEditorNoticeOverlayRenderService = new TextEditorNoticeOverlayRenderService(_textEditorRenderSafetyService);
             _textEditorSaveOrchestrator = _mainWindowServices.GetRequired<ITextEditorSaveOrchestrator>();
             LoadSlideThemePreference();
             LoadNoticeDefaultConfigPreference();

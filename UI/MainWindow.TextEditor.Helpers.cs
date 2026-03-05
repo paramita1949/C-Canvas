@@ -1270,13 +1270,23 @@ namespace ImageColorChanger.UI
                 projHeight = 1080;
             }
 
-            var noticeLayer = ComposeCanvasWithSkia(
-                projWidth,
-                projHeight,
-                transparentBackground: true,
-                textOnlyOverlay: true,
-                noticeOnlyOverlay: true,
-                hideNoticeComponents: false);
+            var noticeLayer = _textEditorNoticeOverlayRenderService != null
+                ? _textEditorNoticeOverlayRenderService.ExecuteSafely(
+                    _textBoxes,
+                    () => ComposeCanvasWithSkia(
+                        projWidth,
+                        projHeight,
+                        transparentBackground: true,
+                        textOnlyOverlay: true,
+                        noticeOnlyOverlay: true,
+                        hideNoticeComponents: false))
+                : ComposeCanvasWithSkia(
+                    projWidth,
+                    projHeight,
+                    transparentBackground: true,
+                    textOnlyOverlay: true,
+                    noticeOnlyOverlay: true,
+                    hideNoticeComponents: false);
 
             try
             {
