@@ -26,5 +26,23 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
                 thumbnailDirectory: "");
             Assert.Null(result);
         }
+
+        [Fact]
+        public void CalculateThumbnailSize_UsesMinimumDisplayResolution_ForLargeCanvas()
+        {
+            var (width, height) = TextEditorThumbnailService.CalculateThumbnailSize(1600, 900);
+
+            Assert.Equal(320, width);
+            Assert.Equal(180, height);
+        }
+
+        [Fact]
+        public void CalculateThumbnailSize_DoesNotUpscale_WhenCanvasAlreadySmall()
+        {
+            var (width, height) = TextEditorThumbnailService.CalculateThumbnailSize(220, 120);
+
+            Assert.Equal(220, width);
+            Assert.Equal(120, height);
+        }
     }
 }
