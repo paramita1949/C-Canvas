@@ -56,11 +56,12 @@ namespace ImageColorChanger.UI
         private ITextEditorRenderSafetyService _textEditorRenderSafetyService;
         private readonly NoticeRuntimeService _noticeRuntimeService = new NoticeRuntimeService();
         private static readonly TimeSpan NoticeAnimationFrameInterval = TimeSpan.FromMilliseconds(16);
-        private const int NoticeProjectionFrameIntervalMs = 33;
+        private const int NoticeProjectionFrameIntervalMs = 16;
         private bool _noticeRenderingSubscribed;
         private long _lastNoticeProjectionUpdateMs;
         private bool _noticeProjectionRefreshPending;
         private bool _hideNoticeOnProjection;
+        private readonly Dictionary<int, NoticeVisualBoundsCache> _noticeVisualBoundsCache = new();
         private SlideThemeMode _slideThemeMode = SlideThemeMode.Dark;
 
         // 辅助线相关

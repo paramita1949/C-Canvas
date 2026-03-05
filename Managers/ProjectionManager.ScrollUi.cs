@@ -106,9 +106,8 @@ namespace ImageColorChanger.Managers
                 return;
             }
 
-            _projectionScrollViewer.ScrollToVerticalOffset(offset);
-            _projectionScrollViewer.InvalidateScrollInfo();
-            _projectionScrollViewer.UpdateLayout();
+            // 性能优化：移除 UpdateLayout() 调用，避免强制同步布局导致滚动卡顿
+            // ScrollToVerticalOffset 本身会触发布局更新，无需额外强制同步
             _projectionScrollViewer.ScrollToVerticalOffset(offset);
         }
 

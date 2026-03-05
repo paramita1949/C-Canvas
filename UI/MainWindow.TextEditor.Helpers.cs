@@ -33,6 +33,14 @@ using System.Globalization;
 
 namespace ImageColorChanger.UI
 {
+    internal sealed class NoticeVisualBoundsCache
+    {
+        public string ContentHash { get; set; }
+        public double FirstX { get; set; }
+        public double LastX { get; set; }
+        public bool IsValid { get; set; }
+    }
+
     /// <summary>
     /// MainWindow TextEditor Helper Methods
     /// </summary>
@@ -677,23 +685,22 @@ namespace ImageColorChanger.UI
                 return !isProjectionRender;
 	}
 
-	double canvasWidth = EditorCanvas?.ActualWidth > 0 ? EditorCanvas.ActualWidth : (_currentTextProject?.CanvasWidth > 0 ? _currentTextProject.CanvasWidth : 1600);
-	double viewportWidth = canvasWidth;
-	double laneStartX = EstimateNoticeContentStartInset(textBox);
-	double laneEndX = EstimateNoticeContentEndInset(textBox);
-	double contentWidth = EstimateNoticeContentWidth(textBox);
-	double laneLeft = Math.Max(0.0, laneStartX);
-	double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
-	double contentStartX;
+            double canvasWidth = EditorCanvas?.ActualWidth > 0 ? EditorCanvas.ActualWidth : (_currentTextProject?.CanvasWidth > 0 ? _currentTextProject.CanvasWidth : 1600);
+            double viewportWidth = canvasWidth;
+            double laneStartX = EstimateNoticeContentStartInset(textBox);
+            double laneEndX = EstimateNoticeContentEndInset(textBox);
+            double contentWidth = EstimateNoticeContentWidth(textBox);
+            double laneLeft = Math.Max(0.0, laneStartX);
+            double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
+            double contentStartX;
 
-	// 优先使用"实际字符可视边界"参与碰撞计算，避免估算宽度与肉眼不一致。
-	if (TryMeasureNoticeContentVisualBounds(textBox, out double visualFirstX, out double visualLastX))
-	{
-		double visualStartX = Math.Max(0, visualFirstX);
-		double visualEndX = Math.Max(visualStartX, visualLastX);
-		double visualWidth = Math.Max(1.0, visualEndX - visualStartX);
-		contentWidth = Math.Max(contentWidth, visualWidth);
-	}
+            // 使用缓存避免每帧重新测量字符边界
+            var visualBounds = TryGetCachedNoticeVisualBounds(textBox);
+            if (visualBounds.IsValid)
+            {
+                double visualWidth = Math.Max(1.0, visualBounds.LastX - visualBounds.FirstX);
+                contentWidth = Math.Max(contentWidth, visualWidth);
+            }
 
 	// 根据方向确定起点位置：
 	// - L->R（左对齐）：起点 = 左边界
@@ -919,6 +926,53 @@ namespace ImageColorChanger.UI
             return direction == NoticeDirection.RightToLeft
                 ? laneStart + Math.Max(0.0, laneWidth - width)
                 : laneStart;
+        }
+
+        private NoticeVisualBoundsCache TryGetCachedNoticeVisualBounds(DraggableTextBox textBox)
+        {
+            if (textBox?.Data == null)
+            {
+                return new NoticeVisualBoundsCache { IsValid = false };
+            }
+
+            int textBoxId = textBox.Data.Id;
+            string contentHash = ComputeNoticeContentHash(textBox);
+
+            if (_noticeVisualBoundsCache.TryGetValue(textBoxId, out var cached))
+            {
+                if (cached.ContentHash == contentHash && cached.IsValid)
+                {
+                    return cached;
+                }
+            }
+
+            if (TryMeasureNoticeContentVisualBounds(textBox, out double firstX, out double lastX))
+            {
+                var newCache = new NoticeVisualBoundsCache
+                {
+                    ContentHash = contentHash,
+                    FirstX = firstX,
+                    LastX = lastX,
+                    IsValid = true
+                };
+                _noticeVisualBoundsCache[textBoxId] = newCache;
+                return newCache;
+            }
+
+            return new NoticeVisualBoundsCache { IsValid = false };
+        }
+
+        private static string ComputeNoticeContentHash(DraggableTextBox textBox)
+        {
+            if (textBox?.RichTextBox?.Document == null)
+            {
+                return textBox?.Data?.Content ?? string.Empty;
+            }
+
+            var range = new System.Windows.Documents.TextRange(
+                textBox.RichTextBox.Document.ContentStart,
+                textBox.RichTextBox.Document.ContentEnd);
+            return $"{range.Text}|{textBox.Data?.FontSize}|{textBox.Data?.FontFamily}";
         }
 
         private static bool TryMeasureNoticeContentVisualBounds(DraggableTextBox textBox, out double firstX, out double lastX)
