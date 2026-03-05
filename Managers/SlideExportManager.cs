@@ -228,6 +228,7 @@ namespace ImageColorChanger.Managers
                         IsItalic = e.IsItalic,
                         IsUnderline = e.IsUnderline,
                         TextAlign = e.TextAlign,
+                        TextVerticalAlign = e.TextVerticalAlign,
                         BackgroundColor = e.BackgroundColor,
                         BackgroundRadius = e.BackgroundRadius,
                         BackgroundOpacity = e.BackgroundOpacity,
@@ -353,6 +354,7 @@ namespace ImageColorChanger.Managers
         public int IsItalic { get; set; }
         public int IsUnderline { get; set; }
         public string TextAlign { get; set; }
+        public string TextVerticalAlign { get; set; } = "Top";
         public string BackgroundColor { get; set; }
         public double BackgroundRadius { get; set; }
         public int BackgroundOpacity { get; set; }

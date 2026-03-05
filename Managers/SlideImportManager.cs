@@ -150,6 +150,7 @@ namespace ImageColorChanger.Managers
                                         IsItalic = elementData.IsItalic,
                                         IsUnderline = elementData.IsUnderline,
                                         TextAlign = elementData.TextAlign,
+                                        TextVerticalAlign = string.IsNullOrWhiteSpace(elementData.TextVerticalAlign) ? "Top" : elementData.TextVerticalAlign,
                                         BackgroundColor = elementData.BackgroundColor,
                                         BackgroundRadius = elementData.BackgroundRadius,
                                         BackgroundOpacity = elementData.BackgroundOpacity,

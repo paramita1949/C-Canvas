@@ -1,3 +1,15 @@
+2026.3.5
+-------------------------
+日志更新（不变更版本号）
+1、完善 .hdp 幻灯片导入导出字段同步
+   - 新增 TextVerticalAlign 字段的导出映射与 DTO 字段
+   - 导入时增加兼容回退：旧 .hdp 缺失该字段时默认 Top
+2、新增回归测试
+   - 增加 HdpFormatCompatibilityTests，防止后续字段遗漏
+3、新增研发规则
+   - 新增 docs/rules/hdp-import-export-sync.md（字段变更必须同步导入导出）
+   - 在 docs/rules/diagnostic-first.md 增加关联规则入口
+
 2026.3.3
 -------------------------
 V6.0.2.9
