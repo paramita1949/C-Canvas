@@ -1,0 +1,4 @@
+interface:
+  display_name: "Notice Scroll Dev"
+  short_description: "Build/fix notice scrolling safely"
+  default_prompt: "Use $notice-scroll-development to implement or debug notice scrolling with consistent viewport math and symmetric direction behavior."

@@ -248,17 +248,17 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
                 return positionX - startX;
             }
 
-            // L->R：文本右边缘触达轨道右边界后即回卷，无等待空白。
-            double leaveRightX = laneRight - content;
-            double ltrTravel = leaveRightX - startX;
-            if (ltrTravel <= 1)
-            {
-                // 长文本兜底：保持移动，不锁死在 0~几像素。
-                ltrTravel = Math.Max(1, laneWidth);
-            }
+            // L->R：文本完全离开右边界（leftX >= laneRight）后才回卷。
+            // 行程 = 右边界 - 起点，满足“全部消失后再开始”。
+            double ltrTravel = laneRight - startX;
+	if (ltrTravel <= 1)
+	{
+		// 长文本兜底：保持移动，不锁死在 0~几像素。
+		ltrTravel = Math.Max(1, laneWidth);
+	}
 
-            double ltrPositionX = startX + (delta % ltrTravel);
-            return ltrPositionX - startX;
+	double ltrPositionX = startX + (delta % ltrTravel);
+	return ltrPositionX - startX;
         }
 
         public bool IsExpired(long elapsedMs, int durationMinutes, bool autoClose)

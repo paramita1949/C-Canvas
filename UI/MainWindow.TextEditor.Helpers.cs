@@ -675,51 +675,36 @@ namespace ImageColorChanger.UI
                     QueueNoticeProjectionRefresh();
                 }
                 return !isProjectionRender;
-            }
+	}
 
-            double viewportWidth = Math.Max(1.0, textBox.ActualWidth > 0 ? textBox.ActualWidth : textBox.Data.Width);
-            double laneStartX = EstimateNoticeContentStartInset(textBox);
-            double laneEndX = EstimateNoticeContentEndInset(textBox);
-            double contentWidth = EstimateNoticeContentWidth(textBox);
-            double laneLeft = Math.Max(0.0, laneStartX);
-            double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
-            double contentStartX;
+	double canvasWidth = EditorCanvas?.ActualWidth > 0 ? EditorCanvas.ActualWidth : (_currentTextProject?.CanvasWidth > 0 ? _currentTextProject.CanvasWidth : 1600);
+	double viewportWidth = canvasWidth;
+	double laneStartX = EstimateNoticeContentStartInset(textBox);
+	double laneEndX = EstimateNoticeContentEndInset(textBox);
+	double contentWidth = EstimateNoticeContentWidth(textBox);
+	double laneLeft = Math.Max(0.0, laneStartX);
+	double laneRight = Math.Max(laneLeft + 1.0, viewportWidth - Math.Max(0.0, laneEndX));
+	double contentStartX;
 
-            // 优先使用“实际字符可视边界”参与碰撞计算，避免估算宽度与肉眼不一致。
-            if (TryMeasureNoticeContentVisualBounds(textBox, out double visualFirstX, out double visualLastX))
-            {
-                // 仅以“实际字符可视边界”校准内容宽度与起点，不覆盖轨道边界。
-                // 否则在 R->L 模式下会把轨道左边界错当成首字符位置，导致过早回卷。
-                double visualStartX = Math.Max(0, visualFirstX);
-                double visualEndX = Math.Max(visualStartX, visualLastX);
-                double visualWidth = Math.Max(1.0, visualEndX - visualStartX);
-                // 使用保守宽度避免“实际文本先越界再回卷”。
-                contentWidth = Math.Max(contentWidth, visualWidth);
+	// 优先使用"实际字符可视边界"参与碰撞计算，避免估算宽度与肉眼不一致。
+	if (TryMeasureNoticeContentVisualBounds(textBox, out double visualFirstX, out double visualLastX))
+	{
+		double visualStartX = Math.Max(0, visualFirstX);
+		double visualEndX = Math.Max(visualStartX, visualLastX);
+		double visualWidth = Math.Max(1.0, visualEndX - visualStartX);
+		contentWidth = Math.Max(contentWidth, visualWidth);
+	}
 
-                double maxStartX = Math.Max(laneLeft, laneRight - contentWidth);
-                contentStartX = Math.Clamp(visualStartX, laneLeft, maxStartX);
-            }
-            else
-            {
-                contentStartX = EstimateNoticeContentStartXByDirection(
-                    textBox,
-                    cfg.Direction,
-                    viewportWidth,
-                    contentWidth,
-                    laneStartX,
-                    laneEndX);
-            }
+	// 根据方向确定起点位置：
+	// - L->R（左对齐）：起点 = 左边界
+	// - R->L（右对齐）：起点 = 右边界 - 内容宽度
+	contentStartX = cfg.Direction == NoticeDirection.RightToLeft
+		? Math.Max(laneLeft, laneRight - contentWidth)
+		: laneLeft;
 
-            // 对单向循环限制内容宽度，避免测宽误差导致回卷阈值失真；
-            // 往返模式需保留真实宽度，否则“内容宽于轨道”时会出现近似静止。
-            double collisionWidth = Math.Max(1.0, contentWidth);
-            if (cfg.Direction == NoticeDirection.LeftToRight)
-            {
-                // 保持极小安全余量，避免可视上“越界1px后才回卷”。
-                double maxExtraSafety = Math.Max(0.0, laneRight - contentStartX - collisionWidth - 2.0);
-                double safety = Math.Min(1.0, maxExtraSafety);
-                collisionWidth += safety;
-            }
+	// 对单向循环限制内容宽度，避免测宽误差导致回卷阈值失真；
+	// 往返模式需保留真实宽度，否则"内容宽于轨道"时会出现近似静止。
+	double collisionWidth = Math.Max(1.0, contentWidth);
             offsetX = _noticeRuntimeService.GetLoopingOffset(
                 elapsed,
                 cfg.Speed,
