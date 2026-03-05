@@ -607,7 +607,7 @@ namespace ImageColorChanger.UI
                 }
 
                 var cfg = NoticeComponentConfigCodec.Deserialize(tb.Data.ComponentConfigJson);
-                var state = _noticeRuntimeService.GetOrCreateState(tb.Data.Id, nowMs);
+                var state = _noticeRuntimeService.GetStateSnapshot(tb.Data.Id, nowMs);
 
                 if (state.IsManuallyClosed)
                 {
@@ -618,14 +618,10 @@ namespace ImageColorChanger.UI
                     continue;
                 }
 
-                long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
-                if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+                if (_noticeRuntimeService.IsExpired(state.ElapsedMs, cfg.DurationMinutes, cfg.AutoClose))
                 {
-                    state.PausedElapsedMs = elapsed;
-                    if (!state.IsAutoPausedByTimeout)
+                    if (_noticeRuntimeService.TryAutoPauseIfExpired(tb.Data.Id, nowMs, cfg.DurationMinutes, cfg.AutoClose))
                     {
-                        state.IsAutoPausedByTimeout = true;
-                        state.HasLastOffset = false;
                         QueueNoticeProjectionRefresh();
                     }
                     continue;
@@ -646,6 +642,11 @@ namespace ImageColorChanger.UI
             _textEditorProjectionRenderStateService?.ClearCache();
         }
 
+        private static long GetNoticeNowMs()
+        {
+            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
+
         private bool TryGetNoticeRenderOffset(DraggableTextBox textBox, long nowMs, out double offsetX, bool isProjectionRender = false)
         {
             offsetX = 0;
@@ -655,7 +656,7 @@ namespace ImageColorChanger.UI
             }
 
             var cfg = NoticeComponentConfigCodec.Deserialize(textBox.Data.ComponentConfigJson);
-            var state = _noticeRuntimeService.GetOrCreateState(textBox.Data.Id, nowMs);
+            var state = _noticeRuntimeService.GetStateSnapshot(textBox.Data.Id, nowMs);
             if (state.IsManuallyClosed)
             {
                 return false;
@@ -672,18 +673,14 @@ namespace ImageColorChanger.UI
                 return true;
             }
 
-            long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
-            if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+            if (_noticeRuntimeService.IsExpired(state.ElapsedMs, cfg.DurationMinutes, cfg.AutoClose))
             {
-                state.PausedElapsedMs = elapsed;
-                if (!state.IsAutoPausedByTimeout)
+                if (_noticeRuntimeService.TryAutoPauseIfExpired(textBox.Data.Id, nowMs, cfg.DurationMinutes, cfg.AutoClose))
                 {
-                    state.IsAutoPausedByTimeout = true;
-                    state.HasLastOffset = false;
                     QueueNoticeProjectionRefresh();
                 }
                 return !isProjectionRender;
-	}
+            }
 
             double canvasWidth = EditorCanvas?.ActualWidth > 0 ? EditorCanvas.ActualWidth : (_currentTextProject?.CanvasWidth > 0 ? _currentTextProject.CanvasWidth : 1600);
             double viewportWidth = canvasWidth;
@@ -713,7 +710,7 @@ namespace ImageColorChanger.UI
 	// 往返模式需保留真实宽度，否则"内容宽于轨道"时会出现近似静止。
 	double collisionWidth = Math.Max(1.0, contentWidth);
             offsetX = _noticeRuntimeService.GetLoopingOffset(
-                elapsed,
+                state.ElapsedMs,
                 cfg.Speed,
                 cfg.Direction,
                 viewportWidth,
@@ -904,30 +901,6 @@ namespace ImageColorChanger.UI
             return inset;
         }
 
-        private static double EstimateNoticeContentStartXByDirection(
-            DraggableTextBox textBox,
-            NoticeDirection direction,
-            double viewportWidth,
-            double contentWidth,
-            double laneStartX,
-            double laneEndX)
-        {
-            if (textBox == null)
-            {
-                return laneStartX;
-            }
-
-            double viewport = Math.Max(1.0, viewportWidth);
-            double laneStart = Math.Max(0.0, laneStartX);
-            double laneEnd = Math.Max(0.0, laneEndX);
-            double laneWidth = Math.Max(1.0, viewport - laneStart - laneEnd);
-            _ = textBox;
-            double width = Math.Min(Math.Max(1.0, contentWidth), laneWidth);
-            return direction == NoticeDirection.RightToLeft
-                ? laneStart + Math.Max(0.0, laneWidth - width)
-                : laneStart;
-        }
-
         private NoticeVisualBoundsCache TryGetCachedNoticeVisualBounds(DraggableTextBox textBox)
         {
             if (textBox?.Data == null)
@@ -1073,7 +1046,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long nowMs = GetNoticeNowMs();
             bool hasActive = HasActiveNoticeAnimation(nowMs);
             ApplyNoticePreviewOffsets(nowMs);
 
@@ -1124,7 +1097,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long nowMs = GetNoticeNowMs();
             bool hasActive = HasActiveNoticeAnimation(nowMs);
 
             ApplyNoticePreviewOffsets(nowMs);
@@ -1240,7 +1213,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            long renderNowMs = nowMs >= 0 ? nowMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long renderNowMs = nowMs >= 0 ? nowMs : GetNoticeNowMs();
             bool hasVisibleNotice = false;
             foreach (var textBox in _textBoxes)
             {
@@ -1309,7 +1282,7 @@ namespace ImageColorChanger.UI
         private void UpdateProjectionFromCanvas()
         {
             bool suppressAnimationThisCall = ConsumeSuppressNextProjectionAnimation();
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long nowMs = GetNoticeNowMs();
             bool noticeAnimationActive = HasActiveNoticeAnimation(nowMs);
             bool noticeSelected = IsSelectedTextBoxNoticeComponent();
 
@@ -1927,7 +1900,7 @@ namespace ImageColorChanger.UI
                 }
                 
                 // 绘制所有文本框
-                long nowMsForNotice = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                long nowMsForNotice = GetNoticeNowMs();
                 foreach (var textBox in _textBoxes)
                 {
                     //#if DEBUG

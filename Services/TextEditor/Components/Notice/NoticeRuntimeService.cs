@@ -7,8 +7,19 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
     {
         private readonly object _syncRoot = new();
         private readonly Dictionary<int, NoticeRuntimeState> _states = new();
+        private readonly Func<long> _nowMsProvider;
 
-        public NoticeRuntimeState GetOrCreateState(int textElementId, long nowMs)
+        public NoticeRuntimeService()
+            : this(() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+        {
+        }
+
+        public NoticeRuntimeService(Func<long> nowMsProvider)
+        {
+            _nowMsProvider = nowMsProvider ?? throw new ArgumentNullException(nameof(nowMsProvider));
+        }
+
+        private NoticeRuntimeState GetOrCreateState(int textElementId, long nowMs)
         {
             if (textElementId <= 0)
             {
@@ -44,7 +55,7 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
 
             lock (_syncRoot)
             {
-                Pause(textElementId, GetNowMsUnsafe());
+                Pause(textElementId, GetNowMs());
             }
         }
 
@@ -120,6 +131,52 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
             lock (_syncRoot)
             {
                 _states.Clear();
+            }
+        }
+
+        public NoticeRuntimeStateSnapshot GetStateSnapshot(int textElementId, long nowMs)
+        {
+            if (textElementId <= 0)
+            {
+                return new NoticeRuntimeStateSnapshot
+                {
+                    StartTimestampMs = nowMs,
+                    ElapsedMs = 0
+                };
+            }
+
+            lock (_syncRoot)
+            {
+                var state = GetOrCreateState(textElementId, nowMs);
+                return BuildSnapshot(state, nowMs);
+            }
+        }
+
+        public bool TryAutoPauseIfExpired(int textElementId, long nowMs, int durationMinutes, bool autoClose)
+        {
+            if (textElementId <= 0)
+            {
+                return false;
+            }
+
+            lock (_syncRoot)
+            {
+                var state = GetOrCreateState(textElementId, nowMs);
+                long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
+                if (!IsExpired(elapsed, durationMinutes, autoClose))
+                {
+                    return false;
+                }
+
+                state.PausedElapsedMs = elapsed;
+                if (state.IsAutoPausedByTimeout)
+                {
+                    return false;
+                }
+
+                state.IsAutoPausedByTimeout = true;
+                state.HasLastOffset = false;
+                return true;
             }
         }
 
@@ -273,9 +330,9 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
             return elapsedMs >= maxDurationMs;
         }
 
-        private static long GetNowMsUnsafe()
+        private long GetNowMs()
         {
-            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return _nowMsProvider();
         }
 
         private static double ComputeTriangleStep(double delta, double travel)
@@ -288,6 +345,21 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
             double cycle = travel * 2.0;
             double phase = delta % cycle;
             return phase <= travel ? phase : (cycle - phase);
+        }
+
+        private static NoticeRuntimeStateSnapshot BuildSnapshot(NoticeRuntimeState state, long nowMs)
+        {
+            long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
+            return new NoticeRuntimeStateSnapshot
+            {
+                StartTimestampMs = state.StartTimestampMs,
+                IsManuallyClosed = state.IsManuallyClosed,
+                IsAutoPausedByTimeout = state.IsAutoPausedByTimeout,
+                PausedElapsedMs = state.PausedElapsedMs,
+                HasLastOffset = state.HasLastOffset,
+                LastOffsetX = state.LastOffsetX,
+                ElapsedMs = elapsed
+            };
         }
     }
 }

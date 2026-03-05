@@ -211,12 +211,12 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         {
             var service = new NoticeRuntimeService();
 
-            var state = service.GetOrCreateState(100, nowMs: 1_000);
+            var state = service.GetStateSnapshot(100, nowMs: 1_000);
             Assert.False(state.IsManuallyClosed);
 
             service.MarkManuallyClosed(100);
 
-            var stateAfter = service.GetOrCreateState(100, nowMs: 2_000);
+            var stateAfter = service.GetStateSnapshot(100, nowMs: 2_000);
             Assert.True(stateAfter.IsManuallyClosed);
         }
 
@@ -225,16 +225,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         {
             var service = new NoticeRuntimeService();
 
-            var state = service.GetOrCreateState(200, nowMs: 1_000);
+            var state = service.GetStateSnapshot(200, nowMs: 1_000);
             Assert.False(state.IsManuallyClosed);
 
             service.Pause(200, nowMs: 6_000);
-            var paused = service.GetOrCreateState(200, nowMs: 6_500);
+            var paused = service.GetStateSnapshot(200, nowMs: 6_500);
             Assert.True(paused.IsManuallyClosed);
             Assert.Equal(5_000, paused.PausedElapsedMs);
 
             service.Resume(200, nowMs: 8_000);
-            var resumed = service.GetOrCreateState(200, nowMs: 8_000);
+            var resumed = service.GetStateSnapshot(200, nowMs: 8_000);
             Assert.False(resumed.IsManuallyClosed);
             Assert.Equal(3_000, resumed.StartTimestampMs);
         }
@@ -243,13 +243,12 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         public void Resume_Should_ClearAutoPausedByTimeoutFlag()
         {
             var service = new NoticeRuntimeService();
-            var state = service.GetOrCreateState(300, nowMs: 1_000);
-            state.IsAutoPausedByTimeout = true;
-            state.PausedElapsedMs = 5_000;
+            _ = service.GetStateSnapshot(300, nowMs: 1_000);
+            _ = service.TryAutoPauseIfExpired(300, nowMs: 200_000, durationMinutes: 3, autoClose: true);
 
-            service.Resume(300, nowMs: 8_000);
+            service.Resume(300, nowMs: 210_000);
 
-            var resumed = service.GetOrCreateState(300, nowMs: 8_000);
+            var resumed = service.GetStateSnapshot(300, nowMs: 210_000);
             Assert.False(resumed.IsAutoPausedByTimeout);
             Assert.False(resumed.IsManuallyClosed);
         }
@@ -292,6 +291,35 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
             Assert.InRange(t2000, -160, 0);
             Assert.True(Math.Abs(t1000 - t0) > 1);
             Assert.True(Math.Abs(t2000 - t1000) > 1);
+        }
+
+        [Fact]
+        public void MarkManuallyClosed_Should_UseInjectedClock()
+        {
+            var service = new NoticeRuntimeService(() => 9_000);
+            _ = service.GetStateSnapshot(400, nowMs: 1_000);
+
+            service.MarkManuallyClosed(400);
+
+            var state = service.GetStateSnapshot(400, nowMs: 9_000);
+            Assert.True(state.IsManuallyClosed);
+            Assert.Equal(8_000, state.PausedElapsedMs);
+        }
+
+        [Fact]
+        public void TryAutoPauseIfExpired_Should_TransitionOnlyOnce()
+        {
+            var service = new NoticeRuntimeService();
+            _ = service.GetStateSnapshot(500, nowMs: 1_000);
+
+            bool transitioned1 = service.TryAutoPauseIfExpired(500, nowMs: 190_000, durationMinutes: 3, autoClose: true);
+            bool transitioned2 = service.TryAutoPauseIfExpired(500, nowMs: 200_000, durationMinutes: 3, autoClose: true);
+
+            var state = service.GetStateSnapshot(500, nowMs: 200_000);
+            Assert.True(transitioned1);
+            Assert.False(transitioned2);
+            Assert.True(state.IsAutoPausedByTimeout);
+            Assert.True(state.PausedElapsedMs >= 189_000);
         }
     }
 }

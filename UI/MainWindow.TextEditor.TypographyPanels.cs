@@ -888,14 +888,13 @@ namespace ImageColorChanger.UI
             }
 
             var cfg = NoticeComponentConfigCodec.Deserialize(textBox.Data.ComponentConfigJson);
-            var state = _noticeRuntimeService.GetOrCreateState(textBox.Data.Id, nowMs);
+            var state = _noticeRuntimeService.GetStateSnapshot(textBox.Data.Id, nowMs);
             if (state.IsManuallyClosed || state.IsAutoPausedByTimeout)
             {
                 return false;
             }
 
-            long elapsed = Math.Max(0, nowMs - state.StartTimestampMs);
-            if (_noticeRuntimeService.IsExpired(elapsed, cfg.DurationMinutes, cfg.AutoClose))
+            if (_noticeRuntimeService.IsExpired(state.ElapsedMs, cfg.DurationMinutes, cfg.AutoClose))
             {
                 return false;
             }
@@ -910,7 +909,7 @@ namespace ImageColorChanger.UI
                 return _selectedTextBox;
             }
 
-            long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long nowMs = GetNoticeNowMs();
             foreach (var textBox in _textBoxes)
             {
                 if (IsNoticeScrollingRunning(textBox, nowMs))
@@ -936,8 +935,8 @@ namespace ImageColorChanger.UI
             var cfg = NoticeComponentConfigCodec.Deserialize(noticeTextBox.Data.ComponentConfigJson);
             string autoAlign = cfg.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
             noticeTextBox.ApplyStyle(textAlign: autoAlign);
-            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var state = _noticeRuntimeService.GetOrCreateState(noticeTextBox.Data.Id, nowMs);
+            var nowMs = GetNoticeNowMs();
+            var state = _noticeRuntimeService.GetStateSnapshot(noticeTextBox.Data.Id, nowMs);
             bool isRunning = cfg.ScrollingEnabled && !state.IsAutoPausedByTimeout;
 
             if (isRunning)
@@ -1044,7 +1043,7 @@ namespace ImageColorChanger.UI
             }
 
             var cfg = NoticeComponentConfigCodec.Deserialize(targetNotice.Data.ComponentConfigJson);
-            var state = _noticeRuntimeService.GetOrCreateState(targetNotice.Data.Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            var state = _noticeRuntimeService.GetStateSnapshot(targetNotice.Data.Id, GetNoticeNowMs());
             bool isRunning = cfg.ScrollingEnabled && !state.IsManuallyClosed && !state.IsAutoPausedByTimeout;
 
             ApplyVisual(isRunning);
