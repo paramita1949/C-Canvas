@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,6 +64,8 @@ namespace ImageColorChanger.UI
         private bool _noticeProjectionRefreshPending;
         private bool _hideNoticeOnProjection;
         private readonly Dictionary<int, NoticeVisualBoundsCache> _noticeVisualBoundsCache = new();
+        private CancellationTokenSource _noticeConfigPersistCts;
+        private readonly SemaphoreSlim _noticeConfigPersistGate = new SemaphoreSlim(1, 1);
         private SlideThemeMode _slideThemeMode = SlideThemeMode.Dark;
 
         // 辅助线相关

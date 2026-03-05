@@ -338,6 +338,12 @@ namespace ImageColorChanger.UI.Controls
             try
 
             {
+                bool isNoticeComponent = string.Equals(Data?.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase);
+                if (isNoticeComponent)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[NoticeColorTrace][Render] ApplyBackgroundStyle: id={Data?.Id}, bg={Data?.BackgroundColor}, opacity={Data?.BackgroundOpacity}, gradient={_useBackgroundGradient}");
+                }
 
                 // 背景透明度为 100% 时，使用透明背景
 
@@ -348,6 +354,11 @@ namespace ImageColorChanger.UI.Controls
                     _border.Background = WpfBrushes.Transparent;
 
                     _richTextBox.Background = WpfBrushes.Transparent;
+
+                    if (isNoticeComponent)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[NoticeColorTrace][Render][WARN] 背景透明度=100，视觉不可见");
+                    }
 
                     // 圆角仍然应用到 Border（与边框圆角共享）
 
@@ -465,9 +476,14 @@ namespace ImageColorChanger.UI.Controls
 
             }
 
-            catch (Exception)
+            catch (Exception ex)
 
             {
+                if (string.Equals(Data?.ComponentType, "Notice", StringComparison.OrdinalIgnoreCase))
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[NoticeColorTrace][Render][ERROR] 背景应用失败: id={Data?.Id}, bg={Data?.BackgroundColor}, opacity={Data?.BackgroundOpacity}, ex={ex.Message}");
+                }
 
             }
 

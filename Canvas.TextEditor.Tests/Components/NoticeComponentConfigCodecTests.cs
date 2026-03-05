@@ -185,5 +185,29 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Components
         {
             Assert.Equal(expectedLevel, NoticeComponentConfig.GetBarHeightLevel(height));
         }
+
+        [Theory]
+        [InlineData(1, 20)]
+        [InlineData(2, 35)]
+        [InlineData(3, 50)]
+        [InlineData(4, 70)]
+        [InlineData(5, 90)]
+        [InlineData(999, 50)]
+        public void GetSpeedByLevel_Should_MapExpectedPreset(int level, int expectedSpeed)
+        {
+            Assert.Equal(expectedSpeed, NoticeComponentConfig.GetSpeedByLevel(level));
+        }
+
+        [Theory]
+        [InlineData(0, 1)]
+        [InlineData(20, 1)]
+        [InlineData(34, 2)]
+        [InlineData(50, 3)]
+        [InlineData(71, 4)]
+        [InlineData(100, 5)]
+        public void GetSpeedLevel_Should_ReturnNearestPreset(int speed, int expectedLevel)
+        {
+            Assert.Equal(expectedLevel, NoticeComponentConfig.GetSpeedLevel(speed));
+        }
     }
 }

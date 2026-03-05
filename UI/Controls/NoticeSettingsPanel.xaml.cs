@@ -1,18 +1,32 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
 using ImageColorChanger.Services.TextEditor.Components.Notice;
+using Forms = System.Windows.Forms;
+using WpfColor = System.Windows.Media.Color;
 
 namespace ImageColorChanger.UI.Controls
 {
     public partial class NoticeSettingsPanel : System.Windows.Controls.UserControl
     {
+        private const bool EnableNoticeColorTrace = true;
         public event Action<NoticeComponentConfig> ConfigChanged;
 
         private bool _isBinding;
         private string _selectedDefaultColorHex = NoticeComponentConfig.DefaultNoticeColorHex;
+        private static readonly string[] PresetColorHexes =
+        {
+            "#FF8A00",
+            "#FF3B30",
+            "#0EA5E9",
+            "#22C55E",
+            "#111111",
+            "#FFFFFF"
+        };
 
         public NoticeSettingsPanel()
         {
@@ -27,8 +41,7 @@ namespace ImageColorChanger.UI.Controls
             {
                 SelectPositionFlags(normalized.PositionFlags);
                 SelectDirection(normalized.Direction);
-                SpeedSlider.Value = normalized.Speed;
-                SpeedValueText.Text = normalized.Speed.ToString();
+                SelectSpeedLevel(normalized.Speed);
                 SelectDuration(normalized.DurationMinutes);
                 SelectBarHeightLevel(normalized.BarHeight);
                 AutoCloseCheckBox.IsChecked = normalized.AutoClose;
@@ -41,7 +54,7 @@ namespace ImageColorChanger.UI.Controls
             }
         }
 
-        private void DirectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void DirectionOption_Checked(object sender, RoutedEventArgs e)
         {
             _ = sender;
             _ = e;
@@ -66,14 +79,10 @@ namespace ImageColorChanger.UI.Controls
             RaiseConfigChanged();
         }
 
-        private void SpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void SpeedLevelOption_Checked(object sender, RoutedEventArgs e)
         {
             _ = sender;
-            if (SpeedValueText != null)
-            {
-                SpeedValueText.Text = ((int)Math.Round(e.NewValue)).ToString();
-            }
-
+            _ = e;
             RaiseConfigChanged();
         }
 
@@ -84,7 +93,7 @@ namespace ImageColorChanger.UI.Controls
             RaiseConfigChanged();
         }
 
-        private void BarHeightLevelComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BarHeightOption_Checked(object sender, RoutedEventArgs e)
         {
             _ = sender;
             _ = e;
@@ -109,19 +118,89 @@ namespace ImageColorChanger.UI.Controls
             {
                 _selectedDefaultColorHex = color.Trim().ToUpperInvariant();
                 UpdateColorSwatchSelectionVisual();
+                if (EnableNoticeColorTrace)
+                {
+                    Debug.WriteLine($"[NoticeColorTrace][Panel] 预设色点击: {_selectedDefaultColorHex}");
+                }
             }
             _ = e;
             RaiseConfigChanged();
         }
 
-        private void RaiseConfigChanged()
+        private void CustomColorButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_isBinding || !IsLoaded)
+            _ = sender;
+            _ = e;
+
+            var initialColor = TryParseColor(_selectedDefaultColorHex, out var parsed)
+                ? parsed
+                : Colors.White;
+            using var colorDialog = new Forms.ColorDialog
             {
+                AllowFullOpen = true,
+                FullOpen = true,
+                SolidColorOnly = false,
+                Color = System.Drawing.Color.FromArgb(initialColor.R, initialColor.G, initialColor.B)
+            };
+
+            var owner = Window.GetWindow(this);
+            Forms.DialogResult result;
+            if (owner != null)
+            {
+                var nativeOwner = new Forms.NativeWindow();
+                try
+                {
+                    nativeOwner.AssignHandle(new WindowInteropHelper(owner).Handle);
+                    result = colorDialog.ShowDialog(nativeOwner);
+                }
+                finally
+                {
+                    nativeOwner.ReleaseHandle();
+                }
+            }
+            else
+            {
+                result = colorDialog.ShowDialog();
+            }
+
+            if (result == Forms.DialogResult.OK)
+            {
+                var selected = colorDialog.Color;
+                _selectedDefaultColorHex = $"#{selected.R:X2}{selected.G:X2}{selected.B:X2}";
+                UpdateColorSwatchSelectionVisual();
+                if (EnableNoticeColorTrace)
+                {
+                    Debug.WriteLine($"[NoticeColorTrace][Panel] 系统色盘选择: {_selectedDefaultColorHex}");
+                }
+                RaiseConfigChanged(forceWhenUnloaded: true);
+            }
+            else if (EnableNoticeColorTrace)
+            {
+                Debug.WriteLine("[NoticeColorTrace][Panel] 系统色盘取消");
+            }
+        }
+
+        private void RaiseConfigChanged(bool forceWhenUnloaded = false)
+        {
+            if (_isBinding || (!IsLoaded && !forceWhenUnloaded))
+            {
+                if (EnableNoticeColorTrace)
+                {
+                    Debug.WriteLine(
+                        $"[NoticeColorTrace][Panel] 跳过回调: isBinding={_isBinding}, isLoaded={IsLoaded}, " +
+                        $"forceWhenUnloaded={forceWhenUnloaded}, color={_selectedDefaultColorHex}");
+                }
                 return;
             }
 
-            ConfigChanged?.Invoke(GetCurrentConfig());
+            var current = GetCurrentConfig();
+            if (EnableNoticeColorTrace)
+            {
+                Debug.WriteLine(
+                    $"[NoticeColorTrace][Panel] 触发回调: color={current.DefaultColorHex}, speed={current.Speed}, " +
+                    $"height={current.BarHeight:F0}, isLoaded={IsLoaded}, forceWhenUnloaded={forceWhenUnloaded}");
+            }
+            ConfigChanged?.Invoke(current);
         }
 
         private NoticeComponentConfig GetCurrentConfig()
@@ -130,7 +209,7 @@ namespace ImageColorChanger.UI.Controls
             {
                 PositionFlags = GetSelectedPositionFlags(),
                 Direction = GetSelectedDirection(),
-                Speed = (int)Math.Round(SpeedSlider.Value),
+                Speed = GetSelectedSpeed(),
                 DurationMinutes = GetSelectedDuration(),
                 BarHeight = GetSelectedBarHeight(),
                 DefaultColorHex = GetSelectedDefaultColor(),
@@ -163,23 +242,14 @@ namespace ImageColorChanger.UI.Controls
 
         private NoticeDirection GetSelectedDirection()
         {
-            if (DirectionComboBox.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag)
+            if (DirectionRightToLeftOption.IsChecked == true)
             {
-                if (string.Equals(tag, "LeftToRight", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NoticeDirection.LeftToRight;
-                }
+                return NoticeDirection.RightToLeft;
+            }
 
-                if (string.Equals(tag, "RightToLeft", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NoticeDirection.RightToLeft;
-                }
-
-                if (string.Equals(tag, "PingPong", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NoticeDirection.PingPong;
-                }
+            if (DirectionPingPongOption.IsChecked == true)
+            {
+                return NoticeDirection.PingPong;
             }
 
             return NoticeDirection.LeftToRight;
@@ -197,16 +267,54 @@ namespace ImageColorChanger.UI.Controls
             return 3;
         }
 
-        private int GetSelectedBarHeightLevel()
+        private int GetSelectedSpeedLevel()
         {
-            if (BarHeightLevelComboBox.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag &&
-                int.TryParse(tag, out int level))
+            if (SpeedLevel1Option.IsChecked == true)
             {
-                return Math.Clamp(level, NoticeComponentConfig.MinBarHeightLevel, NoticeComponentConfig.MaxBarHeightLevel);
+                return 1;
             }
 
-            return 1;
+            if (SpeedLevel2Option.IsChecked == true)
+            {
+                return 2;
+            }
+
+            if (SpeedLevel4Option.IsChecked == true)
+            {
+                return 4;
+            }
+
+            if (SpeedLevel5Option.IsChecked == true)
+            {
+                return 5;
+            }
+
+            return 3;
+        }
+
+        private int GetSelectedSpeed()
+        {
+            return NoticeComponentConfig.GetSpeedByLevel(GetSelectedSpeedLevel());
+        }
+
+        private int GetSelectedBarHeightLevel()
+        {
+            if (BarHeightLevel1Option.IsChecked == true)
+            {
+                return 1;
+            }
+
+            if (BarHeightLevel2Option.IsChecked == true)
+            {
+                return 2;
+            }
+
+            if (BarHeightLevel4Option.IsChecked == true)
+            {
+                return 4;
+            }
+
+            return 3;
         }
 
         private double GetSelectedBarHeight()
@@ -216,16 +324,9 @@ namespace ImageColorChanger.UI.Controls
 
         private void SelectDirection(NoticeDirection direction)
         {
-            string targetTag = direction switch
-            {
-                NoticeDirection.LeftToRight => "LeftToRight",
-                NoticeDirection.PingPong => "PingPong",
-                _ => "RightToLeft"
-            };
-            var item = DirectionComboBox.Items
-                .OfType<ComboBoxItem>()
-                .FirstOrDefault(x => string.Equals(x.Tag as string, targetTag, StringComparison.OrdinalIgnoreCase));
-            DirectionComboBox.SelectedItem = item ?? DirectionComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+            DirectionLeftToRightOption.IsChecked = direction == NoticeDirection.LeftToRight;
+            DirectionRightToLeftOption.IsChecked = direction == NoticeDirection.RightToLeft;
+            DirectionPingPongOption.IsChecked = direction == NoticeDirection.PingPong;
         }
 
         private void SelectPositionFlags(NoticePositionFlags flags)
@@ -245,13 +346,23 @@ namespace ImageColorChanger.UI.Controls
             DurationComboBox.SelectedItem = item ?? DurationComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
         }
 
+        private void SelectSpeedLevel(int speed)
+        {
+            int level = NoticeComponentConfig.GetSpeedLevel(speed);
+            SpeedLevel1Option.IsChecked = level == 1;
+            SpeedLevel2Option.IsChecked = level == 2;
+            SpeedLevel3Option.IsChecked = level == 3;
+            SpeedLevel4Option.IsChecked = level == 4;
+            SpeedLevel5Option.IsChecked = level == 5;
+        }
+
         private void SelectBarHeightLevel(double height)
         {
-            string targetTag = NoticeComponentConfig.GetBarHeightLevel(height).ToString();
-            var item = BarHeightLevelComboBox.Items
-                .OfType<ComboBoxItem>()
-                .FirstOrDefault(x => string.Equals(x.Tag as string, targetTag, StringComparison.OrdinalIgnoreCase));
-            BarHeightLevelComboBox.SelectedItem = item ?? BarHeightLevelComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+            int level = NoticeComponentConfig.GetBarHeightLevel(height);
+            BarHeightLevel1Option.IsChecked = level == 1;
+            BarHeightLevel2Option.IsChecked = level == 2;
+            BarHeightLevel3Option.IsChecked = level == 3;
+            BarHeightLevel4Option.IsChecked = level == 4;
         }
 
         private string GetSelectedDefaultColor()
@@ -280,6 +391,7 @@ namespace ImageColorChanger.UI.Controls
             UpdateSwatchButtonBorder(ColorSwatchGreen, _selectedDefaultColorHex);
             UpdateSwatchButtonBorder(ColorSwatchBlack, _selectedDefaultColorHex);
             UpdateSwatchButtonBorder(ColorSwatchWhite, _selectedDefaultColorHex);
+            UpdateCustomSwatchButtonVisual();
         }
 
         private static void UpdateSwatchButtonBorder(System.Windows.Controls.Button swatch, string selectedHex)
@@ -294,6 +406,52 @@ namespace ImageColorChanger.UI.Controls
             swatch.BorderBrush = selected
                 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235))
                 : new SolidColorBrush(System.Windows.Media.Color.FromRgb(156, 163, 175));
+        }
+
+        private void UpdateCustomSwatchButtonVisual()
+        {
+            if (ColorSwatchCustom == null)
+            {
+                return;
+            }
+
+            bool isPreset = PresetColorHexes.Any(x => string.Equals(x, _selectedDefaultColorHex, StringComparison.OrdinalIgnoreCase));
+            if (TryParseColor(_selectedDefaultColorHex, out var color))
+            {
+                ColorSwatchCustom.Background = new SolidColorBrush(color);
+            }
+            else
+            {
+                ColorSwatchCustom.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 244, 246));
+            }
+
+            ColorSwatchCustom.BorderThickness = isPreset ? new Thickness(1) : new Thickness(2);
+            ColorSwatchCustom.BorderBrush = isPreset
+                ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(156, 163, 175))
+                : new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235));
+        }
+
+        private static bool TryParseColor(string colorHex, out WpfColor color)
+        {
+            color = Colors.White;
+            if (string.IsNullOrWhiteSpace(colorHex))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (System.Windows.Media.ColorConverter.ConvertFromString(colorHex) is WpfColor parsed)
+                {
+                    color = parsed;
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
     }
 }

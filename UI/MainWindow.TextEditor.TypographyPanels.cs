@@ -1,6 +1,8 @@
 using System;
 using System.Globalization;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,6 +19,7 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const bool EnableTextDriftTrace = false;
+        private const bool EnableNoticeColorTrace = true;
         private const string SidePanelOffsetXKeyPrefix = "TextEditorSidePanelOffsetX_";
         private const string SidePanelOffsetYKeyPrefix = "TextEditorSidePanelOffsetY_";
         private const string NoticeTogglePlayIconData = "M5 3L19 12L5 21V3Z";
@@ -27,6 +30,7 @@ namespace ImageColorChanger.UI
         private double _sidePanelDragStartHorizontalOffset;
         private double _sidePanelDragStartVerticalOffset;
         private Popup _draggingSidePanelPopup;
+        private DraggableTextBox _noticeSettingsTargetTextBox;
 
         private void FontFamilySelector_GotFocus(object sender, RoutedEventArgs e)
         {
@@ -302,15 +306,22 @@ namespace ImageColorChanger.UI
             }
 
             CloseOtherSidePanels("NoticeSettingsPopup");
-            var cfg = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
-            if (!string.IsNullOrWhiteSpace(_selectedTextBox.Data.BackgroundColor))
+            _noticeSettingsTargetTextBox = _selectedTextBox;
+            var cfg = NoticeComponentConfigCodec.Deserialize(_noticeSettingsTargetTextBox.Data.ComponentConfigJson);
+            if (!string.IsNullOrWhiteSpace(_noticeSettingsTargetTextBox.Data.BackgroundColor))
             {
-                cfg.DefaultColorHex = _selectedTextBox.Data.BackgroundColor;
+                cfg.DefaultColorHex = _noticeSettingsTargetTextBox.Data.BackgroundColor;
             }
-            cfg.BarHeight = _selectedTextBox.ActualHeight > 1 ? _selectedTextBox.ActualHeight : _selectedTextBox.Data.Height;
-            cfg.PositionFlags = ResolveNoticePositionFlagsForBinding(cfg, _selectedTextBox);
+            cfg.BarHeight = _noticeSettingsTargetTextBox.ActualHeight > 1 ? _noticeSettingsTargetTextBox.ActualHeight : _noticeSettingsTargetTextBox.Data.Height;
+            cfg.PositionFlags = ResolveNoticePositionFlagsForBinding(cfg, _noticeSettingsTargetTextBox);
             cfg.Position = NoticeComponentConfig.GetPrimaryPosition(cfg.PositionFlags);
             NoticeSettingsPanel.BindConfig(cfg);
+            if (EnableNoticeColorTrace)
+            {
+                Debug.WriteLine(
+                    $"[NoticeColorTrace][Main] 打开通知设置: id={_noticeSettingsTargetTextBox.Data.Id}, " +
+                    $"bg={_noticeSettingsTargetTextBox.Data.BackgroundColor}, opacity={_noticeSettingsTargetTextBox.Data.BackgroundOpacity}, cfgColor={cfg.DefaultColorHex}");
+            }
 
             if (NoticeSettingsPopup != null)
             {
@@ -751,31 +762,122 @@ namespace ImageColorChanger.UI
 
         private void OnNoticeConfigChangedFromPanel(NoticeComponentConfig cfg)
         {
-            if (!IsSelectedTextBoxNoticeComponent())
+            var targetTextBox = ResolveNoticeSettingsTargetTextBox();
+            if (targetTextBox?.Data == null || !IsNoticeComponent(targetTextBox.Data))
             {
+                if (EnableNoticeColorTrace)
+                {
+                    Debug.WriteLine("[NoticeColorTrace][Main] 回调被丢弃: 没有有效通知目标");
+                }
                 return;
             }
 
-            var existing = NoticeComponentConfigCodec.Deserialize(_selectedTextBox.Data.ComponentConfigJson);
+            if (EnableNoticeColorTrace)
+            {
+                Debug.WriteLine(
+                    $"[NoticeColorTrace][Main] 收到回调: id={targetTextBox.Data.Id}, incomingColor={cfg?.DefaultColorHex}, " +
+                    $"beforeBg={targetTextBox.Data.BackgroundColor}, beforeOpacity={targetTextBox.Data.BackgroundOpacity}");
+            }
+
+            var existing = NoticeComponentConfigCodec.Deserialize(targetTextBox.Data.ComponentConfigJson);
             var normalized = NoticeComponentConfigCodec.Normalize(cfg);
             var globalDefault = NoticeComponentConfigCodec.Normalize(normalized);
             globalDefault.ScrollingEnabled = false;
             SaveNoticeDefaultConfigPreference(globalDefault);
             normalized.ScrollingEnabled = existing.ScrollingEnabled;
-            _selectedTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(normalized);
+            targetTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(normalized);
             string autoAlign = normalized.Direction == NoticeDirection.RightToLeft ? "Right" : "Left";
-            _selectedTextBox.ApplyStyle(
+            targetTextBox.ApplyStyle(
                 backgroundColor: normalized.DefaultColorHex,
                 textAlign: autoAlign,
                 textVerticalAlign: "Middle");
-            ApplyNoticeBarHeightToTextBox(_selectedTextBox, normalized.BarHeight);
-            ApplyNoticePositionToTextBox(_selectedTextBox, normalized.PositionFlags);
-            MarkContentAsModified();
+            ApplyNoticeBarHeightToTextBox(targetTextBox, normalized.BarHeight);
+            ApplyNoticePositionToTextBox(targetTextBox, normalized.PositionFlags);
+            ScheduleNoticeConfigPersist(targetTextBox);
             EnsureNoticeAnimationLoopState();
             UpdateNoticeToggleButtonState();
+
+            if (EnableNoticeColorTrace)
+            {
+                Debug.WriteLine(
+                    $"[NoticeColorTrace][Main] 应用完成: id={targetTextBox.Data.Id}, afterBg={targetTextBox.Data.BackgroundColor}, " +
+                    $"afterOpacity={targetTextBox.Data.BackgroundOpacity}, cfgColor={normalized.DefaultColorHex}");
+                if (targetTextBox.Data.BackgroundOpacity >= 100)
+                {
+                    Debug.WriteLine("[NoticeColorTrace][Main][WARN] 背景透明度=100，颜色已写入但视觉上不可见");
+                }
+            }
+
             if (_projectionManager?.IsProjectionActive == true && !_isProjectionLocked)
             {
                 UpdateProjectionContent();
+            }
+        }
+
+        private DraggableTextBox ResolveNoticeSettingsTargetTextBox()
+        {
+            if (_noticeSettingsTargetTextBox != null &&
+                _textBoxes.Contains(_noticeSettingsTargetTextBox) &&
+                IsNoticeComponent(_noticeSettingsTargetTextBox.Data))
+            {
+                return _noticeSettingsTargetTextBox;
+            }
+
+            if (IsSelectedTextBoxNoticeComponent())
+            {
+                return _selectedTextBox;
+            }
+
+            return null;
+        }
+
+        private void ScheduleNoticeConfigPersist(DraggableTextBox textBox)
+        {
+            if (textBox?.Data == null || _textElementPersistenceService == null)
+            {
+                return;
+            }
+
+            _noticeConfigPersistCts?.Cancel();
+            _noticeConfigPersistCts?.Dispose();
+            _noticeConfigPersistCts = new CancellationTokenSource();
+            var token = _noticeConfigPersistCts.Token;
+            _ = PersistNoticeConfigAsync(textBox, token);
+        }
+
+        private async Task PersistNoticeConfigAsync(DraggableTextBox textBox, CancellationToken token)
+        {
+            try
+            {
+                await Task.Delay(80, token);
+                await _noticeConfigPersistGate.WaitAsync(token);
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (!_textBoxes.Contains(textBox))
+                    {
+                        return;
+                    }
+
+                    await PersistTextElementsAsync(new[] { textBox });
+                    if (EnableNoticeColorTrace)
+                    {
+                        Debug.WriteLine(
+                            $"[NoticeColorTrace][Persist] 已持久化: id={textBox.Data?.Id}, bg={textBox.Data?.BackgroundColor}, opacity={textBox.Data?.BackgroundOpacity}");
+                    }
+                }
+                finally
+                {
+                    _noticeConfigPersistGate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // 最新一次配置会覆盖旧请求；取消是预期行为。
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[NoticeConfigPersist] 保存失败: {ex.Message}");
             }
         }
 
@@ -943,7 +1045,7 @@ namespace ImageColorChanger.UI
             {
                 cfg.ScrollingEnabled = false;
                 noticeTextBox.Data.ComponentConfigJson = NoticeComponentConfigCodec.Serialize(NoticeComponentConfigCodec.Normalize(cfg));
-                MarkContentAsModified();
+                ScheduleNoticeConfigPersist(noticeTextBox);
                 ShowToast("滚动已暂停");
             }
             else
@@ -958,7 +1060,7 @@ namespace ImageColorChanger.UI
                 {
                     _noticeRuntimeService.Resume(noticeTextBox.Data.Id, nowMs);
                 }
-                MarkContentAsModified();
+                ScheduleNoticeConfigPersist(noticeTextBox);
                 ShowToast("滚动已开启");
             }
 

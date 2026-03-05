@@ -31,6 +31,8 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
         public const string DefaultNoticeColorHex = "#FF8A00";
         public const int MinBarHeightLevel = 1;
         public const int MaxBarHeightLevel = 4;
+        public const int MinSpeedLevel = 1;
+        public const int MaxSpeedLevel = 5;
 
         private int _speed = 45;
         private int _durationMinutes = 3;
@@ -178,6 +180,46 @@ namespace ImageColorChanger.Services.TextEditor.Components.Notice
             }
 
             return Math.Clamp(bestLevel, MinBarHeightLevel, MaxBarHeightLevel);
+        }
+
+        public static int GetSpeedByLevel(int level)
+        {
+            return level switch
+            {
+                1 => 20,
+                2 => 35,
+                3 => 50,
+                4 => 70,
+                5 => 90,
+                _ => 50
+            };
+        }
+
+        public static int GetSpeedLevel(int speed)
+        {
+            int clamped = Math.Clamp(speed, 0, 100);
+            int[] levels =
+            {
+                GetSpeedByLevel(1),
+                GetSpeedByLevel(2),
+                GetSpeedByLevel(3),
+                GetSpeedByLevel(4),
+                GetSpeedByLevel(5)
+            };
+
+            int bestLevel = 1;
+            int minDistance = int.MaxValue;
+            for (int i = 0; i < levels.Length; i++)
+            {
+                int distance = Math.Abs(levels[i] - clamped);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    bestLevel = i + 1;
+                }
+            }
+
+            return Math.Clamp(bestLevel, MinSpeedLevel, MaxSpeedLevel);
         }
     }
 }
