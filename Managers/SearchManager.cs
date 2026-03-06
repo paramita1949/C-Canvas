@@ -11,6 +11,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
 {
+    public enum MediaSearchFilterMode
+    {
+        All = 0,
+        ImageOnly = 1,
+        MediaOnly = 2
+    }
+
     /// <summary>
     /// 搜索管理器 - 处理项目树的搜索功能
     /// </summary>
@@ -30,8 +37,12 @@ namespace ImageColorChanger.Managers
         /// </summary>
         /// <param name="searchTerm">搜索关键词</param>
         /// <param name="searchScope">搜索范围 ("全部" 或文件夹名)</param>
+        /// <param name="mediaFilterMode">媒体筛选模式（默认全部）</param>
         /// <returns>搜索结果的项目树项集合</returns>
-        public ObservableCollection<ProjectTreeItem> SearchProjects(string searchTerm, string searchScope)
+        public ObservableCollection<ProjectTreeItem> SearchProjects(
+            string searchTerm,
+            string searchScope,
+            MediaSearchFilterMode mediaFilterMode = MediaSearchFilterMode.All)
         {
             var results = new ObservableCollection<ProjectTreeItem>();
 
@@ -43,40 +54,48 @@ namespace ImageColorChanger.Managers
 
             ParseSearchScope(searchScope, out int? searchFolderId, out int? searchLyricsGroupId);
 
-            // 图片文件搜索（选择歌词库范围时，不参与文件搜索）
+            // 图片/媒体文件搜索（选择歌词库范围时，不参与文件搜索）
             if (!searchLyricsGroupId.HasValue)
             {
-                var files = searchFolderId == null
-                    ? _dbManager.SearchFiles(searchTerm, FileType.Image)
-                    : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
-
-                foreach (var file in files)
+                if (mediaFilterMode != MediaSearchFilterMode.MediaOnly)
                 {
-                    var folderName = file.Folder?.Name ?? "根目录";
-                    var folderId = file.FolderId ?? 0;
+                    var imageFiles = searchFolderId == null
+                        ? _dbManager.SearchFiles(searchTerm, FileType.Image)
+                        : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
 
-                    // 获取文件夹颜色（优先使用自定义颜色）
-                    string folderColor = "#666666";
-                    if (_configManager != null && folderId > 0)
+                    foreach (var file in imageFiles)
                     {
-                        string customColor = _dbManager.GetFolderHighlightColor(folderId);
-                        folderColor = _configManager.GetFolderColor(folderId, customColor);
+                        var folderName = file.Folder?.Name ?? "根目录";
+                        var folderId = file.FolderId ?? 0;
+
+                        // 获取文件夹颜色（优先使用自定义颜色）
+                        string folderColor = "#666666";
+                        if (_configManager != null && folderId > 0)
+                        {
+                            string customColor = _dbManager.GetFolderHighlightColor(folderId);
+                            folderColor = _configManager.GetFolderColor(folderId, customColor);
+                        }
+
+                        results.Add(new ProjectTreeItem
+                        {
+                            Name = file.Name,
+                            Icon = "",
+                            IconKind = "Image",
+                            IconColor = "#95E1D3",
+                            Type = TreeItemType.File,
+                            Id = file.Id,
+                            Path = file.Path,
+                            FileType = file.FileType,
+                            FolderName = folderName,
+                            FolderColor = folderColor,
+                            ShowFolderTag = true
+                        });
                     }
+                }
 
-                    results.Add(new ProjectTreeItem
-                    {
-                        Name = file.Name,
-                        Icon = "",
-                        IconKind = "Image",
-                        IconColor = "#95E1D3",
-                        Type = TreeItemType.File,
-                        Id = file.Id,
-                        Path = file.Path,
-                        FileType = file.FileType,
-                        FolderName = folderName,
-                        FolderColor = folderColor,
-                        ShowFolderTag = true
-                    });
+                if (mediaFilterMode != MediaSearchFilterMode.ImageOnly)
+                {
+                    AppendMediaSearchResults(results, searchTerm, searchFolderId);
                 }
             }
 
@@ -84,16 +103,69 @@ namespace ImageColorChanger.Managers
             // 1) 全部范围：同时搜索文件与歌词库
             // 2) 文件夹范围(ID): 仅搜索该文件夹文件
             // 3) 歌词库范围(LID): 仅搜索该歌词库
-            if (searchLyricsGroupId.HasValue)
+            bool includeLyrics = mediaFilterMode != MediaSearchFilterMode.MediaOnly;
+            if (includeLyrics)
             {
-                AppendLyricsSearchResults(results, searchTerm, searchLyricsGroupId);
-            }
-            else if (!searchFolderId.HasValue)
-            {
-                AppendLyricsSearchResults(results, searchTerm, null);
+                if (searchLyricsGroupId.HasValue)
+                {
+                    AppendLyricsSearchResults(results, searchTerm, searchLyricsGroupId);
+                }
+                else if (!searchFolderId.HasValue)
+                {
+                    AppendLyricsSearchResults(results, searchTerm, null);
+                }
             }
 
             return results;
+        }
+
+        private void AppendMediaSearchResults(ObservableCollection<ProjectTreeItem> results, string searchTerm, int? searchFolderId)
+        {
+            IEnumerable<MediaFile> mediaFiles;
+            if (searchFolderId.HasValue)
+            {
+                mediaFiles = _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Video)
+                    .Concat(_dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Audio));
+            }
+            else
+            {
+                mediaFiles = _dbManager.SearchFiles(searchTerm, FileType.Video)
+                    .Concat(_dbManager.SearchFiles(searchTerm, FileType.Audio));
+            }
+
+            foreach (var file in mediaFiles.Where(f => !IsAppleDoubleSidecarFileName(f?.Name)).GroupBy(f => f.Id).Select(g => g.First()))
+            {
+                var folderName = file.Folder?.Name ?? "根目录";
+                var folderId = file.FolderId ?? 0;
+
+                string folderColor = "#666666";
+                if (_configManager != null && folderId > 0)
+                {
+                    string customColor = _dbManager.GetFolderHighlightColor(folderId);
+                    folderColor = _configManager.GetFolderColor(folderId, customColor);
+                }
+
+                results.Add(new ProjectTreeItem
+                {
+                    Name = BuildMediaSearchTag(file.Name, file.FileType),
+                    Icon = "",
+                    IconKind = "File",
+                    IconColor = "#90CAF9",
+                    Type = TreeItemType.File,
+                    Id = file.Id,
+                    Path = file.Path,
+                    FileType = file.FileType,
+                    FolderName = folderName,
+                    FolderColor = folderColor,
+                    ShowFolderTag = true
+                });
+            }
+        }
+
+        private static bool IsAppleDoubleSidecarFileName(string fileName)
+        {
+            return !string.IsNullOrWhiteSpace(fileName) &&
+                   fileName.StartsWith("._", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -294,6 +366,19 @@ namespace ImageColorChanger.Managers
             }
 
             return $"{safeName} [歌词]";
+        }
+
+        private static string BuildMediaSearchTag(string name, FileType fileType)
+        {
+            string safeName = string.IsNullOrWhiteSpace(name) ? "未命名媒体" : name.Trim();
+            string tag = fileType == FileType.Video ? "[视频]" : "[音频]";
+
+            if (safeName.EndsWith(tag, StringComparison.Ordinal))
+            {
+                return safeName;
+            }
+
+            return $"{safeName} {tag}";
         }
     }
 }

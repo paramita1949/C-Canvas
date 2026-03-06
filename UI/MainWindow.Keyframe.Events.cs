@@ -1335,6 +1335,7 @@ namespace ImageColorChanger.UI
 
             // 正常文件夹的图片，显示按钮面板
             CompositePlaybackPanel.Visibility = Visibility.Visible;
+            BtnFloatingCompositePlay.Visibility = Visibility.Visible;
             
             // 异步加载合成标记状态并设置按钮颜色
             _ = UpdateCompositeButtonColorAsync();

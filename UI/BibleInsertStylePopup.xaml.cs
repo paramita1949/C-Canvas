@@ -113,7 +113,7 @@ namespace ImageColorChanger.UI
             _config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
 
             _config.AutoHideNavigationAfterInsert = _dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
-            var popupPosition = _dbManager.GetBibleInsertConfigValue("popup_position", "Bottom");
+            var popupPosition = _dbManager.GetBibleInsertConfigValue("popup_position", "Top");
             _config.PopupPosition = popupPosition switch
             {
                 "Top" => BiblePopupPosition.Top,
@@ -122,19 +122,19 @@ namespace ImageColorChanger.UI
             };
             _config.PopupFontFamily = _dbManager.GetBibleInsertConfigValue("popup_font_family", _config.FontFamily);
             _config.PopupTitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_title_color", _config.TitleStyle.ColorHex);
-            _config.PopupTitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_title_size", _config.TitleStyle.FontSize.ToString()));
+            _config.PopupTitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_title_size", "70"));
             _config.PopupTitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_title_bold", _config.TitleStyle.IsBold ? "1" : "0") == "1";
 
             _config.PopupVerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_verse_color", _config.VerseStyle.ColorHex);
-            _config.PopupVerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_size", _config.VerseStyle.FontSize.ToString()));
+            _config.PopupVerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_size", "60"));
             _config.PopupVerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_bold", _config.VerseStyle.IsBold ? "1" : "0") == "1";
             _config.PopupVerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_spacing", _config.VerseStyle.VerseSpacing.ToString("F1")));
 
             _config.PopupVerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_verse_number_color", _config.VerseNumberStyle.ColorHex);
-            _config.PopupVerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_number_size", _config.VerseNumberStyle.FontSize.ToString()));
+            _config.PopupVerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_number_size", "60"));
             _config.PopupVerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
 
-            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
+            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#0000A0");
             if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
                 popupOpacity = 0;
@@ -147,9 +147,9 @@ namespace ImageColorChanger.UI
             }
             _config.PopupDurationMinutes = popupDurationMinutes;
 
-            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_verse_count", "3"), out var popupVerseCount))
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_verse_count", "4"), out var popupVerseCount))
             {
-                popupVerseCount = 3;
+                popupVerseCount = 4;
             }
             _config.PopupVerseCount = popupVerseCount;
             

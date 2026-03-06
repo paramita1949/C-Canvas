@@ -249,7 +249,7 @@ namespace ImageColorChanger.UI
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
                     string searchScope = (SearchScope.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "全部";
-                    var searchResults = SearchManagerService.SearchProjects(searchTerm, searchScope);
+                    var searchResults = SearchManagerService.SearchProjects(searchTerm, searchScope, GetMediaSearchFilterMode());
                     if (searchResults != null)
                     {
                         _projectTreeItems.Clear();

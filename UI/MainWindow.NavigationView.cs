@@ -139,6 +139,11 @@ namespace ImageColorChanger.UI
 
                     foreach (var file in files)
                     {
+                        if (IsAppleDoubleSidecarPath(file.Path))
+                        {
+                            continue;
+                        }
+
                         string fileIconKind = "File";
                         string fileIconColor = "#95E1D3";
                         if (file.FileType == FileType.Image)
@@ -165,6 +170,11 @@ namespace ImageColorChanger.UI
 
                 foreach (var file in rootFiles)
                 {
+                    if (IsAppleDoubleSidecarPath(file.Path))
+                    {
+                        continue;
+                    }
+
                     string rootFileIconKind = "File";
                     string rootFileIconColor = "#95E1D3";
                     if (file.FileType == FileType.Image)

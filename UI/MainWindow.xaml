@@ -299,6 +299,33 @@
                                            VerticalAlignment="Center"
                                            MouseLeftButtonDown="BibleSearchModeEmbeddedText_MouseLeftButtonDown"/>
                             </StackPanel>
+
+                            <StackPanel x:Name="IncludeMediaSearchModePanel"
+                                        Grid.Column="2"
+                                        Orientation="Horizontal"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock x:Name="ImageSearchFilterText"
+                                           Text="图片"
+                                           FontSize="14"
+                                           Cursor="Hand"
+                                           Foreground="#757575"
+                                           FontWeight="Normal"
+                                           Margin="0,0,8,0"
+                                           VerticalAlignment="Center"
+                                           ToolTip="只搜索图片"
+                                           MouseLeftButtonDown="ImageSearchFilterText_MouseLeftButtonDown"/>
+                                <TextBlock x:Name="MediaSearchFilterText"
+                                           Text="媒体"
+                                           FontSize="14"
+                                           Cursor="Hand"
+                                           Foreground="#757575"
+                                           FontWeight="Normal"
+                                           Margin="0"
+                                           VerticalAlignment="Center"
+                                           ToolTip="只搜索视频/音频"
+                                           MouseLeftButtonDown="MediaSearchFilterText_MouseLeftButtonDown"/>
+                            </StackPanel>
                         </Grid>
 
                         <Popup x:Name="BibleSearchPopup"
@@ -1137,7 +1164,10 @@
                 </ScrollViewer>
                 
                 <!-- 视频播放区域（默认隐藏，播放视频时显示） -->
-                <Grid x:Name="VideoContainer" Background="#000000" Visibility="Collapsed">
+                <Grid x:Name="VideoContainer"
+                      Background="#000000"
+                      Visibility="Collapsed"
+                      MouseRightButtonUp="VideoContainer_RightClick">
                     <!-- VideoView控件将在代码中动态添加 -->
                     
                     <!-- 媒体文件名称显示（用于纯音频文件，铺满整个区域） -->

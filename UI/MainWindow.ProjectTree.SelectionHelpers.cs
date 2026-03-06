@@ -106,6 +106,12 @@ namespace ImageColorChanger.UI
 
         private void HandleMediaFileSingleClick(ProjectTreeItem selectedItem, int fileId)
         {
+            if (IsAppleDoubleSidecarPath(selectedItem.Path))
+            {
+                ShowStatus($"已跳过系统伴随文件: {selectedItem.Name}");
+                return;
+            }
+
             _imagePath = selectedItem.Path;
             _currentImageId = fileId;
             CompositePlaybackPanel.Visibility = Visibility.Collapsed;
@@ -116,6 +122,11 @@ namespace ImageColorChanger.UI
 
         private void HandleMediaFileDoubleClick(ProjectTreeItem selectedItem)
         {
+            if (IsAppleDoubleSidecarPath(selectedItem.Path))
+            {
+                ShowStatus($"无法播放系统伴随文件: {selectedItem.Name}");
+                return;
+            }
             if (_projectionManager != null && _projectionManager.IsProjectionActive)
             {
                 LoadAndDisplayVideoOnProjection(selectedItem.Path);

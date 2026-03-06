@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Managers;
 using MessageBox = System.Windows.MessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
 using MessageBoxImage = System.Windows.MessageBoxImage;
@@ -15,6 +16,11 @@ namespace ImageColorChanger.UI
     public partial class MainWindow : Window
     {
         #region 搜索功能
+        private const string ImageSearchFilterSelectedSettingKey = "ProjectSearchImageFilterSelected";
+        private const string MediaSearchFilterSelectedSettingKey = "ProjectSearchMediaFilterSelected";
+        private bool _imageSearchFilterSelected = true;
+        private bool _mediaSearchFilterSelected;
+        private bool _mediaSearchFilterSelectionLoaded;
 
         private async void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -46,7 +52,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 执行搜索
-                var searchResults = searchManager.SearchProjects(searchTerm, searchScope);
+                var searchResults = searchManager.SearchProjects(searchTerm, searchScope, GetMediaSearchFilterMode());
                 
                 // System.Diagnostics.Debug.WriteLine($"搜索结果: {searchResults?.Count ?? 0} 项");
 
@@ -124,6 +130,127 @@ namespace ImageColorChanger.UI
                 : Visibility.Visible;
         }
 
+        internal MediaSearchFilterMode GetMediaSearchFilterMode()
+        {
+            EnsureMediaSearchFilterSelectionLoaded();
+
+            if (_imageSearchFilterSelected && !_mediaSearchFilterSelected)
+            {
+                return MediaSearchFilterMode.ImageOnly;
+            }
+
+            if (!_imageSearchFilterSelected && _mediaSearchFilterSelected)
+            {
+                return MediaSearchFilterMode.MediaOnly;
+            }
+
+            // 两者都选中 or 两者都未选中 => 全部
+            return MediaSearchFilterMode.All;
+        }
+
+        private void ImageSearchFilterText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_isBibleMode)
+            {
+                return;
+            }
+
+            ApplyMediaSearchFilterSelection(!_imageSearchFilterSelected, _mediaSearchFilterSelected, persist: true);
+        }
+
+        private void MediaSearchFilterText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_isBibleMode)
+            {
+                return;
+            }
+
+            ApplyMediaSearchFilterSelection(_imageSearchFilterSelected, !_mediaSearchFilterSelected, persist: true);
+        }
+
+        private void UpdateIncludeMediaSearchToggleVisual()
+        {
+            if (ImageSearchFilterText == null || MediaSearchFilterText == null)
+            {
+                return;
+            }
+
+            EnsureMediaSearchFilterSelectionLoaded();
+            ApplyMediaSearchFilterTextStyle(ImageSearchFilterText, _imageSearchFilterSelected);
+            ApplyMediaSearchFilterTextStyle(MediaSearchFilterText, _mediaSearchFilterSelected);
+        }
+
+        private static void ApplyMediaSearchFilterTextStyle(TextBlock textBlock, bool isActive)
+        {
+            if (textBlock == null)
+            {
+                return;
+            }
+
+            textBlock.Foreground = isActive
+                ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1976D2"))
+                : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#757575"));
+            textBlock.FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal;
+            textBlock.TextDecorations = null;
+        }
+
+        private void EnsureMediaSearchFilterSelectionLoaded()
+        {
+            if (_mediaSearchFilterSelectionLoaded)
+            {
+                return;
+            }
+
+            _mediaSearchFilterSelectionLoaded = true;
+            try
+            {
+                string savedImageValue = DatabaseManagerService.GetUISetting(ImageSearchFilterSelectedSettingKey, bool.TrueString);
+                string savedMediaValue = DatabaseManagerService.GetUISetting(MediaSearchFilterSelectedSettingKey, bool.FalseString);
+
+                _imageSearchFilterSelected = ParseBoolOrDefault(savedImageValue, defaultValue: true);
+                _mediaSearchFilterSelected = ParseBoolOrDefault(savedMediaValue, defaultValue: false);
+            }
+            catch
+            {
+                _imageSearchFilterSelected = true;
+                _mediaSearchFilterSelected = false;
+            }
+        }
+
+        private void ApplyMediaSearchFilterSelection(bool imageSelected, bool mediaSelected, bool persist)
+        {
+            EnsureMediaSearchFilterSelectionLoaded();
+
+            bool changed = _imageSearchFilterSelected != imageSelected ||
+                           _mediaSearchFilterSelected != mediaSelected;
+            _imageSearchFilterSelected = imageSelected;
+            _mediaSearchFilterSelected = mediaSelected;
+            UpdateIncludeMediaSearchToggleVisual();
+
+            if (persist)
+            {
+                try
+                {
+                    DatabaseManagerService.SaveUISetting(ImageSearchFilterSelectedSettingKey, _imageSearchFilterSelected.ToString());
+                    DatabaseManagerService.SaveUISetting(MediaSearchFilterSelectedSettingKey, _mediaSearchFilterSelected.ToString());
+                }
+                catch
+                {
+                }
+            }
+
+            if (changed)
+            {
+                // 复用现有搜索流程：触发当前关键词重新搜索
+                SearchBox_TextChanged(SearchBox, null);
+            }
+        }
+
+        private static bool ParseBoolOrDefault(string value, bool defaultValue)
+        {
+            return bool.TryParse(value, out bool parsed) ? parsed : defaultValue;
+        }
+
         /// <summary>
         /// 加载搜索范围选项
         /// </summary>
@@ -149,6 +276,7 @@ namespace ImageColorChanger.UI
                     SearchScope.SelectedIndex = 0;
                 }
 
+                EnsureMediaSearchFilterSelectionLoaded();
                 UpdateSearchEntryModeVisual();
             }
             catch (Exception)

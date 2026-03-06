@@ -80,8 +80,6 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnVideoMediaChanged(object sender, string mediaPath)
         {
-            // System.Diagnostics.Debug.WriteLine($" 媒体已改变: {System.IO.Path.GetFileName(mediaPath)}");
-            
             // 自动选中正在播放的文件
             SelectMediaFileByPath(mediaPath);
         }
@@ -94,7 +92,7 @@ namespace ImageColorChanger.UI
             try
             {
                 if (string.IsNullOrEmpty(filePath)) return;
-                
+                 
                 // 在项目树中查找并选中对应的文件
                 foreach (var folderItem in _projectTreeItems)
                 {
@@ -112,8 +110,6 @@ namespace ImageColorChanger.UI
                                 
                                 // 选中当前文件
                                 fileItem.IsSelected = true;
-                                
-                                //System.Diagnostics.Debug.WriteLine($" 已自动选中文件: {fileItem.Name}");
                                 return;
                             }
                         }
@@ -396,6 +392,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (IsAppleDoubleSidecarPath(videoPath))
+                {
+                    ShowStatus("已跳过系统伴随文件（._ 开头），请播放原始视频文件");
+                    return;
+                }
                 if (!EnsureVideoPlayerInitialized("LoadAndDisplayVideo"))
                 {
                     ShowStatus("媒体播放器初始化失败");
@@ -405,8 +406,9 @@ namespace ImageColorChanger.UI
                 // 显示视频播放区域
                 VideoContainer.Visibility = Visibility.Visible;
                 
-                //  隐藏合成播放按钮（媒体文件不需要）
-                BtnFloatingCompositePlay.Visibility = Visibility.Collapsed;
+                // 隐藏合成播放按钮面板（媒体文件不需要）
+                // 注意：不要单独隐藏按钮本体，否则切回图片时可能只恢复面板而导致按钮不显示
+                CompositePlaybackPanel.Visibility = Visibility.Collapsed;
                 
                 // 先隐藏文件名，等视频轨道检测完成后再决定是否显示
                 MediaFileNameBorder.Visibility = Visibility.Collapsed;
@@ -436,6 +438,25 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" 加载视频失败: {ex.Message}");
                 MessageBox.Show($"加载视频失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static bool IsAppleDoubleSidecarPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            try
+            {
+                string fileName = System.IO.Path.GetFileName(path);
+                return !string.IsNullOrWhiteSpace(fileName) &&
+                       fileName.StartsWith("._", StringComparison.Ordinal);
+            }
+            catch
+            {
+                return false;
             }
         }
         

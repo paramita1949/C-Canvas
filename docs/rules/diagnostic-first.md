@@ -48,3 +48,5 @@
 ## 关联规则
 - `.hdp` 导入导出相关改动，必须同时遵循：
 - [./hdp-import-export-sync.md](./hdp-import-export-sync.md)
+- 子代理执行与需求理解相关，遵循：
+- [./subagent-agents-guideline.md](./subagent-agents-guideline.md)

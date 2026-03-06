@@ -470,7 +470,13 @@ namespace ImageColorChanger.Database.Migrations
                             ('verse_number_color', '#FFFF00'),
                             ('verse_number_size', '40'),
                             ('verse_number_bold', '1'),
-                            ('auto_hide_navigation', '1')";
+                            ('auto_hide_navigation', '1'),
+                            ('popup_position', 'Top'),
+                            ('popup_title_size', '70'),
+                            ('popup_verse_size', '60'),
+                            ('popup_verse_number_size', '60'),
+                            ('popup_verse_count', '4'),
+                            ('popup_bg_color', '#0000A0')";
                         _context.Database.ExecuteSqlRaw(insertDefaultSql);
                     }
                 }

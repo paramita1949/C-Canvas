@@ -172,6 +172,10 @@ namespace ImageColorChanger.UI
                 {
                     BibleSearchModePanel.Visibility = Visibility.Visible;
                 }
+                if (IncludeMediaSearchModePanel != null)
+                {
+                    IncludeMediaSearchModePanel.Visibility = Visibility.Collapsed;
+                }
 
                 EnsureBibleSearchComponentsInitialized();
                 UpdateBibleSearchModeToggleState();
@@ -187,6 +191,11 @@ namespace ImageColorChanger.UI
                 {
                     BibleSearchModePanel.Visibility = Visibility.Collapsed;
                 }
+                if (IncludeMediaSearchModePanel != null)
+                {
+                    IncludeMediaSearchModePanel.Visibility = Visibility.Visible;
+                }
+                UpdateIncludeMediaSearchToggleVisual();
 
                 HideBibleSearchResults();
             }

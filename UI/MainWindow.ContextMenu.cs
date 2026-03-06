@@ -360,15 +360,44 @@ namespace ImageColorChanger.UI
             contextMenu.IsOpen = true;
         }
 
+        private void VideoContainer_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            string currentPath = GetCurrentMediaPathForLocation();
+            bool hasCurrentPath = !string.IsNullOrWhiteSpace(currentPath) &&
+                                  (System.IO.File.Exists(currentPath) || System.IO.Directory.Exists(currentPath));
+            if (!hasCurrentPath)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (sender is not FrameworkElement host)
+            {
+                return;
+            }
+
+            var menu = new ContextMenu
+            {
+                Style = (Style)FindResource("NoBorderContextMenuStyle"),
+                PlacementTarget = host
+            };
+            var openLocationItem = new MenuItem { Header = "打开文件位置" };
+            openLocationItem.Click += (s, args) => OpenCurrentMediaFileLocation();
+            menu.Items.Add(openLocationItem);
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
         private void OpenCurrentMediaFileLocation()
         {
-            if (string.IsNullOrWhiteSpace(_imagePath))
+            string currentPath = GetCurrentMediaPathForLocation();
+            if (string.IsNullOrWhiteSpace(currentPath))
             {
                 ShowStatus("当前未关联文件路径");
                 return;
             }
 
-            if (!System.IO.File.Exists(_imagePath) && !System.IO.Directory.Exists(_imagePath))
+            if (!System.IO.File.Exists(currentPath) && !System.IO.Directory.Exists(currentPath))
             {
                 ShowStatus("当前文件不存在");
                 return;
@@ -376,12 +405,23 @@ namespace ImageColorChanger.UI
 
             try
             {
-                OpenPathInExplorer(_imagePath);
+                OpenPathInExplorer(currentPath);
             }
             catch (Exception ex)
             {
                 ShowStatus($"打开文件位置失败: {ex.Message}");
             }
+        }
+
+        private string GetCurrentMediaPathForLocation()
+        {
+            if (VideoContainer?.Visibility == Visibility.Visible &&
+                !string.IsNullOrWhiteSpace(_videoPlayerManager?.CurrentMediaPath))
+            {
+                return _videoPlayerManager.CurrentMediaPath;
+            }
+
+            return _imagePath;
         }
 
         #endregion

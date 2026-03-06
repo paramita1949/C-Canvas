@@ -40,7 +40,7 @@ namespace ImageColorChanger.UI
             {
                 var folderFiles = dbManager.GetMediaFilesByFolder(currentMediaFile.FolderId.Value);
                 return folderFiles
-                    .Where(f => f.FileType == FileType.Video)
+                    .Where(f => f.FileType == FileType.Video && !IsAppleDoubleSidecarPath(f.Path))
                     .OrderBy(f => f.OrderIndex ?? 0)
                     .ThenBy(f => f.Name)
                     .Select(f => f.Path)
@@ -48,7 +48,7 @@ namespace ImageColorChanger.UI
             }
 
             return rootFiles
-                .Where(f => f.FileType == FileType.Video)
+                .Where(f => f.FileType == FileType.Video && !IsAppleDoubleSidecarPath(f.Path))
                 .OrderBy(f => f.OrderIndex ?? 0)
                 .ThenBy(f => f.Name)
                 .Select(f => f.Path)
