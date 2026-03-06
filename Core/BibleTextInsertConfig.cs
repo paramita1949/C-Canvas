@@ -9,7 +9,7 @@ namespace ImageColorChanger.Core
     public class BibleTextInsertConfig
     {
         private int _popupDurationMinutes = 3;
-        private int _popupVerseCount = 3;
+        private int _popupVerseCount = 4;
 
         /// <summary>
         /// 样式布局（默认：标题在上面）
@@ -44,12 +44,12 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 弹窗经文位置
         /// </summary>
-        public BiblePopupPosition PopupPosition { get; set; } = BiblePopupPosition.Bottom;
+        public BiblePopupPosition PopupPosition { get; set; } = BiblePopupPosition.Top;
 
         /// <summary>
-        /// 弹窗统一字体（标题和经文共用）
+        /// 弹窗统一字体（标题和经文共用，默认：微软雅黑）
         /// </summary>
-        public string PopupFontFamily { get; set; } = "DengXian";
+        public string PopupFontFamily { get; set; } = "Microsoft YaHei";
 
         /// <summary>
         /// 弹窗标题样式
@@ -69,7 +69,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 弹窗背景色（不含透明度）
         /// </summary>
-        public string PopupBackgroundColorHex { get; set; } = "#000000";
+        public string PopupBackgroundColorHex { get; set; } = "#1C2740";
 
         /// <summary>
         /// 弹窗背景透明度（0=不透明，100=完全透明）
@@ -86,7 +86,7 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
-        /// 弹窗显示节数（范围 1-10，默认 3）
+        /// 弹窗目标容纳节数（范围 1-10，默认 4）
         /// </summary>
         public int PopupVerseCount
         {

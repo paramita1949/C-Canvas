@@ -193,6 +193,8 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="10"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}">
@@ -387,6 +389,17 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <Border Grid.Row="8" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnResetInsertColors"
+                                        Height="26"
+                                        MinWidth="120"
+                                        Content="恢复默认配色"
+                                        FontSize="12"
+                                        Click="BtnResetInsertColors_Click"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </ScrollViewer>
 
@@ -396,6 +409,8 @@
                             <ScaleTransform ScaleX="0.88" ScaleY="0.88"/>
                         </Grid.LayoutTransform>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="10"/>
                             <RowDefinition Height="Auto"/>
@@ -668,13 +683,24 @@
                                                Style="{StaticResource FieldLabelStyle}"
                                                FontFamily="Segoe MDL2 Assets"
                                                Text="&#xE8FD;"/>
-                                    <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="节数:"/>
+                                    <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="目标节数:"/>
                                     <ComboBox Grid.Column="10"
                                               x:Name="CmbPopupVerseCount"
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="12" Style="{StaticResource SectionCardStyle}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnResetPopupColors"
+                                        Height="26"
+                                        MinWidth="120"
+                                        Content="恢复默认配色"
+                                        FontSize="12"
+                                        Click="BtnResetPopupColors_Click"/>
                             </StackPanel>
                         </Border>
                     </Grid>

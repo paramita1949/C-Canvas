@@ -17,6 +17,11 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class BibleInsertStylePopup : Popup
     {
+        private const string DefaultTitleColorHex = "#FF0000";
+        private const string DefaultVerseColorHex = "#FF9A35";
+        private const string DefaultVerseNumberColorHex = "#FFFF00";
+        private const string DefaultPopupBackgroundColorHex = "#1C2740";
+
         private sealed class PopupNumericOption
         {
             public PopupNumericOption(int value, string label)
@@ -99,16 +104,16 @@ namespace ImageColorChanger.UI
             _config.Style = (BibleTextInsertStyle)int.Parse(_dbManager.GetBibleInsertConfigValue("style", "0"));
             _config.FontFamily = _dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
 
-            _config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
+            _config.TitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("title_color", DefaultTitleColorHex);
             _config.TitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("title_size", "50"));
             _config.TitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
 
-            _config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", "#FF9A35");
+            _config.VerseStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_color", DefaultVerseColorHex);
             _config.VerseStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_size", "40"));
             _config.VerseStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_bold", "0") == "1";
             _config.VerseStyle.VerseSpacing = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_spacing", "1.2"));
 
-            _config.VerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_number_color", "#FFFF00");
+            _config.VerseNumberStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("verse_number_color", DefaultVerseNumberColorHex);
             _config.VerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("verse_number_size", "40"));
             _config.VerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
 
@@ -120,7 +125,7 @@ namespace ImageColorChanger.UI
                 "Center" => BiblePopupPosition.Center,
                 _ => BiblePopupPosition.Bottom
             };
-            _config.PopupFontFamily = _dbManager.GetBibleInsertConfigValue("popup_font_family", _config.FontFamily);
+            _config.PopupFontFamily = _dbManager.GetBibleInsertConfigValue("popup_font_family", "Microsoft YaHei");
             _config.PopupTitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_title_color", _config.TitleStyle.ColorHex);
             _config.PopupTitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_title_size", "70"));
             _config.PopupTitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_title_bold", _config.TitleStyle.IsBold ? "1" : "0") == "1";
@@ -134,7 +139,7 @@ namespace ImageColorChanger.UI
             _config.PopupVerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_number_size", "60"));
             _config.PopupVerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
 
-            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#1C2740");
+            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", DefaultPopupBackgroundColorHex);
             if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
                 popupOpacity = 0;
@@ -296,7 +301,7 @@ namespace ImageColorChanger.UI
             CmbPopupVerseNumberSize.SelectedItem = (int)_config.PopupVerseNumberStyle.FontSize;
             ChkPopupVerseNumberBold.IsChecked = _config.PopupVerseNumberStyle.IsBold;
 
-            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"), forceBlackText: true);
+            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, DefaultPopupBackgroundColorHex), forceBlackText: true);
             CmbPopupBackgroundOpacity.ItemsSource = Enumerable.Range(0, 21).Select(i => i * 5).ToList();
             CmbPopupBackgroundOpacity.SelectedItem = (_config.PopupBackgroundOpacity / 5) * 5;
 
@@ -690,7 +695,7 @@ namespace ImageColorChanger.UI
             try
             {
                 var colorDialog = new System.Windows.Forms.ColorDialog();
-                var currentColor = ParseHexColor(_config.PopupBackgroundColorHex, "#000000");
+                var currentColor = ParseHexColor(_config.PopupBackgroundColorHex, DefaultPopupBackgroundColorHex);
                 colorDialog.Color = System.Drawing.Color.FromArgb(
                     currentColor.Alpha, currentColor.Red, currentColor.Green, currentColor.Blue);
 
@@ -698,7 +703,7 @@ namespace ImageColorChanger.UI
                 {
                     var color = colorDialog.Color;
                     _config.PopupBackgroundColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-                    SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, "#000000"), forceBlackText: true);
+                    SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, DefaultPopupBackgroundColorHex), forceBlackText: true);
                     _dbManager.SetBibleInsertConfigValue("popup_bg_color", _config.PopupBackgroundColorHex);
                     NotifyPopupStyleChanged();
                 }
@@ -711,6 +716,47 @@ namespace ImageColorChanger.UI
                 _ = ex;
 #endif
             }
+        }
+
+        private void BtnResetInsertColors_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            _config.TitleStyle.ColorHex = DefaultTitleColorHex;
+            _config.VerseStyle.ColorHex = DefaultVerseColorHex;
+            _config.VerseNumberStyle.ColorHex = DefaultVerseNumberColorHex;
+
+            SetColorButton(BtnTitleColor, _config.TitleStyle.GetSKColor(), forceBlackText: true);
+            SetColorButton(BtnVerseColor, _config.VerseStyle.GetSKColor());
+            SetColorButton(BtnVerseNumberColor, _config.VerseNumberStyle.GetSKColor());
+
+            _dbManager.SetBibleInsertConfigValue("title_color", _config.TitleStyle.ColorHex);
+            _dbManager.SetBibleInsertConfigValue("verse_color", _config.VerseStyle.ColorHex);
+            _dbManager.SetBibleInsertConfigValue("verse_number_color", _config.VerseNumberStyle.ColorHex);
+        }
+
+        private void BtnResetPopupColors_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            _config.PopupTitleStyle.ColorHex = DefaultTitleColorHex;
+            _config.PopupVerseStyle.ColorHex = DefaultVerseColorHex;
+            _config.PopupVerseNumberStyle.ColorHex = DefaultVerseNumberColorHex;
+            _config.PopupBackgroundColorHex = DefaultPopupBackgroundColorHex;
+
+            SetColorButton(BtnPopupTitleColor, _config.PopupTitleStyle.GetSKColor(), forceBlackText: true);
+            SetColorButton(BtnPopupVerseColor, _config.PopupVerseStyle.GetSKColor());
+            SetColorButton(BtnPopupVerseNumberColor, _config.PopupVerseNumberStyle.GetSKColor());
+            SetColorButton(BtnPopupBackgroundColor, ParseHexColor(_config.PopupBackgroundColorHex, DefaultPopupBackgroundColorHex), forceBlackText: true);
+
+            _dbManager.SetBibleInsertConfigValue("popup_title_color", _config.PopupTitleStyle.ColorHex);
+            _dbManager.SetBibleInsertConfigValue("popup_verse_color", _config.PopupVerseStyle.ColorHex);
+            _dbManager.SetBibleInsertConfigValue("popup_verse_number_color", _config.PopupVerseNumberStyle.ColorHex);
+            _dbManager.SetBibleInsertConfigValue("popup_bg_color", _config.PopupBackgroundColorHex);
+
+            NotifyPopupStyleChanged();
         }
 
         private void BtnPopupTitleColor_Click(object sender, RoutedEventArgs e)

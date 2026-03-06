@@ -1386,14 +1386,14 @@ namespace ImageColorChanger.UI
             config.VerseNumberStyle.IsBold = dbManager.GetBibleInsertConfigValue("verse_number_bold", "1") == "1";
 
             config.AutoHideNavigationAfterInsert = dbManager.GetBibleInsertConfigValue("auto_hide_navigation", "1") == "1";
-            var popupPosition = dbManager.GetBibleInsertConfigValue("popup_position", "Bottom");
+            var popupPosition = dbManager.GetBibleInsertConfigValue("popup_position", "Top");
             config.PopupPosition = popupPosition switch
             {
                 "Top" => BiblePopupPosition.Top,
                 "Center" => BiblePopupPosition.Center,
                 _ => BiblePopupPosition.Bottom
             };
-            config.PopupFontFamily = dbManager.GetBibleInsertConfigValue("popup_font_family", config.FontFamily);
+            config.PopupFontFamily = dbManager.GetBibleInsertConfigValue("popup_font_family", "Microsoft YaHei");
             config.PopupTitleStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_title_color", config.TitleStyle.ColorHex);
             config.PopupTitleStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_title_size", config.TitleStyle.FontSize.ToString()));
             config.PopupTitleStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_title_bold", config.TitleStyle.IsBold ? "1" : "0") == "1";
@@ -1404,7 +1404,7 @@ namespace ImageColorChanger.UI
             config.PopupVerseNumberStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_verse_number_color", config.VerseNumberStyle.ColorHex);
             config.PopupVerseNumberStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_verse_number_size", config.VerseNumberStyle.FontSize.ToString()));
             config.PopupVerseNumberStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
-            config.PopupBackgroundColorHex = dbManager.GetBibleInsertConfigValue("popup_bg_color", "#000000");
+            config.PopupBackgroundColorHex = dbManager.GetBibleInsertConfigValue("popup_bg_color", "#1C2740");
             if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
                 popupOpacity = 0;
@@ -1417,9 +1417,9 @@ namespace ImageColorChanger.UI
             }
             config.PopupDurationMinutes = popupDurationMinutes;
 
-            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_verse_count", "3"), out var popupVerseCount))
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_verse_count", "4"), out var popupVerseCount))
             {
-                popupVerseCount = 3;
+                popupVerseCount = 4;
             }
             config.PopupVerseCount = popupVerseCount;
             

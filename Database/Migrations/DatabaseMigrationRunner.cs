@@ -472,6 +472,7 @@ namespace ImageColorChanger.Database.Migrations
                             ('verse_number_bold', '1'),
                             ('auto_hide_navigation', '1'),
                             ('popup_position', 'Top'),
+                            ('popup_font_family', 'Microsoft YaHei'),
                             ('popup_title_size', '70'),
                             ('popup_verse_size', '60'),
                             ('popup_verse_number_size', '60'),

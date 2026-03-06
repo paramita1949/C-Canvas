@@ -1972,24 +1972,86 @@ namespace ImageColorChanger.UI
             float popupWidth = Math.Max(480f, maxPopupWidth);
             float popupX = (float)((canvasWidth - popupWidth) / 2.0);
 
+            float lowScale = 0.40f;
+            float highScale = 1.00f;
+            const int adaptiveIterations = 8;
+            float targetVerseCount = Math.Clamp(cfg.PopupVerseCount, 1, 10);
+
+            float titleHeight;
+            float lineHeight;
+            float titleBottomGap = 10f;
+            float leftPad = 36f;
+            float rightPad = 36f;
+            float topPad = 24f;
+            float bottomPad = 24f;
+            float textMaxWidth = popupWidth - leftPad - rightPad;
+            float maxPopupHeight = Math.Max(240f, (float)canvasHeight - (cfg.PopupPosition == BiblePopupPosition.Bottom ? 40f : 0f));
+
+            List<string> titleLines = null;
+            BiblePopupVerseLayout verseLayout = null;
+            List<string> verseLines = null;
+            float verseViewportHeight = 0f;
+
+            float bestScale = lowScale;
+            for (int i = 0; i < adaptiveIterations; i++)
+            {
+                float testScale = (lowScale + highScale) / 2f;
+                if (TryMeasureAdaptivePopupLayout(cfg, testScale, textMaxWidth, targetVerseCount, out var measured))
+                {
+                    float estimatedPopupHeight = topPad + measured.TitleHeight + titleBottomGap + measured.ViewportHeight + bottomPad;
+                    if (estimatedPopupHeight <= maxPopupHeight)
+                    {
+                        bestScale = testScale;
+                        lowScale = testScale;
+                    }
+                    else
+                    {
+                        highScale = testScale;
+                    }
+                }
+                else
+                {
+                    highScale = testScale;
+                }
+            }
+
+            if (!TryMeasureAdaptivePopupLayout(cfg, bestScale, textMaxWidth, targetVerseCount, out var finalMeasured))
+            {
+                return;
+            }
+
+            titleLines = finalMeasured.TitleLines;
+            verseLayout = finalMeasured.VerseLayout;
+            verseLines = verseLayout.WrappedLines;
+            titleHeight = finalMeasured.TitleLineHeight;
+            lineHeight = finalMeasured.VerseLineHeight;
+            verseViewportHeight = finalMeasured.ViewportHeight;
+
+            float titleAndPaddingHeight = topPad + finalMeasured.TitleHeight + titleBottomGap + bottomPad;
+            float maxViewportByCanvas = Math.Max(lineHeight, maxPopupHeight - titleAndPaddingHeight);
+            if (verseViewportHeight > maxViewportByCanvas)
+            {
+                verseViewportHeight = maxViewportByCanvas;
+            }
+
             using var titleFont = new SKFont
             {
                 Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize),
+                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize * bestScale),
                 Subpixel = true,
                 Edging = SKFontEdging.Antialias
             };
             using var verseFont = new SKFont
             {
                 Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize),
+                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize * bestScale),
                 Subpixel = true,
                 Edging = SKFontEdging.Antialias
             };
             using var verseNumberFont = new SKFont
             {
                 Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseNumberStyle.FontSize),
+                Size = Math.Max(16f, cfg.PopupVerseNumberStyle.FontSize * bestScale),
                 Subpixel = true,
                 Edging = SKFontEdging.Antialias
             };
@@ -2023,21 +2085,8 @@ namespace ImageColorChanger.UI
             };
             bool hideBorder = BiblePopupOpacity.ShouldHideBorder(cfg.PopupBackgroundOpacity);
 
-            float lineHeight = Math.Max(verseFont.Size * (float)Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing), verseFont.Size * 1.2f);
-            float titleHeight = titleFont.Size * 1.25f;
-            float titleBottomGap = 10f;
-            float leftPad = 36f;
-            float rightPad = 36f;
-            float topPad = 24f;
-            float bottomPad = 24f;
-            float textMaxWidth = popupWidth - leftPad - rightPad;
-
-            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titleFont, titlePaint, textMaxWidth);
-            var verseLayout = BuildPopupVerseLayout(_biblePopupOverlayContent ?? string.Empty, verseFont, versePaint, textMaxWidth, lineHeight);
-            var verseLines = verseLayout.WrappedLines;
             int titleCount = Math.Max(1, titleLines.Count);
             int verseCount = Math.Max(1, verseLines.Count);
-            float verseViewportHeight = lineHeight * Math.Clamp(cfg.PopupVerseCount, 1, 10);
             float verseContentHeight = verseCount * lineHeight;
             _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseContentHeight - verseViewportHeight);
             _biblePopupOverlayVerseScrollOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
@@ -2171,6 +2220,105 @@ namespace ImageColorChanger.UI
         {
             public List<string> WrappedLines { get; } = new();
             public List<float> VerseStartOffsets { get; } = new();
+            public List<float> VerseHeights { get; } = new();
+            public float TotalHeight { get; set; }
+        }
+
+        private sealed class AdaptivePopupLayoutMeasure
+        {
+            public List<string> TitleLines { get; init; } = new();
+            public BiblePopupVerseLayout VerseLayout { get; init; } = new();
+            public float TitleLineHeight { get; init; }
+            public float VerseLineHeight { get; init; }
+            public float TitleHeight { get; init; }
+            public float ViewportHeight { get; init; }
+        }
+
+        private bool TryMeasureAdaptivePopupLayout(
+            BibleTextInsertConfig cfg,
+            float scale,
+            float textMaxWidth,
+            float targetVerseCount,
+            out AdaptivePopupLayoutMeasure measured)
+        {
+            measured = null;
+            if (cfg == null || textMaxWidth <= 0 || scale <= 0)
+            {
+                return false;
+            }
+
+            using var titleFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize * scale),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var verseFont = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
+                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize * scale),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var titlePaint = new SKPaint { IsAntialias = true };
+            using var versePaint = new SKPaint { IsAntialias = true };
+
+            var titleLines = WrapTextByWidth(_biblePopupOverlayReference ?? string.Empty, titleFont, titlePaint, textMaxWidth);
+            float titleLineHeight = titleFont.Size * 1.25f;
+            float verseLineHeight = Math.Max(verseFont.Size * (float)Math.Max(1.0, cfg.PopupVerseStyle.VerseSpacing), verseFont.Size * 1.2f);
+            var verseLayout = BuildPopupVerseLayout(_biblePopupOverlayContent ?? string.Empty, verseFont, versePaint, textMaxWidth, verseLineHeight);
+
+            int titleCount = Math.Max(1, titleLines.Count);
+            float titleHeight = titleCount * titleLineHeight;
+            float viewportHeight = CalculateViewportHeightForTargetVerses(verseLayout, (int)Math.Round(targetVerseCount), verseLineHeight);
+
+            measured = new AdaptivePopupLayoutMeasure
+            {
+                TitleLines = titleLines,
+                VerseLayout = verseLayout,
+                TitleLineHeight = titleLineHeight,
+                VerseLineHeight = verseLineHeight,
+                TitleHeight = titleHeight,
+                ViewportHeight = viewportHeight
+            };
+            return true;
+        }
+
+        private static float CalculateViewportHeightForTargetVerses(BiblePopupVerseLayout layout, int targetVerseCount, float fallbackLineHeight)
+        {
+            if (layout == null || layout.VerseStartOffsets.Count == 0 || layout.VerseHeights.Count == 0)
+            {
+                return Math.Max(fallbackLineHeight, 20f);
+            }
+
+            int verseCount = Math.Min(layout.VerseStartOffsets.Count, layout.VerseHeights.Count);
+            int target = Math.Clamp(targetVerseCount, 1, 10);
+            target = Math.Min(target, verseCount);
+            if (target <= 0)
+            {
+                return Math.Max(fallbackLineHeight, 20f);
+            }
+
+            float maxWindowHeight = 0f;
+            for (int start = 0; start < verseCount; start++)
+            {
+                int end = Math.Min(start + target - 1, verseCount - 1);
+                float top = layout.VerseStartOffsets[start];
+                float bottom = layout.VerseStartOffsets[end] + layout.VerseHeights[end];
+                float current = Math.Max(0, bottom - top);
+                if (current > maxWindowHeight)
+                {
+                    maxWindowHeight = current;
+                }
+            }
+
+            if (maxWindowHeight <= 0f)
+            {
+                maxWindowHeight = Math.Max(fallbackLineHeight, 20f);
+            }
+
+            return maxWindowHeight;
         }
 
         private static BiblePopupVerseLayout BuildPopupVerseLayout(string content, SKFont font, SKPaint paint, float maxWidth, float lineHeight)
@@ -2183,6 +2331,12 @@ namespace ImageColorChanger.UI
             {
                 result.VerseStartOffsets.Add(currentOffset);
                 var wrapped = WrapTextByWidth(paragraph, font, paint, maxWidth);
+                if (wrapped.Count == 0)
+                {
+                    wrapped.Add(string.Empty);
+                }
+                float verseHeight = Math.Max(1, wrapped.Count) * lineHeight;
+                result.VerseHeights.Add(verseHeight);
                 foreach (var line in wrapped)
                 {
                     result.WrappedLines.Add(line);
@@ -2194,7 +2348,10 @@ namespace ImageColorChanger.UI
             {
                 result.WrappedLines.Add(string.Empty);
                 result.VerseStartOffsets.Add(0f);
+                result.VerseHeights.Add(Math.Max(lineHeight, 1f));
             }
+
+            result.TotalHeight = currentOffset > 0 ? currentOffset : Math.Max(lineHeight, 1f);
 
             return result;
         }
