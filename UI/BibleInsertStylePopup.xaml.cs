@@ -134,7 +134,7 @@ namespace ImageColorChanger.UI
             _config.PopupVerseNumberStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_verse_number_size", "60"));
             _config.PopupVerseNumberStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_verse_number_bold", _config.VerseNumberStyle.IsBold ? "1" : "0") == "1";
 
-            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#0000A0");
+            _config.PopupBackgroundColorHex = _dbManager.GetBibleInsertConfigValue("popup_bg_color", "#1C2740");
             if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_bg_opacity", "0"), out var popupOpacity))
             {
                 popupOpacity = 0;

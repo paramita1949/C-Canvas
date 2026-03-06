@@ -476,7 +476,7 @@ namespace ImageColorChanger.Database.Migrations
                             ('popup_verse_size', '60'),
                             ('popup_verse_number_size', '60'),
                             ('popup_verse_count', '4'),
-                            ('popup_bg_color', '#0000A0')";
+                            ('popup_bg_color', '#1C2740')";
                         _context.Database.ExecuteSqlRaw(insertDefaultSql);
                     }
                 }
