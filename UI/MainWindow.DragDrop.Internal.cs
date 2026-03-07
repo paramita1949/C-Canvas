@@ -6,6 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 
@@ -29,12 +31,23 @@ namespace ImageColorChanger.UI
         private void ProjectTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _dragStartPoint = e.GetPosition(null);
-            
+
+            // 滚动条/滑块区域不参与文件拖拽，否则会劫持 Thumb 的首次拖动手势。
+            if (IsFromScrollBarChrome(e.OriginalSource as DependencyObject))
+            {
+                _draggedItem = null;
+                return;
+            }
+
             // 获取点击的TreeViewItem
             var treeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
             if (treeViewItem != null)
             {
                 _draggedItem = treeViewItem.DataContext as ProjectTreeItem;
+            }
+            else
+            {
+                _draggedItem = null;
             }
         }
 
@@ -43,6 +56,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ProjectTree_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (IsFromScrollBarChrome(e.OriginalSource as DependencyObject))
+            {
+                _draggedItem = null;
+                return;
+            }
+
             if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null)
             {
                 System.Windows.Point currentPosition = e.GetPosition(null);
@@ -54,7 +73,7 @@ namespace ImageColorChanger.UI
                 {
                     // 优化：允许拖拽文件、文件夹和Project节点
                     if (_draggedItem.Type == TreeItemType.File || 
-                        _draggedItem.Type == TreeItemType.Folder || 
+                        IsProjectTreeFolderNode(_draggedItem) || 
                         _draggedItem.Type == TreeItemType.Project || 
                         _draggedItem.Type == TreeItemType.TextProject)
                     {
@@ -64,6 +83,29 @@ namespace ImageColorChanger.UI
                     _draggedItem = null;
                 }
             }
+        }
+
+        private void ProjectTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _draggedItem = null;
+        }
+
+        private static bool IsFromScrollBarChrome(DependencyObject source)
+        {
+            while (source != null)
+            {
+                if (source is System.Windows.Controls.Primitives.ScrollBar ||
+                    source is Thumb ||
+                    source is Track ||
+                    source is RepeatButton)
+                {
+                    return true;
+                }
+
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -90,8 +132,8 @@ namespace ImageColorChanger.UI
                     bool isValidDrop = false;
                     if (sourceItem != null && targetItem != null)
                     {
-                        bool isSourceFirstCategory = sourceItem.Type == TreeItemType.Folder || sourceItem.Type == TreeItemType.File;
-                        bool isTargetFirstCategory = targetItem.Type == TreeItemType.Folder || targetItem.Type == TreeItemType.File;
+                        bool isSourceFirstCategory = IsFirstCategoryTreeItem(sourceItem);
+                        bool isTargetFirstCategory = IsFirstCategoryTreeItem(targetItem);
                         bool isSourceSecondCategory = sourceItem.Type == TreeItemType.Project || sourceItem.Type == TreeItemType.TextProject;
                         bool isTargetSecondCategory = targetItem.Type == TreeItemType.Project || targetItem.Type == TreeItemType.TextProject;
                         
@@ -165,8 +207,8 @@ namespace ImageColorChanger.UI
                     {
                         // 全新逻辑：分为两类
                         // 第一类：文件夹 + 单文件
-                        bool isSourceFirstCategory = sourceItem.Type == TreeItemType.Folder || sourceItem.Type == TreeItemType.File;
-                        bool isTargetFirstCategory = targetItem.Type == TreeItemType.Folder || targetItem.Type == TreeItemType.File;
+                        bool isSourceFirstCategory = IsFirstCategoryTreeItem(sourceItem);
+                        bool isTargetFirstCategory = IsFirstCategoryTreeItem(targetItem);
                         
                         // 第二类：Project + TextProject
                         bool isSourceSecondCategory = sourceItem.Type == TreeItemType.Project || sourceItem.Type == TreeItemType.TextProject;
@@ -179,7 +221,7 @@ namespace ImageColorChanger.UI
                             {
                                 ReorderFiles(sourceItem, targetItem);
                             }
-                            else if (sourceItem.Type == TreeItemType.Folder && targetItem.Type == TreeItemType.Folder)
+                            else if (IsProjectTreeFolderNode(sourceItem) && IsProjectTreeFolderNode(targetItem))
                             {
                                 ReorderFolders(sourceItem, targetItem);
                             }
@@ -209,14 +251,9 @@ namespace ImageColorChanger.UI
             {
                 if (sender is TreeViewItem treeViewItem && treeViewItem.DataContext is ProjectTreeItem item)
                 {
-                    // 获取显示文本（文件名或文件夹名）
-                    string displayText = item.Name;
-                    
-                    if (!string.IsNullOrEmpty(displayText))
+                    if (FileNameTooltipText != null)
                     {
-                        // 设置提示框文本
-                        FileNameTooltipText.Text = displayText;
-                        
+                        ApplyTreeItemTooltipContent(FileNameTooltipText, item);
                         // 显示提示框
                         FileNameTooltipPopup.IsOpen = true;
                     }
@@ -241,6 +278,54 @@ namespace ImageColorChanger.UI
             catch (Exception)
             {
                 //System.Diagnostics.Debug.WriteLine($"隐藏文件名提示时出错: {ex.Message}");
+            }
+        }
+
+        private static void ApplyTreeItemTooltipContent(TextBlock textBlock, ProjectTreeItem item)
+        {
+            if (textBlock == null)
+            {
+                return;
+            }
+
+            textBlock.Inlines.Clear();
+            if (item == null)
+            {
+                return;
+            }
+
+            string title = string.IsNullOrWhiteSpace(item.Name) ? "<未命名>" : item.Name.Trim();
+            bool hasTag = item.ShowFolderTag && !string.IsNullOrWhiteSpace(item.FolderName);
+            bool hasPath = !string.IsNullOrWhiteSpace(item.Path);
+
+            var titleRun = new Run(title)
+            {
+                Foreground = System.Windows.Media.Brushes.White,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold
+            };
+            textBlock.Inlines.Add(titleRun);
+
+            if (hasTag)
+            {
+                textBlock.Inlines.Add(new LineBreak());
+                textBlock.Inlines.Add(new Run($"标签: {item.FolderName}")
+                {
+                    Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFD180")),
+                    FontSize = 13,
+                    FontWeight = FontWeights.Medium
+                });
+            }
+
+            if (hasPath)
+            {
+                textBlock.Inlines.Add(new LineBreak());
+                textBlock.Inlines.Add(new Run($"路径: {item.Path}")
+                {
+                    Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#B0BEC5")),
+                    FontSize = 11,
+                    FontWeight = FontWeights.Normal
+                });
             }
         }
         
@@ -641,6 +726,12 @@ namespace ImageColorChanger.UI
             {
                 if (folderId.HasValue)
                 {
+                    if (IsFolderHierarchyEnabled(folderId.Value))
+                    {
+                        ReloadProjectsPreservingTreeState(TreeItemType.Folder, folderId.Value);
+                        return;
+                    }
+
                     // 更新文件夹内的文件顺序
                     var folderItem = _projectTreeItems.FirstOrDefault(f => f.Type == TreeItemType.Folder && f.Id == folderId.Value);
                     if (folderItem?.Children != null)
@@ -933,20 +1024,63 @@ namespace ImageColorChanger.UI
         /// </summary>
         private int? GetFileFolderId(ProjectTreeItem fileItem)
         {
-            // 在_projectTreeItems中查找该文件所属的文件夹
+            if (fileItem == null)
+            {
+                return null;
+            }
+
             foreach (var item in _projectTreeItems)
             {
-                if (item.Type == TreeItemType.Folder && item.Children != null)
+                if (!IsProjectTreeFolderNode(item) && item.Type != TreeItemType.Folder)
                 {
-                    if (item.Children.Any(c => c.Id == fileItem.Id))
-                    {
-                        return item.Id;
-                    }
+                    continue;
+                }
+
+                if (ContainsFileRecursive(item, fileItem.Id))
+                {
+                    return ResolveRootFolderId(item);
                 }
             }
-            
-            // 如果没找到，说明是根目录文件
+
             return null;
+        }
+
+        private static bool ContainsFileRecursive(ProjectTreeItem node, int fileId)
+        {
+            if (node?.Children == null || node.Children.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var child in node.Children)
+            {
+                if (child.Type == TreeItemType.File && child.Id == fileId)
+                {
+                    return true;
+                }
+
+                if (ContainsFileRecursive(child, fileId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsProjectTreeFolderNode(ProjectTreeItem item)
+        {
+            return item?.Type == TreeItemType.Folder && item.IsVirtualFolder != true;
+        }
+
+        private static bool IsFirstCategoryTreeItem(ProjectTreeItem item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            return item.Type == TreeItemType.File || IsProjectTreeFolderNode(item);
         }
 
         /// <summary>

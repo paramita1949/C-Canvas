@@ -10,6 +10,19 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow : Window
     {
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogCollapseDebug(string phase, ProjectTreeItem item, string extra = "")
+        {
+            if (item == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TreeCollapseDebug] {phase} item=<null> {extra}");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[TreeCollapseDebug] {phase} id={item.Id} name='{item.Name}' virtual={item.IsVirtualFolder} expanded={item.IsExpanded} children={item.Children?.Count ?? 0} {extra}");
+        }
+
         /// <summary>
         /// 折叠所有文件夹节点
         /// </summary>
@@ -22,6 +35,7 @@ namespace ImageColorChanger.UI
                 {
                     if (item.Type == TreeItemType.Folder)
                     {
+                        LogCollapseDebug("CollapseAllFolders.Target", item);
                         CollapseFolder(item);
                     }
                 }
@@ -38,14 +52,17 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                LogCollapseDebug("CollapseOtherFolders.Begin", exceptFolder);
                 var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
                 foreach (var item in treeItems)
                 {
                     if (item.Type == TreeItemType.Folder && item.Id != exceptFolder.Id)
                     {
+                        LogCollapseDebug("CollapseOtherFolders.Collapsing", item, $"exceptId={exceptFolder?.Id}");
                         CollapseFolder(item);
                     }
                 }
+                LogCollapseDebug("CollapseOtherFolders.End", exceptFolder);
             }
             catch (Exception)
             {
@@ -62,7 +79,9 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            bool before = folder.IsExpanded;
             folder.IsExpanded = false;
+            LogCollapseDebug("CollapseFolder.SetFalse", folder, $"before={before}");
 
             if (folder.Children == null)
             {

@@ -17,6 +17,7 @@ using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using ColorConverter = System.Windows.Media.ColorConverter;
 using Brushes = System.Windows.Media.Brushes;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using ImageColorChanger.Core;
@@ -25,6 +26,7 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.Projection.Output;
+using ImageColorChanger.Utils;
 using LibVLCSharp.WPF;
 
 namespace ImageColorChanger.UI
@@ -92,27 +94,12 @@ namespace ImageColorChanger.UI
             try
             {
                 if (string.IsNullOrEmpty(filePath)) return;
-                 
-                // 在项目树中查找并选中对应的文件
-                foreach (var folderItem in _projectTreeItems)
+
+                foreach (var top in _projectTreeItems)
                 {
-                    if (folderItem.Type == TreeItemType.Folder && folderItem.Children != null)
+                    if (TrySelectMediaFileRecursive(top, filePath))
                     {
-                        foreach (var fileItem in folderItem.Children)
-                        {
-                            if (fileItem.Type == TreeItemType.File && fileItem.Path == filePath)
-                            {
-                                // 展开父文件夹
-                                folderItem.IsExpanded = true;
-                                
-                                // 取消其他所有选中
-                                ClearAllSelections();
-                                
-                                // 选中当前文件
-                                fileItem.IsSelected = true;
-                                return;
-                            }
-                        }
+                        return;
                     }
                 }
             }
@@ -127,16 +114,59 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ClearAllSelections()
         {
-            foreach (var folderItem in _projectTreeItems)
+            foreach (var item in _projectTreeItems)
             {
-                folderItem.IsSelected = false;
-                if (folderItem.Children != null)
+                ClearSelectionRecursive(item);
+            }
+        }
+
+        private bool TrySelectMediaFileRecursive(ProjectTreeItem node, string filePath)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            if (node.Type == TreeItemType.File && string.Equals(node.Path, filePath, StringComparison.OrdinalIgnoreCase))
+            {
+                ClearAllSelections();
+                node.IsSelected = true;
+                return true;
+            }
+
+            if (node.Children == null || node.Children.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var child in node.Children)
+            {
+                if (TrySelectMediaFileRecursive(child, filePath))
                 {
-                    foreach (var fileItem in folderItem.Children)
-                    {
-                        fileItem.IsSelected = false;
-                    }
+                    node.IsExpanded = true;
+                    return true;
                 }
+            }
+
+            return false;
+        }
+
+        private static void ClearSelectionRecursive(ProjectTreeItem node)
+        {
+            if (node == null)
+            {
+                return;
+            }
+
+            node.IsSelected = false;
+            if (node.Children == null)
+            {
+                return;
+            }
+
+            foreach (var child in node.Children)
+            {
+                ClearSelectionRecursive(child);
             }
         }
         
@@ -469,40 +499,37 @@ namespace ImageColorChanger.UI
             try
             {
                 if (_videoPlayerManager == null) return;
-                var dbManager = DatabaseManagerService;
-                var rootFiles = dbManager.GetRootMediaFiles();
-                var currentMediaFile = FindCurrentMediaFileByPath(dbManager, rootFiles, currentVideoPath);
-                if (currentMediaFile == null)
+                var playlistSw = Stopwatch.StartNew();
+                if (TryGetCachedPlaylistForPath(currentVideoPath, out var cached))
                 {
-                    //System.Diagnostics.Debug.WriteLine(" 未找到当前视频文件信息");
+                    StartupPerfLogger.Mark(
+                        "MainWindow.VideoPlaylist.Entries.Built",
+                        $"ElapsedMs={playlistSw.ElapsedMilliseconds}; Count={cached.Playlist.Count}; FolderId={cached.FolderId?.ToString() ?? "<root>"}");
+                    _videoPlayerManager.SetPlaylistAndCurrent(cached.Playlist, currentVideoPath);
+                    if (cached.PlayMode.HasValue)
+                    {
+                        _videoPlayerManager.SetPlayMode(cached.PlayMode.Value);
+                    }
+                    StartupPerfLogger.Mark(
+                        "MainWindow.VideoPlaylist.Completed",
+                        $"ElapsedMs={playlistSw.ElapsedMilliseconds}; CurrentIndex={cached.CurrentIndex}; PlaylistCount={_videoPlayerManager.PlaylistCount}");
                     return;
                 }
 
-                var playlist = BuildVideoPlaylistEntries(dbManager, rootFiles, currentMediaFile);
+                // 首次冷路径：先保证播放不阻塞，再后台构建完整播放列表。
+                _videoPlayerManager.SetPlaylistAndCurrent(new List<string> { currentVideoPath }, currentVideoPath);
+                StartupPerfLogger.Mark(
+                    "MainWindow.VideoPlaylist.CacheMiss.Deferred",
+                    $"ElapsedMs={playlistSw.ElapsedMilliseconds}; Path={currentVideoPath}");
+                _ = BuildAndApplyPlaylistAsync(currentVideoPath, "OnDemandCacheMiss", applyToPlayer: true);
 
-                // 设置播放列表到VideoPlayerManager
-                if (playlist.Count > 0)
-                {
-                    _videoPlayerManager.SetPlaylist(playlist);
-                    
-                    // 找到当前视频在播放列表中的索引
-                    int currentIndex = playlist.IndexOf(currentVideoPath);
-                    if (currentIndex >= 0)
-                    {
-                        //System.Diagnostics.Debug.WriteLine($" 当前视频索引: {currentIndex + 1}/{playlist.Count}");
-                    }
-                    
-                    // 根据文件夹标记自动设置播放模式
-                    ApplyFolderPlayModeIfNeeded(dbManager, currentMediaFile);
-                }
-                else
-                {
-                    //System.Diagnostics.Debug.WriteLine(" 播放列表为空");
-                }
+                StartupPerfLogger.Mark(
+                    "MainWindow.VideoPlaylist.Completed",
+                    $"ElapsedMs={playlistSw.ElapsedMilliseconds}; CurrentIndex=0; PlaylistCount={_videoPlayerManager.PlaylistCount}");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($" 构建播放列表失败: {ex.Message}");
+                StartupPerfLogger.Error("MainWindow.VideoPlaylist.Build.Failed", ex);
             }
         }
 

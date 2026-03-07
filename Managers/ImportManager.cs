@@ -250,15 +250,71 @@ namespace ImageColorChanger.Managers
         private List<string> ScanMediaFilesRecursively(string folderPath, bool sortForImport)
         {
             var mediaFiles = new List<string>();
+            var pendingDirectories = new Stack<string>();
+            pendingDirectories.Push(folderPath);
 
             try
             {
-                foreach (var file in Directory.EnumerateFiles(folderPath, "*.*", SearchOption.AllDirectories))
+                while (pendingDirectories.Count > 0)
                 {
-                    var extension = Path.GetExtension(file);
-                    if (!string.IsNullOrWhiteSpace(extension) && AllExtensionsSet.Contains(extension))
+                    string currentDirectory = pendingDirectories.Pop();
+
+                    try
                     {
-                        mediaFiles.Add(file);
+                        foreach (var file in Directory.EnumerateFiles(currentDirectory, "*.*", SearchOption.TopDirectoryOnly))
+                        {
+                            var extension = Path.GetExtension(file);
+                            if (!string.IsNullOrWhiteSpace(extension) && AllExtensionsSet.Contains(extension))
+                            {
+                                mediaFiles.Add(file);
+                            }
+                        }
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        continue;
+                    }
+                    catch (PathTooLongException)
+                    {
+                        continue;
+                    }
+                    catch (IOException)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        foreach (var subDir in Directory.EnumerateDirectories(currentDirectory, "*", SearchOption.TopDirectoryOnly))
+                        {
+                            try
+                            {
+                                var attributes = File.GetAttributes(subDir);
+                                if ((attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+                                {
+                                    // 跳过符号链接/挂载点，防止循环扫描。
+                                    continue;
+                                }
+                            }
+                            catch
+                            {
+                                // 无法读取属性时继续尝试扫描该目录。
+                            }
+
+                            pendingDirectories.Push(subDir);
+                        }
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        continue;
+                    }
+                    catch (PathTooLongException)
+                    {
+                        continue;
+                    }
+                    catch (IOException)
+                    {
+                        continue;
                     }
                 }
 
@@ -273,10 +329,6 @@ namespace ImageColorChanger.Managers
                         .Select(x => x.File)
                         .ToList();
                 }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                //System.Diagnostics.Debug.WriteLine($" 无权访问某些子目录");
             }
             catch (Exception)
             {

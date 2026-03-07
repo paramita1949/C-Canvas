@@ -135,6 +135,12 @@ namespace ImageColorChanger.UI
 
         private bool BuildFolderContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
+            if (item?.IsVirtualFolder == true)
+            {
+                BuildVirtualFolderContextMenu(contextMenu, item);
+                return true;
+            }
+
             var folderMenuState = _projectTreeFolderMenuStateController?.GetState(item.Id);
             if (folderMenuState == null)
             {
@@ -273,6 +279,41 @@ namespace ImageColorChanger.UI
             var syncItem = new MenuItem { Header = "同步文件夹" };
             syncItem.Click += (s, args) => SyncFolder(item);
             contextMenu.Items.Add(syncItem);
+
+            AppendFolderHierarchyToggleMenu(contextMenu, item);
+        }
+
+        private void BuildVirtualFolderContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
+        {
+            AppendFolderHierarchyToggleMenu(contextMenu, item);
+
+            contextMenu.Items.Add(new Separator());
+
+            var toggleExpandItem = new MenuItem { Header = item.IsExpanded ? "折叠子目录" : "展开子目录" };
+            toggleExpandItem.Click += (s, args) => item.IsExpanded = !item.IsExpanded;
+            contextMenu.Items.Add(toggleExpandItem);
+        }
+
+        private void AppendFolderHierarchyToggleMenu(ContextMenu contextMenu, ProjectTreeItem item)
+        {
+            int rootFolderId = ResolveRootFolderId(item);
+            if (rootFolderId <= 0)
+            {
+                return;
+            }
+
+            bool hierarchyEnabled = IsFolderHierarchyEnabled(rootFolderId);
+            if (!hierarchyEnabled && item?.IsVirtualFolder != true && item?.HasNestedFolders != true)
+            {
+                return;
+            }
+
+            string header = hierarchyEnabled ? "切换为穿透显示" : "切换为多层级展开";
+            var hierarchyItem = new MenuItem { Header = header };
+            hierarchyItem.Click += (s, args) => ToggleFolderHierarchyMode(item);
+
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(hierarchyItem);
         }
 
         private void BuildFileContextMenu(ContextMenu contextMenu, ProjectTreeItem item)

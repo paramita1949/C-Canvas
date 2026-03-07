@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using ImageColorChanger.Services;
 using ImageColorChanger.Utils;
+using ImageColorChanger.Database;
+using ImageColorChanger.Managers;
 
 namespace ImageColorChanger.UI
 {
@@ -113,7 +115,10 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadSearchScopes.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
-            StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=OnDemandOnly");
+            StartDeferredVideoPlayerInitialization();
+            StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Queued", "Reason=StartupCoreReady");
+            StartDeferredMediaPlaylistPrewarm();
+            StartupPerfLogger.Mark("MainWindow.VideoPlaylist.Prewarm.Queued", "Reason=StartupCoreReady");
             QueueDeferredStartupFolderSync();
 
             // 延迟5秒后检查更新，避免影响启动速度
@@ -137,7 +142,7 @@ namespace ImageColorChanger.UI
                 new Action(RunDeferredStartupFolderSync));
         }
 
-        private void RunDeferredStartupFolderSync()
+        private async void RunDeferredStartupFolderSync()
         {
             if (_startupDeferredWorkCts.IsCancellationRequested)
             {
@@ -156,7 +161,15 @@ namespace ImageColorChanger.UI
 
                 var totalSw = System.Diagnostics.Stopwatch.StartNew();
                 var syncSw = System.Diagnostics.Stopwatch.StartNew();
-                var (added, removed, updated) = importManager.SyncAllFolders();
+                var dbPath = DatabaseManagerService.GetDatabasePath();
+                var syncResult = await Task.Run(() =>
+                {
+                    // 使用独立数据库上下文，避免 UI 线程共享 DbContext 导致竞争与卡顿。
+                    using var isolatedDbManager = new DatabaseManager(dbPath);
+                    var isolatedImportManager = new ImportManager(isolatedDbManager, new SortManager());
+                    return isolatedImportManager.SyncAllFolders();
+                });
+                var (added, removed, updated) = syncResult;
                 StartupPerfLogger.Mark(
                     "MainWindow.StartupFolderSync.Deferred.SyncAllFolders.Completed",
                     $"ElapsedMs={syncSw.ElapsedMilliseconds}; Added={added}; Removed={removed}; Updated={updated}");
@@ -168,16 +181,28 @@ namespace ImageColorChanger.UI
                 }
 
                 var refreshSw = System.Diagnostics.Stopwatch.StartNew();
-                LoadProjects(enableDetailedIcons: true);
+                bool hasMediaChanges = added > 0 || removed > 0 || updated > 0;
+                LoadProjects(enableDetailedIcons: true, clearMediaPlaylistCache: hasMediaChanges);
                 StartupPerfLogger.Mark(
                     "MainWindow.StartupFolderSync.Deferred.LoadProjects.Completed",
-                    $"ElapsedMs={refreshSw.ElapsedMilliseconds}");
+                    $"ElapsedMs={refreshSw.ElapsedMilliseconds}; ClearPlaylistCache={hasMediaChanges}");
 
                 refreshSw.Restart();
                 LoadSearchScopes();
                 StartupPerfLogger.Mark(
                     "MainWindow.StartupFolderSync.Deferred.LoadSearchScopes.Completed",
                     $"ElapsedMs={refreshSw.ElapsedMilliseconds}");
+                if (hasMediaChanges)
+                {
+                    // 仅在增删改导致缓存失效时再预热，避免无变更场景二次预热造成额外卡顿。
+                    StartDeferredMediaPlaylistPrewarm();
+                    StartupPerfLogger.Mark("MainWindow.VideoPlaylist.Prewarm.Queued", "Reason=AfterDeferredFolderSyncRefresh");
+                }
+                else
+                {
+                    StartupPerfLogger.Mark("MainWindow.VideoPlaylist.Prewarm.Skipped", "Reason=NoMediaChangesAfterDeferredSync");
+                }
+
                 StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Completed", $"ElapsedMs={totalSw.ElapsedMilliseconds}");
             }
             catch (Exception ex)

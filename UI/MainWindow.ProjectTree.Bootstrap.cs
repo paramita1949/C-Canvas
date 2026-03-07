@@ -9,6 +9,7 @@ namespace ImageColorChanger.UI
         {
             ProjectTree.ItemsSource = _filteredProjectTreeItems;
             ProjectTree.PreviewMouseLeftButtonDown += ProjectTree_PreviewMouseLeftButtonDown;
+            ProjectTree.PreviewMouseLeftButtonUp += ProjectTree_PreviewMouseLeftButtonUp;
             ProjectTree.PreviewMouseMove += ProjectTree_PreviewMouseMove;
             ProjectTree.Drop += ProjectTree_Drop;
             ProjectTree.DragOver += ProjectTree_DragOver;

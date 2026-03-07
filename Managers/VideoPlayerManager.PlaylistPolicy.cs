@@ -20,6 +20,20 @@ namespace ImageColorChanger.Managers
             _currentIndex = -1;
         }
 
+        public void SetPlaylistAndCurrent(List<string> mediaPaths, string currentMediaPath)
+        {
+            _playlist = mediaPaths ?? new List<string>();
+            _currentIndex = -1;
+
+            if (_playlist.Count == 0 || string.IsNullOrWhiteSpace(currentMediaPath))
+            {
+                return;
+            }
+
+            _currentIndex = _playlist.FindIndex(p =>
+                string.Equals(p, currentMediaPath, StringComparison.OrdinalIgnoreCase));
+        }
+
         public bool PlayNext()
         {
             if (_playlist == null || _playlist.Count == 0)

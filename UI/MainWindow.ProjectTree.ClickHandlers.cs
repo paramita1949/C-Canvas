@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Controls.Primitives;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 
@@ -11,12 +13,30 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogTreeExpandDebug(string phase, ProjectTreeItem item, string extra = "")
+        {
+            if (item == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TreeExpandDebug] {phase} item=<null> {extra}");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[TreeExpandDebug] {phase} id={item.Id} name='{item.Name}' virtual={item.IsVirtualFolder} expanded={item.IsExpanded} children={item.Children?.Count ?? 0} stateKey='{item.StateKey}' {extra}");
+        }
+
         private async void ProjectTree_MouseClick(object sender, MouseButtonEventArgs e)
         {
             if (!TryGetTreeItemFromEvent(e, out var selectedItem))
             {
                 return;
             }
+
+            LogTreeExpandDebug(
+                "MouseClick.Hit",
+                selectedItem,
+                $"src={e?.OriginalSource?.GetType().Name ?? "<null>"}");
 
             if (_isBibleMode && selectedItem.Type == TreeItemType.BibleChapter)
             {
@@ -56,14 +76,56 @@ namespace ImageColorChanger.UI
 
         private async Task HandleFolderNodeClickAsync(ProjectTreeItem selectedItem, MouseButtonEventArgs e)
         {
+            LogTreeExpandDebug(
+                "HandleFolderNodeClick.Begin",
+                selectedItem,
+                $"src={e?.OriginalSource?.GetType().Name ?? "<null>"}");
+
+            if (selectedItem?.IsVirtualFolder == true)
+            {
+                // 点击 +/- 展开器时，避免再执行一次手动切换导致“展开后又折叠”。
+                if (e?.OriginalSource is DependencyObject source &&
+                    FindParent<ToggleButton>(source) != null)
+                {
+                    var treeViewItem = FindParent<TreeViewItem>(source);
+                    if (treeViewItem != null)
+                    {
+                        bool before = selectedItem.IsExpanded;
+                        selectedItem.IsExpanded = treeViewItem.IsExpanded;
+                        LogTreeExpandDebug(
+                            "Virtual.ToggleButton.SyncFromTreeViewItem",
+                            selectedItem,
+                            $"before={before} treeViewItemExpanded={treeViewItem.IsExpanded}");
+                    }
+                    else
+                    {
+                        LogTreeExpandDebug("Virtual.ToggleButton.TreeViewItemMissing", selectedItem);
+                    }
+
+                    e.Handled = true;
+                    LogTreeExpandDebug("HandleFolderNodeClick.End.ToggleButton", selectedItem);
+                    return;
+                }
+
+                bool beforeToggle = selectedItem.IsExpanded;
+                selectedItem.IsExpanded = !selectedItem.IsExpanded;
+                LogTreeExpandDebug("Virtual.RowClick.Toggle", selectedItem, $"before={beforeToggle} after={selectedItem.IsExpanded}");
+                e.Handled = true;
+                LogTreeExpandDebug("HandleFolderNodeClick.End.Virtual", selectedItem);
+                return;
+            }
+
             // 分割模式下需要保持编辑态，允许继续从文件树选择图片填充区域。
             if (TextEditorPanel.Visibility == Visibility.Visible && !IsInSplitMode())
             {
                 await AutoExitTextEditorIfNeededAsync();
             }
 
+            LogTreeExpandDebug("TopFolder.BeforeCollapseOtherFolders", selectedItem);
             CollapseOtherFolders(selectedItem);
+            bool beforeTopToggle = selectedItem.IsExpanded;
             selectedItem.IsExpanded = !selectedItem.IsExpanded;
+            LogTreeExpandDebug("TopFolder.AfterToggle", selectedItem, $"before={beforeTopToggle} after={selectedItem.IsExpanded}");
 
             var folderDecision = _projectTreeSelectionStateController?.EvaluateFolderSelection(
                 selectedItem.Id,
@@ -79,6 +141,7 @@ namespace ImageColorChanger.UI
             }
 
             e.Handled = true;
+            LogTreeExpandDebug("HandleFolderNodeClick.End", selectedItem);
         }
 
         private async Task HandleFileNodeClickAsync(ProjectTreeItem selectedItem)

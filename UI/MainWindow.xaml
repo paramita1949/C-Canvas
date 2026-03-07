@@ -788,6 +788,8 @@
                                   Style="{StaticResource ProjectTreeStyle}"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
+                                  VirtualizingStackPanel.ScrollUnit="Pixel"
+                                  ScrollViewer.CanContentScroll="True"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   PreviewKeyDown="Window_PreviewKeyDown"
                                   PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
@@ -814,8 +816,7 @@
                                         <ControlTemplate TargetType="TreeViewItem">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="0"/>
-                                                    <!-- 不显示展开按钮 -->
+                                                    <ColumnDefinition x:Name="ExpanderColumn" Width="0"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions>
@@ -823,14 +824,35 @@
                                                     <RowDefinition/>
                                                 </Grid.RowDefinitions>
                                                 
-                                                <!-- 展开/折叠按钮（隐藏但保留功能） -->
+                                                <!-- 展开/折叠按钮（仅虚拟子目录显示，主题联动） -->
                                                 <ToggleButton x:Name="Expander" 
                                                               Grid.Column="0"
-                                                              Width="0"
-                                                              Height="0"
-                                                              Visibility="Collapsed"
+                                                              Width="16"
+                                                              Height="16"
+                                                              Margin="0,0,4,0"
+                                                              VerticalAlignment="Center"
+                                                              HorizontalAlignment="Center"
+                                                              Focusable="False"
+                                                              IsHitTestVisible="False"
                                                               ClickMode="Press"
-                                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}">
+                                                    <ToggleButton.Template>
+                                                        <ControlTemplate TargetType="ToggleButton">
+                                                            <materialDesign:PackIcon x:Name="ExpanderGlyph"
+                                                                                     Kind="PlusBoxOutline"
+                                                                                     Width="14"
+                                                                                     Height="14"
+                                                                                     Foreground="{DynamicResource BrushGlobalIcon}"
+                                                                                     HorizontalAlignment="Center"
+                                                                                     VerticalAlignment="Center"/>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="ExpanderGlyph" Property="Kind" Value="MinusBoxOutline"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </ToggleButton.Template>
+                                                </ToggleButton>
                                                 
                                                 <!-- 内容区域 -->
                                                 <Border x:Name="Bd" Grid.Column="1"
@@ -852,6 +874,18 @@
                                                 <Trigger Property="IsExpanded" Value="False">
                                                     <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
                                                 </Trigger>
+                                                <Trigger Property="HasItems" Value="False">
+                                                    <Setter TargetName="ExpanderColumn" Property="Width" Value="0"/>
+                                                    <Setter TargetName="Expander" Property="Visibility" Value="Collapsed"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding IsVirtualFolder}" Value="True">
+                                                    <Setter TargetName="ExpanderColumn" Property="Width" Value="22"/>
+                                                    <Setter TargetName="Expander" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsVirtualFolder}" Value="False">
+                                                    <Setter TargetName="ExpanderColumn" Property="Width" Value="0"/>
+                                                    <Setter TargetName="Expander" Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
                                                 <!-- 选中状态 - 黄色高亮 -->
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="Bd" Property="Background" Value="#FFD54F"/>
@@ -924,9 +958,13 @@
                                                             <Setter Property="Foreground" Value="{Binding IconColor}"/>
                                                         </MultiDataTrigger>
                                                         <!-- 文件夹/歌词分组/歌词歌曲显示图标 -->
-                                                        <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Type}" Value="Folder"/>
+                                                                <Condition Binding="{Binding IsVirtualFolder}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
                                                             <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
+                                                        </MultiDataTrigger>
                                                         <DataTrigger Binding="{Binding Type}" Value="LyricsGroup">
                                                             <Setter Property="Visibility" Value="Visible"/>
                                                         </DataTrigger>

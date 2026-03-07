@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using ImageColorChanger.Database;
@@ -65,8 +66,8 @@ namespace ImageColorChanger.Managers
 
                     foreach (var file in imageFiles)
                     {
-                        var folderName = file.Folder?.Name ?? "根目录";
-                        var folderId = file.FolderId ?? 0;
+                        var folderId = ResolveSearchFolderId(file, searchFolderId);
+                        var folderName = ResolveTopLevelFolderName(file, searchFolderId);
 
                         // 获取文件夹颜色（优先使用自定义颜色）
                         string folderColor = "#666666";
@@ -78,7 +79,7 @@ namespace ImageColorChanger.Managers
 
                         results.Add(new ProjectTreeItem
                         {
-                            Name = file.Name,
+                            Name = BuildSearchFileDisplayName(file),
                             Icon = "",
                             IconKind = "Image",
                             IconColor = "#95E1D3",
@@ -135,8 +136,8 @@ namespace ImageColorChanger.Managers
 
             foreach (var file in mediaFiles.Where(f => !IsAppleDoubleSidecarFileName(f?.Name)).GroupBy(f => f.Id).Select(g => g.First()))
             {
-                var folderName = file.Folder?.Name ?? "根目录";
-                var folderId = file.FolderId ?? 0;
+                var folderId = ResolveSearchFolderId(file, searchFolderId);
+                var folderName = ResolveTopLevelFolderName(file, searchFolderId);
 
                 string folderColor = "#666666";
                 if (_configManager != null && folderId > 0)
@@ -147,7 +148,7 @@ namespace ImageColorChanger.Managers
 
                 results.Add(new ProjectTreeItem
                 {
-                    Name = file.Name,
+                    Name = BuildSearchFileDisplayName(file),
                     Icon = "",
                     IconKind = "File",
                     IconColor = "#90CAF9",
@@ -398,6 +399,60 @@ namespace ImageColorChanger.Managers
             }
 
             return $"{safeFolderName} {tag}";
+        }
+
+        private static string BuildSearchFileDisplayName(MediaFile file)
+        {
+            if (file == null)
+            {
+                return string.Empty;
+            }
+
+            string name = file.Name ?? string.Empty;
+            string extension = Path.GetExtension(file.Path ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(extension))
+            {
+                return name;
+            }
+
+            return name.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
+                ? name
+                : $"{name}{extension}";
+        }
+
+        private int ResolveSearchFolderId(MediaFile file, int? scopedFolderId)
+        {
+            if (scopedFolderId.HasValue && scopedFolderId.Value > 0)
+            {
+                return scopedFolderId.Value;
+            }
+
+            return file?.FolderId ?? 0;
+        }
+
+        private string ResolveTopLevelFolderName(MediaFile file, int? scopedFolderId)
+        {
+            int folderId = ResolveSearchFolderId(file, scopedFolderId);
+            if (folderId <= 0)
+            {
+                return "根目录";
+            }
+
+            try
+            {
+                var db = _dbManager.GetDbContext();
+                if (db == null)
+                {
+                    return file?.Folder?.Name ?? "根目录";
+                }
+
+                var folder = db.Folders.AsNoTracking().FirstOrDefault(f => f.Id == folderId);
+                return folder?.Name ?? file?.Folder?.Name ?? "根目录";
+            }
+            catch
+            {
+                return file?.Folder?.Name ?? "根目录";
+            }
         }
     }
 }

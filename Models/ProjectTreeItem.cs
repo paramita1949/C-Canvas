@@ -85,6 +85,11 @@ namespace ImageColorChanger.UI
         public TreeItemType Type { get; set; }
         public string Path { get; set; }
         public FileType FileType { get; set; }
+        public bool IsVirtualFolder { get; set; }
+        public int? RootFolderId { get; set; }
+        public string RelativeFolderPath { get; set; }
+        public bool HasNestedFolders { get; set; }
+        public string StateKey { get; set; }
         public object Tag { get; set; }  // 通用标签，用于存储额外数据（如圣经书卷ID和章节）
         public ObservableCollection<ProjectTreeItem> Children { get; set; } = new ObservableCollection<ProjectTreeItem>();
         

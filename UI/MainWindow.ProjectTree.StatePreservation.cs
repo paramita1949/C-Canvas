@@ -31,12 +31,12 @@ namespace ImageColorChanger.UI
             {
                 if (item.IsExpanded && item.Children != null && item.Children.Count > 0)
                 {
-                    state.ExpandedKeys.Add(BuildTreeStateKey(item.Type, item.Id));
+                    state.ExpandedKeys.Add(BuildTreeStateKey(item));
                 }
 
                 if (string.IsNullOrEmpty(state.SelectedKey) && item.IsSelected)
                 {
-                    state.SelectedKey = BuildTreeStateKey(item.Type, item.Id);
+                    state.SelectedKey = BuildTreeStateKey(item);
                 }
 
                 if (item.Children != null && item.Children.Count > 0)
@@ -65,12 +65,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (!TryParseTreeStateKey(targetKey, out var targetType, out var targetId))
-            {
-                return;
-            }
-
-            _ = TrySelectProjectTreeItemRecursive(_projectTreeItems, targetType, targetId);
+            _ = TrySelectProjectTreeItemByKeyRecursive(_projectTreeItems, targetKey);
         }
 
         private void RestoreProjectTreeExpansionRecursive(
@@ -79,7 +74,7 @@ namespace ImageColorChanger.UI
         {
             foreach (var item in items)
             {
-                item.IsExpanded = expandedKeys.Contains(BuildTreeStateKey(item.Type, item.Id));
+                item.IsExpanded = expandedKeys.Contains(BuildTreeStateKey(item));
                 if (item.Children != null && item.Children.Count > 0)
                 {
                     RestoreProjectTreeExpansionRecursive(item.Children, expandedKeys);
@@ -125,6 +120,45 @@ namespace ImageColorChanger.UI
             }
 
             return false;
+        }
+
+        private bool TrySelectProjectTreeItemByKeyRecursive(
+            IEnumerable<ProjectTreeItem> items,
+            string targetKey)
+        {
+            foreach (var item in items)
+            {
+                if (BuildTreeStateKey(item) == targetKey)
+                {
+                    item.IsSelected = true;
+                    return true;
+                }
+
+                if (item.Children == null || item.Children.Count == 0)
+                {
+                    continue;
+                }
+
+                if (TrySelectProjectTreeItemByKeyRecursive(item.Children, targetKey))
+                {
+                    item.IsExpanded = true;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string BuildTreeStateKey(ProjectTreeItem item)
+        {
+            if (item == null)
+            {
+                return string.Empty;
+            }
+
+            return string.IsNullOrWhiteSpace(item.StateKey)
+                ? BuildTreeStateKey(item.Type, item.Id)
+                : item.StateKey;
         }
 
         private static string BuildTreeStateKey(TreeItemType type, int id) => $"{(int)type}:{id}";

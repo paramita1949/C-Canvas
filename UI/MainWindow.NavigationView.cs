@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -9,6 +10,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.TextEditor.Application;
+using ImageColorChanger.Utils;
 using Microsoft.EntityFrameworkCore;
 using Color = System.Windows.Media.Color;
 using ColorConverter = System.Windows.Media.ColorConverter;
@@ -23,6 +25,15 @@ namespace ImageColorChanger.UI
         // 添加标记，用于跟踪是否是第一次进入幻灯片模式
         private static bool _isFirstTimeEnteringProjects = true;
         private int _textProjectTreeLoadToken;
+        private const string FolderHierarchyModeSettingKey = "ProjectTree.FolderHierarchyModes";
+        private bool _folderHierarchyModesLoaded;
+        private readonly HashSet<int> _hierarchyFolderIds = new();
+
+        private sealed class FolderTreeEntry
+        {
+            public MediaFile MediaFile { get; init; }
+            public string RelativePath { get; init; }
+        }
 
         private void ApplyUnifiedSearchResetAndTreeRefresh(TreeItemType? preferredType = null, int preferredId = 0)
         {
@@ -63,18 +74,27 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 从数据库加载项目树
         /// </summary>
-        private void LoadProjects(bool enableDetailedIcons = true)
+        private void LoadProjects(bool enableDetailedIcons = true, bool clearMediaPlaylistCache = true)
         {
             try
             {
+                var loadSw = System.Diagnostics.Stopwatch.StartNew();
                 var dbManager = DatabaseManagerService;
                 _projectTreeItems.Clear();
+                if (clearMediaPlaylistCache)
+                {
+                    ClearMediaPlaylistCache();
+                }
 
+                var phaseSw = System.Diagnostics.Stopwatch.StartNew();
                 var folders = dbManager.GetAllFolders();
                 var rootFiles = BuildRootMediaFiles(dbManager);
                 var folderMediaLookup = BuildFolderMediaLookup(dbManager, folders);
                 var manualSortFolderIds = dbManager.GetManualSortFolderIds().ToHashSet();
                 BuildOriginalMarkLookup(enableDetailedIcons, out var markedFolderIds, out var folderSequenceIds, out var markedImageIds);
+                StartupPerfLogger.Mark(
+                    "MainWindow.LoadProjects.SourceData.Ready",
+                    $"ElapsedMs={phaseSw.ElapsedMilliseconds}; folders={folders.Count}; rootFiles={rootFiles.Count}; detailedIcons={enableDetailedIcons}");
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine(
                 //     $"[LoadProjects] DbPath={dbManager.GetDatabasePath()}, folders={folders.Count}, rootFiles={rootFiles.Count}");
@@ -84,14 +104,18 @@ namespace ImageColorChanger.UI
                 // }
 #endif
 
+                phaseSw.Restart();
                 foreach (var folder in folders)
                 {
                     bool isManualSort = manualSortFolderIds.Contains(folder.Id);
-                    if (!folderMediaLookup.TryGetValue(folder.Id, out var files))
+                    if (!folderMediaLookup.TryGetValue(folder.Id, out var folderEntries))
                     {
-                        files = new List<MediaFile>();
+                        folderEntries = new List<FolderTreeEntry>();
                     }
 
+                    bool hasNestedFolders = folderEntries.Any(e => HasNestedFolderPath(e.RelativePath));
+                    bool hierarchyEnabled = hasNestedFolders && IsFolderHierarchyEnabled(folder.Id);
+                    var files = folderEntries.Select(e => e.MediaFile).ToList();
                     bool hasMediaFiles = files.Any(f => f.FileType == FileType.Video || f.FileType == FileType.Audio);
                     string folderPlayMode = folder.VideoPlayMode;
                     bool hasColorEffectMark = folder.AutoColorEffect == 1;
@@ -132,42 +156,30 @@ namespace ImageColorChanger.UI
                         UseCustomIconColor = hasCustomHighlightColor,
                         Type = TreeItemType.Folder,
                         Path = folder.Path,
+                        HasNestedFolders = hasNestedFolders,
+                        RootFolderId = folder.Id,
+                        StateKey = $"folder:{folder.Id}",
                         Children = new ObservableCollection<ProjectTreeItem>()
                     };
 
                     // [Debug][FolderHighlight] LoadProjects log disabled after verification.
 
-                    foreach (var file in files)
+                    if (hierarchyEnabled)
                     {
-                        if (IsAppleDoubleSidecarPath(file.Path))
-                        {
-                            continue;
-                        }
-
-                        string fileIconKind = "File";
-                        string fileIconColor = "#95E1D3";
-                        if (file.FileType == FileType.Image)
-                        {
-                            bool imageMarked = enableDetailedIcons && markedImageIds != null && markedImageIds.Contains(file.Id);
-                            (fileIconKind, fileIconColor) = imageMarked ? ("Star", "#FFD700") : ("Image", "#95E1D3");
-                        }
-
-                        folderItem.Children.Add(new ProjectTreeItem
-                        {
-                            Id = file.Id,
-                            Name = file.Name,
-                            Icon = fileIconKind,
-                            IconKind = fileIconKind,
-                            IconColor = fileIconColor,
-                            Type = TreeItemType.File,
-                            Path = file.Path,
-                            FileType = file.FileType
-                        });
+                        BuildHierarchicalFolderChildren(folderItem, folder, folderEntries, enableDetailedIcons, markedImageIds);
+                    }
+                    else
+                    {
+                        AppendFlatFolderChildren(folderItem, files, enableDetailedIcons, markedImageIds);
                     }
 
                     _projectTreeItems.Add(folderItem);
                 }
+                StartupPerfLogger.Mark(
+                    "MainWindow.LoadProjects.FoldersBuilt",
+                    $"ElapsedMs={phaseSw.ElapsedMilliseconds}; folderCount={folders.Count}");
 
+                phaseSw.Restart();
                 foreach (var file in rootFiles)
                 {
                     if (IsAppleDoubleSidecarPath(file.Path))
@@ -192,16 +204,24 @@ namespace ImageColorChanger.UI
                         IconColor = rootFileIconColor,
                         Type = TreeItemType.File,
                         Path = file.Path,
+                        StateKey = $"file:{file.Id}",
                         FileType = file.FileType
                     });
                 }
+                StartupPerfLogger.Mark(
+                    "MainWindow.LoadProjects.RootFilesBuilt",
+                    $"ElapsedMs={phaseSw.ElapsedMilliseconds}; rootCount={rootFiles.Count}");
 
+                phaseSw.Restart();
                 if (IsLyricsLibraryFeatureEnabled)
                 {
                     LoadLyricsLibraryToTree();
                 }
                 LoadTextProjectsToTree();
                 FilterProjectTree();
+                StartupPerfLogger.Mark(
+                    "MainWindow.LoadProjects.Completed",
+                    $"ElapsedMs={loadSw.ElapsedMilliseconds}; totalTreeItems={_projectTreeItems.Count}; filteredItems={_filteredProjectTreeItems.Count}");
             }
             catch (Exception)
             {
@@ -286,9 +306,9 @@ namespace ImageColorChanger.UI
             return customHighlightColor;
         }
 
-        private Dictionary<int, List<MediaFile>> BuildFolderMediaLookup(DatabaseManager dbManager, List<Folder> folders)
+        private Dictionary<int, List<FolderTreeEntry>> BuildFolderMediaLookup(DatabaseManager dbManager, List<Folder> folders)
         {
-            var result = new Dictionary<int, List<MediaFile>>();
+            var result = new Dictionary<int, List<FolderTreeEntry>>();
             if (_dbContext == null || folders == null || folders.Count == 0)
             {
                 return result;
@@ -296,6 +316,7 @@ namespace ImageColorChanger.UI
 
             var folderIds = folders.Select(f => f.Id).Distinct().ToList();
             var folderIdSet = folderIds.ToHashSet();
+            var folderPathById = folders.ToDictionary(f => f.Id, f => f.Path);
 
             var legacyFiles = _dbContext.MediaFiles
                 .AsNoTracking()
@@ -310,33 +331,65 @@ namespace ImageColorChanger.UI
 
             if (!dbManager.IsFolderSystemV2Enabled())
             {
-                return legacyLookup;
+                foreach (var folder in folders)
+                {
+                    if (!legacyLookup.TryGetValue(folder.Id, out var legacyFolderFiles) || legacyFolderFiles.Count == 0)
+                    {
+                        result[folder.Id] = new List<FolderTreeEntry>();
+                        continue;
+                    }
+
+                    result[folder.Id] = legacyFolderFiles
+                        .Select(m => new FolderTreeEntry
+                        {
+                            MediaFile = m,
+                            RelativePath = BuildRelativePathSafe(folder.Path, m.Path)
+                        })
+                        .ToList();
+                }
+
+                return result;
             }
 
             var mappedRows = (from fi in _dbContext.FolderImages.AsNoTracking()
                               join mf in _dbContext.MediaFiles.AsNoTracking() on fi.ImageId equals mf.Id
                               where folderIdSet.Contains(fi.FolderId)
                               orderby fi.FolderId, fi.OrderIndex, mf.OrderIndex
-                              select new { fi.FolderId, MediaFile = mf })
+                              select new { fi.FolderId, MediaFile = mf, fi.RelativePath })
                 .ToList();
 
             var mappedLookup = mappedRows
                 .GroupBy(r => r.FolderId)
-                .ToDictionary(g => g.Key, g => g.Select(x => x.MediaFile).ToList());
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => new FolderTreeEntry
+                    {
+                        MediaFile = x.MediaFile,
+                        RelativePath = string.IsNullOrWhiteSpace(x.RelativePath)
+                            ? BuildRelativePathSafe(folderPathById.TryGetValue(x.FolderId, out var path) ? path : null, x.MediaFile.Path)
+                            : x.RelativePath
+                    }).ToList());
 
             foreach (var folderId in folderIds)
             {
-                if (mappedLookup.TryGetValue(folderId, out var mappedFiles) && mappedFiles.Count > 0)
+                if (mappedLookup.TryGetValue(folderId, out var mappedEntries) && mappedEntries.Count > 0)
                 {
-                    result[folderId] = mappedFiles;
+                    result[folderId] = mappedEntries;
                 }
                 else if (legacyLookup.TryGetValue(folderId, out var fallbackFiles))
                 {
-                    result[folderId] = fallbackFiles;
+                    string folderPath = folderPathById.TryGetValue(folderId, out var path) ? path : null;
+                    result[folderId] = fallbackFiles
+                        .Select(m => new FolderTreeEntry
+                        {
+                            MediaFile = m,
+                            RelativePath = BuildRelativePathSafe(folderPath, m.Path)
+                        })
+                        .ToList();
                 }
                 else
                 {
-                    result[folderId] = new List<MediaFile>();
+                    result[folderId] = new List<FolderTreeEntry>();
                 }
             }
 
@@ -365,6 +418,276 @@ namespace ImageColorChanger.UI
                             !_dbContext.FolderImages.Any(fi => fi.ImageId == m.Id))
                 .OrderBy(m => m.OrderIndex ?? int.MaxValue)
                 .ToList();
+        }
+
+        private void AppendFlatFolderChildren(
+            ProjectTreeItem folderItem,
+            IEnumerable<MediaFile> files,
+            bool enableDetailedIcons,
+            HashSet<int> markedImageIds)
+        {
+            foreach (var file in files)
+            {
+                if (IsAppleDoubleSidecarPath(file.Path))
+                {
+                    continue;
+                }
+
+                folderItem.Children.Add(CreateFileTreeItem(file, enableDetailedIcons, markedImageIds));
+            }
+        }
+
+        private void BuildHierarchicalFolderChildren(
+            ProjectTreeItem rootFolderItem,
+            Folder folder,
+            IEnumerable<FolderTreeEntry> entries,
+            bool enableDetailedIcons,
+            HashSet<int> markedImageIds)
+        {
+            var folderNodeByPath = new Dictionary<string, ProjectTreeItem>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in entries)
+            {
+                var file = entry.MediaFile;
+                if (file == null || IsAppleDoubleSidecarPath(file.Path))
+                {
+                    continue;
+                }
+
+                string relativePath = NormalizeRelativePath(entry.RelativePath);
+                string directory = GetRelativeDirectory(relativePath);
+                if (string.IsNullOrWhiteSpace(directory))
+                {
+                    rootFolderItem.Children.Add(CreateFileTreeItem(file, enableDetailedIcons, markedImageIds));
+                    continue;
+                }
+
+                var parentNode = EnsureVirtualFolderPath(rootFolderItem, folder, folderNodeByPath, directory);
+                parentNode.Children.Add(CreateFileTreeItem(file, enableDetailedIcons, markedImageIds));
+            }
+        }
+
+        private ProjectTreeItem EnsureVirtualFolderPath(
+            ProjectTreeItem rootFolderItem,
+            Folder folder,
+            Dictionary<string, ProjectTreeItem> folderNodeByPath,
+            string directory)
+        {
+            var segments = directory
+                .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            var current = rootFolderItem;
+            var cumulative = string.Empty;
+
+            foreach (string segment in segments)
+            {
+                cumulative = string.IsNullOrEmpty(cumulative) ? segment : $"{cumulative}/{segment}";
+                if (!folderNodeByPath.TryGetValue(cumulative, out var node))
+                {
+                    string fullPath = folder?.Path ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(fullPath))
+                    {
+                        fullPath = Path.Combine(fullPath, cumulative.Replace('/', Path.DirectorySeparatorChar));
+                    }
+
+                    node = new ProjectTreeItem
+                    {
+                        Id = BuildVirtualFolderNodeId(folder?.Id ?? 0, cumulative),
+                        Name = segment,
+                        Icon = "Folder",
+                        IconKind = "Folder",
+                        IconColor = "#FDB44B",
+                        Type = TreeItemType.Folder,
+                        IsVirtualFolder = true,
+                        RootFolderId = folder?.Id,
+                        RelativeFolderPath = cumulative,
+                        Path = fullPath,
+                        StateKey = $"vf:{folder?.Id ?? 0}:{cumulative.ToLowerInvariant()}",
+                        Children = new ObservableCollection<ProjectTreeItem>()
+                    };
+                    folderNodeByPath[cumulative] = node;
+                    current.Children.Add(node);
+                }
+
+                current = node;
+            }
+
+            return current;
+        }
+
+        private ProjectTreeItem CreateFileTreeItem(MediaFile file, bool enableDetailedIcons, HashSet<int> markedImageIds)
+        {
+            string fileIconKind = "File";
+            string fileIconColor = "#95E1D3";
+            if (file.FileType == FileType.Image)
+            {
+                bool imageMarked = enableDetailedIcons && markedImageIds != null && markedImageIds.Contains(file.Id);
+                (fileIconKind, fileIconColor) = imageMarked ? ("Star", "#FFD700") : ("Image", "#95E1D3");
+            }
+
+            return new ProjectTreeItem
+            {
+                Id = file.Id,
+                Name = file.Name,
+                Icon = fileIconKind,
+                IconKind = fileIconKind,
+                IconColor = fileIconColor,
+                Type = TreeItemType.File,
+                Path = file.Path,
+                StateKey = $"file:{file.Id}",
+                FileType = file.FileType
+            };
+        }
+
+        private static bool HasNestedFolderPath(string relativePath)
+        {
+            return !string.IsNullOrWhiteSpace(GetRelativeDirectory(relativePath));
+        }
+
+        private static string BuildRelativePathSafe(string rootPath, string fullPath)
+        {
+            if (string.IsNullOrWhiteSpace(fullPath))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(rootPath))
+                {
+                    string relative = Path.GetRelativePath(rootPath, fullPath);
+                    return NormalizeRelativePath(relative);
+                }
+            }
+            catch
+            {
+            }
+
+            return NormalizeRelativePath(Path.GetFileName(fullPath));
+        }
+
+        private static string NormalizeRelativePath(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return string.Empty;
+            }
+
+            return relativePath.Replace('\\', '/').Trim();
+        }
+
+        private static string GetRelativeDirectory(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return string.Empty;
+            }
+
+            string normalized = NormalizeRelativePath(relativePath);
+            int lastSlash = normalized.LastIndexOf('/');
+            return lastSlash <= 0 ? string.Empty : normalized.Substring(0, lastSlash);
+        }
+
+        private static int BuildVirtualFolderNodeId(int folderId, string relativeFolderPath)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + folderId;
+                hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(relativeFolderPath ?? string.Empty);
+                if (hash == int.MinValue)
+                {
+                    hash = int.MinValue + 1;
+                }
+
+                return hash > 0 ? -hash : hash;
+            }
+        }
+
+        private void EnsureFolderHierarchyModesLoaded()
+        {
+            if (_folderHierarchyModesLoaded)
+            {
+                return;
+            }
+
+            _folderHierarchyModesLoaded = true;
+            _hierarchyFolderIds.Clear();
+            try
+            {
+                string raw = DatabaseManagerService.GetUISetting(FolderHierarchyModeSettingKey, string.Empty) ?? string.Empty;
+                foreach (string token in raw.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (int.TryParse(token.Trim(), out int folderId) && folderId > 0)
+                    {
+                        _hierarchyFolderIds.Add(folderId);
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private bool IsFolderHierarchyEnabled(int folderId)
+        {
+            EnsureFolderHierarchyModesLoaded();
+            return _hierarchyFolderIds.Contains(folderId);
+        }
+
+        private void SetFolderHierarchyEnabled(int folderId, bool enabled)
+        {
+            if (folderId <= 0)
+            {
+                return;
+            }
+
+            EnsureFolderHierarchyModesLoaded();
+            if (enabled)
+            {
+                _hierarchyFolderIds.Add(folderId);
+            }
+            else
+            {
+                _hierarchyFolderIds.Remove(folderId);
+            }
+
+            try
+            {
+                string serialized = string.Join(",", _hierarchyFolderIds.OrderBy(id => id));
+                DatabaseManagerService.SaveUISetting(FolderHierarchyModeSettingKey, serialized);
+            }
+            catch
+            {
+            }
+        }
+
+        private int ResolveRootFolderId(ProjectTreeItem item)
+        {
+            if (item == null)
+            {
+                return 0;
+            }
+
+            if (item.RootFolderId.HasValue && item.RootFolderId.Value > 0)
+            {
+                return item.RootFolderId.Value;
+            }
+
+            return item.Id > 0 ? item.Id : 0;
+        }
+
+        private void ToggleFolderHierarchyMode(ProjectTreeItem item)
+        {
+            int rootFolderId = ResolveRootFolderId(item);
+            if (rootFolderId <= 0)
+            {
+                return;
+            }
+
+            bool enabled = !IsFolderHierarchyEnabled(rootFolderId);
+            SetFolderHierarchyEnabled(rootFolderId, enabled);
+            ReloadProjectsPreservingTreeState(TreeItemType.Folder, rootFolderId);
+            ShowStatus(enabled ? "已切换为多层级展开模式" : "已切换为穿透平铺模式");
         }
 
         /// <summary>
