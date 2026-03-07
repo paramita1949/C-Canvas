@@ -124,6 +124,7 @@ Desktop.ini
 # Project-specific ignores
 Canvas/
 docs/
+*.md
 
 # .NET Reactor configuration (local only)
 *.dotnet_reactor.targets

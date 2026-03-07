@@ -65,6 +65,8 @@ namespace ImageColorChanger.UI
 
                 if (isSelected)
                 {
+                    BringTextBoxToFront(textBox);
+
                     // 取消其他文本框的选中状态
                     foreach (var tb in _textBoxes)
                     {
@@ -147,6 +149,88 @@ namespace ImageColorChanger.UI
             };
 
             EnsureNoticeAnimationLoopState();
+        }
+
+        /// <summary>
+        /// 将当前选中的文本框提升到最上层，避免重叠文本框阻挡交互。
+        /// </summary>
+        private void BringTextBoxToFront(DraggableTextBox target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            if (!HasOverlapWithAnyTextBox(target))
+            {
+                return;
+            }
+
+            int maxZ = 0;
+            foreach (var tb in _textBoxes)
+            {
+                if (tb == null || tb == target)
+                {
+                    continue;
+                }
+
+                int z = tb.Data?.ZIndex ?? System.Windows.Controls.Panel.GetZIndex(tb);
+                if (z > maxZ)
+                {
+                    maxZ = z;
+                }
+            }
+
+            int targetZ = maxZ + 1;
+            if (System.Windows.Controls.Panel.GetZIndex(target) != targetZ)
+            {
+                System.Windows.Controls.Panel.SetZIndex(target, targetZ);
+            }
+        }
+
+        private bool HasOverlapWithAnyTextBox(DraggableTextBox target)
+        {
+            if (target == null)
+            {
+                return false;
+            }
+
+            var targetRect = GetTextBoxBounds(target);
+            if (targetRect.Width <= 0 || targetRect.Height <= 0)
+            {
+                return false;
+            }
+
+            foreach (var tb in _textBoxes)
+            {
+                if (tb == null || tb == target)
+                {
+                    continue;
+                }
+
+                var rect = GetTextBoxBounds(tb);
+                if (rect.Width <= 0 || rect.Height <= 0)
+                {
+                    continue;
+                }
+
+                if (targetRect.IntersectsWith(rect))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static Rect GetTextBoxBounds(DraggableTextBox textBox)
+        {
+            double x = textBox.Data?.X ?? Canvas.GetLeft(textBox);
+            double y = textBox.Data?.Y ?? Canvas.GetTop(textBox);
+            double width = textBox.ActualWidth > 0 ? textBox.ActualWidth : (textBox.Data?.Width ?? 0);
+            double height = textBox.ActualHeight > 0 ? textBox.ActualHeight : (textBox.Data?.Height ?? 0);
+
+            return new Rect(x, y, width, height);
         }
 
         private List<TextBoxSnapshot> CaptureTextBoxSnapshotsForSave(IEnumerable<DraggableTextBox> sourceTextBoxes = null)

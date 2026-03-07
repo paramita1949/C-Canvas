@@ -634,47 +634,59 @@ namespace ImageColorChanger.UI
                 {
                     case BibleTextInsertStyle.TitleOnTop:
                         // 标题在上，经文在下
-                        await CreateSingleTextElement(
+                        double titleAvailableTop = Math.Min(220, GetAvailableInsertHeight(startY));
+                        double titleHeightTop = await CreateSingleTextElement(
                             content: $"[{reference}]",
                             x: startX,
                             y: startY,
                             fontFamily: config.FontFamily,
                             fontSize: config.TitleStyle.FontSize,
                             color: config.TitleStyle.ColorHex,
-                            isBold: config.TitleStyle.IsBold
+                            isBold: config.TitleStyle.IsBold,
+                            maxHeightHint: titleAvailableTop
                         );
 
                         // 使用富文本方式创建经文（节号+经文内容）
+                        double verseYTop = startY + titleHeightTop + 20;
                         await CreateRichTextVerseElement(
                             verses: verses,
                             x: startX,
-                            y: startY + config.TitleStyle.FontSize * 1.5f + 20, // 标题高度 + 间距
-                            config: config
+                            y: verseYTop,
+                            config: config,
+                            maxHeightHint: GetAvailableInsertHeight(verseYTop)
                         );
                         break;
                         
                     case BibleTextInsertStyle.TitleAtBottom:
                         // 经文在上，标题在下
-                        int verseLineCount = verses.Count;
-                        // 计算经文高度：行数 × 字体大小 × 行间距倍数
-                        double verseHeight = verseLineCount * config.VerseStyle.FontSize * config.VerseStyle.VerseSpacing;
-
                         // 使用富文本方式创建经文（节号+经文内容）
-                        await CreateRichTextVerseElement(
+                        double estimatedTitleContentHeight = EstimateBibleInsertContentHeight(
+                            $"[{reference}]",
+                            config.FontFamily,
+                            config.TitleStyle.FontSize,
+                            1.2,
+                            (float)Math.Max(80.0, GetBibleInsertPreferredWidth() - 24.0));
+                        double estimatedTitleBoxHeight = estimatedTitleContentHeight + 18.0;
+                        double verseAvailableBottom = Math.Max(80.0, GetAvailableInsertHeight(startY) - estimatedTitleBoxHeight - 20.0);
+
+                        double verseHeightBottom = await CreateRichTextVerseElement(
                             verses: verses,
                             x: startX,
                             y: startY,
-                            config: config
+                            config: config,
+                            maxHeightHint: verseAvailableBottom
                         );
 
+                        double titleYBottom = startY + verseHeightBottom + 20;
                         await CreateSingleTextElement(
                             content: $"[{reference}]",
                             x: startX,
-                            y: startY + verseHeight + 20, // 经文高度 + 间距
+                            y: titleYBottom,
                             fontFamily: config.FontFamily,
                             fontSize: config.TitleStyle.FontSize,
                             color: config.TitleStyle.ColorHex,
-                            isBold: config.TitleStyle.IsBold
+                            isBold: config.TitleStyle.IsBold,
+                            maxHeightHint: GetAvailableInsertHeight(titleYBottom)
                         );
                         break;
 
@@ -685,30 +697,35 @@ namespace ImageColorChanger.UI
                             reference: reference,
                             x: startX,
                             y: startY,
-                            config: config
+                            config: config,
+                            maxHeightHint: GetAvailableInsertHeight(startY)
                         );
                         break;
                         
                     default:
                         // 默认：标题在上
-                        await CreateSingleTextElement(
+                        double titleAvailableDefault = Math.Min(220, GetAvailableInsertHeight(startY));
+                        double titleHeightDefault = await CreateSingleTextElement(
                             content: $"[{reference}]",
                             x: startX,
                             y: startY,
                             fontFamily: config.FontFamily,
                             fontSize: config.TitleStyle.FontSize,
                             color: config.TitleStyle.ColorHex,
-                            isBold: config.TitleStyle.IsBold
+                            isBold: config.TitleStyle.IsBold,
+                            maxHeightHint: titleAvailableDefault
                         );
-                        
+
+                        double verseYDefault = startY + titleHeightDefault + 20;
                         await CreateSingleTextElement(
                             content: verseContent,
                             x: startX,
-                            y: startY + config.TitleStyle.FontSize * 1.5f + 20,
+                            y: verseYDefault,
                             fontFamily: config.FontFamily,
                             fontSize: config.VerseStyle.FontSize,
                             color: config.VerseStyle.ColorHex,
-                            isBold: config.VerseStyle.IsBold
+                            isBold: config.VerseStyle.IsBold,
+                            maxHeightHint: GetAvailableInsertHeight(verseYDefault)
                         );
                         break;
                 }
@@ -769,21 +786,22 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 创建单个文本框元素（核心方法）
         /// </summary>
-        private async Task CreateSingleTextElement(
+        private async Task<double> CreateSingleTextElement(
             string content, 
             double x, 
             double y, 
             string fontFamily, 
             float fontSize, 
             string color, 
-            bool isBold)
+            bool isBold,
+            double? maxHeightHint = null)
         {
             if (_currentSlide == null)
             {
                 #if DEBUG
                 Debug.WriteLine($" [圣经创建] 当前没有选中的幻灯片");
                 #endif
-                return;
+                return 0;
             }
             
             try
@@ -795,21 +813,25 @@ namespace ImageColorChanger.UI
                     maxZIndex = _textBoxes.Max(tb => tb.Data.ZIndex);
                 }
                 
-                // 创建新元素
-                // 计算合理的高度：行数 * 行高
-                int lineCount = content.Split('\n').Length;
-                float estimatedHeight = lineCount * fontSize * 1.5f; // 行高 = 字号 * 1.5
+                var bounds = ComputeBibleInsertTextBounds(
+                    content,
+                    x,
+                    y,
+                    fontFamily,
+                    fontSize,
+                    lineSpacing: 1.2,
+                    maxHeightHint: maxHeightHint);
 
                 var textElement = new Database.Models.TextElement
                 {
                     SlideId = _currentSlide.Id,
                     Content = content,
-                    X = x,
-                    Y = y,
-                    Width = EditorCanvas.ActualWidth * 0.9, // 画布宽度的90%
-                    Height = estimatedHeight, // 根据内容估算高度
+                    X = bounds.X,
+                    Y = bounds.Y,
+                    Width = bounds.Width,
+                    Height = bounds.Height,
                     FontFamily = fontFamily,
-                    FontSize = fontSize,
+                    FontSize = bounds.AppliedFontSize,
                     FontColor = color,
                     IsBold = isBold ? 1 : 0,
                     ZIndex = maxZIndex + 1
@@ -819,10 +841,12 @@ namespace ImageColorChanger.UI
                 await _textProjectService.AddElementAsync(textElement);
                 
                 // 在 UI 线程上创建 DraggableTextBox 并添加到画布
+                double actualHeight = bounds.Height;
                 await Dispatcher.InvokeAsync(() =>
                 {
                     var textBox = new UI.Controls.DraggableTextBox(textElement);
                     AddTextBoxToCanvas(textBox);
+                    actualHeight = AutoFitTextBoxHeightToContent(textBox, bounds.AppliedFontSize);
                     
                     // 标记内容已修改
                     MarkContentAsModified();
@@ -840,6 +864,8 @@ namespace ImageColorChanger.UI
                     //Debug.WriteLine($"   _textBoxes.Count: {_textBoxes.Count}");
                     //#endif
                 });
+
+                return actualHeight;
             }
             catch (Exception ex)
             {
@@ -849,16 +875,19 @@ namespace ImageColorChanger.UI
                 _ = ex;  // 防止未使用变量警告
                 #endif
             }
+
+            return 0;
         }
 
         /// <summary>
         /// 创建富文本经文元素（节号+经文内容，使用 RichTextSpan）
         /// </summary>
-        private async Task CreateRichTextVerseElement(
+        private async Task<double> CreateRichTextVerseElement(
             List<BibleVerse> verses,
             double x,
             double y,
-            BibleTextInsertConfig config)
+            BibleTextInsertConfig config,
+            double? maxHeightHint = null)
         {
             //#if DEBUG
             //Debug.WriteLine($"[CreateRichTextVerseElement] 开始创建富文本经文元素");
@@ -876,7 +905,7 @@ namespace ImageColorChanger.UI
                 Debug.WriteLine($"   verses == null: {verses == null}");
                 Debug.WriteLine($"   verses.Count: {verses?.Count ?? 0}");
                 #endif
-                return;
+                return 0;
             }
 
             try
@@ -901,9 +930,19 @@ namespace ImageColorChanger.UI
                 // 节距直接使用行间距倍数（1.0-2.5）
                 double lineSpacing = config.VerseStyle.VerseSpacing;
 
-                // 计算高度：行数 × 字体大小 × 行间距倍数
-                int lineCount = verses.Count;
-                float estimatedHeight = lineCount * config.VerseStyle.FontSize * (float)lineSpacing;
+                float baseSize = Math.Max(config.VerseStyle.FontSize, config.VerseNumberStyle.FontSize);
+                var bounds = ComputeBibleInsertTextBounds(
+                    fullContent,
+                    x,
+                    y,
+                    config.FontFamily,
+                    baseSize,
+                    lineSpacing,
+                    maxHeightHint: maxHeightHint);
+
+                float scale = baseSize > 0 ? bounds.AppliedFontSize / baseSize : 1f;
+                float verseFontSize = Math.Max(10f, config.VerseStyle.FontSize * scale);
+                float verseNumberFontSize = Math.Max(10f, config.VerseNumberStyle.FontSize * scale);
 
                 //#if DEBUG
                 //Debug.WriteLine($"[CreateRichTextVerseElement] 行间距={lineSpacing:F1}");
@@ -914,12 +953,12 @@ namespace ImageColorChanger.UI
                 {
                     SlideId = _currentSlide.Id,
                     Content = fullContent,
-                    X = x,
-                    Y = y,
-                    Width = EditorCanvas.ActualWidth * 0.9,
-                    Height = estimatedHeight,
+                    X = bounds.X,
+                    Y = bounds.Y,
+                    Width = bounds.Width,
+                    Height = bounds.Height,
                     FontFamily = config.FontFamily,
-                    FontSize = config.VerseStyle.FontSize,
+                    FontSize = verseFontSize,
                     FontColor = config.VerseStyle.ColorHex,
                     IsBold = config.VerseStyle.IsBold ? 1 : 0,
                     LineSpacing = lineSpacing,  // 应用行间距
@@ -954,7 +993,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = verseNumber,
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseNumberStyle.FontSize,
+                        FontSize = verseNumberFontSize,
                         FontColor = config.VerseNumberStyle.ColorHex,
                         IsBold = config.VerseNumberStyle.IsBold ? 1 : 0
                     });
@@ -966,7 +1005,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = " ",
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseStyle.FontSize,
+                        FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
                         IsBold = config.VerseStyle.IsBold ? 1 : 0
                     });
@@ -978,7 +1017,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = verse.Scripture,
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseStyle.FontSize,
+                        FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
                         IsBold = config.VerseStyle.IsBold ? 1 : 0
                     });
@@ -992,7 +1031,7 @@ namespace ImageColorChanger.UI
                             SpanOrder = spanOrder++,
                             Text = "\n",
                             FontFamily = config.FontFamily,
-                            FontSize = config.VerseStyle.FontSize,
+                            FontSize = verseFontSize,
                             FontColor = config.VerseStyle.ColorHex,
                             IsBold = config.VerseStyle.IsBold ? 1 : 0
                         });
@@ -1023,16 +1062,20 @@ namespace ImageColorChanger.UI
                 //#endif
 
                 // 在 UI 线程上创建 DraggableTextBox 并添加到画布
+                double actualHeight = bounds.Height;
                 await Dispatcher.InvokeAsync(() =>
                 {
                     var textBox = new UI.Controls.DraggableTextBox(textElement);
                     AddTextBoxToCanvas(textBox);
+                    actualHeight = AutoFitTextBoxHeightToContent(textBox, bounds.AppliedFontSize);
                     MarkContentAsModified();
 
                     //#if DEBUG
                     //Debug.WriteLine($" [CreateRichTextVerseElement] 文本框已添加到画布");
                     //#endif
                 });
+
+                return actualHeight;
             }
             catch (Exception ex)
             {
@@ -1042,21 +1085,24 @@ namespace ImageColorChanger.UI
                 _ = ex;
                 #endif
             }
+
+            return 0;
         }
 
         /// <summary>
         /// 创建富文本经文+标题元素（节号+经文内容+标题，使用 RichTextSpan）
         /// </summary>
-        private async Task CreateRichTextVerseWithTitleElement(
+        private async Task<double> CreateRichTextVerseWithTitleElement(
             List<BibleVerse> verses,
             string reference,
             double x,
             double y,
-            BibleTextInsertConfig config)
+            BibleTextInsertConfig config,
+            double? maxHeightHint = null)
         {
             if (_currentSlide == null || verses == null || verses.Count == 0)
             {
-                return;
+                return 0;
             }
 
             try
@@ -1078,21 +1124,34 @@ namespace ImageColorChanger.UI
                 contentBuilder.Append($" [{reference}]");
                 string fullContent = contentBuilder.ToString();
 
-                // 计算高度
-                float estimatedHeight = config.VerseStyle.FontSize * 1.5f;
+                float baseSize = Math.Max(config.TitleStyle.FontSize, Math.Max(config.VerseStyle.FontSize, config.VerseNumberStyle.FontSize));
+                var bounds = ComputeBibleInsertTextBounds(
+                    fullContent,
+                    x,
+                    y,
+                    config.FontFamily,
+                    baseSize,
+                    Math.Max(1.0, config.VerseStyle.VerseSpacing),
+                    maxHeightHint: maxHeightHint);
+
+                float scale = baseSize > 0 ? bounds.AppliedFontSize / baseSize : 1f;
+                float verseFontSize = Math.Max(10f, config.VerseStyle.FontSize * scale);
+                float verseNumberFontSize = Math.Max(10f, config.VerseNumberStyle.FontSize * scale);
+                float titleFontSize = Math.Max(10f, config.TitleStyle.FontSize * scale);
 
                 var textElement = new Database.Models.TextElement
                 {
                     SlideId = _currentSlide.Id,
                     Content = fullContent,
-                    X = x,
-                    Y = y,
-                    Width = EditorCanvas.ActualWidth * 0.9,
-                    Height = estimatedHeight,
+                    X = bounds.X,
+                    Y = bounds.Y,
+                    Width = bounds.Width,
+                    Height = bounds.Height,
                     FontFamily = config.FontFamily,
-                    FontSize = config.VerseStyle.FontSize,
+                    FontSize = verseFontSize,
                     FontColor = config.VerseStyle.ColorHex,
                     IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                    LineSpacing = config.VerseStyle.VerseSpacing,
                     ZIndex = maxZIndex + 1
                 };
 
@@ -1115,7 +1174,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = verseNumber,
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseNumberStyle.FontSize,
+                        FontSize = verseNumberFontSize,
                         FontColor = config.VerseNumberStyle.ColorHex,
                         IsBold = config.VerseNumberStyle.IsBold ? 1 : 0
                     });
@@ -1127,7 +1186,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = " ",
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseStyle.FontSize,
+                        FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
                         IsBold = config.VerseStyle.IsBold ? 1 : 0
                     });
@@ -1139,7 +1198,7 @@ namespace ImageColorChanger.UI
                         SpanOrder = spanOrder++,
                         Text = verse.Scripture,
                         FontFamily = config.FontFamily,
-                        FontSize = config.VerseStyle.FontSize,
+                        FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
                         IsBold = config.VerseStyle.IsBold ? 1 : 0
                     });
@@ -1153,7 +1212,7 @@ namespace ImageColorChanger.UI
                             SpanOrder = spanOrder++,
                             Text = " ",
                             FontFamily = config.FontFamily,
-                            FontSize = config.VerseStyle.FontSize,
+                            FontSize = verseFontSize,
                             FontColor = config.VerseStyle.ColorHex,
                             IsBold = config.VerseStyle.IsBold ? 1 : 0
                         });
@@ -1167,7 +1226,7 @@ namespace ImageColorChanger.UI
                     SpanOrder = spanOrder++,
                     Text = $" [{reference}]",
                     FontFamily = config.FontFamily,
-                    FontSize = config.TitleStyle.FontSize,
+                    FontSize = titleFontSize,
                     FontColor = config.TitleStyle.ColorHex,
                     IsBold = config.TitleStyle.IsBold ? 1 : 0
                 });
@@ -1180,12 +1239,16 @@ namespace ImageColorChanger.UI
 
                 textElement.RichTextSpans = richTextSpans;
 
+                double actualHeight = bounds.Height;
                 await Dispatcher.InvokeAsync(() =>
                 {
                     var textBox = new UI.Controls.DraggableTextBox(textElement);
                     AddTextBoxToCanvas(textBox);
+                    actualHeight = AutoFitTextBoxHeightToContent(textBox, bounds.AppliedFontSize);
                     MarkContentAsModified();
                 });
+
+                return actualHeight;
             }
             catch (Exception ex)
             {
@@ -1195,6 +1258,227 @@ namespace ImageColorChanger.UI
                 _ = ex;
                 #endif
             }
+
+            return 0;
+        }
+
+        private (double X, double Y, double Width, double Height, float AppliedFontSize) ComputeBibleInsertTextBounds(
+            string content,
+            double preferredX,
+            double preferredY,
+            string fontFamily,
+            float fontSize,
+            double lineSpacing,
+            double? maxHeightHint = null)
+        {
+            const double margin = 20.0;
+            const double minWidth = 360.0;
+            var layoutProfile = ImageColorChanger.Services.TextEditor.Models.TextLayoutProfile.Default;
+            double chromeHorizontal =
+                layoutProfile.RichTextBoxPadding.Left + layoutProfile.RichTextBoxPadding.Right +
+                layoutProfile.DocumentPagePadding.Left + layoutProfile.DocumentPagePadding.Right;
+            double chromeVertical =
+                layoutProfile.RichTextBoxPadding.Top + layoutProfile.RichTextBoxPadding.Bottom +
+                layoutProfile.DocumentPagePadding.Top + layoutProfile.DocumentPagePadding.Bottom;
+            double horizontalPadding = Math.Max(24.0, chromeHorizontal + 6.0);
+            double verticalPadding = Math.Max(18.0, chromeVertical + 8.0);
+
+            double canvasWidth = EditorCanvas?.ActualWidth > 1 ? EditorCanvas.ActualWidth : 1600;
+            double canvasHeight = EditorCanvas?.ActualHeight > 1 ? EditorCanvas.ActualHeight : 900;
+
+            double maxWidth = Math.Max(240.0, canvasWidth - margin * 2);
+            double width = Math.Min(maxWidth, Math.Max(minWidth, canvasWidth * 0.9));
+
+            float textMaxWidth = (float)Math.Max(80.0, width - horizontalPadding);
+            double maxHeightByCanvas = Math.Max(80.0, canvasHeight - margin * 2);
+            double maxHeight = Math.Min(maxHeightByCanvas, maxHeightHint ?? maxHeightByCanvas);
+            maxHeight = Math.Max(80.0, maxHeight);
+
+            float minFontSize = Math.Max(10f, fontSize * 0.45f);
+            double fitSafety = Math.Max(10.0, fontSize * 0.40);
+            float appliedFontSize = ComputeAutoFitFontSize(
+                content,
+                fontFamily,
+                Math.Max(12f, fontSize),
+                lineSpacing,
+                textMaxWidth,
+                Math.Max(1.0, maxHeight - verticalPadding - fitSafety),
+                minFontSize);
+
+            double contentHeight = EstimateBibleInsertContentHeight(
+                content,
+                fontFamily,
+                appliedFontSize,
+                lineSpacing,
+                textMaxWidth);
+
+            double minHeight = Math.Max(52.0, appliedFontSize * 1.8);
+            double clippingSafety = Math.Max(12.0, appliedFontSize * 0.45);
+            double height = Math.Max(minHeight, contentHeight + verticalPadding + clippingSafety);
+            height = Math.Min(height, maxHeight);
+
+            double maxX = Math.Max(margin, canvasWidth - width - margin);
+            double maxY = Math.Max(margin, canvasHeight - height - margin);
+            double x = Math.Clamp(preferredX, margin, maxX);
+            double y = Math.Clamp(preferredY, margin, maxY);
+
+            return (x, y, width, height, appliedFontSize);
+        }
+
+        private double GetBibleInsertPreferredWidth()
+        {
+            double canvasWidth = EditorCanvas?.ActualWidth > 1 ? EditorCanvas.ActualWidth : 1600;
+            const double margin = 20.0;
+            const double minWidth = 360.0;
+            double maxWidth = Math.Max(240.0, canvasWidth - margin * 2);
+            return Math.Min(maxWidth, Math.Max(minWidth, canvasWidth * 0.9));
+        }
+
+        private double GetAvailableInsertHeight(double startY)
+        {
+            const double margin = 20.0;
+            double canvasHeight = EditorCanvas?.ActualHeight > 1 ? EditorCanvas.ActualHeight : 900;
+            return Math.Max(80.0, canvasHeight - margin - Math.Max(margin, startY));
+        }
+
+        private static double EstimateBibleInsertContentHeight(
+            string content,
+            string fontFamily,
+            float fontSize,
+            double lineSpacing,
+            float maxWidth)
+        {
+            string normalized = string.IsNullOrWhiteSpace(content)
+                ? " "
+                : content.Replace("\r\n", "\n");
+
+            using var font = new SKFont
+            {
+                Typeface = SKTypeface.FromFamilyName(string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily),
+                Size = Math.Max(12f, fontSize),
+                Subpixel = true,
+                Edging = SKFontEdging.Antialias
+            };
+            using var paint = new SKPaint { IsAntialias = true };
+
+            float effectiveLineHeight = Math.Max(
+                font.Size * (float)Math.Max(1.0, lineSpacing),
+                font.Size * 1.2f);
+
+            int totalLines = 0;
+            foreach (var paragraph in normalized.Split('\n'))
+            {
+                string text = string.IsNullOrEmpty(paragraph) ? " " : paragraph;
+                var wrapped = WrapTextByWidth(text, font, paint, maxWidth);
+                totalLines += Math.Max(1, wrapped.Count);
+            }
+
+            return Math.Max(1, totalLines) * effectiveLineHeight;
+        }
+
+        private static float ComputeAutoFitFontSize(
+            string content,
+            string fontFamily,
+            float preferredFontSize,
+            double lineSpacing,
+            float maxWidth,
+            double maxContentHeight,
+            float minFontSize)
+        {
+            float preferred = Math.Max(10f, preferredFontSize);
+            float minSize = Math.Clamp(minFontSize, 8f, preferred);
+            double targetHeight = Math.Max(1.0, maxContentHeight);
+
+            double preferredHeight = EstimateBibleInsertContentHeight(content, fontFamily, preferred, lineSpacing, maxWidth);
+            if (preferredHeight <= targetHeight)
+            {
+                return preferred;
+            }
+
+            double minHeight = EstimateBibleInsertContentHeight(content, fontFamily, minSize, lineSpacing, maxWidth);
+            if (minHeight >= targetHeight)
+            {
+                return minSize;
+            }
+
+            float low = minSize;
+            float high = preferred;
+            for (int i = 0; i < 14; i++)
+            {
+                float mid = (low + high) / 2f;
+                double midHeight = EstimateBibleInsertContentHeight(content, fontFamily, mid, lineSpacing, maxWidth);
+                if (midHeight <= targetHeight)
+                {
+                    low = mid;
+                }
+                else
+                {
+                    high = mid;
+                }
+            }
+
+            return low;
+        }
+
+        private double AutoFitTextBoxHeightToContent(UI.Controls.DraggableTextBox textBox, float referenceFontSize)
+        {
+            if (textBox?.RichTextBox == null || textBox.Data == null)
+            {
+                return textBox?.Data?.Height ?? 0;
+            }
+
+            textBox.UpdateLayout();
+            textBox.RichTextBox.UpdateLayout();
+
+            var richTextBox = textBox.RichTextBox;
+            var doc = richTextBox.Document;
+            var richPadding = richTextBox.Padding;
+            var docPadding = doc?.PagePadding ?? new Thickness(0);
+
+            // 优先使用字符矩形差值，获得更紧凑的真实文字高度。
+            double contentHeight = 0;
+            if (doc != null)
+            {
+                var startRect = doc.ContentStart.GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
+                var endRect = doc.ContentEnd.GetCharacterRect(System.Windows.Documents.LogicalDirection.Backward);
+                contentHeight = Math.Max(0, endRect.Bottom - startRect.Top);
+            }
+
+            // 回退到 ExtentHeight（去掉 PagePadding）避免某些极端情况下字符矩形不可用。
+            if (contentHeight <= 0.1 || double.IsNaN(contentHeight) || double.IsInfinity(contentHeight))
+            {
+                contentHeight = richTextBox.ExtentHeight;
+                if (contentHeight > 0.1)
+                {
+                    contentHeight = Math.Max(0, contentHeight - docPadding.Top - docPadding.Bottom);
+                }
+            }
+
+            if (contentHeight <= 0.1 || double.IsNaN(contentHeight) || double.IsInfinity(contentHeight))
+            {
+                contentHeight = Math.Max(12.0, referenceFontSize * 1.2);
+            }
+
+            // 保留很小的安全边距，减少“框偏大”。
+            double safety = Math.Max(2.0, referenceFontSize * 0.06);
+            double desired = contentHeight +
+                             richPadding.Top + richPadding.Bottom +
+                             docPadding.Top + docPadding.Bottom +
+                             safety;
+
+            double minHeight = Math.Max(28.0, referenceFontSize * 0.9 + richPadding.Top + richPadding.Bottom);
+
+            double canvasHeight = EditorCanvas?.ActualHeight > 1 ? EditorCanvas.ActualHeight : 900;
+            double maxHeight = Math.Max(minHeight, canvasHeight - Math.Max(20.0, textBox.Data.Y) - 20.0);
+            double finalHeight = Math.Clamp(desired, minHeight, maxHeight);
+
+            if (Math.Abs(textBox.Data.Height - finalHeight) > 0.5)
+            {
+                textBox.Data.Height = finalHeight;
+                textBox.Height = finalHeight;
+            }
+
+            return finalHeight;
         }
 
         /// <summary>
