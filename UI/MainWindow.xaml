@@ -799,6 +799,9 @@
                                   DragEnter="ProjectTree_ExternalDragEnter"
                                   DragOver="ProjectTree_ExternalDragOver"
                                   DragLeave="ProjectTree_ExternalDragLeave">
+                        <TreeView.Resources>
+                            <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource ProjectTreeScrollBarStyle}"/>
+                        </TreeView.Resources>
                         <TreeView.ItemContainerStyle>
                             <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>

@@ -86,7 +86,7 @@ namespace ImageColorChanger.Managers
                             Id = file.Id,
                             Path = file.Path,
                             FileType = file.FileType,
-                            FolderName = folderName,
+                            FolderName = BuildFileSearchFolderTag(folderName, file.FileType),
                             FolderColor = folderColor,
                             ShowFolderTag = true
                         });
@@ -147,7 +147,7 @@ namespace ImageColorChanger.Managers
 
                 results.Add(new ProjectTreeItem
                 {
-                    Name = BuildMediaSearchTag(file.Name, file.FileType),
+                    Name = file.Name,
                     Icon = "",
                     IconKind = "File",
                     IconColor = "#90CAF9",
@@ -155,7 +155,7 @@ namespace ImageColorChanger.Managers
                     Id = file.Id,
                     Path = file.Path,
                     FileType = file.FileType,
-                    FolderName = folderName,
+                    FolderName = BuildFileSearchFolderTag(folderName, file.FileType),
                     FolderColor = folderColor,
                     ShowFolderTag = true
                 });
@@ -379,6 +379,25 @@ namespace ImageColorChanger.Managers
             }
 
             return $"{safeName} {tag}";
+        }
+
+        private static string BuildFileSearchFolderTag(string folderName, FileType fileType)
+        {
+            string safeFolderName = string.IsNullOrWhiteSpace(folderName) ? "根目录" : folderName.Trim();
+            string tag = fileType switch
+            {
+                FileType.Image => "[图片]",
+                FileType.Video => "[视频]",
+                FileType.Audio => "[音频]",
+                _ => "[文件]"
+            };
+
+            if (safeFolderName.EndsWith(tag, StringComparison.Ordinal))
+            {
+                return safeFolderName;
+            }
+
+            return $"{safeFolderName} {tag}";
         }
     }
 }

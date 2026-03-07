@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Globalization;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using TinyPinyin;
 
@@ -33,7 +35,7 @@ namespace ImageColorChanger.Managers
             var pattern1 = Regex.Match(name, @"^第(\d+)(?:首)?\s*(.*)$");
             if (pattern1.Success)
             {
-                prefixNumber = int.Parse(pattern1.Groups[1].Value);
+                prefixNumber = ParseSortNumberOrClamp(pattern1.Groups[1].Value);
                 string remainingText = pattern1.Groups[2].Value.Trim();
 
                 if (string.IsNullOrEmpty(remainingText))
@@ -47,7 +49,7 @@ namespace ImageColorChanger.Managers
                     var suffixMatch = Regex.Match(remainingText, @"(\d+)$");
                     if (suffixMatch.Success)
                     {
-                        suffixNumber = int.Parse(suffixMatch.Groups[1].Value);
+                        suffixNumber = ParseSortNumberOrClamp(suffixMatch.Groups[1].Value);
                         textPart = remainingText.Substring(0, suffixMatch.Index).Trim();
                     }
                     else
@@ -63,9 +65,9 @@ namespace ImageColorChanger.Managers
                 var pattern2 = Regex.Match(name, @"^(\d+)\.(.+?)(\d+)$");
                 if (pattern2.Success)
                 {
-                    prefixNumber = int.Parse(pattern2.Groups[1].Value);
+                    prefixNumber = ParseSortNumberOrClamp(pattern2.Groups[1].Value);
                     textPart = pattern2.Groups[2].Value;
-                    suffixNumber = int.Parse(pattern2.Groups[3].Value);
+                    suffixNumber = ParseSortNumberOrClamp(pattern2.Groups[3].Value);
                 }
                 else
                 {
@@ -73,7 +75,7 @@ namespace ImageColorChanger.Managers
                     var pattern3 = Regex.Match(name, @"^(\d+)(.+)$");
                     if (pattern3.Success)
                     {
-                        prefixNumber = int.Parse(pattern3.Groups[1].Value);
+                        prefixNumber = ParseSortNumberOrClamp(pattern3.Groups[1].Value);
                         textPart = pattern3.Groups[2].Value;
                         suffixNumber = 0;
                     }
@@ -84,7 +86,7 @@ namespace ImageColorChanger.Managers
                         if (pattern4.Success)
                         {
                             textPart = pattern4.Groups[1].Value.Replace("_", "");
-                            suffixNumber = int.Parse(pattern4.Groups[2].Value);
+                            suffixNumber = ParseSortNumberOrClamp(pattern4.Groups[2].Value);
                             prefixNumber = 0;
                         }
                         else
@@ -103,6 +105,31 @@ namespace ImageColorChanger.Managers
 
             // 返回排序键：(前缀数字, 中文拼音, 后缀数字)
             return (prefixNumber, pinyinPart.ToLower(), suffixNumber);
+        }
+
+        private static int ParseSortNumberOrClamp(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+
+            if (BigInteger.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out BigInteger parsed))
+            {
+                if (parsed > int.MaxValue)
+                {
+                    return int.MaxValue;
+                }
+
+                if (parsed < int.MinValue)
+                {
+                    return int.MinValue;
+                }
+
+                return (int)parsed;
+            }
+
+            return 0;
         }
 
         /// <summary>

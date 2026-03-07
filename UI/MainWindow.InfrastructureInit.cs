@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database;
@@ -17,6 +19,7 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const string StartupMigrationStampKey = "startup.migration.runner.version";
+        private const string StartupMediaNameRepairStampKey = "startup.media.displayname.repair.v1";
 
         private void InitializeDatabase()
         {
@@ -38,6 +41,7 @@ namespace ImageColorChanger.UI
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
                 dbManager.NormalizeFolderVideoPlayModes("random");
+                RunMediaDisplayNameRepairIfNeeded(dbManager);
 
                 // 迁移只在版本变化时执行，避免每次启动重复跑 schema 检查。
                 var currentVersion = Services.UpdateService.GetCurrentVersion() ?? "0.0.0.0";
@@ -91,6 +95,124 @@ namespace ImageColorChanger.UI
             {
                 MessageBox.Show($"数据库初始化失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void RunMediaDisplayNameRepairIfNeeded(DatabaseManager dbManager)
+        {
+            try
+            {
+                string repairedStamp = dbManager.GetSetting(StartupMediaNameRepairStampKey, "0") ?? "0";
+                if (string.Equals(repairedStamp, "1", StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                int repairedCount = RepairLegacyMediaDisplayNames();
+                dbManager.SaveSetting(StartupMediaNameRepairStampKey, "1");
+
+#if DEBUG
+                Debug.WriteLine($"[MediaNameRepair] completed. repaired={repairedCount}");
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                Debug.WriteLine($"[MediaNameRepair] failed: {ex.Message}");
+#endif
+            }
+        }
+
+        private int RepairLegacyMediaDisplayNames()
+        {
+            if (_dbContext == null)
+            {
+                return 0;
+            }
+
+            var mediaFiles = _dbContext.MediaFiles.ToList();
+            int repaired = 0;
+
+            foreach (var mediaFile in mediaFiles)
+            {
+                if (string.IsNullOrWhiteSpace(mediaFile?.Path))
+                {
+                    continue;
+                }
+
+                string physicalBaseName = Path.GetFileNameWithoutExtension(mediaFile.Path);
+                if (string.IsNullOrWhiteSpace(physicalBaseName))
+                {
+                    continue;
+                }
+
+                if (!TryRepairDisplayNameFromPath(mediaFile.Name, physicalBaseName, out string repairedName))
+                {
+                    continue;
+                }
+
+                if (string.Equals(repairedName, mediaFile.Name, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+#if DEBUG
+                Debug.WriteLine($"[MediaNameRepair] id={mediaFile.Id}, old='{mediaFile.Name}', new='{repairedName}', path='{mediaFile.Path}'");
+#endif
+                mediaFile.Name = repairedName;
+                repaired++;
+            }
+
+            if (repaired > 0)
+            {
+                _dbContext.SaveChanges();
+            }
+
+            return repaired;
+        }
+
+        private static bool TryRepairDisplayNameFromPath(string currentDisplayName, string physicalBaseName, out string repairedName)
+        {
+            repairedName = currentDisplayName;
+
+            if (string.IsNullOrWhiteSpace(physicalBaseName))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentDisplayName))
+            {
+                repairedName = physicalBaseName;
+                return true;
+            }
+
+            // 形如 "915. -48我心唯一爱慕"：序号后正文被错误截断，优先按物理文件名修复。
+            var seqMatch = Regex.Match(currentDisplayName, @"^\s*(\d+)\.\s*(.+)$");
+            if (seqMatch.Success)
+            {
+                string seq = seqMatch.Groups[1].Value;
+                string currentCore = seqMatch.Groups[2].Value.Trim();
+                if ((currentCore.StartsWith("-") || currentCore.StartsWith("_")) &&
+                    physicalBaseName.EndsWith(currentCore, StringComparison.OrdinalIgnoreCase) &&
+                    physicalBaseName.Length > currentCore.Length)
+                {
+                    repairedName = $"{seq}. {physicalBaseName}";
+                    return true;
+                }
+
+                return false;
+            }
+
+            // 无序号但正文以连接符开头，且物理名以该字符串结尾，视为截断。
+            string trimmed = currentDisplayName.Trim();
+            if ((trimmed.StartsWith("-") || trimmed.StartsWith("_")) &&
+                physicalBaseName.EndsWith(trimmed, StringComparison.OrdinalIgnoreCase) &&
+                physicalBaseName.Length > trimmed.Length)
+            {
+                repairedName = physicalBaseName;
+                return true;
+            }
+
+            return false;
         }
 
         private void InitializeScreenSelector()

@@ -391,26 +391,7 @@ namespace ImageColorChanger.UI
         private void OpenCurrentMediaFileLocation()
         {
             string currentPath = GetCurrentMediaPathForLocation();
-            if (string.IsNullOrWhiteSpace(currentPath))
-            {
-                ShowStatus("当前未关联文件路径");
-                return;
-            }
-
-            if (!System.IO.File.Exists(currentPath) && !System.IO.Directory.Exists(currentPath))
-            {
-                ShowStatus("当前文件不存在");
-                return;
-            }
-
-            try
-            {
-                OpenPathInExplorer(currentPath);
-            }
-            catch (Exception ex)
-            {
-                ShowStatus($"打开文件位置失败: {ex.Message}");
-            }
+            _ = TryOpenFileLocation(currentPath, "当前未关联文件路径", "当前文件不存在");
         }
 
         private string GetCurrentMediaPathForLocation()

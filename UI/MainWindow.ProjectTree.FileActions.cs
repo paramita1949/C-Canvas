@@ -39,25 +39,35 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OpenFileLocation(ProjectTreeItem item)
         {
-            if (item == null || string.IsNullOrWhiteSpace(item.Path))
+            _ = TryOpenFileLocation(
+                item?.Path,
+                "文件路径无效",
+                item == null ? "文件不存在" : $"文件不存在: {item.Name}");
+        }
+
+        private bool TryOpenFileLocation(string path, string invalidPathMessage, string notFoundMessage)
+        {
+            if (string.IsNullOrWhiteSpace(path))
             {
-                ShowStatus("文件路径无效");
-                return;
+                ShowStatus(invalidPathMessage);
+                return false;
             }
 
-            if (!System.IO.File.Exists(item.Path) && !System.IO.Directory.Exists(item.Path))
+            if (!System.IO.File.Exists(path) && !System.IO.Directory.Exists(path))
             {
-                ShowStatus($"文件不存在: {item.Name}");
-                return;
+                ShowStatus(notFoundMessage);
+                return false;
             }
 
             try
             {
-                OpenPathInExplorer(item.Path);
+                OpenPathInExplorer(path);
+                return true;
             }
             catch (Exception ex)
             {
                 ShowStatus($"打开文件位置失败: {ex.Message}");
+                return false;
             }
         }
 

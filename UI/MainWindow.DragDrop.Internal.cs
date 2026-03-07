@@ -976,6 +976,11 @@ namespace ImageColorChanger.UI
                     
                     // 构建新显示名称：序号. 原始文件名（去序号，不带扩展名）
                     string newDisplayName = $"{newNumber}. {nameWithoutNumber}";
+
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[RenameFilesWithSequenceNumbers] idx={newNumber}, physical='{originalFileName}', normalized='{nameWithoutNumber}', display='{newDisplayName}'");
+#endif
                     
                     // 如果显示名称没有变化，跳过
                     if (newDisplayName == file.Name)
@@ -1026,6 +1031,9 @@ namespace ImageColorChanger.UI
             var match1 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+\.\s*(.+)$");
             if (match1.Success)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=dot-prefix, before='{name}', after='{match1.Groups[1].Value.Trim()}'");
+#endif
                 return match1.Groups[1].Value.Trim();
             }
             
@@ -1033,13 +1041,20 @@ namespace ImageColorChanger.UI
             var match2 = System.Text.RegularExpressions.Regex.Match(name, @"^第\d+(?:首)?\s*(.+)$");
             if (match2.Success)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=chinese-seq, before='{name}', after='{match2.Groups[1].Value.Trim()}'");
+#endif
                 return match2.Groups[1].Value.Trim();
             }
             
-            // 格式3: "10文件名"（开头数字+文字，但没有点或空格）
-            var match3 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+([^\d\s].*)$");
+            // 格式3: "10文件名"（开头数字+中英文文字，但没有点或空格）
+            // 注意：不匹配 '-' '_' 等连接符，避免把 "265-48我心唯一爱慕" 误判为序号前缀。
+            var match3 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+([A-Za-z\u4E00-\u9FFF].*)$");
             if (match3.Success)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=compact-prefix, before='{name}', after='{match3.Groups[1].Value.Trim()}'");
+#endif
                 return match3.Groups[1].Value.Trim();
             }
             
