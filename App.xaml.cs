@@ -33,10 +33,6 @@ namespace ImageColorChanger
         /// </summary>
         protected override void OnStartup(StartupEventArgs e)
         {
-#if DEBUG
-            // 启动性能日志默认写盘，便于直接定位启动卡顿阶段。
-            AppContext.SetSwitch("Canvas.StartupPerfLogger.Enabled", true);
-#endif
             StartupPerfLogger.Initialize("App.OnStartup.Begin");
 
             //  在 WPF 初始化之前设置 Per-Monitor DPI Awareness

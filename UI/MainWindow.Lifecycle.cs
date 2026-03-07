@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using ImageColorChanger.Services;
@@ -12,6 +16,9 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private const string BaseWindowTitle = "咏慕投影";
+        private const string DeferredSyncFolderQuickStampSettingKey = "ProjectTree.DeferredSyncFolderQuickStamps";
+        private const string DeferredSyncLastFullUtcTicksSettingKey = "ProjectTree.DeferredSyncLastFullUtcTicks";
+        private static readonly TimeSpan DeferredSyncForceFullInterval = TimeSpan.FromHours(12);
         private VersionInfo _pendingTitleUpdateVersionInfo;
         private bool _startupFolderSyncDeferredQueued;
         #region 窗口生命周期事件
@@ -115,8 +122,9 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadSearchScopes.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
-            StartDeferredVideoPlayerInitialization();
-            StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Queued", "Reason=StartupCoreReady");
+            // 静默后台预热 LibVLC（不占 UI 线程），降低首次播放初始化开销。
+            StartDeferredVideoPlayerInitialization(delayMs: 2000);
+            StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Queued", "Reason=StartupCoreReady; DelayMs=2000");
             StartDeferredMediaPlaylistPrewarm();
             StartupPerfLogger.Mark("MainWindow.VideoPlaylist.Prewarm.Queued", "Reason=StartupCoreReady");
             QueueDeferredStartupFolderSync();
@@ -160,6 +168,34 @@ namespace ImageColorChanger.UI
                 }
 
                 var totalSw = System.Diagnostics.Stopwatch.StartNew();
+                var quickCheckSw = System.Diagnostics.Stopwatch.StartNew();
+                var quickStamps = CaptureDeferredSyncFolderQuickStamps();
+                bool hasQuickStampBaseline = HasDeferredSyncQuickStampBaseline();
+                if (!hasQuickStampBaseline && quickStamps.Count > 0)
+                {
+                    SaveDeferredSyncQuickStampSnapshot(quickStamps);
+                    SaveDeferredSyncLastFullUtc(DateTime.UtcNow);
+                    StartupPerfLogger.Mark(
+                        "MainWindow.StartupFolderSync.Deferred.QuickCheck.Completed",
+                        $"ElapsedMs={quickCheckSw.ElapsedMilliseconds}; FolderCount={quickStamps.Count}; QuickStampChanged=False; ForceFullSync=False; BaselineInitialized=True");
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.SyncAllFolders.Skipped", "Reason=QuickStampBaselineInitialized");
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Completed", $"ElapsedMs={totalSw.ElapsedMilliseconds}; SkippedFullSync=True");
+                    return;
+                }
+
+                bool forceFullSync = ShouldForceDeferredFullSync();
+                bool quickStampChanged = HasDeferredSyncQuickStampChanged(quickStamps);
+                StartupPerfLogger.Mark(
+                    "MainWindow.StartupFolderSync.Deferred.QuickCheck.Completed",
+                    $"ElapsedMs={quickCheckSw.ElapsedMilliseconds}; FolderCount={quickStamps.Count}; QuickStampChanged={quickStampChanged}; ForceFullSync={forceFullSync}; BaselineInitialized=False");
+
+                if (!quickStampChanged && !forceFullSync)
+                {
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.SyncAllFolders.Skipped", "Reason=QuickStampUnchanged");
+                    StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Deferred.Completed", $"ElapsedMs={totalSw.ElapsedMilliseconds}; SkippedFullSync=True");
+                    return;
+                }
+
                 var syncSw = System.Diagnostics.Stopwatch.StartNew();
                 var dbPath = DatabaseManagerService.GetDatabasePath();
                 var syncResult = await Task.Run(() =>
@@ -173,6 +209,8 @@ namespace ImageColorChanger.UI
                 StartupPerfLogger.Mark(
                     "MainWindow.StartupFolderSync.Deferred.SyncAllFolders.Completed",
                     $"ElapsedMs={syncSw.ElapsedMilliseconds}; Added={added}; Removed={removed}; Updated={updated}");
+                SaveDeferredSyncQuickStampSnapshot(quickStamps);
+                SaveDeferredSyncLastFullUtc(DateTime.UtcNow);
 
                 if (_startupDeferredWorkCts.IsCancellationRequested)
                 {
@@ -208,6 +246,154 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 StartupPerfLogger.Error("MainWindow.StartupFolderSync.Deferred.Failed", ex);
+            }
+        }
+
+        private Dictionary<int, long> CaptureDeferredSyncFolderQuickStamps()
+        {
+            var result = new Dictionary<int, long>();
+            try
+            {
+                var folders = DatabaseManagerService.GetAllFolders();
+                foreach (var folder in folders)
+                {
+                    long stamp = 0;
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(folder.Path) && Directory.Exists(folder.Path))
+                        {
+                            stamp = Directory.GetLastWriteTimeUtc(folder.Path).Ticks;
+                        }
+                    }
+                    catch
+                    {
+                        stamp = 0;
+                    }
+
+                    result[folder.Id] = stamp;
+                }
+            }
+            catch
+            {
+            }
+
+            return result;
+        }
+
+        private bool HasDeferredSyncQuickStampChanged(Dictionary<int, long> currentStamps)
+        {
+            var previous = LoadDeferredSyncQuickStampSnapshot();
+            if (previous.Count != currentStamps.Count)
+            {
+                return true;
+            }
+
+            foreach (var pair in currentStamps)
+            {
+                if (!previous.TryGetValue(pair.Key, out long previousStamp) || previousStamp != pair.Value)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasDeferredSyncQuickStampBaseline()
+        {
+            try
+            {
+                string raw = DatabaseManagerService.GetUISetting(DeferredSyncFolderQuickStampSettingKey, string.Empty) ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(raw);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private Dictionary<int, long> LoadDeferredSyncQuickStampSnapshot()
+        {
+            var result = new Dictionary<int, long>();
+            try
+            {
+                string raw = DatabaseManagerService.GetUISetting(DeferredSyncFolderQuickStampSettingKey, string.Empty) ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    return result;
+                }
+
+                foreach (string token in raw.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var pair = token.Split('=');
+                    if (pair.Length != 2)
+                    {
+                        continue;
+                    }
+
+                    if (!int.TryParse(pair[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int folderId) || folderId <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (!long.TryParse(pair[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long stamp))
+                    {
+                        continue;
+                    }
+
+                    result[folderId] = stamp;
+                }
+            }
+            catch
+            {
+            }
+
+            return result;
+        }
+
+        private void SaveDeferredSyncQuickStampSnapshot(Dictionary<int, long> stamps)
+        {
+            try
+            {
+                string serialized = string.Join("|", stamps
+                    .OrderBy(p => p.Key)
+                    .Select(p => $"{p.Key.ToString(CultureInfo.InvariantCulture)}={p.Value.ToString(CultureInfo.InvariantCulture)}"));
+                DatabaseManagerService.SaveUISetting(DeferredSyncFolderQuickStampSettingKey, serialized);
+            }
+            catch
+            {
+            }
+        }
+
+        private bool ShouldForceDeferredFullSync()
+        {
+            try
+            {
+                string rawTicks = DatabaseManagerService.GetUISetting(DeferredSyncLastFullUtcTicksSettingKey, string.Empty) ?? string.Empty;
+                if (!long.TryParse(rawTicks, NumberStyles.Integer, CultureInfo.InvariantCulture, out long ticks) || ticks <= 0)
+                {
+                    return true;
+                }
+
+                DateTime lastUtc = new DateTime(ticks, DateTimeKind.Utc);
+                return DateTime.UtcNow - lastUtc >= DeferredSyncForceFullInterval;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private void SaveDeferredSyncLastFullUtc(DateTime utcNow)
+        {
+            try
+            {
+                DatabaseManagerService.SaveUISetting(
+                    DeferredSyncLastFullUtcTicksSettingKey,
+                    utcNow.Ticks.ToString(CultureInfo.InvariantCulture));
+            }
+            catch
+            {
             }
         }
 

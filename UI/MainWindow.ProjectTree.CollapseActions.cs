@@ -13,14 +13,7 @@ namespace ImageColorChanger.UI
         [System.Diagnostics.Conditional("DEBUG")]
         private static void LogCollapseDebug(string phase, ProjectTreeItem item, string extra = "")
         {
-            if (item == null)
-            {
-                System.Diagnostics.Debug.WriteLine($"[TreeCollapseDebug] {phase} item=<null> {extra}");
-                return;
-            }
-
-            System.Diagnostics.Debug.WriteLine(
-                $"[TreeCollapseDebug] {phase} id={item.Id} name='{item.Name}' virtual={item.IsVirtualFolder} expanded={item.IsExpanded} children={item.Children?.Count ?? 0} {extra}");
+            // 暂时关闭项目树折叠调试日志，避免调试输出噪音。
         }
 
         /// <summary>

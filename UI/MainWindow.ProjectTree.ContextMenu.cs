@@ -280,21 +280,24 @@ namespace ImageColorChanger.UI
             syncItem.Click += (s, args) => SyncFolder(item);
             contextMenu.Items.Add(syncItem);
 
-            AppendFolderHierarchyToggleMenu(contextMenu, item);
+            AppendFolderHierarchyModeMenu(contextMenu, item);
         }
 
         private void BuildVirtualFolderContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
-            AppendFolderHierarchyToggleMenu(contextMenu, item);
+            AppendFolderHierarchyModeMenu(contextMenu, item);
 
-            contextMenu.Items.Add(new Separator());
+            if (contextMenu.Items.Count > 0)
+            {
+                contextMenu.Items.Add(new Separator());
+            }
 
             var toggleExpandItem = new MenuItem { Header = item.IsExpanded ? "折叠子目录" : "展开子目录" };
             toggleExpandItem.Click += (s, args) => item.IsExpanded = !item.IsExpanded;
             contextMenu.Items.Add(toggleExpandItem);
         }
 
-        private void AppendFolderHierarchyToggleMenu(ContextMenu contextMenu, ProjectTreeItem item)
+        private void AppendFolderHierarchyModeMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
             int rootFolderId = ResolveRootFolderId(item);
             if (rootFolderId <= 0)
@@ -302,18 +305,37 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            var rootFolderItem = _projectTreeItems.FirstOrDefault(i =>
+                i.Type == TreeItemType.Folder &&
+                !i.IsVirtualFolder &&
+                i.Id == rootFolderId);
+
             bool hierarchyEnabled = IsFolderHierarchyEnabled(rootFolderId);
-            if (!hierarchyEnabled && item?.IsVirtualFolder != true && item?.HasNestedFolders != true)
+            bool hasNestedFolders = rootFolderItem?.HasNestedFolders == true;
+            if (!hasNestedFolders && !hierarchyEnabled)
             {
                 return;
             }
 
-            string header = hierarchyEnabled ? "切换为穿透显示" : "切换为多层级展开";
-            var hierarchyItem = new MenuItem { Header = header };
-            hierarchyItem.Click += (s, args) => ToggleFolderHierarchyMode(item);
-
             contextMenu.Items.Add(new Separator());
-            contextMenu.Items.Add(hierarchyItem);
+
+            var singleLevelItem = new MenuItem
+            {
+                Header = "单级显示",
+                IsCheckable = true,
+                IsChecked = !hierarchyEnabled
+            };
+            singleLevelItem.Click += (s, args) => SetFolderHierarchyMode(item, false);
+            contextMenu.Items.Add(singleLevelItem);
+
+            var multiLevelItem = new MenuItem
+            {
+                Header = "多级显示",
+                IsCheckable = true,
+                IsChecked = hierarchyEnabled
+            };
+            multiLevelItem.Click += (s, args) => SetFolderHierarchyMode(item, true);
+            contextMenu.Items.Add(multiLevelItem);
         }
 
         private void BuildFileContextMenu(ContextMenu contextMenu, ProjectTreeItem item)

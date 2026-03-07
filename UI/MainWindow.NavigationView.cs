@@ -676,7 +676,7 @@ namespace ImageColorChanger.UI
             return item.Id > 0 ? item.Id : 0;
         }
 
-        private void ToggleFolderHierarchyMode(ProjectTreeItem item)
+        private void SetFolderHierarchyMode(ProjectTreeItem item, bool enabled)
         {
             int rootFolderId = ResolveRootFolderId(item);
             if (rootFolderId <= 0)
@@ -684,10 +684,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            bool enabled = !IsFolderHierarchyEnabled(rootFolderId);
+            bool current = IsFolderHierarchyEnabled(rootFolderId);
+            if (current == enabled)
+            {
+                return;
+            }
+
             SetFolderHierarchyEnabled(rootFolderId, enabled);
             ReloadProjectsPreservingTreeState(TreeItemType.Folder, rootFolderId);
-            ShowStatus(enabled ? "已切换为多层级展开模式" : "已切换为穿透平铺模式");
+            ShowStatus(enabled ? "已切换为多层级展开模式" : "已切换为单级穿透模式");
         }
 
         /// <summary>

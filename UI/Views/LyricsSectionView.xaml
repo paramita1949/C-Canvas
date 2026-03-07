@@ -163,16 +163,16 @@
                             <StackPanel x:Name="LyricsSliceToolbar"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center">
-                                <Button x:Name="BtnLyricsSliceToggle"
-                                        Content="切片"
-                                        Width="82" Height="40"
-                                        Margin="0,0,8,0"
-                                        FontSize="16"
+                                <Button x:Name="BtnLyricsSliceRuleDefault"
+                                        Content="默认"
+                                        Width="68" Height="40"
+                                        Margin="0,0,6,0"
+                                        FontSize="15"
                                         Foreground="White"
                                         Background="#2C2C2C"
                                         BorderBrush="#444444"
                                         BorderThickness="1"
-                                        ToolTip="启用/关闭切片模式"/>
+                                        ToolTip="切回单画面"/>
                                 <Button x:Name="BtnLyricsSliceRule1"
                                         Content="1行"
                                         Width="56" Height="40"
@@ -213,16 +213,6 @@
                                         BorderBrush="#444444"
                                         BorderThickness="1"
                                         ToolTip="每4行切片"/>
-                                <Button x:Name="BtnLyricsSliceRuleCustom"
-                                        Content="自定义"
-                                        Width="76" Height="40"
-                                        Margin="0,0,6,0"
-                                        FontSize="14"
-                                        Foreground="White"
-                                        Background="#2C2C2C"
-                                        BorderBrush="#444444"
-                                        BorderThickness="1"
-                                        ToolTip="滚动鼠标切换自定义切片数量"/>
                             </StackPanel>
 
                             <StackPanel x:Name="LyricsPageNavPanel"

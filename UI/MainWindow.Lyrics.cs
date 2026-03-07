@@ -47,9 +47,10 @@ namespace ImageColorChanger.UI
         private WpfTextBox _activeLyricsEditor = null; // 当前激活的歌词输入框
         private bool _lyricsSplitBorderVisible = true; // 是否显示分割线
         private bool _lyricsPagingMode = false; // 分页模式开关（仅分割模式下有效）
-        private bool _lyricsSliceModeEnabled = false; // 单画面切片模式
-        private int _lyricsSliceLinesPerPage = 2; // 每片行数（支持自定义）
+        private bool _lyricsSliceModeEnabled = true; // 单画面切片模式（单画面默认开启）
+        private int _lyricsSliceLinesPerPage = 0; // 0=默认单画面；1-4=按行切片
         private bool _lyricsSliceRuleFromCustom = false; // 当前切片规则是否来自自定义滚动
+        private readonly HashSet<int> _lyricsSliceCutPoints = new(); // 自由切片切点（内容行号，1-based）
         private readonly ObservableCollection<LyricsSliceViewItem> _lyricsSliceItems = new();
         private int _lyricsCurrentSliceIndex = 0; // 当前切片索引
         private bool _isUpdatingLyricsSliceList = false;
@@ -80,6 +81,8 @@ namespace ImageColorChanger.UI
         private bool _lyricsWhitespaceNormalizeQueued = false; // 防止空白行规范化重复排队
         private bool _lyricsSliceRegenerateQueued = false; // 防止切片重算重复排队
         private bool _lyricsProjectionRenderQueued = false; // 防止文本输入时重复触发投影渲染
+        private string _lyricsSingleRawText = string.Empty; // 单画面原文快照
+        private bool _lyricsSingleRawTextInitialized = false;
         private string _lyricsClipboardFallbackText = string.Empty; // 系统剪贴板不可用时的兜底缓冲
         private string _lyricsPendingClipboardText = string.Empty;
         private bool _lyricsClipboardUpdateQueued;
@@ -124,8 +127,10 @@ namespace ImageColorChanger.UI
             public List<LyricsSplitContentData> SplitContents { get; set; } = new();
             public int ActiveMode { get; set; } = (int)ViewSplitMode.Single;
             public bool SliceModeEnabled { get; set; } = false;
-            public int SliceLinesPerPage { get; set; } = 2;
+            public int SliceLinesPerPage { get; set; } = 0;
             public bool SliceRuleFromCustom { get; set; } = false;
+            public bool SliceUseFreeCutPoints { get; set; } = false;
+            public List<int> SliceCutPoints { get; set; } = new();
             public int SliceCurrentIndex { get; set; } = 0;
             public double MainScreenFontSize { get; set; } = DefaultMainLyricsFontSize;
             public int ThemeMode { get; set; } = 0; // 0=黑底白字, 1=白底黑字
@@ -1029,6 +1034,14 @@ namespace ImageColorChanger.UI
                 UpdateLyricsProjectionFontSizeDisplay();
                 UpdateAlignmentButtonsState(LyricsTextBox.TextAlignment);
                 LyricsScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+                _lyricsSliceModeEnabled = true;
+                _lyricsSliceCutPoints.Clear();
+                if (_lyricsSliceLinesPerPage <= 0)
+                {
+                    _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
+                    _lyricsSingleRawTextInitialized = true;
+                }
+                GenerateLyricsSlicesFromSingleText(preserveIndex: true, applyMainScreenSpacing: false);
                 UpdateLyricsSliceUiState();
                 UpdatePagingNavVisibility();
                 return;
@@ -1791,6 +1804,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (sender == LyricsTextBox
+                && _lyricsSplitMode == (int)ViewSplitMode.Single
+                && !_isApplyingSliceVisualSpacing
+                && _lyricsSliceLinesPerPage <= 0)
+            {
+                _lyricsSingleRawText = LyricsTextBox?.Text ?? string.Empty;
+                _lyricsSingleRawTextInitialized = true;
+            }
+
             if (sender == LyricsTextBox && _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
             {
                 QueueLyricsSliceRegeneration();
@@ -2290,9 +2312,8 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            if (TryHandleLyricsCtrlWheelScroll(sender, e))
             {
-                AdjustLyricsFontSizeByWheel(e);
                 return;
             }
 
@@ -2303,6 +2324,84 @@ namespace ImageColorChanger.UI
                     : NormalizeSliceIndexForLoop(_lyricsCurrentSliceIndex - 1);
                 GoToLyricsSlice(target);
                 e.Handled = true;
+            }
+        }
+
+        private void LyricsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            TryHandleLyricsCtrlWheelScroll(sender, e);
+        }
+
+        private bool TryHandleLyricsCtrlWheelScroll(object sender, MouseWheelEventArgs e)
+        {
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                return false;
+            }
+
+            if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                return false;
+            }
+
+            if (LyricsScrollViewer == null)
+            {
+                Debug.WriteLine("[LyricsCtrlWheel] ScrollViewer=null");
+                return false;
+            }
+
+            double before = LyricsScrollViewer.VerticalOffset;
+            double extent = LyricsScrollViewer.ExtentHeight;
+            double viewport = LyricsScrollViewer.ViewportHeight;
+            double max = Math.Max(0, extent - viewport);
+            if (max > 0.1)
+            {
+                double delta = e.Delta > 0 ? -120 : 120;
+                double target = Math.Clamp(before + delta, 0, max);
+                LyricsScrollViewer.ScrollToVerticalOffset(target);
+                double after = LyricsScrollViewer.VerticalOffset;
+                Debug.WriteLine($"[LyricsCtrlWheel] mode=outer sender={sender?.GetType().Name}, delta={e.Delta}, modifiers={Keyboard.Modifiers}, before={before:F1}, target={target:F1}, after={after:F1}, max={max:F1}");
+            }
+            else
+            {
+                bool moved = ScrollLyricsTextBoxInternallyByWheel(e.Delta);
+                Debug.WriteLine($"[LyricsCtrlWheel] mode=inner sender={sender?.GetType().Name}, delta={e.Delta}, modifiers={Keyboard.Modifiers}, outerMax={max:F1}, moved={moved}");
+            }
+
+            e.Handled = true;
+            return true;
+        }
+
+        private bool ScrollLyricsTextBoxInternallyByWheel(int wheelDelta)
+        {
+            if (LyricsTextBox == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                int before = LyricsTextBox.GetFirstVisibleLineIndex();
+                int step = Math.Max(1, Math.Abs(wheelDelta) / 60); // 120 -> 2 lines
+                bool down = wheelDelta < 0;
+                for (int i = 0; i < step; i++)
+                {
+                    if (down)
+                    {
+                        LyricsTextBox.LineDown();
+                    }
+                    else
+                    {
+                        LyricsTextBox.LineUp();
+                    }
+                }
+
+                int after = LyricsTextBox.GetFirstVisibleLineIndex();
+                return after != before;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -2649,10 +2748,13 @@ namespace ImageColorChanger.UI
                         NormalizeSplitPages();
                         _lyricsCurrentPageIndex = 0;
                         SetLyricsSplitMode((ViewSplitMode)modeData.ActiveMode, keepTextBridge: false);
-                        _lyricsSliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 99);
-                        _lyricsSliceRuleFromCustom = modeData.SliceRuleFromCustom;
+                        _lyricsSliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 0, 4);
+                        _lyricsSliceRuleFromCustom = false;
+                        _lyricsSliceCutPoints.Clear();
                         _lyricsCurrentSliceIndex = Math.Max(0, modeData.SliceCurrentIndex);
-                        _lyricsSliceModeEnabled = modeData.SliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single;
+                        _lyricsSliceModeEnabled = _lyricsSplitMode == (int)ViewSplitMode.Single;
+                        _lyricsSingleRawText = modeData.SingleContent ?? string.Empty;
+                        _lyricsSingleRawTextInitialized = true;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSizeForProject(modeData.MainScreenFontSize);
                         loadedThemeName = string.IsNullOrWhiteSpace(modeData.ThemeName) ? "黑色" : modeData.ThemeName;
                         loadedThemeHex = string.IsNullOrWhiteSpace(modeData.ThemeBackgroundHex)
@@ -2670,9 +2772,12 @@ namespace ImageColorChanger.UI
                         var loadedMode = (ViewSplitMode)_lyricsSplitPages.First().SplitMode;
                         SetLyricsSplitMode(loadedMode, keepTextBridge: false);
                         _lyricsSliceModeEnabled = false;
-                        _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceLinesPerPage = 0;
                         _lyricsSliceRuleFromCustom = false;
+                        _lyricsSliceCutPoints.Clear();
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
+                        _lyricsSingleRawTextInitialized = true;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
@@ -2685,9 +2790,12 @@ namespace ImageColorChanger.UI
                         _lyricsCurrentPageIndex = 0;
                         SetLyricsSplitMode((ViewSplitMode)splitData.SplitMode, keepTextBridge: false);
                         _lyricsSliceModeEnabled = false;
-                        _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceLinesPerPage = 0;
                         _lyricsSliceRuleFromCustom = false;
+                        _lyricsSliceCutPoints.Clear();
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
+                        _lyricsSingleRawTextInitialized = true;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
@@ -2701,9 +2809,12 @@ namespace ImageColorChanger.UI
                         LyricsSplitTextBox3.Text = "";
                         LyricsSplitTextBox4.Text = "";
                         _lyricsSliceModeEnabled = false;
-                        _lyricsSliceLinesPerPage = 2;
+                        _lyricsSliceLinesPerPage = 0;
                         _lyricsSliceRuleFromCustom = false;
+                        _lyricsSliceCutPoints.Clear();
                         _lyricsCurrentSliceIndex = 0;
+                        _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
+                        _lyricsSingleRawTextInitialized = true;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
@@ -2784,9 +2895,12 @@ namespace ImageColorChanger.UI
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
                     _lyricsSliceModeEnabled = false;
-                    _lyricsSliceLinesPerPage = 2;
+                    _lyricsSliceLinesPerPage = 0;
                     _lyricsSliceRuleFromCustom = false;
+                    _lyricsSliceCutPoints.Clear();
                     _lyricsCurrentSliceIndex = 0;
+                    _lyricsSingleRawText = string.Empty;
+                    _lyricsSingleRawTextInitialized = true;
                     _lyricsThemeName = "黑色";
                     _lyricsThemeBackgroundHex = "#000000";
                     EnforceMainLyricsEditorFontSize();
@@ -2855,9 +2969,12 @@ namespace ImageColorChanger.UI
             LyricsSplitTextBox3.Text = "";
             LyricsSplitTextBox4.Text = "";
             _lyricsSliceModeEnabled = false;
-            _lyricsSliceLinesPerPage = 2;
+            _lyricsSliceLinesPerPage = 0;
             _lyricsSliceRuleFromCustom = false;
+            _lyricsSliceCutPoints.Clear();
             _lyricsCurrentSliceIndex = 0;
+            _lyricsSingleRawText = string.Empty;
+            _lyricsSingleRawTextInitialized = true;
             _lyricsThemeName = "黑色";
             _lyricsThemeBackgroundHex = "#000000";
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
@@ -2929,9 +3046,11 @@ namespace ImageColorChanger.UI
                         })
                         .ToList(),
                     ActiveMode = _lyricsSplitMode,
-                    SliceModeEnabled = _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single,
-                    SliceLinesPerPage = Math.Clamp(_lyricsSliceLinesPerPage, 1, 99),
-                    SliceRuleFromCustom = _lyricsSliceRuleFromCustom,
+                    SliceModeEnabled = _lyricsSplitMode == (int)ViewSplitMode.Single,
+                    SliceLinesPerPage = Math.Clamp(_lyricsSliceLinesPerPage, 0, 4),
+                    SliceRuleFromCustom = false,
+                    SliceUseFreeCutPoints = false,
+                    SliceCutPoints = new List<int>(),
                     SliceCurrentIndex = Math.Max(0, _lyricsCurrentSliceIndex),
                     MainScreenFontSize = Math.Clamp(_lyricsMainScreenFontSize, MinMainLyricsFontSize, MaxMainLyricsFontSize),
                     ThemeMode = string.Equals(_lyricsThemeName, "白色", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
@@ -3004,6 +3123,18 @@ namespace ImageColorChanger.UI
                 return text;
             }
 
+            // 固定 1/2/3/4 显示时，主编辑区是可视化文本，持久化应使用原文快照。
+            if (_lyricsSliceLinesPerPage > 0 && _lyricsSingleRawTextInitialized)
+            {
+                return _lyricsSingleRawText ?? string.Empty;
+            }
+
+            // 默认模式（空白行切片）直接保存编辑区原文，保留空白行。
+            if (_lyricsSliceLinesPerPage <= 0)
+            {
+                return text;
+            }
+
             string plain = BuildPlainLyricsTextFromSliceItems();
             if (!string.IsNullOrWhiteSpace(plain))
             {
@@ -3012,6 +3143,8 @@ namespace ImageColorChanger.UI
 
             var lines = text.Replace("\r\n", "\n").Replace('\r', '\n')
                 .Split('\n')
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(LyricsSlicePlanner.StripDisplayPrefix)
                 .Where(line => !string.IsNullOrWhiteSpace(line));
             return string.Join(Environment.NewLine, lines);
         }

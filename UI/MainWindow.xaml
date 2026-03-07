@@ -915,8 +915,15 @@
                                 <!-- 纵向布局：第一行是图标+文件名，第二行是文件夹标签 -->
                                 <StackPanel Orientation="Vertical" Margin="0,2">
                                     <!-- 第一行：图标 + 文件/文件夹名称 -->
-                                    <StackPanel Orientation="Horizontal">
-                                        <Image Source="{Binding IconImagePath, Converter={StaticResource ThumbnailPathToImageSourceConverter}}"
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Image Grid.Column="0"
+                                               Source="{Binding IconImagePath, Converter={StaticResource ThumbnailPathToImageSourceConverter}}"
                                                Width="22"
                                                Height="22"
                                                Margin="0,0,10,0"
@@ -933,7 +940,8 @@
                                             </Image.Style>
                                         </Image>
 
-                                        <materialDesign:PackIcon Kind="{Binding IconKind}" 
+                                        <materialDesign:PackIcon Grid.Column="1"
+                                                                Kind="{Binding IconKind}" 
                                                                 Width="22" 
                                                                 Height="22" 
                                                                 Margin="0,0,10,0"
@@ -987,7 +995,7 @@
                                         </materialDesign:PackIcon>
 
                                         <!-- 文件/文件夹名称 - 支持内联编辑 -->
-                                        <Grid>
+                                        <Grid Grid.Column="2">
                                             <!-- 显示模式：TextBlock -->
                                             <TextBlock Text="{Binding Name}" 
                                                        VerticalAlignment="Center">
@@ -1051,7 +1059,8 @@
                                                 </TextBox.Style>
                                             </TextBox>
                                         </Grid>
-                                    </StackPanel>
+
+                                    </Grid>
 
                                     <!-- 第二行：文件夹标签（搜索时显示，在名称下方）-->
                                     <Border Background="{Binding FolderColor}" 

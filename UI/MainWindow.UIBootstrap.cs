@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using System.Windows;
 using ImageColorChanger.Core;
@@ -17,6 +18,9 @@ namespace ImageColorChanger.UI
     {
         private readonly CancellationTokenSource _startupDeferredWorkCts = new();
         private bool _isDeferredStartupUiWorkScheduled;
+        private bool _videoPlayerDeferredInitQueued;
+        private long _lastProjectTreeInteractionUtcTicks;
+        private static readonly TimeSpan VideoPrewarmQuietWindow = TimeSpan.FromSeconds(4);
 
         private void InitializeUI()
         {
@@ -120,24 +124,84 @@ namespace ImageColorChanger.UI
             }));
         }
 
-        private void StartDeferredVideoPlayerInitialization()
+        private void StartDeferredVideoPlayerInitialization(int delayMs = 2000)
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            if (_videoPlayerDeferredInitQueued)
             {
-                if (_startupDeferredWorkCts.IsCancellationRequested)
+                return;
+            }
+
+            _videoPlayerDeferredInitQueued = true;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    if (delayMs > 0)
+                    {
+                        await Task.Delay(delayMs, _startupDeferredWorkCts.Token);
+                    }
+
+                    await WaitForProjectTreeIdleAsync(_startupDeferredWorkCts.Token);
+
+                    if (_startupDeferredWorkCts.IsCancellationRequested)
+                    {
+                        StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
+                        return;
+                    }
+
+                    if (_videoPlayerManager != null)
+                    {
+                        StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=AlreadyInitialized");
+                        return;
+                    }
+
+                    var sw = Stopwatch.StartNew();
+                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Begin", "Reason=DeferredAfterStartupCoreReady");
+                    VideoPlayerManager.PrewarmLibVlc();
+                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Completed", $"ElapsedMs={sw.ElapsedMilliseconds}");
+                }
+                catch (TaskCanceledException)
                 {
                     StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
-                    return;
                 }
-
-                if (_videoPlayerManager != null)
+                catch (OperationCanceledException)
                 {
-                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Skipped", "Reason=AlreadyInitialized");
+                    StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
+                }
+            });
+        }
+
+        private async Task WaitForProjectTreeIdleAsync(CancellationToken token)
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                var idle = GetProjectTreeIdleDuration();
+                if (idle >= VideoPrewarmQuietWindow)
+                {
                     return;
                 }
 
-                EnsureVideoPlayerInitialized("DeferredAfterStartupCoreReady");
-            }));
+                await Task.Delay(800, token);
+            }
+        }
+
+        private TimeSpan GetProjectTreeIdleDuration()
+        {
+            long ticks = Interlocked.Read(ref _lastProjectTreeInteractionUtcTicks);
+            if (ticks <= 0)
+            {
+                return TimeSpan.MaxValue;
+            }
+
+            var lastUtc = new DateTime(ticks, DateTimeKind.Utc);
+            var delta = DateTime.UtcNow - lastUtc;
+            return delta < TimeSpan.Zero ? TimeSpan.Zero : delta;
+        }
+
+        private void MarkProjectTreeInteractionForVideoPrewarm()
+        {
+            Interlocked.Exchange(ref _lastProjectTreeInteractionUtcTicks, DateTime.UtcNow.Ticks);
         }
 
         private void ForwardProjectionKeyDownFromProjection(System.Windows.Input.KeyEventArgs e)

@@ -132,7 +132,14 @@ namespace ImageColorChanger.UI
                 {
                     modeData.ActiveMode = (int)ViewSplitMode.Single;
                 }
-                modeData.SliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 1, 3);
+                modeData.SliceLinesPerPage = Math.Clamp(modeData.SliceLinesPerPage, 0, 4);
+                modeData.SliceRuleFromCustom = false;
+                modeData.SliceCutPoints ??= new List<int>();
+                modeData.SliceCutPoints = modeData.SliceCutPoints
+                    .Where(point => point >= 1)
+                    .Distinct()
+                    .OrderBy(point => point)
+                    .ToList();
                 modeData.SliceCurrentIndex = Math.Max(0, modeData.SliceCurrentIndex);
 
                 return true;

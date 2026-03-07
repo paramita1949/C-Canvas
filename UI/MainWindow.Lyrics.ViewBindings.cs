@@ -15,12 +15,11 @@ namespace ImageColorChanger.UI
         private System.Windows.Controls.Button BtnLyricsAlignCenter => LyricsSectionView?.BtnLyricsAlignCenterButton;
         private System.Windows.Controls.Button BtnLyricsAlignRight => LyricsSectionView?.BtnLyricsAlignRightButton;
         private System.Windows.Controls.Button BtnLyricsClear => LyricsSectionView?.BtnLyricsClearButton;
-        private System.Windows.Controls.Button BtnLyricsSliceToggle => LyricsSectionView?.BtnLyricsSliceToggleButton;
+        private System.Windows.Controls.Button BtnLyricsSliceRuleDefault => LyricsSectionView?.BtnLyricsSliceRuleDefaultButton;
         private System.Windows.Controls.Button BtnLyricsSliceRule1 => LyricsSectionView?.BtnLyricsSliceRule1Button;
         private System.Windows.Controls.Button BtnLyricsSliceRule2 => LyricsSectionView?.BtnLyricsSliceRule2Button;
         private System.Windows.Controls.Button BtnLyricsSliceRule3 => LyricsSectionView?.BtnLyricsSliceRule3Button;
         private System.Windows.Controls.Button BtnLyricsSliceRule4 => LyricsSectionView?.BtnLyricsSliceRule4Button;
-        private System.Windows.Controls.Button BtnLyricsSliceRuleCustom => LyricsSectionView?.BtnLyricsSliceRuleCustomButton;
         private System.Windows.Controls.StackPanel LyricsSliceToolbar => LyricsSectionView?.LyricsSliceToolbarContainer;
         private System.Windows.Controls.TextBlock LyricsSliceStateText => null;
         private System.Windows.Controls.Border LyricsSlicePanel => LyricsSectionView?.LyricsSlicePanelHost;
@@ -59,14 +58,12 @@ namespace ImageColorChanger.UI
             if (BtnLyricsAlignCenter != null) BtnLyricsAlignCenter.Click += BtnLyricsAlignCenter_Click;
             if (BtnLyricsAlignRight != null) BtnLyricsAlignRight.Click += BtnLyricsAlignRight_Click;
             if (BtnLyricsClear != null) BtnLyricsClear.Click += BtnLyricsClear_Click;
-            if (BtnLyricsSliceToggle != null) BtnLyricsSliceToggle.Click += BtnLyricsSliceToggle_Click;
+            if (BtnLyricsSliceRuleDefault != null) BtnLyricsSliceRuleDefault.Click += BtnLyricsSliceRuleDefault_Click;
+            if (BtnLyricsSliceRuleDefault != null) BtnLyricsSliceRuleDefault.PreviewMouseLeftButtonUp += BtnLyricsSliceRuleDefault_PreviewMouseLeftButtonUp;
             if (BtnLyricsSliceRule1 != null) BtnLyricsSliceRule1.Click += BtnLyricsSliceRule1_Click;
             if (BtnLyricsSliceRule2 != null) BtnLyricsSliceRule2.Click += BtnLyricsSliceRule2_Click;
             if (BtnLyricsSliceRule3 != null) BtnLyricsSliceRule3.Click += BtnLyricsSliceRule3_Click;
             if (BtnLyricsSliceRule4 != null) BtnLyricsSliceRule4.Click += BtnLyricsSliceRule4_Click;
-            if (BtnLyricsSliceRuleCustom != null) BtnLyricsSliceRuleCustom.Click += BtnLyricsSliceRuleCustom_Click;
-            if (BtnLyricsSliceRuleCustom != null) BtnLyricsSliceRuleCustom.PreviewMouseWheel += BtnLyricsSliceRuleCustom_PreviewMouseWheel;
-            if (LyricsSliceToolbar != null) LyricsSliceToolbar.PreviewMouseWheel += BtnLyricsSliceRuleCustom_PreviewMouseWheel;
             if (BtnLyricsSlicePrev != null) BtnLyricsSlicePrev.Click += BtnLyricsSlicePrev_Click;
             if (BtnLyricsSliceNext != null) BtnLyricsSliceNext.Click += BtnLyricsSliceNext_Click;
             if (BtnLyricsPagingToggle != null) BtnLyricsPagingToggle.Click += BtnLyricsPagingToggle_Click;
@@ -79,8 +76,8 @@ namespace ImageColorChanger.UI
             {
                 LyricsScrollViewer.ScrollChanged += LyricsScrollViewer_ScrollChanged;
                 LyricsScrollViewer.MouseRightButtonUp += LyricsScrollViewer_RightClick;
+                LyricsScrollViewer.PreviewMouseWheel += LyricsScrollViewer_PreviewMouseWheel;
             }
-
             WireLyricsTextBoxEvents(LyricsTextBox);
             WireLyricsTextBoxEvents(LyricsSplitTextBox1);
             WireLyricsTextBoxEvents(LyricsSplitTextBox2);

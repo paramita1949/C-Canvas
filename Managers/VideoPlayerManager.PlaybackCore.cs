@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Windows.Threading;
 using LibVLCSharp.Shared;
 using LibVLCSharp.WPF;
@@ -10,22 +11,55 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public partial class VideoPlayerManager
     {
+        private static int _prewarmState; // 0=未开始, 1=进行中, 2=已完成
+
+        private static string[] BuildLibVlcOptions()
+        {
+            return new[]
+            {
+                "--no-osd",
+                "--no-video-title-show",
+                "--verbose=2",
+                "--no-video-deco",
+                "--vout=direct3d11",
+                "--aspect-ratio=",
+                "--autoscale",
+                "--no-video-title",
+                "--embedded-video"
+            };
+        }
+
+        /// <summary>
+        /// 后台静默预热 LibVLC，避免首次真实初始化卡顿 UI 线程。
+        /// </summary>
+        public static void PrewarmLibVlc()
+        {
+            if (Interlocked.CompareExchange(ref _prewarmState, 1, 0) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                LibVLCSharp.Shared.Core.Initialize();
+                using var libVlc = new LibVLC(BuildLibVlcOptions());
+            }
+            catch
+            {
+                // 预热失败不影响主流程，首次真正播放仍会走正常初始化。
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _prewarmState, 2);
+            }
+        }
+
         private void InitializeLibVLC()
         {
             try
             {
                 LibVLCSharp.Shared.Core.Initialize();
-                _libVLC = new LibVLC(
-                    "--no-osd",
-                    "--no-video-title-show",
-                    "--verbose=2",
-                    "--no-video-deco",
-                    "--vout=direct3d11",
-                    "--aspect-ratio=",
-                    "--autoscale",
-                    "--no-video-title",
-                    "--embedded-video"
-                );
+                _libVLC = new LibVLC(BuildLibVlcOptions());
             }
             catch (Exception ex)
             {
