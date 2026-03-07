@@ -126,6 +126,13 @@ namespace ImageColorChanger.UI
                 _ => BiblePopupPosition.Bottom
             };
             _config.PopupFontFamily = _dbManager.GetBibleInsertConfigValue("popup_font_family", "Microsoft YaHei");
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("popup_title_format", "0"), out var popupTitleFormat))
+            {
+                popupTitleFormat = 0;
+            }
+            _config.PopupTitleFormat = Enum.IsDefined(typeof(BiblePopupTitleFormat), popupTitleFormat)
+                ? (BiblePopupTitleFormat)popupTitleFormat
+                : BiblePopupTitleFormat.DotChapterVerse;
             _config.PopupTitleStyle.ColorHex = _dbManager.GetBibleInsertConfigValue("popup_title_color", _config.TitleStyle.ColorHex);
             _config.PopupTitleStyle.FontSize = float.Parse(_dbManager.GetBibleInsertConfigValue("popup_title_size", "70"));
             _config.PopupTitleStyle.IsBold = _dbManager.GetBibleInsertConfigValue("popup_title_bold", _config.TitleStyle.IsBold ? "1" : "0") == "1";
@@ -283,6 +290,7 @@ namespace ImageColorChanger.UI
             {
                 CmbPopupFont.SelectedIndex = 0;
             }
+            CmbPopupTitleFormat.SelectedIndex = (int)_config.PopupTitleFormat;
 
             SetColorButton(BtnPopupTitleColor, _config.PopupTitleStyle.GetSKColor(), forceBlackText: true);
             CmbPopupTitleSize.ItemsSource = titleSizes;
@@ -505,6 +513,15 @@ namespace ImageColorChanger.UI
                 {
                     _config.PopupFontFamily = popupFontFamily;
                     _dbManager.SetBibleInsertConfigValue("popup_font_family", popupFontFamily);
+                }
+                if (CmbPopupTitleFormat.SelectedItem is ComboBoxItem popupTitleFormatItem &&
+                    popupTitleFormatItem.Tag is string popupTitleFormatTag &&
+                    int.TryParse(popupTitleFormatTag, out var popupTitleFormatValue))
+                {
+                    _config.PopupTitleFormat = Enum.IsDefined(typeof(BiblePopupTitleFormat), popupTitleFormatValue)
+                        ? (BiblePopupTitleFormat)popupTitleFormatValue
+                        : BiblePopupTitleFormat.DotChapterVerse;
+                    _dbManager.SetBibleInsertConfigValue("popup_title_format", ((int)_config.PopupTitleFormat).ToString());
                 }
 
                 if (CmbPopupTitleSize.SelectedItem != null)

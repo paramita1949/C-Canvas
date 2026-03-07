@@ -26,10 +26,16 @@ namespace ImageColorChanger.UI
         private bool _isBiblePopupOverlayVisible;
         private string _biblePopupOverlayReference = string.Empty;
         private string _biblePopupOverlayContent = string.Empty;
+        private string _biblePopupOverlayBookName = string.Empty;
+        private int _biblePopupOverlayChapter;
+        private int _biblePopupOverlayStartVerse;
+        private int _biblePopupOverlayEndVerse;
         private BibleTextInsertConfig _biblePopupOverlayConfig = new();
         private double _biblePopupOverlayVerseScrollOffset;
         private double _biblePopupOverlayVerseMaxScroll;
         private List<double> _biblePopupOverlayVerseAnchors = new();
+        private List<double> _biblePopupOverlayVerseHeights = new();
+        private int _biblePopupOverlayHighlightedVerseIndex = -1;
         private DispatcherTimer _biblePopupOverlayAnimationTimer;
         private DateTime _biblePopupOverlayAnimationStartUtc;
         private double _biblePopupOverlayEnterProgress = 1.0;
@@ -72,14 +78,14 @@ namespace ImageColorChanger.UI
 
             if (isProjectionActive)
             {
-                await ShowBibleVersePopupAsync(bookId, chapter, startVerse, endVerse, reference);
+                await ShowBibleVersePopupAsync(bookId, chapter, startVerse, endVerse);
                 return;
             }
 
             await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
         }
 
-        private async Task ShowBibleVersePopupAsync(int bookId, int chapter, int startVerse, int endVerse, string reference)
+        private async Task ShowBibleVersePopupAsync(int bookId, int chapter, int startVerse, int endVerse)
         {
             var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
             if (verses == null || verses.Count == 0)
@@ -88,9 +94,39 @@ namespace ImageColorChanger.UI
             }
 
             var config = LoadBibleInsertConfigFromDatabase();
+            var book = BibleBookConfig.GetBook(bookId);
+            if (book == null)
+            {
+                return;
+            }
+
+            string reference = BuildBibleReference(book.Name, chapter, startVerse, endVerse, config.PopupTitleFormat);
             string content = FormatVerseWithNumbers(verses);
             int popupAutoHideSeconds = config.PopupDurationMinutes * 60;
+            _biblePopupOverlayBookName = book.Name ?? string.Empty;
+            _biblePopupOverlayChapter = chapter;
+            _biblePopupOverlayStartVerse = startVerse;
+            _biblePopupOverlayEndVerse = endVerse;
             ShowMainBibleVersePopup(reference, content, config, popupAutoHideSeconds);
+        }
+
+        private static string BuildBibleReference(string bookName, int chapter, int startVerse, int endVerse, BiblePopupTitleFormat format)
+        {
+            string safeBook = string.IsNullOrWhiteSpace(bookName) ? "未知书卷" : bookName.Trim();
+            bool single = startVerse == endVerse;
+
+            return format switch
+            {
+                BiblePopupTitleFormat.ColonFormat => single
+                    ? $"{safeBook} {chapter}:{startVerse}"
+                    : $"{safeBook} {chapter}:{startVerse}-{endVerse}",
+                BiblePopupTitleFormat.ChapterVerse => single
+                    ? $"{safeBook} {chapter}章{startVerse}节"
+                    : $"{safeBook} {chapter}章{startVerse}-{endVerse}节",
+                _ => single
+                    ? $"{safeBook} · {chapter}章{startVerse}节"
+                    : $"{safeBook} · {chapter}章{startVerse}-{endVerse}节"
+            };
         }
 
         private void HideBibleVersePopupIfVisible()
@@ -203,6 +239,20 @@ namespace ImageColorChanger.UI
             {
                 var refreshedConfig = LoadBibleInsertConfigFromDatabase();
                 _biblePopupOverlayConfig = refreshedConfig;
+                if (!string.IsNullOrWhiteSpace(_biblePopupOverlayBookName) && _biblePopupOverlayChapter > 0)
+                {
+                    string refreshedReference = BuildBibleReference(
+                        _biblePopupOverlayBookName,
+                        _biblePopupOverlayChapter,
+                        _biblePopupOverlayStartVerse,
+                        _biblePopupOverlayEndVerse,
+                        refreshedConfig.PopupTitleFormat);
+                    _biblePopupOverlayReference = refreshedReference;
+                    if (MainBiblePopupReferenceText != null)
+                    {
+                        MainBiblePopupReferenceText.Text = refreshedReference;
+                    }
+                }
                 ApplyMainBibleVersePopupStyle(refreshedConfig);
                 StartMainBiblePopupAutoHide(refreshedConfig.PopupDurationMinutes * 60);
                 RefreshMainBiblePopupOverlayPreview();
@@ -261,6 +311,8 @@ namespace ImageColorChanger.UI
             {
                 _biblePopupOverlayVerseScrollOffset = 0;
                 _biblePopupOverlayVerseAnchors.Clear();
+                _biblePopupOverlayVerseHeights.Clear();
+                _biblePopupOverlayHighlightedVerseIndex = -1;
                 StartBiblePopupOverlayEnterAnimation();
             }
             else
@@ -268,9 +320,15 @@ namespace ImageColorChanger.UI
                 _biblePopupOverlayVerseScrollOffset = 0;
                 _biblePopupOverlayVerseMaxScroll = 0;
                 _biblePopupOverlayVerseAnchors.Clear();
+                _biblePopupOverlayVerseHeights.Clear();
+                _biblePopupOverlayHighlightedVerseIndex = -1;
                 StopBiblePopupOverlayEnterAnimation(resetProgress: true);
                 _biblePopupOverlayLastRect = Rect.Empty;
                 _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
+                _biblePopupOverlayBookName = string.Empty;
+                _biblePopupOverlayChapter = 0;
+                _biblePopupOverlayStartVerse = 0;
+                _biblePopupOverlayEndVerse = 0;
             }
         }
 
@@ -330,13 +388,71 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            double next = GetNextBiblePopupVerseAnchorOffset(e.Delta);
-            if (Math.Abs(next - _biblePopupOverlayVerseScrollOffset) < 0.5)
+            double previousOffset = _biblePopupOverlayVerseScrollOffset;
+            int previousIndex = _biblePopupOverlayHighlightedVerseIndex;
+            if (!TryAdvanceBiblePopupHighlightedVerse(e.Delta, out double next))
+            {
+                return false;
+            }
+
+            _biblePopupOverlayVerseScrollOffset = next;
+            bool changed =
+                Math.Abs(previousOffset - _biblePopupOverlayVerseScrollOffset) >= 0.5 ||
+                previousIndex != _biblePopupOverlayHighlightedVerseIndex;
+            if (!changed)
             {
                 return true;
             }
 
-            _biblePopupOverlayVerseScrollOffset = next;
+            RefreshMainBiblePopupOverlayPreview();
+            RefreshProjectionForBiblePopupOverlay();
+            return true;
+        }
+
+        private bool HandleBiblePopupOverlayClick(MouseButtonEventArgs e)
+        {
+            if (!_isBiblePopupOverlayVisible || e == null)
+            {
+                return false;
+            }
+
+            var hitContainer = EditorCanvasContainer as IInputElement;
+            if (hitContainer == null || _biblePopupOverlayVerseAnchors.Count == 0 || _biblePopupOverlayVerseHeights.Count == 0)
+            {
+                return false;
+            }
+
+            var pt = e.GetPosition(hitContainer);
+            if (!_biblePopupOverlayLastVerseViewportRect.Contains(pt))
+            {
+                return false;
+            }
+
+            double relativeY = pt.Y - _biblePopupOverlayLastVerseViewportRect.Top + _biblePopupOverlayVerseScrollOffset;
+            int verseCount = Math.Min(_biblePopupOverlayVerseAnchors.Count, _biblePopupOverlayVerseHeights.Count);
+            if (verseCount <= 0)
+            {
+                return false;
+            }
+
+            int targetIndex = -1;
+            for (int i = 0; i < verseCount; i++)
+            {
+                double top = _biblePopupOverlayVerseAnchors[i];
+                double bottom = top + Math.Max(1.0, _biblePopupOverlayVerseHeights[i]);
+                if (relativeY >= top && relativeY < bottom)
+                {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex < 0)
+            {
+                targetIndex = Math.Clamp((int)Math.Round(relativeY / Math.Max(1.0, GetBiblePopupOverlayLineHeight())), 0, verseCount - 1);
+            }
+
+            _biblePopupOverlayHighlightedVerseIndex = targetIndex;
             RefreshMainBiblePopupOverlayPreview();
             RefreshProjectionForBiblePopupOverlay();
             return true;
@@ -430,39 +546,49 @@ namespace ImageColorChanger.UI
             return true;
         }
 
-        private double GetNextBiblePopupVerseAnchorOffset(int wheelDelta)
+        private bool TryAdvanceBiblePopupHighlightedVerse(int wheelDelta, out double nextOffset)
         {
+            nextOffset = _biblePopupOverlayVerseScrollOffset;
             if (_biblePopupOverlayVerseAnchors == null || _biblePopupOverlayVerseAnchors.Count == 0)
             {
-                return _biblePopupOverlayVerseScrollOffset;
+                return false;
             }
 
-            const double epsilon = 0.5;
-            double current = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
-            var anchors = _biblePopupOverlayVerseAnchors;
-
-            if (wheelDelta < 0)
+            int verseCount = _biblePopupOverlayVerseAnchors.Count;
+            if (verseCount <= 0)
             {
-                for (int i = 0; i < anchors.Count; i++)
+                return false;
+            }
+
+            int currentIndex = _biblePopupOverlayHighlightedVerseIndex;
+            if (currentIndex < 0 || currentIndex >= verseCount)
+            {
+                const double epsilon = 0.5;
+                double currentOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
+                currentIndex = 0;
+                for (int i = 0; i < verseCount; i++)
                 {
-                    if (anchors[i] > current + epsilon)
+                    if (_biblePopupOverlayVerseAnchors[i] <= currentOffset + epsilon)
                     {
-                        return anchors[i];
+                        currentIndex = i;
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
-
-                return _biblePopupOverlayVerseMaxScroll;
             }
 
-            for (int i = anchors.Count - 1; i >= 0; i--)
+            int delta = wheelDelta < 0 ? 1 : -1;
+            int targetIndex = Math.Clamp(currentIndex + delta, 0, verseCount - 1);
+            if (targetIndex == currentIndex)
             {
-                if (anchors[i] < current - epsilon)
-                {
-                    return anchors[i];
-                }
+                return false;
             }
 
-            return 0;
+            _biblePopupOverlayHighlightedVerseIndex = targetIndex;
+            nextOffset = Math.Clamp(_biblePopupOverlayVerseAnchors[targetIndex], 0, _biblePopupOverlayVerseMaxScroll);
+            return true;
         }
 
         private void RefreshMainBiblePopupOverlayPreview()
@@ -605,17 +731,21 @@ namespace ImageColorChanger.UI
                 //}
                 //#endif
                 
-                // 2. 生成引用
+                // 2. 加载样式配置（从数据库）
+                var config = LoadBibleInsertConfigFromDatabase();
+
+                // 3. 生成引用
                 var book = BibleBookConfig.GetBook(bookId);
-                string reference = (startVerse == endVerse) 
-                    ? $"{book.Name}{chapter}章{startVerse}节" 
+                if (book == null)
+                {
+                    return;
+                }
+                string reference = (startVerse == endVerse)
+                    ? $"{book.Name}{chapter}章{startVerse}节"
                     : $"{book.Name}{chapter}章{startVerse}-{endVerse}节";
                 
-                // 3. 格式化经文（带节号）
+                // 4. 格式化经文（带节号）
                 string verseContent = FormatVerseWithNumbers(verses);
-                
-                // 4. 加载样式配置（从数据库）
-                var config = LoadBibleInsertConfigFromDatabase();
                 
                 //#if DEBUG
                 //Debug.WriteLine($" [圣经创建] 开始创建文本框元素");
@@ -1655,7 +1785,6 @@ namespace ImageColorChanger.UI
             // 从数据库加载配置
             config.Style = (BibleTextInsertStyle)int.Parse(dbManager.GetBibleInsertConfigValue("style", "0"));
             config.FontFamily = dbManager.GetBibleInsertConfigValue("font_family", "DengXian");
-
             config.TitleStyle.ColorHex = dbManager.GetBibleInsertConfigValue("title_color", "#FF0000");
             config.TitleStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("title_size", "50"));
             config.TitleStyle.IsBold = dbManager.GetBibleInsertConfigValue("title_bold", "1") == "1";
@@ -1678,6 +1807,13 @@ namespace ImageColorChanger.UI
                 _ => BiblePopupPosition.Bottom
             };
             config.PopupFontFamily = dbManager.GetBibleInsertConfigValue("popup_font_family", "Microsoft YaHei");
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("popup_title_format", "0"), out var popupTitleFormat))
+            {
+                popupTitleFormat = 0;
+            }
+            config.PopupTitleFormat = Enum.IsDefined(typeof(BiblePopupTitleFormat), popupTitleFormat)
+                ? (BiblePopupTitleFormat)popupTitleFormat
+                : BiblePopupTitleFormat.DotChapterVerse;
             config.PopupTitleStyle.ColorHex = dbManager.GetBibleInsertConfigValue("popup_title_color", config.TitleStyle.ColorHex);
             config.PopupTitleStyle.FontSize = float.Parse(dbManager.GetBibleInsertConfigValue("popup_title_size", config.TitleStyle.FontSize.ToString()));
             config.PopupTitleStyle.IsBold = dbManager.GetBibleInsertConfigValue("popup_title_bold", config.TitleStyle.IsBold ? "1" : "0") == "1";

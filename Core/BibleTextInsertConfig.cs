@@ -77,6 +77,11 @@ namespace ImageColorChanger.Core
         public int PopupBackgroundOpacity { get; set; } = 0;
 
         /// <summary>
+        /// 弹窗标题格式（默认：创世记 · 1章1-4节）
+        /// </summary>
+        public BiblePopupTitleFormat PopupTitleFormat { get; set; } = BiblePopupTitleFormat.DotChapterVerse;
+
+        /// <summary>
         /// 弹窗自动关闭时间（分钟，范围 1-10，默认 3）
         /// </summary>
         public int PopupDurationMinutes
@@ -261,6 +266,27 @@ namespace ImageColorChanger.Core
         Top = 0,
         Center = 1,
         Bottom = 2
+    }
+
+    /// <summary>
+    /// 圣经弹窗标题格式
+    /// </summary>
+    public enum BiblePopupTitleFormat
+    {
+        /// <summary>
+        /// 创世记 · 1章1-4节
+        /// </summary>
+        DotChapterVerse = 0,
+
+        /// <summary>
+        /// 创世记 1章1-4节
+        /// </summary>
+        ChapterVerse = 1,
+
+        /// <summary>
+        /// 创世记 1:1-4
+        /// </summary>
+        ColonFormat = 2
     }
 }
 

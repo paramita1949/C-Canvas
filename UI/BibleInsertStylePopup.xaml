@@ -437,6 +437,10 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="字体:"/>
                                     <ComboBox Grid.Column="2"
@@ -444,6 +448,16 @@
                                               Height="28"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged"/>
+                                    <TextBlock Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="标题格式:"/>
+                                    <ComboBox Grid.Column="6"
+                                              x:Name="CmbPopupTitleFormat"
+                                              Height="28"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged">
+                                        <ComboBoxItem Content="创世记 · 1章1-4节" Tag="0"/>
+                                        <ComboBoxItem Content="创世记 1章1-4节" Tag="1"/>
+                                        <ComboBoxItem Content="创世记 1:1-4" Tag="2"/>
+                                    </ComboBox>
                                 </Grid>
                             </StackPanel>
                         </Border>

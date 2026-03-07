@@ -2167,18 +2167,29 @@ namespace ImageColorChanger.UI
                 Style = SKPaintStyle.Fill,
                 Color = ToSkColor(cfg.PopupBackgroundColorHex, Math.Clamp(cfg.PopupBackgroundOpacity, 0, 100))
             };
+            using var popupHighlightVersePaint = new SKPaint
+            {
+                IsAntialias = true,
+                Color = ToSkColor(_configManager?.BibleHighlightColor ?? "#FFFF00", 0)
+            };
             bool hideBorder = BiblePopupOpacity.ShouldHideBorder(cfg.PopupBackgroundOpacity);
 
             int titleCount = Math.Max(1, titleLines.Count);
             int verseCount = Math.Max(1, verseLines.Count);
-            float verseContentHeight = verseCount * lineHeight;
-            _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseContentHeight - verseViewportHeight);
+            // 允许滚到“最后一节顶部”，即便下方出现留白（满足逐节定位与回看需求）。
+            _biblePopupOverlayVerseMaxScroll = Math.Max(0, verseLayout.VerseStartOffsets.LastOrDefault());
             _biblePopupOverlayVerseScrollOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
             _biblePopupOverlayVerseAnchors = verseLayout.VerseStartOffsets
-                .Select(offset => (double)Math.Clamp(offset, 0, _biblePopupOverlayVerseMaxScroll))
-                .Distinct()
-                .OrderBy(v => v)
+                .Select(offset => (double)Math.Max(0, offset))
                 .ToList();
+            _biblePopupOverlayVerseHeights = verseLayout.VerseHeights
+                .Select(height => (double)Math.Max(1f, height))
+                .ToList();
+
+            if (_biblePopupOverlayHighlightedVerseIndex < 0 || _biblePopupOverlayHighlightedVerseIndex >= _biblePopupOverlayVerseAnchors.Count)
+            {
+                _biblePopupOverlayHighlightedVerseIndex = GetCurrentPopupHighlightedVerseIndex(verseLayout, (float)_biblePopupOverlayVerseScrollOffset);
+            }
 
             float contentHeight = titleCount * titleHeight + titleBottomGap + verseViewportHeight;
             float popupHeight = topPad + contentHeight + bottomPad;
@@ -2206,6 +2217,7 @@ namespace ImageColorChanger.UI
             verseNumberPaint.Color = MultiplyAlpha(verseNumberPaint.Color, animAlphaMul);
             borderPaint.Color = MultiplyAlpha(borderPaint.Color, animAlphaMul);
             bgPaint.Color = MultiplyAlpha(bgPaint.Color, animAlphaMul);
+            popupHighlightVersePaint.Color = MultiplyAlpha(popupHighlightVersePaint.Color, animAlphaMul);
 
             bool isZoomIn = string.Equals(animationType, "ZoomIn", StringComparison.Ordinal);
             bool isPushTop = string.Equals(animationType, "TopPush", StringComparison.Ordinal);
@@ -2270,10 +2282,36 @@ namespace ImageColorChanger.UI
 
             canvas.Save();
             canvas.ClipRect(verseViewportRect);
-            float verseY = y - (float)_biblePopupOverlayVerseScrollOffset;
-            foreach (var line in verseLines)
+            int highlightedVerseIndex = _biblePopupOverlayHighlightedVerseIndex;
+            if (highlightedVerseIndex < 0 || highlightedVerseIndex >= verseLayout.VerseStartOffsets.Count)
             {
-                DrawPopupVerseLineWithNumberStyle(canvas, line, popupX + leftPad, verseY, verseFont, versePaint, verseNumberFont, verseNumberPaint);
+                highlightedVerseIndex = GetCurrentPopupHighlightedVerseIndex(verseLayout, (float)_biblePopupOverlayVerseScrollOffset);
+                _biblePopupOverlayHighlightedVerseIndex = highlightedVerseIndex;
+            }
+
+            // 仅一节经文时不显示高亮，避免视觉上“常亮”干扰。
+            if (verseLayout.VerseStartOffsets.Count <= 1)
+            {
+                highlightedVerseIndex = -1;
+            }
+            float verseY = y - (float)_biblePopupOverlayVerseScrollOffset;
+            for (int lineIndex = 0; lineIndex < verseLines.Count; lineIndex++)
+            {
+                string line = verseLines[lineIndex];
+                bool lineHighlighted =
+                    highlightedVerseIndex >= 0 &&
+                    lineIndex < verseLayout.LineVerseIndices.Count &&
+                    verseLayout.LineVerseIndices[lineIndex] == highlightedVerseIndex;
+
+                DrawPopupVerseLineWithNumberStyle(
+                    canvas,
+                    line,
+                    popupX + leftPad,
+                    verseY,
+                    verseFont,
+                    lineHighlighted ? popupHighlightVersePaint : versePaint,
+                    verseNumberFont,
+                    verseNumberPaint);
                 verseY += lineHeight;
             }
             canvas.Restore();
@@ -2305,6 +2343,8 @@ namespace ImageColorChanger.UI
             public List<string> WrappedLines { get; } = new();
             public List<float> VerseStartOffsets { get; } = new();
             public List<float> VerseHeights { get; } = new();
+            public List<int> VerseLineCounts { get; } = new();
+            public List<int> LineVerseIndices { get; } = new();
             public float TotalHeight { get; set; }
         }
 
@@ -2421,9 +2461,11 @@ namespace ImageColorChanger.UI
                 }
                 float verseHeight = Math.Max(1, wrapped.Count) * lineHeight;
                 result.VerseHeights.Add(verseHeight);
+                result.VerseLineCounts.Add(Math.Max(1, wrapped.Count));
                 foreach (var line in wrapped)
                 {
                     result.WrappedLines.Add(line);
+                    result.LineVerseIndices.Add(result.VerseStartOffsets.Count - 1);
                     currentOffset += lineHeight;
                 }
             }
@@ -2433,11 +2475,35 @@ namespace ImageColorChanger.UI
                 result.WrappedLines.Add(string.Empty);
                 result.VerseStartOffsets.Add(0f);
                 result.VerseHeights.Add(Math.Max(lineHeight, 1f));
+                result.VerseLineCounts.Add(1);
+                result.LineVerseIndices.Add(0);
             }
 
             result.TotalHeight = currentOffset > 0 ? currentOffset : Math.Max(lineHeight, 1f);
 
             return result;
+        }
+
+        private static int GetCurrentPopupHighlightedVerseIndex(BiblePopupVerseLayout layout, float scrollOffset)
+        {
+            if (layout == null || layout.VerseStartOffsets.Count == 0 || layout.VerseHeights.Count == 0)
+            {
+                return -1;
+            }
+
+            float current = Math.Max(0f, scrollOffset);
+            int verseCount = Math.Min(layout.VerseStartOffsets.Count, layout.VerseHeights.Count);
+            for (int i = 0; i < verseCount; i++)
+            {
+                float top = layout.VerseStartOffsets[i];
+                float bottom = top + Math.Max(1f, layout.VerseHeights[i]);
+                if (current >= top && current < bottom)
+                {
+                    return i;
+                }
+            }
+
+            return Math.Clamp(verseCount - 1, 0, verseCount - 1);
         }
 
         private static void DrawPopupVerseLineWithNumberStyle(
