@@ -69,11 +69,19 @@ namespace ImageColorChanger.UI.Controls
 
                 //System.Diagnostics.Debug.WriteLine("[DraggableTextBox] 检测到单击，选中并启动拖拽");
 
-                // 单击：选中控件（但不给RichTextBox焦点）
+                // 单击：先选中控件（显示控制点）。
+                // 仅当“本次点击前已处于选中状态”时，才允许进入拖拽，避免误触位移。
+                bool wasSelected = IsSelected;
                 SetSelected(true);
 
                 // 只在选中后才给整个控件焦点（防止RichTextBox获得焦点）
                 base.Focus();
+
+                if (!wasSelected)
+                {
+                    e.Handled = true;
+                    return;
+                }
 
                 // 通知组件固定在参数位置，不允许鼠标拖动。
                 if (IsNoticeComponentElement())
