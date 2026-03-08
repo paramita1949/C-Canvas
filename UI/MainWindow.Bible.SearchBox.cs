@@ -21,6 +21,12 @@ namespace ImageColorChanger.UI
         private bool _bibleSearchComponentsInitialized;
         private bool _isDisposingBibleSearchComponents;
 
+        private BibleSearchResultDisplayMode GetEffectiveBibleSearchDisplayMode()
+        {
+            bool isTextEditorVisible = TextEditorPanel?.Visibility == Visibility.Visible;
+            return BibleUiBehaviorResolver.ResolveSearchDisplayMode(_bibleSearchDisplayMode, isTextEditorVisible);
+        }
+
         private void EnsureBibleSearchComponentsInitialized()
         {
             if (_bibleSearchComponentsInitialized)
@@ -107,6 +113,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                _bibleSearchResultPresenter.DisplayMode = GetEffectiveBibleSearchDisplayMode();
                 _bibleSearchResultPresenter.ShowResults(hits);
             }
             catch (Exception)
@@ -284,7 +291,7 @@ namespace ImageColorChanger.UI
 
             if (_bibleSearchResultPresenter != null)
             {
-                _bibleSearchResultPresenter.DisplayMode = mode;
+                _bibleSearchResultPresenter.DisplayMode = GetEffectiveBibleSearchDisplayMode();
                 _bibleSearchResultPresenter.Hide();
             }
 

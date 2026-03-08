@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
@@ -232,7 +233,7 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"   加载经文: BookId={item.BookId}, Chapter={item.Chapter}, Verse={item.StartVerse}-{item.EndVerse}");
                         //#endif
-                        await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                        await HandleBibleHistoryItemVerseSelectionAsync(item);
                     }
                     else
                     {
@@ -263,7 +264,7 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"   重新加载经文: BookId={item.BookId}, Chapter={item.Chapter}, Verse={item.StartVerse}-{item.EndVerse}");
                         //#endif
-                        await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
+                        await HandleBibleHistoryItemVerseSelectionAsync(item);
                     }
                 }
 
@@ -281,6 +282,29 @@ namespace ImageColorChanger.UI
         {
             // 此事件暂时保留，用于未来可能的选中状态同步
             // 实际的经文加载由BibleHistoryItem_Click事件处理，避免重复加载
+        }
+
+        private async Task HandleBibleHistoryItemVerseSelectionAsync(BibleHistoryItem item)
+        {
+            if (item == null || item.BookId <= 0)
+            {
+                return;
+            }
+
+            bool shouldUseSlideFlow = BibleUiBehaviorResolver.ShouldUseHistorySlideFlow(
+                TextEditorPanel?.Visibility == Visibility.Visible);
+
+            if (shouldUseSlideFlow)
+            {
+                await HandleBibleVerseSelectionInSlideModeAsync(
+                    item.BookId,
+                    item.Chapter,
+                    item.StartVerse,
+                    item.EndVerse);
+                return;
+            }
+
+            await LoadVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, item.EndVerse);
         }
 
         /// <summary>
