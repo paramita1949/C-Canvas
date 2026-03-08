@@ -141,6 +141,11 @@ namespace ImageColorChanger.UI
                     .OrderBy(point => point)
                     .ToList();
                 modeData.SliceCurrentIndex = Math.Max(0, modeData.SliceCurrentIndex);
+                modeData.SliceRuleProjectionFontSizes ??= new Dictionary<int, double>();
+                modeData.SliceRuleProjectionFontSizes = modeData.SliceRuleProjectionFontSizes
+                    .ToDictionary(
+                        item => Math.Clamp(item.Key, 0, 4),
+                        item => Math.Clamp(item.Value, MinLyricsFontSize, MaxLyricsFontSize));
 
                 return true;
             }

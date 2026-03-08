@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -187,6 +186,8 @@ namespace ImageColorChanger.UI
 
             _lyricsSliceLinesPerPage = linesPerPage;
             _lyricsSliceRuleFromCustom = fromCustom;
+            _lyricsCurrentSliceIndex = 0;
+            ApplySingleSliceProjectionFontSizeByCurrentRule();
             UpdateSliceRuleButtonsVisual();
 
             if (_lyricsSplitMode == (int)ViewSplitMode.Single)
@@ -215,12 +216,6 @@ namespace ImageColorChanger.UI
             if (_lyricsSliceLinesPerPage <= 0)
             {
                 segments = BuildSegmentsByBlankLines(raw);
-                int blankRows = (raw ?? string.Empty)
-                    .Replace("\r\n", "\n")
-                    .Replace('\r', '\n')
-                    .Split('\n')
-                    .Count(line => line.Length == 0);
-                Debug.WriteLine($"[LyricsSlice][Generate] mode=default(blank-line), rows={rows.Count}, blankRows={blankRows}, segments={segments.Count}");
             }
             else
             {
@@ -229,7 +224,6 @@ namespace ImageColorChanger.UI
                     linesPerSlice: _lyricsSliceLinesPerPage,
                     useFreeCutPoints: false,
                     cutPoints: Array.Empty<int>());
-                Debug.WriteLine($"[LyricsSlice][Generate] mode=fixed({_lyricsSliceLinesPerPage}), rows={rows.Count}, segments={segments.Count}");
             }
 
             for (int idx = 0; idx < segments.Count; idx++)
@@ -268,6 +262,20 @@ namespace ImageColorChanger.UI
                 // 仅 1/2/3/4 规则下应用主界面切片可视化。
                 ApplySliceSpacingToMainScreenText();
             }
+
+            if (_lyricsSliceItems.Count > 0)
+            {
+                try
+                {
+                    _isUpdatingSliceFromCaret = true;
+                    MoveLyricsEditorCaretToSliceStart(_lyricsCurrentSliceIndex);
+                }
+                finally
+                {
+                    _isUpdatingSliceFromCaret = false;
+                }
+            }
+
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
                 RenderLyricsToProjection();
@@ -413,7 +421,6 @@ namespace ImageColorChanger.UI
         private void BtnLyricsSliceRule4_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(4, fromCustom: false);
         private void BtnLyricsSliceRuleDefault_Click(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("[LyricsSlice][UI] click=default");
             _ = sender;
             _ = e;
             if (_lyricsSplitMode != (int)ViewSplitMode.Single)
@@ -423,6 +430,8 @@ namespace ImageColorChanger.UI
 
             _lyricsSliceModeEnabled = true;
             _lyricsSliceLinesPerPage = 0;
+            _lyricsCurrentSliceIndex = 0;
+            ApplySingleSliceProjectionFontSizeByCurrentRule();
             if (!_lyricsSingleRawTextInitialized)
             {
                 _lyricsSingleRawText = BuildPlainLyricsTextFromSliceItems();
@@ -445,7 +454,7 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
-            GenerateLyricsSlicesFromSingleText(preserveIndex: true, applyMainScreenSpacing: false);
+            GenerateLyricsSlicesFromSingleText(preserveIndex: false, applyMainScreenSpacing: false);
             UpdateLyricsSliceUiState();
             ShowStatus("已切回默认单画面（空白行为切片点）");
         }
@@ -634,11 +643,113 @@ namespace ImageColorChanger.UI
                 LyricsTextBox.Focus();
                 LyricsTextBox.CaretIndex = Math.Clamp(startChar, 0, (LyricsTextBox.Text ?? string.Empty).Length);
                 LyricsTextBox.SelectionLength = 0;
+                if (!TryScrollSliceStartToTop(startChar))
+                {
+                    int visualLine = LyricsTextBox.GetLineIndexFromCharacterIndex(LyricsTextBox.CaretIndex);
+                    if (visualLine >= 0)
+                    {
+                        LyricsTextBox.ScrollToLine(visualLine);
+                    }
+                }
             }
             catch
             {
                 // 忽略一次失败，避免影响切片切换主流程
             }
+        }
+
+        private bool TryScrollSliceStartToTop(int startChar)
+        {
+            if (LyricsTextBox == null)
+            {
+                return false;
+            }
+
+            int caretIndex = Math.Clamp(startChar, 0, (LyricsTextBox.Text ?? string.Empty).Length);
+            LyricsTextBox.UpdateLayout();
+
+            bool moved = TryScrollOuterViewerToCaretTop(caretIndex);
+            if (!moved)
+            {
+                moved = TryScrollInnerTextViewerToCaretTop(caretIndex);
+            }
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    LyricsTextBox.UpdateLayout();
+                    if (!TryScrollOuterViewerToCaretTop(caretIndex))
+                    {
+                        TryScrollInnerTextViewerToCaretTop(caretIndex);
+                    }
+                }
+                catch
+                {
+                    // 忽略异步滚动失败
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+
+            return moved;
+        }
+
+        private bool TryScrollOuterViewerToCaretTop(int caretIndex)
+        {
+            if (LyricsTextBox == null || LyricsScrollViewer == null)
+            {
+                return false;
+            }
+
+            double max = Math.Max(0, LyricsScrollViewer.ExtentHeight - LyricsScrollViewer.ViewportHeight);
+            if (max <= 0.1)
+            {
+                return false;
+            }
+
+            Rect rect = LyricsTextBox.GetRectFromCharacterIndex(caretIndex, true);
+            if (rect.IsEmpty)
+            {
+                return false;
+            }
+
+            System.Windows.Point point = LyricsTextBox.TransformToAncestor(LyricsScrollViewer)
+                .Transform(new System.Windows.Point(rect.Left, rect.Top));
+            double target = LyricsScrollViewer.VerticalOffset + point.Y - LyricsScrollViewer.Padding.Top;
+            target = Math.Clamp(target, 0, max);
+            LyricsScrollViewer.ScrollToVerticalOffset(target);
+            return true;
+        }
+
+        private bool TryScrollInnerTextViewerToCaretTop(int caretIndex)
+        {
+            if (LyricsTextBox == null)
+            {
+                return false;
+            }
+
+            LyricsTextBox.ApplyTemplate();
+            var innerViewer = FindVisualChild<ScrollViewer>(LyricsTextBox);
+            if (innerViewer == null)
+            {
+                return false;
+            }
+
+            double max = Math.Max(0, innerViewer.ExtentHeight - innerViewer.ViewportHeight);
+            if (max <= 0.1)
+            {
+                return false;
+            }
+
+            Rect rect = LyricsTextBox.GetRectFromCharacterIndex(caretIndex, true);
+            if (rect.IsEmpty)
+            {
+                return false;
+            }
+
+            double target = innerViewer.VerticalOffset + rect.Top;
+            target = Math.Clamp(target, 0, max);
+            innerViewer.ScrollToVerticalOffset(target);
+            return true;
         }
 
         private void ApplySliceSpacingToMainScreenText()

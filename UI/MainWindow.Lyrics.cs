@@ -87,6 +87,7 @@ namespace ImageColorChanger.UI
         private string _lyricsPendingClipboardText = string.Empty;
         private bool _lyricsClipboardUpdateQueued;
         private readonly double[] _lyricsSplitProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize };
+        private readonly double[] _lyricsSingleSliceProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize }; // 0=默认,1..4=切片规则
         private double _lyricsMainScreenFontSize = DefaultMainLyricsFontSize;
         private double _lyricsTextWatermarkFontSize = DefaultLyricsTextWatermarkFontSize;
         private string _lyricsThemeName = "黑色";
@@ -133,6 +134,7 @@ namespace ImageColorChanger.UI
             public List<int> SliceCutPoints { get; set; } = new();
             public int SliceCurrentIndex { get; set; } = 0;
             public double MainScreenFontSize { get; set; } = DefaultMainLyricsFontSize;
+            public Dictionary<int, double> SliceRuleProjectionFontSizes { get; set; } = new();
             public int ThemeMode { get; set; } = 0; // 0=黑底白字, 1=白底黑字
             public string ThemeName { get; set; } = "黑色";
             public string ThemeBackgroundHex { get; set; } = "#000000";
@@ -639,6 +641,61 @@ namespace ImageColorChanger.UI
         {
             int i = Math.Clamp(index, 0, _lyricsSplitProjectionFontSizes.Length - 1);
             _lyricsSplitProjectionFontSizes[i] = Math.Clamp(value, MinLyricsFontSize, MaxLyricsFontSize);
+        }
+
+        private static int NormalizeSingleSliceRuleKey(int rule)
+        {
+            return Math.Clamp(rule, 0, 4);
+        }
+
+        private double GetSingleSliceProjectionFontSize(int rule)
+        {
+            int key = NormalizeSingleSliceRuleKey(rule);
+            double value = _lyricsSingleSliceProjectionFontSizes[key];
+            if (value <= 0)
+            {
+                value = _lyricsProjectionFontSize;
+            }
+
+            return Math.Clamp(value, MinLyricsFontSize, MaxLyricsFontSize);
+        }
+
+        private void SetSingleSliceProjectionFontSize(int rule, double value)
+        {
+            int key = NormalizeSingleSliceRuleKey(rule);
+            _lyricsSingleSliceProjectionFontSizes[key] = Math.Clamp(value, MinLyricsFontSize, MaxLyricsFontSize);
+        }
+
+        private void LoadSingleSliceProjectionFontSizes(Dictionary<int, double> persisted, double fallback)
+        {
+            double baseValue = Math.Clamp(fallback, MinLyricsFontSize, MaxLyricsFontSize);
+            for (int i = 0; i < _lyricsSingleSliceProjectionFontSizes.Length; i++)
+            {
+                _lyricsSingleSliceProjectionFontSizes[i] = baseValue;
+            }
+
+            if (persisted == null || persisted.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var item in persisted)
+            {
+                int key = NormalizeSingleSliceRuleKey(item.Key);
+                SetSingleSliceProjectionFontSize(key, item.Value);
+            }
+        }
+
+        internal void ApplySingleSliceProjectionFontSizeByCurrentRule()
+        {
+            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            {
+                return;
+            }
+
+            int rule = NormalizeSingleSliceRuleKey(_lyricsSliceLinesPerPage);
+            _lyricsProjectionFontSize = GetSingleSliceProjectionFontSize(rule);
+            UpdateLyricsProjectionFontSizeDisplay();
         }
 
         private string GetCurrentLyricsSongWatermarkText()
@@ -1351,6 +1408,7 @@ namespace ImageColorChanger.UI
             }
 
             _lyricsProjectionFontSize = newSize;
+            SetSingleSliceProjectionFontSize(_lyricsSliceLinesPerPage, newSize);
             _configManager.LyricsProjectionFontSize = newSize;
             UpdateLyricsProjectionFontSizeDisplay();
 
@@ -2709,6 +2767,7 @@ namespace ImageColorChanger.UI
                 {
                     string loadedThemeName = "黑色";
                     string loadedThemeHex = "#000000";
+                    Dictionary<int, double> loadedSliceRuleProjectionFontSizes = null;
                     _currentLyricsProjectId = _currentLyricsProject.Id;
                     LogLyricsSaveDebug($"[Load-Hit] projectId={_currentLyricsProject.Id}, name={_currentLyricsProject.Name}, contentLen={(_currentLyricsProject.Content ?? "").Length}, db={GetLyricsDbPathSafe()}");
                     // 加载现有项目
@@ -2755,6 +2814,7 @@ namespace ImageColorChanger.UI
                         _lyricsSliceModeEnabled = _lyricsSplitMode == (int)ViewSplitMode.Single;
                         _lyricsSingleRawText = modeData.SingleContent ?? string.Empty;
                         _lyricsSingleRawTextInitialized = true;
+                        loadedSliceRuleProjectionFontSizes = modeData.SliceRuleProjectionFontSizes;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSizeForProject(modeData.MainScreenFontSize);
                         loadedThemeName = string.IsNullOrWhiteSpace(modeData.ThemeName) ? "黑色" : modeData.ThemeName;
                         loadedThemeHex = string.IsNullOrWhiteSpace(modeData.ThemeBackgroundHex)
@@ -2778,6 +2838,7 @@ namespace ImageColorChanger.UI
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
                         _lyricsSingleRawTextInitialized = true;
+                        loadedSliceRuleProjectionFontSizes = null;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
@@ -2796,6 +2857,7 @@ namespace ImageColorChanger.UI
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
                         _lyricsSingleRawTextInitialized = true;
+                        loadedSliceRuleProjectionFontSizes = null;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
@@ -2815,12 +2877,18 @@ namespace ImageColorChanger.UI
                         _lyricsCurrentSliceIndex = 0;
                         _lyricsSingleRawText = LyricsTextBox.Text ?? string.Empty;
                         _lyricsSingleRawTextInitialized = true;
+                        loadedSliceRuleProjectionFontSizes = null;
                         _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                         loadedThemeName = "黑色";
                         loadedThemeHex = "#000000";
                     }
 
                     _lyricsProjectionFontSize = ResolveProjectionFontSizeForProject(_currentLyricsProject);
+                    LoadSingleSliceProjectionFontSizes(loadedSliceRuleProjectionFontSizes, _lyricsProjectionFontSize);
+                    if (_lyricsSplitMode == (int)ViewSplitMode.Single)
+                    {
+                        ApplySingleSliceProjectionFontSizeByCurrentRule();
+                    }
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                     {
                         ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
@@ -2891,6 +2959,7 @@ namespace ImageColorChanger.UI
                     LyricsSplitTextBox4.Text = "";
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.FontSize = _lyricsMainScreenFontSize);
                     _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
+                    LoadSingleSliceProjectionFontSizes(null, _lyricsProjectionFontSize);
                     UpdateLyricsProjectionFontSizeDisplay();
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new System.Windows.Media.SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
                     ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
@@ -2981,6 +3050,7 @@ namespace ImageColorChanger.UI
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.Foreground = new SolidColorBrush(HexToColor(_configManager.DefaultLyricsColor)));
             ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = TextAlignment.Center);
             _lyricsProjectionFontSize = Math.Clamp(_configManager.LyricsProjectionFontSize, MinLyricsFontSize, MaxLyricsFontSize);
+            LoadSingleSliceProjectionFontSizes(null, _lyricsProjectionFontSize);
             UpdateLyricsProjectionFontSizeDisplay();
             EnforceMainLyricsEditorFontSize();
             ApplyLyricsTheme("黑色", "#000000", showStatus: false);
@@ -3053,6 +3123,10 @@ namespace ImageColorChanger.UI
                     SliceCutPoints = new List<int>(),
                     SliceCurrentIndex = Math.Max(0, _lyricsCurrentSliceIndex),
                     MainScreenFontSize = Math.Clamp(_lyricsMainScreenFontSize, MinMainLyricsFontSize, MaxMainLyricsFontSize),
+                    SliceRuleProjectionFontSizes = Enumerable.Range(0, 5)
+                        .ToDictionary(
+                            i => i,
+                            i => GetSingleSliceProjectionFontSize(i)),
                     ThemeMode = string.Equals(_lyricsThemeName, "白色", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
                     ThemeName = string.IsNullOrWhiteSpace(_lyricsThemeName) ? "黑色" : _lyricsThemeName,
                     ThemeBackgroundHex = string.IsNullOrWhiteSpace(_lyricsThemeBackgroundHex) ? "#000000" : _lyricsThemeBackgroundHex
