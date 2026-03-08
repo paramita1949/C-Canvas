@@ -118,6 +118,8 @@ namespace ImageColorChanger.UI
             {
 #if DEBUG
                 Debug.WriteLine($"[MediaNameRepair] failed: {ex.Message}");
+#else
+                _ = ex;
 #endif
             }
         }
