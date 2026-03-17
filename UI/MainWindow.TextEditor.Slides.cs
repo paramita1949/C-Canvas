@@ -1443,6 +1443,7 @@ namespace ImageColorChanger.UI
             {
                 var newElement = _textProjectService.CloneElement(clipboardElement.ElementTemplate);
                 newElement.SlideId = newSlide.Id;
+                newElement.ProjectId = _currentTextProject.Id;
                 await _textProjectService.AddElementAsync(newElement);
 
                 if (clipboardElement.RichTextSpans != null && clipboardElement.RichTextSpans.Count > 0)
