@@ -33,6 +33,11 @@ namespace ImageColorChanger.Services.Interfaces
         void Start(double duration);
 
         /// <summary>
+        /// 同步剩余时间（不重置已运行时间）
+        /// </summary>
+        void SyncRemaining(double remainingTime);
+
+        /// <summary>
         /// 暂停倒计时
         /// </summary>
         void Pause();

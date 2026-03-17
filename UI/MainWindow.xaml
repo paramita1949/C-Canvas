@@ -193,9 +193,9 @@
                     <!-- 倒计时显示 - 无边框，黄色底 -->
                     <Border x:Name="CountdownBorder" Background="#FFFFCC" 
                             BorderThickness="0"
-                            CornerRadius="4" Padding="8,2" Margin="3,0" Width="90"
+                            CornerRadius="4" Padding="8,2" Margin="3,0" Width="110"
                             VerticalAlignment="Center">
-                        <TextBlock x:Name="CountdownText" Text="倒: --" FontSize="18" 
+                        <TextBlock x:Name="CountdownText" Text="|" FontSize="18" 
                                    FontWeight="Bold" Foreground="#CC6600" 
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

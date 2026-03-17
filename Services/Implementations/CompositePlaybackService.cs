@@ -100,7 +100,7 @@ namespace ImageColorChanger.Services.Implementations
         /// <summary>
         /// 请求停止滚动事件（触发MainWindow停止当前滚动动画）
         /// </summary>
-        public event EventHandler ScrollStopRequested;
+        public event EventHandler<CompositeScrollStopEventArgs> ScrollStopRequested;
 
         /// <summary>
         /// 当前关键帧变化事件（用于更新指示块颜色）
@@ -605,7 +605,7 @@ namespace ImageColorChanger.Services.Implementations
             // 滚动段暂停时，立即停掉当前动画，恢复时按剩余时长重启
             if (_currentSegment != null && _currentSegment.Type == SegmentType.Scroll)
             {
-                ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+                ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = true });
             }
             return Task.CompletedTask;
         }
@@ -666,7 +666,7 @@ namespace ImageColorChanger.Services.Implementations
             _playbackStopwatch.Stop();
 
             // 触发停止滚动事件，立即停止当前正在进行的滚动动画
-            ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+            ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = false });
 
             return Task.CompletedTask;
         }
@@ -755,13 +755,14 @@ namespace ImageColorChanger.Services.Implementations
             System.Diagnostics.Debug.WriteLine($" 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
             #endif
 
-            // 如果正在播放，且当前有正在播放的段，需要立即应用新速度
-            if (IsPlaying && _currentSegment != null)
+            // 如果正在播放且未暂停，当前段需要立即应用新速度
+            // 暂停状态下不重算当前段，避免把暂停时长误算进已播放时间
+            if (IsPlaying && !IsPaused && _currentSegment != null)
             {
                 // 停止当前滚动动画（如果是滚动段）
                 if (_currentSegment.Type == SegmentType.Scroll)
                 {
-                    ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+                    ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = true });
                 }
                 
                 // 重新计算剩余时间并继续播放
@@ -802,7 +803,7 @@ namespace ImageColorChanger.Services.Implementations
                 if (_currentSegment.Type == SegmentType.Scroll && remainingAdjustedTime > 0.1)
                 {
                     // 如果是滚动段，停止当前动画并重新触发滚动请求（使用剩余时间）
-                    ScrollStopRequested?.Invoke(this, EventArgs.Empty);
+                    ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = true });
                     
                     // 获取当前滚动位置（而不是使用段的起始位置）
                     var positionArgs = new CurrentScrollPositionRequestEventArgs();
@@ -956,8 +957,8 @@ namespace ImageColorChanger.Services.Implementations
     /// <summary>
     /// 合成播放滚动事件参数
     /// </summary>
-    public class CompositeScrollEventArgs : EventArgs
-    {
+public class CompositeScrollEventArgs : EventArgs
+{
     /// <summary>起始Y坐标</summary>
     public double StartPosition { get; set; }
 
@@ -969,6 +970,17 @@ namespace ImageColorChanger.Services.Implementations
     
     /// <summary>动画速度倍率（默认1.0，用于直接加速滚动动画）</summary>
     public double SpeedRatio { get; set; } = 1.0;
+    }
+
+    /// <summary>
+    /// 停止滚动请求参数
+    /// </summary>
+    public class CompositeScrollStopEventArgs : EventArgs
+    {
+        /// <summary>
+        /// 是否保留倒计时（如切速时的瞬时停滚）
+        /// </summary>
+        public bool PreserveCountdown { get; set; }
     }
 
     /// <summary>

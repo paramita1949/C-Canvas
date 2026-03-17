@@ -125,7 +125,7 @@ namespace ImageColorChanger.UI
 
                                 Dispatcher.Invoke(() =>
                                 {
-                                    CountdownText.Text = "倒: --";
+                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                     CountdownText.ToolTip = null;
                                 });
                             }
@@ -154,7 +154,7 @@ namespace ImageColorChanger.UI
                                     SetCompositePlayButtonContent(false);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    CountdownText.Text = "倒: --";
+                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                     CountdownText.ToolTip = null;
                                     _countdownService?.Stop();
                                     System.Diagnostics.Debug.WriteLine("[投影] 已停止合成播放的滚动动画和倒计时");
@@ -230,7 +230,7 @@ namespace ImageColorChanger.UI
 
                                 Dispatcher.Invoke(() =>
                                 {
-                                    CountdownText.Text = "倒: --";
+                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                     CountdownText.ToolTip = null;
                                 });
                             }
@@ -256,7 +256,7 @@ namespace ImageColorChanger.UI
                                     SetCompositePlayButtonContent(false);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    CountdownText.Text = "倒: --";
+                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                     CountdownText.ToolTip = null;
                                     _countdownService?.Stop();
                                 });

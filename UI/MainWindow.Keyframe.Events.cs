@@ -449,7 +449,7 @@ namespace ImageColorChanger.UI
                     StopCompositeScrollAnimation();
                     
                     // 重置倒计时显示
-                    CountdownText.Text = "倒: --";
+                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                     _countdownService?.Stop();
                     
                     //System.Diagnostics.Debug.WriteLine("[合成播放] 已停止滚动动画和倒计时");
@@ -1057,13 +1057,14 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 合成播放停止滚动请求事件处理
         /// </summary>
-        private void OnCompositeScrollStopRequested(object sender, EventArgs e)
+        private void OnCompositeScrollStopRequested(object sender, Services.Implementations.CompositeScrollStopEventArgs e)
         {
             Dispatcher.Invoke(() =>
             {
                 try
                 {
                     bool isPauseOnly = (sender as Services.Implementations.CompositePlaybackService)?.IsPaused == true;
+                    bool preserveCountdown = e?.PreserveCountdown == true;
 
                     // 立即停止合成播放的滚动动画
                     StopCompositeScrollAnimation();
@@ -1073,9 +1074,9 @@ namespace ImageColorChanger.UI
 
                     // 暂停场景：保留当前倒计时显示与状态
                     // 停止场景：清空倒计时并恢复指示块
-                    if (!isPauseOnly)
+                    if (!isPauseOnly && !preserveCountdown)
                     {
-                        CountdownText.Text = "倒: --";
+                        CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                         _countdownService?.Stop();
                         _keyframeManager?.UpdatePreviewLines();
                     }
@@ -1110,8 +1111,29 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnCompositeProgressUpdated(object sender, Services.Interfaces.PlaybackProgressEventArgs e)
         {
-            // 启动倒计时服务（剩余时间已经应用了速度倍率）
-            _countdownService?.Start(e.RemainingTime);
+            if (_countdownService == null)
+            {
+                return;
+            }
+
+            bool isCompositePaused = (sender as Services.Implementations.CompositePlaybackService)?.IsPaused == true;
+
+            // 暂停期间（例如暂停时调速触发的进度同步）只校准剩余时间，禁止重启倒计时
+            if (isCompositePaused)
+            {
+                _countdownService.SyncRemaining(e.RemainingTime);
+                return;
+            }
+
+            // 首次进度事件启动倒计时；后续（含切速）只同步剩余时间，避免已运行时间被重置
+            if (_countdownService.IsRunning)
+            {
+                _countdownService.SyncRemaining(e.RemainingTime);
+            }
+            else
+            {
+                _countdownService.Start(e.RemainingTime);
+            }
         }
         
         /// <summary>
@@ -1415,7 +1437,7 @@ namespace ImageColorChanger.UI
                         StopCompositeScrollAnimation();
                         
                         // 重置倒计时显示
-                        CountdownText.Text = "倒: --";
+                        CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                             _countdownService?.Stop();
                         }
                         else
@@ -1429,7 +1451,7 @@ namespace ImageColorChanger.UI
                             StopCompositeScrollAnimation();
                             
                             // 重置倒计时显示
-                            CountdownText.Text = "倒: --";
+                            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                 _countdownService?.Stop();
                             });
                         }

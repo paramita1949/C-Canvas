@@ -113,6 +113,13 @@ namespace ImageColorChanger.UI
         private async void BtnPauseResume_Click(object sender, RoutedEventArgs e)
         {
             if (_playbackViewModel == null) return;
+
+            // 合成播放统一走同一暂停/继续链路（与F2一致），避免状态分叉
+            if (await ToggleCompositePauseResumeByHotkeyAsync())
+            {
+                return;
+            }
+
             await _playbackViewModel.TogglePauseCommand.ExecuteAsync(null);
         }
 

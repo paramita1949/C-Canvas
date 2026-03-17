@@ -87,7 +87,7 @@ namespace ImageColorChanger.UI
 
                 _countdownUpdatedHandler = (s, e) =>
                 {
-                    Dispatcher.Invoke(() => { CountdownText.Text = $"倒: {e.RemainingTime:F1}"; });
+                    Dispatcher.Invoke(() => { SetCountdownDisplay(e.ElapsedTime, e.RemainingTime); });
                 };
                 _countdownService.CountdownUpdated += _countdownUpdatedHandler;
 
@@ -108,7 +108,7 @@ namespace ImageColorChanger.UI
                                     : System.Windows.SystemColors.ControlBrush;
                                 if (!_playbackViewModel.IsPlaying)
                                 {
-                                    CountdownText.Text = "倒: --";
+                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                 }

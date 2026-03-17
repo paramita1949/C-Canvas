@@ -235,7 +235,7 @@ namespace ImageColorChanger.UI
                 // 恢复倒计时显示为默认状态
                 Dispatcher.Invoke(() =>
                 {
-                    CountdownText.Text = "倒: --";
+                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                     CountdownText.ToolTip = null;
                 });
 

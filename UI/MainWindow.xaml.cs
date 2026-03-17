@@ -89,6 +89,9 @@ namespace ImageColorChanger.UI
         private const string ICON_COLOR_FILE = "#95E1D3";        // 文件图标 - 青色
         private const string ICON_COLOR_TEXT = "#2196F3";        // 文本项目 - 蓝色
         private const string ICON_COLOR_DEFAULT = "#666666";     // 默认图标 - 灰色
+        private const string COUNTDOWN_DEFAULT_TEXT = "|";
+        private static readonly System.Windows.Media.Brush COUNTDOWN_REMAINING_BRUSH = new SolidColorBrush(Color.FromRgb(0xCC, 0x66, 0x00));
+        private static readonly System.Windows.Media.Brush COUNTDOWN_ELAPSED_BRUSH = new SolidColorBrush(Color.FromRgb(0x3F, 0x5B, 0x7A));
 
         #endregion
 
@@ -212,6 +215,22 @@ namespace ImageColorChanger.UI
         private SortManager SortManagerService => _mainWindowServices.GetRequired<SortManager>();
         private SearchManager SearchManagerService => _mainWindowServices.GetRequired<SearchManager>();
         private ImportManager ImportManagerService => _mainWindowServices.GetRequired<ImportManager>();
+
+        private void SetCountdownDisplay(double elapsedSeconds, double remainingSeconds)
+        {
+            double elapsed = Math.Max(0, elapsedSeconds);
+            double remaining = Math.Max(0, remainingSeconds);
+
+            CountdownText.Inlines.Clear();
+            CountdownText.Inlines.Add(new System.Windows.Documents.Run($"{remaining:F1}|")
+            {
+                Foreground = COUNTDOWN_REMAINING_BRUSH
+            });
+            CountdownText.Inlines.Add(new System.Windows.Documents.Run($"{elapsed:F1}")
+            {
+                Foreground = COUNTDOWN_ELAPSED_BRUSH
+            });
+        }
 
         #endregion
 

@@ -14,7 +14,7 @@ namespace ImageColorChanger.Services.Implementations
         private readonly DispatcherTimer _timer;
         private readonly Stopwatch _stopwatch;
         private double _totalDuration;
-        private double _pausedElapsedTime;
+        private double _accumulatedElapsedTime;
         private double _lastRemainingTime = -1;
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace ImageColorChanger.Services.Implementations
             }
 
             _totalDuration = duration;
-            _pausedElapsedTime = 0;
+            _accumulatedElapsedTime = 0;
             RemainingTime = duration;
             _lastRemainingTime = -1;
             IsRunning = true;
@@ -73,6 +73,22 @@ namespace ImageColorChanger.Services.Implementations
         }
 
         /// <summary>
+        /// 同步剩余时间（不重置已运行时间）
+        /// </summary>
+        public void SyncRemaining(double remainingTime)
+        {
+            if (remainingTime < 0)
+            {
+                remainingTime = 0;
+            }
+
+            var elapsedTime = _accumulatedElapsedTime + (IsRunning ? _stopwatch.Elapsed.TotalSeconds : 0);
+            _totalDuration = elapsedTime + remainingTime;
+            RemainingTime = remainingTime;
+            _lastRemainingTime = -1;
+        }
+
+        /// <summary>
         /// 暂停倒计时
         /// </summary>
         public void Pause()
@@ -80,9 +96,10 @@ namespace ImageColorChanger.Services.Implementations
             if (!IsRunning)
                 return;
 
+            _accumulatedElapsedTime += _stopwatch.Elapsed.TotalSeconds;
             _stopwatch.Stop();
+            _stopwatch.Reset();
             _timer.Stop();
-            _pausedElapsedTime = _stopwatch.Elapsed.TotalSeconds;
             IsRunning = false;
             
             //System.Diagnostics.Debug.WriteLine($" [倒计时] 暂停倒计时，剩余: {RemainingTime:F1}秒");
@@ -97,7 +114,7 @@ namespace ImageColorChanger.Services.Implementations
                 return;
 
             IsRunning = true;
-            _stopwatch.Start();
+            _stopwatch.Restart();
             _timer.Start();
             
             //System.Diagnostics.Debug.WriteLine($" [倒计时] 继续倒计时，剩余: {RemainingTime:F1}秒");
@@ -109,10 +126,13 @@ namespace ImageColorChanger.Services.Implementations
         public void Stop()
         {
             _stopwatch.Stop();
+            _stopwatch.Reset();
             _timer.Stop();
             IsRunning = false;
             RemainingTime = 0;
             _lastRemainingTime = -1;
+            _accumulatedElapsedTime = 0;
+            _totalDuration = 0;
         }
 
         /// <summary>
@@ -121,7 +141,7 @@ namespace ImageColorChanger.Services.Implementations
         public void Reset()
         {
             Stop();
-            _pausedElapsedTime = 0;
+            _accumulatedElapsedTime = 0;
         }
 
         /// <summary>
@@ -133,7 +153,7 @@ namespace ImageColorChanger.Services.Implementations
                 return;
 
             // 计算已过去的时间
-            var elapsedTime = _pausedElapsedTime + _stopwatch.Elapsed.TotalSeconds;
+            var elapsedTime = _accumulatedElapsedTime + _stopwatch.Elapsed.TotalSeconds;
 
             // 计算剩余时间
             RemainingTime = _totalDuration - elapsedTime;

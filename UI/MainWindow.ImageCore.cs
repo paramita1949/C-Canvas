@@ -118,7 +118,7 @@ namespace ImageColorChanger.UI
                             _keyframeManager?.StopScrollAnimation();
                             StopCompositeScrollAnimation();
 
-                            CountdownText.Text = "倒: --";
+                            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
                             _countdownService?.Stop();
                         });
                     }
