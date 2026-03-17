@@ -181,9 +181,9 @@
                     </Button>
 
                     <!-- 分隔线 -->
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="3,0"/>
                     <Button x:Name="BtnPauseResume" Style="{StaticResource MenuButtonStyle}"
-                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click">
+                            ToolTip="暂停/继续播放" Click="BtnPauseResume_Click" Margin="-1,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucidePause}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
                             <TextBlock Text="暂停" VerticalAlignment="Center"/>
