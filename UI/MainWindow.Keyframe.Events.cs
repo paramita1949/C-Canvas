@@ -1206,8 +1206,18 @@ namespace ImageColorChanger.UI
                 
                 menuItem.Click += (s, args) =>
                 {
-                    compositeService.SetSpeed(speed);
-                    ShowStatus($"播放速度已设置为 {speed:F2}x");
+                    if (Math.Abs(compositeService.Speed - speed) < 0.01)
+                    {
+                        return;
+                    }
+
+                    _ = Dispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Background,
+                        new Action(() =>
+                        {
+                            compositeService.SetSpeed(speed);
+                            ShowStatus($"播放速度已设置为 {speed:F2}x");
+                        }));
                 };
                 
                 contextMenu.Items.Add(menuItem);
@@ -1257,7 +1267,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnCurrentScrollPositionRequested(object sender, Services.Implementations.CurrentScrollPositionRequestEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            void ResolveCurrentPosition()
             {
                 try
                 {
@@ -1283,7 +1293,16 @@ namespace ImageColorChanger.UI
                     e.CurrentScrollPosition = 0;
                 }
                 #endif
-            });
+            }
+
+            if (Dispatcher.CheckAccess())
+            {
+                ResolveCurrentPosition();
+            }
+            else
+            {
+                Dispatcher.Invoke(ResolveCurrentPosition);
+            }
         }
         
         /// <summary>
@@ -1291,7 +1310,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void OnScrollableHeightRequested(object sender, Services.Implementations.ScrollableHeightRequestEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            void ResolveScrollableHeight()
             {
                 try
                 {
@@ -1316,7 +1335,16 @@ namespace ImageColorChanger.UI
                     System.Diagnostics.Debug.WriteLine($" 获取可滚动高度失败: {ex.Message}");
                     e.ScrollableHeight = 0; // 失败时返回0，使用默认值
                 }
-            });
+            }
+
+            if (Dispatcher.CheckAccess())
+            {
+                ResolveScrollableHeight();
+            }
+            else
+            {
+                Dispatcher.Invoke(ResolveScrollableHeight);
+            }
         }
 
         /// <summary>

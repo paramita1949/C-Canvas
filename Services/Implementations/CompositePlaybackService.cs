@@ -759,12 +759,6 @@ namespace ImageColorChanger.Services.Implementations
             // 暂停状态下不重算当前段，避免把暂停时长误算进已播放时间
             if (IsPlaying && !IsPaused && _currentSegment != null)
             {
-                // 停止当前滚动动画（如果是滚动段）
-                if (_currentSegment.Type == SegmentType.Scroll)
-                {
-                    ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = true });
-                }
-                
                 // 重新计算剩余时间并继续播放
                 ApplySpeedToCurrentSegment();
             }
@@ -802,9 +796,6 @@ namespace ImageColorChanger.Services.Implementations
                 
                 if (_currentSegment.Type == SegmentType.Scroll && remainingAdjustedTime > 0.1)
                 {
-                    // 如果是滚动段，停止当前动画并重新触发滚动请求（使用剩余时间）
-                    ScrollStopRequested?.Invoke(this, new CompositeScrollStopEventArgs { PreserveCountdown = true });
-                    
                     // 获取当前滚动位置（而不是使用段的起始位置）
                     var positionArgs = new CurrentScrollPositionRequestEventArgs();
                     CurrentScrollPositionRequested?.Invoke(this, positionArgs);
