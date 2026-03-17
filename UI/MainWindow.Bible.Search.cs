@@ -237,18 +237,7 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"   空白记录：清空主屏幕和投影");
-                        //#endif
-                        // 空白记录：清空主屏幕和投影屏幕
-                        _mergedVerses.Clear();
-                        BibleChapterTitle.Text = "";
-                        BibleChapterTitleBorder.Visibility = Visibility.Visible;
-
-                        if (_projectionManager != null && _projectionManager.IsProjecting)
-                        {
-                            _projectionManager.ClearProjectionDisplay();
-                        }
+                        return;
                     }
                 }
                 else
@@ -292,7 +281,8 @@ namespace ImageColorChanger.UI
             }
 
             bool shouldUseSlideFlow = BibleUiBehaviorResolver.ShouldUseHistorySlideFlow(
-                TextEditorPanel?.Visibility == Visibility.Visible);
+                TextEditorPanel?.Visibility == Visibility.Visible,
+                _projectionManager?.IsProjectionActive == true);
 
             if (shouldUseSlideFlow)
             {

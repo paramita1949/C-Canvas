@@ -375,6 +375,10 @@ namespace ImageColorChanger.UI
             renameItem.Click += (s, args) => RenameTextProjectAsync(item);
             contextMenu.Items.Add(renameItem);
 
+            var copyItem = new MenuItem { Header = "复制项目" };
+            copyItem.Click += async (s, args) => await CopyTextProjectAsync(item);
+            contextMenu.Items.Add(copyItem);
+
             contextMenu.Items.Add(new Separator());
 
             var exportItem = new MenuItem { Header = "导出" };

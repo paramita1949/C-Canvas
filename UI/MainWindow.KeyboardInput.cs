@@ -26,6 +26,32 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (Keyboard.Modifiers == ModifierKeys.Control && (key == Key.C || key == Key.V))
+            {
+                if (SlideListBox?.IsKeyboardFocusWithin == true)
+                {
+                    return;
+                }
+
+                if (ProjectTree?.IsKeyboardFocusWithin == true)
+                {
+                    if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase)
+                    {
+                        return;
+                    }
+
+                    if (key == Key.C)
+                    {
+                        bool copied = await TryCopySelectedTextProjectFromTreeAsync();
+                        if (copied)
+                        {
+                            e.Handled = true;
+                        }
+                    }
+                    return;
+                }
+            }
+
             if (_isLyricsMode && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 // 让歌词编辑框自身处理 Ctrl+C/X/V/A，避免发布版路由差异导致行为不一致。

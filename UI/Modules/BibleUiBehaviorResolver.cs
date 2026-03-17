@@ -14,9 +14,9 @@ namespace ImageColorChanger.UI.Modules
             return preferredMode;
         }
 
-        public static bool ShouldUseHistorySlideFlow(bool isTextEditorVisible)
+        public static bool ShouldUseHistorySlideFlow(bool isTextEditorVisible, bool isProjectionActive)
         {
-            return isTextEditorVisible;
+            return isTextEditorVisible && isProjectionActive;
         }
     }
 }

@@ -552,25 +552,26 @@ namespace ImageColorChanger.UI
                         LoadBibleHistoryFromConfig();
                     }
 
-                    // 加载第1列:分类列表(用户要求的10个准确分类)
+                    // 加载第1列:分类列表
                     var categories = new ObservableCollection<string>
                     {
-                        "旧约",          // 旧约全部39卷
-                        "新约",          // 新约全部27卷
-                        "摩西五经",      // 创-申 (5卷)
-                        "旧约历史",      // 书-斯 (12卷)
-                        "诗歌智慧",      // 伯-歌 (5卷)
-                        "大先知书",      // 赛-但 (5卷)
-                        "小先知书",      // 何-玛 (12卷)
-                        "福音使徒",      // 太-徒 (5卷:四福音+使徒行传)
-                        "保罗书信",      // 罗-门 (13卷)
-                        "普通书信"       // 来-启 (9卷:8封普通书信+启示录)
+                        "全部",
+                        "旧约",
+                        "新约",
+                        "摩西五经",
+                        "旧约历史",
+                        "诗歌智慧",
+                        "大先知书",
+                        "小先知书",
+                        "福音使徒",
+                        "保罗书信",
+                        "普通书信"
                     };
 
                     BibleCategoryList.ItemsSource = categories;
 
-                    // 默认选中"旧约"
-                    BibleCategoryList.SelectedIndex = 0;
+                    // 默认选中"全部"
+                    BibleCategoryList.SelectedItem = "全部";
                     
                     // 标记已初始化
                     _bibleNavigationInitialized = true;
@@ -715,6 +716,9 @@ namespace ImageColorChanger.UI
 
             switch (category)
             {
+                case "全部":
+                    books = allBooks;
+                    break;
                 case "旧约":
                     books = allBooks.Where(b => b.Testament == "旧约");
                     break;
@@ -728,16 +732,13 @@ namespace ImageColorChanger.UI
                     books = allBooks.Where(b => b.Category == "诗歌智慧书");
                     break;
                 case "福音使徒":
-                    // 四福音书 + 使徒行传
-                    books = allBooks.Where(b => b.Category == "福音书" || 
+                    books = allBooks.Where(b => b.Category == "福音书" ||
                                                (b.Name == "使徒行传" && b.Testament == "新约"));
                     break;
                 case "普通书信":
-                    // 普通书信 + 启示录
                     books = allBooks.Where(b => b.Category == "普通书信" || b.Name == "启示录");
                     break;
                 default:
-                    // 摩西五经、大先知书、小先知书、保罗书信直接匹配
                     books = allBooks.Where(b => b.Category == category);
                     break;
             }
@@ -1322,8 +1323,7 @@ namespace ImageColorChanger.UI
 
                 // 第1步：选择对应的分类（根据书卷所属分类）
                 string targetCategory = book.Category;
-                
-                // 特殊处理：福音使徒和普通书信
+
                 if (book.Category == "福音书" || book.Name == "使徒行传")
                 {
                     targetCategory = "福音使徒";

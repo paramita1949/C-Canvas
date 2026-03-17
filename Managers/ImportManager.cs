@@ -326,6 +326,7 @@ namespace ImageColorChanger.Managers
                         .OrderBy(x => x.SortKey.prefixNumber)
                         .ThenBy(x => x.SortKey.pinyinPart)
                         .ThenBy(x => x.SortKey.suffixNumber)
+                        .ThenBy(x => x.SortKey.stableKey)
                         .Select(x => x.File)
                         .ToList();
                 }
@@ -405,6 +406,7 @@ namespace ImageColorChanger.Managers
                     .OrderBy(x => x.SortKey.prefixNumber)
                     .ThenBy(x => x.SortKey.pinyinPart)
                     .ThenBy(x => x.SortKey.suffixNumber)
+                    .ThenBy(x => x.SortKey.stableKey)
                     .Select(x => x.File)
                     .ToList();
 

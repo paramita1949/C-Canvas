@@ -107,6 +107,7 @@ namespace ImageColorChanger.UI
                 appResources["ColorGlobalIcon"] = color;
                 appResources["BrushGlobalIcon"] = new SolidColorBrush(color);
                 appResources["BrushIconDefault"] = new SolidColorBrush(color);
+                appResources["BrushMenuHover"] = new SolidColorBrush(color) { Opacity = 0.16 };
             }
 
             if (saveSetting)

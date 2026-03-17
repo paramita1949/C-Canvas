@@ -21,7 +21,7 @@ namespace ImageColorChanger.Managers
         /// 4. "因为有你01" - 中文数字
         /// 排序优先级：前缀数字 > 中文拼音 > 后缀数字
         /// </summary>
-        public (int prefixNumber, string pinyinPart, int suffixNumber) GetSortKey(string filename)
+        public (int prefixNumber, string pinyinPart, int suffixNumber, string stableKey) GetSortKey(string filename)
         {
             // 移除扩展名
             string name = Path.GetFileNameWithoutExtension(filename);
@@ -103,8 +103,10 @@ namespace ImageColorChanger.Managers
             // 获取中文的拼音首字母
             string pinyinPart = GetPinyin(textPart);
 
-            // 返回排序键：(前缀数字, 中文拼音, 后缀数字)
-            return (prefixNumber, pinyinPart.ToLower(), suffixNumber);
+            string stableKey = Path.GetFileName(filename)?.ToLowerInvariant() ?? string.Empty;
+
+            // 返回排序键：(前缀数字, 中文拼音, 后缀数字, 稳定兜底键)
+            return (prefixNumber, pinyinPart.ToLower(), suffixNumber, stableKey);
         }
 
         private static int ParseSortNumberOrClamp(string value)

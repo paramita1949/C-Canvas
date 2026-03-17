@@ -20,13 +20,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(false, false)]
+        [InlineData(true, true, true)]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, false)]
         public void ShouldUseHistorySlideFlow_RequiresTextEditorVisible(
             bool isTextEditorVisible,
+            bool isProjectionActive,
             bool expected)
         {
-            var actual = BibleUiBehaviorResolver.ShouldUseHistorySlideFlow(isTextEditorVisible);
+            var actual = BibleUiBehaviorResolver.ShouldUseHistorySlideFlow(isTextEditorVisible, isProjectionActive);
             Assert.Equal(expected, actual);
         }
     }

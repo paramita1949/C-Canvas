@@ -886,6 +886,22 @@
                                                     <Setter TargetName="ExpanderColumn" Property="Width" Value="0"/>
                                                     <Setter TargetName="Expander" Property="Visibility" Value="Collapsed"/>
                                                 </DataTrigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
+                                                    <Setter TargetName="Bd" Property="BorderThickness" Value="0"/>
+                                                    <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                                                    <Trigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="Bd"
+                                                                                 Storyboard.TargetProperty="Opacity"
+                                                                                 From="0.82"
+                                                                                 To="0.88"
+                                                                                 Duration="0:0:0.12"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.EnterActions>
+                                                </Trigger>
                                                 <!-- 选中状态 - 黄色高亮 -->
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="Bd" Property="Background" Value="#FFD54F"/>

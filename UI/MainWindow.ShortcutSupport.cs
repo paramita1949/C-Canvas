@@ -71,6 +71,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         public async Task<bool> TryCopySelectedTextBoxAsync()
         {
+            if (SlideListBox?.IsKeyboardFocusWithin == true)
+            {
+                return false;
+            }
+
             if (!HasSelectedTextBoxInEditor() || IsTextBoxInEditMode())
             {
                 return false;
@@ -85,6 +90,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         public async Task<bool> TryPasteTextBoxAsync()
         {
+            if (SlideListBox?.IsKeyboardFocusWithin == true)
+            {
+                return false;
+            }
+
             if (!IsTextEditorActive() || IsTextBoxInEditMode())
             {
                 return false;

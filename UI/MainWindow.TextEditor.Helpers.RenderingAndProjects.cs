@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -284,6 +286,147 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"导出项目失败: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 复制文本项目（包含全部幻灯片与文本元素）
+        /// </summary>
+        private async Task CopyTextProjectAsync(ProjectTreeItem item)
+        {
+            if (item == null || item.Id <= 0)
+            {
+                return;
+            }
+
+            try
+            {
+                var sourceProject = await _textProjectService.LoadProjectAsync(item.Id);
+                if (sourceProject == null)
+                {
+                    ShowStatus("复制项目失败：源项目不存在");
+                    return;
+                }
+
+                string targetName = await GenerateCopyProjectNameAsync(sourceProject.Name);
+                var newProject = await _textProjectService.CreateProjectAsync(
+                    targetName,
+                    sourceProject.CanvasWidth,
+                    sourceProject.CanvasHeight);
+
+                newProject.BackgroundImagePath = sourceProject.BackgroundImagePath;
+                newProject.ModifiedTime = DateTime.Now;
+                await _textProjectService.SaveProjectAsync(newProject);
+
+                var sourceSlides = (await _textProjectService.GetSlidesByProjectAsync(sourceProject.Id))
+                    .OrderBy(s => s.SortOrder)
+                    .ThenBy(s => s.Id)
+                    .ToList();
+
+                var slideIdMap = new Dictionary<int, int>();
+                foreach (var sourceSlide in sourceSlides)
+                {
+                    var clonedSlide = new Slide
+                    {
+                        ProjectId = newProject.Id,
+                        Title = sourceSlide.Title,
+                        SortOrder = sourceSlide.SortOrder,
+                        BackgroundColor = sourceSlide.BackgroundColor,
+                        BackgroundImagePath = sourceSlide.BackgroundImagePath,
+                        BackgroundGradientEnabled = sourceSlide.BackgroundGradientEnabled,
+                        BackgroundGradientStartColor = sourceSlide.BackgroundGradientStartColor,
+                        BackgroundGradientEndColor = sourceSlide.BackgroundGradientEndColor,
+                        BackgroundGradientDirection = sourceSlide.BackgroundGradientDirection,
+                        BackgroundOpacity = sourceSlide.BackgroundOpacity,
+                        SplitMode = sourceSlide.SplitMode,
+                        SplitStretchMode = sourceSlide.SplitStretchMode,
+                        SplitRegionsData = sourceSlide.SplitRegionsData,
+                        VideoBackgroundEnabled = sourceSlide.VideoBackgroundEnabled,
+                        VideoLoopEnabled = sourceSlide.VideoLoopEnabled,
+                        VideoVolume = sourceSlide.VideoVolume,
+                        OutputMode = sourceSlide.OutputMode
+                    };
+
+                    var savedSlide = await _textProjectService.AddSlideAsync(clonedSlide);
+                    slideIdMap[sourceSlide.Id] = savedSlide.Id;
+                }
+
+                foreach (var sourceSlide in sourceSlides)
+                {
+                    if (!slideIdMap.TryGetValue(sourceSlide.Id, out var newSlideId))
+                    {
+                        continue;
+                    }
+
+                    var sourceElements = await _textElementRepository.GetBySlideWithRichTextAsync(sourceSlide.Id);
+                    foreach (var sourceElement in sourceElements)
+                    {
+                        var newElement = _textProjectService.CloneElement(sourceElement);
+                        newElement.ProjectId = newProject.Id;
+                        newElement.SlideId = newSlideId;
+
+                        var savedElement = await _textProjectService.AddElementAsync(newElement);
+
+                        if (sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
+                        {
+                            var newSpans = CloneRichTextSpans(sourceElement.RichTextSpans);
+                            foreach (var span in newSpans)
+                            {
+                                span.TextElementId = savedElement.Id;
+                            }
+
+                            await _richTextSpanRepository.SaveForTextElementAsync(savedElement.Id, newSpans);
+                        }
+                    }
+                }
+
+                ReloadProjectsPreservingTreeState(TreeItemType.TextProject, newProject.Id);
+                await LoadTextProjectAsync(newProject.Id);
+                ShowStatus($"已复制项目: {targetName}");
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"复制项目失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        internal async Task<bool> TryCopySelectedTextProjectFromTreeAsync()
+        {
+            if (ProjectTree?.SelectedItem is not ProjectTreeItem selectedItem)
+            {
+                return false;
+            }
+
+            if (selectedItem.Type != TreeItemType.TextProject)
+            {
+                return false;
+            }
+
+            await CopyTextProjectAsync(selectedItem);
+            return true;
+        }
+
+        private async Task<string> GenerateCopyProjectNameAsync(string sourceName)
+        {
+            string baseName = string.IsNullOrWhiteSpace(sourceName) ? "项目" : sourceName.Trim();
+            string candidate = $"{baseName} (副本)";
+
+            var existingNames = (await _textProjectService.GetAllProjectsAsync())
+                .Select(p => p.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!existingNames.Contains(candidate))
+            {
+                return candidate;
+            }
+
+            int index = 2;
+            while (existingNames.Contains($"{baseName} (副本{index})"))
+            {
+                index++;
+            }
+
+            return $"{baseName} (副本{index})";
         }
 
         /// <summary>

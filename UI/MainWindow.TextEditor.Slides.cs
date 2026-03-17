@@ -45,6 +45,19 @@ namespace ImageColorChanger.UI
         private bool _isReorderingSlides;
         private bool _isDeletingSlide;
         private bool _isNormalizingSlideSortOrder;
+        private SlideClipboardData _slideClipboardData;
+
+        private sealed class SlideClipboardData
+        {
+            public Slide SlideTemplate { get; set; }
+            public List<SlideClipboardElementData> Elements { get; set; } = new();
+        }
+
+        private sealed class SlideClipboardElementData
+        {
+            public Database.Models.TextElement ElementTemplate { get; set; }
+            public List<Database.Models.RichTextSpan> RichTextSpans { get; set; } = new();
+        }
 
         private bool CanSwitchSlideWhileProjecting(bool showToast = true)
         {
@@ -283,17 +296,34 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 幻灯片列表键盘事件（处理DEL删除）
+        /// 幻灯片列表键盘事件
         /// </summary>
         private void SlideListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // DEL键删除幻灯片
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Key == Key.C && SlideListBox.SelectedItem != null)
+                {
+                    BtnCopySlide_Click(sender, new RoutedEventArgs());
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key == Key.V && _slideClipboardData != null && _currentTextProject != null)
+                {
+                    BtnPasteSlide_Click(sender, new RoutedEventArgs());
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if (e.Key == System.Windows.Input.Key.Delete)
             {
                 if (SlideListBox.SelectedItem != null)
                 {
                     BtnDeleteSlide_Click(sender, new RoutedEventArgs());
                     e.Handled = true;
+                    return;
                 }
             }
         }
@@ -327,6 +357,18 @@ namespace ImageColorChanger.UI
             };
             copyItem.Click += BtnCopySlide_Click;
             contextMenu.Items.Add(copyItem);
+
+            if (_slideClipboardData != null)
+            {
+                var pasteItem = new MenuItem
+                {
+                    Header = "粘贴",
+                    FontSize = 14,
+                    IsEnabled = _currentTextProject != null
+                };
+                pasteItem.Click += BtnPasteSlide_Click;
+                contextMenu.Items.Add(pasteItem);
+            }
 
             // 删除幻灯片
             var deleteItem = new MenuItem 
@@ -1249,109 +1291,25 @@ namespace ImageColorChanger.UI
 
                 // 加载源幻灯片的所有元素（包含富文本片段）
                 var sourceElements = await _textElementRepository.GetBySlideWithRichTextAsync(sourceSlide.Id);
-
-                // 计算新的排序位置（在源幻灯片后面）
-                int newSortOrder = sourceSlide.SortOrder + 1;
-                
-                // 将后面的幻灯片排序顺序都+1
-                var slidesToUpdate = (await _textProjectService.GetSlidesByProjectAsync(_currentTextProject.Id))
-                    .Where(s => s.SortOrder >= newSortOrder)
-                    .ToList();
-                
-                foreach (var slide in slidesToUpdate)
-                {
-                    slide.SortOrder++;
-                }
-                await _textProjectService.UpdateSlideSortOrdersAsync(slidesToUpdate);
-
-                // 创建新幻灯片（复制所有属性）
-                var newSlide = new Slide
-                {
-                    ProjectId = _currentTextProject.Id,
-                    Title = $"{sourceSlide.Title} (副本)",
-                    SortOrder = newSortOrder,
-                    BackgroundColor = sourceSlide.BackgroundColor,
-                    BackgroundImagePath = sourceSlide.BackgroundImagePath,
-                    SplitMode = sourceSlide.SplitMode,  // 复制分割模式
-                    SplitStretchMode = sourceSlide.SplitStretchMode,  // 复制显示模式
-                    SplitRegionsData = sourceSlide.SplitRegionsData,  // 复制区域数据
-                    OutputMode = sourceSlide.OutputMode // 复制输出模式（普通/透明）
-                };
-
-                await _textProjectService.AddSlideAsync(newSlide);
-
-                // 复制所有文本元素（使用 CloneElement 确保复制所有样式配置）
+                var clipboardElements = new List<SlideClipboardElementData>();
                 foreach (var sourceElement in sourceElements)
                 {
-                    //  使用 CloneElement 方法复制所有样式属性
-                    var newElement = _textProjectService.CloneElement(sourceElement);
-                    newElement.SlideId = newSlide.Id;  // 设置新的幻灯片ID
-                    
-                    await _textProjectService.AddElementAsync(newElement);
-
-                    // 复制富文本片段（如果有）
-                    if (sourceElement.IsRichTextMode && sourceElement.RichTextSpans != null && sourceElement.RichTextSpans.Count > 0)
+                    var elementTemplate = _textProjectService.CloneElement(sourceElement);
+                    var spans = CloneRichTextSpans(sourceElement.RichTextSpans);
+                    clipboardElements.Add(new SlideClipboardElementData
                     {
-                        var newSpans = new List<Database.Models.RichTextSpan>();
-                        foreach (var sourceSpan in sourceElement.RichTextSpans.OrderBy(s => s.SpanOrder))
-                        {
-                            var newSpan = new Database.Models.RichTextSpan
-                            {
-                                TextElementId = newElement.Id,
-                                SpanOrder = sourceSpan.SpanOrder,
-                                Text = sourceSpan.Text,
-                                FontFamily = sourceSpan.FontFamily,
-                                FontSize = sourceSpan.FontSize,
-                                FontColor = sourceSpan.FontColor,
-                                IsBold = sourceSpan.IsBold,
-                                IsItalic = sourceSpan.IsItalic,
-                                IsUnderline = sourceSpan.IsUnderline,
-                                BorderColor = sourceSpan.BorderColor,
-                                BorderWidth = sourceSpan.BorderWidth,
-                                BorderRadius = sourceSpan.BorderRadius,
-                                BorderOpacity = sourceSpan.BorderOpacity,
-                                BackgroundColor = sourceSpan.BackgroundColor,
-                                BackgroundRadius = sourceSpan.BackgroundRadius,
-                                BackgroundOpacity = sourceSpan.BackgroundOpacity,
-                                ShadowColor = sourceSpan.ShadowColor,
-                                ShadowOffsetX = sourceSpan.ShadowOffsetX,
-                                ShadowOffsetY = sourceSpan.ShadowOffsetY,
-                                ShadowBlur = sourceSpan.ShadowBlur,
-                                ShadowOpacity = sourceSpan.ShadowOpacity,
-                                ParagraphIndex = sourceSpan.ParagraphIndex,
-                                RunIndex = sourceSpan.RunIndex,
-                                FormatVersion = sourceSpan.FormatVersion
-                            };
-                            newSpans.Add(newSpan);
-                        }
-
-                        // 批量保存富文本片段
-                        await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, newSpans);
-                    }
+                        ElementTemplate = elementTemplate,
+                        RichTextSpans = spans
+                    });
                 }
 
-                // 先加载新幻灯片内容并生成缩略图，再刷新列表（避免闪烁）
-                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
-                try
+                _slideClipboardData = new SlideClipboardData
                 {
-                    await LoadSlide(newSlide);
-                    await Task.Delay(150);
+                    SlideTemplate = CreateSlideTemplate(sourceSlide),
+                    Elements = clipboardElements
+                };
 
-                    var thumbnailPath = SaveSlideThumbnail(newSlide.Id);
-                    if (!string.IsNullOrEmpty(thumbnailPath))
-                    {
-                        newSlide.ThumbnailPath = thumbnailPath;
-                    }
-
-                    await LoadSlideList();
-                    SlideListBox.SelectedItem = newSlide;
-                }
-                finally
-                {
-                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
-                }
-
-                //System.Diagnostics.Debug.WriteLine($" 复制幻灯片成功: 原ID={sourceSlide.Id}, 新ID={newSlide.Id}");
+                ShowToast("已复制幻灯片，请在目标项目右键选择“粘贴”");
             }
             catch (Exception ex)
             {
@@ -1359,6 +1317,185 @@ namespace ImageColorChanger.UI
                 WpfMessageBox.Show($"复制幻灯片失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async void BtnPasteSlide_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentTextProject == null)
+            {
+                WpfMessageBox.Show("请先打开目标项目", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_slideClipboardData == null || _slideClipboardData.SlideTemplate == null)
+            {
+                WpfMessageBox.Show("没有可粘贴的幻灯片", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                bool hasPendingChanges = BtnSaveTextProject.Background is SolidColorBrush saveBrush
+                                         && saveBrush.Color == Colors.LightGreen;
+                if (hasPendingChanges)
+                {
+                    var saveResult = await SaveTextEditorStateAsync(
+                        SaveTrigger.SlideSwitch,
+                        _textBoxes.ToList(),
+                        persistAdditionalState: true,
+                        saveThumbnail: false);
+
+                    if (!saveResult.Succeeded)
+                    {
+                        WpfMessageBox.Show(
+                            $"粘贴前保存失败：{saveResult.Exception?.Message}",
+                            "错误",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        return;
+                    }
+                }
+
+                var pastedSlide = await PasteSlideFromClipboardAsync();
+                if (pastedSlide == null)
+                {
+                    return;
+                }
+
+                SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
+                try
+                {
+                    await LoadSlide(pastedSlide);
+                    await Task.Delay(150);
+
+                    var thumbnailPath = SaveSlideThumbnail(pastedSlide.Id);
+                    if (!string.IsNullOrEmpty(thumbnailPath))
+                    {
+                        pastedSlide.ThumbnailPath = thumbnailPath;
+                    }
+
+                    await LoadSlideList();
+                    SlideListBox.SelectedItem = pastedSlide;
+                }
+                finally
+                {
+                    SlideListBox.SelectionChanged += SlideListBox_SelectionChanged;
+                }
+
+                ShowToast("幻灯片已粘贴");
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"粘贴幻灯片失败: {ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<Slide> PasteSlideFromClipboardAsync()
+        {
+            if (_slideClipboardData == null || _slideClipboardData.SlideTemplate == null || _currentTextProject == null)
+            {
+                return null;
+            }
+
+            var template = _slideClipboardData.SlideTemplate;
+            int insertSortOrder = await ResolvePasteInsertSortOrderAsync();
+            var slidesToUpdate = (await _textProjectService.GetSlidesByProjectAsync(_currentTextProject.Id))
+                .Where(s => s.SortOrder >= insertSortOrder)
+                .ToList();
+
+            foreach (var slide in slidesToUpdate)
+            {
+                slide.SortOrder++;
+            }
+
+            if (slidesToUpdate.Count > 0)
+            {
+                await _textProjectService.UpdateSlideSortOrdersAsync(slidesToUpdate);
+            }
+
+            var newSlide = new Slide
+            {
+                ProjectId = _currentTextProject.Id,
+                Title = $"{template.Title} (副本)",
+                SortOrder = insertSortOrder,
+                BackgroundColor = template.BackgroundColor,
+                BackgroundImagePath = template.BackgroundImagePath,
+                BackgroundGradientEnabled = template.BackgroundGradientEnabled,
+                BackgroundGradientStartColor = template.BackgroundGradientStartColor,
+                BackgroundGradientEndColor = template.BackgroundGradientEndColor,
+                BackgroundGradientDirection = template.BackgroundGradientDirection,
+                BackgroundOpacity = template.BackgroundOpacity,
+                SplitMode = template.SplitMode,
+                SplitStretchMode = template.SplitStretchMode,
+                SplitRegionsData = template.SplitRegionsData,
+                VideoBackgroundEnabled = template.VideoBackgroundEnabled,
+                VideoLoopEnabled = template.VideoLoopEnabled,
+                VideoVolume = template.VideoVolume,
+                OutputMode = template.OutputMode
+            };
+
+            await _textProjectService.AddSlideAsync(newSlide);
+
+            foreach (var clipboardElement in _slideClipboardData.Elements)
+            {
+                var newElement = _textProjectService.CloneElement(clipboardElement.ElementTemplate);
+                newElement.SlideId = newSlide.Id;
+                await _textProjectService.AddElementAsync(newElement);
+
+                if (clipboardElement.RichTextSpans != null && clipboardElement.RichTextSpans.Count > 0)
+                {
+                    var spansToSave = CloneRichTextSpans(clipboardElement.RichTextSpans);
+                    foreach (var span in spansToSave)
+                    {
+                        span.TextElementId = newElement.Id;
+                    }
+
+                    await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, spansToSave);
+                }
+            }
+
+            return newSlide;
+        }
+
+        private async Task<int> ResolvePasteInsertSortOrderAsync()
+        {
+            if (_currentTextProject == null)
+            {
+                return 1;
+            }
+
+            if (SlideListBox.SelectedItem is Slide selectedSlide && selectedSlide.ProjectId == _currentTextProject.Id)
+            {
+                return selectedSlide.SortOrder + 1;
+            }
+
+            int maxOrder = await _textProjectService.GetMaxSlideSortOrderAsync(_currentTextProject.Id);
+            return maxOrder + 1;
+        }
+
+        private static Slide CreateSlideTemplate(Slide sourceSlide)
+        {
+            return new Slide
+            {
+                Title = sourceSlide.Title,
+                BackgroundColor = sourceSlide.BackgroundColor,
+                BackgroundImagePath = sourceSlide.BackgroundImagePath,
+                BackgroundGradientEnabled = sourceSlide.BackgroundGradientEnabled,
+                BackgroundGradientStartColor = sourceSlide.BackgroundGradientStartColor,
+                BackgroundGradientEndColor = sourceSlide.BackgroundGradientEndColor,
+                BackgroundGradientDirection = sourceSlide.BackgroundGradientDirection,
+                BackgroundOpacity = sourceSlide.BackgroundOpacity,
+                SplitMode = sourceSlide.SplitMode,
+                SplitStretchMode = sourceSlide.SplitStretchMode,
+                SplitRegionsData = sourceSlide.SplitRegionsData,
+                VideoBackgroundEnabled = sourceSlide.VideoBackgroundEnabled,
+                VideoLoopEnabled = sourceSlide.VideoLoopEnabled,
+                VideoVolume = sourceSlide.VideoVolume,
+                OutputMode = sourceSlide.OutputMode
+            };
         }
 
         /// <summary>
