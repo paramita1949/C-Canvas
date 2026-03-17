@@ -249,6 +249,8 @@ namespace ImageColorChanger.UI
                 ShowStatus("已暂停合成播放");
             }
 
+            SetCompositePauseButtonContent(compositeService.IsPaused);
+
             return true;
         }
 

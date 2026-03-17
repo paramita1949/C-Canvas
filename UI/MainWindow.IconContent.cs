@@ -145,6 +145,18 @@ namespace ImageColorChanger.UI
             BtnCompositeSpeed.Content = BuildIconLabelContent("IconLucideZap", $"{speed:F2}x", System.Windows.Media.Brushes.White);
         }
 
+        private void SetCompositePauseButtonContent(bool isPaused)
+        {
+            if (BtnCompositePause == null)
+            {
+                return;
+            }
+
+            string iconKey = isPaused ? "IconLucidePlay" : "IconLucidePause";
+            string label = isPaused ? "继续" : "暂停";
+            BtnCompositePause.Content = BuildIconLabelContent(iconKey, label, System.Windows.Media.Brushes.White);
+        }
+
         private void SetRecordButtonContent(bool isRecording)
         {
             BtnRecord.Content = BuildIconLabelContent(isRecording ? "IconLucideStop" : "IconLucideDisc", isRecording ? "停止" : "录制");

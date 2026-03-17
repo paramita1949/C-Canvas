@@ -440,6 +440,8 @@ namespace ImageColorChanger.UI
                 {
                     await compositeService.StopPlaybackAsync();
                     SetCompositePlayButtonContent(false);
+                    BtnCompositePause.Visibility = Visibility.Collapsed;
+                    SetCompositePauseButtonContent(false);
                     
                     // 隐藏速度控制按钮
                     BtnCompositeSpeed.Visibility = Visibility.Collapsed;
@@ -584,6 +586,8 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" [合成播放] ========== StartPlaybackAsync 调用完成 ==========");
                 //#endif
                 SetCompositePlayButtonContent(true);
+                BtnCompositePause.Visibility = Visibility.Visible;
+                SetCompositePauseButtonContent(compositeService.IsPaused);
                 
                 // 显示速度控制按钮
                 BtnCompositeSpeed.Visibility = Visibility.Visible;
@@ -1096,6 +1100,9 @@ namespace ImageColorChanger.UI
             Dispatcher.Invoke(() =>
             {
                 SetCompositePlayButtonContent(false);
+                BtnCompositePause.Visibility = Visibility.Collapsed;
+                SetCompositePauseButtonContent(false);
+                BtnCompositeSpeed.Visibility = Visibility.Collapsed;
                 ShowStatus("合成播放完成");
                 
                 // 停止倒计时显示
@@ -1166,6 +1173,11 @@ namespace ImageColorChanger.UI
         private void BtnCompositeSpeed_Click(object sender, RoutedEventArgs e)
         {
             ShowCompositeSpeedMenu();
+        }
+
+        private async void BtnCompositePause_Click(object sender, RoutedEventArgs e)
+        {
+            await ToggleCompositePauseResumeByHotkeyAsync();
         }
 
         private void ShowCompositeSpeedMenu()
@@ -1358,6 +1370,9 @@ namespace ImageColorChanger.UI
             // 正常文件夹的图片，显示按钮面板
             CompositePlaybackPanel.Visibility = Visibility.Visible;
             BtnFloatingCompositePlay.Visibility = Visibility.Visible;
+            BtnCompositePause.Visibility = Visibility.Collapsed;
+            SetCompositePauseButtonContent(false);
+            BtnCompositeSpeed.Visibility = Visibility.Collapsed;
             
             // 异步加载合成标记状态并设置按钮颜色
             _ = UpdateCompositeButtonColorAsync();
@@ -1431,6 +1446,9 @@ namespace ImageColorChanger.UI
                     if (Dispatcher.CheckAccess())
                     {
                         SetCompositePlayButtonContent(false);
+                        BtnCompositePause.Visibility = Visibility.Collapsed;
+                        SetCompositePauseButtonContent(false);
+                        BtnCompositeSpeed.Visibility = Visibility.Collapsed;
                         
                         // 停止滚动动画
                         _keyframeManager?.StopScrollAnimation();
@@ -1445,6 +1463,9 @@ namespace ImageColorChanger.UI
                         await Dispatcher.InvokeAsync(() =>
                         {
                             SetCompositePlayButtonContent(false);
+                            BtnCompositePause.Visibility = Visibility.Collapsed;
+                            SetCompositePauseButtonContent(false);
+                            BtnCompositeSpeed.Visibility = Visibility.Collapsed;
                             
                             // 停止滚动动画
                             _keyframeManager?.StopScrollAnimation();
