@@ -139,6 +139,8 @@ namespace ImageColorChanger.UI
                 await PasteTextBoxFromClipboardAsync(textBox);
             };
 
+            textBox.CanPasteProvider = () => _textBoxClipboardElement != null;
+
             //  监听文本选择改变事件（更新工具栏按钮状态）
             textBox.TextSelectionChanged += (s, e) =>
             {

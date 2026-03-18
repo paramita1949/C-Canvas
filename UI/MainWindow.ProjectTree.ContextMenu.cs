@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System;
 using System.Linq;
 using ImageColorChanger.Database.Models;
@@ -97,9 +98,10 @@ namespace ImageColorChanger.UI
             if (_currentViewMode == NavigationViewMode.Files && IsLyricsLibraryFeatureEnabled)
             {
                 var filesMenu = CreateNoBorderContextMenu();
+                filesMenu.MinWidth = 176;
+                filesMenu.FontSize = 14;
 
-                var newLibraryItem = new MenuItem { Header = " 新建歌词库" };
-                newLibraryItem.Click += (s, args) => CreateLyricsLibrary();
+                var newLibraryItem = CreateIconMenuItem("新建歌词库", "IconLucideBookPlus", () => CreateLyricsLibrary());
                 filesMenu.Items.Add(newLibraryItem);
 
                 filesMenu.IsOpen = true;
@@ -114,18 +116,18 @@ namespace ImageColorChanger.UI
             }
 
             var contextMenu = CreateNoBorderContextMenu();
+            contextMenu.MinWidth = 176;
+            contextMenu.FontSize = 14;
 
-            var newProjectItem = new MenuItem { Header = "新建项目" };
-            newProjectItem.Click += async (s, args) =>
+            var newProjectItem = CreateIconMenuItem("新建项目", "IconLucidePlus", async () =>
             {
                 string projectName = await GenerateDefaultProjectNameAsync();
                 await CreateTextProjectAsync(projectName);
-            };
+            });
             contextMenu.Items.Add(newProjectItem);
             contextMenu.Items.Add(new Separator());
 
-            var exportAllItem = new MenuItem { Header = "导出所有项目" };
-            exportAllItem.Click += async (s, args) => await ExportAllProjectsAsync();
+            var exportAllItem = CreateIconMenuItem("导出所有项目", "IconLucideUpload", async () => await ExportAllProjectsAsync());
             contextMenu.Items.Add(exportAllItem);
 
             contextMenu.IsOpen = true;
@@ -135,6 +137,9 @@ namespace ImageColorChanger.UI
 
         private bool BuildFolderContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
+            contextMenu.MinWidth = 176;
+            contextMenu.FontSize = 14;
+
             if (item?.IsVirtualFolder == true)
             {
                 BuildVirtualFolderContextMenu(contextMenu, item);
@@ -163,19 +168,16 @@ namespace ImageColorChanger.UI
 
             if (folderMenuState.HasFolderOriginalMark)
             {
-                var unmarkFolderItem = new MenuItem { Header = "取消原图" };
-                unmarkFolderItem.Click += (s, args) => UnmarkOriginalFolder(item);
+                var unmarkFolderItem = CreateIconMenuItem("取消原图", "IconLucideUndo2", () => UnmarkOriginalFolder(item));
                 contextMenu.Items.Add(unmarkFolderItem);
             }
             else
             {
-                var markFolderMenuItem = new MenuItem { Header = "标记为原图" };
-                var loopFolderItem = new MenuItem { Header = "循环模式" };
-                loopFolderItem.Click += (s, args) => MarkFolderAsOriginal(item, MarkType.Loop);
+                var markFolderMenuItem = CreateIconSubMenuItem("标记为原图", "IconLucideImage");
+                var loopFolderItem = CreateIconMenuItem("循环模式", "IconLucideRepeat", () => MarkFolderAsOriginal(item, MarkType.Loop));
                 markFolderMenuItem.Items.Add(loopFolderItem);
 
-                var sequenceFolderItem = new MenuItem { Header = "顺序模式" };
-                sequenceFolderItem.Click += (s, args) => MarkFolderAsOriginal(item, MarkType.Sequence);
+                var sequenceFolderItem = CreateIconMenuItem("顺序模式", "IconLucideAlignStartVertical", () => MarkFolderAsOriginal(item, MarkType.Sequence));
                 markFolderMenuItem.Items.Add(sequenceFolderItem);
 
                 contextMenu.Items.Add(markFolderMenuItem);
@@ -185,14 +187,12 @@ namespace ImageColorChanger.UI
 
             if (folderMenuState.HasColorEffectMark)
             {
-                var unmarkColorItem = new MenuItem { Header = "取消变色标记" };
-                unmarkColorItem.Click += (s, args) => UnmarkFolderColorEffect(item);
+                var unmarkColorItem = CreateIconMenuItem("取消变色标记", "IconLucideRotateCcw", () => UnmarkFolderColorEffect(item));
                 contextMenu.Items.Add(unmarkColorItem);
             }
             else
             {
-                var markColorItem = new MenuItem { Header = "标记为变色" };
-                markColorItem.Click += (s, args) => MarkFolderColorEffect(item);
+                var markColorItem = CreateIconMenuItem("标记为变色", "IconLucideWand2", () => MarkFolderColorEffect(item));
                 contextMenu.Items.Add(markColorItem);
             }
 
@@ -207,7 +207,7 @@ namespace ImageColorChanger.UI
             }
 
             var currentPlayMode = folderMenuState.CurrentPlayMode;
-            var playModeMenuItem = new MenuItem { Header = "播放模式" };
+            var playModeMenuItem = CreateIconSubMenuItem("播放模式", "IconLucidePlay");
 
             var sequentialItem = new MenuItem
             {
@@ -253,31 +253,26 @@ namespace ImageColorChanger.UI
         {
             if (folderMenuState.IsManualSort)
             {
-                var resetSortItem = new MenuItem { Header = " 重置排序" };
-                resetSortItem.Click += (s, args) => ResetFolderSort(item);
+                var resetSortItem = CreateIconMenuItem("重置排序", "IconLucideUndo2", () => ResetFolderSort(item));
                 contextMenu.Items.Add(resetSortItem);
                 contextMenu.Items.Add(new Separator());
             }
 
-            var highlightColorItem = new MenuItem { Header = "标记高亮色" };
-            highlightColorItem.Click += (s, args) => SetFolderHighlightColor(item);
+            var highlightColorItem = CreateIconMenuItem("标记高亮色", "IconLucidePalette", () => SetFolderHighlightColor(item));
             contextMenu.Items.Add(highlightColorItem);
 
             if (folderMenuState.HasHighlightColor)
             {
-                var clearHighlightColorItem = new MenuItem { Header = "取消高亮色" };
-                clearHighlightColorItem.Click += (s, args) => ClearFolderHighlightColor(item);
+                var clearHighlightColorItem = CreateIconMenuItem("取消高亮色", "IconLucideRotateCcw", () => ClearFolderHighlightColor(item));
                 contextMenu.Items.Add(clearHighlightColorItem);
             }
 
             contextMenu.Items.Add(new Separator());
 
-            var deleteItem = new MenuItem { Header = "删除文件夹" };
-            deleteItem.Click += (s, args) => DeleteFolder(item);
+            var deleteItem = CreateIconMenuItem("删除文件夹", "IconLucideX", () => DeleteFolder(item));
             contextMenu.Items.Add(deleteItem);
 
-            var syncItem = new MenuItem { Header = "同步文件夹" };
-            syncItem.Click += (s, args) => SyncFolder(item);
+            var syncItem = CreateIconMenuItem("同步文件夹", "IconLucideRefreshCw", () => SyncFolder(item));
             contextMenu.Items.Add(syncItem);
 
             AppendFolderHierarchyModeMenu(contextMenu, item);
@@ -292,8 +287,10 @@ namespace ImageColorChanger.UI
                 contextMenu.Items.Add(new Separator());
             }
 
-            var toggleExpandItem = new MenuItem { Header = item.IsExpanded ? "折叠子目录" : "展开子目录" };
-            toggleExpandItem.Click += (s, args) => item.IsExpanded = !item.IsExpanded;
+            var toggleExpandItem = CreateIconMenuItem(
+                item.IsExpanded ? "折叠子目录" : "展开子目录",
+                "IconLucideFolderOpen",
+                () => item.IsExpanded = !item.IsExpanded);
             contextMenu.Items.Add(toggleExpandItem);
         }
 
@@ -319,6 +316,7 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
+            var hierarchyMenu = CreateIconSubMenuItem("目录层级", "IconLucideFolderOpen");
             var singleLevelItem = new MenuItem
             {
                 Header = "单级显示",
@@ -326,7 +324,7 @@ namespace ImageColorChanger.UI
                 IsChecked = !hierarchyEnabled
             };
             singleLevelItem.Click += (s, args) => SetFolderHierarchyMode(item, false);
-            contextMenu.Items.Add(singleLevelItem);
+            hierarchyMenu.Items.Add(singleLevelItem);
 
             var multiLevelItem = new MenuItem
             {
@@ -335,61 +333,116 @@ namespace ImageColorChanger.UI
                 IsChecked = hierarchyEnabled
             };
             multiLevelItem.Click += (s, args) => SetFolderHierarchyMode(item, true);
-            contextMenu.Items.Add(multiLevelItem);
+            hierarchyMenu.Items.Add(multiLevelItem);
+            contextMenu.Items.Add(hierarchyMenu);
         }
 
         private void BuildFileContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
-            var createSplitMenuItem = new MenuItem
-            {
-                Header = "创建分割图",
-                FontSize = 14
-            };
-            createSplitMenuItem.Click += async (s, args) =>
+            contextMenu.MinWidth = 176;
+            contextMenu.FontSize = 14;
+
+            var createSplitMenuItem = CreateIconMenuItem("创建分割图", "IconLucideLayoutGrid", async () =>
             {
                 await CreateSplitSlideInPraiseProjectFromFile(item.Id);
-            };
+            });
             contextMenu.Items.Add(createSplitMenuItem);
 
-            var addToSlideMenuItem = new MenuItem
-            {
-                Header = "添加到幻灯片",
-                FontSize = 14
-            };
-            addToSlideMenuItem.Click += async (s, args) =>
+            var addToSlideMenuItem = CreateIconMenuItem("添加到幻灯片", "IconLucideFileText", async () =>
             {
                 await AddSingleSlideToPraiseProjectFromFile(item.Id);
-            };
+            });
             contextMenu.Items.Add(addToSlideMenuItem);
 
             contextMenu.Items.Add(new Separator());
 
-            var deleteItem = new MenuItem { Header = "删除文件" };
-            deleteItem.Click += (s, args) => DeleteFile(item);
+            var deleteItem = CreateIconMenuItem("删除文件", "IconLucideX", () => DeleteFile(item));
             contextMenu.Items.Add(deleteItem);
         }
 
         private void BuildTextProjectContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
-            var renameItem = new MenuItem { Header = "✏ 重命名" };
-            renameItem.Click += (s, args) => RenameTextProjectAsync(item);
-            contextMenu.Items.Add(renameItem);
+            contextMenu.MinWidth = 168;
+            contextMenu.FontSize = 14;
 
-            var copyItem = new MenuItem { Header = "复制项目" };
-            copyItem.Click += async (s, args) => await CopyTextProjectAsync(item);
-            contextMenu.Items.Add(copyItem);
+            contextMenu.Items.Add(CreateIconMenuItem("重命名", "IconLucidePencil", () => RenameTextProjectAsync(item)));
+            contextMenu.Items.Add(CreateIconMenuItem("删除", "IconLucideX", async () => await DeleteTextProjectAsync(item)));
+            contextMenu.Items.Add(CreateIconMenuItem("复制", "IconLucideCopy2", async () => await CopyTextProjectAsync(item)));
+            contextMenu.Items.Add(CreateIconMenuItem("导出", "IconLucideUpload", async () => await ExportTextProjectAsync(item)));
+        }
 
-            contextMenu.Items.Add(new Separator());
+        private MenuItem CreateIconSubMenuItem(string text, string iconResourceKey)
+        {
+            var header = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
 
-            var exportItem = new MenuItem { Header = "导出" };
-            exportItem.Click += async (s, args) => await ExportTextProjectAsync(item);
-            contextMenu.Items.Add(exportItem);
+            var icon = new Path
+            {
+                Data = TryFindResource(iconResourceKey) as Geometry,
+                Width = 14,
+                Height = 14,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Stretch = Stretch.Uniform,
+                Fill = Brushes.Transparent
+            };
+            if (TryFindResource("LucideIconPathStyle") is Style iconStyle)
+            {
+                icon.Style = iconStyle;
+            }
 
-            contextMenu.Items.Add(new Separator());
+            var label = new TextBlock
+            {
+                Text = text,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
 
-            var deleteItem = new MenuItem { Header = " 删除项目" };
-            deleteItem.Click += async (s, args) => await DeleteTextProjectAsync(item);
-            contextMenu.Items.Add(deleteItem);
+            header.Children.Add(icon);
+            header.Children.Add(label);
+
+            return new MenuItem { Header = header };
+        }
+
+        private MenuItem CreateIconMenuItem(string text, string iconResourceKey, Action onClick)
+        {
+            var header = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var icon = new Path
+            {
+                Data = TryFindResource(iconResourceKey) as Geometry,
+                Width = 14,
+                Height = 14,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Stretch = Stretch.Uniform,
+                Fill = Brushes.Transparent
+            };
+            if (TryFindResource("LucideIconPathStyle") is Style iconStyle)
+            {
+                icon.Style = iconStyle;
+            }
+
+            var label = new TextBlock
+            {
+                Text = text,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
+
+            header.Children.Add(icon);
+            header.Children.Add(label);
+
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => onClick?.Invoke();
+            return item;
         }
 
     }

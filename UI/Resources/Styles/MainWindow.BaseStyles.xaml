@@ -24,6 +24,8 @@
     <!-- Lucide-like 24x24 stroke geometries -->
     <Geometry x:Key="IconLucideMonitor">M3 4H21V16H3V4Z M8 20H16 M12 16V20</Geometry>
     <Geometry x:Key="IconLucidePlus">M12 5V19 M5 12H19</Geometry>
+    <Geometry x:Key="IconLucidePencil">M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25Z M20.71 7.04A1 1 0 0 0 20.71 5.63L18.37 3.29A1 1 0 0 0 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z</Geometry>
+    <Geometry x:Key="IconLucideCopy2">M9 9H19V21H9Z M5 15H3V3H13V7H5V15Z</Geometry>
     <Geometry x:Key="IconLucideMusic">M9 18V6L20 4V16 M9 10L20 8 M6 20A2 2 0 1 0 6 16A2 2 0 1 0 6 20 M17 18A2 2 0 1 0 17 14A2 2 0 1 0 17 18</Geometry>
     <Geometry x:Key="IconLucideClapperboard">M3 8H21V20H3V8Z M7 8L10 3 M13 8L16 3 M19 8L21 5</Geometry>
     <Geometry x:Key="IconLucideZap">M13 2L3 14H11L9 22L21 9H13L13 2Z</Geometry>

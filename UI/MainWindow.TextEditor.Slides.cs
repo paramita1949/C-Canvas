@@ -333,52 +333,27 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SlideListBox_RightClick(object sender, MouseButtonEventArgs e)
         {
-            // 创建右键菜单
-            var contextMenu = new ContextMenu();
-            
-            // 应用自定义样式
-            contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
-
-            // 新建幻灯片
-            var addItem = new MenuItem 
-            { 
-                Header = "新建",
+            var contextMenu = new ContextMenu
+            {
+                Style = (Style)this.FindResource("NoBorderContextMenuStyle"),
+                MinWidth = 176,
                 FontSize = 14
             };
-            addItem.Click += BtnAddSlide_Click;
+
+            var addItem = CreateIconMenuItem("新建", "IconLucidePlus", () => BtnAddSlide_Click(sender, new RoutedEventArgs()));
             contextMenu.Items.Add(addItem);
 
-            // 复制幻灯片
-            var copyItem = new MenuItem 
-            { 
-                Header = "复制",
-                FontSize = 14,
-                IsEnabled = SlideListBox.SelectedItem != null
-            };
-            copyItem.Click += BtnCopySlide_Click;
+            var copyItem = CreateIconMenuItem("复制", "IconLucideCopy2", () => BtnCopySlide_Click(sender, new RoutedEventArgs()));
+            copyItem.IsEnabled = SlideListBox.SelectedItem != null;
             contextMenu.Items.Add(copyItem);
 
-            if (_slideClipboardData != null)
-            {
-                var pasteItem = new MenuItem
-                {
-                    Header = "粘贴",
-                    FontSize = 14,
-                    IsEnabled = _currentTextProject != null
-                };
-                pasteItem.Click += BtnPasteSlide_Click;
-                contextMenu.Items.Add(pasteItem);
-            }
-
-            // 删除幻灯片
-            var deleteItem = new MenuItem 
-            { 
-                Header = "删除",
-                FontSize = 14,
-                IsEnabled = SlideListBox.SelectedItem != null
-            };
-            deleteItem.Click += BtnDeleteSlide_Click;
+            var deleteItem = CreateIconMenuItem("删除", "IconLucideX", () => BtnDeleteSlide_Click(sender, new RoutedEventArgs()));
+            deleteItem.IsEnabled = SlideListBox.SelectedItem != null;
             contextMenu.Items.Add(deleteItem);
+
+            var pasteItem = CreateIconMenuItem("粘贴", "IconLucideFileText", () => BtnPasteSlide_Click(sender, new RoutedEventArgs()));
+            pasteItem.IsEnabled = _slideClipboardData != null && _currentTextProject != null;
+            contextMenu.Items.Add(pasteItem);
 
 
             contextMenu.PlacementTarget = sender as UIElement;

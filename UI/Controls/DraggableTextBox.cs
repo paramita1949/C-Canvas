@@ -317,6 +317,11 @@ namespace ImageColorChanger.UI.Controls
         public event EventHandler RequestPaste;
 
         /// <summary>
+        /// 提供右键菜单“粘贴”是否可用的判断（由宿主注入）。
+        /// </summary>
+        public Func<bool> CanPasteProvider { get; set; }
+
+        /// <summary>
         ///  文本选择改变事件（用于更新工具栏按钮状态）
         /// </summary>
         public event EventHandler TextSelectionChanged;

@@ -171,7 +171,11 @@ namespace ImageColorChanger.UI
                 source = GetDependencyParent(source);
             }
 
-            var contextMenu = new ContextMenu();
+            var contextMenu = new ContextMenu
+            {
+                MinWidth = 176,
+                FontSize = 14
+            };
             try
             {
                 contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
@@ -180,28 +184,18 @@ namespace ImageColorChanger.UI
             {
             }
 
-            var pasteItem = new MenuItem
-            {
-                Header = BuildEditorCanvasMenuHeader("粘贴", "IconLucideFileText"),
-                FontSize = 14,
-                IsEnabled = _textBoxClipboardElement != null
-            };
-            pasteItem.Click += async (s, args) =>
+            var pasteItem = CreateIconMenuItem("粘贴", "IconLucideFileText", async () =>
             {
                 await PasteTextBoxFromClipboardAsync(null);
-            };
+            });
+            pasteItem.IsEnabled = _textBoxClipboardElement != null;
             contextMenu.Items.Add(pasteItem);
 
-            var insertNoticeItem = new MenuItem
-            {
-                Header = BuildEditorCanvasMenuHeader("插入通知", "IconLucideFileText"),
-                FontSize = 14,
-                IsEnabled = _currentSlide != null
-            };
-            insertNoticeItem.Click += async (_, _) =>
+            var insertNoticeItem = CreateIconMenuItem("插入通知", "IconLucideBookPlus", async () =>
             {
                 await InsertNoticeComponentAsync();
-            };
+            });
+            insertNoticeItem.IsEnabled = _currentSlide != null;
             contextMenu.Items.Add(insertNoticeItem);
             contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(CreateEditorCanvasLayoutMenuItem());

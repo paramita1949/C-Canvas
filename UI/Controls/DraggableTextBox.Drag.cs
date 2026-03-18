@@ -141,7 +141,11 @@ namespace ImageColorChanger.UI.Controls
             Focus();
             SetSelected(true);
 
-            var contextMenu = new System.Windows.Controls.ContextMenu();
+            var contextMenu = new System.Windows.Controls.ContextMenu
+            {
+                MinWidth = 176,
+                FontSize = 14
+            };
             
             try
             {
@@ -153,7 +157,6 @@ namespace ImageColorChanger.UI.Controls
             }
             catch
             {
-                contextMenu.FontSize = 14;
                 contextMenu.BorderThickness = new System.Windows.Thickness(0);
                 contextMenu.Background = new WpfSolidColorBrush(WpfColor.FromRgb(45, 45, 48));
                 contextMenu.Foreground = WpfBrushes.White;
@@ -161,8 +164,7 @@ namespace ImageColorChanger.UI.Controls
 
             var copyItem = new System.Windows.Controls.MenuItem
             {
-                Header = "复制",
-                Height = 36
+                Header = BuildContextMenuHeader("复制", "IconLucideCopy2")
             };
             copyItem.Click += (s, args) =>
             {
@@ -170,21 +172,9 @@ namespace ImageColorChanger.UI.Controls
             };
             contextMenu.Items.Add(copyItem);
 
-            var pasteItem = new System.Windows.Controls.MenuItem
-            {
-                Header = "粘贴",
-                Height = 36
-            };
-            pasteItem.Click += (s, args) =>
-            {
-                RequestPaste?.Invoke(this, EventArgs.Empty);
-            };
-            contextMenu.Items.Add(pasteItem);
-
             var deleteItem = new System.Windows.Controls.MenuItem
             {
-                Header = "删除",
-                Height = 36
+                Header = BuildContextMenuHeader("删除", "IconLucideX")
             };
             deleteItem.Click += (s, args) =>
             {
@@ -192,10 +182,57 @@ namespace ImageColorChanger.UI.Controls
             };
             contextMenu.Items.Add(deleteItem);
 
+            bool canPaste = CanPasteProvider?.Invoke() == true;
+            var pasteItem = new System.Windows.Controls.MenuItem
+            {
+                Header = BuildContextMenuHeader("粘贴", "IconLucideFileText"),
+                IsEnabled = canPaste
+            };
+            pasteItem.Click += (s, args) =>
+            {
+                RequestPaste?.Invoke(this, EventArgs.Empty);
+            };
+            contextMenu.Items.Add(pasteItem);
+
             contextMenu.PlacementTarget = this;
             contextMenu.IsOpen = true;
 
             e.Handled = true;
+        }
+
+        private object BuildContextMenuHeader(string text, string iconResourceKey)
+        {
+            var panel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+
+            var icon = new System.Windows.Shapes.Path
+            {
+                Data = System.Windows.Application.Current.MainWindow?.TryFindResource(iconResourceKey) as System.Windows.Media.Geometry,
+                Width = 14,
+                Height = 14,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0),
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                Stretch = System.Windows.Media.Stretch.Uniform,
+                Fill = WpfBrushes.Transparent
+            };
+
+            if (System.Windows.Application.Current.MainWindow?.TryFindResource("LucideIconPathStyle") is System.Windows.Style iconStyle)
+            {
+                icon.Style = iconStyle;
+            }
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text = text,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+
+            panel.Children.Add(icon);
+            panel.Children.Add(label);
+            return panel;
         }
 
         private void OnDragAreaMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
