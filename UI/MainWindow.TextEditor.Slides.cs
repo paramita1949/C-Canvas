@@ -333,6 +333,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SlideListBox_RightClick(object sender, MouseButtonEventArgs e)
         {
+            bool clickedOnSlideItem = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) != null;
+
             var contextMenu = new ContextMenu
             {
                 Style = (Style)this.FindResource("NoBorderContextMenuStyle"),
@@ -340,8 +342,11 @@ namespace ImageColorChanger.UI
                 FontSize = 14
             };
 
-            var addItem = CreateIconMenuItem("新建", "IconLucidePlus", () => BtnAddSlide_Click(sender, new RoutedEventArgs()));
-            contextMenu.Items.Add(addItem);
+            if (!clickedOnSlideItem)
+            {
+                var addItem = CreateIconMenuItem("新建", "IconLucidePlus", () => BtnAddSlide_Click(sender, new RoutedEventArgs()));
+                contextMenu.Items.Add(addItem);
+            }
 
             var copyItem = CreateIconMenuItem("复制", "IconLucideCopy2", () => BtnCopySlide_Click(sender, new RoutedEventArgs()));
             copyItem.IsEnabled = SlideListBox.SelectedItem != null;
@@ -352,7 +357,7 @@ namespace ImageColorChanger.UI
             contextMenu.Items.Add(deleteItem);
 
             var pasteItem = CreateIconMenuItem("粘贴", "IconLucideFileText", () => BtnPasteSlide_Click(sender, new RoutedEventArgs()));
-            pasteItem.IsEnabled = _slideClipboardData != null && _currentTextProject != null;
+            pasteItem.IsEnabled = _slideClipboardData?.SlideTemplate != null && _currentTextProject != null;
             contextMenu.Items.Add(pasteItem);
 
 

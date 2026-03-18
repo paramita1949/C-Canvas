@@ -399,7 +399,6 @@ namespace ImageColorChanger.UI
                 Text = text,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            label.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
 
             header.Children.Add(icon);
             header.Children.Add(label);
@@ -435,7 +434,6 @@ namespace ImageColorChanger.UI
                 Text = text,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            label.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
 
             header.Children.Add(icon);
             header.Children.Add(label);
