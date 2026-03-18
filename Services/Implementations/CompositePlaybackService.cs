@@ -487,7 +487,7 @@ namespace ImageColorChanger.Services.Implementations
                             // 动画时长保持原始值，通过SpeedRatio加速动画播放
                             
                             #if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"    [滚动段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x (直接加速动画)");
+            // System.Diagnostics.Debug.WriteLine($"    [滚动段] 原始时长: {segment.Duration:F2}秒, 速度: {Speed:F2}x (直接加速动画)");
                             #endif
                             
                             ScrollRequested?.Invoke(this, new CompositeScrollEventArgs
@@ -752,7 +752,7 @@ namespace ImageColorChanger.Services.Implementations
             Speed = speed;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($" 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
+            // System.Diagnostics.Debug.WriteLine($" 播放速度已设置为: {Speed:F2}x (从 {oldSpeed:F2}x)");
             #endif
 
             // 如果正在播放且未暂停，当前段需要立即应用新速度
@@ -790,8 +790,8 @@ namespace ImageColorChanger.Services.Implementations
                 double remainingAdjustedTime = remainingOriginalTime / Speed;
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"    [速度调整] 已播放调整: {elapsedAdjustedTime:F2}秒, 已播放原始: {elapsedOriginalTime:F2}秒");
-                System.Diagnostics.Debug.WriteLine($"      剩余原始: {remainingOriginalTime:F2}秒, 剩余调整: {remainingAdjustedTime:F2}秒 (新速度: {Speed:F2}x)");
+            // System.Diagnostics.Debug.WriteLine($"    [速度调整] 已播放调整: {elapsedAdjustedTime:F2}秒, 已播放原始: {elapsedOriginalTime:F2}秒");
+            // System.Diagnostics.Debug.WriteLine($"      剩余原始: {remainingOriginalTime:F2}秒, 剩余调整: {remainingAdjustedTime:F2}秒 (新速度: {Speed:F2}x)");
                 #endif
                 
                 if (_currentSegment.Type == SegmentType.Scroll && remainingAdjustedTime > 0.1)
@@ -811,7 +811,7 @@ namespace ImageColorChanger.Services.Implementations
                     double actualStartPosition = Math.Min(currentScrollPosition, _currentSegment.EndPosition);
                     
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"    [速度调整] 当前滚动位置: {currentScrollPosition:F1}, 使用位置: {actualStartPosition:F1}, 目标位置: {_currentSegment.EndPosition:F1}");
+            // System.Diagnostics.Debug.WriteLine($"    [速度调整] 当前滚动位置: {currentScrollPosition:F1}, 使用位置: {actualStartPosition:F1}, 目标位置: {_currentSegment.EndPosition:F1}");
                     #endif
                     
                     // 更新段开始时间和速度（重新开始计时）

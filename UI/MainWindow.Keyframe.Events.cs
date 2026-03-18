@@ -17,6 +17,11 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private ContextMenu _compositeSpeedMenu;
+        private System.Windows.Threading.DispatcherTimer _compositeSpeedMenuAutoCloseTimer;
+        private DateTime _compositeSpeedMenuLastKeepAliveUtc = DateTime.MinValue;
+        private const double CompositeSpeedMenuCloseGracePeriodMs = 320;
+
         #region 关键帧按钮事件
 
         /// <summary>
@@ -1162,15 +1167,7 @@ namespace ImageColorChanger.UI
             SetCompositeSpeedButtonContent(speed);
         }
         
-        /// <summary>
-        /// 速度控制按钮右键点击事件 - 显示速度选择菜单
-        /// </summary>
-        private void BtnCompositeSpeed_RightClick(object sender, MouseButtonEventArgs e)
-        {
-            ShowCompositeSpeedMenu();
-        }
-
-        private void BtnCompositeSpeed_Click(object sender, RoutedEventArgs e)
+        private void BtnCompositeSpeed_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             ShowCompositeSpeedMenu();
         }
@@ -1189,23 +1186,73 @@ namespace ImageColorChanger.UI
             {
                 return;
             }
-            
-            // 创建速度选择菜单
-            var contextMenu = new System.Windows.Controls.ContextMenu();
-            
-            // 定义速度选项
-            double[] speedOptions = { 0.5, 0.75, 1.0, 1.1, 1.25, 1.5, 2.0, 2.5, 3.0 };
-            
-            foreach (double speed in speedOptions)
+
+            _compositeSpeedMenu ??= BuildCompositeSpeedMenu();
+            RefreshCompositeSpeedMenuCheckedState(_compositeSpeedMenu, compositeService.Speed);
+
+            if (_compositeSpeedMenu.IsOpen)
             {
-                var menuItem = new System.Windows.Controls.MenuItem
+                StartCompositeSpeedMenuAutoCloseTimer();
+                return;
+            }
+
+            _compositeSpeedMenu.PlacementTarget = BtnCompositeSpeed;
+            _compositeSpeedMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            _compositeSpeedMenu.HorizontalOffset = 0;
+            _compositeSpeedMenu.VerticalOffset = 4;
+            if (BtnCompositeSpeed != null && BtnCompositeSpeed.ActualWidth > 0)
+            {
+                _compositeSpeedMenu.Width = BtnCompositeSpeed.ActualWidth;
+                _compositeSpeedMenu.MinWidth = BtnCompositeSpeed.ActualWidth;
+            }
+            _compositeSpeedMenu.IsOpen = true;
+            _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
+            StartCompositeSpeedMenuAutoCloseTimer();
+        }
+
+        private ContextMenu BuildCompositeSpeedMenu()
+        {
+            var contextMenu = new ContextMenu
+            {
+                MinWidth = 1
+            };
+
+            if (TryFindResource("NoBorderContextMenuStyle") is Style menuStyle)
+            {
+                contextMenu.Style = menuStyle;
+            }
+
+            var speedOptions = new double[]
+            {
+                0.50,
+                0.75,
+                1.00,
+                1.10,
+                1.25,
+                1.50,
+                2.00,
+                2.50,
+                3.00
+            };
+
+            foreach (var speed in speedOptions)
+            {
+                var menuItem = new MenuItem
                 {
-                    Header = $"{speed:F2}x {(speed == 1.0 ? "(正常)" : speed > 1.0 ? "(加速)" : "(减速)")}",
-                    IsChecked = Math.Abs(compositeService.Speed - speed) < 0.01
+                    Header = BuildCompositeSpeedMenuHeader(speed),
+                    IsCheckable = true,
+                    Tag = speed
                 };
-                
-                menuItem.Click += (s, args) =>
+
+                menuItem.Click += (_, _) =>
                 {
+                    var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite)
+                        as Services.Implementations.CompositePlaybackService;
+                    if (compositeService == null || !compositeService.IsPlaying)
+                    {
+                        return;
+                    }
+
                     if (Math.Abs(compositeService.Speed - speed) < 0.01)
                     {
                         return;
@@ -1216,17 +1263,95 @@ namespace ImageColorChanger.UI
                         new Action(() =>
                         {
                             compositeService.SetSpeed(speed);
+                            RefreshCompositeSpeedMenuCheckedState(_compositeSpeedMenu, speed);
                             ShowStatus($"播放速度已设置为 {speed:F2}x");
                         }));
                 };
-                
+
                 contextMenu.Items.Add(menuItem);
             }
-            
-            // 显示菜单
-            contextMenu.PlacementTarget = BtnCompositeSpeed;
-            contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            contextMenu.IsOpen = true;
+
+            contextMenu.MouseEnter += (_, _) => StopCompositeSpeedMenuAutoCloseTimer();
+            contextMenu.MouseLeave += (_, _) => StartCompositeSpeedMenuAutoCloseTimer();
+            contextMenu.Closed += (_, _) => StopCompositeSpeedMenuAutoCloseTimer();
+
+            return contextMenu;
+        }
+
+        private UIElement BuildCompositeSpeedMenuHeader(double speed)
+        {
+            var speedText = new TextBlock
+            {
+                Text = $"{speed:F2}x",
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            speedText.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
+            return speedText;
+        }
+
+        private void RefreshCompositeSpeedMenuCheckedState(ContextMenu menu, double currentSpeed)
+        {
+            if (menu == null)
+            {
+                return;
+            }
+
+            foreach (var item in menu.Items.OfType<MenuItem>())
+            {
+                if (item.Tag is double speed)
+                {
+                    item.IsChecked = Math.Abs(currentSpeed - speed) < 0.01;
+                }
+            }
+        }
+
+        private void StartCompositeSpeedMenuAutoCloseTimer()
+        {
+            _compositeSpeedMenuAutoCloseTimer ??= new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(120)
+            };
+
+            _compositeSpeedMenuAutoCloseTimer.Tick -= CompositeSpeedMenuAutoCloseTimer_Tick;
+            _compositeSpeedMenuAutoCloseTimer.Tick += CompositeSpeedMenuAutoCloseTimer_Tick;
+            _compositeSpeedMenuAutoCloseTimer.Stop();
+            _compositeSpeedMenuAutoCloseTimer.Start();
+        }
+
+        private void StopCompositeSpeedMenuAutoCloseTimer()
+        {
+            _compositeSpeedMenuAutoCloseTimer?.Stop();
+        }
+
+        private void CompositeSpeedMenuAutoCloseTimer_Tick(object sender, EventArgs e)
+        {
+            var menu = _compositeSpeedMenu;
+            if (menu == null || !menu.IsOpen)
+            {
+                StopCompositeSpeedMenuAutoCloseTimer();
+                return;
+            }
+
+            bool mouseOnButton = IsMouseInsideElement(BtnCompositeSpeed);
+            bool mouseOnMenu = IsMouseInsideContextMenuPopup(menu);
+            bool mouseOnSubmenu = IsMouseInsideAnyOpenSubmenuPopup(menu);
+            bool shouldKeepOpen = mouseOnButton || mouseOnMenu || mouseOnSubmenu;
+
+            if (shouldKeepOpen)
+            {
+                _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
+                return;
+            }
+
+            var elapsedSinceKeepAlive = (DateTime.UtcNow - _compositeSpeedMenuLastKeepAliveUtc).TotalMilliseconds;
+            if (elapsedSinceKeepAlive < CompositeSpeedMenuCloseGracePeriodMs)
+            {
+                return;
+            }
+
+            StopCompositeSpeedMenuAutoCloseTimer();
+            menu.IsOpen = false;
         }
 
         /// <summary>
