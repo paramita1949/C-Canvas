@@ -403,7 +403,19 @@ namespace ImageColorChanger.UI
                     
                     if (_projectionManager != null && _projectionManager.IsProjecting)
                     {
-                        _projectionManager.ClearProjectionDisplay();
+                        if (_isBibleMode)
+                        {
+                            LogBibleQuickLocateDebug(
+                                "ProjectionClear",
+                                "LoadAndDisplayLockedRecords: lockedItems=0 and _isBibleMode=true -> ClearProjectionDisplay");
+                            _projectionManager.ClearProjectionDisplay();
+                        }
+                        else
+                        {
+                            LogBibleQuickLocateDebug(
+                                "ProjectionClear:Skip",
+                                "LoadAndDisplayLockedRecords: lockedItems=0 but _isBibleMode=false (slide context), skip clear");
+                        }
                     }
                     
                     //#if DEBUG
@@ -808,7 +820,19 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    _projectionManager.ClearProjectionDisplay();
+                    if (_isBibleMode)
+                    {
+                        LogBibleQuickLocateDebug(
+                            "ProjectionClear",
+                            $"UpdateProjectionFromMergedVerses: verseList={verseList.Count}, _isBibleMode=true -> ClearProjectionDisplay");
+                        _projectionManager.ClearProjectionDisplay();
+                    }
+                    else
+                    {
+                        LogBibleQuickLocateDebug(
+                            "ProjectionClear:Skip",
+                            $"UpdateProjectionFromMergedVerses: verseList={verseList.Count}, _isBibleMode=false (slide context), skip clear");
+                    }
                 }
             }
 

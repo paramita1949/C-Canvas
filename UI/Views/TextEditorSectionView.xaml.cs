@@ -64,6 +64,7 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button MainBiblePopupCloseButtonControl => MainBiblePopupCloseButton;
         public System.Windows.Controls.Image MainBiblePopupOverlayImageControl => MainBiblePopupOverlayImage;
         public System.Windows.Controls.Button MainBiblePopupOverlayCloseButtonControl => MainBiblePopupOverlayCloseButton;
+        public UI.Controls.BiblePinyinHintControl TextEditorBiblePinyinHintControlRef => TextEditorBiblePinyinHintControl;
         public System.Windows.Controls.Button BtnSecondLayerItalicButton => BtnSecondLayerItalic;
         public System.Windows.Controls.Button BtnSecondLayerUnderlineButton => BtnSecondLayerUnderline;
         public System.Windows.Controls.Button BtnSecondLayerAlignLeftButton => BtnSecondLayerAlignLeft;

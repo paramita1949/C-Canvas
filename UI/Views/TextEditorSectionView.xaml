@@ -1384,9 +1384,16 @@
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       Stretch="None"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"/>
                             </Button>
+
+                            <!-- 幻灯片界面的圣经拼音快速定位提示（复用圣经提示控件） -->
+                            <controls:BiblePinyinHintControl x:Name="TextEditorBiblePinyinHintControl"
+                                                             Visibility="Collapsed"
+                                                             HorizontalAlignment="Center"
+                                                             VerticalAlignment="Center"
+                                                             Panel.ZIndex="382"/>
 
                             <!-- 圣经弹窗（主屏：严格限制在幻灯片画布内） -->
                             <Border x:Name="MainBiblePopupBorder"

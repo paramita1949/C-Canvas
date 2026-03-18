@@ -18,11 +18,22 @@ namespace ImageColorChanger.UI
             // System.Diagnostics.Debug.WriteLine($" [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
 #endif
             var key = ResolveEffectiveKey(e);
+            LogBibleQuickLocateDebug(
+                "WindowPreviewKeyDown",
+                $"raw={e.Key}, effective={key}, mods={Keyboard.Modifiers}, handled={e.Handled}, focused={Keyboard.FocusedElement?.GetType().Name ?? "null"}");
 
             if (key == Key.Escape && HasAnyBibleVersePopupVisible())
             {
                 HideBibleVersePopupIfVisible();
                 e.Handled = true;
+                LogBibleQuickLocateDebug("WindowPreviewKeyDown", "handled Escape for verse popup");
+                return;
+            }
+
+            if (await TryHandleBibleQuickLocationFromWindowAsync(key))
+            {
+                e.Handled = true;
+                LogBibleQuickLocateDebug("WindowPreviewKeyDown", $"handled by TryHandleBibleQuickLocationFromWindowAsync, key={key}");
                 return;
             }
 

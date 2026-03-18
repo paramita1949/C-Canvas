@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Input;
 using ImageColorChanger.Services;
@@ -36,6 +37,7 @@ namespace ImageColorChanger.Managers
         {
             _isActive = true;
             _currentInput = "";
+            LogDebug("Activate", "activated and cleared input");
             await UpdateHintAsync();
         }
 
@@ -43,15 +45,22 @@ namespace ImageColorChanger.Managers
         {
             _isActive = false;
             _currentInput = "";
+            LogDebug("Deactivate", "deactivated and cleared input");
             _onDeactivate?.Invoke();
         }
 
         public async System.Threading.Tasks.Task ProcessKeyAsync(Key key)
         {
-            if (!_isActive) return;
+            if (!_isActive)
+            {
+                LogDebug("ProcessKey", $"skip inactive key={key}");
+                return;
+            }
+            LogDebug("ProcessKey", $"key={key}, input='{_currentInput}'");
 
             if (key == Key.Escape)
             {
+                LogDebug("ProcessKey", "Esc -> deactivate");
                 Deactivate();
                 return;
             }
@@ -60,6 +69,7 @@ namespace ImageColorChanger.Managers
             {
                 if (_currentInput.Length > 0)
                     _currentInput = _currentInput.Substring(0, _currentInput.Length - 1);
+                LogDebug("ProcessKey", $"Back -> input='{_currentInput}'");
                 await UpdateHintAsync();
                 return;
             }
@@ -68,6 +78,7 @@ namespace ImageColorChanger.Managers
             {
                 var trimmedInput = _currentInput.Trim();
                 var result = await _service.ParseAsync(trimmedInput);
+                LogDebug("ProcessEnterResult", $"parse success={result.Success}, type={result.Type}, input='{trimmedInput}'");
                 if (result.Success && result.Type != LocationType.Book)
                 {
                     if (_onLocationConfirmed != null)
@@ -91,6 +102,7 @@ namespace ImageColorChanger.Managers
                 }
 
                 _currentInput += " ";
+                LogDebug("ProcessKey", $"Space -> input='{_currentInput}'");
                 await UpdateHintAsync();
                 return;
             }
@@ -105,6 +117,7 @@ namespace ImageColorChanger.Managers
                     return;
 
                 _currentInput += c;
+                LogDebug("ProcessKey", $"append '{c}' -> input='{_currentInput}'");
 
                 var currentParts = _currentInput.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (currentParts.Length > 0 && currentParts[0].All(ch => char.IsLower(ch)))
@@ -118,7 +131,10 @@ namespace ImageColorChanger.Managers
                 }
 
                 await UpdateHintAsync();
+                return;
             }
+
+            LogDebug("ProcessKey", $"ignored key={key} (no mapped char)");
         }
 
         private async System.Threading.Tasks.Task UpdateHintAsync()
@@ -138,6 +154,8 @@ namespace ImageColorChanger.Managers
 
             if (_onHintUpdate != null)
                 await _onHintUpdate(displayText, matches);
+
+            LogDebug("UpdateHint", $"input='{_currentInput}', display='{displayText}', matches={matches.Count}");
         }
 
         private char KeyToChar(Key key)
@@ -163,6 +181,12 @@ namespace ImageColorChanger.Managers
             }
 
             return '\0';
+        }
+
+        [Conditional("DEBUG")]
+        private static void LogDebug(string stage, string detail)
+        {
+            // 调试阶段结束：保持空实现，便于后续快速重新启用。
         }
     }
 }

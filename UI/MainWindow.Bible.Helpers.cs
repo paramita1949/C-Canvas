@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.UI.Controls;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
@@ -123,6 +124,9 @@ namespace ImageColorChanger.UI
         private IntPtr _previousIMC = IntPtr.Zero; // 记录之前的IME上下文
         */
 
+        private DateTime _lastBibleQuickLocateActivationHintUtc = DateTime.MinValue;
+        private bool _pinyinSessionFromSlideContext;
+
         /// <summary>
         /// 禁用IME（已通过XAML实现）
         /// </summary>
@@ -131,9 +135,9 @@ namespace ImageColorChanger.UI
             // IME控制已通过XAML的InputMethod属性实现：
             // BibleVerseScrollViewer 设置了 InputMethod.PreferredImeState="Off" 和 InputMethod.IsInputMethodEnabled="False"
             // 这样当焦点在圣经区域时，会自动禁用中文输入法，强制英文输入
-#if DEBUG
+            #if DEBUG
             System.Diagnostics.Debug.WriteLine("[圣经拼音] IME已通过XAML禁用（InputMethod.PreferredImeState=Off）");
-#endif
+            #endif
         }
 
         /// <summary>
@@ -158,6 +162,7 @@ namespace ImageColorChanger.UI
                 // 检查 BibleService 是否可用
                 if (_bibleService == null)
                 {
+                    LogBibleQuickLocateDebug("InitPinyinService", "skip: _bibleService is null");
                     //System.Diagnostics.Debug.WriteLine("[圣经拼音] BibleService 未初始化，跳过拼音服务初始化");
                     return;
                 }
@@ -169,6 +174,7 @@ namespace ImageColorChanger.UI
                     OnPinyinHintUpdateAsync,
                     OnPinyinDeactivate
                 );
+                LogBibleQuickLocateDebug("InitPinyinService", "success: manager initialized");
 
                 //System.Diagnostics.Debug.WriteLine("[圣经拼音] 拼音快速定位服务初始化成功");
             }
@@ -189,10 +195,26 @@ namespace ImageColorChanger.UI
             //#endif
             
             // 隐藏提示框
-            BiblePinyinHintControl.Hide();
+            ResolveBiblePinyinHintControl()?.Hide();
+            LogBibleQuickLocateDebug("OnPinyinDeactivate", "hint hidden and IME restore requested");
             
             // 恢复IME（已禁用）
             RestoreIME();
+            ResetPinyinSessionContext();
+        }
+
+        private BiblePinyinHintControl ResolveBiblePinyinHintControl()
+        {
+            if (TextEditorPanel?.Visibility == Visibility.Visible && TextEditorBiblePinyinHintControl != null)
+            {
+                LogBibleQuickLocateDebug("ResolveHintControl", "use TextEditorBiblePinyinHintControl");
+                return TextEditorBiblePinyinHintControl;
+            }
+
+            LogBibleQuickLocateDebug("ResolveHintControl", BiblePinyinHintControl != null
+                ? "use BiblePinyinHintControl"
+                : "fallback control is null");
+            return BiblePinyinHintControl;
         }
 
         /// <summary>
@@ -201,44 +223,125 @@ namespace ImageColorChanger.UI
         private async void BibleVerseScrollViewer_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (!_isBibleMode) return;
+            e.Handled = await HandleBiblePinyinInputKeyAsync(e.Key, showActivationStatus: false);
+        }
 
-            // 检查拼音输入管理器是否已初始化
+        internal async Task<bool> TryHandleBibleQuickLocationFromWindowAsync(Key key)
+        {
+            bool isTextEditorContext =
+                TextEditorPanel?.Visibility == Visibility.Visible &&
+                _currentTextProject != null;
+            bool isSlideProjectionMode =
+                (TextEditorPanel?.Visibility == Visibility.Visible || _currentTextProject != null) &&
+                (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
+            bool canUseQuickLocate = isTextEditorContext || isSlideProjectionMode;
+
+            var focused = Keyboard.FocusedElement;
+            LogBibleQuickLocateDebug(
+                "TryHandleFromWindow:Enter",
+                $"key={key}, mods={Keyboard.Modifiers}, canUseQuickLocate={canUseQuickLocate}, " +
+                $"isTextEditorContext={isTextEditorContext}, isSlideProjectionMode={isSlideProjectionMode}, " +
+                $"textEditorVisible={TextEditorPanel?.Visibility == Visibility.Visible}, hasTextProject={_currentTextProject != null}, " +
+                $"projectionActive={_projectionManager?.IsProjectionActive == true}, projecting={_projectionManager?.IsProjecting == true}, " +
+                $"focused={focused?.GetType().Name ?? "null"}");
+
+            if (!canUseQuickLocate)
+            {
+                LogBibleQuickLocateDebug("TryHandleFromWindow", "skip: not in text editor/projection quick-locate context");
+                return false;
+            }
+
+            if (focused is System.Windows.Controls.Primitives.TextBoxBase ||
+                focused is System.Windows.Controls.PasswordBox ||
+                focused is System.Windows.Controls.ComboBox)
+            {
+                LogBibleQuickLocateDebug("TryHandleFromWindow", $"skip: focused input control {focused.GetType().Name}");
+                return false;
+            }
+
             if (_pinyinInputManager == null)
             {
-                return;
+                LogBibleQuickLocateDebug("TryHandleFromWindow", "manager is null, initializing");
+                InitializePinyinService();
             }
 
-            // 如果拼音输入已激活，优先处理ESC键（取消输入框，不关闭投影）
-            if (_pinyinInputManager.IsActive && e.Key == Key.Escape)
+            if (_pinyinInputManager == null)
             {
-                //#if DEBUG
-                //Debug.WriteLine("[圣经拼音] ESC键被拦截 - 关闭输入框，不关闭投影");
-                //#endif
-                
-                await _pinyinInputManager.ProcessKeyAsync(e.Key);
-                e.Handled = true; // 完全拦截ESC键，防止关闭投影
-                return;
+                LogBibleQuickLocateDebug("TryHandleFromWindow", "skip: manager still null after init");
+                return false;
             }
 
-            // 如果还未激活，字母键激活拼音输入
-            if (!_pinyinInputManager.IsActive && e.Key >= Key.A && e.Key <= Key.Z)
+            if (!_pinyinInputManager.IsActive)
             {
-                //#if DEBUG
-                //Debug.WriteLine($"[圣经拼音] 激活拼音输入 - 按键: {e.Key}");
-                //#endif
-                
-                // 禁用IME，强制英文输入
+                if (IsBibleQuickLocateActivationKey(key))
+                {
+                    DisableIME();
+                    _pinyinSessionFromSlideContext = isTextEditorContext;
+                    _pinyinInputManager.Activate();
+                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"activation key pressed -> activated manager: {key}");
+                    ShowBibleQuickLocateActivationHint();
+                    return true;
+                }
+
+                LogBibleQuickLocateDebug("TryHandleFromWindow", "manager inactive and key is not activation key");
+                return false;
+            }
+
+            if (IsBibleQuickLocateActivationKey(key))
+            {
+                LogBibleQuickLocateDebug("TryHandleFromWindow", $"manager active: swallow activation key {key}");
+                return true;
+            }
+
+            if (Keyboard.Modifiers != ModifierKeys.None && Keyboard.Modifiers != ModifierKeys.Shift)
+            {
+                LogBibleQuickLocateDebug("TryHandleFromWindow", $"skip: unsupported modifiers {Keyboard.Modifiers}");
+                return false;
+            }
+
+            var handled = await HandleBiblePinyinInputKeyAsync(key, showActivationStatus: false);
+            LogBibleQuickLocateDebug("TryHandleFromWindow:Exit", $"handled={handled}, key={key}");
+            return handled;
+        }
+
+        private async Task<bool> HandleBiblePinyinInputKeyAsync(Key key, bool showActivationStatus)
+        {
+            if (_pinyinInputManager == null)
+            {
+                LogBibleQuickLocateDebug("HandlePinyinKey", $"skip: manager null, key={key}");
+                return false;
+            }
+
+            if (_pinyinInputManager.IsActive && key == Key.Escape)
+            {
+                LogBibleQuickLocateDebug("HandlePinyinKey", "active + Esc -> deactivate path");
+                await _pinyinInputManager.ProcessKeyAsync(key);
+                return true;
+            }
+
+            if (!_pinyinInputManager.IsActive && key >= Key.A && key <= Key.Z)
+            {
                 DisableIME();
-                
+                _pinyinSessionFromSlideContext =
+                    TextEditorPanel?.Visibility == Visibility.Visible &&
+                    _currentTextProject != null;
                 _pinyinInputManager.Activate();
+                LogBibleQuickLocateDebug("HandlePinyinKey", $"auto-activate by alpha key={key}");
+                if (showActivationStatus)
+                {
+                    ShowBibleQuickLocateActivationHint();
+                }
             }
 
-            // 如果已激活，处理所有键盘输入
             if (_pinyinInputManager.IsActive)
             {
-                await _pinyinInputManager.ProcessKeyAsync(e.Key);
-                e.Handled = true; // 阻止默认行为
+                LogBibleQuickLocateDebug("HandlePinyinKey", $"forward key to manager: key={key}, mods={Keyboard.Modifiers}");
+                await _pinyinInputManager.ProcessKeyAsync(key);
+                return true;
             }
+
+            LogBibleQuickLocateDebug("HandlePinyinKey", $"not active, unhandled key={key}");
+            return false;
         }
 
         /// <summary>
@@ -506,37 +609,67 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async System.Threading.Tasks.Task OnPinyinLocationConfirmedAsync(ImageColorChanger.Services.ParseResult result)
         {
-            if (!result.Success) return;
+            if (!result.Success)
+            {
+                LogBibleQuickLocateDebug("OnPinyinLocationConfirmed", "skip: parse result not success");
+                return;
+            }
 
             try
             {
+                bool isTextEditorContext =
+                    TextEditorPanel?.Visibility == Visibility.Visible &&
+                    _currentTextProject != null;
+                bool isSlideProjectionMode =
+                    isTextEditorContext &&
+                    (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
+                bool historyOnlyMode = _pinyinSessionFromSlideContext;
+                LogBibleQuickLocateDebug(
+                    "OnPinyinLocationConfirmed",
+                    $"type={result.Type}, book={result.BookId}, chapter={result.Chapter}, start={result.StartVerse}, end={result.EndVerse}, " +
+                    $"textEditorContextNow={isTextEditorContext}, slideProjectionNow={isSlideProjectionMode}, " +
+                    $"sessionFromSlide={_pinyinSessionFromSlideContext}, historyOnlyMode={historyOnlyMode}, isBibleModeNow={_isBibleMode}");
+
                 // 根据定位类型执行跳转
                 if (result.Type == ImageColorChanger.Services.LocationType.Book && result.BookId.HasValue)
                 {
-                    // 跳转到书卷第一章
-                    await LoadChapterVersesAsync(result.BookId.Value, 1);
-                    
-                    // 添加到历史记录（第一章全部经文）
                     var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, 1);
+                    int endVerse = verseCount > 0 ? verseCount : 31;
+
+                    if (!historyOnlyMode)
+                    {
+                        await LoadChapterVersesAsync(result.BookId.Value, 1);
+                    }
+
+                    // 添加到历史记录（第一章全部经文）
                     AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, verseCount > 0 ? verseCount : 31);
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.Chapter && 
                          result.BookId.HasValue && result.Chapter.HasValue)
                 {
-                    // 跳转到指定章
-                    await LoadChapterVersesAsync(result.BookId.Value, result.Chapter.Value);
-                    
-                    // 添加到历史记录（该章全部经文）
                     var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, result.Chapter.Value);
+                    int endVerse = verseCount > 0 ? verseCount : 31;
+
+                    if (!historyOnlyMode)
+                    {
+                        await LoadChapterVersesAsync(result.BookId.Value, result.Chapter.Value);
+                    }
+
+                    // 添加到历史记录（该章全部经文）
                     AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, verseCount > 0 ? verseCount : 31);
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.VerseRange && 
                          result.BookId.HasValue && result.Chapter.HasValue && 
                          result.StartVerse.HasValue && result.EndVerse.HasValue)
                 {
-                    // 跳转到指定节范围
-                    await LoadVerseRangeAsync(result.BookId.Value, result.Chapter.Value, 
-                                             result.StartVerse.Value, result.EndVerse.Value);
+                    if (!historyOnlyMode)
+                    {
+                        await LoadVerseRangeAsync(
+                            result.BookId.Value,
+                            result.Chapter.Value,
+                            result.StartVerse.Value,
+                            result.EndVerse.Value);
+                    }
                     
                     // 添加到历史记录
                     AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 
@@ -544,7 +677,12 @@ namespace ImageColorChanger.UI
                 }
 
                 // 隐藏提示框
-                BiblePinyinHintControl.Hide();
+                ResolveBiblePinyinHintControl()?.Hide();
+
+                if (historyOnlyMode)
+                {
+                    ShowToast("经文已加入历史");
+                }
                 
                 // 恢复IME状态
                 RestoreIME();
@@ -553,6 +691,7 @@ namespace ImageColorChanger.UI
             {
                 // 失败时也要恢复IME
                 RestoreIME();
+                LogBibleQuickLocateDebug("OnPinyinLocationConfirmed", $"exception: {ex.Message}");
                 
                 WpfMessageBox.Show($"定位失败：{ex.Message}", "错误", 
                                   MessageBoxButton.OK, MessageBoxImage.Error);
@@ -566,6 +705,29 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (_historySlots == null)
+                {
+                    _historySlots = new ObservableCollection<BibleHistoryItem>();
+                    LogBibleQuickLocateDebug("AddPinyinHistory", "historySlots was null, created new collection");
+                }
+
+                if (_historySlots.Count == 0)
+                {
+                    InitializeHistorySlots();
+                    LogBibleQuickLocateDebug("AddPinyinHistory", "historySlots was empty, initialized default 20 slots");
+                }
+
+                if (BibleHistoryList != null && BibleHistoryList.ItemsSource == null)
+                {
+                    BibleHistoryList.ItemsSource = _historySlots;
+                    LogBibleQuickLocateDebug("AddPinyinHistory", "BibleHistoryList.ItemsSource rebound to historySlots");
+                }
+
+                LogBibleQuickLocateDebug(
+                    "AddPinyinHistory:Context",
+                    $"isBibleMode={_isBibleMode}, projectionActive={_projectionManager?.IsProjectionActive == true}, " +
+                    $"isProjecting={_projectionManager?.IsProjecting == true}, slots={_historySlots.Count}");
+
                 var book = BibleBookConfig.GetBook(bookId);
                 // 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
@@ -628,14 +790,19 @@ namespace ImageColorChanger.UI
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($" [拼音搜索] 已自动勾选槽位{targetSlot.Index}: {displayText}");
                     //#endif
+                    LogBibleQuickLocateDebug("AddPinyinHistory", $"slot={targetSlot.Index}, text={displayText}");
+                }
+                else
+                {
+                    LogBibleQuickLocateDebug("AddPinyinHistory", $"targetSlot is null, cannot write text={displayText}");
                 }
 
                 // 刷新列表显示
-                BibleHistoryList.Items.Refresh();
+                BibleHistoryList?.Items.Refresh();
             }
-            catch
+            catch (Exception ex)
             {
-                // 静默失败，不影响用户操作
+                LogBibleQuickLocateDebug("AddPinyinHistory", $"exception: {ex.Message}");
             }
         }
 
@@ -644,9 +811,58 @@ namespace ImageColorChanger.UI
         /// </summary>
         private System.Threading.Tasks.Task OnPinyinHintUpdateAsync(string displayText, System.Collections.Generic.List<ImageColorChanger.Services.BibleBookMatch> matches)
         {
-            BiblePinyinHintControl.UpdateHint(displayText, matches);
+            ResolveBiblePinyinHintControl()?.UpdateHint(displayText, matches);
+            LogBibleQuickLocateDebug(
+                "OnPinyinHintUpdate",
+                $"displayText={displayText ?? "<null>"}, matches={matches?.Count ?? 0}, currentInput={_pinyinInputManager?.CurrentInput ?? "<null>"}");
+
+            bool isSlideProjectionMode =
+                TextEditorPanel?.Visibility == Visibility.Visible &&
+                _projectionManager?.IsProjectionActive == true &&
+                !_isBibleMode;
+
+            if (isSlideProjectionMode)
+            {
+                var statusText = string.IsNullOrWhiteSpace(displayText)
+                    ? _pinyinInputManager?.CurrentInput
+                    : displayText;
+
+                if (!string.IsNullOrWhiteSpace(statusText))
+                {
+                    ShowStatus($"经文定位: {statusText}");
+                }
+            }
             
             return System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        [Conditional("DEBUG")]
+        private void LogBibleQuickLocateDebug(string stage, string detail)
+        {
+            // 调试阶段结束：保持空实现，便于后续快速重新启用。
+        }
+
+        private void ShowBibleQuickLocateActivationHint()
+        {
+            var now = DateTime.UtcNow;
+            if ((now - _lastBibleQuickLocateActivationHintUtc).TotalMilliseconds < 500)
+            {
+                return;
+            }
+
+            _lastBibleQuickLocateActivationHintUtc = now;
+            ShowToast("经文快捷输入已激活");
+            ShowStatus("经文快捷输入已激活");
+        }
+
+        private void ResetPinyinSessionContext()
+        {
+            _pinyinSessionFromSlideContext = false;
+        }
+
+        private static bool IsBibleQuickLocateActivationKey(Key key)
+        {
+            return key == Key.LeftShift || key == Key.RightShift;
         }
 
         #endregion

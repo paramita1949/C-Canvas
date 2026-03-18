@@ -68,6 +68,7 @@ namespace ImageColorChanger.UI
         private WpfControls.Button MainBiblePopupCloseButton => TextEditorSectionView?.MainBiblePopupCloseButtonControl;
         private WpfControls.Image MainBiblePopupOverlayImage => TextEditorSectionView?.MainBiblePopupOverlayImageControl;
         private WpfControls.Button MainBiblePopupOverlayCloseButton => TextEditorSectionView?.MainBiblePopupOverlayCloseButtonControl;
+        private BiblePinyinHintControl TextEditorBiblePinyinHintControl => TextEditorSectionView?.TextEditorBiblePinyinHintControlRef;
         private WpfControls.Button BtnFloatingItalic => TextEditorSectionView?.BtnSecondLayerItalicButton;
         private WpfControls.Button BtnFloatingUnderline => TextEditorSectionView?.BtnSecondLayerUnderlineButton;
         private WpfControls.Button BtnUnderline => TextEditorSectionView?.BtnSecondLayerUnderlineButton;
