@@ -144,8 +144,27 @@ namespace ImageColorChanger.Database.Repositories
             var mediaFile = _context.MediaFiles.Find(mediaFileId);
             if (mediaFile != null)
             {
+                using var transaction = _context.Database.BeginTransaction();
+
+                var originalMarks = _context.OriginalMarks
+                    .Where(m => m.ItemId == mediaFileId && m.ItemTypeString != null && m.ItemTypeString.ToLower() == "image")
+                    .ToList();
+                if (originalMarks.Count > 0)
+                {
+                    _context.OriginalMarks.RemoveRange(originalMarks);
+                }
+
+                var originalModeTimings = _context.OriginalModeTimings
+                    .Where(t => t.BaseImageId == mediaFileId || t.FromImageId == mediaFileId || t.ToImageId == mediaFileId)
+                    .ToList();
+                if (originalModeTimings.Count > 0)
+                {
+                    _context.OriginalModeTimings.RemoveRange(originalModeTimings);
+                }
+
                 _context.MediaFiles.Remove(mediaFile);
                 _context.SaveChanges();
+                transaction.Commit();
             }
         }
 

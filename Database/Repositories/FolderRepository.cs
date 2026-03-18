@@ -147,6 +147,10 @@ namespace ImageColorChanger.Database.Repositories
                 .Concat(_context.ImageDisplayLocations.Where(l => orphanIds.Contains(l.ImageId)).Select(l => l.ImageId).Distinct())
                 .Concat(_context.CompositeScripts.Where(s => orphanIds.Contains(s.ImageId)).Select(s => s.ImageId).Distinct())
                 .Concat(_context.OriginalMarks.Where(m => m.ItemTypeString == "image" && orphanIds.Contains(m.ItemId)).Select(m => m.ItemId).Distinct())
+                .Concat(_context.OriginalModeTimings
+                    .Where(t => orphanIds.Contains(t.BaseImageId) || orphanIds.Contains(t.FromImageId) || orphanIds.Contains(t.ToImageId))
+                    .Select(t => t.BaseImageId)
+                    .Distinct())
                 .Concat(_context.LyricsProjects.Where(lp => lp.ImageId.HasValue && orphanIds.Contains(lp.ImageId.Value)).Select(lp => lp.ImageId.Value).Distinct())
                 .Distinct()
                 .ToHashSet();
@@ -163,6 +167,22 @@ namespace ImageColorChanger.Database.Repositories
 #if DEBUG
             // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 清理孤儿素材: {safeToDelete.Count}");
 #endif
+            var originalMarks = _context.OriginalMarks
+                .Where(m => m.ItemTypeString == "image" && safeToDelete.Contains(m.ItemId))
+                .ToList();
+            if (originalMarks.Count > 0)
+            {
+                _context.OriginalMarks.RemoveRange(originalMarks);
+            }
+
+            var originalModeTimings = _context.OriginalModeTimings
+                .Where(t => safeToDelete.Contains(t.BaseImageId) || safeToDelete.Contains(t.FromImageId) || safeToDelete.Contains(t.ToImageId))
+                .ToList();
+            if (originalModeTimings.Count > 0)
+            {
+                _context.OriginalModeTimings.RemoveRange(originalModeTimings);
+            }
+
             var images = _context.MediaFiles.Where(f => safeToDelete.Contains(f.Id)).ToList();
             _context.MediaFiles.RemoveRange(images);
             _context.SaveChanges();
