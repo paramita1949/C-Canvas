@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -16,6 +17,13 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class SlideImportManager
     {
+        private const string PackageManifestEntryName = "manifest.json";
+
+        private static readonly JsonSerializerOptions ImportJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         private readonly CanvasDbContext _dbContext;
         public string LastError { get; private set; }
 
@@ -36,16 +44,14 @@ namespace ImageColorChanger.Managers
                 // 选择要导入的文件
                 var openFileDialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    Filter = "幻灯片项目文件 (*.hdp)|*.hdp",
+                    Filter = "幻灯片项目文件 (*.hdp;*.zip)|*.hdp;*.zip|幻灯片项目文件 (*.hdp)|*.hdp|ZIP文件 (*.zip)|*.zip",
                     Title = "导入幻灯片项目"
                 };
 
                 if (openFileDialog.ShowDialog() != true)
                     return 0;
 
-                // 读取并解析JSON文件
-                var json = await File.ReadAllTextAsync(openFileDialog.FileName);
-                var exportData = JsonSerializer.Deserialize<SlideProjectExportData>(json);
+                var exportData = await ReadExportDataAsync(openFileDialog.FileName);
 
                 if (exportData == null || exportData.Projects == null || exportData.Projects.Count == 0)
                 {
@@ -252,6 +258,168 @@ namespace ImageColorChanger.Managers
                 LastError = $"导入失败: {ex.Message}";
                 return 0;
             }
+        }
+
+        private async Task<SlideProjectExportData> ReadExportDataAsync(string sourcePath)
+        {
+            if (IsZipPackage(sourcePath))
+            {
+                return await ReadExportDataFromZipAsync(sourcePath);
+            }
+
+            var json = await File.ReadAllTextAsync(sourcePath);
+            return JsonSerializer.Deserialize<SlideProjectExportData>(json, ImportJsonOptions);
+        }
+
+        private async Task<SlideProjectExportData> ReadExportDataFromZipAsync(string sourcePath)
+        {
+            using var fs = File.OpenRead(sourcePath);
+            using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
+
+            var manifestEntry = zip.GetEntry(PackageManifestEntryName);
+            if (manifestEntry == null)
+            {
+                throw new InvalidOperationException("压缩包缺少清单文件（manifest.json）");
+            }
+
+            string json;
+            using (var stream = manifestEntry.Open())
+            using (var reader = new StreamReader(stream))
+            {
+                json = await reader.ReadToEndAsync();
+            }
+
+            var exportData = JsonSerializer.Deserialize<SlideProjectExportData>(json, ImportJsonOptions);
+            if (exportData == null)
+            {
+                return null;
+            }
+
+            string importAssetRoot = CreateImportAssetDirectory();
+            var extractedPathMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            SlidePackagePathMapper.RemapPaths(exportData, path => ExtractAssetPath(path, zip, importAssetRoot, extractedPathMap));
+
+            return exportData;
+        }
+
+        private static bool IsZipPackage(string sourcePath)
+        {
+            try
+            {
+                using var fs = File.OpenRead(sourcePath);
+                if (fs.Length < 4)
+                {
+                    return false;
+                }
+
+                Span<byte> header = stackalloc byte[4];
+                int read = fs.Read(header);
+                return read == 4 &&
+                       header[0] == 0x50 &&
+                       header[1] == 0x4B &&
+                       (header[2] == 0x03 || header[2] == 0x05 || header[2] == 0x07) &&
+                       (header[3] == 0x04 || header[3] == 0x06 || header[3] == 0x08);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string ExtractAssetPath(
+            string rawPath,
+            ZipArchive zip,
+            string importAssetRoot,
+            Dictionary<string, string> extractedPathMap)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                return rawPath;
+            }
+
+            string packagePath = NormalizePackagePath(rawPath);
+            if (!packagePath.StartsWith("assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                return rawPath;
+            }
+
+            if (extractedPathMap.TryGetValue(packagePath, out var cachedPath))
+            {
+                return cachedPath;
+            }
+
+            var entry = zip.GetEntry(packagePath);
+            if (entry == null)
+            {
+                return rawPath;
+            }
+
+            string fileName = SanitizeFileName(Path.GetFileName(packagePath));
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                fileName = "asset.bin";
+            }
+
+            string targetPath = Path.Combine(importAssetRoot, fileName);
+            string stem = Path.GetFileNameWithoutExtension(fileName);
+            string ext = Path.GetExtension(fileName);
+            if (string.IsNullOrWhiteSpace(ext))
+            {
+                ext = ".bin";
+            }
+
+            int suffix = 1;
+            while (File.Exists(targetPath))
+            {
+                targetPath = Path.Combine(importAssetRoot, $"{stem}_{suffix}{ext}");
+                suffix++;
+            }
+
+            using (var inStream = entry.Open())
+            using (var outStream = File.Create(targetPath))
+            {
+                inStream.CopyTo(outStream);
+            }
+
+            string fullPath = Path.GetFullPath(targetPath);
+            extractedPathMap[packagePath] = fullPath;
+            return fullPath;
+        }
+
+        private static string CreateImportAssetDirectory()
+        {
+            string dir = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "data",
+                "slide-assets",
+                $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        private static string NormalizePackagePath(string path)
+        {
+            return path.Replace('\\', '/').TrimStart('/');
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return "asset.bin";
+            }
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var chars = fileName.Trim().ToCharArray();
+            for (int i = 0; i < chars.Length; i++)
+            {
+                if (invalidChars.Contains(chars[i]))
+                {
+                    chars[i] = '_';
+                }
+            }
+
+            return new string(chars);
         }
 
         /// <summary>

@@ -66,6 +66,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 EncodePart(context.BiblePopupOverlayPosition),
                 EncodePart(context.BiblePopupOverlayBackgroundColor),
                 context.BiblePopupOverlayBackgroundOpacity.ToString(CultureInfo.InvariantCulture),
+                context.BiblePopupOverlayHideSlideContent ? "1" : "0",
                 context.BiblePopupOverlayScrollOffset.ToString("G17", CultureInfo.InvariantCulture));
         }
 

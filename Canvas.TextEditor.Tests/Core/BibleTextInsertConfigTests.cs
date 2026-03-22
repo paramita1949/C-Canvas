@@ -13,6 +13,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
             Assert.Equal(3, config.PopupDurationMinutes);
             Assert.Equal(4, config.PopupVerseCount);
             Assert.Equal(BibleQuickLocateSlideAction.HistoryFirst, config.QuickLocateSlideAction);
+            Assert.False(config.PopupHideSlideContent);
         }
 
         [Theory]

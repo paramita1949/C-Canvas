@@ -650,6 +650,7 @@ namespace ImageColorChanger.UI
                 BiblePopupOverlayPosition = (_biblePopupOverlayConfig?.PopupPosition ?? BiblePopupPosition.Bottom).ToString(),
                 BiblePopupOverlayBackgroundColor = _biblePopupOverlayConfig?.PopupBackgroundColorHex,
                 BiblePopupOverlayBackgroundOpacity = _biblePopupOverlayConfig?.PopupBackgroundOpacity ?? 0,
+                BiblePopupOverlayHideSlideContent = _biblePopupOverlayConfig?.PopupHideSlideContent ?? false,
                 BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset
             };
         }
@@ -2054,6 +2055,16 @@ namespace ImageColorChanger.UI
             }
 
             var cfg = _biblePopupOverlayConfig ?? new BibleTextInsertConfig();
+            if (cfg.PopupHideSlideContent)
+            {
+                using var maskPaint = new SKPaint
+                {
+                    IsAntialias = false,
+                    Style = SKPaintStyle.Fill,
+                    Color = SKColors.Black
+                };
+                canvas.DrawRect(new SKRect(0f, 0f, (float)canvasWidth, (float)canvasHeight), maskPaint);
+            }
             float maxPopupWidth = (float)Math.Min(canvasWidth - 60.0, 1500.0);
             float popupWidth = Math.Max(480f, maxPopupWidth);
             float popupX = (float)((canvasWidth - popupWidth) / 2.0);

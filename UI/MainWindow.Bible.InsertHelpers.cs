@@ -1850,6 +1850,8 @@ namespace ImageColorChanger.UI
             config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
                 ? (BibleQuickLocateSlideAction)quickLocateAction
                 : BibleQuickLocateSlideAction.HistoryFirst;
+
+            config.PopupHideSlideContent = dbManager.GetBibleInsertConfigValue("popup_hide_slide_content", "0") == "1";
             
             //#if DEBUG
             //Debug.WriteLine($"[圣经插入] 从数据库加载配置");

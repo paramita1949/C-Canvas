@@ -21,6 +21,7 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
         public string BiblePopupOverlayPosition { get; init; }
         public string BiblePopupOverlayBackgroundColor { get; init; }
         public int BiblePopupOverlayBackgroundOpacity { get; init; }
+        public bool BiblePopupOverlayHideSlideContent { get; init; }
         public double BiblePopupOverlayScrollOffset { get; init; }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +20,16 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class SlideExportManager
     {
+        private const string PackageManifestEntryName = "manifest.json";
+        private const string SlidePackageFormat = "canvas.hdp";
+        private const string SlidePackageVersion = "2.0";
+
+        private static readonly JsonSerializerOptions PackageJsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
         private readonly CanvasDbContext _dbContext;
         public string LastError { get; private set; }
 
@@ -52,36 +63,10 @@ namespace ImageColorChanger.Managers
                     return false;
                 }
 
-                // 创建导出数据对象
-                var exportData = new SlideProjectExportData
-                {
-                    Version = "1.0",
-                    ExportTime = DateTime.Now,
-                    Projects = new List<TextProjectData> { CreateProjectData(project) }
-                };
-
-                // 选择保存路径
-                var saveFileDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "幻灯片项目文件 (*.hdp)|*.hdp",
-                    FileName = $"{project.Name}.hdp",
-                    Title = "导出幻灯片项目"
-                };
-
-                if (saveFileDialog.ShowDialog() == true)
-                {
-                    // 序列化为JSON并保存
-                    var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                    });
-
-                    await File.WriteAllTextAsync(saveFileDialog.FileName, json);
-                    return true;
-                }
-
-                return false;
+                return await ExportProjectsToPackageAsync(
+                    new List<TextProject> { project },
+                    $"{project.Name}.hdp",
+                    "导出幻灯片项目");
             }
             catch (Exception ex)
             {
@@ -114,42 +99,165 @@ namespace ImageColorChanger.Managers
                     return false;
                 }
 
-                // 创建导出数据对象
-                var exportData = new SlideProjectExportData
-                {
-                    Version = "1.0",
-                    ExportTime = DateTime.Now,
-                    Projects = projects.Select(p => CreateProjectData(p)).ToList()
-                };
-
-                // 选择保存路径
-                var saveFileDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "幻灯片项目文件 (*.hdp)|*.hdp",
-                    FileName = $"所有项目_{DateTime.Now:yyyyMMdd_HHmmss}.hdp",
-                    Title = "导出所有幻灯片项目"
-                };
-
-                if (saveFileDialog.ShowDialog() == true)
-                {
-                    // 序列化为JSON并保存
-                    var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                    });
-
-                    await File.WriteAllTextAsync(saveFileDialog.FileName, json);
-                    return true;
-                }
-
-                return false;
+                return await ExportProjectsToPackageAsync(
+                    projects,
+                    $"所有项目_{DateTime.Now:yyyyMMdd_HHmmss}.hdp",
+                    "导出所有幻灯片项目");
             }
             catch (Exception ex)
             {
                 LastError = $"导出失败: {ex.Message}";
                 return false;
             }
+        }
+
+        private async Task<bool> ExportProjectsToPackageAsync(List<TextProject> projects, string defaultFileName, string dialogTitle)
+        {
+            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "幻灯片项目文件 (*.hdp)|*.hdp",
+                FileName = defaultFileName,
+                Title = dialogTitle
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+            {
+                return false;
+            }
+
+            var exportData = CreateExportData(projects);
+            await WritePackageAsync(saveFileDialog.FileName, exportData);
+            return true;
+        }
+
+        private SlideProjectExportData CreateExportData(List<TextProject> projects)
+        {
+            return new SlideProjectExportData
+            {
+                Format = SlidePackageFormat,
+                Version = SlidePackageVersion,
+                ExportTime = DateTime.Now,
+                Projects = projects.Select(CreateProjectData).ToList()
+            };
+        }
+
+        private async Task WritePackageAsync(string targetPath, SlideProjectExportData exportData)
+        {
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            if (File.Exists(targetPath))
+            {
+                File.Delete(targetPath);
+            }
+
+            using var fs = File.Create(targetPath);
+            using var zip = new ZipArchive(fs, ZipArchiveMode.Create);
+
+            var sourceToEntryPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            SlidePackagePathMapper.RemapPaths(exportData, path => MapPathToPackageEntry(path, zip, sourceToEntryPath));
+
+            var manifestEntry = zip.CreateEntry(PackageManifestEntryName);
+            using var manifestStream = manifestEntry.Open();
+            using var writer = new StreamWriter(manifestStream);
+            string json = JsonSerializer.Serialize(exportData, PackageJsonOptions);
+            await writer.WriteAsync(json);
+        }
+
+        private string MapPathToPackageEntry(string rawPath, ZipArchive zip, Dictionary<string, string> sourceToEntryPath)
+        {
+            string sourcePath = ResolveExistingPath(rawPath);
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                return rawPath;
+            }
+
+            if (sourceToEntryPath.TryGetValue(sourcePath, out var mappedEntryPath))
+            {
+                return mappedEntryPath;
+            }
+
+            string entryPath = BuildUniqueAssetEntryPath(zip, sourcePath);
+            zip.CreateEntryFromFile(sourcePath, entryPath, CompressionLevel.Optimal);
+            sourceToEntryPath[sourcePath] = entryPath;
+            return entryPath;
+        }
+
+        private static string ResolveExistingPath(string rawPath)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                return null;
+            }
+
+            string normalized = rawPath.Trim();
+
+            if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri) && uri.IsFile)
+            {
+                normalized = uri.LocalPath;
+            }
+
+            if (Path.IsPathRooted(normalized))
+            {
+                return File.Exists(normalized) ? Path.GetFullPath(normalized) : null;
+            }
+
+            string fromBaseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, normalized);
+            if (File.Exists(fromBaseDir))
+            {
+                return Path.GetFullPath(fromBaseDir);
+            }
+
+            string fromCurrentDir = Path.GetFullPath(normalized);
+            return File.Exists(fromCurrentDir) ? fromCurrentDir : null;
+        }
+
+        private static string BuildUniqueAssetEntryPath(ZipArchive zip, string sourcePath)
+        {
+            string baseName = SanitizeFileName(Path.GetFileNameWithoutExtension(sourcePath));
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = "asset";
+            }
+
+            string ext = Path.GetExtension(sourcePath);
+            if (string.IsNullOrWhiteSpace(ext))
+            {
+                ext = ".bin";
+            }
+
+            string candidate = $"assets/{baseName}{ext}";
+            int suffix = 1;
+            while (zip.GetEntry(candidate) != null)
+            {
+                candidate = $"assets/{baseName}_{suffix}{ext}";
+                suffix++;
+            }
+
+            return candidate;
+        }
+
+        private static string SanitizeFileName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return "asset";
+            }
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var chars = name.Trim().ToCharArray();
+            for (int i = 0; i < chars.Length; i++)
+            {
+                if (invalidChars.Contains(chars[i]))
+                {
+                    chars[i] = '_';
+                }
+            }
+
+            return new string(chars);
         }
 
         /// <summary>
@@ -287,6 +395,7 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public class SlideProjectExportData
     {
+        public string Format { get; set; }
         public string Version { get; set; }
         public DateTime ExportTime { get; set; }
         public List<TextProjectData> Projects { get; set; }

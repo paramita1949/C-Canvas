@@ -172,6 +172,8 @@ namespace ImageColorChanger.UI
             _config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
                 ? (BibleQuickLocateSlideAction)quickLocateAction
                 : BibleQuickLocateSlideAction.HistoryFirst;
+
+            _config.PopupHideSlideContent = _dbManager.GetBibleInsertConfigValue("popup_hide_slide_content", "0") == "1";
             
             //#if DEBUG
             //Debug.WriteLine($"[BibleInsertStylePopup] 从数据库加载配置");
@@ -351,6 +353,20 @@ namespace ImageColorChanger.UI
             if (CmbSlidePinyinQuickLocateAction.SelectedItem == null && CmbSlidePinyinQuickLocateAction.Items.Count > 0)
             {
                 CmbSlidePinyinQuickLocateAction.SelectedIndex = 0;
+            }
+
+            string popupSlideVisibilityTag = _config.PopupHideSlideContent ? "1" : "0";
+            foreach (var item in CmbPopupSlideVisibilityMode.Items.OfType<ComboBoxItem>())
+            {
+                if (string.Equals(item.Tag?.ToString(), popupSlideVisibilityTag, StringComparison.Ordinal))
+                {
+                    CmbPopupSlideVisibilityMode.SelectedItem = item;
+                    break;
+                }
+            }
+            if (CmbPopupSlideVisibilityMode.SelectedItem == null && CmbPopupSlideVisibilityMode.Items.Count > 0)
+            {
+                CmbPopupSlideVisibilityMode.SelectedIndex = 0;
             }
 
             // 默认打开“插入样式”页签
@@ -613,6 +629,13 @@ namespace ImageColorChanger.UI
                         ? (BibleQuickLocateSlideAction)quickLocateActionValue
                         : BibleQuickLocateSlideAction.HistoryFirst;
                     _dbManager.SetBibleInsertConfigValue("slide_pinyin_quick_locate_action", ((int)_config.QuickLocateSlideAction).ToString());
+                }
+
+                if (CmbPopupSlideVisibilityMode.SelectedItem is ComboBoxItem popupSlideVisibilityItem &&
+                    popupSlideVisibilityItem.Tag is string popupSlideVisibilityTag)
+                {
+                    _config.PopupHideSlideContent = popupSlideVisibilityTag == "1";
+                    _dbManager.SetBibleInsertConfigValue("popup_hide_slide_content", _config.PopupHideSlideContent ? "1" : "0");
                 }
 
                 //#if DEBUG

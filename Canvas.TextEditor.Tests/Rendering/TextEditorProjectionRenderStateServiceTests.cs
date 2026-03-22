@@ -169,6 +169,41 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
         }
 
         [Fact]
+        public void BuildCanvasCacheKey_Changes_WhenBiblePopupHideSlideContentChanges()
+        {
+            var service = new TextEditorProjectionRenderStateService();
+
+            var baseContext = new TextEditorProjectionCacheContext
+            {
+                BiblePopupOverlayVisible = true,
+                BiblePopupOverlayReference = "马太福音 12:2",
+                BiblePopupOverlayContent = "2 看哪...",
+                BiblePopupOverlayPosition = "Bottom",
+                BiblePopupOverlayBackgroundColor = "#1C2740",
+                BiblePopupOverlayBackgroundOpacity = 0,
+                BiblePopupOverlayHideSlideContent = false,
+                BiblePopupOverlayScrollOffset = 0
+            };
+
+            var changedContext = new TextEditorProjectionCacheContext
+            {
+                BiblePopupOverlayVisible = baseContext.BiblePopupOverlayVisible,
+                BiblePopupOverlayReference = baseContext.BiblePopupOverlayReference,
+                BiblePopupOverlayContent = baseContext.BiblePopupOverlayContent,
+                BiblePopupOverlayPosition = baseContext.BiblePopupOverlayPosition,
+                BiblePopupOverlayBackgroundColor = baseContext.BiblePopupOverlayBackgroundColor,
+                BiblePopupOverlayBackgroundOpacity = baseContext.BiblePopupOverlayBackgroundOpacity,
+                BiblePopupOverlayHideSlideContent = true,
+                BiblePopupOverlayScrollOffset = baseContext.BiblePopupOverlayScrollOffset
+            };
+
+            var key1 = service.BuildCanvasCacheKey(baseContext);
+            var key2 = service.BuildCanvasCacheKey(changedContext);
+
+            Assert.NotEqual(key1, key2);
+        }
+
+        [Fact]
         public void BuildCanvasCacheKey_HandlesGradientSpecWithSeparators()
         {
             var service = new TextEditorProjectionRenderStateService();

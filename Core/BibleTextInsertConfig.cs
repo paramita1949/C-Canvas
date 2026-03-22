@@ -103,6 +103,11 @@ namespace ImageColorChanger.Core
         /// 幻灯片拼音快捷定位后的默认动作（先写入历史 / 直接插入）
         /// </summary>
         public BibleQuickLocateSlideAction QuickLocateSlideAction { get; set; } = BibleQuickLocateSlideAction.HistoryFirst;
+
+        /// <summary>
+        /// 弹窗经文显示时是否隐藏幻灯片内容（默认：不隐藏）
+        /// </summary>
+        public bool PopupHideSlideContent { get; set; } = false;
     }
 
     /// <summary>

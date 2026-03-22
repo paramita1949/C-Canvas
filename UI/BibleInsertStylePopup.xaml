@@ -670,54 +670,53 @@
                                     </StackPanel>
                                 </Border>
                                 <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="24"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="6"/>
-                                        <ColumnDefinition Width="84"/>
-                                        <ColumnDefinition Width="14"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="6"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="6"/>
-                                        <ColumnDefinition Width="84"/>
-                                        <ColumnDefinition Width="14"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="6"/>
-                                        <ColumnDefinition Width="84"/>
+                                        <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Grid.Column="0"
-                                               Style="{StaticResource FieldLabelStyle}"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               Text="&#xE823;"/>
-                                    <TextBlock Grid.Column="2" Style="{StaticResource FieldLabelStyle}" Text="时间:"/>
-                                    <ComboBox Grid.Column="4"
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="时间:"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="2"
                                               x:Name="CmbPopupDurationMinutes"
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged"/>
 
-                                    <TextBlock Grid.Column="6"
-                                               Style="{StaticResource FieldLabelStyle}"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               Text="&#xE8FD;"/>
-                                    <TextBlock Grid.Column="8" Style="{StaticResource FieldLabelStyle}" Text="目标节数:"/>
-                                    <ComboBox Grid.Column="10"
+                                    <TextBlock Grid.Row="0" Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="节数:"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="6"
                                               x:Name="CmbPopupVerseCount"
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged"/>
 
-                                    <TextBlock Grid.Column="12" Style="{StaticResource FieldLabelStyle}" Text="插入:"/>
-                                    <ComboBox Grid.Column="14"
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabelStyle}" Text="插入:"/>
+                                    <ComboBox Grid.Row="2" Grid.Column="2"
                                               x:Name="CmbSlidePinyinQuickLocateAction"
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged">
                                         <ComboBoxItem Content="弹出" Tag="1"/>
                                         <ComboBoxItem Content="经文" Tag="0"/>
+                                    </ComboBox>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="内容:"/>
+                                    <ComboBox Grid.Row="2" Grid.Column="6"
+                                              x:Name="CmbPopupSlideVisibilityMode"
+                                              Height="26"
+                                              FontSize="12"
+                                              SelectionChanged="StyleChanged">
+                                        <ComboBoxItem Content="显示" Tag="0"/>
+                                        <ComboBoxItem Content="隐藏" Tag="1"/>
                                     </ComboBox>
                                 </Grid>
                             </StackPanel>
