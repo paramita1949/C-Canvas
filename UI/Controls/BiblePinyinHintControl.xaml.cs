@@ -76,14 +76,16 @@ namespace ImageColorChanger.UI.Controls
             {
                 MatchResultsPanel.Visibility = Visibility.Visible;
 
-                // 最多显示前10个匹配结果
-                var displayMatches = matches.Take(10).ToList();
+                // 最多显示前9个匹配结果（对应数字键 1-9 直选）
+                var displayMatches = matches.Take(9).ToList();
 
-                foreach (var match in displayMatches)
+                for (int i = 0; i < displayMatches.Count; i++)
                 {
+                    var match = displayMatches[i];
+                    string numberedName = $"{i + 1} {match.BookName}";
                     var textBlock = new TextBlock
                     {
-                        Text = match.BookName,
+                        Text = numberedName,
                         Foreground = new SolidColorBrush(Colors.White),
                         FontSize = 16,
                         Margin = new Thickness(0, 0, 15, 5), // 右边距15，下边距5

@@ -107,6 +107,12 @@ namespace ImageColorChanger.Managers
                 return;
             }
 
+            if (TryHandleBookCandidateSelectionByNumber(key))
+            {
+                await UpdateHintAsync();
+                return;
+            }
+
             char c = KeyToChar(key);
             if (c != '\0')
             {
@@ -135,6 +141,73 @@ namespace ImageColorChanger.Managers
             }
 
             LogDebug("ProcessKey", $"ignored key={key} (no mapped char)");
+        }
+
+        private bool TryHandleBookCandidateSelectionByNumber(Key key)
+        {
+            if (!TryGetCandidateIndexFromNumberKey(key, out int targetIndex))
+            {
+                return false;
+            }
+
+            var parts = _currentInput.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return false;
+            }
+
+            var firstPart = parts[0];
+            if (!firstPart.All(ch => char.IsLower(ch)))
+            {
+                return false;
+            }
+
+            var matches = _service.FindBooksByPinyin(firstPart);
+            if (matches.Count <= 1)
+            {
+                return false;
+            }
+
+            if (targetIndex < 0 || targetIndex >= matches.Count)
+            {
+                LogDebug("ProcessKey", $"candidate index out of range: key={key}, targetIndex={targetIndex}, matches={matches.Count}");
+                return true;
+            }
+
+            var selectedBookName = matches[targetIndex].BookName;
+            if (parts.Length == 1)
+            {
+                _currentInput = $"{selectedBookName} ";
+            }
+            else
+            {
+                var tail = string.Join(" ", parts.Skip(1));
+                _currentInput = string.IsNullOrWhiteSpace(tail)
+                    ? $"{selectedBookName} "
+                    : $"{selectedBookName} {tail}";
+            }
+
+            LogDebug("ProcessKey", $"select candidate {targetIndex + 1} -> input='{_currentInput}'");
+            return true;
+        }
+
+        private static bool TryGetCandidateIndexFromNumberKey(Key key, out int targetIndex)
+        {
+            targetIndex = key switch
+            {
+                Key.D1 or Key.NumPad1 => 0,
+                Key.D2 or Key.NumPad2 => 1,
+                Key.D3 or Key.NumPad3 => 2,
+                Key.D4 or Key.NumPad4 => 3,
+                Key.D5 or Key.NumPad5 => 4,
+                Key.D6 or Key.NumPad6 => 5,
+                Key.D7 or Key.NumPad7 => 6,
+                Key.D8 or Key.NumPad8 => 7,
+                Key.D9 or Key.NumPad9 => 8,
+                _ => -1
+            };
+
+            return targetIndex >= 0;
         }
 
         private async System.Threading.Tasks.Task UpdateHintAsync()
