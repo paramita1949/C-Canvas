@@ -5,6 +5,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
+using ImageColorChanger.Core;
 using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI.Controls
@@ -19,6 +21,14 @@ namespace ImageColorChanger.UI.Controls
         private const double MinHintWidth = 700d;
         private const double MaxHintWidth = 1400d;
         private const double FallbackHintWidth = 760d;
+        private const int MatchColumnsPerRow = 6;
+        private const double MatchPanelHorizontalPadding = 20d;
+        private const double MinMatchHintWidth = 360d;
+        private const double MaxMatchHintWidth = 1280d;
+        private const double MatchHostWidthRatioLimit = 0.88d;
+        private const double MatchItemHorizontalSpacing = 6d;
+        private const double MatchRowBottomSpacing = 2d;
+        private const double MatchItemFontSize = 15d;
         private const double DefaultPreviewFontSize = 35d;
         private const double MinPreviewFontSize = 15d;
         private const double MaxPreviewFontSize = 70d;
@@ -32,12 +42,23 @@ namespace ImageColorChanger.UI.Controls
         private FrameworkElement _adaptiveWidthHost;
         private string _lastPreviewContent = string.Empty;
         private double _lastRequestedPreviewFontSize = DefaultPreviewFontSize;
+        private readonly DispatcherTimer _caretBlinkTimer;
+        private string _inputDisplayText = string.Empty;
+        private bool _isCaretVisible = true;
+        private int _lastMatchDisplayCount;
+        private List<string> _lastMatchDisplayTexts = new();
 
         public BiblePinyinHintControl()
         {
             InitializeComponent();
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
+
+            _caretBlinkTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _caretBlinkTimer.Tick += CaretBlinkTimer_Tick;
         }
 
         /// <summary>
@@ -51,12 +72,28 @@ namespace ImageColorChanger.UI.Controls
             double previewFontSize = 35d)
         {
             bool hasPreview = !string.IsNullOrWhiteSpace(previewContent);
+            bool hasMatches = matches != null && matches.Count > 0;
+            var displayMatches = hasMatches
+                ? matches.Take(9).ToList()
+                : new List<BibleBookMatch>();
+            _lastMatchDisplayTexts = displayMatches
+                .Select((m, idx) => BuildMatchDisplayText(m, idx + 1))
+                .ToList();
+            _lastMatchDisplayCount = _lastMatchDisplayTexts.Count;
+
             if (hasPreview)
             {
                 EnsureAdaptiveWidthHost();
                 ApplyAdaptiveWidth();
                 _lastPreviewContent = previewContent ?? string.Empty;
                 _lastRequestedPreviewFontSize = previewFontSize;
+            }
+            else if (_lastMatchDisplayCount > 0)
+            {
+                EnsureAdaptiveWidthHost();
+                ApplyAdaptiveWidthForMatchList(_lastMatchDisplayTexts);
+                _lastPreviewContent = string.Empty;
+                _lastRequestedPreviewFontSize = DefaultPreviewFontSize;
             }
             else
             {
@@ -65,39 +102,56 @@ namespace ImageColorChanger.UI.Controls
                 _lastRequestedPreviewFontSize = DefaultPreviewFontSize;
             }
 
-            // 更新输入文本
-            InputText.Text = displayText;
+            _inputDisplayText = displayText ?? string.Empty;
+            EnsureCaretBlinking();
+            RefreshInputTextWithCaret();
 
             // 清空匹配结果
             MatchResultsPanel.Children.Clear();
 
             // 如果有匹配的书卷，显示横向排列
-            if (matches != null && matches.Count > 0)
+            if (hasMatches)
             {
                 MatchResultsPanel.Visibility = Visibility.Visible;
+                ConfigureMatchResultsLayout(_lastMatchDisplayTexts);
 
-                // 最多显示前9个匹配结果（对应数字键 1-9 直选）
-                var displayMatches = matches.Take(9).ToList();
-
-                for (int i = 0; i < displayMatches.Count; i++)
+                for (int rowStart = 0; rowStart < _lastMatchDisplayTexts.Count; rowStart += MatchColumnsPerRow)
                 {
-                    var match = displayMatches[i];
-                    string numberedName = $"{i + 1} {match.BookName}";
-                    var textBlock = new TextBlock
+                    int rowEndExclusive = Math.Min(rowStart + MatchColumnsPerRow, _lastMatchDisplayTexts.Count);
+                    bool hasNextRow = rowEndExclusive < _lastMatchDisplayTexts.Count;
+
+                    var rowPanel = new StackPanel
                     {
-                        Text = numberedName,
-                        Foreground = new SolidColorBrush(Colors.White),
-                        FontSize = 16,
-                        Margin = new Thickness(0, 0, 15, 5), // 右边距15，下边距5
-                        VerticalAlignment = VerticalAlignment.Center
+                        Orientation = System.Windows.Controls.Orientation.Horizontal,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                        Margin = new Thickness(0, 0, 0, hasNextRow ? MatchRowBottomSpacing : 0)
                     };
 
-                    MatchResultsPanel.Children.Add(textBlock);
+                    for (int i = rowStart; i < rowEndExclusive; i++)
+                    {
+                        bool isLastInRow = i == rowEndExclusive - 1;
+                        var textBlock = new TextBlock
+                        {
+                            Text = _lastMatchDisplayTexts[i],
+                            Foreground = new SolidColorBrush(Colors.White),
+                            FontSize = MatchItemFontSize,
+                            Margin = new Thickness(0, 0, isLastInRow ? 0 : MatchItemHorizontalSpacing, 0),
+                            TextTrimming = TextTrimming.None,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+
+                        rowPanel.Children.Add(textBlock);
+                    }
+
+                    MatchResultsPanel.Children.Add(rowPanel);
                 }
             }
             else
             {
                 MatchResultsPanel.Visibility = Visibility.Collapsed;
+                MatchResultsPanel.Width = double.NaN;
+                _lastMatchDisplayCount = 0;
+                _lastMatchDisplayTexts = new List<string>();
             }
 
             if (hasPreview)
@@ -133,7 +187,52 @@ namespace ImageColorChanger.UI.Controls
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            StopCaretBlinking();
             DetachAdaptiveWidthHost();
+        }
+
+        private void CaretBlinkTimer_Tick(object sender, EventArgs e)
+        {
+            _isCaretVisible = !_isCaretVisible;
+            RefreshInputTextWithCaret();
+        }
+
+        private void EnsureCaretBlinking()
+        {
+            if (_caretBlinkTimer.IsEnabled)
+            {
+                return;
+            }
+
+            _isCaretVisible = true;
+            _caretBlinkTimer.Start();
+        }
+
+        private void StopCaretBlinking()
+        {
+            if (_caretBlinkTimer.IsEnabled)
+            {
+                _caretBlinkTimer.Stop();
+            }
+
+            _isCaretVisible = true;
+        }
+
+        private void RefreshInputTextWithCaret()
+        {
+            if (InputText == null)
+            {
+                return;
+            }
+
+            string caret = _isCaretVisible ? "|" : " ";
+            if (string.IsNullOrEmpty(_inputDisplayText))
+            {
+                InputText.Text = caret;
+                return;
+            }
+
+            InputText.Text = $"{_inputDisplayText} {caret}";
         }
 
         private void EnsureAdaptiveWidthHost()
@@ -166,10 +265,18 @@ namespace ImageColorChanger.UI.Controls
 
         private void AdaptiveWidthHost_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (PreviewPanel?.Visibility == Visibility.Visible)
+            bool isPreviewVisible = PreviewPanel?.Visibility == Visibility.Visible;
+            bool isMatchVisible = MatchResultsPanel?.Visibility == Visibility.Visible;
+
+            if (isPreviewVisible)
             {
                 ApplyAdaptiveWidth();
                 ApplyAdaptivePreviewLayout();
+            }
+            else if (isMatchVisible)
+            {
+                ApplyAdaptiveWidthForMatchList(_lastMatchDisplayTexts);
+                ConfigureMatchResultsLayout(_lastMatchDisplayTexts);
             }
         }
 
@@ -179,8 +286,22 @@ namespace ImageColorChanger.UI.Controls
             double targetWidth = hostWidth > 0
                 ? hostWidth * HintWidthRatio
                 : FallbackHintWidth;
-
             Width = System.Math.Clamp(targetWidth, MinHintWidth, MaxHintWidth);
+        }
+
+        private void ApplyAdaptiveWidthForMatchList(List<string> displayTexts)
+        {
+            int columns = GetMatchColumns(displayTexts?.Count ?? 0);
+            double maxRowWidth = MeasureMaxRowWidth(displayTexts, columns);
+            double desiredWidth = maxRowWidth + MatchPanelHorizontalPadding;
+            double hostWidth = _adaptiveWidthHost?.ActualWidth ?? 0d;
+
+            double maxByHost = hostWidth > 0
+                ? hostWidth * MatchHostWidthRatioLimit
+                : MaxMatchHintWidth;
+            double widthUpperBound = Math.Max(MinMatchHintWidth, Math.Min(MaxMatchHintWidth, maxByHost));
+
+            Width = Math.Clamp(desiredWidth, MinMatchHintWidth, widthUpperBound);
         }
 
         private void ApplyCompactWidth()
@@ -217,6 +338,95 @@ namespace ImageColorChanger.UI.Controls
 
             PreviewContentText.FontSize = fittedFontSize;
             PreviewContentText.LineHeight = Math.Max(fittedFontSize * 1.25d, fittedFontSize + 2d);
+        }
+
+        private void ConfigureMatchResultsLayout(List<string> displayTexts)
+        {
+            if (MatchResultsPanel == null || MatchResultsPanel.Visibility != Visibility.Visible)
+            {
+                return;
+            }
+
+            int columns = GetMatchColumns(displayTexts?.Count ?? 0);
+            double maxRowWidth = MeasureMaxRowWidth(displayTexts, columns);
+            MatchResultsPanel.Width = Math.Max(240d, maxRowWidth);
+        }
+
+        private static string BuildMatchDisplayText(BibleBookMatch match, int index)
+        {
+            var book = BibleBookConfig.GetBook(match.BookId);
+            string shortName = book?.ShortName?.Trim();
+            string displayName = match.BookName;
+            if (!string.IsNullOrWhiteSpace(shortName) &&
+                !string.Equals(shortName, match.BookName, StringComparison.Ordinal))
+            {
+                displayName = $"{match.BookName}（{shortName}）";
+            }
+
+            return $"{index} {displayName}";
+        }
+
+        private double MeasureTextWidth(string text, double fontSize)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return 0d;
+            }
+
+            var typeface = new Typeface(
+                FontFamily,
+                FontStyles.Normal,
+                FontWeights.Normal,
+                FontStretches.Normal);
+
+            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            var formattedText = new FormattedText(
+                text,
+                CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight,
+                typeface,
+                fontSize,
+                System.Windows.Media.Brushes.White,
+                pixelsPerDip);
+
+            return formattedText.WidthIncludingTrailingWhitespace;
+        }
+
+        private double MeasureMaxRowWidth(List<string> displayTexts, int columns)
+        {
+            if (displayTexts == null || displayTexts.Count == 0 || columns <= 0)
+            {
+                return 240d;
+            }
+
+            double maxWidth = 0d;
+            for (int rowStart = 0; rowStart < displayTexts.Count; rowStart += columns)
+            {
+                int rowEndExclusive = Math.Min(rowStart + columns, displayTexts.Count);
+                double rowWidth = 0d;
+                for (int i = rowStart; i < rowEndExclusive; i++)
+                {
+                    rowWidth += MeasureTextWidth(displayTexts[i], MatchItemFontSize);
+                    if (i < rowEndExclusive - 1)
+                    {
+                        rowWidth += MatchItemHorizontalSpacing;
+                    }
+                }
+
+                maxWidth = Math.Max(maxWidth, rowWidth);
+            }
+
+            return Math.Max(240d, maxWidth);
+        }
+
+        private static int GetMatchColumns(int matchCount)
+        {
+            if (matchCount <= 0)
+            {
+                return 1;
+            }
+
+            return Math.Min(MatchColumnsPerRow, matchCount);
         }
 
         private double GetAdaptivePreviewMaxHeight()
@@ -275,8 +485,11 @@ namespace ImageColorChanger.UI.Controls
         /// </summary>
         public void Hide()
         {
+            StopCaretBlinking();
             Visibility = Visibility.Collapsed;
             MatchResultsPanel.Children.Clear();
+            _inputDisplayText = string.Empty;
+            InputText.Text = string.Empty;
             PreviewPanel.Visibility = Visibility.Collapsed;
             PreviewReferenceText.Text = string.Empty;
             PreviewReferenceText.Visibility = Visibility.Collapsed;
@@ -285,6 +498,9 @@ namespace ImageColorChanger.UI.Controls
             PreviewContentText.ClearValue(TextBlock.LineHeightProperty);
             _lastPreviewContent = string.Empty;
             _lastRequestedPreviewFontSize = DefaultPreviewFontSize;
+            MatchResultsPanel.Width = double.NaN;
+            _lastMatchDisplayCount = 0;
+            _lastMatchDisplayTexts = new List<string>();
             if (PreviewScrollViewer != null)
             {
                 PreviewScrollViewer.MaxHeight = MinPreviewMaxHeight;

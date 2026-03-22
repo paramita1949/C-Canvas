@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.Interfaces;
+using TinyPinyin;
 
 namespace ImageColorChanger.Services
 {
@@ -43,6 +46,13 @@ namespace ImageColorChanger.Services
         };
 
         /// <summary>
+        /// 常见中文简称（如“林前”）对应的首字母别名映射（如“lq”）。
+        /// 支持重叠：同一个别名可对应多卷书（例如“tq”可能匹配“帖前/提前”）。
+        /// 规则：按 shortName 逐字取拼音首字母（如“徒”-> t，“林前”-> lq）。
+        /// </summary>
+        private static readonly Dictionary<string, List<int>> ShortAliasMap = BuildShortAliasMap();
+
+        /// <summary>
         /// 根据拼音前缀查找匹配的书卷
         /// </summary>
         public List<BibleBookMatch> FindBooksByPinyin(string pinyin)
@@ -50,28 +60,36 @@ namespace ImageColorChanger.Services
             if (string.IsNullOrWhiteSpace(pinyin))
                 return new List<BibleBookMatch>();
 
-            var matches = new List<BibleBookMatch>();
             pinyin = pinyin.ToLower().Trim();
+            var bestMatchesByBook = new Dictionary<int, BibleBookMatch>();
 
             foreach (var kvp in PinyinMap)
             {
-                if (kvp.Key.StartsWith(pinyin))
+                if (kvp.Key.StartsWith(pinyin, StringComparison.Ordinal))
                 {
-                    var book = BibleBookConfig.GetBook(kvp.Value);
-                    if (book != null)
-                    {
-                        matches.Add(new BibleBookMatch
-                        {
-                            BookId = kvp.Value,
-                            BookName = book.Name,
-                            Pinyin = kvp.Key,
-                            MatchScore = kvp.Key == pinyin ? 100 : 50 // 完全匹配得分更高
-                        });
-                    }
+                    TryUpsertMatch(bestMatchesByBook, kvp.Value, kvp.Key, kvp.Key == pinyin ? 100 : 60);
                 }
             }
 
-            return matches.OrderByDescending(m => m.MatchScore).ToList();
+            foreach (var kvp in ShortAliasMap)
+            {
+                if (!kvp.Key.StartsWith(pinyin, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int score = kvp.Key == pinyin ? 95 : 55;
+                foreach (var bookId in kvp.Value)
+                {
+                    TryUpsertMatch(bestMatchesByBook, bookId, kvp.Key, score);
+                }
+            }
+
+            return bestMatchesByBook.Values
+                .OrderByDescending(m => m.MatchScore)
+                .ThenBy(m => m.Pinyin?.Length ?? int.MaxValue)
+                .ThenBy(m => m.BookId)
+                .ToList();
         }
 
         /// <summary>
@@ -107,13 +125,18 @@ namespace ImageColorChanger.Services
             if (bookId == -1)
             {
                 var firstWord = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (!string.IsNullOrEmpty(firstWord) && PinyinMap.TryGetValue(firstWord.ToLower(), out bookId))
+                if (!string.IsNullOrEmpty(firstWord))
                 {
-                    var book = BibleBookConfig.GetBook(bookId);
-                    if (book != null)
+                    var matchedBookIds = FindBookIdsByExactAlias(firstWord.ToLower());
+                    if (matchedBookIds.Count == 1)
                     {
-                        bookName = book.Name;
-                        trimmed = trimmed.Substring(firstWord.Length).Trim();
+                        bookId = matchedBookIds[0];
+                        var book = BibleBookConfig.GetBook(bookId);
+                        if (book != null)
+                        {
+                            bookName = book.Name;
+                            trimmed = trimmed.Substring(firstWord.Length).Trim();
+                        }
                     }
                 }
             }
@@ -311,8 +334,10 @@ namespace ImageColorChanger.Services
                 return input;
 
             // 检查第一部分是否是拼音
-            if (PinyinMap.TryGetValue(parts[0].ToLower(), out int bookId))
+            var bookIds = FindBookIdsByExactAlias(parts[0].ToLower());
+            if (bookIds.Count == 1)
             {
+                int bookId = bookIds[0];
                 var book = BibleBookConfig.GetBook(bookId);
                 if (book != null)
                 {
@@ -322,6 +347,204 @@ namespace ImageColorChanger.Services
             }
 
             return input;
+        }
+
+        private static List<int> FindBookIdsByExactAlias(string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                return new List<int>();
+            }
+
+            alias = alias.ToLower().Trim();
+            var ids = new HashSet<int>();
+            if (PinyinMap.TryGetValue(alias, out int directBookId))
+            {
+                ids.Add(directBookId);
+            }
+
+            if (ShortAliasMap.TryGetValue(alias, out var aliasBookIds))
+            {
+                foreach (var id in aliasBookIds)
+                {
+                    ids.Add(id);
+                }
+            }
+
+            return ids.OrderBy(id => id).ToList();
+        }
+
+        private static Dictionary<string, List<int>> BuildShortAliasMap()
+        {
+            var result = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+            foreach (var book in BibleBookConfig.Books)
+            {
+                var aliases = BuildShortNameAliases(book?.ShortName);
+                if (aliases.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var alias in aliases)
+                {
+                    if (!result.TryGetValue(alias, out var ids))
+                    {
+                        ids = new List<int>();
+                        result[alias] = ids;
+                    }
+
+                    if (!ids.Contains(book.BookId))
+                    {
+                        ids.Add(book.BookId);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static HashSet<string> BuildShortNameAliases(string shortName)
+        {
+            var aliases = new HashSet<string>(StringComparer.Ordinal);
+            if (string.IsNullOrWhiteSpace(shortName))
+            {
+                return aliases;
+            }
+
+            shortName = shortName.Trim();
+            var initialChars = new List<char>(shortName.Length);
+            var fullSyllables = new List<string>(shortName.Length);
+            for (int i = 0; i < shortName.Length; i++)
+            {
+                char c = shortName[i];
+                if (char.IsWhiteSpace(c))
+                {
+                    continue;
+                }
+
+                if (c <= 127)
+                {
+                    if (char.IsLetterOrDigit(c))
+                    {
+                        char ascii = char.ToLowerInvariant(c);
+                        initialChars.Add(ascii);
+                        fullSyllables.Add(ascii.ToString());
+                    }
+                    else
+                    {
+                        return new HashSet<string>(StringComparer.Ordinal);
+                    }
+
+                    continue;
+                }
+
+                if (!PinyinHelper.IsChinese(c))
+                {
+                    return new HashSet<string>(StringComparer.Ordinal);
+                }
+
+                string pinyin = NormalizePinyinSyllable(PinyinHelper.GetPinyin(c.ToString()));
+                if (string.IsNullOrWhiteSpace(pinyin))
+                {
+                    return new HashSet<string>(StringComparer.Ordinal);
+                }
+
+                char initial = char.ToLowerInvariant(pinyin[0]);
+                if (!char.IsLetter(initial))
+                {
+                    return new HashSet<string>(StringComparer.Ordinal);
+                }
+
+                initialChars.Add(initial);
+                fullSyllables.Add(pinyin);
+            }
+
+            if (initialChars.Count == 0)
+            {
+                return aliases;
+            }
+
+            string initialAlias = new string(initialChars.ToArray());
+            aliases.Add(initialAlias);
+
+            string fullAlias = string.Concat(fullSyllables);
+            if (!string.IsNullOrWhiteSpace(fullAlias))
+            {
+                aliases.Add(fullAlias);
+            }
+
+            return aliases;
+        }
+
+        private static string NormalizePinyinSyllable(string pinyin)
+        {
+            if (string.IsNullOrWhiteSpace(pinyin))
+            {
+                return string.Empty;
+            }
+
+            string normalized = pinyin
+                .Trim()
+                .ToLowerInvariant()
+                .Replace("u:", "v")
+                .Replace('ü', 'v');
+
+            string decomposed = normalized.Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(decomposed.Length);
+            foreach (char ch in decomposed)
+            {
+                var category = CharUnicodeInfo.GetUnicodeCategory(ch);
+                if (category == UnicodeCategory.NonSpacingMark)
+                {
+                    continue;
+                }
+
+                char lower = char.ToLowerInvariant(ch);
+                if (lower >= 'a' && lower <= 'z')
+                {
+                    builder.Append(lower);
+                }
+                else if (lower == 'v')
+                {
+                    builder.Append('v');
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static void TryUpsertMatch(
+            Dictionary<int, BibleBookMatch> bestMatchesByBook,
+            int bookId,
+            string matchedKey,
+            int score)
+        {
+            var book = BibleBookConfig.GetBook(bookId);
+            if (book == null)
+            {
+                return;
+            }
+
+            if (!bestMatchesByBook.TryGetValue(bookId, out var existing))
+            {
+                bestMatchesByBook[bookId] = new BibleBookMatch
+                {
+                    BookId = bookId,
+                    BookName = book.Name,
+                    Pinyin = matchedKey,
+                    MatchScore = score
+                };
+                return;
+            }
+
+            bool replace = score > existing.MatchScore ||
+                           (score == existing.MatchScore &&
+                            (matchedKey?.Length ?? int.MaxValue) < (existing.Pinyin?.Length ?? int.MaxValue));
+            if (replace)
+            {
+                existing.Pinyin = matchedKey;
+                existing.MatchScore = score;
+            }
         }
     }
 

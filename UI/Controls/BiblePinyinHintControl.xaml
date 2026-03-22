@@ -7,30 +7,30 @@
             BorderBrush="#FF5722"
             BorderThickness="2"
             CornerRadius="8"
-            Padding="20">
+            Padding="12">
         <StackPanel>
             <!-- 输入显示 -->
             <TextBlock x:Name="InputText" 
                        Text="" 
                        Foreground="#FFD700" 
-                       FontSize="20" 
+                       FontSize="18" 
                        FontWeight="Bold"
                        TextAlignment="Center"
-                       Margin="0,0,0,10"/>
+                       Margin="0,0,0,6"/>
             
-            <!-- 匹配结果（横向排列书卷名） -->
-            <WrapPanel x:Name="MatchResultsPanel"
-                       Orientation="Horizontal"
-                       Visibility="Collapsed"
-                       Margin="0,10,0,0">
-                <!-- 动态添加书卷名TextBlock -->
-            </WrapPanel>
+            <!-- 匹配结果（每行最多6个，行内居中） -->
+            <StackPanel x:Name="MatchResultsPanel"
+                        Visibility="Collapsed"
+                        HorizontalAlignment="Center"
+                        Margin="0,4,0,0">
+                <!-- 动态添加候选行 -->
+            </StackPanel>
 
             <!-- 经文预览 -->
             <Border x:Name="PreviewPanel"
                     Visibility="Collapsed"
-                    Margin="0,12,0,0"
-                    Padding="10"
+                    Margin="0,8,0,0"
+                    Padding="8"
                     CornerRadius="6"
                     BorderBrush="#66FFFFFF"
                     BorderThickness="1"
