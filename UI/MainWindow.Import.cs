@@ -17,16 +17,12 @@ namespace ImageColorChanger.UI
         private const double ImportMenuCloseGracePeriodMs = 420;
         private static void LogImportExportInfo(string message)
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} {message}");
-            #endif
+            // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} {message}");
         }
 
         private static void LogImportExportError(string message)
         {
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} [ERROR] {message}");
-            #endif
+            // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} [ERROR] {message}");
         }
 
         #region 导入文件相关
@@ -498,17 +494,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                LogImportExportInfo("[ImportSlide-Begin] resolve SlideImportManager");
                 var slideImportManager = _mainWindowServices.GetRequired<SlideImportManager>();
                 if (slideImportManager == null)
                 {
-                    LogImportExportError("[ImportSlide-ResolveFail] SlideImportManager is null");
                     ShowStatus("导入幻灯片失败: 导入服务不可用");
                     return;
                 }
 
                 int count = await slideImportManager.ImportProjectsAsync();
-                LogImportExportInfo($"[ImportSlide-End] count={count}, lastError={slideImportManager.LastError ?? "(null)"}");
 
                 if (count > 0)
                 {
@@ -522,7 +515,6 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                LogImportExportError($"[ImportSlide-Fail] {ex}");
                 ShowStatus($"导入幻灯片失败: {ex.Message}");
             }
         }
