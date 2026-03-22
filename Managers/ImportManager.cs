@@ -419,6 +419,31 @@ namespace ImageColorChanger.Managers
                 // 使用DatabaseManager的UpdateMediaFilesOrder方法保存更改
                 _dbManager.UpdateMediaFilesOrder(sortedFiles);
 
+                // V2 模式下，项目树与重启后的读取优先使用 folder_images.order_index，
+                // 需要同步映射表顺序，否则新增文件会长期停留在末尾。
+                if (_dbManager.IsFolderSystemV2Enabled())
+                {
+                    var context = _dbManager.GetDbContext();
+                    var desiredOrderByImageId = sortedFiles
+                        .Select((f, idx) => new { f.Id, OrderIndex = idx + 1 })
+                        .ToDictionary(x => x.Id, x => x.OrderIndex);
+
+                    var folderLinks = context.FolderImages
+                        .Where(fi => fi.FolderId == folderId && desiredOrderByImageId.Keys.Contains(fi.ImageId))
+                        .ToList();
+
+                    foreach (var link in folderLinks)
+                    {
+                        if (desiredOrderByImageId.TryGetValue(link.ImageId, out int nextOrder))
+                        {
+                            link.OrderIndex = nextOrder;
+                            link.UpdatedAt = DateTime.Now;
+                        }
+                    }
+
+                    context.SaveChanges();
+                }
+
                 //System.Diagnostics.Debug.WriteLine($" 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
             }
             catch (Exception)

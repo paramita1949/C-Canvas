@@ -16,7 +16,6 @@ namespace ImageColorChanger.UI
             try
             {
                 BtnSync.IsEnabled = false;
-                BtnSync.Content = "同步中...";
                 BtnSync.Background = new SolidColorBrush(Colors.LightGreen);
 
                 var (added, removed, updated) = ImportManagerService.SyncAllFolders();
@@ -33,7 +32,6 @@ namespace ImageColorChanger.UI
             finally
             {
                 BtnSync.IsEnabled = true;
-                BtnSync.Content = "同步";
                 BtnSync.Background = Brushes.Transparent;
             }
         }
