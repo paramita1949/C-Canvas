@@ -63,14 +63,15 @@ namespace ImageColorChanger.Managers
                     return false;
                 }
 
-                return await ExportProjectsToPackageAsync(
+                bool ok = await ExportProjectsToPackageAsync(
                     new List<TextProject> { project },
                     $"{project.Name}.hdp",
                     "导出幻灯片项目");
+                return ok;
             }
             catch (Exception ex)
             {
-                LastError = $"导出失败: {ex.Message}";
+                LastError = $"导出失败: [{ex.GetType().Name}] {ex.Message}";
                 return false;
             }
         }
@@ -99,14 +100,15 @@ namespace ImageColorChanger.Managers
                     return false;
                 }
 
-                return await ExportProjectsToPackageAsync(
+                bool ok = await ExportProjectsToPackageAsync(
                     projects,
                     $"所有项目_{DateTime.Now:yyyyMMdd_HHmmss}.hdp",
                     "导出所有幻灯片项目");
+                return ok;
             }
             catch (Exception ex)
             {
-                LastError = $"导出失败: {ex.Message}";
+                LastError = $"导出失败: [{ex.GetType().Name}] {ex.Message}";
                 return false;
             }
         }
@@ -149,25 +151,78 @@ namespace ImageColorChanger.Managers
                 Directory.CreateDirectory(targetDir);
             }
 
-            if (File.Exists(targetPath))
+            string tempPath = Path.Combine(
+                string.IsNullOrWhiteSpace(targetDir) ? Path.GetTempPath() : targetDir,
+                $"{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
+
+            try
             {
-                File.Delete(targetPath);
+                using (var fs = File.Create(tempPath))
+                using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+                {
+                    var sourceToEntryPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    var usedEntryPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    SlidePackagePathMapper.RemapPaths(exportData, path => MapPathToPackageEntry(path, zip, sourceToEntryPath, usedEntryPaths));
+
+                    var manifestEntry = zip.CreateEntry(PackageManifestEntryName);
+                    using var manifestStream = manifestEntry.Open();
+                    using var writer = new StreamWriter(manifestStream);
+                    string json = JsonSerializer.Serialize(exportData, PackageJsonOptions);
+                    await writer.WriteAsync(json);
+                }
+
+                ValidatePackageFile(tempPath);
+
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+
+                File.Move(tempPath, targetPath, overwrite: true);
             }
-
-            using var fs = File.Create(targetPath);
-            using var zip = new ZipArchive(fs, ZipArchiveMode.Create);
-
-            var sourceToEntryPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            SlidePackagePathMapper.RemapPaths(exportData, path => MapPathToPackageEntry(path, zip, sourceToEntryPath));
-
-            var manifestEntry = zip.CreateEntry(PackageManifestEntryName);
-            using var manifestStream = manifestEntry.Open();
-            using var writer = new StreamWriter(manifestStream);
-            string json = JsonSerializer.Serialize(exportData, PackageJsonOptions);
-            await writer.WriteAsync(json);
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
         }
 
-        private string MapPathToPackageEntry(string rawPath, ZipArchive zip, Dictionary<string, string> sourceToEntryPath)
+        private static void ValidatePackageFile(string packagePath)
+        {
+            using var fs = File.OpenRead(packagePath);
+            using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
+            if (zip.Entries.Count == 0)
+            {
+                throw new InvalidOperationException("导出失败：生成的幻灯片包为空。");
+            }
+
+            var manifestEntry = zip.GetEntry(PackageManifestEntryName);
+            if (manifestEntry == null)
+            {
+                throw new InvalidOperationException("导出失败：生成的幻灯片包缺少 manifest.json。");
+            }
+
+            using var stream = manifestEntry.Open();
+            using var reader = new StreamReader(stream);
+            string json = reader.ReadToEnd();
+            var manifest = JsonSerializer.Deserialize<SlideProjectExportData>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (manifest?.Projects == null || manifest.Projects.Count == 0)
+            {
+                throw new InvalidOperationException("导出失败：manifest 中没有有效项目数据。");
+            }
+        }
+
+        private string MapPathToPackageEntry(
+            string rawPath,
+            ZipArchive zip,
+            Dictionary<string, string> sourceToEntryPath,
+            HashSet<string> usedEntryPaths)
         {
             string sourcePath = ResolveExistingPath(rawPath);
             if (string.IsNullOrWhiteSpace(sourcePath))
@@ -180,7 +235,7 @@ namespace ImageColorChanger.Managers
                 return mappedEntryPath;
             }
 
-            string entryPath = BuildUniqueAssetEntryPath(zip, sourcePath);
+            string entryPath = BuildUniqueAssetEntryPath(sourcePath, usedEntryPaths);
             zip.CreateEntryFromFile(sourcePath, entryPath, CompressionLevel.Optimal);
             sourceToEntryPath[sourcePath] = entryPath;
             return entryPath;
@@ -188,34 +243,41 @@ namespace ImageColorChanger.Managers
 
         private static string ResolveExistingPath(string rawPath)
         {
-            if (string.IsNullOrWhiteSpace(rawPath))
+            try
+            {
+                if (string.IsNullOrWhiteSpace(rawPath))
+                {
+                    return null;
+                }
+
+                string normalized = rawPath.Trim();
+
+                if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri) && uri.IsFile)
+                {
+                    normalized = uri.LocalPath;
+                }
+
+                if (Path.IsPathRooted(normalized))
+                {
+                    return File.Exists(normalized) ? Path.GetFullPath(normalized) : null;
+                }
+
+                string fromBaseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, normalized);
+                if (File.Exists(fromBaseDir))
+                {
+                    return Path.GetFullPath(fromBaseDir);
+                }
+
+                string fromCurrentDir = Path.GetFullPath(normalized);
+                return File.Exists(fromCurrentDir) ? fromCurrentDir : null;
+            }
+            catch
             {
                 return null;
             }
-
-            string normalized = rawPath.Trim();
-
-            if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri) && uri.IsFile)
-            {
-                normalized = uri.LocalPath;
-            }
-
-            if (Path.IsPathRooted(normalized))
-            {
-                return File.Exists(normalized) ? Path.GetFullPath(normalized) : null;
-            }
-
-            string fromBaseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, normalized);
-            if (File.Exists(fromBaseDir))
-            {
-                return Path.GetFullPath(fromBaseDir);
-            }
-
-            string fromCurrentDir = Path.GetFullPath(normalized);
-            return File.Exists(fromCurrentDir) ? fromCurrentDir : null;
         }
 
-        private static string BuildUniqueAssetEntryPath(ZipArchive zip, string sourcePath)
+        private static string BuildUniqueAssetEntryPath(string sourcePath, HashSet<string> usedEntryPaths)
         {
             string baseName = SanitizeFileName(Path.GetFileNameWithoutExtension(sourcePath));
             if (string.IsNullOrWhiteSpace(baseName))
@@ -231,12 +293,13 @@ namespace ImageColorChanger.Managers
 
             string candidate = $"assets/{baseName}{ext}";
             int suffix = 1;
-            while (zip.GetEntry(candidate) != null)
+            while (usedEntryPaths.Contains(candidate))
             {
                 candidate = $"assets/{baseName}_{suffix}{ext}";
                 suffix++;
             }
 
+            usedEntryPaths.Add(candidate);
             return candidate;
         }
 

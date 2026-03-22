@@ -18,6 +18,7 @@ namespace ImageColorChanger.Managers
     public class SlideImportManager
     {
         private const string PackageManifestEntryName = "manifest.json";
+        private const string ImportLogPrefix = "[幻灯片导入]";
 
         private static readonly JsonSerializerOptions ImportJsonOptions = new JsonSerializerOptions
         {
@@ -41,6 +42,8 @@ namespace ImageColorChanger.Managers
             LastError = null;
             try
             {
+                LogInfo("[Import-Begin] open file dialog");
+
                 // 选择要导入的文件
                 var openFileDialog = new Microsoft.Win32.OpenFileDialog
                 {
@@ -49,15 +52,25 @@ namespace ImageColorChanger.Managers
                 };
 
                 if (openFileDialog.ShowDialog() != true)
+                {
+                    LogInfo("[Import-Cancel] user canceled file dialog");
                     return 0;
+                }
 
-                var exportData = await ReadExportDataAsync(openFileDialog.FileName);
+                var selectedPath = openFileDialog.FileName;
+                var selectedFileInfo = new FileInfo(selectedPath);
+                LogInfo($"[Import-Select] file={selectedPath}, bytes={(selectedFileInfo.Exists ? selectedFileInfo.Length : 0)}");
+
+                var exportData = await ReadExportDataAsync(selectedPath);
 
                 if (exportData == null || exportData.Projects == null || exportData.Projects.Count == 0)
                 {
                     LastError = "文件格式无效或没有项目数据";
+                    LogError($"[Import-Invalid] {LastError}");
                     return 0;
                 }
+
+                LogInfo($"[Import-Parsed] format={exportData.Format ?? "(null)"}, version={exportData.Version ?? "(null)"}, projects={exportData.Projects.Count}");
 
                 var dbContext = _dbContext;
                 int importedCount = 0;
@@ -65,6 +78,8 @@ namespace ImageColorChanger.Managers
                 // 导入每个项目
                 foreach (var projectData in exportData.Projects)
                 {
+                    LogInfo($"[Import-Project-Begin] name={projectData?.Name ?? "(null)"}, slides={projectData?.Slides?.Count ?? 0}");
+
                     // 检查项目名称是否已存在，如果存在则添加后缀
                     var existingNames = dbContext.TextProjects
                         .Select(p => p.Name)
@@ -249,36 +264,71 @@ namespace ImageColorChanger.Managers
                     }
 
                     importedCount++;
+                    LogInfo($"[Import-Project-End] name={projectName}, importedSlides={projectData?.Slides?.Count ?? 0}");
                 }
 
+                LogInfo($"[Import-End] importedProjects={importedCount}");
                 return importedCount;
             }
             catch (Exception ex)
             {
-                LastError = $"导入失败: {ex.Message}";
+                LastError = $"导入失败: [{ex.GetType().Name}] {ex.Message}";
+                LogError($"[Import-Fail] {BuildExceptionDetails(ex)}");
                 return 0;
             }
         }
 
         private async Task<SlideProjectExportData> ReadExportDataAsync(string sourcePath)
         {
-            if (IsZipPackage(sourcePath))
+            bool isZip = IsZipPackage(sourcePath);
+            LogInfo($"[ReadData] path={sourcePath}, isZip={isZip}");
+
+            if (isZip)
             {
-                return await ReadExportDataFromZipAsync(sourcePath);
+                try
+                {
+                    var zipData = await ReadExportDataFromZipAsync(sourcePath);
+                    if (IsValidExportData(zipData))
+                    {
+                        return zipData;
+                    }
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is JsonException)
+                {
+                    LogError($"[ReadData-ZipFallback] {ex.GetType().Name}: {ex.Message}");
+                }
             }
 
-            var json = await File.ReadAllTextAsync(sourcePath);
-            return JsonSerializer.Deserialize<SlideProjectExportData>(json, ImportJsonOptions);
+            var jsonData = await TryReadExportDataFromJsonAsync(sourcePath);
+            if (IsValidExportData(jsonData))
+            {
+                LogInfo("[ReadData] fallback json parse succeeded");
+                return jsonData;
+            }
+
+            if (isZip)
+            {
+                throw new InvalidOperationException("幻灯片包为空或已损坏（缺少有效项目数据），请在源电脑重新导出后再导入。");
+            }
+
+            throw new InvalidOperationException("文件格式无效或文件内容为空。");
         }
 
         private async Task<SlideProjectExportData> ReadExportDataFromZipAsync(string sourcePath)
         {
             using var fs = File.OpenRead(sourcePath);
             using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
+            LogInfo($"[ReadZip] entries={zip.Entries.Count}, source={sourcePath}");
+
+            if (zip.Entries.Count == 0)
+            {
+                throw new InvalidOperationException("压缩包为空（未包含任何文件）");
+            }
 
             var manifestEntry = zip.GetEntry(PackageManifestEntryName);
             if (manifestEntry == null)
             {
+                LogError("[ReadZip] manifest.json not found");
                 throw new InvalidOperationException("压缩包缺少清单文件（manifest.json）");
             }
 
@@ -288,18 +338,44 @@ namespace ImageColorChanger.Managers
             {
                 json = await reader.ReadToEndAsync();
             }
+            LogInfo($"[ReadZip] manifestLength={json?.Length ?? 0}");
 
             var exportData = JsonSerializer.Deserialize<SlideProjectExportData>(json, ImportJsonOptions);
             if (exportData == null)
             {
+                LogError("[ReadZip] manifest deserialize returned null");
                 return null;
             }
 
             string importAssetRoot = CreateImportAssetDirectory();
+            LogInfo($"[ReadZip] importAssetRoot={importAssetRoot}");
             var extractedPathMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             SlidePackagePathMapper.RemapPaths(exportData, path => ExtractAssetPath(path, zip, importAssetRoot, extractedPathMap));
+            LogInfo($"[ReadZip] extractedAssetCount={extractedPathMap.Count}");
 
             return exportData;
+        }
+
+        private async Task<SlideProjectExportData> TryReadExportDataFromJsonAsync(string sourcePath)
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(sourcePath);
+                LogInfo($"[ReadData-Json] jsonLength={json?.Length ?? 0}");
+                return JsonSerializer.Deserialize<SlideProjectExportData>(json, ImportJsonOptions);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
+            {
+                LogError($"[ReadData-JsonFail] {ex.GetType().Name}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static bool IsValidExportData(SlideProjectExportData exportData)
+        {
+            return exportData != null &&
+                   exportData.Projects != null &&
+                   exportData.Projects.Count > 0;
         }
 
         private static bool IsZipPackage(string sourcePath)
@@ -351,6 +427,7 @@ namespace ImageColorChanger.Managers
             var entry = zip.GetEntry(packagePath);
             if (entry == null)
             {
+                LogError($"[ExtractAsset-Missing] path={packagePath}");
                 return rawPath;
             }
 
@@ -383,6 +460,7 @@ namespace ImageColorChanger.Managers
 
             string fullPath = Path.GetFullPath(targetPath);
             extractedPathMap[packagePath] = fullPath;
+            LogInfo($"[ExtractAsset] packagePath={packagePath}, target={fullPath}");
             return fullPath;
         }
 
@@ -420,6 +498,38 @@ namespace ImageColorChanger.Managers
             }
 
             return new string(chars);
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogInfo(string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"{ImportLogPrefix} {message}");
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogError(string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"{ImportLogPrefix} [ERROR] {message}");
+        }
+
+        private static string BuildExceptionDetails(Exception ex)
+        {
+            if (ex == null)
+            {
+                return "(null)";
+            }
+
+            var details = ex.ToString();
+            var inner = ex.InnerException;
+            int depth = 1;
+            while (inner != null && depth <= 5)
+            {
+                details += $"{Environment.NewLine}[Inner#{depth}] {inner}";
+                inner = inner.InnerException;
+                depth++;
+            }
+
+            return details;
         }
 
         /// <summary>
