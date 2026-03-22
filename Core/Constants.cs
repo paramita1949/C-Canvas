@@ -135,10 +135,13 @@ namespace ImageColorChanger.Core
     public enum OriginalDisplayMode
     {
         /// <summary>适中模式 - 等比缩放，完整显示</summary>
-        Fit,
+        Fit = 0,
         
         /// <summary>拉伸模式 - 宽度填满，高度按比例</summary>
-        Stretch
+        Stretch = 1,
+
+        /// <summary>置顶模式 - 等比缩放，水平居中且垂直置顶</summary>
+        FitTop = 2
     }
 
     /// <summary>

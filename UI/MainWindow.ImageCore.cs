@@ -29,10 +29,19 @@ namespace ImageColorChanger.UI
                 _ = StopCompositePlaybackAsync();
 
                 _imagePath = path;
-                _currentZoom = 1.0;
-                if (_imageProcessor != null)
+
+                bool shouldUseOriginalForCurrentImage = _currentImageId > 0 &&
+                    _originalManager != null &&
+                    _originalManager.ShouldUseOriginalMode(_currentImageId);
+                bool preserveZoom = _originalMode || shouldUseOriginalForCurrentImage;
+
+                if (!preserveZoom)
                 {
-                    _imageProcessor.ZoomRatio = 1.0;
+                    _currentZoom = 1.0;
+                    if (_imageProcessor != null)
+                    {
+                        _imageProcessor.ZoomRatio = 1.0;
+                    }
                 }
 
                 _imageProcessor.IsInverted = _isColorEffectEnabled;
@@ -65,6 +74,12 @@ namespace ImageColorChanger.UI
                             var mode = _originalMode ? Database.Models.Enums.PlaybackMode.Original : Database.Models.Enums.PlaybackMode.Keyframe;
                             _ = _playbackViewModel.SetCurrentImageAsync(_currentImageId, mode);
                         }
+                    }
+
+                    if (_originalMode)
+                    {
+                        _currentZoom = _originalModeZoomRatio;
+                        SetZoom(_currentZoom);
                     }
 
                     UpdateProjection();

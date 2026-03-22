@@ -305,26 +305,6 @@ namespace ImageColorChanger.UI
 
                 var displayModeMenuItem = new MenuItem { Header = "原图模式" };
                 
-                // 拉伸模式
-                var stretchItem = new MenuItem 
-                { 
-                    Header = "拉伸", 
-                    IsCheckable = true,
-                    IsChecked = _originalDisplayMode == OriginalDisplayMode.Stretch
-                };
-                stretchItem.Click += (s, args) =>
-                {
-                    if (_originalDisplayMode != OriginalDisplayMode.Stretch)
-                    {
-                        _originalDisplayMode = OriginalDisplayMode.Stretch;
-                        _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
-                        _imageProcessor.UpdateImage();
-                        UpdateProjection();
-                        ShowStatus("原图模式: 拉伸显示");
-                    }
-                };
-                displayModeMenuItem.Items.Add(stretchItem);
-                
                 // 适中模式
                 var fitItem = new MenuItem 
                 { 
@@ -334,16 +314,55 @@ namespace ImageColorChanger.UI
                 };
                 fitItem.Click += (s, args) =>
                 {
-                    if (_originalDisplayMode != OriginalDisplayMode.Fit)
-                    {
-                        _originalDisplayMode = OriginalDisplayMode.Fit;
-                        _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
-                        _imageProcessor.UpdateImage();
-                        UpdateProjection();
-                        ShowStatus("原图模式: 适中显示");
-                    }
+                    SetOriginalDisplayMode(OriginalDisplayMode.Fit, persist: true);
                 };
                 displayModeMenuItem.Items.Add(fitItem);
+
+                // 拉伸模式
+                var stretchItem = new MenuItem 
+                { 
+                    Header = "拉伸", 
+                    IsCheckable = true,
+                    IsChecked = _originalDisplayMode == OriginalDisplayMode.Stretch
+                };
+                stretchItem.Click += (s, args) =>
+                {
+                    SetOriginalDisplayMode(OriginalDisplayMode.Stretch, persist: true);
+                };
+                displayModeMenuItem.Items.Add(stretchItem);
+
+                // 置顶模式（直接百分比：原图模式 -> 置顶 -> 60/65/.../100）
+                var fitTopItem = new MenuItem
+                {
+                    Header = "置顶"
+                };
+
+                foreach (int percent in new[] { 60, 65, 70, 75, 80, 85, 90, 95, 100 })
+                {
+                    var percentItem = new MenuItem
+                    {
+                        Header = $"{percent}%",
+                        IsCheckable = true,
+                        IsChecked = _originalDisplayMode == OriginalDisplayMode.FitTop && _originalTopScalePercent == percent
+                    };
+                    percentItem.Click += (s, args) =>
+                    {
+                        // 点百分比即代表启用置顶：先设置百分比，再切置顶并一次持久化。
+                        SetOriginalTopScalePercent(percent, persist: false);
+                        SetOriginalDisplayMode(OriginalDisplayMode.FitTop, persist: true);
+                    };
+                    fitTopItem.Items.Add(percentItem);
+                }
+
+                fitTopItem.Items.Add(new Separator());
+                var actualScaleItem = new MenuItem
+                {
+                    Header = $"{GetCurrentOriginalTopActualScalePercent()}%  实际缩放的值",
+                    IsEnabled = false
+                };
+                fitTopItem.Items.Add(actualScaleItem);
+
+                displayModeMenuItem.Items.Add(fitTopItem);
                 
                 contextMenu.Items.Add(displayModeMenuItem);
             }

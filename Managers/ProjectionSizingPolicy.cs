@@ -15,11 +15,19 @@ namespace ImageColorChanger.Managers
             double canvasHeight,
             bool isOriginalMode,
             OriginalDisplayMode originalDisplayMode,
+            int originalTopScalePercent,
             double zoomRatio)
         {
             if (isOriginalMode)
             {
-                return CalculateOriginalModeSize(imageWidth, imageHeight, canvasWidth, canvasHeight, originalDisplayMode);
+                return CalculateOriginalModeSize(
+                    imageWidth,
+                    imageHeight,
+                    canvasWidth,
+                    canvasHeight,
+                    originalDisplayMode,
+                    originalTopScalePercent,
+                    zoomRatio);
             }
 
             return CalculateNormalModeSize(imageWidth, imageHeight, canvasWidth, zoomRatio);
@@ -30,7 +38,9 @@ namespace ImageColorChanger.Managers
             int imageHeight,
             double canvasWidth,
             double canvasHeight,
-            OriginalDisplayMode originalDisplayMode)
+            OriginalDisplayMode originalDisplayMode,
+            int originalTopScalePercent,
+            double zoomRatio)
         {
             double widthRatio = canvasWidth / imageWidth;
             double heightRatio = canvasHeight / imageHeight;
@@ -53,6 +63,16 @@ namespace ImageColorChanger.Managers
                 scaleRatio = Math.Min(scaleRatio, maxScale);
             }
 
+            if (originalDisplayMode == OriginalDisplayMode.FitTop)
+            {
+                double topScale = Math.Max(0.6, Math.Min(1.0, originalTopScalePercent / 100.0));
+                scaleRatio *= topScale;
+            }
+
+            // 原图模式同样支持滚轮缩放，投影应与主屏一致。
+            double clampedZoom = Math.Max(Constants.MinZoomRatio, Math.Min(Constants.MaxZoomRatio, zoomRatio));
+            scaleRatio *= clampedZoom;
+
             if (originalDisplayMode == OriginalDisplayMode.Stretch)
             {
                 int stretchWidth = (int)canvasWidth;
@@ -60,8 +80,8 @@ namespace ImageColorChanger.Managers
                 return (stretchWidth, stretchHeight);
             }
 
-            int fitWidth = (int)(imageWidth * scaleRatio);
-            int fitHeight = (int)(imageHeight * scaleRatio);
+            int fitWidth = Math.Max(1, (int)(imageWidth * scaleRatio));
+            int fitHeight = Math.Max(1, (int)(imageHeight * scaleRatio));
             return (fitWidth, fitHeight);
         }
 

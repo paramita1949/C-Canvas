@@ -22,6 +22,7 @@ namespace ImageColorChanger.Managers
                 _isColorEffectEnabled,
                 _isOriginalMode,
                 _originalDisplayMode,
+                _originalTopScalePercent,
                 _zoomRatio);
         }
 

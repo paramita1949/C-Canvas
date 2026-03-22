@@ -1,4 +1,5 @@
 using System;
+using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Managers
 {
@@ -12,10 +13,12 @@ namespace ImageColorChanger.Managers
             int imageHeight,
             double containerWidth,
             double containerHeight,
-            bool isOriginalMode)
+            bool isOriginalMode,
+            OriginalDisplayMode originalDisplayMode)
         {
             double x = Math.Max(0, (containerWidth - imageWidth) / 2.0);
-            double y = Math.Max(0, (containerHeight - imageHeight) / 2.0);
+            bool shouldTopAlign = isOriginalMode && originalDisplayMode == OriginalDisplayMode.FitTop;
+            double y = shouldTopAlign ? 0 : Math.Max(0, (containerHeight - imageHeight) / 2.0);
             return isOriginalMode
                 ? new System.Windows.Thickness(x, y, 0, 0)
                 : new System.Windows.Thickness(x, 0, 0, 0);

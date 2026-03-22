@@ -17,13 +17,17 @@ namespace ImageColorChanger.UI
             {
                 // 从 ConfigManager 加载原图显示模式
                 _originalDisplayMode = _configManager.OriginalDisplayMode;
+                int topScale = Math.Max(60, Math.Min(100, _configManager.OriginalTopScalePercent));
+                _originalTopScalePercent = 60 + (int)Math.Round((topScale - 60) / 5.0) * 5;
                 _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
+                _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
 
                 // 加载分割图片显示模式偏好（默认适中居中）
                 _splitImageDisplayMode = _configManager.SplitImageDisplayMode;
                 
                 // 加载缩放比例
                 _currentZoom = _configManager.ZoomRatio;
+                _originalModeZoomRatio = Math.Max(MinZoom, Math.Min(MaxZoom, _configManager.OriginalModeZoomRatio));
                 
                 // 加载目标颜色
                 _currentTargetColor = new SKColor(
@@ -104,12 +108,14 @@ namespace ImageColorChanger.UI
             {
                 // 保存原图显示模式到 ConfigManager
                 _configManager.OriginalDisplayMode = _originalDisplayMode;
+                _configManager.OriginalTopScalePercent = _originalTopScalePercent;
 
                 // 保存分割图片显示模式偏好到 ConfigManager
                 _configManager.SplitImageDisplayMode = _splitImageDisplayMode;
                 
                 // 保存缩放比例
                 _configManager.ZoomRatio = _currentZoom;
+                _configManager.OriginalModeZoomRatio = _originalModeZoomRatio;
                 
                 // 使用 ConfigManager 的统一方法保存目标颜色
                 _configManager.SetCurrentColor(_currentTargetColor.Red, _currentTargetColor.Green, _currentTargetColor.Blue, _currentTargetColorName);

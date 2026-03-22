@@ -108,7 +108,8 @@ namespace ImageColorChanger.Managers
             }
 
             var (_, containerHeight) = GetProjectionContainerSize(screenWidth, screenHeight);
-            double y = _isOriginalMode ? Math.Max(0, (containerHeight - newHeight) / 2.0) : 0;
+            bool shouldTopAlign = _isOriginalMode && _originalDisplayMode == OriginalDisplayMode.FitTop;
+            double y = _isOriginalMode && !shouldTopAlign ? Math.Max(0, (containerHeight - newHeight) / 2.0) : 0;
             _projectionImageControl.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             _projectionImageControl.VerticalAlignment = VerticalAlignment.Top;
             _projectionImageControl.Margin = new Thickness(0, y, 0, 0);
@@ -155,7 +156,8 @@ namespace ImageColorChanger.Managers
                 newHeight,
                 containerWidth,
                 containerHeight,
-                _isOriginalMode);
+                _isOriginalMode,
+                _originalDisplayMode);
         }
 
         private void UpdateProjectionContainerHeight(int newHeight, double containerHeight)

@@ -67,6 +67,10 @@ namespace ImageColorChanger.UI
                 BtnOriginal.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144));
                 ShowStatus("已启用原图模式");
 
+                // 启用原图模式时恢复独立持久化的原图滚轮缩放值。
+                _currentZoom = _originalModeZoomRatio;
+                SetZoom(_currentZoom);
+
                 if (_currentImageId > 0)
                 {
                     _ = _originalManager.FindSimilarImages(_currentImageId);

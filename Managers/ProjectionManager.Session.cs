@@ -155,6 +155,7 @@ namespace ImageColorChanger.Managers
                 _zoomRatio = _imageProcessor.ZoomRatio;
                 _isOriginalMode = _imageProcessor.OriginalMode;
                 _originalDisplayMode = _imageProcessor.OriginalDisplayModeValue;
+                _originalTopScalePercent = _imageProcessor.OriginalTopScalePercent;
                 UpdateProjection();
             }
 

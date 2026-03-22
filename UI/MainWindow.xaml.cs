@@ -101,6 +101,7 @@ namespace ImageColorChanger.UI
 
         // 图片缩放相关
         private double _currentZoom = 1.0;
+        private double _originalModeZoomRatio = 1.0;
 
         // 图片拖动相关
         private bool _isDragging = false;
@@ -129,6 +130,7 @@ namespace ImageColorChanger.UI
         // 原图模式相关
         private bool _originalMode = false;
         private OriginalDisplayMode _originalDisplayMode = OriginalDisplayMode.Fit;
+        private int _originalTopScalePercent = 80;
 
         // TreeView拖拽相关
         private ProjectTreeItem _draggedItem = null;

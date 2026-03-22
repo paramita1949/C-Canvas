@@ -38,7 +38,8 @@ namespace ImageColorChanger.UI
                             _isColorEffectEnabled,
                             newZoom,
                             _originalMode,
-                            _originalDisplayMode
+                            _originalDisplayMode,
+                            _originalTopScalePercent
                         );
                     }
                 }
@@ -70,7 +71,8 @@ namespace ImageColorChanger.UI
                         _isColorEffectEnabled,
                         1.0,
                         _originalMode,
-                        _originalDisplayMode
+                        _originalDisplayMode,
+                        _originalTopScalePercent
                     );
                 }
             }
@@ -95,7 +97,7 @@ namespace ImageColorChanger.UI
 
         private void ImageScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            if (ShouldUseOriginalTopAlignedZoomLayout())
             {
                 ApplyOriginalZoomTopCenterLayout();
             }
@@ -119,7 +121,39 @@ namespace ImageColorChanger.UI
             if (_originalMode)
             {
                 ApplyOriginalZoomTopCenterLayout();
+
+                // 原图模式下，滚轮缩放值实时持久化。
+                if (_configManager != null)
+                {
+                    _originalModeZoomRatio = _currentZoom;
+                    _configManager.OriginalModeZoomRatio = _currentZoom;
+                }
+
+                // 原图模式缩放也要实时同步到投影窗口。
+                if (_projectionManager?.IsProjecting == true && _imageProcessor?.CurrentImage != null)
+                {
+                    _projectionManager.UpdateProjectionImage(
+                        _imageProcessor.CurrentImage,
+                        _isColorEffectEnabled,
+                        _currentZoom,
+                        _originalMode,
+                        _originalDisplayMode,
+                        _originalTopScalePercent);
+                }
             }
+        }
+
+        private int GetCurrentOriginalTopActualScalePercent()
+        {
+            int rounded = (int)Math.Round(_currentZoom * 100.0);
+            return Math.Max(1, rounded);
+        }
+
+        private bool ShouldUseOriginalTopAlignedZoomLayout()
+        {
+            return _originalMode &&
+                   _originalDisplayMode == OriginalDisplayMode.FitTop &&
+                   Math.Abs(_currentZoom - 1.0) > 0.001;
         }
 
         /// <summary>
@@ -130,8 +164,7 @@ namespace ImageColorChanger.UI
             if (ImageDisplay.Source == null)
                 return;
 
-            // 原图模式下，只要处于缩放态（!=1x），统一采用“居中置顶”。
-            if (Math.Abs(_currentZoom - 1.0) > 0.001)
+            if (ShouldUseOriginalTopAlignedZoomLayout())
             {
                 ImageDisplay.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
                 ImageDisplay.VerticalAlignment = System.Windows.VerticalAlignment.Top;
@@ -153,7 +186,10 @@ namespace ImageColorChanger.UI
             else
             {
                 ImageDisplay.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                ImageDisplay.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+                ImageDisplay.VerticalAlignment =
+                    _originalMode && _originalDisplayMode == OriginalDisplayMode.FitTop
+                        ? System.Windows.VerticalAlignment.Top
+                        : System.Windows.VerticalAlignment.Center;
             }
         }
 
@@ -180,37 +216,89 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 切换原图显示模式(拉伸/适中)
+        /// 切换原图显示模式（中键轮换：适中 -> 拉伸 -> 置顶）
         /// </summary>
         private void ToggleOriginalDisplayMode()
         {
-            if (_originalDisplayMode == OriginalDisplayMode.Stretch)
+            OriginalDisplayMode nextMode = _originalDisplayMode switch
             {
-                _originalDisplayMode = OriginalDisplayMode.Fit;
-                ShowStatus("原图模式: 适中显示");
+                OriginalDisplayMode.Fit => OriginalDisplayMode.Stretch,
+                OriginalDisplayMode.Stretch => OriginalDisplayMode.FitTop,
+                _ => OriginalDisplayMode.Fit
+            };
+
+            SetOriginalDisplayMode(nextMode, persist: true);
+        }
+
+        private void SetOriginalDisplayMode(OriginalDisplayMode mode, bool persist)
+        {
+            _originalDisplayMode = mode;
+            _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
+            _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
+
+            _imageProcessor.UpdateImage();
+            ApplyOriginalZoomTopCenterLayout();
+            UpdateProjection();
+
+            if (persist)
+            {
+                SaveSettings();
+            }
+
+            if (_originalDisplayMode == OriginalDisplayMode.FitTop)
+            {
+                ShowStatus($"原图模式: 置顶显示 ({_originalTopScalePercent}%)");
+            }
+            else if (_originalDisplayMode == OriginalDisplayMode.Stretch)
+            {
+                ShowStatus("原图模式: 拉伸显示");
             }
             else
             {
-                _originalDisplayMode = OriginalDisplayMode.Stretch;
-                ShowStatus("原图模式: 拉伸显示");
+                ShowStatus("原图模式: 适中显示");
             }
-            
-            // 更新ImageProcessor的显示模式
-            _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
-            
-            // 重新显示图片
-            _imageProcessor.UpdateImage();
-            
-            // 更新投影窗口
-            UpdateProjection();
-            
-            // 保存设置到数据库
-            SaveSettings();
+        }
+
+        private void SetOriginalTopScalePercent(int percent, bool persist)
+        {
+            int normalized = NormalizeOriginalTopScalePercent(percent);
+            if (_originalTopScalePercent == normalized)
+            {
+                if (_originalDisplayMode == OriginalDisplayMode.FitTop)
+                {
+                    ShowStatus($"原图置顶缩放: {normalized}%");
+                }
+                return;
+            }
+
+            _originalTopScalePercent = normalized;
+            _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
+
+            if (_originalMode && _originalDisplayMode == OriginalDisplayMode.FitTop)
+            {
+                _imageProcessor.UpdateImage();
+                ApplyOriginalZoomTopCenterLayout();
+                UpdateProjection();
+            }
+
+            if (persist)
+            {
+                SaveSettings();
+            }
+
+            ShowStatus($"原图置顶缩放: {_originalTopScalePercent}%");
+        }
+
+        private static int NormalizeOriginalTopScalePercent(int percent)
+        {
+            int clamped = Math.Max(60, Math.Min(100, percent));
+            int step = (int)Math.Round((clamped - 60) / 5.0);
+            return 60 + step * 5;
         }
 
         private void ImageDisplay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            if (ShouldUseOriginalTopAlignedZoomLayout())
             {
                 // 原图缩放分支固定“居中置顶”，不允许手动拖拽改变位置。
                 return;
@@ -237,7 +325,7 @@ namespace ImageColorChanger.UI
 
         private void ImageDisplay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            if (ShouldUseOriginalTopAlignedZoomLayout())
             {
                 return;
             }

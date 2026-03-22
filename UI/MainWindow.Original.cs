@@ -301,7 +301,8 @@ namespace ImageColorChanger.UI
                             _isColorEffectEnabled,
                             _currentZoom,
                             true,  // 修复：脚本播放时也是原图模式，应该传true而不是false
-                            _originalDisplayMode  // 使用当前的显示模式设置
+                            _originalDisplayMode,  // 使用当前的显示模式设置
+                            _originalTopScalePercent
                         );
                     }                }
                 catch (Exception)

@@ -787,6 +787,47 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 原图模式滚轮缩放比例（独立于置顶百分比）
+        /// </summary>
+        public double OriginalModeZoomRatio
+        {
+            get => _config.OriginalModeZoomRatio;
+            set
+            {
+                double clamped = Math.Max(Constants.MinZoomRatio, Math.Min(Constants.MaxZoomRatio, value));
+                if (Math.Abs(_config.OriginalModeZoomRatio - clamped) > 0.001)
+                {
+                    _config.OriginalModeZoomRatio = clamped;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 原图置顶模式缩放百分比（60-100）
+        /// </summary>
+        public int OriginalTopScalePercent
+        {
+            get => _config.OriginalTopScalePercent;
+            set
+            {
+                int normalized = NormalizeOriginalTopScalePercent(value);
+                if (_config.OriginalTopScalePercent != normalized)
+                {
+                    _config.OriginalTopScalePercent = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        private static int NormalizeOriginalTopScalePercent(int value)
+        {
+            int clamped = Math.Max(60, Math.Min(100, value));
+            int step = (int)Math.Round((clamped - 60) / 5.0);
+            return 60 + step * 5;
+        }
+
+        /// <summary>
         /// 圣经拼音预览字号
         /// </summary>
         public double BiblePreviewFontSize
@@ -1166,6 +1207,11 @@ namespace ImageColorChanger.Core
         public OriginalDisplayMode OriginalDisplayMode { get; set; } = OriginalDisplayMode.Fit;
 
         /// <summary>
+        /// 原图置顶模式缩放百分比（默认：80）
+        /// </summary>
+        public int OriginalTopScalePercent { get; set; } = 80;
+
+        /// <summary>
         /// 分割图片显示模式（默认：适中居中）
         /// </summary>
         [JsonPropertyName("SplitStretchMode")]
@@ -1186,6 +1232,11 @@ namespace ImageColorChanger.Core
         /// 缩放比例（默认：1.0）
         /// </summary>
         public double ZoomRatio { get; set; } = 1.0;
+
+        /// <summary>
+        /// 原图模式滚轮缩放比例（默认：1.0）
+        /// </summary>
+        public double OriginalModeZoomRatio { get; set; } = 1.0;
 
         /// <summary>
         /// 是否启用自动保存

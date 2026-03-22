@@ -48,7 +48,8 @@ namespace ImageColorChanger.UI
                         _isColorEffectEnabled,
                         _currentZoom,
                         _originalMode,
-                        _originalDisplayMode
+                        _originalDisplayMode,
+                        _originalTopScalePercent
                     );
 
                     _projectionNdiOutputManager?.PublishFrame(

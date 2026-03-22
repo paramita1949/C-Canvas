@@ -194,6 +194,7 @@ namespace ImageColorChanger.Managers
                 canvasHeight,
                 _isOriginalMode,
                 _originalDisplayMode,
+                _originalTopScalePercent,
                 _zoomRatio);
         }
 
@@ -211,6 +212,7 @@ namespace ImageColorChanger.Managers
                 canvasHeight,
                 _isOriginalMode,
                 _originalDisplayMode,
+                _originalTopScalePercent,
                 _zoomRatio);
             return height;
         }

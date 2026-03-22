@@ -36,6 +36,7 @@ namespace ImageColorChanger.Core
         // 显示模式
         private bool originalMode = false;
         private OriginalDisplayMode originalDisplayMode = OriginalDisplayMode.Fit;
+        private int originalTopScalePercent = 80;
         
         // 缩放状态
         private double zoomRatio = Constants.DefaultZoomRatio;
@@ -197,6 +198,31 @@ namespace ImageColorChanger.Core
                     }
                 }
             }
+        }
+
+        /// <summary>原图置顶模式缩放百分比（60-100）</summary>
+        public int OriginalTopScalePercent
+        {
+            get => originalTopScalePercent;
+            set
+            {
+                int normalized = NormalizeOriginalTopScalePercent(value);
+                if (originalTopScalePercent != normalized)
+                {
+                    originalTopScalePercent = normalized;
+                    if (originalMode && originalDisplayMode == OriginalDisplayMode.FitTop && currentImage != null)
+                    {
+                        UpdateImage();
+                    }
+                }
+            }
+        }
+
+        private static int NormalizeOriginalTopScalePercent(int value)
+        {
+            int clamped = Math.Max(60, Math.Min(100, value));
+            int step = (int)Math.Round((clamped - 60) / 5.0);
+            return 60 + step * 5;
         }
         
         /// <summary>缩放比例</summary>
@@ -564,6 +590,12 @@ namespace ImageColorChanger.Core
                 
                 scaleRatio = Math.Min(scaleRatio, maxScale);
             }
+
+            if (originalDisplayMode == OriginalDisplayMode.FitTop)
+            {
+                double topScale = Math.Max(0.1, Math.Min(1.0, originalTopScalePercent / 100.0));
+                scaleRatio *= topScale;
+            }
             
             int newWidth, newHeight;
             
@@ -576,8 +608,8 @@ namespace ImageColorChanger.Core
             else
             {
                 // 适中模式：等比缩放
-                newWidth = (int)(currentImage.Width * scaleRatio);
-                newHeight = (int)(currentImage.Height * scaleRatio);
+                newWidth = Math.Max(1, (int)(currentImage.Width * scaleRatio));
+                newHeight = Math.Max(1, (int)(currentImage.Height * scaleRatio));
             }
             
             return (newWidth, newHeight);
@@ -923,9 +955,12 @@ namespace ImageColorChanger.Core
                 // 设置对齐方式
                 if (originalMode)
                 {
-                    // 原图模式：水平和垂直都居中
+                    // 原图模式：默认居中；置顶模式固定顶部对齐。
                     imageControl.HorizontalAlignment = HorizontalAlignment.Center;
-                    imageControl.VerticalAlignment = VerticalAlignment.Center;
+                    imageControl.VerticalAlignment =
+                        originalDisplayMode == OriginalDisplayMode.FitTop
+                            ? VerticalAlignment.Top
+                            : VerticalAlignment.Center;
                 }
                 else
                 {

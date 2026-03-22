@@ -29,9 +29,10 @@ namespace ImageColorChanger.Managers
             bool isColorEffectEnabled,
             bool isOriginalMode,
             OriginalDisplayMode originalDisplayMode,
+            int originalTopScalePercent,
             double zoomRatio)
         {
-            return $"{currentImagePath}_{width}x{height}_{(isColorEffectEnabled ? "inverted" : "normal")}_{isOriginalMode}_{originalDisplayMode}_{zoomRatio:F2}";
+            return $"{currentImagePath}_{width}x{height}_{(isColorEffectEnabled ? "inverted" : "normal")}_{isOriginalMode}_{originalDisplayMode}_{originalTopScalePercent}_{zoomRatio:F2}";
         }
 
         public BitmapSource GetOrCreateProjectionBitmap(
