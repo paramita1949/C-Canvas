@@ -787,6 +787,23 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 歌词文字水印颜色（空字符串表示跟随歌词颜色）
+        /// </summary>
+        public string LyricsTextWatermarkColorHex
+        {
+            get => _config.LyricsTextWatermarkColorHex ?? string.Empty;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (!string.Equals(_config.LyricsTextWatermarkColorHex ?? string.Empty, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LyricsTextWatermarkColorHex = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 原图模式滚轮缩放比例（独立于置顶百分比）
         /// </summary>
         public double OriginalModeZoomRatio
@@ -1836,6 +1853,11 @@ namespace ImageColorChanger.Core
         /// 歌词文字水印字号（默认：60）
         /// </summary>
         public double LyricsTextWatermarkFontSize { get; set; } = 60.0;
+
+        /// <summary>
+        /// 歌词文字水印颜色（默认：空，表示跟随歌词颜色）
+        /// </summary>
+        public string LyricsTextWatermarkColorHex { get; set; } = "";
 
         /// <summary>
         /// 应用最后一次运行版本（默认：空）

@@ -9,11 +9,11 @@ using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
+using WpfBrush = System.Windows.Media.Brush;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfFontFamily = System.Windows.Media.FontFamily;
 using WpfSize = System.Windows.Size;
 using WpfTextBox = System.Windows.Controls.TextBox;
-using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfImage = System.Windows.Controls.Image;
 
@@ -437,15 +437,14 @@ namespace ImageColorChanger.UI
             double marginX = Math.Max(22, 18 * fontScale);
             double marginY = Math.Max(18, 14 * fontScale);
             double fontSize = Math.Max(MinLyricsTextWatermarkFontSize, _lyricsTextWatermarkFontSize * fontScale);
-            var lyricsColor = ResolveCurrentLyricsProjectionTextColor();
-            var watermarkColor = WpfColor.FromArgb(128, lyricsColor.R, lyricsColor.G, lyricsColor.B);
+            var watermarkBrush = ResolveCurrentLyricsProjectionTextBrush();
 
             var text = new TextBlock
             {
                 Text = watermark,
                 FontSize = fontSize,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(watermarkColor),
+                Foreground = watermarkBrush,
                 IsHitTestVisible = false
             };
 
@@ -457,14 +456,34 @@ namespace ImageColorChanger.UI
             canvas.Children.Add(text);
         }
 
-        private WpfColor ResolveCurrentLyricsProjectionTextColor()
+        private WpfBrush ResolveCurrentLyricsProjectionTextBrush()
         {
-            if (LyricsTextBox?.Foreground is WpfSolidColorBrush brush)
+            string configuredHex = NormalizeLyricsTextWatermarkColorHex(_lyricsTextWatermarkColorHex);
+            if (!string.IsNullOrWhiteSpace(configuredHex))
             {
-                return brush.Color;
+                var configured = HexToColor(configuredHex);
+                var configuredBrush = new SolidColorBrush(WpfColor.FromArgb(128, configured.R, configured.G, configured.B));
+                if (configuredBrush.CanFreeze)
+                {
+                    configuredBrush.Freeze();
+                }
+
+                return configuredBrush;
             }
 
-            return WpfColor.FromRgb(255, 255, 255);
+            if (LyricsTextBox?.Foreground is WpfBrush source)
+            {
+                var cloned = source.CloneCurrentValue();
+                cloned.Opacity = Math.Clamp(source.Opacity * 0.5, 0.0, 1.0);
+                if (cloned.CanFreeze)
+                {
+                    cloned.Freeze();
+                }
+
+                return cloned;
+            }
+
+            return new SolidColorBrush(WpfColor.FromArgb(128, 255, 255, 255));
         }
 
         private void AddImageWatermarkToProjection(Canvas canvas, double width, double height, double fontScale, bool placeTop = false)

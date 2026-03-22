@@ -705,8 +705,8 @@
                                               Height="26"
                                               FontSize="12"
                                               SelectionChanged="StyleChanged">
-                                        <ComboBoxItem Content="弹出" Tag="1"/>
-                                        <ComboBoxItem Content="经文" Tag="0"/>
+                                        <ComboBoxItem Content="直显" Tag="1"/>
+                                        <ComboBoxItem Content="历史" Tag="0"/>
                                     </ComboBox>
 
                                     <TextBlock Grid.Row="2" Grid.Column="4" Style="{StaticResource FieldLabelStyle}" Text="内容:"/>

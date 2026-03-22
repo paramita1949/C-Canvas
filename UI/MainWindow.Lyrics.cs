@@ -90,6 +90,7 @@ namespace ImageColorChanger.UI
         private readonly double[] _lyricsSingleSliceProjectionFontSizes = new[] { DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize, DefaultLyricsFontSize }; // 0=默认,1..4=切片规则
         private double _lyricsMainScreenFontSize = DefaultMainLyricsFontSize;
         private double _lyricsTextWatermarkFontSize = DefaultLyricsTextWatermarkFontSize;
+        private string _lyricsTextWatermarkColorHex = string.Empty;
         private string _lyricsThemeName = "黑色";
         private string _lyricsThemeBackgroundHex = "#000000";
 
@@ -490,6 +491,57 @@ namespace ImageColorChanger.UI
             return Math.Clamp(configured, MinLyricsTextWatermarkFontSize, MaxLyricsTextWatermarkFontSize);
         }
 
+        private static string NormalizeLyricsTextWatermarkColorHex(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                var color = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(value.Trim());
+                return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private string ResolveLyricsTextWatermarkColorHex()
+        {
+            string configured = _configManager?.LyricsTextWatermarkColorHex ?? string.Empty;
+            return NormalizeLyricsTextWatermarkColorHex(configured);
+        }
+
+        private void SetLyricsTextWatermarkColorHex(string colorHex, bool showStatus = true)
+        {
+            string next = NormalizeLyricsTextWatermarkColorHex(colorHex);
+            if (string.Equals(next, _lyricsTextWatermarkColorHex, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _lyricsTextWatermarkColorHex = next;
+            if (_configManager != null)
+            {
+                _configManager.LyricsTextWatermarkColorHex = next;
+            }
+
+            if (showStatus)
+            {
+                ShowStatus(string.IsNullOrWhiteSpace(next)
+                    ? "文字水印颜色: 跟随歌词颜色"
+                    : $"文字水印颜色: {next}");
+            }
+
+            if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
+            {
+                RenderLyricsToProjection();
+            }
+        }
+
         private void SetLyricsTextWatermarkFontSize(double value, bool showStatus = true)
         {
             double next = Math.Clamp(value, MinLyricsTextWatermarkFontSize, MaxLyricsTextWatermarkFontSize);
@@ -535,6 +587,31 @@ namespace ImageColorChanger.UI
             }
 
             SetLyricsTextWatermarkFontSize(size);
+        }
+
+        private void ShowLyricsTextWatermarkColorDialog()
+        {
+            var colorDialog = new System.Windows.Forms.ColorDialog();
+
+            WpfColor currentColor;
+            if (!string.IsNullOrWhiteSpace(_lyricsTextWatermarkColorHex))
+            {
+                currentColor = HexToColor(_lyricsTextWatermarkColorHex);
+            }
+            else
+            {
+                currentColor = (LyricsTextBox?.Foreground as SolidColorBrush)?.Color
+                    ?? HexToColor(_configManager?.DefaultLyricsColor ?? "#FFFFFF");
+            }
+
+            colorDialog.Color = System.Drawing.Color.FromArgb(currentColor.A, currentColor.R, currentColor.G, currentColor.B);
+            if (colorDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            {
+                return;
+            }
+
+            var color = colorDialog.Color;
+            SetLyricsTextWatermarkColorHex($"#{color.R:X2}{color.G:X2}{color.B:X2}");
         }
 
         private void SetMainLyricsFontSize(double value)
@@ -1228,6 +1305,7 @@ namespace ImageColorChanger.UI
 //#endif
             _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
             _lyricsTextWatermarkFontSize = ResolveLyricsTextWatermarkFontSize();
+            _lyricsTextWatermarkColorHex = ResolveLyricsTextWatermarkColorHex();
 
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -2609,6 +2687,7 @@ namespace ImageColorChanger.UI
             contextMenu.Items.Add(colorMenuItem);
             AddMainLyricsFontItemsToContextMenu(contextMenu);
             AddLyricsTextWatermarkFontSizeItemsToContextMenu(contextMenu);
+            AddLyricsTextWatermarkColorItemsToContextMenu(contextMenu);
 
             AddWatermarkSelectionItemsToContextMenu(contextMenu);
             
@@ -2690,6 +2769,77 @@ namespace ImageColorChanger.UI
             watermarkFontMenuItem.Items.Add(customItem);
 
             contextMenu.Items.Add(watermarkFontMenuItem);
+        }
+
+        private void AddLyricsTextWatermarkColorItemsToContextMenu(ContextMenu contextMenu)
+        {
+            if (contextMenu == null)
+            {
+                return;
+            }
+
+            string currentHex = NormalizeLyricsTextWatermarkColorHex(_lyricsTextWatermarkColorHex);
+            var watermarkColorMenuItem = new MenuItem
+            {
+                Header = "文字水印颜色",
+                Height = 36
+            };
+
+            var commonColorsItem = new MenuItem
+            {
+                Header = "常用色",
+                Height = 36
+            };
+
+            var followLyricsItem = new MenuItem
+            {
+                Header = "跟随歌词颜色",
+                Height = 36,
+                IsCheckable = true,
+                IsChecked = string.IsNullOrWhiteSpace(currentHex)
+            };
+            followLyricsItem.Click += (s, e) => SetLyricsTextWatermarkColorHex(string.Empty);
+            commonColorsItem.Items.Add(followLyricsItem);
+            commonColorsItem.Items.Add(new Separator());
+
+            var presets = _configManager?.GetAllColorPresets() ?? new List<Core.ColorPreset>
+            {
+                new Core.ColorPreset { Name = "淡黄", R = 174, G = 159, B = 112 },
+                new Core.ColorPreset { Name = "纯黄", R = 255, G = 255, B = 0 },
+                new Core.ColorPreset { Name = "秋麒麟", R = 218, G = 165, B = 32 },
+                new Core.ColorPreset { Name = "晒黑", R = 210, G = 180, B = 140 },
+                new Core.ColorPreset { Name = "结实的树", R = 222, G = 184, B = 135 },
+                new Core.ColorPreset { Name = "沙棕色", R = 244, G = 164, B = 96 },
+                new Core.ColorPreset { Name = "纯白", R = 255, G = 255, B = 255 }
+            };
+
+            foreach (var preset in presets)
+            {
+                string presetHex = $"#{preset.R:X2}{preset.G:X2}{preset.B:X2}";
+                var item = new MenuItem
+                {
+                    Header = preset.Name,
+                    Height = 36,
+                    IsCheckable = true,
+                    IsChecked = string.Equals(currentHex, presetHex, StringComparison.OrdinalIgnoreCase)
+                };
+
+                var selectedHex = presetHex;
+                item.Click += (s, e) => SetLyricsTextWatermarkColorHex(selectedHex);
+                commonColorsItem.Items.Add(item);
+            }
+
+            watermarkColorMenuItem.Items.Add(commonColorsItem);
+
+            var customItem = new MenuItem
+            {
+                Header = "自定义色...",
+                Height = 36
+            };
+            customItem.Click += (s, e) => ShowLyricsTextWatermarkColorDialog();
+            watermarkColorMenuItem.Items.Add(customItem);
+
+            contextMenu.Items.Add(watermarkColorMenuItem);
         }
 
         private void AddSplitMenuItem(MenuItem parent, string title, ViewSplitMode mode)
