@@ -1638,6 +1638,14 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// 右键清屏
+        /// </summary>
+        private void ClearBibleVerses_Click(object sender, RoutedEventArgs e)
+        {
+            ClearBibleScreenFromContextMenu();
+        }
+
+        /// <summary>
         /// 右键复制经文（固定格式）
         /// [约翰福音3:16-18]
         /// 16 经文...

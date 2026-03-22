@@ -1842,6 +1842,14 @@ namespace ImageColorChanger.UI
                 popupVerseCount = 4;
             }
             config.PopupVerseCount = popupVerseCount;
+
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "0"), out var quickLocateAction))
+            {
+                quickLocateAction = 0;
+            }
+            config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
+                ? (BibleQuickLocateSlideAction)quickLocateAction
+                : BibleQuickLocateSlideAction.HistoryFirst;
             
             //#if DEBUG
             //Debug.WriteLine($"[圣经插入] 从数据库加载配置");

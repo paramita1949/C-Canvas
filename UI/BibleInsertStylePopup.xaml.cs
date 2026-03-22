@@ -164,6 +164,14 @@ namespace ImageColorChanger.UI
                 popupVerseCount = 4;
             }
             _config.PopupVerseCount = popupVerseCount;
+
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "0"), out var quickLocateAction))
+            {
+                quickLocateAction = 0;
+            }
+            _config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
+                ? (BibleQuickLocateSlideAction)quickLocateAction
+                : BibleQuickLocateSlideAction.HistoryFirst;
             
             //#if DEBUG
             //Debug.WriteLine($"[BibleInsertStylePopup] 从数据库加载配置");
@@ -328,6 +336,22 @@ namespace ImageColorChanger.UI
             CmbPopupVerseCount.SelectedItem = popupVerseCountOptions
                 .FirstOrDefault(v => v.Value == _config.PopupVerseCount)
                 ?? popupVerseCountOptions.First();
+
+            string quickLocateActionTag = _config.QuickLocateSlideAction == BibleQuickLocateSlideAction.DirectInsert
+                ? "1"
+                : "0";
+            foreach (var item in CmbSlidePinyinQuickLocateAction.Items.OfType<ComboBoxItem>())
+            {
+                if (string.Equals(item.Tag?.ToString(), quickLocateActionTag, StringComparison.Ordinal))
+                {
+                    CmbSlidePinyinQuickLocateAction.SelectedItem = item;
+                    break;
+                }
+            }
+            if (CmbSlidePinyinQuickLocateAction.SelectedItem == null && CmbSlidePinyinQuickLocateAction.Items.Count > 0)
+            {
+                CmbSlidePinyinQuickLocateAction.SelectedIndex = 0;
+            }
 
             // 默认打开“插入样式”页签
             SwitchStyleTab(false);
@@ -579,6 +603,16 @@ namespace ImageColorChanger.UI
                 {
                     _config.PopupVerseCount = popupVerseCount;
                     _dbManager.SetBibleInsertConfigValue("popup_verse_count", _config.PopupVerseCount.ToString());
+                }
+
+                if (CmbSlidePinyinQuickLocateAction.SelectedItem is ComboBoxItem quickLocateActionItem &&
+                    quickLocateActionItem.Tag is string quickLocateActionTag &&
+                    int.TryParse(quickLocateActionTag, out var quickLocateActionValue))
+                {
+                    _config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateActionValue)
+                        ? (BibleQuickLocateSlideAction)quickLocateActionValue
+                        : BibleQuickLocateSlideAction.HistoryFirst;
+                    _dbManager.SetBibleInsertConfigValue("slide_pinyin_quick_locate_action", ((int)_config.QuickLocateSlideAction).ToString());
                 }
 
                 //#if DEBUG

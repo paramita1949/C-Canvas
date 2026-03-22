@@ -229,10 +229,16 @@ namespace ImageColorChanger.Utils
         }
 
         /// <summary>
-        /// 处理F3键 - 合成播放（直接重置播放）
+        /// 处理F3键 - 圣经清屏 / 合成播放（直接重置播放）
         /// </summary>
         public async Task HandleF3KeyAsync()
         {
+            // 圣经模式优先：作为清屏快捷键使用
+            if (await _mainWindow.TryClearBibleScreenByHotkeyAsync())
+            {
+                return;
+            }
+
             // 获取合成播放服务
             var compositeService = _mainWindow.GetCompositePlaybackService();
 

@@ -11,7 +11,8 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
             var config = new BibleTextInsertConfig();
 
             Assert.Equal(3, config.PopupDurationMinutes);
-            Assert.Equal(3, config.PopupVerseCount);
+            Assert.Equal(4, config.PopupVerseCount);
+            Assert.Equal(BibleQuickLocateSlideAction.HistoryFirst, config.QuickLocateSlideAction);
         }
 
         [Theory]

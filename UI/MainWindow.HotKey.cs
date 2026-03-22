@@ -166,7 +166,7 @@ namespace ImageColorChanger.UI
                         });
                     });
                 
-                // F3键: 合成播放（开始/停止）
+                // F3键: 圣经模式清屏；其他模式合成播放（开始/停止）
                 _globalHotKeyManager.RegisterHotKey(
                     Key.F3,
                     ModifierKeys.None,

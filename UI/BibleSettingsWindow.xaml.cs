@@ -21,6 +21,10 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class BibleSettingsWindow : Window
     {
+        private const int BiblePreviewFontSizeMin = 15;
+        private const int BiblePreviewFontSizeMax = 70;
+        private const int BiblePreviewFontSizeDefault = 35;
+
         private readonly ConfigManager _configManager;
         private readonly IBibleService _bibleService;
         // 暂时保留 Windows Forms ColorDialog（未来可替换为 WPF 颜色选择器）
@@ -53,7 +57,28 @@ namespace ImageColorChanger.UI
             };
 
             LoadFontFamilies();
+            PopulatePreviewFontSizeOptions();
             LoadSettings();
+        }
+
+        private void PopulatePreviewFontSizeOptions()
+        {
+            if (CmbPreviewFontSize == null)
+            {
+                return;
+            }
+
+            CmbPreviewFontSize.Items.Clear();
+            var itemStyle = FindResource("ComboBoxItemStyle") as Style;
+            for (int size = BiblePreviewFontSizeMin; size <= BiblePreviewFontSizeMax; size++)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = size.ToString(),
+                    Style = itemStyle
+                };
+                CmbPreviewFontSize.Items.Add(item);
+            }
         }
 
         /// <summary>
@@ -250,6 +275,14 @@ namespace ImageColorChanger.UI
                 if (CmbSearchEmbeddedFontSize != null && _configManager.BibleSearchEmbeddedFontSize > 0)
                 {
                     SelectComboBoxItem(CmbSearchEmbeddedFontSize, _configManager.BibleSearchEmbeddedFontSize.ToString("0"));
+                }
+
+                // 拼音定位预览字号
+                if (CmbPreviewFontSize != null)
+                {
+                    int previewFontSize = (int)Math.Round(_configManager.BiblePreviewFontSize);
+                    previewFontSize = Math.Clamp(previewFontSize, BiblePreviewFontSizeMin, BiblePreviewFontSizeMax);
+                    SelectComboBoxItem(CmbPreviewFontSize, previewFontSize.ToString("0"));
                 }
 
                 // 更新颜色预览
@@ -589,6 +622,16 @@ namespace ImageColorChanger.UI
                 if (TryGetComboBoxNumericValue(CmbSearchEmbeddedFontSize, out var embeddedFontSize))
                 {
                     _configManager.BibleSearchEmbeddedFontSize = embeddedFontSize;
+                }
+
+                // 保存拼音定位预览字号
+                if (TryGetComboBoxNumericValue(CmbPreviewFontSize, out var previewFontSize))
+                {
+                    _configManager.BiblePreviewFontSize = Math.Clamp(previewFontSize, BiblePreviewFontSizeMin, BiblePreviewFontSizeMax);
+                }
+                else
+                {
+                    _configManager.BiblePreviewFontSize = BiblePreviewFontSizeDefault;
                 }
 
                 // 保存颜色

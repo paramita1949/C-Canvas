@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using System.Windows;
+using ImageColorChanger.UI.Modules;
 
 namespace ImageColorChanger.UI
 {
@@ -280,6 +281,57 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"[Ctrl+S] 幻灯片已保存");
 #endif
             });
+        }
+
+        /// <summary>
+        /// F3：圣经模式下一键清屏（清空主屏经文 + 投影经文）
+        /// </summary>
+        public Task<bool> TryClearBibleScreenByHotkeyAsync()
+        {
+            if (!BibleUiBehaviorResolver.ShouldUseF3BibleClearScreen(_isBibleMode))
+            {
+                return Task.FromResult(false);
+            }
+
+            ClearBibleScreenDisplay();
+            return Task.FromResult(true);
+        }
+
+        /// <summary>
+        /// 圣经区域右键菜单：清屏
+        /// </summary>
+        public void ClearBibleScreenFromContextMenu()
+        {
+            ClearBibleScreenDisplay();
+        }
+
+        private void ClearBibleScreenDisplay()
+        {
+            if (BibleVerseList?.ItemsSource != _mergedVerses)
+            {
+                BibleVerseList.ItemsSource = _mergedVerses;
+            }
+
+            _mergedVerses.Clear();
+
+            if (BibleChapterTitle != null)
+            {
+                BibleChapterTitle.Text = "";
+            }
+
+            if (BibleChapterTitleBorder != null)
+            {
+                BibleChapterTitleBorder.Visibility = Visibility.Visible;
+            }
+
+            HideBibleVersePopupIfVisible();
+
+            if (_projectionManager != null && _projectionManager.IsProjecting)
+            {
+                _projectionManager.ClearProjectionDisplay();
+            }
+
+            ShowStatus("已清空经文显示");
         }
 
         #endregion

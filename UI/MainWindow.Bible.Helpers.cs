@@ -126,6 +126,9 @@ namespace ImageColorChanger.UI
 
         private DateTime _lastBibleQuickLocateActivationHintUtc = DateTime.MinValue;
         private bool _pinyinSessionFromSlideContext;
+        private string _lastPinyinPreviewInput = string.Empty;
+        private string _lastPinyinPreviewReference = string.Empty;
+        private string _lastPinyinPreviewContent = string.Empty;
 
         /// <summary>
         /// 禁用IME（已通过XAML实现）
@@ -201,6 +204,7 @@ namespace ImageColorChanger.UI
             // 恢复IME（已禁用）
             RestoreIME();
             ResetPinyinSessionContext();
+            ResetPinyinPreviewCache();
         }
 
         private BiblePinyinHintControl ResolveBiblePinyinHintControl()
@@ -277,6 +281,7 @@ namespace ImageColorChanger.UI
                 {
                     DisableIME();
                     _pinyinSessionFromSlideContext = isTextEditorContext;
+                    ResetPinyinPreviewCache();
                     _pinyinInputManager.Activate();
                     LogBibleQuickLocateDebug("TryHandleFromWindow", $"activation key pressed -> activated manager: {key}");
                     ShowBibleQuickLocateActivationHint();
@@ -325,6 +330,7 @@ namespace ImageColorChanger.UI
                 _pinyinSessionFromSlideContext =
                     TextEditorPanel?.Visibility == Visibility.Visible &&
                     _currentTextProject != null;
+                ResetPinyinPreviewCache();
                 _pinyinInputManager.Activate();
                 LogBibleQuickLocateDebug("HandlePinyinKey", $"auto-activate by alpha key={key}");
                 if (showActivationStatus)
@@ -623,12 +629,28 @@ namespace ImageColorChanger.UI
                 bool isSlideProjectionMode =
                     isTextEditorContext &&
                     (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
-                bool historyOnlyMode = _pinyinSessionFromSlideContext;
+                var slideQuickLocateAction = BibleQuickLocateSlideAction.HistoryFirst;
+                if (_pinyinSessionFromSlideContext)
+                {
+                    try
+                    {
+                        slideQuickLocateAction = LoadBibleInsertConfigFromDatabase().QuickLocateSlideAction;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogBibleQuickLocateDebug("OnPinyinLocationConfirmed", $"load slide quick-locate action failed: {ex.Message}");
+                    }
+                }
+
+                bool directInsertMode = _pinyinSessionFromSlideContext &&
+                    slideQuickLocateAction == BibleQuickLocateSlideAction.DirectInsert;
+                bool historyOnlyMode = _pinyinSessionFromSlideContext && !directInsertMode;
                 LogBibleQuickLocateDebug(
                     "OnPinyinLocationConfirmed",
                     $"type={result.Type}, book={result.BookId}, chapter={result.Chapter}, start={result.StartVerse}, end={result.EndVerse}, " +
                     $"textEditorContextNow={isTextEditorContext}, slideProjectionNow={isSlideProjectionMode}, " +
-                    $"sessionFromSlide={_pinyinSessionFromSlideContext}, historyOnlyMode={historyOnlyMode}, isBibleModeNow={_isBibleMode}");
+                    $"sessionFromSlide={_pinyinSessionFromSlideContext}, quickLocateAction={slideQuickLocateAction}, " +
+                    $"historyOnlyMode={historyOnlyMode}, directInsertMode={directInsertMode}, isBibleModeNow={_isBibleMode}");
 
                 // 根据定位类型执行跳转
                 if (result.Type == ImageColorChanger.Services.LocationType.Book && result.BookId.HasValue)
@@ -636,13 +658,20 @@ namespace ImageColorChanger.UI
                     var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, 1);
                     int endVerse = verseCount > 0 ? verseCount : 31;
 
-                    if (!historyOnlyMode)
+                    if (!historyOnlyMode && !directInsertMode)
                     {
                         await LoadChapterVersesAsync(result.BookId.Value, 1);
                     }
 
-                    // 添加到历史记录（第一章全部经文）
-                    AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, verseCount > 0 ? verseCount : 31);
+                    if (directInsertMode)
+                    {
+                        await HandleBibleVerseSelectionInSlideModeAsync(result.BookId.Value, 1, 1, endVerse);
+                    }
+                    else
+                    {
+                        // 添加到历史记录（第一章全部经文）
+                        AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, endVerse);
+                    }
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.Chapter && 
                          result.BookId.HasValue && result.Chapter.HasValue)
@@ -650,19 +679,26 @@ namespace ImageColorChanger.UI
                     var verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, result.Chapter.Value);
                     int endVerse = verseCount > 0 ? verseCount : 31;
 
-                    if (!historyOnlyMode)
+                    if (!historyOnlyMode && !directInsertMode)
                     {
                         await LoadChapterVersesAsync(result.BookId.Value, result.Chapter.Value);
                     }
 
-                    // 添加到历史记录（该章全部经文）
-                    AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, verseCount > 0 ? verseCount : 31);
+                    if (directInsertMode)
+                    {
+                        await HandleBibleVerseSelectionInSlideModeAsync(result.BookId.Value, result.Chapter.Value, 1, endVerse);
+                    }
+                    else
+                    {
+                        // 添加到历史记录（该章全部经文）
+                        AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, endVerse);
+                    }
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.VerseRange && 
                          result.BookId.HasValue && result.Chapter.HasValue && 
                          result.StartVerse.HasValue && result.EndVerse.HasValue)
                 {
-                    if (!historyOnlyMode)
+                    if (!historyOnlyMode && !directInsertMode)
                     {
                         await LoadVerseRangeAsync(
                             result.BookId.Value,
@@ -670,10 +706,24 @@ namespace ImageColorChanger.UI
                             result.StartVerse.Value,
                             result.EndVerse.Value);
                     }
-                    
-                    // 添加到历史记录
-                    AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 
-                                result.StartVerse.Value, result.EndVerse.Value);
+
+                    if (directInsertMode)
+                    {
+                        await HandleBibleVerseSelectionInSlideModeAsync(
+                            result.BookId.Value,
+                            result.Chapter.Value,
+                            result.StartVerse.Value,
+                            result.EndVerse.Value);
+                    }
+                    else
+                    {
+                        // 添加到历史记录
+                        AddPinyinHistoryToEmptySlot(
+                            result.BookId.Value,
+                            result.Chapter.Value,
+                            result.StartVerse.Value,
+                            result.EndVerse.Value);
+                    }
                 }
 
                 // 隐藏提示框
@@ -809,9 +859,33 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 拼音提示更新回调
         /// </summary>
-        private System.Threading.Tasks.Task OnPinyinHintUpdateAsync(string displayText, System.Collections.Generic.List<ImageColorChanger.Services.BibleBookMatch> matches)
+        private async System.Threading.Tasks.Task OnPinyinHintUpdateAsync(string displayText, System.Collections.Generic.List<ImageColorChanger.Services.BibleBookMatch> matches)
         {
-            ResolveBiblePinyinHintControl()?.UpdateHint(displayText, matches);
+            var currentInput = _pinyinInputManager?.CurrentInput ?? string.Empty;
+            if (!string.Equals(_lastPinyinPreviewInput, currentInput, StringComparison.Ordinal))
+            {
+                try
+                {
+                    var (previewReference, previewContent) = await BuildPinyinPreviewAsync(currentInput);
+                    _lastPinyinPreviewInput = currentInput;
+                    _lastPinyinPreviewReference = previewReference ?? string.Empty;
+                    _lastPinyinPreviewContent = previewContent ?? string.Empty;
+                }
+                catch (Exception ex)
+                {
+                    LogBibleQuickLocateDebug("OnPinyinHintUpdate", $"preview build failed: {ex.Message}");
+                    _lastPinyinPreviewInput = currentInput;
+                    _lastPinyinPreviewReference = string.Empty;
+                    _lastPinyinPreviewContent = string.Empty;
+                }
+            }
+
+            ResolveBiblePinyinHintControl()?.UpdateHint(
+                displayText,
+                matches,
+                _lastPinyinPreviewReference,
+                _lastPinyinPreviewContent,
+                _configManager?.BiblePreviewFontSize ?? 35d);
             LogBibleQuickLocateDebug(
                 "OnPinyinHintUpdate",
                 $"displayText={displayText ?? "<null>"}, matches={matches?.Count ?? 0}, currentInput={_pinyinInputManager?.CurrentInput ?? "<null>"}");
@@ -832,8 +906,6 @@ namespace ImageColorChanger.UI
                     ShowStatus($"经文定位: {statusText}");
                 }
             }
-            
-            return System.Threading.Tasks.Task.CompletedTask;
         }
 
         [Conditional("DEBUG")]
@@ -860,9 +932,86 @@ namespace ImageColorChanger.UI
             _pinyinSessionFromSlideContext = false;
         }
 
+        private void ResetPinyinPreviewCache()
+        {
+            _lastPinyinPreviewInput = string.Empty;
+            _lastPinyinPreviewReference = string.Empty;
+            _lastPinyinPreviewContent = string.Empty;
+        }
+
+        private async Task<(string PreviewReference, string PreviewContent)> BuildPinyinPreviewAsync(string rawInput)
+        {
+            if (_pinyinService == null || _bibleService == null)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var input = rawInput?.Trim();
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var result = await _pinyinService.ParseAsync(input);
+            if (!result.Success || !result.BookId.HasValue)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var book = BibleBookConfig.GetBook(result.BookId.Value);
+            if (book == null)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            if (result.Type == ImageColorChanger.Services.LocationType.Book)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            if (!result.Chapter.HasValue)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            // 仅输入到“书卷+章”时不显示预览，必须输入到节号才开始预览。
+            if (result.Type != ImageColorChanger.Services.LocationType.VerseRange)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            int chapter = result.Chapter.Value;
+            int verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, chapter);
+            if (verseCount <= 0)
+            {
+                return ($"{book.Name}{chapter}章", "暂无可预览经文");
+            }
+
+            if (!result.StartVerse.HasValue || !result.EndVerse.HasValue)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            int startVerse = Math.Clamp(result.StartVerse.Value, 1, verseCount);
+            int requestedEndVerse = Math.Clamp(result.EndVerse.Value, startVerse, verseCount);
+            int endVerse = requestedEndVerse;
+            string previewReference = startVerse == endVerse
+                ? $"{book.Name}{chapter}:{startVerse}"
+                : $"{book.Name}{chapter}:{startVerse}-{endVerse}";
+
+            var verses = await _bibleService.GetVerseRangeAsync(result.BookId.Value, chapter, startVerse, endVerse);
+            if (verses == null || verses.Count == 0)
+            {
+                return (previewReference, "暂无可预览经文");
+            }
+
+            string previewContent = FormatVerseWithNumbers(verses);
+            return (previewReference, previewContent);
+        }
+
         private static bool IsBibleQuickLocateActivationKey(Key key)
         {
-            return key == Key.LeftShift || key == Key.RightShift;
+            return key == Key.Tab;
         }
 
         #endregion

@@ -98,6 +98,11 @@ namespace ImageColorChanger.Core
             get => _popupVerseCount;
             set => _popupVerseCount = Math.Clamp(value, 1, 10);
         }
+
+        /// <summary>
+        /// 幻灯片拼音快捷定位后的默认动作（先写入历史 / 直接插入）
+        /// </summary>
+        public BibleQuickLocateSlideAction QuickLocateSlideAction { get; set; } = BibleQuickLocateSlideAction.HistoryFirst;
     }
 
     /// <summary>
@@ -287,6 +292,22 @@ namespace ImageColorChanger.Core
         /// 创世记 1:1-4
         /// </summary>
         ColonFormat = 2
+    }
+
+    /// <summary>
+    /// 幻灯片拼音快捷定位后的动作
+    /// </summary>
+    public enum BibleQuickLocateSlideAction
+    {
+        /// <summary>
+        /// 先写入历史槽位，再由历史点击进入插入流程
+        /// </summary>
+        HistoryFirst = 0,
+
+        /// <summary>
+        /// 直接弹出插入确认流程
+        /// </summary>
+        DirectInsert = 1
     }
 }
 

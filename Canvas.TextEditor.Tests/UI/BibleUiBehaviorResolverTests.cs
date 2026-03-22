@@ -32,5 +32,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
             var actual = BibleUiBehaviorResolver.ShouldUseHistorySlideFlow(isTextEditorVisible, isProjectionActive);
             Assert.Equal(expected, actual);
         }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(false, false)]
+        public void ShouldUseF3BibleClearScreen_OnlyWhenBibleMode(
+            bool isBibleMode,
+            bool expected)
+        {
+            var actual = BibleUiBehaviorResolver.ShouldUseF3BibleClearScreen(isBibleMode);
+            Assert.Equal(expected, actual);
+        }
     }
 }

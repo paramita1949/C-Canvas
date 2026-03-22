@@ -259,15 +259,15 @@ namespace ImageColorChanger.Services.Implementations
                     var heightArgs = new ScrollableHeightRequestEventArgs();
                     ScrollableHeightRequested?.Invoke(this, heightArgs);
                     
-                    //  只滚动到75%的位置，保留底部25%内容可见
+                    //  只滚动到90%的位置，保留底部10%内容可见
                     double fullScrollableHeight = heightArgs.ScrollableHeight > 0 ? heightArgs.ScrollableHeight : 10000;
-                    _endPosition = _startPosition + (fullScrollableHeight - _startPosition) * 0.75;
+                    _endPosition = _startPosition + (fullScrollableHeight - _startPosition) * 0.9;
 
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"   从关键帧: {_startPosition:F0}");
                     System.Diagnostics.Debug.WriteLine($"   完整可滚动高度: {fullScrollableHeight:F0}");
-                    System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (剩余距离的75%)");
-                    System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (25%)");
+                    System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (剩余距离的90%)");
+                    System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (10%)");
                     System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
                     #endif
 
@@ -311,14 +311,14 @@ namespace ImageColorChanger.Services.Implementations
                 var heightArgs = new ScrollableHeightRequestEventArgs();
                 ScrollableHeightRequested?.Invoke(this, heightArgs);
                 
-                //  只滚动到75%的位置，保留底部25%内容可见
+                //  只滚动到90%的位置，保留底部10%内容可见
                 double fullScrollableHeight = heightArgs.ScrollableHeight > 0 ? heightArgs.ScrollableHeight : 10000;
-                _endPosition = fullScrollableHeight * 0.75;
+                _endPosition = fullScrollableHeight * 0.9;
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"   完整可滚动高度: {fullScrollableHeight:F0}");
-                //System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (75%)");
-                //System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (25%)");
+                //System.Diagnostics.Debug.WriteLine($"   实际滚动到: {_endPosition:F0} (90%)");
+                //System.Diagnostics.Debug.WriteLine($"   保留底部: {fullScrollableHeight - _endPosition:F0} (10%)");
                 //System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
                 //#endif
 

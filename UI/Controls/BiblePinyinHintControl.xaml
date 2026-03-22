@@ -1,7 +1,7 @@
 <UserControl x:Class="ImageColorChanger.UI.Controls.BiblePinyinHintControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Width="500"
+             Width="Auto"
              Visibility="Collapsed">
     <Border Background="#DD000000"
             BorderBrush="#FF5722"
@@ -25,6 +25,35 @@
                        Margin="0,10,0,0">
                 <!-- 动态添加书卷名TextBlock -->
             </WrapPanel>
+
+            <!-- 经文预览 -->
+            <Border x:Name="PreviewPanel"
+                    Visibility="Collapsed"
+                    Margin="0,12,0,0"
+                    Padding="10"
+                    CornerRadius="6"
+                    BorderBrush="#66FFFFFF"
+                    BorderThickness="1"
+                    Background="#33000000">
+                <StackPanel>
+                    <TextBlock x:Name="PreviewReferenceText"
+                               Text=""
+                               Foreground="#FF80CBC4"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,0"
+                               Visibility="Collapsed"/>
+                    <ScrollViewer x:Name="PreviewScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  MaxHeight="220">
+                        <TextBlock x:Name="PreviewContentText"
+                                   Text=""
+                                   Foreground="#FFF5F5F5"
+                                   FontSize="15"
+                                   TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </Border>
 </UserControl>

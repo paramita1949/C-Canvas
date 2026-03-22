@@ -787,6 +787,32 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经拼音预览字号
+        /// </summary>
+        public double BiblePreviewFontSize
+        {
+            get
+            {
+                double raw = _config.BiblePreviewFontSize;
+                if (raw <= 0)
+                {
+                    raw = 35.0;
+                }
+
+                return Math.Clamp(raw, 15.0, 70.0);
+            }
+            set
+            {
+                double normalized = Math.Clamp(value, 15.0, 70.0);
+                if (Math.Abs(_config.BiblePreviewFontSize - normalized) > 0.001)
+                {
+                    _config.BiblePreviewFontSize = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 圣经设置窗口X坐标（null表示使用自动计算位置）
         /// </summary>
         public double? BibleSettingsWindowLeft
@@ -1844,6 +1870,11 @@ namespace ImageColorChanger.Core
         /// 圣经搜索结果内嵌模式字号（默认：15）
         /// </summary>
         public double BibleSearchEmbeddedFontSize { get; set; } = 15.0;
+
+        /// <summary>
+        /// 圣经拼音预览字号（默认：35）
+        /// </summary>
+        public double BiblePreviewFontSize { get; set; } = 35.0;
 
         /// <summary>
         /// 圣经设置窗口X坐标（默认：null，使用自动计算位置）

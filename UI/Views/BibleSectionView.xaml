@@ -43,6 +43,10 @@
                                   IsCheckable="True"
                                   Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
                     </MenuItem>
+                    <Separator/>
+                    <MenuItem x:Name="MenuBibleClearScreen"
+                              x:FieldModifier="public"
+                              Header="清屏经文"/>
                 </ContextMenu>
             </ScrollViewer.ContextMenu>
             <StackPanel>

@@ -18,5 +18,10 @@ namespace ImageColorChanger.UI.Modules
         {
             return isTextEditorVisible && isProjectionActive;
         }
+
+        public static bool ShouldUseF3BibleClearScreen(bool isBibleMode)
+        {
+            return isBibleMode;
+        }
     }
 }

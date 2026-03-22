@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.0.3.3</Version>
-    <FileVersion>6.0.3.3</FileVersion>
-    <AssemblyVersion>6.0.3.3</AssemblyVersion>
+    <Version>6.0.3.4</Version>
+    <FileVersion>6.0.3.4</FileVersion>
+    <AssemblyVersion>6.0.3.4</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -49,6 +49,10 @@
     <EmbeddedResource Remove="Canvas.TextEditor.Tests\**" />
     <None Remove="Canvas.TextEditor.Tests\**" />
     <Page Remove="Canvas.TextEditor.Tests\**" />
+    <Compile Remove="Tools\CanvasCli\**" />
+    <EmbeddedResource Remove="Tools\CanvasCli\**" />
+    <None Remove="Tools\CanvasCli\**" />
+    <Page Remove="Tools\CanvasCli\**" />
   </ItemGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -283,6 +287,18 @@
   </Target>
   <ItemGroup>
     <Compile Remove="BuildTools\**" />
+    <Compile Remove=".tmp\**" />
+    <Compile Remove=".tmp_build_obj\**" />
+    <Compile Remove=".tmp_build_out\**" />
+    <EmbeddedResource Remove=".tmp\**" />
+    <EmbeddedResource Remove=".tmp_build_obj\**" />
+    <EmbeddedResource Remove=".tmp_build_out\**" />
+    <None Remove=".tmp\**" />
+    <None Remove=".tmp_build_obj\**" />
+    <None Remove=".tmp_build_out\**" />
+    <Page Remove=".tmp\**" />
+    <Page Remove=".tmp_build_obj\**" />
+    <Page Remove=".tmp_build_out\**" />
   </ItemGroup>
   <!-- Pack resources after build -->
   <Target Name="PackResources" AfterTargets="Build">

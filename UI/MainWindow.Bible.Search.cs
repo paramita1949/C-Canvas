@@ -380,7 +380,7 @@ namespace ImageColorChanger.UI
                 #endif
             }
         }
-        
+
         /// <summary>
         /// 加载并显示所有锁定记录（核心方法）
         /// 使用增量更新，避免刷新闪烁

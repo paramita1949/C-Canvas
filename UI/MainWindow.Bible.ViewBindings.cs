@@ -29,6 +29,7 @@ namespace ImageColorChanger.UI
         private MenuItem MenuBibleCopyStyleShort => BibleSectionView?.MenuBibleCopyStyleShort;
         private MenuItem MenuBibleCopyStyleFull => BibleSectionView?.MenuBibleCopyStyleFull;
         private MenuItem MenuBibleCopyStyleChapter => BibleSectionView?.MenuBibleCopyStyleChapter;
+        private MenuItem MenuBibleClearScreen => BibleSectionView?.MenuBibleClearScreen;
 
         private void InitializeBibleSectionBindings()
         {
@@ -75,6 +76,11 @@ namespace ImageColorChanger.UI
             if (BibleSectionView.MenuBibleCopyVerses != null)
             {
                 BibleSectionView.MenuBibleCopyVerses.Click += CopyBibleVerses_Click;
+            }
+
+            if (MenuBibleClearScreen != null)
+            {
+                MenuBibleClearScreen.Click += ClearBibleVerses_Click;
             }
 
             if (MenuBibleCopyStyleShort != null)
