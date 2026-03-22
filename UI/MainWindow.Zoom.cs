@@ -95,6 +95,11 @@ namespace ImageColorChanger.UI
 
         private void ImageScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            {
+                ApplyOriginalZoomTopCenterLayout();
+            }
+
             if (ImageDisplay.Source != null && _currentZoom <= 1.0)
             {
                 FitImageToView();
@@ -106,11 +111,50 @@ namespace ImageColorChanger.UI
 
         private void SetZoom(double zoom)
         {
-            double oldZoom = _currentZoom;
             _currentZoom = Math.Max(MinZoom, Math.Min(MaxZoom, zoom));
             
             ImageScaleTransform.ScaleX = _currentZoom;
             ImageScaleTransform.ScaleY = _currentZoom;
+
+            if (_originalMode)
+            {
+                ApplyOriginalZoomTopCenterLayout();
+            }
+        }
+
+        /// <summary>
+        /// 原图模式缩放时采用“居中置顶”布局，避免底部内容被挤到屏幕下方。
+        /// </summary>
+        private void ApplyOriginalZoomTopCenterLayout()
+        {
+            if (ImageDisplay.Source == null)
+                return;
+
+            // 原图模式下，只要处于缩放态（!=1x），统一采用“居中置顶”。
+            if (Math.Abs(_currentZoom - 1.0) > 0.001)
+            {
+                ImageDisplay.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                ImageDisplay.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+
+                if (_isDragging)
+                {
+                    _isDragging = false;
+                    ImageDisplay.Cursor = System.Windows.Input.Cursors.Hand;
+                    ImageDisplay.ReleaseMouseCapture();
+                }
+
+                ImageScrollViewer.UpdateLayout();
+
+                // 横向始终保持居中，纵向始终置顶。
+                double centeredHorizontalOffset = Math.Max(0, (ImageScrollViewer.ExtentWidth - ImageScrollViewer.ViewportWidth) / 2.0);
+                ImageScrollViewer.ScrollToHorizontalOffset(centeredHorizontalOffset);
+                ImageScrollViewer.ScrollToVerticalOffset(0);
+            }
+            else
+            {
+                ImageDisplay.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                ImageDisplay.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            }
         }
 
         #endregion
@@ -166,6 +210,12 @@ namespace ImageColorChanger.UI
 
         private void ImageDisplay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            {
+                // 原图缩放分支固定“居中置顶”，不允许手动拖拽改变位置。
+                return;
+            }
+
             if (_currentZoom > 1.0)
             {
                 _isDragging = true;
@@ -187,6 +237,11 @@ namespace ImageColorChanger.UI
 
         private void ImageDisplay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (_originalMode && Math.Abs(_currentZoom - 1.0) > 0.001)
+            {
+                return;
+            }
+
             if (_isDragging && e.LeftButton == MouseButtonState.Pressed)
             {
                 var currentPoint = e.GetPosition(ImageScrollViewer);
