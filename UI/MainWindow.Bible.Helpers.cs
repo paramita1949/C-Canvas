@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -1009,6 +1010,7 @@ namespace ImageColorChanger.UI
                 {
                     endVerse = startVerse;
                 }
+
             }
 
             string previewReference = startVerse == endVerse
@@ -1035,31 +1037,41 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 3)
+            // 1) 优先提取结尾的“起始节-结束节（可为空）”，避免受书卷与章之间是否空格影响。
+            var match = Regex.Match(input, @"(?<start>\d+)\s*-\s*(?<end>\d*)\s*$");
+            if (!match.Success)
+            {
+                // 2) 兼容输入过程中的空格分隔形式："... 章 起始节 结束节"
+                //    例如 "马太福音1 12 1"（显示会是 1:12-1），此时应从12节开始预览。
+                var numberMatches = Regex.Matches(input, @"\d+");
+                if (numberMatches.Count >= 3)
+                {
+                    string startCandidate = numberMatches[numberMatches.Count - 2].Value;
+                    string endCandidate = numberMatches[numberMatches.Count - 1].Value;
+                    if (!int.TryParse(startCandidate, out typedStartVerse))
+                    {
+                        typedStartVerse = 0;
+                        return false;
+                    }
+
+                    if (int.TryParse(endCandidate, out int parsedTailEnd))
+                    {
+                        typedEndVerse = parsedTailEnd;
+                    }
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            if (!int.TryParse(match.Groups["start"].Value, out typedStartVerse))
             {
                 return false;
             }
 
-            string versePart = parts[^1].Trim();
-            if (string.IsNullOrWhiteSpace(versePart))
-            {
-                return false;
-            }
-
-            if (!versePart.Contains('-'))
-            {
-                return false;
-            }
-
-            var rangeParts = versePart.Split('-', 2, StringSplitOptions.None);
-            if (rangeParts.Length == 0 || !int.TryParse(rangeParts[0], out typedStartVerse))
-            {
-                typedStartVerse = 0;
-                return false;
-            }
-
-            if (rangeParts.Length == 2 && !string.IsNullOrWhiteSpace(rangeParts[1]) && int.TryParse(rangeParts[1], out int parsedEnd))
+            string endPart = match.Groups["end"].Value;
+            if (!string.IsNullOrWhiteSpace(endPart) && int.TryParse(endPart, out int parsedEnd))
             {
                 typedEndVerse = parsedEnd;
             }
