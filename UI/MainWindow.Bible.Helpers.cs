@@ -995,6 +995,22 @@ namespace ImageColorChanger.UI
             int startVerse = Math.Clamp(result.StartVerse.Value, 1, verseCount);
             int requestedEndVerse = Math.Clamp(result.EndVerse.Value, startVerse, verseCount);
             int endVerse = requestedEndVerse;
+
+            // 输入范围预览时，优先尊重用户正在输入的左侧起始节（例如 "10-1" 仍从10节开始预览）。
+            if (TryExtractTypedVerseRange(input, out int typedStartVerse, out int typedEndVerse))
+            {
+                startVerse = Math.Clamp(typedStartVerse, 1, verseCount);
+                if (typedEndVerse > 0)
+                {
+                    int normalizedTypedEnd = Math.Clamp(typedEndVerse, 1, verseCount);
+                    endVerse = normalizedTypedEnd >= startVerse ? normalizedTypedEnd : startVerse;
+                }
+                else
+                {
+                    endVerse = startVerse;
+                }
+            }
+
             string previewReference = startVerse == endVerse
                 ? $"{book.Name}{chapter}:{startVerse}"
                 : $"{book.Name}{chapter}:{startVerse}-{endVerse}";
@@ -1007,6 +1023,48 @@ namespace ImageColorChanger.UI
 
             string previewContent = FormatVerseWithNumbers(verses);
             return (previewReference, previewContent);
+        }
+
+        private static bool TryExtractTypedVerseRange(string input, out int typedStartVerse, out int typedEndVerse)
+        {
+            typedStartVerse = 0;
+            typedEndVerse = 0;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
+
+            var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 3)
+            {
+                return false;
+            }
+
+            string versePart = parts[^1].Trim();
+            if (string.IsNullOrWhiteSpace(versePart))
+            {
+                return false;
+            }
+
+            if (!versePart.Contains('-'))
+            {
+                return false;
+            }
+
+            var rangeParts = versePart.Split('-', 2, StringSplitOptions.None);
+            if (rangeParts.Length == 0 || !int.TryParse(rangeParts[0], out typedStartVerse))
+            {
+                typedStartVerse = 0;
+                return false;
+            }
+
+            if (rangeParts.Length == 2 && !string.IsNullOrWhiteSpace(rangeParts[1]) && int.TryParse(rangeParts[1], out int parsedEnd))
+            {
+                typedEndVerse = parsedEnd;
+            }
+
+            return true;
         }
 
         private static bool IsBibleQuickLocateActivationKey(Key key)
