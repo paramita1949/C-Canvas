@@ -102,7 +102,7 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 幻灯片拼音快捷定位后的默认动作（先写入历史 / 直接插入）
         /// </summary>
-        public BibleQuickLocateSlideAction QuickLocateSlideAction { get; set; } = BibleQuickLocateSlideAction.HistoryFirst;
+        public BibleQuickLocateSlideAction QuickLocateSlideAction { get; set; } = BibleQuickLocateSlideAction.DirectInsert;
 
         /// <summary>
         /// 弹窗经文显示时是否隐藏幻灯片内容（默认：不隐藏）

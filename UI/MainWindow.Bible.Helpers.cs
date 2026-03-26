@@ -725,7 +725,7 @@ namespace ImageColorChanger.UI
                 bool isSlideProjectionMode =
                     isTextEditorContext &&
                     (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
-                var slideQuickLocateAction = BibleQuickLocateSlideAction.HistoryFirst;
+                var slideQuickLocateAction = BibleQuickLocateSlideAction.DirectInsert;
                 if (_pinyinSessionFromSlideContext)
                 {
                     try

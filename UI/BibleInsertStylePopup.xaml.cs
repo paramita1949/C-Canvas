@@ -165,13 +165,13 @@ namespace ImageColorChanger.UI
             }
             _config.PopupVerseCount = popupVerseCount;
 
-            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "0"), out var quickLocateAction))
+            if (!int.TryParse(_dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "1"), out var quickLocateAction))
             {
-                quickLocateAction = 0;
+                quickLocateAction = 1;
             }
             _config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
                 ? (BibleQuickLocateSlideAction)quickLocateAction
-                : BibleQuickLocateSlideAction.HistoryFirst;
+                : BibleQuickLocateSlideAction.DirectInsert;
 
             _config.PopupHideSlideContent = _dbManager.GetBibleInsertConfigValue("popup_hide_slide_content", "0") == "1";
             
@@ -627,7 +627,7 @@ namespace ImageColorChanger.UI
                 {
                     _config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateActionValue)
                         ? (BibleQuickLocateSlideAction)quickLocateActionValue
-                        : BibleQuickLocateSlideAction.HistoryFirst;
+                        : BibleQuickLocateSlideAction.DirectInsert;
                     _dbManager.SetBibleInsertConfigValue("slide_pinyin_quick_locate_action", ((int)_config.QuickLocateSlideAction).ToString());
                 }
 

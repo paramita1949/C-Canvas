@@ -1843,13 +1843,13 @@ namespace ImageColorChanger.UI
             }
             config.PopupVerseCount = popupVerseCount;
 
-            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "0"), out var quickLocateAction))
+            if (!int.TryParse(dbManager.GetBibleInsertConfigValue("slide_pinyin_quick_locate_action", "1"), out var quickLocateAction))
             {
-                quickLocateAction = 0;
+                quickLocateAction = 1;
             }
             config.QuickLocateSlideAction = Enum.IsDefined(typeof(BibleQuickLocateSlideAction), quickLocateAction)
                 ? (BibleQuickLocateSlideAction)quickLocateAction
-                : BibleQuickLocateSlideAction.HistoryFirst;
+                : BibleQuickLocateSlideAction.DirectInsert;
 
             config.PopupHideSlideContent = dbManager.GetBibleInsertConfigValue("popup_hide_slide_content", "0") == "1";
             
