@@ -239,13 +239,17 @@ namespace ImageColorChanger.UI
             bool isSlideProjectionMode =
                 (TextEditorPanel?.Visibility == Visibility.Visible || _currentTextProject != null) &&
                 (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
-            bool canUseQuickLocate = isTextEditorContext || isSlideProjectionMode;
+            bool isBibleTabOrActive =
+                _isBibleMode &&
+                (IsBibleQuickLocateActivationKey(key) || (_pinyinInputManager?.IsActive ?? false));
+            bool canUseQuickLocate = isTextEditorContext || isSlideProjectionMode || isBibleTabOrActive;
 
             var focused = Keyboard.FocusedElement;
             LogBibleQuickLocateDebug(
                 "TryHandleFromWindow:Enter",
                 $"key={key}, mods={Keyboard.Modifiers}, canUseQuickLocate={canUseQuickLocate}, " +
                 $"isTextEditorContext={isTextEditorContext}, isSlideProjectionMode={isSlideProjectionMode}, " +
+                $"isBibleTabOrActive={isBibleTabOrActive}, isBibleMode={_isBibleMode}, " +
                 $"textEditorVisible={TextEditorPanel?.Visibility == Visibility.Visible}, hasTextProject={_currentTextProject != null}, " +
                 $"projectionActive={_projectionManager?.IsProjectionActive == true}, projecting={_projectionManager?.IsProjecting == true}, " +
                 $"focused={focused?.GetType().Name ?? "null"}");
@@ -325,18 +329,30 @@ namespace ImageColorChanger.UI
                 return true;
             }
 
-            if (!_pinyinInputManager.IsActive && key >= Key.A && key <= Key.Z)
+            if (!_pinyinInputManager.IsActive &&
+                (IsBibleQuickLocateActivationKey(key) || (key >= Key.A && key <= Key.Z)))
             {
+                bool activatedByTab = IsBibleQuickLocateActivationKey(key);
                 DisableIME();
                 _pinyinSessionFromSlideContext =
                     TextEditorPanel?.Visibility == Visibility.Visible &&
                     _currentTextProject != null;
                 ResetPinyinPreviewCache();
                 _pinyinInputManager.Activate();
-                LogBibleQuickLocateDebug("HandlePinyinKey", $"auto-activate by alpha key={key}");
+                LogBibleQuickLocateDebug(
+                    "HandlePinyinKey",
+                    activatedByTab
+                        ? $"activate by TAB key={key}"
+                        : $"auto-activate by alpha key={key}");
                 if (showActivationStatus)
                 {
                     ShowBibleQuickLocateActivationHint();
+                }
+
+                // TAB仅用于唤醒，不作为输入字符传递给拼音输入管理器。
+                if (activatedByTab)
+                {
+                    return true;
                 }
             }
 
