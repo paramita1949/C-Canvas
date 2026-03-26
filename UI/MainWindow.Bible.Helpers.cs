@@ -130,6 +130,9 @@ namespace ImageColorChanger.UI
         private string _lastPinyinPreviewInput = string.Empty;
         private string _lastPinyinPreviewReference = string.Empty;
         private string _lastPinyinPreviewContent = string.Empty;
+        private bool _slideQuickLocateImeLockApplied;
+        private bool _slideQuickLocateWindowImeEnabled = true;
+        private bool _slideQuickLocateTextEditorImeEnabled = true;
 
         /// <summary>
         /// 禁用IME（已通过XAML实现）
@@ -203,6 +206,7 @@ namespace ImageColorChanger.UI
             LogBibleQuickLocateDebug("OnPinyinDeactivate", "hint hidden and IME restore requested");
             
             // 恢复IME（已禁用）
+            ReleaseSlideQuickLocateInputLock();
             RestoreIME();
             ResetPinyinSessionContext();
             ResetPinyinPreviewCache();
@@ -288,6 +292,7 @@ namespace ImageColorChanger.UI
                     _pinyinSessionFromSlideContext = isTextEditorContext;
                     ResetPinyinPreviewCache();
                     _pinyinInputManager.Activate();
+                    ApplySlideQuickLocateInputLock();
                     LogBibleQuickLocateDebug("TryHandleFromWindow", $"activation key pressed -> activated manager: {key}");
                     ShowBibleQuickLocateActivationHint();
                     return true;
@@ -339,6 +344,7 @@ namespace ImageColorChanger.UI
                     _currentTextProject != null;
                 ResetPinyinPreviewCache();
                 _pinyinInputManager.Activate();
+                ApplySlideQuickLocateInputLock();
                 LogBibleQuickLocateDebug(
                     "HandlePinyinKey",
                     activatedByTab
@@ -365,6 +371,79 @@ namespace ImageColorChanger.UI
 
             LogBibleQuickLocateDebug("HandlePinyinKey", $"not active, unhandled key={key}");
             return false;
+        }
+
+        private bool IsSlideQuickLocateInputLockActive()
+        {
+            return _pinyinSessionFromSlideContext &&
+                   (_pinyinInputManager?.IsActive ?? false);
+        }
+
+        private void ApplySlideQuickLocateInputLock()
+        {
+            if (!IsSlideQuickLocateInputLockActive() || _slideQuickLocateImeLockApplied)
+            {
+                return;
+            }
+
+            _slideQuickLocateWindowImeEnabled = InputMethod.GetIsInputMethodEnabled(this);
+            _slideQuickLocateTextEditorImeEnabled = TextEditorPanel == null
+                ? true
+                : InputMethod.GetIsInputMethodEnabled(TextEditorPanel);
+
+            InputMethod.SetPreferredImeState(this, InputMethodState.Off);
+            InputMethod.SetIsInputMethodEnabled(this, false);
+
+            if (TextEditorPanel != null)
+            {
+                InputMethod.SetPreferredImeState(TextEditorPanel, InputMethodState.Off);
+                InputMethod.SetIsInputMethodEnabled(TextEditorPanel, false);
+            }
+
+            Focus();
+            Keyboard.Focus(this);
+            _slideQuickLocateImeLockApplied = true;
+            LogBibleQuickLocateDebug("SlideQuickLocateLock", "applied");
+        }
+
+        private void ReleaseSlideQuickLocateInputLock()
+        {
+            if (!_slideQuickLocateImeLockApplied)
+            {
+                return;
+            }
+
+            InputMethod.SetIsInputMethodEnabled(this, _slideQuickLocateWindowImeEnabled);
+            if (TextEditorPanel != null)
+            {
+                InputMethod.SetIsInputMethodEnabled(TextEditorPanel, _slideQuickLocateTextEditorImeEnabled);
+            }
+
+            _slideQuickLocateImeLockApplied = false;
+            LogBibleQuickLocateDebug("SlideQuickLocateLock", "released");
+        }
+
+        private void MainWindow_PreviewMouseDownForBibleQuickLocateInputLock(object sender, MouseButtonEventArgs e)
+        {
+            if (!IsSlideQuickLocateInputLockActive() || e.OriginalSource is not DependencyObject source)
+            {
+                return;
+            }
+
+            var hintControl = ResolveBiblePinyinHintControl();
+            bool clickedHint =
+                hintControl != null &&
+                (ReferenceEquals(source, hintControl) || IsDescendantOf(source, hintControl));
+            if (clickedHint)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            Focus();
+            Keyboard.Focus(this);
+            ApplySlideQuickLocateInputLock();
+            LogBibleQuickLocateDebug("SlideQuickLocateLock", "mouse down outside hint blocked");
         }
 
         /// <summary>

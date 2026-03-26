@@ -290,6 +290,7 @@ namespace ImageColorChanger.UI
             this.Deactivated += MainWindow_Deactivated;
             this.StateChanged += MainWindow_StateChanged;
             this.LocationChanged += MainWindow_LocationChanged;
+            this.PreviewMouseDown += MainWindow_PreviewMouseDownForBibleQuickLocateInputLock;
             StartupPerfLogger.Mark("MainWindow.PopupCloseEvents.Registered");
             
             // 初始化认证服务
