@@ -652,7 +652,7 @@ namespace ImageColorChanger.UI
                 // 非锁定模式：清空并添加新经文到 _mergedVerses
                 string verseText = (verseCount > 1) ? $"1-{verseCount}节" : "1节";
                 BibleChapterTitle.Text = $"{bookInfo?.Name}{chapter}章{verseText}";
-                BibleChapterTitleBorder.Visibility = Visibility.Visible;
+                ApplyBibleTitleDisplayMode(true);
                 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载章节: {verses.Count}条经文，{bookInfo?.Name}{chapter}章");
@@ -1189,7 +1189,7 @@ namespace ImageColorChanger.UI
 
                 // 非锁定模式：清空并添加新经文到 _mergedVerses
                 BibleChapterTitle.Text = $"{book?.Name}{chapter}章 {verseText}";
-                BibleChapterTitleBorder.Visibility = Visibility.Visible;
+                ApplyBibleTitleDisplayMode(true);
 
                 //#if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载经文: {verses.Count}条，{book?.Name}{chapter}:{startVerse}-{endVerse}");

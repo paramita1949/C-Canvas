@@ -12,6 +12,8 @@ namespace ImageColorChanger.UI
         private ScrollViewer BibleVerseScrollViewer => BibleSectionView?.BibleVerseScrollViewer;
         private Border BibleChapterTitleBorder => BibleSectionView?.BibleChapterTitleBorder;
         private TextBlock BibleChapterTitle => BibleSectionView?.BibleChapterTitle;
+        private Border BibleChapterTitleScrollBorder => BibleSectionView?.BibleChapterTitleScrollBorder;
+        private TextBlock BibleChapterTitleScrollText => BibleSectionView?.BibleChapterTitleScrollText;
         private ItemsControl BibleVerseList => BibleSectionView?.BibleVerseList;
         private Border BibleBottomExtension => BibleSectionView?.BibleBottomExtension;
         private BiblePinyinHintControl BiblePinyinHintControl => BibleSectionView?.BiblePinyinHintControl;

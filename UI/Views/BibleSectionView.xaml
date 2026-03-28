@@ -4,11 +4,25 @@
              xmlns:controls="clr-namespace:ImageColorChanger.UI.Controls">
     <Grid x:Name="BibleDisplayContainer" x:FieldModifier="public" Visibility="Collapsed">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0"
+        <Border Grid.Row="0"
+                x:Name="BibleChapterTitleBorder"
+                x:FieldModifier="public"
+                Background="#000000"
+                Padding="20,15">
+            <TextBlock x:Name="BibleChapterTitle"
+                       x:FieldModifier="public"
+                       Text=""
+                       FontSize="32"
+                       FontWeight="Bold"
+                       Foreground="#FF5722"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1"
                       x:Name="BibleVerseScrollViewer"
                       x:FieldModifier="public"
                       Background="#000000"
@@ -50,16 +64,18 @@
                 </ContextMenu>
             </ScrollViewer.ContextMenu>
             <StackPanel>
-                <Border x:Name="BibleChapterTitleBorder"
+                <Border x:Name="BibleChapterTitleScrollBorder"
                         x:FieldModifier="public"
                         Background="#000000"
-                        Padding="20,15">
-                    <TextBlock x:Name="BibleChapterTitle"
+                        Padding="20,15"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="BibleChapterTitleScrollText"
                                x:FieldModifier="public"
-                               Text=""
-                               FontSize="32"
-                               FontWeight="Bold"
-                               Foreground="#FF5722"/>
+                               Text="{Binding ElementName=BibleChapterTitle, Path=Text}"
+                               FontFamily="{Binding ElementName=BibleChapterTitle, Path=FontFamily}"
+                               FontSize="{Binding ElementName=BibleChapterTitle, Path=FontSize}"
+                               FontWeight="{Binding ElementName=BibleChapterTitle, Path=FontWeight}"
+                               Foreground="{Binding ElementName=BibleChapterTitle, Path=Foreground}"/>
                 </Border>
 
                 <Border Height="20"/>
@@ -102,13 +118,14 @@
             </StackPanel>
         </ScrollViewer>
 
-        <controls:BiblePinyinHintControl x:Name="BiblePinyinHintControl"
+        <controls:BiblePinyinHintControl Grid.Row="1"
+                                         x:Name="BiblePinyinHintControl"
                                          x:FieldModifier="public"
                                          HorizontalAlignment="Center"
                                          VerticalAlignment="Center"
                                          Panel.ZIndex="1000"/>
 
-        <Border Grid.Row="0"
+        <Border Grid.RowSpan="3"
                 x:Name="BibleVersionTriggerArea"
                 x:FieldModifier="public"
                 Height="20"
@@ -116,7 +133,7 @@
                 Background="Transparent"
                 Panel.ZIndex="999"/>
 
-        <Border Grid.Row="0"
+        <Border Grid.RowSpan="3"
                 x:Name="BibleVersionToolbar"
                 x:FieldModifier="public"
                 Background="#2D2D30"
@@ -154,7 +171,7 @@
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                 x:Name="BibleEmbeddedSearchResultsContainer"
                 x:FieldModifier="public"
                 Visibility="Collapsed"

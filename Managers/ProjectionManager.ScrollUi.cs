@@ -127,6 +127,33 @@ namespace ImageColorChanger.Managers
         {
             _projectionBibleTitleText.Text = title;
             _projectionBibleTitleBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_projectionScrollViewer == null)
+            {
+                return;
+            }
+
+            double titleInset = 0d;
+            if (visible)
+            {
+                _projectionBibleTitleBorder.UpdateLayout();
+                titleInset = _projectionBibleTitleBorder.ActualHeight;
+                if (titleInset <= 0)
+                {
+                    // 兜底，避免布局尚未完成时顶部留白丢失导致遮挡经文。
+                    titleInset = 62d;
+                }
+            }
+
+            var currentMargin = _projectionScrollViewer.Margin;
+            if (Math.Abs(currentMargin.Top - titleInset) > 0.5d)
+            {
+                _projectionScrollViewer.Margin = new Thickness(
+                    currentMargin.Left,
+                    titleInset,
+                    currentMargin.Right,
+                    currentMargin.Bottom);
+            }
         }
 
         private void SetProjectionMode(bool showVideo)

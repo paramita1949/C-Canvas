@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace ImageColorChanger.Managers
@@ -37,6 +38,29 @@ namespace ImageColorChanger.Managers
                     if (_projectionImageControl != null)
                     {
                         _projectionImageControl.Source = null;
+                    }
+
+                    if (_projectionBibleTitleText != null)
+                    {
+                        _projectionBibleTitleText.Text = string.Empty;
+                    }
+
+                    if (_projectionBibleTitleBorder != null)
+                    {
+                        _projectionBibleTitleBorder.Visibility = Visibility.Collapsed;
+                    }
+
+                    if (_projectionScrollViewer != null)
+                    {
+                        var margin = _projectionScrollViewer.Margin;
+                        if (Math.Abs(margin.Top) > 0.5d)
+                        {
+                            _projectionScrollViewer.Margin = new Thickness(
+                                margin.Left,
+                                0,
+                                margin.Right,
+                                margin.Bottom);
+                        }
                     }
                 });
             }

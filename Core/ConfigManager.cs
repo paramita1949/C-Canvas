@@ -787,6 +787,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经标题显示模式（true=固定，false=随经文滚动）
+        /// </summary>
+        public bool BibleFixedTitle
+        {
+            get => _config.BibleFixedTitle;
+            set
+            {
+                if (_config.BibleFixedTitle != value)
+                {
+                    _config.BibleFixedTitle = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 歌词文字水印颜色（空字符串表示跟随歌词颜色）
         /// </summary>
         public string LyricsTextWatermarkColorHex
@@ -1918,6 +1934,11 @@ namespace ImageColorChanger.Core
         /// 圣经标题字体大小（默认：61.3 = 46 * 1.333）
         /// </summary>
         public double BibleTitleFontSize { get; set; } = 61.3;
+
+        /// <summary>
+        /// 圣经标题是否固定（默认：true）
+        /// </summary>
+        public bool BibleFixedTitle { get; set; } = true;
 
         /// <summary>
         /// 圣经节号字体大小（默认：46，与经文相同）

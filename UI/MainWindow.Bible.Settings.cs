@@ -291,6 +291,10 @@ namespace ImageColorChanger.UI
 
                 // 应用标题背景色（与经文背景色一致）
                 BibleChapterTitleBorder.Background = new WpfSolidColorBrush(backgroundColor);
+                if (BibleChapterTitleScrollBorder != null)
+                {
+                    BibleChapterTitleScrollBorder.Background = new WpfSolidColorBrush(backgroundColor);
+                }
 
                 // 应用标题样式 - 使用FontService加载字体（支持自定义字体文件）
                 var titleFontFamily = Core.FontService.Instance.GetFontFamilyByFamily(_configManager.BibleFontFamily);
@@ -303,6 +307,7 @@ namespace ImageColorChanger.UI
                 BibleChapterTitle.FontSize = _configManager.BibleTitleFontSize;
                 var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
                 BibleChapterTitle.Foreground = new WpfSolidColorBrush(titleColor);
+                ApplyBibleTitleDisplayMode(true);
 
                 // 应用经文样式到已生成的项
                 ApplyVerseStyles();
@@ -316,6 +321,23 @@ namespace ImageColorChanger.UI
                 //#if DEBUG
                 //Debug.WriteLine($"[圣经] 应用设置失败: {ex.Message}");
                 //#endif
+            }
+        }
+
+        private void ApplyBibleTitleDisplayMode(bool visible)
+        {
+            bool fixedTitle = _configManager?.BibleFixedTitle ?? true;
+
+            if (BibleChapterTitleBorder != null)
+            {
+                BibleChapterTitleBorder.Visibility =
+                    fixedTitle && visible ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (BibleChapterTitleScrollBorder != null)
+            {
+                BibleChapterTitleScrollBorder.Visibility =
+                    !fixedTitle && visible ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 

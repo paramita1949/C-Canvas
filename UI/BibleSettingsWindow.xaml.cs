@@ -285,6 +285,16 @@ namespace ImageColorChanger.UI
                     SelectComboBoxItem(CmbPreviewFontSize, previewFontSize.ToString("0"));
                 }
 
+                // 标题显示模式
+                if (CmbTitleMode != null)
+                {
+                    bool fixedTitle = _configManager.BibleFixedTitle;
+                    foreach (System.Windows.Controls.ComboBoxItem item in CmbTitleMode.Items)
+                    {
+                        item.IsSelected = string.Equals(item.Tag?.ToString(), fixedTitle ? "1" : "0", StringComparison.Ordinal);
+                    }
+                }
+
                 // 更新颜色预览
                 if (BorderBackgroundColor != null && !string.IsNullOrEmpty(_configManager.BibleBackgroundColor))
                 {
@@ -632,6 +642,12 @@ namespace ImageColorChanger.UI
                 else
                 {
                     _configManager.BiblePreviewFontSize = BiblePreviewFontSizeDefault;
+                }
+
+                // 保存标题显示模式（固定/滚动）
+                if (CmbTitleMode != null && CmbTitleMode.SelectedItem is System.Windows.Controls.ComboBoxItem titleModeItem)
+                {
+                    _configManager.BibleFixedTitle = titleModeItem.Tag?.ToString() != "0";
                 }
 
                 // 保存颜色

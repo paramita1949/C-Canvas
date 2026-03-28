@@ -546,11 +546,7 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || BibleVerseList.Items.Count == 0)
                 return 0;
 
-            // 获取标题和顶部边距的总高度
-            double headerHeight = 0;
-            if (BibleChapterTitleBorder != null)
-                headerHeight += BibleChapterTitleBorder.ActualHeight;
-            headerHeight += 20; // 顶部边距
+            double headerHeight = GetBibleScrollHeaderHeight();
 
             // 如果滚动位置在标题区域，返回第一节
             if (currentOffset < headerHeight)
@@ -669,11 +665,7 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return 0;
 
-            // 获取标题和顶部边距的总高度
-            double headerHeight = 0;
-            if (BibleChapterTitleBorder != null)
-                headerHeight += BibleChapterTitleBorder.ActualHeight;
-            headerHeight += 20; // 顶部边距
+            double headerHeight = GetBibleScrollHeaderHeight();
 
             // 如果是第一节，滚动到标题后
             if (verseIndex == 0)
@@ -704,6 +696,32 @@ namespace ImageColorChanger.UI
 #endif
 
             return accumulatedHeight;
+        }
+
+        private double GetBibleScrollHeaderHeight()
+        {
+            // 固定标题模式：标题在ScrollViewer外，不计入滚动偏移。
+            if (_configManager?.BibleFixedTitle != false)
+            {
+                return 20d;
+            }
+
+            // 滚动标题模式：恢复旧逻辑，标题参与滚动偏移计算。
+            double headerHeight = 20d;
+            if (BibleChapterTitleScrollBorder != null &&
+                BibleChapterTitleScrollBorder.Visibility == Visibility.Visible &&
+                BibleChapterTitleScrollBorder.ActualHeight > 0)
+            {
+                headerHeight += BibleChapterTitleScrollBorder.ActualHeight;
+            }
+            else if (BibleChapterTitleBorder != null &&
+                     BibleChapterTitleBorder.Visibility == Visibility.Visible &&
+                     BibleChapterTitleBorder.ActualHeight > 0)
+            {
+                headerHeight += BibleChapterTitleBorder.ActualHeight;
+            }
+
+            return headerHeight;
         }
 
         /// <summary>

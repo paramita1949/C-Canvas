@@ -327,6 +327,22 @@ namespace ImageColorChanger.UI
 
         #region 圣经投影
 
+        private void SyncProjectionBibleTitle()
+        {
+            if (_projectionManager == null || !_projectionManager.IsProjecting)
+            {
+                return;
+            }
+
+            string title = BibleChapterTitle?.Text?.Trim() ?? string.Empty;
+            bool visible =
+                _isBibleMode &&
+                BibleChapterTitleBorder?.Visibility == Visibility.Visible &&
+                !string.IsNullOrWhiteSpace(title);
+
+            _projectionManager.SetBibleTitle(title, visible);
+        }
+
         /// <summary>
         /// 投影当前经文（使用 VisualBrush 100%一致投影）
         /// </summary>
@@ -340,6 +356,7 @@ namespace ImageColorChanger.UI
                 // 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
+                    SyncProjectionBibleTitle();
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     PublishBibleFrameToNdi(new List<BibleVerse> { verse });
                     
@@ -376,6 +393,7 @@ namespace ImageColorChanger.UI
                 // 使用 VisualBrush 直接投影主屏幕内容（100%像素级一致）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
+                    SyncProjectionBibleTitle();
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     
                     //#if DEBUG
@@ -635,6 +653,7 @@ namespace ImageColorChanger.UI
                 // 使用 RenderTargetBitmap 独立渲染投影（解决高亮变色波浪问题）
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
+                    SyncProjectionBibleTitle();
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                     PublishBibleFrameToNdi(versesList);
 
@@ -970,11 +989,11 @@ namespace ImageColorChanger.UI
                 var triggerArea = BibleVersionTriggerArea;
                 var toolbar = BibleVersionToolbar;
                 
-                if (triggerArea != null && toolbar != null && BibleVerseScrollViewer != null)
+                if (triggerArea != null && toolbar != null && BibleDisplayContainer != null)
                 {
-                    var mousePos = Mouse.GetPosition(BibleVerseScrollViewer);
+                    var mousePos = Mouse.GetPosition(BibleDisplayContainer);
                     var triggerBounds = new Rect(
-                        triggerArea.TranslatePoint(new System.Windows.Point(0, 0), BibleVerseScrollViewer),
+                        triggerArea.TranslatePoint(new System.Windows.Point(0, 0), BibleDisplayContainer),
                         new System.Windows.Size(triggerArea.ActualWidth, triggerArea.ActualHeight)
                     );
                     
@@ -988,7 +1007,7 @@ namespace ImageColorChanger.UI
                     if (toolbar.Visibility == Visibility.Visible)
                     {
                         var toolbarBounds = new Rect(
-                            toolbar.TranslatePoint(new System.Windows.Point(0, 0), BibleVerseScrollViewer),
+                            toolbar.TranslatePoint(new System.Windows.Point(0, 0), BibleDisplayContainer),
                             new System.Windows.Size(toolbar.ActualWidth, toolbar.ActualHeight)
                         );
                         

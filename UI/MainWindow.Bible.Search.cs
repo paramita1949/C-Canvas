@@ -515,6 +515,7 @@ namespace ImageColorChanger.UI
                 // 更新投影（使用 VisualBrush）
                 if (_projectionManager != null && _projectionManager.IsProjecting && BibleVerseScrollViewer != null)
                 {
+                    SyncProjectionBibleTitle();
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                 }
             }
@@ -717,7 +718,7 @@ namespace ImageColorChanger.UI
                 
                 // 更新主屏幕标题（有锁定记录时隐藏章节标题Border）
                 BibleChapterTitle.Text = "";
-                BibleChapterTitleBorder.Visibility = System.Windows.Visibility.Collapsed;
+                ApplyBibleTitleDisplayMode(false);
                 
                 // 应用样式（使用Render优先级确保容器已生成）
                 await Dispatcher.InvokeAsync(() => 
@@ -785,7 +786,7 @@ namespace ImageColorChanger.UI
                 if (!_historySlots.Any(x => x.IsLocked))
                 {
                     BibleChapterTitle.Text = "";
-                    BibleChapterTitleBorder.Visibility = System.Windows.Visibility.Visible;
+                    ApplyBibleTitleDisplayMode(true);
                 }
             }
             catch (Exception)
@@ -816,6 +817,7 @@ namespace ImageColorChanger.UI
                 if (verseList.Count > 0 && BibleVerseScrollViewer != null)
                 {
                     // 使用 VisualBrush 投影（100%像素级一致）
+                    SyncProjectionBibleTitle();
                     _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
                 }
                 else

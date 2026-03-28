@@ -321,7 +321,7 @@ namespace ImageColorChanger.UI
 
             if (BibleChapterTitleBorder != null)
             {
-                BibleChapterTitleBorder.Visibility = Visibility.Visible;
+                ApplyBibleTitleDisplayMode(true);
             }
 
             HideBibleVersePopupIfVisible();
