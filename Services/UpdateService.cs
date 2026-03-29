@@ -866,11 +866,22 @@ namespace ImageColorChanger.Services
                 var updateCommands = new System.Text.StringBuilder();
                 var restoreCommands = new System.Text.StringBuilder();
                 var cleanupCommands = new System.Text.StringBuilder();
+                var skippedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    // 用户本地配置文件，升级时必须保留，避免用户偏好被更新包默认值覆盖
+                    "config.json"
+                };
 
                 foreach (var sourceFile in updateFiles)
                 {
                     // 计算相对路径，支持子目录结构
                     var relativePath = Path.GetRelativePath(updateDir, sourceFile);
+                    if (skippedFiles.Contains(relativePath) ||
+                        skippedFiles.Contains(Path.GetFileName(relativePath)))
+                    {
+                        continue;
+                    }
+
                     var targetFile = Path.Combine(currentDir, relativePath);
                     var targetDir = Path.GetDirectoryName(targetFile);
                     var backupFile = targetFile + ".bak";

@@ -296,7 +296,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="预览大小" Style="{StaticResource LabelStyle}"/>
+                <TextBlock Grid.Column="0" Text="预览" Style="{StaticResource LabelStyle}"/>
                 <ComboBox x:Name="CmbPreviewFontSize" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
                           SelectionChanged="Setting_Changed"
                           MouseWheel="ComboBox_MouseWheel"/>
