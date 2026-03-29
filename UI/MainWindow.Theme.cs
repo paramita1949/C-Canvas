@@ -115,6 +115,7 @@ namespace ImageColorChanger.UI
                     (byte)Math.Max(0, Math.Min(255, color.G * 0.82)),
                     (byte)Math.Max(0, Math.Min(255, color.B * 0.82)));
                 ApplyScrollBarTrackThemeResources(appResources);
+                ApplyScrollBarBrushThemeResources(appResources);
             }
 
             if (saveSetting)
@@ -142,6 +143,32 @@ namespace ImageColorChanger.UI
                 appResources["ColorScrollBarTrackLight"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#E0E0E0");
                 appResources["ColorScrollBarTrackDark"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#C8C8C8");
             }
+        }
+
+        private void ApplyScrollBarBrushThemeResources(System.Windows.ResourceDictionary appResources)
+        {
+            if (appResources == null)
+            {
+                return;
+            }
+
+            var thumb = appResources["ColorScrollBarThumb"] is WpfColor thumbColor
+                ? thumbColor
+                : (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#CC917878");
+            var thumbHover = appResources["ColorScrollBarThumbHover"] is WpfColor thumbHoverColor
+                ? thumbHoverColor
+                : (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#E6736060");
+            var trackLight = appResources["ColorScrollBarTrackLight"] is WpfColor trackLightColor
+                ? trackLightColor
+                : (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#E0E0E0");
+            var trackDark = appResources["ColorScrollBarTrackDark"] is WpfColor trackDarkColor
+                ? trackDarkColor
+                : (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#2C2C2C");
+
+            appResources["BrushScrollBarThumb"] = new SolidColorBrush(thumb);
+            appResources["BrushScrollBarThumbHover"] = new SolidColorBrush(thumbHover);
+            appResources["BrushScrollBarTrackLight"] = new SolidColorBrush(trackLight);
+            appResources["BrushScrollBarTrackDark"] = new SolidColorBrush(trackDark);
         }
 
         private bool IsCurrentWindowBackgroundDark()

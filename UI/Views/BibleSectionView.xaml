@@ -13,7 +13,9 @@
                 x:Name="BibleChapterTitleBorder"
                 x:FieldModifier="public"
                 Background="#000000"
-                Padding="20,15">
+                Margin="0,0,24,0"
+                Padding="20,15"
+                Panel.ZIndex="10">
             <TextBlock x:Name="BibleChapterTitle"
                        x:FieldModifier="public"
                        Text=""
@@ -22,7 +24,8 @@
                        Foreground="#FF5722"/>
         </Border>
 
-        <ScrollViewer Grid.Row="1"
+        <ScrollViewer Grid.Row="0"
+                      Grid.RowSpan="2"
                       x:Name="BibleVerseScrollViewer"
                       x:FieldModifier="public"
                       Background="#000000"

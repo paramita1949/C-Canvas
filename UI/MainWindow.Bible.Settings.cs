@@ -339,6 +339,38 @@ namespace ImageColorChanger.UI
                 BibleChapterTitleScrollBorder.Visibility =
                     !fixedTitle && visible ? Visibility.Visible : Visibility.Collapsed;
             }
+
+            UpdateBibleScrollViewerPaddingForTitle(fixedTitle, visible);
+        }
+
+        private void UpdateBibleScrollViewerPaddingForTitle(bool fixedTitle, bool visible)
+        {
+            if (BibleVerseScrollViewer == null)
+            {
+                return;
+            }
+
+            double topInset = 0d;
+            if (fixedTitle && visible && BibleChapterTitleBorder != null)
+            {
+                BibleChapterTitleBorder.UpdateLayout();
+                topInset = BibleChapterTitleBorder.ActualHeight;
+                if (topInset <= 0)
+                {
+                    double fallbackFont = _configManager?.BibleTitleFontSize ?? 32d;
+                    topInset = Math.Max(60d, fallbackFont + 30d);
+                }
+            }
+
+            var current = BibleVerseScrollViewer.Padding;
+            if (Math.Abs(current.Top - topInset) > 0.5d)
+            {
+                BibleVerseScrollViewer.Padding = new Thickness(
+                    current.Left,
+                    topInset,
+                    current.Right,
+                    current.Bottom);
+            }
         }
 
         /// <summary>
