@@ -27,10 +27,14 @@
                       x:FieldModifier="public"
                       Background="#000000"
                       VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
                       Padding="0"
                       Focusable="True"
                       InputMethod.PreferredImeState="Off"
                       InputMethod.IsInputMethodEnabled="False">
+            <ScrollViewer.Resources>
+                <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleDark}"/>
+            </ScrollViewer.Resources>
             <ScrollViewer.ContextMenu>
                 <ContextMenu Style="{StaticResource NoBorderContextMenuStyle}">
                     <MenuItem x:Name="MenuBibleCopyVerses"
