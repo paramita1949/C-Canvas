@@ -505,6 +505,17 @@ namespace ImageColorChanger.UI
                 await SetKeyframeAutoPause(keyframe.Id, false);
             };
             menu.Items.Add(clearItem);
+
+            menu.Items.Add(new Separator());
+
+            // 删除关键帧
+            var deleteItem = new MenuItem
+            {
+                Header = "删除关键帧",
+                FontWeight = FontWeights.Bold
+            };
+            deleteItem.Click += async (s, e) => await DeleteKeyframeFromMenuAsync(keyframe);
+            menu.Items.Add(deleteItem);
             
             // 显示菜单
             menu.IsOpen = true;
@@ -597,6 +608,53 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 ShowStatus($"设置失败: {ex.Message}");
+            }
+        }
+
+        private async Task DeleteKeyframeFromMenuAsync(Keyframe keyframe)
+        {
+            try
+            {
+                if (_keyframeManager == null)
+                {
+                    ShowStatus("关键帧系统未初始化");
+                    return;
+                }
+
+                int imageId = GetCurrentImageId();
+                if (imageId <= 0)
+                {
+                    ShowStatus("请先选择一张图片");
+                    return;
+                }
+
+                bool success = await _keyframeManager.DeleteKeyframeAsync(keyframe.Id, imageId);
+                if (!success)
+                {
+                    ShowStatus("删除失败：关键帧不存在");
+                    return;
+                }
+
+                var latest = await _keyframeManager.GetKeyframesAsync(imageId);
+                if (latest == null || latest.Count == 0)
+                {
+                    _keyframeManager.UpdateKeyframeIndex(-1);
+                }
+                else
+                {
+                    int current = _keyframeManager.CurrentKeyframeIndex;
+                    if (current >= latest.Count)
+                    {
+                        _keyframeManager.UpdateKeyframeIndex(latest.Count - 1);
+                    }
+                }
+
+                UpdatePreviewLines();
+                ShowStatus("已删除关键帧");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"删除失败: {ex.Message}");
             }
         }
 
