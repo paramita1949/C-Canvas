@@ -36,7 +36,8 @@ namespace ImageColorChanger.Database.Repositories
         {
             return _context.Keyframes
                 .Where(k => k.ImageId == imageId)
-                .OrderBy(k => k.OrderIndex)
+                .OrderBy(k => k.YPosition)
+                .ThenBy(k => k.Id)
                 .ToList();
         }
 

@@ -516,8 +516,21 @@ namespace ImageColorChanger.UI
                 
                 if (keyframes != null && keyframes.Count >= 1)
                 {
-                    // 有关键帧（包括只有1个关键帧的情况）：检查是否已经在第一帧位置，避免不必要的刷新
-                    var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
+                    var orderedKeyframes = keyframes.OrderBy(k => k.YPosition).ThenBy(k => k.Id).ToList();
+                    var firstKeyframe = orderedKeyframes.First();
+                    bool isSingleAutoPauseKeyframe = orderedKeyframes.Count == 1 && firstKeyframe.AutoPause;
+
+                    // 单P关键帧仅作为停止点，不做“起播前跳到第一帧”。
+                    // 其余情况（含两个及以上关键帧）保持旧逻辑：先跳第一帧再播放。
+                    if (isSingleAutoPauseKeyframe)
+                    {
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine(" [合成播放] 单P关键帧模式：跳过起播前首帧跳转");
+                        #endif
+                    }
+                    else
+                    {
+                        // 有关键帧：检查是否已经在第一帧位置，避免不必要的刷新
                     var currentOffset = ImageScrollViewer.VerticalOffset;
                     var targetOffset = firstKeyframe.YPosition;
 
@@ -550,6 +563,7 @@ namespace ImageColorChanger.UI
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"    [合成播放] 已在第一帧位置，不跳转");
                         //#endif
+                    }
                     }
                 }
                 else
@@ -979,8 +993,9 @@ namespace ImageColorChanger.UI
                         var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
                         if (keyframes != null && keyframes.Count > 0)
                         {
-                            var firstKeyframe = keyframes.OrderBy(k => k.OrderIndex).First();
-                            if (Math.Abs(currentOffsetBefore - firstKeyframe.YPosition) <= 1)
+                            var firstKeyframe = keyframes.OrderBy(k => k.YPosition).ThenBy(k => k.Id).First();
+                            // P关键帧仅作为停止点：不要把起点“吸附”为当前位置，否则二次播放会卡在P点不动。
+                            if (!firstKeyframe.AutoPause && Math.Abs(currentOffsetBefore - firstKeyframe.YPosition) <= 1)
                             {
                                 actualStartPosition = currentOffsetBefore;
                                 //#if DEBUG

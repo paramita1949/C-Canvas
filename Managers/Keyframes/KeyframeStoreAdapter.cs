@@ -40,6 +40,7 @@ namespace ImageColorChanger.Managers.Keyframes
 
                 await _keyframeRepository.AddAsync(keyframe);
                 await _keyframeRepository.SaveChangesAsync();
+                await NormalizeOrderIndexesByPositionAsync(imageId);
                 return keyframe.Id;
             }
             catch (Exception ex)
@@ -80,22 +81,9 @@ namespace ImageColorChanger.Managers.Keyframes
             }
 
             int imageId = keyframe.ImageId;
-            int orderIndex = keyframe.OrderIndex ?? 0;
-
             await _keyframeRepository.DeleteAsync(keyframe);
             await _keyframeRepository.SaveChangesAsync();
-
-            var subsequent = (await _keyframeRepository.GetKeyframesByImageIdAsync(imageId))
-                .Where(k => (k.OrderIndex ?? 0) > orderIndex)
-                .ToList();
-
-            foreach (var item in subsequent)
-            {
-                item.OrderIndex = (item.OrderIndex ?? 0) - 1;
-                await _keyframeRepository.UpdateAsync(item);
-            }
-
-            await _keyframeRepository.SaveChangesAsync();
+            await NormalizeOrderIndexesByPositionAsync(imageId);
             return true;
         }
 
@@ -138,6 +126,30 @@ namespace ImageColorChanger.Managers.Keyframes
             await _keyframeRepository.UpdateAsync(keyframe);
             await _keyframeRepository.SaveChangesAsync();
             return true;
+        }
+
+        private async Task NormalizeOrderIndexesByPositionAsync(int imageId)
+        {
+            var ordered = (await _keyframeRepository.GetKeyframesByImageIdAsync(imageId))
+                .OrderBy(k => k.YPosition)
+                .ThenBy(k => k.Id)
+                .ToList();
+
+            bool hasChange = false;
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                if ((ordered[i].OrderIndex ?? -1) != i)
+                {
+                    ordered[i].OrderIndex = i;
+                    await _keyframeRepository.UpdateAsync(ordered[i]);
+                    hasChange = true;
+                }
+            }
+
+            if (hasChange)
+            {
+                await _keyframeRepository.SaveChangesAsync();
+            }
         }
     }
 }

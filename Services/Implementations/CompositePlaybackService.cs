@@ -191,13 +191,29 @@ namespace ImageColorChanger.Services.Implementations
                 // 更新或创建合成脚本（自动计算模式）
                 await _compositeScriptRepository.CreateOrUpdateAsync(imageId, _totalDuration, autoCalculate: true);
 
+                // 按录制序列（SequenceOrder）对齐关键帧，避免底层关键帧排序变化影响录制播放顺序。
+                var keyframeById = keyframes.ToDictionary(k => k.Id);
+                var orderedTimingSequence = timingSequence
+                    .OrderBy(t => t.SequenceOrder)
+                    .ToList();
+                var alignedTimings = orderedTimingSequence
+                    .Where(t => keyframeById.ContainsKey(t.KeyframeId))
+                    .ToList();
+                var orderedKeyframes = alignedTimings
+                    .Select(t => keyframeById[t.KeyframeId])
+                    .ToList();
+
+                if (orderedKeyframes.Count == 0)
+                {
+                    return;
+                }
+
                 // 获取起始和结束位置
-                var orderedKeyframes = keyframes.OrderBy(k => k.OrderIndex).ToList();
                 _startPosition = orderedKeyframes.First().YPosition;
                 _endPosition = orderedKeyframes.Last().YPosition;
 
                 // 构建播放段（考虑循环标记）
-                _playbackSegments = BuildPlaybackSegments(orderedKeyframes, timingSequence.ToList());
+                _playbackSegments = BuildPlaybackSegments(orderedKeyframes, alignedTimings);
             }
             else if (hasKeyframes && !hasTimings)
             {
@@ -220,7 +236,7 @@ namespace ImageColorChanger.Services.Implementations
                     }
 
                     // 获取起始和结束位置
-                    var orderedKeyframes = keyframes.OrderBy(k => k.OrderIndex).ToList();
+                    var orderedKeyframes = keyframes.OrderBy(k => k.YPosition).ThenBy(k => k.Id).ToList();
                     _startPosition = orderedKeyframes.First().YPosition;
                     _endPosition = orderedKeyframes.Last().YPosition;
 
@@ -229,18 +245,8 @@ namespace ImageColorChanger.Services.Implementations
                     System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
                     #endif
 
-                    // 构建一个简单的滚动段：从第一帧直接滚动到最后一帧
-                    _playbackSegments = new System.Collections.Generic.List<PlaybackSegment>
-                    {
-                        new PlaybackSegment
-                        {
-                            Type = SegmentType.Scroll,
-                            StartPosition = _startPosition,
-                            EndPosition = _endPosition,
-                            Duration = _totalDuration,
-                            KeyframeId = orderedKeyframes.Last().Id
-                        }
-                    };
+                    // 无录制数据时，按位置分段滚动，确保经过任意关键帧都能触发到达事件（P可在中间生效）
+                    _playbackSegments = BuildSegmentsWithoutTimings(orderedKeyframes, _totalDuration);
                 }
                 else
                 {
@@ -258,8 +264,37 @@ namespace ImageColorChanger.Services.Implementations
                         await _compositeScriptRepository.CreateOrUpdateAsync(imageId, _totalDuration, autoCalculate: false);
                     }
 
-                    // 起始位置是唯一的关键帧
-                    _startPosition = keyframes.First().YPosition;
+                    var singleKeyframe = keyframes.First();
+
+                    // 如果唯一关键帧是自动停止标记(P)，则它只作为“停止点”：
+                    // 不应在播放开始时先跳到该帧。
+                    if (singleKeyframe.AutoPause)
+                    {
+                        // P标记仅作为停止点。每次开始都从顶部重新播放，避免二次播放停留在P位置不动。
+                        _startPosition = 0;
+                        _endPosition = singleKeyframe.YPosition;
+
+                        #if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"   [P标记模式] 从顶部 {_startPosition:F0} 滚动到P关键帧 {_endPosition:F0}");
+                        System.Diagnostics.Debug.WriteLine($"   [P标记模式] 使用TOTAL时间: {_totalDuration:F1}秒");
+                        #endif
+
+                        _playbackSegments = new System.Collections.Generic.List<PlaybackSegment>
+                        {
+                            new PlaybackSegment
+                            {
+                                Type = SegmentType.Scroll,
+                                StartPosition = _startPosition,
+                                EndPosition = _endPosition,
+                                Duration = _totalDuration,
+                                KeyframeId = singleKeyframe.Id
+                            }
+                        };
+                    }
+                    else
+                    {
+                        // 起始位置是唯一的关键帧
+                        _startPosition = singleKeyframe.YPosition;
                     
                     // 请求获取实际的可滚动高度
                     var heightArgs = new ScrollableHeightRequestEventArgs();
@@ -277,18 +312,19 @@ namespace ImageColorChanger.Services.Implementations
                     System.Diagnostics.Debug.WriteLine($"   使用TOTAL时间: {_totalDuration:F1}秒");
                     #endif
 
-                    // 构建一个简单的滚动段：从关键帧滚动到底部
-                    _playbackSegments = new System.Collections.Generic.List<PlaybackSegment>
-                    {
-                        new PlaybackSegment
+                        // 构建一个简单的滚动段：从关键帧滚动到底部
+                        _playbackSegments = new System.Collections.Generic.List<PlaybackSegment>
                         {
-                            Type = SegmentType.Scroll,
-                            StartPosition = _startPosition,
-                            EndPosition = _endPosition,
-                            Duration = _totalDuration,
-                            KeyframeId = keyframes.First().Id
-                        }
-                    };
+                            new PlaybackSegment
+                            {
+                                Type = SegmentType.Scroll,
+                                StartPosition = _startPosition,
+                                EndPosition = _endPosition,
+                                Duration = _totalDuration,
+                                KeyframeId = singleKeyframe.Id
+                            }
+                        };
+                    }
                 }
             }
             else if (!hasKeyframes)
@@ -365,6 +401,59 @@ namespace ImageColorChanger.Services.Implementations
 
             // 启动播放循环
             _ = Task.Run(() => PlaybackLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+        }
+
+        private System.Collections.Generic.List<PlaybackSegment> BuildSegmentsWithoutTimings(
+            System.Collections.Generic.List<Database.Models.Keyframe> keyframes,
+            double totalDuration)
+        {
+            var segments = new System.Collections.Generic.List<PlaybackSegment>();
+            if (keyframes == null || keyframes.Count < 2)
+            {
+                return segments;
+            }
+
+            int segmentCount = keyframes.Count - 1;
+            var distances = new double[segmentCount];
+            double totalDistance = 0d;
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                double distance = Math.Abs(keyframes[i + 1].YPosition - keyframes[i].YPosition);
+                distances[i] = distance;
+                totalDistance += distance;
+            }
+
+            double assignedDuration = 0d;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                double duration;
+                if (i == segmentCount - 1)
+                {
+                    duration = Math.Max(0d, totalDuration - assignedDuration);
+                }
+                else if (totalDistance <= 0d)
+                {
+                    duration = totalDuration / segmentCount;
+                    assignedDuration += duration;
+                }
+                else
+                {
+                    duration = totalDuration * (distances[i] / totalDistance);
+                    assignedDuration += duration;
+                }
+
+                segments.Add(new PlaybackSegment
+                {
+                    Type = SegmentType.Scroll,
+                    StartPosition = keyframes[i].YPosition,
+                    EndPosition = keyframes[i + 1].YPosition,
+                    Duration = duration,
+                    KeyframeId = keyframes[i + 1].Id
+                });
+            }
+
+            return segments;
         }
 
         /// <summary>

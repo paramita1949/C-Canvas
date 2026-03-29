@@ -28,7 +28,8 @@ namespace ImageColorChanger.Repositories.Implementations
             {
                 return _dbSet
                     .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
+                    .OrderBy(k => k.YPosition)
+                    .ThenBy(k => k.Id)
                     .ToList();
             }
             catch (SqliteException ex) when (IsMissingAutoPauseColumn(ex))
@@ -36,7 +37,8 @@ namespace ImageColorChanger.Repositories.Implementations
                 EnsureAutoPauseColumnExists();
                 return _dbSet
                     .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
+                    .OrderBy(k => k.YPosition)
+                    .ThenBy(k => k.Id)
                     .ToList();
             }
         }
@@ -50,7 +52,8 @@ namespace ImageColorChanger.Repositories.Implementations
             {
                 return await _dbSet
                     .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
+                    .OrderBy(k => k.YPosition)
+                    .ThenBy(k => k.Id)
                     .ToListAsync();
             }
             catch (SqliteException ex) when (IsMissingAutoPauseColumn(ex))
@@ -58,7 +61,8 @@ namespace ImageColorChanger.Repositories.Implementations
                 await EnsureAutoPauseColumnExistsAsync();
                 return await _dbSet
                     .Where(k => k.ImageId == imageId)
-                    .OrderBy(k => k.OrderIndex)
+                    .OrderBy(k => k.YPosition)
+                    .ThenBy(k => k.Id)
                     .ToListAsync();
             }
         }
