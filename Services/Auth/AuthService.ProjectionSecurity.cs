@@ -85,16 +85,25 @@ namespace ImageColorChanger.Services
 #endif
             }
 
-#if DEBUG
             if (result.LocalTickSkewDetected)
             {
-                var localElapsed = now - _lastLocalTime.Value;
+                var localElapsed = _lastLocalTime.HasValue
+                    ? now - _lastLocalTime.Value
+                    : TimeSpan.Zero;
+#if DEBUG
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 检测到时间异常！");
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 本地时间流逝: {localElapsed.TotalSeconds:F1} 秒");
                 System.Diagnostics.Trace.WriteLine($" [AuthService] Tick流逝: {result.ElapsedByTick.TotalSeconds:F1} 秒");
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 差异: {result.LocalTickSkewSeconds:F1} 秒（可能本地时间被修改）");
-            }
+                System.Diagnostics.Trace.WriteLine(" [AuthService] 检测到大幅漂移，执行时间基线自愈同步");
 #endif
+                // 当应用长时间未运行/系统休眠后，local 与 tick 可能出现大幅偏移。
+                // 这里将基线重置为当前估算值，避免重复触发同一漂移并恢复后续估算稳定性。
+                _lastServerTime = result.EstimatedServerTime;
+                _lastLocalTime = now;
+                _lastTickCount = currentTick;
+                RequestPersistAuthData();
+            }
 
             return result.EstimatedServerTime;
         }
