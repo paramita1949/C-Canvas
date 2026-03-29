@@ -252,46 +252,7 @@
                                       Style="{StaticResource WhiteComboBoxPopup}"
                                       ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
                                 <ComboBox.Resources>
-                                    <!-- 深灰色滚动条样式 -->
-                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
-                                        <Setter Property="Background" Value="#E0E0E0"/>
-                                        <Setter Property="Width" Value="12"/>
-                                        <Setter Property="MinWidth" Value="12"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="{x:Type ScrollBar}">
-                                                    <Grid>
-                                                        <Border Background="#E0E0E0" CornerRadius="6"/>
-                                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                                            <Track.Thumb>
-                                                                <Thumb>
-                                                                    <Thumb.Style>
-                                                                        <Style TargetType="Thumb">
-                                                                            <Setter Property="Background" Value="#5C5C5C"/>
-                                                                            <Setter Property="Template">
-                                                                                <Setter.Value>
-                                                                                    <ControlTemplate TargetType="Thumb">
-                                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                                CornerRadius="6"
-                                                                                                Margin="2"/>
-                                                                                    </ControlTemplate>
-                                                                                </Setter.Value>
-                                                                            </Setter>
-                                                                            <Style.Triggers>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter Property="Background" Value="#7C7C7C"/>
-                                                                                </Trigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </Thumb.Style>
-                                                                </Thumb>
-                                                            </Track.Thumb>
-                                                        </Track>
-                                                    </Grid>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
+                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleLight}"/>
                                 </ComboBox.Resources>
                                 <!-- 字体将在代码中动态加载 -->
                             </ComboBox>
@@ -310,46 +271,7 @@
                                       Style="{StaticResource WhiteComboBoxPopup}"
                                       ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
                                 <ComboBox.Resources>
-                                    <!-- 深灰色滚动条样式 -->
-                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
-                                        <Setter Property="Background" Value="#E0E0E0"/>
-                                        <Setter Property="Width" Value="12"/>
-                                        <Setter Property="MinWidth" Value="12"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="{x:Type ScrollBar}">
-                                                    <Grid>
-                                                        <Border Background="#E0E0E0" CornerRadius="6"/>
-                                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                                            <Track.Thumb>
-                                                                <Thumb>
-                                                                    <Thumb.Style>
-                                                                        <Style TargetType="Thumb">
-                                                                            <Setter Property="Background" Value="#5C5C5C"/>
-                                                                            <Setter Property="Template">
-                                                                                <Setter.Value>
-                                                                                    <ControlTemplate TargetType="Thumb">
-                                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                                CornerRadius="6"
-                                                                                                Margin="2"/>
-                                                                                    </ControlTemplate>
-                                                                                </Setter.Value>
-                                                                            </Setter>
-                                                                            <Style.Triggers>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter Property="Background" Value="#7C7C7C"/>
-                                                                                </Trigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </Thumb.Style>
-                                                                </Thumb>
-                                                            </Track.Thumb>
-                                                        </Track>
-                                                    </Grid>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
+                                    <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleLight}"/>
                                 </ComboBox.Resources>
                                 <ComboBoxItem Content="10"/>
                                 <ComboBoxItem Content="12"/>
@@ -1148,47 +1070,7 @@
                                 <ScrollViewer x:Name="SlideScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="SlideScrollViewer_PreviewMouseWheel">
                                     <ScrollViewer.Resources>
-                                        <!-- 深灰色滚动条样式（覆盖全局样式） -->
-                                        <Style TargetType="{x:Type ScrollBar}" BasedOn="{x:Null}">
-                                            <Setter Property="Background" Value="#2C2C2C"/>
-                                            <Setter Property="Foreground" Value="#5C5C5C"/>
-                                            <Setter Property="Width" Value="12"/>
-                                            <Setter Property="MinWidth" Value="12"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="{x:Type ScrollBar}">
-                                                        <Grid>
-                                                            <Border Background="#2C2C2C" CornerRadius="6"/>
-                                                            <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                                                <Track.Thumb>
-                                                                    <Thumb>
-                                                                        <Thumb.Style>
-                                                                            <Style TargetType="Thumb">
-                                                                                <Setter Property="Background" Value="#5C5C5C"/>
-                                                                                <Setter Property="Template">
-                                                                                    <Setter.Value>
-                                                                                        <ControlTemplate TargetType="Thumb">
-                                                                                            <Border Background="{TemplateBinding Background}"
-                                                                                                    CornerRadius="6"
-                                                                                                    Margin="2"/>
-                                                                                        </ControlTemplate>
-                                                                                    </Setter.Value>
-                                                                                </Setter>
-                                                                                <Style.Triggers>
-                                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                                        <Setter Property="Background" Value="#7C7C7C"/>
-                                                                                    </Trigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </Thumb.Style>
-                                                                    </Thumb>
-                                                                </Track.Thumb>
-                                                            </Track>
-                                                        </Grid>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
+                                        <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleDark}"/>
                                     </ScrollViewer.Resources>
                                     <ListBox x:Name="SlideListBox"
                                              Background="Transparent"

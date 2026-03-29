@@ -108,6 +108,13 @@ namespace ImageColorChanger.UI
                 appResources["BrushGlobalIcon"] = new SolidColorBrush(color);
                 appResources["BrushIconDefault"] = new SolidColorBrush(color);
                 appResources["BrushMenuHover"] = new SolidColorBrush(color) { Opacity = 0.16 };
+                appResources["ColorScrollBarThumb"] = WpfColor.FromArgb(0xCC, color.R, color.G, color.B);
+                appResources["ColorScrollBarThumbHover"] = WpfColor.FromArgb(
+                    0xE6,
+                    (byte)Math.Max(0, Math.Min(255, color.R * 0.82)),
+                    (byte)Math.Max(0, Math.Min(255, color.G * 0.82)),
+                    (byte)Math.Max(0, Math.Min(255, color.B * 0.82)));
+                ApplyScrollBarTrackThemeResources(appResources);
             }
 
             if (saveSetting)
@@ -119,6 +126,34 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"图标配色已切换: {normalizedHex}");
             }
+        }
+
+        private void ApplyScrollBarTrackThemeResources(System.Windows.ResourceDictionary appResources)
+        {
+            bool useDarkTrack = IsCurrentWindowBackgroundDark();
+
+            if (useDarkTrack)
+            {
+                appResources["ColorScrollBarTrackLight"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#4A4A4A");
+                appResources["ColorScrollBarTrackDark"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#2C2C2C");
+            }
+            else
+            {
+                appResources["ColorScrollBarTrackLight"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#E0E0E0");
+                appResources["ColorScrollBarTrackDark"] = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString("#C8C8C8");
+            }
+        }
+
+        private bool IsCurrentWindowBackgroundDark()
+        {
+            if (Background is SolidColorBrush brush)
+            {
+                var c = brush.Color;
+                double luminance = (0.299 * c.R) + (0.587 * c.G) + (0.114 * c.B);
+                return luminance < 128.0;
+            }
+
+            return false;
         }
 
         private static bool TryParseColorHex(string hex, out WpfColor color)

@@ -20,6 +20,14 @@
     <SolidColorBrush x:Key="BrushMenuBorder" Color="#E6DAD2"/>
     <SolidColorBrush x:Key="BrushMenuHover" Color="{DynamicResource ColorGlobalIcon}" Opacity="0.16"/>
     <SolidColorBrush x:Key="BrushMenuDisabledText" Color="#A89C9C"/>
+    <Color x:Key="ColorScrollBarThumb">#CC917878</Color>
+    <Color x:Key="ColorScrollBarThumbHover">#E6736060</Color>
+    <Color x:Key="ColorScrollBarTrackLight">#E0E0E0</Color>
+    <Color x:Key="ColorScrollBarTrackDark">#2C2C2C</Color>
+    <SolidColorBrush x:Key="BrushScrollBarThumb" Color="{DynamicResource ColorScrollBarThumb}"/>
+    <SolidColorBrush x:Key="BrushScrollBarThumbHover" Color="{DynamicResource ColorScrollBarThumbHover}"/>
+    <SolidColorBrush x:Key="BrushScrollBarTrackLight" Color="{DynamicResource ColorScrollBarTrackLight}"/>
+    <SolidColorBrush x:Key="BrushScrollBarTrackDark" Color="{DynamicResource ColorScrollBarTrackDark}"/>
 
     <!-- Lucide-like 24x24 stroke geometries -->
     <Geometry x:Key="IconLucideMonitor">M3 4H21V16H3V4Z M8 20H16 M12 16V20</Geometry>
@@ -705,17 +713,23 @@
     </Style>
 
     <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+        <Setter Property="Background" Value="{DynamicResource BrushScrollBarThumb}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Thumb}">
-                    <Border Background="#CC9C27B0" CornerRadius="6"/>
+                    <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource BrushScrollBarThumbHover}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="FixedScrollBarStyle" TargetType="{x:Type ScrollBar}">
-        <Setter Property="Background" Value="#E0E0E0"/>
+        <Setter Property="Background" Value="{DynamicResource BrushScrollBarTrackLight}"/>
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Vertical">
                 <Setter Property="Width" Value="24"/>
@@ -794,6 +808,36 @@
                 </Setter>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <Style x:Key="CompactScrollBarStyleLight" TargetType="{x:Type ScrollBar}">
+        <Setter Property="Background" Value="{DynamicResource BrushScrollBarTrackLight}"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="MinWidth" Value="12"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBarThumb}">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="{x:Type Thumb}">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Margin="2"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CompactScrollBarStyleDark" TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleLight}">
+        <Setter Property="Background" Value="{DynamicResource BrushScrollBarTrackDark}"/>
     </Style>
 
     <Style x:Key="BibleVersionRadioStyle" TargetType="RadioButton">
