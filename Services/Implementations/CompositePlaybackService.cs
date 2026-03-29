@@ -135,8 +135,14 @@ namespace ImageColorChanger.Services.Implementations
         /// </summary>
         public async Task StartPlaybackAsync(int imageId, CancellationToken cancellationToken = default)
         {
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[合成播放][Service.Start] request imageId={imageId}, isPlaying={IsPlaying}, isPaused={IsPaused}");
+            #endif
             if (IsPlaying)
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[合成播放][Service.Start] ignored because already playing");
+                #endif
                 return;
             }
 
@@ -477,7 +483,8 @@ namespace ImageColorChanger.Services.Implementations
                             CurrentKeyframeChanged?.Invoke(this, new CurrentKeyframeChangedEventArgs
                             {
                                 KeyframeId = segment.KeyframeId,
-                                YPosition = segment.EndPosition
+                                YPosition = segment.EndPosition,
+                                IsSegmentArrived = false
                             });
                             
                             //#if DEBUG
@@ -495,7 +502,8 @@ namespace ImageColorChanger.Services.Implementations
                                 StartPosition = segment.StartPosition,
                                 EndPosition = segment.EndPosition,
                                 Duration = segment.Duration, // 使用原始时长
-                                SpeedRatio = Speed // 传递速度倍率给动画
+                                SpeedRatio = Speed, // 传递速度倍率给动画
+                                KeyframeId = segment.KeyframeId
                             });
                             
                             // 触发进度更新（显示倒计时，使用与实际等待一致的时长）
@@ -510,6 +518,17 @@ namespace ImageColorChanger.Services.Implementations
                             
                             // 等待滚动完成（与倒计时一致）
                             await WaitWithSpeedAdjustment(segment.Duration, cancellationToken);
+
+                            // 滚动段实际完成点（用于“到达关键帧后执行动作”，避免UI动画回调与播放循环竞争）
+                            if (IsPlaying && !cancellationToken.IsCancellationRequested)
+                            {
+                                CurrentKeyframeChanged?.Invoke(this, new CurrentKeyframeChangedEventArgs
+                                {
+                                    KeyframeId = segment.KeyframeId,
+                                    YPosition = segment.EndPosition,
+                                    IsSegmentArrived = true
+                                });
+                            }
                         }
                         else if (segment.Type == SegmentType.Pause)
                         {
@@ -518,7 +537,8 @@ namespace ImageColorChanger.Services.Implementations
                             CurrentKeyframeChanged?.Invoke(this, new CurrentKeyframeChangedEventArgs
                             {
                                 KeyframeId = segment.KeyframeId,
-                                YPosition = segment.StartPosition
+                                YPosition = segment.StartPosition,
+                                IsSegmentArrived = false
                             });
                             
                             //  停留段：直接加速等待时间
@@ -567,7 +587,8 @@ namespace ImageColorChanger.Services.Implementations
                             StartPosition = _startPosition,
                             EndPosition = _startPosition,
                             Duration = 0, // 时长为0表示直接跳转，不滚动
-                            SpeedRatio = Speed
+                            SpeedRatio = Speed,
+                            KeyframeId = 0
                         });
                         
                         await Task.Delay(100, cancellationToken); // 短暂延迟，让跳转完成
@@ -645,7 +666,8 @@ namespace ImageColorChanger.Services.Implementations
                         StartPosition = actualStartPosition,
                         EndPosition = _currentSegment.EndPosition,
                         Duration = remainingOriginalTime,
-                        SpeedRatio = Speed
+                        SpeedRatio = Speed,
+                        KeyframeId = _currentSegment.KeyframeId
                     });
                 }
             }
@@ -679,6 +701,10 @@ namespace ImageColorChanger.Services.Implementations
         {
             if (!IsPlaying)
                 return;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[合成播放][Service.UpdateTotalAndRestart] imageId={_currentImageId}, elapsed={_playbackStopwatch.Elapsed.TotalSeconds:F2}");
+            #endif
 
             // 获取已播放的时间（秒）
             double elapsedSeconds = _playbackStopwatch.Elapsed.TotalSeconds;
@@ -825,7 +851,8 @@ namespace ImageColorChanger.Services.Implementations
                         StartPosition = actualStartPosition, // 使用当前滚动位置
                         EndPosition = _currentSegment.EndPosition,
                         Duration = remainingOriginalTime, // 使用原始剩余时间
-                        SpeedRatio = Speed // 传递速度倍率，直接加速动画
+                        SpeedRatio = Speed, // 传递速度倍率，直接加速动画
+                        KeyframeId = _currentSegment.KeyframeId
                     });
                     
                     // 更新进度（显示原始剩余时间）
@@ -961,6 +988,9 @@ public class CompositeScrollEventArgs : EventArgs
     
     /// <summary>动画速度倍率（默认1.0，用于直接加速滚动动画）</summary>
     public double SpeedRatio { get; set; } = 1.0;
+
+    /// <summary>本次滚动目标关键帧ID（0表示无关键帧语义）</summary>
+    public int KeyframeId { get; set; }
     }
 
     /// <summary>
@@ -1017,6 +1047,9 @@ public class CompositeScrollEventArgs : EventArgs
         
         /// <summary>当前关键帧Y坐标</summary>
         public double YPosition { get; set; }
+
+        /// <summary>是否已到达本段终点（true 表示滚动段真正完成）</summary>
+        public bool IsSegmentArrived { get; set; }
     }
 
     /// <summary>

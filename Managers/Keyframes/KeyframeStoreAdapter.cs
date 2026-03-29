@@ -21,24 +21,44 @@ namespace ImageColorChanger.Managers.Keyframes
 
         public async Task<int> AddKeyframeAsync(int imageId, double position, int yPosition)
         {
-            var keyframes = await _keyframeRepository.GetKeyframesByImageIdAsync(imageId);
-            if (keyframes.Any(k => Math.Abs(k.YPosition - yPosition) < 50))
+            try
             {
-                return -1;
+                var keyframes = await _keyframeRepository.GetKeyframesByImageIdAsync(imageId);
+                if (keyframes.Any(k => Math.Abs(k.YPosition - yPosition) < 50))
+                {
+                    return -1;
+                }
+
+                int maxOrder = keyframes.Max(k => (int?)k.OrderIndex) ?? -1;
+                var keyframe = new Keyframe
+                {
+                    ImageId = imageId,
+                    Position = position,
+                    YPosition = yPosition,
+                    OrderIndex = maxOrder + 1
+                };
+
+                await _keyframeRepository.AddAsync(keyframe);
+                await _keyframeRepository.SaveChangesAsync();
+                return keyframe.Id;
             }
-
-            int maxOrder = keyframes.Max(k => (int?)k.OrderIndex) ?? -1;
-            var keyframe = new Keyframe
+            catch (Exception ex)
             {
-                ImageId = imageId,
-                Position = position,
-                YPosition = yPosition,
-                OrderIndex = maxOrder + 1
-            };
-
-            await _keyframeRepository.AddAsync(keyframe);
-            await _keyframeRepository.SaveChangesAsync();
-            return keyframe.Id;
+                _ = ex;
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[关键帧][Store.Add][ERROR] imageId={imageId}, position={position:F4}, y={yPosition}");
+                System.Diagnostics.Debug.WriteLine($"[关键帧][Store.Add][ERROR] {ex}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[关键帧][Store.Add][INNER] {ex.InnerException}");
+                }
+                if (ex.Message?.Contains("no such column", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    System.Diagnostics.Debug.WriteLine("[关键帧][Store.Add][HINT] 检测到缺失列异常，请检查 keyframes 表是否包含 auto_pause 列。");
+                }
+                #endif
+                throw;
+            }
         }
 
         public List<Keyframe> GetKeyframesByImageId(int imageId)
@@ -101,6 +121,20 @@ namespace ImageColorChanger.Managers.Keyframes
             }
 
             keyframe.LoopCount = loopCount;
+            await _keyframeRepository.UpdateAsync(keyframe);
+            await _keyframeRepository.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> UpdateAutoPauseAsync(int keyframeId, bool autoPause)
+        {
+            var keyframe = await _keyframeRepository.GetByIdAsync(keyframeId);
+            if (keyframe == null)
+            {
+                return false;
+            }
+
+            keyframe.AutoPause = autoPause;
             await _keyframeRepository.UpdateAsync(keyframe);
             await _keyframeRepository.SaveChangesAsync();
             return true;

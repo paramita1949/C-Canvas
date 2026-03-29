@@ -166,12 +166,22 @@ namespace ImageColorChanger.UI
 
                             indicatorContainer.Children.Add(indicator);
 
-                            // 如果有循环次数提示，显示数字
+                            // 循环次数或自动停止提示
+                            string badgeText = null;
                             if (keyframe.LoopCount.HasValue && keyframe.LoopCount.Value > 0)
+                            {
+                                badgeText = keyframe.LoopCount.Value.ToString();
+                            }
+                            else if (keyframe.AutoPause)
+                            {
+                                badgeText = "P";
+                            }
+
+                            if (!string.IsNullOrEmpty(badgeText))
                             {
                                 var loopText = new TextBlock
                                 {
-                                    Text = keyframe.LoopCount.Value.ToString(),
+                                    Text = badgeText,
                                     FontSize = 13,  // 放大字体
                                     FontWeight = FontWeights.Bold,
                                     Foreground = new System.Windows.Media.SolidColorBrush(
@@ -195,7 +205,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception)
             {
-                // System.Diagnostics.Debug.WriteLine($" 更新预览线失败: {ex.Message}");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[关键帧][UpdatePreviewLines][ERROR] 更新预览线失败（请查看 FirstChance 异常与 InnerException）");
+                #endif
             }
         }
 
@@ -238,12 +250,22 @@ namespace ImageColorChanger.UI
 
                 currentContainer.Children.Add(currentIndicator);
 
-                // 如果有循环次数提示，显示数字
+                // 循环次数或自动停止提示
+                string badgeText = null;
                 if (currentKeyframe.LoopCount.HasValue && currentKeyframe.LoopCount.Value > 0)
+                {
+                    badgeText = currentKeyframe.LoopCount.Value.ToString();
+                }
+                else if (currentKeyframe.AutoPause)
+                {
+                    badgeText = "P";
+                }
+
+                if (!string.IsNullOrEmpty(badgeText))
                 {
                     var loopText = new TextBlock
                     {
-                        Text = currentKeyframe.LoopCount.Value.ToString(),
+                        Text = badgeText,
                         FontSize = 14,  // 放大字体
                         FontWeight = FontWeights.Bold,
                         Foreground = new System.Windows.Media.SolidColorBrush(
@@ -259,9 +281,12 @@ namespace ImageColorChanger.UI
                 Canvas.SetLeft(currentContainer, -3);  // 稍微向左
                 ScrollbarIndicatorsCanvas.Children.Add(currentContainer);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // System.Diagnostics.Debug.WriteLine($" 绘制当前关键帧指示块失败: {ex.Message}");
+                _ = ex;
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[关键帧][DrawCurrentIndicator][ERROR] {ex}");
+                #endif
             }
         }
 
@@ -454,6 +479,19 @@ namespace ImageColorChanger.UI
             }
             
             menu.Items.Add(new Separator());
+
+            // 自动停止开关
+            var autoPauseItem = new MenuItem
+            {
+                Header = "P",
+                IsCheckable = true,
+                IsChecked = keyframe.AutoPause,
+                FontWeight = FontWeights.Bold
+            };
+            autoPauseItem.Click += async (s, e) => await SetKeyframeAutoPause(keyframe.Id, !keyframe.AutoPause);
+            menu.Items.Add(autoPauseItem);
+
+            menu.Items.Add(new Separator());
             
             // 清除设置
             var clearItem = new MenuItem
@@ -461,7 +499,11 @@ namespace ImageColorChanger.UI
                 Header = "清除",
                 FontWeight = FontWeights.Bold
             };
-            clearItem.Click += async (s, e) => await SetKeyframeLoopCount(keyframe.Id, null);
+            clearItem.Click += async (s, e) =>
+            {
+                await SetKeyframeLoopCount(keyframe.Id, null);
+                await SetKeyframeAutoPause(keyframe.Id, false);
+            };
             menu.Items.Add(clearItem);
             
             // 显示菜单
@@ -517,6 +559,43 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 // System.Diagnostics.Debug.WriteLine($" 设置循环次数失败: {ex.Message}");
+                ShowStatus($"设置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 设置关键帧自动停止标记
+        /// </summary>
+        private async Task SetKeyframeAutoPause(int keyframeId, bool autoPause)
+        {
+            try
+            {
+                if (_keyframeManager == null)
+                {
+                    ShowStatus("关键帧系统未初始化");
+                    return;
+                }
+
+                bool success = await _keyframeManager.UpdateAutoPauseAsync(keyframeId, autoPause);
+
+                if (success)
+                {
+                    int _currentImageId = GetCurrentImageId();
+                    if (_keyframeManager != null && _currentImageId > 0)
+                    {
+                        _ = _keyframeManager.GetKeyframesAsync(_currentImageId);
+                    }
+
+                    UpdatePreviewLines();
+                    ShowStatus(autoPause ? "已设置到此自动停止" : "已取消自动停止");
+                }
+                else
+                {
+                    ShowStatus("设置失败");
+                }
+            }
+            catch (Exception ex)
+            {
                 ShowStatus($"设置失败: {ex.Message}");
             }
         }

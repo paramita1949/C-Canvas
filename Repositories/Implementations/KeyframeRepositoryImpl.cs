@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Repositories.Interfaces;
@@ -23,10 +24,21 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public List<Keyframe> GetKeyframesByImageId(int imageId)
         {
-            return _dbSet
-                .Where(k => k.ImageId == imageId)
-                .OrderBy(k => k.OrderIndex)
-                .ToList();
+            try
+            {
+                return _dbSet
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToList();
+            }
+            catch (SqliteException ex) when (IsMissingAutoPauseColumn(ex))
+            {
+                EnsureAutoPauseColumnExists();
+                return _dbSet
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToList();
+            }
         }
 
         /// <summary>
@@ -34,10 +46,21 @@ namespace ImageColorChanger.Repositories.Implementations
         /// </summary>
         public async Task<List<Keyframe>> GetKeyframesByImageIdAsync(int imageId)
         {
-            return await _dbSet
-                .Where(k => k.ImageId == imageId)
-                .OrderBy(k => k.OrderIndex)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToListAsync();
+            }
+            catch (SqliteException ex) when (IsMissingAutoPauseColumn(ex))
+            {
+                await EnsureAutoPauseColumnExistsAsync();
+                return await _dbSet
+                    .Where(k => k.ImageId == imageId)
+                    .OrderBy(k => k.OrderIndex)
+                    .ToListAsync();
+            }
         }
 
         /// <summary>
@@ -86,6 +109,43 @@ namespace ImageColorChanger.Repositories.Implementations
             return keyframes
                 .OrderBy(k => Math.Abs(k.Position - position))
                 .FirstOrDefault();
+        }
+
+        private static bool IsMissingAutoPauseColumn(SqliteException ex)
+        {
+            var message = ex?.Message ?? string.Empty;
+            return message.Contains("no such column", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("auto_pause", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void EnsureAutoPauseColumnExists()
+        {
+            try
+            {
+                _context.Database.ExecuteSqlRaw("ALTER TABLE keyframes ADD COLUMN auto_pause INTEGER NOT NULL DEFAULT 0");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[关键帧][Repo] 已自动补齐 keyframes.auto_pause 列（sync）");
+                #endif
+            }
+            catch (SqliteException ex) when (ex.Message?.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // 并发补列时忽略重复列错误
+            }
+        }
+
+        private async Task EnsureAutoPauseColumnExistsAsync()
+        {
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync("ALTER TABLE keyframes ADD COLUMN auto_pause INTEGER NOT NULL DEFAULT 0");
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[关键帧][Repo] 已自动补齐 keyframes.auto_pause 列（async）");
+                #endif
+            }
+            catch (SqliteException ex) when (ex.Message?.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // 并发补列时忽略重复列错误
+            }
         }
     }
 }

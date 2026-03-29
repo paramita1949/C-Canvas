@@ -38,6 +38,7 @@ namespace ImageColorChanger.Database.Migrations
         public void RunStartupMigrations()
         {
             MigrateAddLoopCount();
+            MigrateAddKeyframeAutoPause();
             MigrateAddHighlightColor();
             MigrateAddBibleHistoryTable();
             MigrateAddBibleInsertConfigTable();
@@ -69,6 +70,32 @@ namespace ImageColorChanger.Database.Migrations
                 }
 
                 connection.Close();
+            }
+            catch
+            {
+            }
+        }
+
+        public void MigrateAddKeyframeAutoPause()
+        {
+            try
+            {
+                var checkSql = "SELECT COUNT(*) FROM pragma_table_info('keyframes') WHERE name='auto_pause'";
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = checkSql;
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        _context.Database.ExecuteSqlRaw("ALTER TABLE keyframes ADD COLUMN auto_pause INTEGER NOT NULL DEFAULT 0");
+                    }
+                }
             }
             catch
             {

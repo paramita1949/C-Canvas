@@ -15,5 +15,6 @@ namespace ImageColorChanger.Managers.Keyframes
         Task<bool> DeleteKeyframeAsync(int keyframeId);
         Task<bool> ClearKeyframesAsync(int imageId);
         Task<bool> UpdateLoopCountAsync(int keyframeId, int? loopCount);
+        Task<bool> UpdateAutoPauseAsync(int keyframeId, bool autoPause);
     }
 }

@@ -157,7 +157,19 @@ namespace ImageColorChanger.Managers.Keyframes
         /// <returns>是否成功添加</returns>
         public async Task<bool> AddKeyframeAsync(int imageId, double position, int yPosition)
         {
-            var result = await _repository.AddKeyframeAsync(imageId, position, yPosition);
+            int result;
+            try
+            {
+                result = await _repository.AddKeyframeAsync(imageId, position, yPosition);
+            }
+            catch (Exception ex)
+            {
+                _ = ex;
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[关键帧][Manager.Add][ERROR] imageId={imageId}, position={position:F4}, y={yPosition}, ex={ex}");
+                #endif
+                throw;
+            }
 
             if (result > 0)
             {
@@ -281,6 +293,14 @@ namespace ImageColorChanger.Managers.Keyframes
         public async Task<bool> UpdateLoopCountAsync(int keyframeId, int? loopCount)
         {
             return await _repository.UpdateLoopCountAsync(keyframeId, loopCount);
+        }
+
+        /// <summary>
+        /// 更新关键帧自动暂停标记
+        /// </summary>
+        public async Task<bool> UpdateAutoPauseAsync(int keyframeId, bool autoPause)
+        {
+            return await _repository.UpdateAutoPauseAsync(keyframeId, autoPause);
         }
 
         #endregion

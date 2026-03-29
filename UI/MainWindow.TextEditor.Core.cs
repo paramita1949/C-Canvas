@@ -583,6 +583,8 @@ namespace ImageColorChanger.UI
                 // 圣经模式：确保圣经区域可见
                 BibleDisplayContainer.Visibility = Visibility.Visible;
                 BibleVerseScrollViewer.Visibility = Visibility.Visible;
+                ApplyBibleTitleDisplayMode(true);
+                SyncProjectionBibleTitle();
 
                 // 隐藏其他区域
                 ImageScrollViewer.Visibility = Visibility.Collapsed;

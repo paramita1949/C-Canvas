@@ -33,6 +33,9 @@ namespace ImageColorChanger.UI
         // 合成播放的Storyboard引用（用于停止时清除）
         private System.Windows.Media.Animation.Storyboard _compositeScrollStoryboard = null;
 
+        // 合成播放“关键帧自动停止”去重（同一关键帧仅触发一次，直到切换到其他关键帧）
+        private int _lastCompositeAutoStopKeyframeId = -1;
+
         #endregion
 
         #region 关键帧状态管理

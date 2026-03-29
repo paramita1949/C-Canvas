@@ -866,6 +866,9 @@ namespace ImageColorChanger.UI
                 {
                     BibleNavigationPanel.Visibility = Visibility.Collapsed;
                     ProjectTree.Visibility = Visibility.Visible;
+                    _isBibleMode = false;
+                    ApplyBibleTitleDisplayMode(false);
+                    SyncProjectionBibleTitle();
                     
                     // 更新视图模式为幻灯片模式，并更新按钮高亮状态
                     _currentViewMode = NavigationViewMode.Projects;

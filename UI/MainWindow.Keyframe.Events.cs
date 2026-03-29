@@ -29,6 +29,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnAddKeyframe_Click(object sender, RoutedEventArgs e)
         {
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[关键帧][AddClick] enter, imageId={_currentImageId}, verticalOffset={ImageScrollViewer?.VerticalOffset:F2}, scrollableHeight={ImageScrollViewer?.ScrollableHeight:F2}");
+            #endif
+
             if (_currentImageId == 0)
             {
                 ShowStatus("请先选择一张图片");
@@ -52,6 +56,10 @@ namespace ImageColorChanger.UI
                 // 添加关键帧
                 bool success = await _keyframeManager.AddKeyframeAsync(
                     _currentImageId, position, yPosition);
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[关键帧][AddClick] result={success}, imageId={_currentImageId}, position={position:F4}, yPosition={yPosition}");
+                #endif
 
                 if (success)
                 {
@@ -79,6 +87,13 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[关键帧][AddClick][ERROR] {ex}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[关键帧][AddClick][INNER] {ex.InnerException}");
+                }
+                #endif
                 ShowStatus($"添加关键帧出错: {ex.Message}");
                 // System.Diagnostics.Debug.WriteLine($"添加关键帧异常: {ex}");
             }
@@ -443,24 +458,7 @@ namespace ImageColorChanger.UI
                 // 如果正在播放，停止
                 if (compositeService.IsPlaying)
                 {
-                    await compositeService.StopPlaybackAsync();
-                    SetCompositePlayButtonContent(false);
-                    BtnCompositePause.Visibility = Visibility.Collapsed;
-                    SetCompositePauseButtonContent(false);
-                    
-                    // 隐藏速度控制按钮
-                    BtnCompositeSpeed.Visibility = Visibility.Collapsed;
-                    
-                    // 停止滚动动画
-                    _keyframeManager?.StopScrollAnimation();
-                    StopCompositeScrollAnimation();
-                    
-                    // 重置倒计时显示
-                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
-                    _countdownService?.Stop();
-                    
-                    //System.Diagnostics.Debug.WriteLine("[合成播放] 已停止滚动动画和倒计时");
-                    ShowStatus("已停止合成播放");
+                    await StopCompositePlaybackLikeButtonAsync(compositeService, "已停止合成播放");
                     return;
                 }
 
@@ -504,6 +502,7 @@ namespace ImageColorChanger.UI
 
                 // 设置播放次数（使用当前的播放次数设置）
                 compositeService.PlayCount = _playbackViewModel?.PlayCount ?? -1;
+                _lastCompositeAutoStopKeyframeId = -1;
                 
                 // 每次开始新一轮播放时，重置速度为1.0（正常速度）
                 compositeService.SetSpeed(1.0);
@@ -585,6 +584,9 @@ namespace ImageColorChanger.UI
                 //#endif
 
                 // 开始播放
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[合成播放][StartRequest] source=BtnCompositePlay_Click, imageId={_currentImageId}, isPlayingBefore={compositeService.IsPlaying}, isPausedBefore={compositeService.IsPaused}");
+                #endif
                 await compositeService.StartPlaybackAsync(_currentImageId);
                 
                 //#if DEBUG
@@ -1019,7 +1021,7 @@ namespace ImageColorChanger.UI
                                 //#endif
                                 UpdateProjection();
                             }
-                            
+
                             // 停止FPS监控
                             StopFpsMonitoring();
                         },
@@ -1104,6 +1106,7 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.Invoke(() =>
             {
+                _lastCompositeAutoStopKeyframeId = -1;
                 SetCompositePlayButtonContent(false);
                 BtnCompositePause.Visibility = Visibility.Collapsed;
                 SetCompositePauseButtonContent(false);
@@ -1116,6 +1119,97 @@ namespace ImageColorChanger.UI
                 // 恢复正常的关键帧指示块显示
                 _keyframeManager?.UpdatePreviewLines();
             });
+        }
+
+        private async Task TryAutoStopAtCompositeKeyframeAsync(int keyframeId)
+        {
+            try
+            {
+                if (keyframeId <= 0 || _keyframeManager == null)
+                {
+                    return;
+                }
+
+                if (_lastCompositeAutoStopKeyframeId != keyframeId)
+                {
+                    _lastCompositeAutoStopKeyframeId = -1;
+                }
+
+                var compositeService = _playbackServiceFactory?.GetPlaybackService(Database.Models.Enums.PlaybackMode.Composite)
+                    as Services.Implementations.CompositePlaybackService;
+                if (compositeService == null || !compositeService.IsPlaying)
+                {
+                    return;
+                }
+
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] enter keyframeId={keyframeId}, currentImageId={_currentImageId}, last={_lastCompositeAutoStopKeyframeId}, isPlaying={compositeService.IsPlaying}, isPaused={compositeService.IsPaused}");
+                #endif
+
+                var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
+                if (keyframes == null || keyframes.Count == 0)
+                {
+                    keyframes = await _keyframeManager.GetKeyframesAsync(_currentImageId);
+                }
+
+                var keyframe = keyframes?.FirstOrDefault(k => k.Id == keyframeId);
+                if (keyframe == null || !keyframe.AutoPause)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] skip keyframeId={keyframeId}, found={keyframe != null}, autoStop={(keyframe?.AutoPause ?? false)}");
+                    #endif
+                    return;
+                }
+
+                if (_lastCompositeAutoStopKeyframeId == keyframeId)
+                {
+                    #if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] dedup keyframeId={keyframeId}");
+                    #endif
+                    return;
+                }
+
+                _lastCompositeAutoStopKeyframeId = keyframeId;
+                int displayIndex = (keyframe.OrderIndex ?? 0) + 1;
+                await StopCompositePlaybackLikeButtonAsync(compositeService, $"到达关键帧 #{displayIndex}，已自动停止");
+            }
+            catch
+            {
+                // 忽略自动停止异常，避免影响主播放链路
+            }
+        }
+
+        /// <summary>
+        /// 与“合成播放按钮点击后的停止分支”保持一致的停止逻辑。
+        /// </summary>
+        private async Task StopCompositePlaybackLikeButtonAsync(
+            Services.Implementations.CompositePlaybackService compositeService,
+            string statusMessage)
+        {
+            if (compositeService == null)
+            {
+                return;
+            }
+
+            await compositeService.StopPlaybackAsync();
+            _lastCompositeAutoStopKeyframeId = -1;
+
+            #if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[合成播放][StopLikeButton] status='{statusMessage}', imageId={_currentImageId}, isPlayingAfterStop={compositeService.IsPlaying}, isPausedAfterStop={compositeService.IsPaused}");
+            #endif
+
+            SetCompositePlayButtonContent(false);
+            BtnCompositePause.Visibility = Visibility.Collapsed;
+            SetCompositePauseButtonContent(false);
+            BtnCompositeSpeed.Visibility = Visibility.Collapsed;
+
+            // 与按钮停止一致：确保滚动动画和倒计时都被清理
+            _keyframeManager?.StopScrollAnimation();
+            StopCompositeScrollAnimation();
+            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+            _countdownService?.Stop();
+
+            ShowStatus(statusMessage);
         }
 
         /// <summary>
@@ -1375,6 +1469,17 @@ namespace ImageColorChanger.UI
                     
                     // 重绘关键帧指示块，高亮当前播放的关键帧
                     UpdateCompositePlaybackIndicator(e.KeyframeId, e.YPosition);
+
+                    #if DEBUG
+                    var compositeService = sender as Services.Implementations.CompositePlaybackService;
+                    System.Diagnostics.Debug.WriteLine($"[合成播放][KeyframeChanged] keyframeId={e.KeyframeId}, y={e.YPosition:F1}, arrived={e.IsSegmentArrived}, isPlaying={compositeService?.IsPlaying}, isPaused={compositeService?.IsPaused}");
+                    #endif
+
+                    // 仅在滚动段真正到达终点时触发自动停止，避免回调竞态导致“停了又开”
+                    if (e.IsSegmentArrived)
+                    {
+                        _ = TryAutoStopAtCompositeKeyframeAsync(e.KeyframeId);
+                    }
                     
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"    [合成播放关键帧变化] 指示块更新完成");

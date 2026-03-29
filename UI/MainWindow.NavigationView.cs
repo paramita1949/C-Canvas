@@ -739,6 +739,8 @@ namespace ImageColorChanger.UI
 
             _currentViewMode = NavigationViewMode.Files;
             _isBibleMode = false;
+            ApplyBibleTitleDisplayMode(false);
+            SyncProjectionBibleTitle();
 
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;
@@ -765,6 +767,8 @@ namespace ImageColorChanger.UI
 
             _currentViewMode = NavigationViewMode.Projects;
             _isBibleMode = false;
+            ApplyBibleTitleDisplayMode(false);
+            SyncProjectionBibleTitle();
 
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;

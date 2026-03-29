@@ -843,6 +843,7 @@ namespace ImageColorChanger.Database
                                 YPosition INTEGER NOT NULL,
                                 OrderIndex INTEGER NOT NULL,
                                 LoopCount INTEGER NULL,
+                                AutoPause INTEGER NOT NULL DEFAULT 0,
                                 FOREIGN KEY (ImageId) REFERENCES MediaFiles(Id) ON DELETE CASCADE
                             )");
                         
@@ -855,6 +856,36 @@ namespace ImageColorChanger.Database
                     else
                     {
                         // System.Diagnostics.Debug.WriteLine(" keyframes表已存在，跳过创建");
+
+                        // 兼容旧库：检查并补充 auto_pause 字段
+                        command.CommandText = "PRAGMA table_info(keyframes)";
+                        using (var tableInfoReader = command.ExecuteReader())
+                        {
+                            bool hasAutoPauseColumn = false;
+                            while (tableInfoReader.Read())
+                            {
+                                if (string.Equals(tableInfoReader["name"]?.ToString(), "auto_pause", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    hasAutoPauseColumn = true;
+                                    break;
+                                }
+                            }
+
+                            if (!hasAutoPauseColumn)
+                            {
+                                tableInfoReader.Close();
+                                #if DEBUG
+                                System.Diagnostics.Debug.WriteLine("[数据库][Keyframes] 缺少 auto_pause 列，执行自动补列");
+                                #endif
+                                Database.ExecuteSqlRaw("ALTER TABLE keyframes ADD COLUMN auto_pause INTEGER NOT NULL DEFAULT 0");
+                            }
+                            #if DEBUG
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine("[数据库][Keyframes] 检测到 auto_pause 列已存在");
+                            }
+                            #endif
+                        }
                     }
 
                     // 检查 keyframe_timings 表是否存在

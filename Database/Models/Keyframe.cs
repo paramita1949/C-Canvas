@@ -52,6 +52,12 @@ namespace ImageColorChanger.Database.Models
         public int? LoopCount { get; set; }
 
         /// <summary>
+        /// 合成播放到达该关键帧时是否自动暂停
+        /// </summary>
+        [Column("auto_pause")]
+        public bool AutoPause { get; set; }
+
+        /// <summary>
         /// 导航属性：所属图片
         /// </summary>
         [ForeignKey("ImageId")]

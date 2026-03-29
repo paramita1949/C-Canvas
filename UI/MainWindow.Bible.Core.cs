@@ -284,6 +284,8 @@ namespace ImageColorChanger.UI
                     ProjectTree.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Projects;
                     _isBibleMode = false;  // 退出圣经模式
+                    ApplyBibleTitleDisplayMode(false);
+                    SyncProjectionBibleTitle();
                     
                     //#if DEBUG
                     //Debug.WriteLine($" [圣经] 切换到项目树");
@@ -296,6 +298,8 @@ namespace ImageColorChanger.UI
                     BibleNavigationPanel.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Bible;
                     _isBibleMode = true;  // 进入圣经模式（关键修复！）
+                    ApplyBibleTitleDisplayMode(true);
+                    SyncProjectionBibleTitle();
                     
                     // 如果还未初始化，则初始化
                     if (!_bibleNavigationInitialized)
