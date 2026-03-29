@@ -142,9 +142,9 @@ namespace ImageColorChanger.UI
             // IME控制已通过XAML的InputMethod属性实现：
             // BibleVerseScrollViewer 设置了 InputMethod.PreferredImeState="Off" 和 InputMethod.IsInputMethodEnabled="False"
             // 这样当焦点在圣经区域时，会自动禁用中文输入法，强制英文输入
-            #if DEBUG
-            System.Diagnostics.Debug.WriteLine("[圣经拼音] IME已通过XAML禁用（InputMethod.PreferredImeState=Off）");
-            #endif
+//#if DEBUG
+//            System.Diagnostics.Debug.WriteLine("[圣经拼音] IME已通过XAML禁用（InputMethod.PreferredImeState=Off）");
+//#endif
         }
 
         /// <summary>
@@ -269,12 +269,29 @@ namespace ImageColorChanger.UI
                 focused is System.Windows.Controls.PasswordBox ||
                 focused is System.Windows.Controls.ComboBox)
             {
+                bool allowWhenBibleNavigationComboFocused =
+                    _isBibleMode &&
+                    focused is System.Windows.Controls.ComboBox &&
+                    (ReferenceEquals(focused, BibleCategoryList) ||
+                     ReferenceEquals(focused, BibleBookList) ||
+                     ReferenceEquals(focused, BibleChapterList) ||
+                     ReferenceEquals(focused, BibleStartVerse) ||
+                     ReferenceEquals(focused, BibleEndVerse) ||
+                     (BibleCategoryList?.IsKeyboardFocusWithin ?? false) ||
+                     (BibleBookList?.IsKeyboardFocusWithin ?? false) ||
+                     (BibleChapterList?.IsKeyboardFocusWithin ?? false) ||
+                     (BibleStartVerse?.IsKeyboardFocusWithin ?? false) ||
+                     (BibleEndVerse?.IsKeyboardFocusWithin ?? false));
+
                 bool allowWhenBibleSearchBoxFocused =
                     _isBibleMode &&
                     (ReferenceEquals(focused, SearchBox) || (SearchBox?.IsKeyboardFocusWithin ?? false));
-                if (!allowWhenBibleSearchBoxFocused)
+                if (!allowWhenBibleSearchBoxFocused && !allowWhenBibleNavigationComboFocused)
                 {
-                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"skip: focused input control {focused.GetType().Name}");
+                    LogBibleQuickLocateDebug(
+                        "TryHandleFromWindow",
+                        $"skip: focused input control {focused.GetType().Name}, " +
+                        $"allowSearchBox={allowWhenBibleSearchBoxFocused}, allowNavCombo={allowWhenBibleNavigationComboFocused}");
                     return false;
                 }
 
@@ -305,6 +322,14 @@ namespace ImageColorChanger.UI
                     LogBibleQuickLocateDebug("TryHandleFromWindow", $"activation key pressed -> activated manager: {key}");
                     ShowBibleQuickLocateActivationHint();
                     return true;
+                }
+
+                if (key >= Key.A && key <= Key.Z)
+                {
+                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"manager inactive + alpha key -> activate by key={key}");
+                    var handledWhenInactive = await HandleBiblePinyinInputKeyAsync(key, showActivationStatus: false);
+                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"inactive alpha delegated handled={handledWhenInactive}, key={key}");
+                    return handledWhenInactive;
                 }
 
                 LogBibleQuickLocateDebug("TryHandleFromWindow", "manager inactive and key is not activation key");
@@ -852,6 +877,13 @@ namespace ImageColorChanger.UI
                     if (!historyOnlyMode && !directInsertMode)
                     {
                         await LoadChapterVersesAsync(result.BookId.Value, 1);
+                        if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+                        {
+                            if (!_historySlots.Any(x => x.IsLocked))
+                            {
+                                RenderBibleToProjection();
+                            }
+                        }
                     }
 
                     if (directInsertMode)
@@ -873,6 +905,13 @@ namespace ImageColorChanger.UI
                     if (!historyOnlyMode && !directInsertMode)
                     {
                         await LoadChapterVersesAsync(result.BookId.Value, result.Chapter.Value);
+                        if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+                        {
+                            if (!_historySlots.Any(x => x.IsLocked))
+                            {
+                                RenderBibleToProjection();
+                            }
+                        }
                     }
 
                     if (directInsertMode)
@@ -927,11 +966,16 @@ namespace ImageColorChanger.UI
                 
                 // 恢复IME状态
                 RestoreIME();
+
+                // 同步导航下拉框后，焦点可能停留在输入控件，导致下一次拼音快捷输入被全局入口跳过。
+                // 这里将焦点拉回经文区，保持“可连续输入”的体验。
+                EnsureBibleQuickLocateFocus("OnPinyinLocationConfirmed");
             }
             catch (Exception ex)
             {
                 // 失败时也要恢复IME
                 RestoreIME();
+                EnsureBibleQuickLocateFocus("OnPinyinLocationConfirmed:Exception");
                 LogBibleQuickLocateDebug("OnPinyinLocationConfirmed", $"exception: {ex.Message}");
                 
                 WpfMessageBox.Show($"定位失败：{ex.Message}", "错误", 

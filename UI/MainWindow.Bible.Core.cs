@@ -678,10 +678,25 @@ namespace ImageColorChanger.UI
                 // 设置主屏幕底部扩展空间（按置顶偏移增加额外空间，避免后段经文无法继续上推）
                 UpdateMainScreenBottomExtension();
 
-                // 延迟应用样式
+                // 应用样式后再更新投影（确保高度计算完成）
                 _ = Dispatcher.InvokeAsync(() =>
                 {
                     ApplyBibleSettings();
+
+                    // 样式应用完成后，更新投影
+                    if (_isBibleMode && _projectionManager != null && _projectionManager.IsProjecting)
+                    {
+                        // 检查是否有锁定记录
+                        if (_historySlots.Any(x => x.IsLocked))
+                        {
+                            // 锁定模式：加载新章节时，不更新投影（保持锁定记录投影）
+                        }
+                        else
+                        {
+                            // 非锁定模式：样式应用后更新投影
+                            RenderBibleToProjection();
+                        }
+                    }
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 //#if DEBUG
