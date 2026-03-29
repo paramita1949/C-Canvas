@@ -243,9 +243,10 @@ namespace ImageColorChanger.UI
             bool isSlideProjectionMode =
                 (TextEditorPanel?.Visibility == Visibility.Visible || _currentTextProject != null) &&
                 (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
+            bool isAlphaKey = key >= Key.A && key <= Key.Z;
             bool isBibleTabOrActive =
                 _isBibleMode &&
-                (IsBibleQuickLocateActivationKey(key) || (_pinyinInputManager?.IsActive ?? false));
+                (IsBibleQuickLocateActivationKey(key) || isAlphaKey || (_pinyinInputManager?.IsActive ?? false));
             bool canUseQuickLocate = isTextEditorContext || isSlideProjectionMode || isBibleTabOrActive;
 
             var focused = Keyboard.FocusedElement;
@@ -268,8 +269,16 @@ namespace ImageColorChanger.UI
                 focused is System.Windows.Controls.PasswordBox ||
                 focused is System.Windows.Controls.ComboBox)
             {
-                LogBibleQuickLocateDebug("TryHandleFromWindow", $"skip: focused input control {focused.GetType().Name}");
-                return false;
+                bool allowWhenBibleSearchBoxFocused =
+                    _isBibleMode &&
+                    (ReferenceEquals(focused, SearchBox) || (SearchBox?.IsKeyboardFocusWithin ?? false));
+                if (!allowWhenBibleSearchBoxFocused)
+                {
+                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"skip: focused input control {focused.GetType().Name}");
+                    return false;
+                }
+
+                LogBibleQuickLocateDebug("TryHandleFromWindow", $"allow: focused input control {focused.GetType().Name} in bible mode");
             }
 
             if (_pinyinInputManager == null)
@@ -583,8 +592,10 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return;
 
+            int anchorIndex = GetBibleScrollAnchorIndex(verseIndex);
+
             // 计算目标滚动位置
-            double targetOffset = CalculateVerseOffset(verseIndex);
+            double targetOffset = GetClampedBibleScrollOffset(CalculateVerseOffset(anchorIndex));
 
             // 使用计时器实现平滑滚动
             double startOffset = BibleVerseScrollViewer.VerticalOffset;
@@ -625,6 +636,7 @@ namespace ImageColorChanger.UI
                 {
                     // 最后一步，精确到目标位置
                     BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
+                    QueueBibleScrollCorrection(anchorIndex);
                     localTimer.Tick -= tickHandler;
                     localTimer.Stop();
                 }
@@ -650,11 +662,76 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return;
 
+            int anchorIndex = GetBibleScrollAnchorIndex(verseIndex);
+
             // 计算目标滚动位置
-            double targetOffset = CalculateVerseOffset(verseIndex);
+            double targetOffset = GetClampedBibleScrollOffset(CalculateVerseOffset(anchorIndex));
 
             // 直接跳转，无动画
             BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
+            QueueBibleScrollCorrection(anchorIndex);
+        }
+
+        private int GetBibleScrollAnchorIndex(int targetVerseIndex)
+        {
+            int topOffset = Math.Clamp(_configManager?.BibleScrollTopOffset ?? 0, 0, 4);
+            int anchorIndex = targetVerseIndex - topOffset;
+            return Math.Max(0, anchorIndex);
+        }
+
+        private double GetClampedBibleScrollOffset(double offset)
+        {
+            if (BibleVerseScrollViewer == null)
+            {
+                return Math.Max(0, offset);
+            }
+
+            double scrollableHeight = Math.Max(0, BibleVerseScrollViewer.ScrollableHeight);
+            if (double.IsNaN(scrollableHeight) || double.IsInfinity(scrollableHeight))
+            {
+                scrollableHeight = 0;
+            }
+
+            return Math.Clamp(offset, 0, scrollableHeight);
+        }
+
+        private void QueueBibleScrollCorrection(int anchorIndex)
+        {
+            if (BibleVerseScrollViewer == null || BibleVerseList == null)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (anchorIndex < 0 || anchorIndex >= BibleVerseList.Items.Count)
+                {
+                    return;
+                }
+
+                double corrected = GetClampedBibleScrollOffset(CalculateVerseOffset(anchorIndex));
+                if (Math.Abs(BibleVerseScrollViewer.VerticalOffset - corrected) > 1.0)
+                {
+                    BibleVerseScrollViewer.ScrollToVerticalOffset(corrected);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void EnsureBibleQuickLocateFocus(string source)
+        {
+            void TryFocus()
+            {
+                if (!_isBibleMode || BibleDisplayContainer?.Visibility != Visibility.Visible || BibleVerseScrollViewer == null)
+                {
+                    return;
+                }
+
+                BibleVerseScrollViewer.Focus();
+                Keyboard.Focus(BibleVerseScrollViewer);
+            }
+
+            Dispatcher.BeginInvoke(new Action(TryFocus), System.Windows.Threading.DispatcherPriority.Input);
+            Dispatcher.BeginInvoke(new Action(TryFocus), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         /// <summary>

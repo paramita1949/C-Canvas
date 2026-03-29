@@ -317,6 +317,25 @@
                 </ComboBox>
             </Grid>
 
+            <!-- 滚动置顶偏移 -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="置顶" Style="{StaticResource LabelStyle}"/>
+                <ComboBox x:Name="CmbScrollTopOffset" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
+                          SelectionChanged="Setting_Changed"
+                          MouseWheel="ComboBox_MouseWheel">
+                    <ComboBoxItem Content="0" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="1" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="2" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="3" Style="{StaticResource ComboBoxItemStyle}"/>
+                    <ComboBoxItem Content="4" Style="{StaticResource ComboBoxItemStyle}"/>
+                </ComboBox>
+            </Grid>
+
             <!-- 颜色设置（横向一行：背景 ■ 经文 ■ 标题 ■ 节号 ■ 选中 ■） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <TextBlock Text="背景" Style="{StaticResource ColorLabelStyle}" Margin="0,0,5,0"/>

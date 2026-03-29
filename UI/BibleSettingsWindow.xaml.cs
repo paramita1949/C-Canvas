@@ -295,6 +295,13 @@ namespace ImageColorChanger.UI
                     }
                 }
 
+                // 滚动置顶偏移（0-4）
+                if (CmbScrollTopOffset != null)
+                {
+                    int topOffset = Math.Clamp(_configManager.BibleScrollTopOffset, 0, 4);
+                    SelectComboBoxItem(CmbScrollTopOffset, topOffset.ToString());
+                }
+
                 // 更新颜色预览
                 if (BorderBackgroundColor != null && !string.IsNullOrEmpty(_configManager.BibleBackgroundColor))
                 {
@@ -648,6 +655,12 @@ namespace ImageColorChanger.UI
                 if (CmbTitleMode != null && CmbTitleMode.SelectedItem is System.Windows.Controls.ComboBoxItem titleModeItem)
                 {
                     _configManager.BibleFixedTitle = titleModeItem.Tag?.ToString() != "0";
+                }
+
+                // 保存滚动置顶偏移（0-4）
+                if (TryGetComboBoxNumericValue(CmbScrollTopOffset, out var scrollTopOffset))
+                {
+                    _configManager.BibleScrollTopOffset = Math.Clamp((int)Math.Round(scrollTopOffset), 0, 4);
                 }
 
                 // 保存颜色

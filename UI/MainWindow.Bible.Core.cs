@@ -482,6 +482,7 @@ namespace ImageColorChanger.UI
             // 更新按钮状态
             UpdateViewModeButtons();
             ApplyUnifiedSearchResetAndTreeRefresh();
+            EnsureBibleQuickLocateFocus("BtnShowBible_Click");
         }
 
 
@@ -671,6 +672,9 @@ namespace ImageColorChanger.UI
                 
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
+                
+                // 设置主屏幕底部扩展空间（按置顶偏移增加额外空间，避免后段经文无法继续上推）
+                UpdateMainScreenBottomExtension();
 
                 // 延迟应用样式
                 _ = Dispatcher.InvokeAsync(() =>
@@ -1493,12 +1497,10 @@ namespace ImageColorChanger.UI
                     if (BibleVerseScrollViewer != null && BibleBottomExtension != null)
                     {
                         double viewportHeight = BibleVerseScrollViewer.ViewportHeight;
-                        BibleBottomExtension.Height = viewportHeight;
-                        
-                        //#if DEBUG
-                        //Debug.WriteLine($"[主屏扩展] 设置底部扩展高度: {viewportHeight:F2}");
-                        //Debug.WriteLine($"[主屏扩展] 说明: 主屏幕和投影的底部扩展高度必须一致(=屏幕/视口高度)，以确保顶部对齐");
-                        //#endif
+                        int topOffset = Math.Clamp(_configManager?.BibleScrollTopOffset ?? 0, 0, 4);
+                        double estimatedVerseHeight = EstimateBibleVerseHeight();
+                        double extraForTopOffset = estimatedVerseHeight * topOffset;
+                        BibleBottomExtension.Height = Math.Max(0, viewportHeight + extraForTopOffset);
                     }
                 }, System.Windows.Threading.DispatcherPriority.Loaded);
             }
@@ -1506,6 +1508,45 @@ namespace ImageColorChanger.UI
             {
                 // 忽略错误
             }
+        }
+
+        private double EstimateBibleVerseHeight()
+        {
+            try
+            {
+                if (BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                {
+                    return 110d;
+                }
+
+                double total = 0d;
+                int count = 0;
+                int sampleCount = Math.Min(8, BibleVerseList.Items.Count);
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    if (BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement container &&
+                        container.ActualHeight > 1d)
+                    {
+                        total += container.ActualHeight;
+                        count++;
+                    }
+                }
+
+                if (count > 0)
+                {
+                    return total / count;
+                }
+
+                if (BibleVerseScrollViewer?.ViewportHeight > 0)
+                {
+                    return Math.Max(80d, BibleVerseScrollViewer.ViewportHeight / 8d);
+                }
+            }
+            catch
+            {
+            }
+
+            return 110d;
         }
         
         /// <summary>

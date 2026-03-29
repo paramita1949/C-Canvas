@@ -803,6 +803,27 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经滚动置顶偏移（0-4，0表示目标节置顶，1表示目标节显示在第2行）
+        /// </summary>
+        public int BibleScrollTopOffset
+        {
+            get
+            {
+                int raw = _config.BibleScrollTopOffset;
+                return Math.Clamp(raw, 0, 4);
+            }
+            set
+            {
+                int normalized = Math.Clamp(value, 0, 4);
+                if (_config.BibleScrollTopOffset != normalized)
+                {
+                    _config.BibleScrollTopOffset = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 歌词文字水印颜色（空字符串表示跟随歌词颜色）
         /// </summary>
         public string LyricsTextWatermarkColorHex
@@ -1939,6 +1960,11 @@ namespace ImageColorChanger.Core
         /// 圣经标题是否固定（默认：true）
         /// </summary>
         public bool BibleFixedTitle { get; set; } = true;
+
+        /// <summary>
+        /// 圣经滚动置顶偏移（默认：0，目标节置顶）
+        /// </summary>
+        public int BibleScrollTopOffset { get; set; } = 0;
 
         /// <summary>
         /// 圣经节号字体大小（默认：46，与经文相同）

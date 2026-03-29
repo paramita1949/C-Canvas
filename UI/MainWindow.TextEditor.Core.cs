@@ -585,6 +585,7 @@ namespace ImageColorChanger.UI
                 BibleVerseScrollViewer.Visibility = Visibility.Visible;
                 ApplyBibleTitleDisplayMode(true);
                 SyncProjectionBibleTitle();
+                EnsureBibleQuickLocateFocus("HideTextEditor");
 
                 // 隐藏其他区域
                 ImageScrollViewer.Visibility = Visibility.Collapsed;
