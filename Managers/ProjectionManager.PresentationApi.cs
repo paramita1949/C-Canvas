@@ -46,6 +46,34 @@ namespace ImageColorChanger.Managers
         }
 
         /// <summary>
+        /// 设置投影端圣经固定标题样式（字体/字号/颜色/背景）。
+        /// </summary>
+        public void SetBibleTitleStyle(
+            string fontFamily,
+            double fontSize,
+            string titleColorHex,
+            string backgroundColorHex,
+            double sourceDpiScaleY = 1.0d,
+            double contentScaleRatio = 1.0d)
+        {
+            if (_projectionWindow == null || _projectionBibleTitleBorder == null || _projectionBibleTitleText == null)
+            {
+                return;
+            }
+
+            RunOnMainDispatcher(() =>
+            {
+                UpdateBibleTitleStyleOnUi(
+                    fontFamily,
+                    fontSize,
+                    titleColorHex,
+                    backgroundColorHex,
+                    sourceDpiScaleY,
+                    contentScaleRatio);
+            });
+        }
+
+        /// <summary>
         /// 显示圣经弹窗（叠加在投影层，不切换模式）。
         /// </summary>
         public void ShowBibleVersePopup(string reference, string content, BibleTextInsertConfig config, int autoHideSeconds = 10)

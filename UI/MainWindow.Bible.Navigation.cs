@@ -340,6 +340,41 @@ namespace ImageColorChanger.UI
                 BibleChapterTitleBorder?.Visibility == Visibility.Visible &&
                 !string.IsNullOrWhiteSpace(title);
 
+            string projectionTitleFontFamily = BibleChapterTitle?.FontFamily?.Source;
+            double projectionTitleFontSize = BibleChapterTitle?.FontSize ?? (_configManager?.BibleTitleFontSize ?? 0d);
+            string projectionTitleColor = _configManager?.BibleTitleColor;
+            string projectionTitleBackground = _configManager?.BibleBackgroundColor;
+            double sourceDpiScaleY = 1.0d;
+            double contentScaleRatio = 1.0d;
+            try
+            {
+                var dpiSource = (Visual)BibleChapterTitle ?? this;
+                sourceDpiScaleY = VisualTreeHelper.GetDpi(dpiSource).DpiScaleY;
+            }
+            catch
+            {
+                sourceDpiScaleY = 1.0d;
+            }
+            try
+            {
+                double projectionWidth = _projectionManager?.GetProjectionScreenSize().width ?? 0d;
+                if (projectionWidth > 1d && BibleVerseScrollViewer?.Content is FrameworkElement content && content.RenderSize.Width > 1d)
+                {
+                    contentScaleRatio = projectionWidth / content.RenderSize.Width;
+                }
+            }
+            catch
+            {
+                contentScaleRatio = 1.0d;
+            }
+
+            _projectionManager.SetBibleTitleStyle(
+                projectionTitleFontFamily,
+                projectionTitleFontSize,
+                projectionTitleColor,
+                projectionTitleBackground,
+                sourceDpiScaleY,
+                contentScaleRatio);
             _projectionManager.SetBibleTitle(title, visible);
         }
 

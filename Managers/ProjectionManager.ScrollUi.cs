@@ -156,6 +156,116 @@ namespace ImageColorChanger.Managers
             }
         }
 
+        private void UpdateBibleTitleStyleOnUi(
+            string fontFamily,
+            double fontSize,
+            string titleColorHex,
+            string backgroundColorHex,
+            double sourceDpiScaleY,
+            double contentScaleRatio)
+        {
+            double projectionDpiScaleY = 1.0d;
+            try
+            {
+                if (_projectionWindow != null)
+                {
+                    projectionDpiScaleY = System.Windows.Media.VisualTreeHelper.GetDpi(_projectionWindow).DpiScaleY;
+                }
+            }
+            catch
+            {
+            }
+
+            if (projectionDpiScaleY <= 0)
+            {
+                projectionDpiScaleY = 1.0d;
+            }
+
+            if (sourceDpiScaleY <= 0)
+            {
+                sourceDpiScaleY = 1.0d;
+            }
+
+            if (contentScaleRatio <= 0)
+            {
+                contentScaleRatio = 1.0d;
+            }
+
+            // 主屏与投影屏 DPI 不一致时，按像素等效换算，避免“同 DIP 字号在高 DPI 投影上变大”。
+            // 另外固定标题是独立 Overlay，需叠加内容缩放比，才能与投影经文主体视觉一致。
+            double normalizedFontSize = fontSize * (sourceDpiScaleY / projectionDpiScaleY) * contentScaleRatio;
+            if (normalizedFontSize <= 0)
+            {
+                normalizedFontSize = fontSize;
+            }
+
+            if (_projectionBibleTitleText != null)
+            {
+                if (!string.IsNullOrWhiteSpace(fontFamily))
+                {
+                    try
+                    {
+                        _projectionBibleTitleText.FontFamily = new System.Windows.Media.FontFamily(fontFamily);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (normalizedFontSize > 0)
+                {
+                    _projectionBibleTitleText.FontSize = normalizedFontSize;
+                }
+
+                if (!string.IsNullOrWhiteSpace(titleColorHex))
+                {
+                    try
+                    {
+                        var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(titleColorHex);
+                        _projectionBibleTitleText.Foreground = new System.Windows.Media.SolidColorBrush(color);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            if (_projectionBibleTitleBorder != null && !string.IsNullOrWhiteSpace(backgroundColorHex))
+            {
+                try
+                {
+                    var bg = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(backgroundColorHex);
+                    _projectionBibleTitleBorder.Background = new System.Windows.Media.SolidColorBrush(bg);
+                }
+                catch
+                {
+                }
+            }
+
+#if DEBUG
+            try
+            {
+                string signature =
+                    $"{_projectionBibleTitleText?.FontFamily?.Source}|{_projectionBibleTitleText?.FontSize:0.##}|" +
+                    $"{sourceDpiScaleY:0.###}|{projectionDpiScaleY:0.###}|{contentScaleRatio:0.###}|" +
+                    $"{titleColorHex}|{backgroundColorHex}";
+                if (!string.Equals(signature, _lastBibleTitleDiagSignature, StringComparison.Ordinal))
+                {
+                    _lastBibleTitleDiagSignature = signature;
+                    System.Diagnostics.Trace.WriteLine(
+                        $"[BibleTitleDiag][Projection.UpdateBibleTitleStyleOnUi] " +
+                        $"fontFamily={_projectionBibleTitleText?.FontFamily?.Source}, fontSize={_projectionBibleTitleText?.FontSize:0.##}, " +
+                        $"sourceDpiScaleY={sourceDpiScaleY:0.###}, projectionDpiScaleY={projectionDpiScaleY:0.###}, " +
+                        $"contentScaleRatio={contentScaleRatio:0.###}, requestedFontSize={fontSize:0.##}, normalizedFontSize={normalizedFontSize:0.##}, " +
+                        $"titleColorHex={titleColorHex}, backgroundColorHex={backgroundColorHex}");
+                }
+            }
+            catch
+            {
+            }
+#endif
+        }
+
         private void SetProjectionMode(bool showVideo)
         {
             ResetVisualBrushProjection();
