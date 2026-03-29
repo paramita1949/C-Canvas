@@ -74,17 +74,17 @@ namespace ImageColorChanger.Services.TextEditor
             }
 
 #if DEBUG
-            string safeContent = (content ?? string.Empty).Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
-            if (safeContent.Length > 120)
-            {
-                safeContent = safeContent.Substring(0, 120) + "...";
-            }
-            string joined = string.Concat(ordered.Select(s => s.Text ?? string.Empty));
-            int contentNoBreakLen = (content ?? string.Empty).Replace("\r\n", "").Replace("\n", "").Replace("\r", "").Length;
-            Debug.WriteLine(
-                $"[换行诊断][RichTextSerializer][FallbackV1ToV2] textElementId={textElementId}, " +
-                $"contentLen={(content ?? string.Empty).Length}, contentNoBreakLen={contentNoBreakLen}, " +
-                $"joinedLen={joined.Length}, spanCount={ordered.Count}, contentPreview='{safeContent}'");
+            // string safeContent = (content ?? string.Empty).Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
+            // if (safeContent.Length > 120)
+            // {
+            //     safeContent = safeContent.Substring(0, 120) + "...";
+            // }
+            // string joined = string.Concat(ordered.Select(s => s.Text ?? string.Empty));
+            // int contentNoBreakLen = (content ?? string.Empty).Replace("\r\n", "").Replace("\n", "").Replace("\r", "").Length;
+            // Debug.WriteLine(
+            //     $"[换行诊断][RichTextSerializer][FallbackV1ToV2] textElementId={textElementId}, " +
+            //     $"contentLen={(content ?? string.Empty).Length}, contentNoBreakLen={contentNoBreakLen}, " +
+            //     $"joinedLen={joined.Length}, spanCount={ordered.Count}, contentPreview='{safeContent}'");
 #endif
 
             Debug.WriteLine($"[RichTextSerializer] v1 -> v2 升级使用保守回退: textElementId={textElementId}");
@@ -103,15 +103,15 @@ namespace ImageColorChanger.Services.TextEditor
             if (!string.Equals(contentWithoutLineBreaks, spansJoined, StringComparison.Ordinal))
             {
 #if DEBUG
-                string contentPreview = content.Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
-                if (contentPreview.Length > 120)
-                {
-                    contentPreview = contentPreview.Substring(0, 120) + "...";
-                }
-                Debug.WriteLine(
-                    $"[换行诊断][RichTextSerializer][TryUpgradeByContentMismatch] textElementId={textElementId}, " +
-                    $"contentNoBreakLen={contentWithoutLineBreaks.Length}, spansJoinedLen={spansJoined.Length}, " +
-                    $"spanCount={orderedSpans.Count}, contentPreview='{contentPreview}'");
+                // string contentPreview = content.Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
+                // if (contentPreview.Length > 120)
+                // {
+                //     contentPreview = contentPreview.Substring(0, 120) + "...";
+                // }
+                // Debug.WriteLine(
+                //     $"[换行诊断][RichTextSerializer][TryUpgradeByContentMismatch] textElementId={textElementId}, " +
+                //     $"contentNoBreakLen={contentWithoutLineBreaks.Length}, spansJoinedLen={spansJoined.Length}, " +
+                //     $"spanCount={orderedSpans.Count}, contentPreview='{contentPreview}'");
 #endif
                 return false;
             }

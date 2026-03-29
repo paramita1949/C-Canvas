@@ -779,6 +779,10 @@ namespace ImageColorChanger.UI.Controls
 
                 _richTextBox.UpdateLayout();
 
+                // 保持“编辑态”与“重进后”一致：字号变化后立即重算段落行高。
+                // 否则编辑时看到的行距可能沿用旧值，保存重进后才按新字号生效，造成视觉不一致。
+                ApplyLineHeightToAllParagraphs();
+
 
 
                 //// 检测文本是否被边框遮挡（调试用，已验证修复）

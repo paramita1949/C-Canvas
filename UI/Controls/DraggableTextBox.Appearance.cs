@@ -46,6 +46,8 @@ namespace ImageColorChanger.UI.Controls
                 // 如果有 RichTextSpans，不应用全局字体样式（保持每个片段的独立样式）
 
                 bool hasRichTextSpans = Data.RichTextSpans != null && Data.RichTextSpans.Count > 0;
+                double baseFontSize = Data?.FontSize > 0 ? Data.FontSize : 24d;
+                _richTextBox.FontSize = baseFontSize;
 
 
 

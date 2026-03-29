@@ -32,23 +32,33 @@ namespace ImageColorChanger.Services.TextEditor
             double fontSize = textElement != null && textElement.FontSize > 0
                 ? textElement.FontSize
                 : 24;
+            double? lastResolvedParagraphFontSize = null;
             foreach (var block in richTextBox.Document.Blocks)
             {
                 if (block is System.Windows.Documents.Paragraph paragraph)
                 {
                     paragraph.Margin = profile.ParagraphMargin;
 
-                    // 对富文本使用段落内实际最大字号计算行高，避免加载/改色后出现“文字漂移错觉”。
-                    double paragraphFontSize = fontSize;
-                    if (paragraph.Inlines != null && paragraph.Inlines.Count > 0)
+                    // 对富文本使用段落内“有文本内容”的实际最大字号计算行高。
+                    // 空段落（用户刚回车、或仅占位空 run）继承上一段字号，避免编辑态与重进后行距不一致。
+                    double paragraphFontSize = lastResolvedParagraphFontSize ?? fontSize;
+                    var nonEmptyRunSizes = paragraph.Inlines?
+                        .OfType<System.Windows.Documents.Run>()
+                        .Where(r => !string.IsNullOrEmpty(r.Text))
+                        .Select(r => r.FontSize > 0 ? r.FontSize : fontSize)
+                        .Where(s => s > 0)
+                        .ToList();
+
+                    if (nonEmptyRunSizes != null && nonEmptyRunSizes.Count > 0)
                     {
-                        var runMax = paragraph.Inlines
-                            .OfType<System.Windows.Documents.Run>()
-                            .Select(r => r.FontSize > 0 ? r.FontSize : fontSize)
-                            .DefaultIfEmpty(fontSize)
-                            .Max();
-                        paragraphFontSize = runMax > 0 ? runMax : fontSize;
+                        paragraphFontSize = nonEmptyRunSizes.Max();
                     }
+                    else if (paragraphFontSize <= 0)
+                    {
+                        paragraphFontSize = fontSize;
+                    }
+
+                    lastResolvedParagraphFontSize = paragraphFontSize;
 
                     double lineHeight = paragraphFontSize * lineSpacing;
                     paragraph.LineHeight = lineHeight;

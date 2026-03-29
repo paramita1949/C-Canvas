@@ -272,8 +272,22 @@ namespace ImageColorChanger.UI.Controls
                             Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion,
                             StringComparison.OrdinalIgnoreCase) &&
                         s.ParagraphIndex.HasValue);
+                    int distinctParagraphCount = sortedSpans
+                        .Select(s => s.ParagraphIndex ?? 0)
+                        .Distinct()
+                        .Count();
+                    bool contentLooksMultiline = contentLines.Length > 1;
+                    bool paragraphMetadataCollapsed = contentLooksMultiline && distinctParagraphCount <= 1;
 
-                    if (hasV2Spans)
+#if DEBUG
+                    // System.Diagnostics.Debug.WriteLine(
+                    //     $"[换行诊断][SyncTextToRichTextBox][LoadMeta] textElementId={Data?.Id}, " +
+                    //     $"contentLines={contentLines.Length}, spanCount={sortedSpans.Count}, " +
+                    //     $"hasV2Spans={hasV2Spans}, distinctParagraphCount={distinctParagraphCount}, " +
+                    //     $"paragraphMetadataCollapsed={paragraphMetadataCollapsed}");
+#endif
+
+                    if (hasV2Spans && !paragraphMetadataCollapsed)
                     {
                         RenderRichTextSpansV2(sortedSpans);
                     }
@@ -425,21 +439,21 @@ namespace ImageColorChanger.UI.Controls
 
                     {
 #if DEBUG
-                        int contentLineCount = contentLines.Length;
-                        int spanCount = sortedSpans.Count;
-                        int nonEmptySpanCount = sortedSpans.Count(s => !string.IsNullOrEmpty(s.Text));
-                        int paragraphSpanCount = sortedSpans.Count(s => s.ParagraphIndex.HasValue);
-                        string contentPreview = (content ?? string.Empty).Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
-                        if (contentPreview.Length > 120)
-                        {
-                            contentPreview = contentPreview.Substring(0, 120) + "...";
-                        }
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[换行诊断][SyncTextToRichTextBox][Mismatch] textElementId={Data?.Id}, " +
-                            $"contentLen={(content ?? string.Empty).Length}, contentLines={contentLineCount}, " +
-                            $"spanCount={spanCount}, nonEmptySpanCount={nonEmptySpanCount}, paragraphSpanCount={paragraphSpanCount}, " +
-                            $"spansJoinedLen={allSpansText.Length}, contentNoBreakLen={contentWithoutLineBreaks.Length}, " +
-                            $"contentPreview='{contentPreview}'");
+                        // int contentLineCount = contentLines.Length;
+                        // int spanCount = sortedSpans.Count;
+                        // int nonEmptySpanCount = sortedSpans.Count(s => !string.IsNullOrEmpty(s.Text));
+                        // int paragraphSpanCount = sortedSpans.Count(s => s.ParagraphIndex.HasValue);
+                        // string contentPreview = (content ?? string.Empty).Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
+                        // if (contentPreview.Length > 120)
+                        // {
+                        //     contentPreview = contentPreview.Substring(0, 120) + "...";
+                        // }
+                        // System.Diagnostics.Debug.WriteLine(
+                        //     $"[换行诊断][SyncTextToRichTextBox][Mismatch] textElementId={Data?.Id}, " +
+                        //     $"contentLen={(content ?? string.Empty).Length}, contentLines={contentLineCount}, " +
+                        //     $"spanCount={spanCount}, nonEmptySpanCount={nonEmptySpanCount}, paragraphSpanCount={paragraphSpanCount}, " +
+                        //     $"spansJoinedLen={allSpansText.Length}, contentNoBreakLen={contentWithoutLineBreaks.Length}, " +
+                        //     $"contentPreview='{contentPreview}'");
 #endif
 
                         // 如果 spans 文本与 Content（去换行）不一致，优先保留 Content 的段落结构，
@@ -501,6 +515,11 @@ namespace ImageColorChanger.UI.Controls
                         }
 
                     }
+
+#if DEBUG
+                    // System.Diagnostics.Debug.WriteLine(
+                    //     $"[换行诊断][SyncTextToRichTextBox][RenderDone] textElementId={Data?.Id}, blocks={_richTextBox.Document.Blocks.Count}");
+#endif
 
                     }
 

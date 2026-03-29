@@ -64,15 +64,15 @@ namespace ImageColorChanger.Services.TextEditor
                     cancellationToken.ThrowIfCancellationRequested();
 
 #if DEBUG
-                    int lineCount = (snapshot.Content ?? string.Empty)
-                        .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
-                        .Length;
-                    int spanCount = snapshot.RichTextSpans?.Count ?? 0;
-                    int paragraphSpanCount = snapshot.RichTextSpans?.Count(s => s.ParagraphIndex.HasValue) ?? 0;
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[换行诊断][Persist] textElementId={snapshot.TextElementId}, " +
-                        $"contentLen={(snapshot.Content ?? string.Empty).Length}, lineCount={lineCount}, " +
-                        $"spanCount={spanCount}, paragraphSpanCount={paragraphSpanCount}");
+                    // int lineCount = (snapshot.Content ?? string.Empty)
+                    //     .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                    //     .Length;
+                    // int spanCount = snapshot.RichTextSpans?.Count ?? 0;
+                    // int paragraphSpanCount = snapshot.RichTextSpans?.Count(s => s.ParagraphIndex.HasValue) ?? 0;
+                    // System.Diagnostics.Debug.WriteLine(
+                    //     $"[换行诊断][Persist] textElementId={snapshot.TextElementId}, " +
+                    //     $"contentLen={(snapshot.Content ?? string.Empty).Length}, lineCount={lineCount}, " +
+                    //     $"spanCount={spanCount}, paragraphSpanCount={paragraphSpanCount}");
 #endif
 
                     var spansToSave = _richTextSerializer

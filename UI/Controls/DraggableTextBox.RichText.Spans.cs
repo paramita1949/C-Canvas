@@ -97,6 +97,9 @@ namespace ImageColorChanger.UI.Controls
             if (span.FontSize.HasValue && span.FontSize.Value > 0)
 
                 run.FontSize = span.FontSize.Value;
+            else if (Data?.FontSize > 0)
+
+                run.FontSize = Data.FontSize;
 
             
 
