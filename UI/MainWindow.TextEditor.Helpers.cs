@@ -2302,10 +2302,11 @@ namespace ImageColorChanger.UI
                 _biblePopupOverlayHighlightedVerseIndex = highlightedVerseIndex;
             }
 
-            // 仅一节经文时不显示高亮，避免视觉上“常亮”干扰。
-            if (verseLayout.VerseStartOffsets.Count <= 1)
+            // 单节经文时也保持高亮（定位更直观）。
+            if (verseLayout.VerseStartOffsets.Count == 1)
             {
-                highlightedVerseIndex = -1;
+                highlightedVerseIndex = 0;
+                _biblePopupOverlayHighlightedVerseIndex = 0;
             }
             float verseY = y - (float)_biblePopupOverlayVerseScrollOffset;
             for (int lineIndex = 0; lineIndex < verseLines.Count; lineIndex++)

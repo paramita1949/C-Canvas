@@ -97,7 +97,9 @@ namespace ImageColorChanger.UI.Controls
             if (fontSize.HasValue)
 
             {
-
+                // 先记录旧字号，后续缩放 RichTextSpan 时以此为统一基准，
+                // 避免复制文本框后“首个 span 为空/字号异常”导致的缩放失真。
+                double previousFontSize = Data.FontSize > 0 ? Data.FontSize : fontSize.Value;
                 Data.FontSize = fontSize.Value;
 
 
@@ -108,19 +110,35 @@ namespace ImageColorChanger.UI.Controls
 
                 {
 
-                    double scaleFactor = fontSize.Value / Data.RichTextSpans.First().FontSize.GetValueOrDefault(40);
+                    double safeBaseFontSize = previousFontSize > 0
+                        ? previousFontSize
+                        : Data.RichTextSpans
+                            .Where(s => s.FontSize.HasValue && s.FontSize.Value > 0)
+                            .Select(s => s.FontSize!.Value)
+                            .DefaultIfEmpty(fontSize.Value)
+                            .First();
+
+                    if (safeBaseFontSize <= 0)
+
+                    {
+
+                        safeBaseFontSize = fontSize.Value;
+
+                    }
+
+                    double scaleFactor = fontSize.Value / safeBaseFontSize;
 
                     foreach (var span in Data.RichTextSpans)
 
                     {
 
-                        if (span.FontSize.HasValue)
+                        double currentSpanFontSize = (span.FontSize.HasValue && span.FontSize.Value > 0)
 
-                        {
+                            ? span.FontSize.Value
 
-                            span.FontSize = span.FontSize.Value * scaleFactor;
+                            : safeBaseFontSize;
 
-                        }
+                        span.FontSize = Math.Max(1, currentSpanFontSize * scaleFactor);
 
                     }
 

@@ -424,28 +424,81 @@ namespace ImageColorChanger.UI.Controls
                     else
 
                     {
-
-                        // 如果不一致，使用原来的逻辑（所有文本在一个段落中）
-
-                        var paragraph = new System.Windows.Documents.Paragraph();
-
-                        
-
-                        foreach (var span in sortedSpans)
-
+#if DEBUG
+                        int contentLineCount = contentLines.Length;
+                        int spanCount = sortedSpans.Count;
+                        int nonEmptySpanCount = sortedSpans.Count(s => !string.IsNullOrEmpty(s.Text));
+                        int paragraphSpanCount = sortedSpans.Count(s => s.ParagraphIndex.HasValue);
+                        string contentPreview = (content ?? string.Empty).Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\r");
+                        if (contentPreview.Length > 120)
                         {
-
-                            var run = new System.Windows.Documents.Run(span.Text ?? "");
-
-                            ApplySpanStyleToRun(run, span);
-
-                            paragraph.Inlines.Add(run);
-
+                            contentPreview = contentPreview.Substring(0, 120) + "...";
                         }
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[换行诊断][SyncTextToRichTextBox][Mismatch] textElementId={Data?.Id}, " +
+                            $"contentLen={(content ?? string.Empty).Length}, contentLines={contentLineCount}, " +
+                            $"spanCount={spanCount}, nonEmptySpanCount={nonEmptySpanCount}, paragraphSpanCount={paragraphSpanCount}, " +
+                            $"spansJoinedLen={allSpansText.Length}, contentNoBreakLen={contentWithoutLineBreaks.Length}, " +
+                            $"contentPreview='{contentPreview}'");
+#endif
 
-                        
+                        // 如果 spans 文本与 Content（去换行）不一致，优先保留 Content 的段落结构，
+                        // 避免“重进后所有换行被合并成单段落”。
+                        int spanIndex = 0;
+                        int offsetInSpan = 0;
 
-                        _richTextBox.Document.Blocks.Add(paragraph);
+                        foreach (string line in contentLines)
+                        {
+                            var paragraph = new System.Windows.Documents.Paragraph();
+                            int lineOffset = 0;
+
+                            while (lineOffset < line.Length)
+                            {
+                                if (spanIndex >= sortedSpans.Count)
+                                {
+                                    paragraph.Inlines.Add(new System.Windows.Documents.Run(line.Substring(lineOffset)));
+                                    lineOffset = line.Length;
+                                    break;
+                                }
+
+                                var span = sortedSpans[spanIndex];
+                                string spanText = span.Text ?? string.Empty;
+
+                                if (spanText.Length == 0 || offsetInSpan >= spanText.Length)
+                                {
+                                    spanIndex++;
+                                    offsetInSpan = 0;
+                                    continue;
+                                }
+
+                                int takeLength = Math.Min(line.Length - lineOffset, spanText.Length - offsetInSpan);
+                                if (takeLength <= 0)
+                                {
+                                    break;
+                                }
+
+                                string chunk = line.Substring(lineOffset, takeLength);
+                                var run = new System.Windows.Documents.Run(chunk);
+                                ApplySpanStyleToRun(run, span);
+                                paragraph.Inlines.Add(run);
+
+                                lineOffset += takeLength;
+                                offsetInSpan += takeLength;
+
+                                if (offsetInSpan >= spanText.Length)
+                                {
+                                    spanIndex++;
+                                    offsetInSpan = 0;
+                                }
+                            }
+
+                            if (line.Length == 0)
+                            {
+                                paragraph.Inlines.Add(new System.Windows.Documents.Run(string.Empty));
+                            }
+
+                            _richTextBox.Document.Blocks.Add(paragraph);
+                        }
 
                     }
 

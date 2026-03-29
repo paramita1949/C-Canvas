@@ -160,6 +160,7 @@ namespace ImageColorChanger.UI.Controls
                 PreviewReferenceText.Text = string.Empty;
                 PreviewReferenceText.Visibility = Visibility.Collapsed;
                 PreviewContentText.Text = previewContent;
+                PreviewContentText.Foreground = ResolvePreviewForegroundBrush(previewReference);
                 ApplyAdaptivePreviewLayout();
             }
             else
@@ -168,6 +169,7 @@ namespace ImageColorChanger.UI.Controls
                 PreviewReferenceText.Text = string.Empty;
                 PreviewReferenceText.Visibility = Visibility.Collapsed;
                 PreviewContentText.Text = string.Empty;
+                PreviewContentText.Foreground = new SolidColorBrush(Colors.White);
                 PreviewContentText.FontSize = DefaultPreviewFontSize;
                 PreviewContentText.ClearValue(TextBlock.LineHeightProperty);
                 if (PreviewScrollViewer != null)
@@ -366,6 +368,40 @@ namespace ImageColorChanger.UI.Controls
             return $"{index} {displayName}";
         }
 
+        private static bool IsSingleVerseReference(string previewReference)
+        {
+            if (string.IsNullOrWhiteSpace(previewReference))
+            {
+                return false;
+            }
+
+            string text = previewReference.Trim();
+            return text.Contains(':') && !text.Contains('-') && !text.Contains('—');
+        }
+
+        private static System.Windows.Media.Brush ResolvePreviewForegroundBrush(string previewReference)
+        {
+            if (!IsSingleVerseReference(previewReference))
+            {
+                return new SolidColorBrush(Colors.White);
+            }
+
+            try
+            {
+                string hex = ConfigManager.Instance?.BibleHighlightColor;
+                if (!string.IsNullOrWhiteSpace(hex))
+                {
+                    var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                    return new SolidColorBrush(color);
+                }
+            }
+            catch
+            {
+            }
+
+            return new SolidColorBrush(Colors.Yellow);
+        }
+
         private double MeasureTextWidth(string text, double fontSize)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -494,6 +530,7 @@ namespace ImageColorChanger.UI.Controls
             PreviewReferenceText.Text = string.Empty;
             PreviewReferenceText.Visibility = Visibility.Collapsed;
             PreviewContentText.Text = string.Empty;
+            PreviewContentText.Foreground = new SolidColorBrush(Colors.White);
             PreviewContentText.FontSize = DefaultPreviewFontSize;
             PreviewContentText.ClearValue(TextBlock.LineHeightProperty);
             _lastPreviewContent = string.Empty;

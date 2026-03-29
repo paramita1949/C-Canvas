@@ -1165,12 +1165,6 @@ namespace ImageColorChanger.UI
                 return (string.Empty, string.Empty);
             }
 
-            // 仅输入到“书卷+章”时不显示预览，必须输入到节号才开始预览。
-            if (result.Type != ImageColorChanger.Services.LocationType.VerseRange)
-            {
-                return (string.Empty, string.Empty);
-            }
-
             int chapter = result.Chapter.Value;
             int verseCount = await _bibleService.GetVerseCountAsync(result.BookId.Value, chapter);
             if (verseCount <= 0)
@@ -1178,7 +1172,20 @@ namespace ImageColorChanger.UI
                 return ($"{book.Name}{chapter}章", "暂无可预览经文");
             }
 
-            if (!result.StartVerse.HasValue || !result.EndVerse.HasValue)
+            // 输入到“书卷+章”时，直接预览整章。
+            if (result.Type == ImageColorChanger.Services.LocationType.Chapter)
+            {
+                var chapterVerses = await _bibleService.GetVerseRangeAsync(result.BookId.Value, chapter, 1, verseCount);
+                if (chapterVerses == null || chapterVerses.Count == 0)
+                {
+                    return ($"{book.Name}{chapter}章", "暂无可预览经文");
+                }
+
+                return ($"{book.Name}{chapter}章", FormatVerseWithNumbers(chapterVerses));
+            }
+
+            if (result.Type != ImageColorChanger.Services.LocationType.VerseRange ||
+                !result.StartVerse.HasValue || !result.EndVerse.HasValue)
             {
                 return (string.Empty, string.Empty);
             }

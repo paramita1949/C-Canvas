@@ -669,6 +669,8 @@ namespace ImageColorChanger.UI
                 {
                     _mergedVerses.Add(verse);
                 }
+
+                EnsureFirstVerseHighlightedByDefault();
                 
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
@@ -1210,6 +1212,8 @@ namespace ImageColorChanger.UI
                     _mergedVerses.Add(verse);
                 }
 
+                EnsureFirstVerseHighlightedByDefault();
+
                 // 重置滚动条到顶部
                 BibleVerseScrollViewer.ScrollToTop();
 
@@ -1508,6 +1512,21 @@ namespace ImageColorChanger.UI
             {
                 // 忽略错误
             }
+        }
+
+        private void EnsureFirstVerseHighlightedByDefault()
+        {
+            if (_mergedVerses == null || _mergedVerses.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _mergedVerses.Count; i++)
+            {
+                _mergedVerses[i].IsHighlighted = false;
+            }
+
+            _mergedVerses[0].IsHighlighted = true;
         }
 
         private double EstimateBibleVerseHeight()

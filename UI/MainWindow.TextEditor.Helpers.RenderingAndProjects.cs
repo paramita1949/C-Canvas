@@ -268,6 +268,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                await EnsureCurrentProjectSavedBeforeExportAsync(item?.Id);
+
                 var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
                 if (slideExportManager != null)
                 {
@@ -436,6 +438,8 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                await EnsureCurrentProjectSavedBeforeExportAsync();
+
                 var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
                 if (slideExportManager != null)
                 {
@@ -454,6 +458,39 @@ namespace ImageColorChanger.UI
             {
                 ShowStatus($"导出所有项目失败: {ex.Message}");
             }
+        }
+
+        private async Task EnsureCurrentProjectSavedBeforeExportAsync(int? exportProjectId = null)
+        {
+            if (_currentTextProject == null)
+            {
+                return;
+            }
+
+            if (exportProjectId.HasValue && exportProjectId.Value > 0 && _currentTextProject.Id != exportProjectId.Value)
+            {
+                return;
+            }
+
+            bool hasPendingChanges = BtnSaveTextProject.Background is SolidColorBrush brush &&
+                                     brush.Color == Colors.LightGreen;
+            if (!hasPendingChanges)
+            {
+                return;
+            }
+
+            var saveResult = await SaveTextEditorStateAsync(
+                ImageColorChanger.Services.TextEditor.Application.Models.SaveTrigger.Manual,
+                persistAdditionalState: true,
+                saveThumbnail: true);
+
+            if (!saveResult.Succeeded)
+            {
+                string message = saveResult.Exception?.Message ?? "未知错误";
+                throw new InvalidOperationException($"导出前自动保存失败：{message}");
+            }
+
+            BtnSaveTextProject.Background = new SolidColorBrush(Colors.White);
         }
 
         /// <summary>
