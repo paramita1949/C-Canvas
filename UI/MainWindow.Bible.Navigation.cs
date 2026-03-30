@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
@@ -335,10 +336,12 @@ namespace ImageColorChanger.UI
             }
 
             string title = BibleChapterTitle?.Text?.Trim() ?? string.Empty;
-            bool visible =
-                _isBibleMode &&
-                BibleChapterTitleBorder?.Visibility == Visibility.Visible &&
-                !string.IsNullOrWhiteSpace(title);
+            bool visible = BibleUiBehaviorResolver.ShouldKeepProjectionBibleTitleVisible(
+                _isBibleMode,
+                _configManager?.BibleFixedTitle ?? true,
+                TextEditorPanel?.Visibility == Visibility.Visible,
+                _currentTextProject != null,
+                !string.IsNullOrWhiteSpace(title));
 
             string projectionTitleFontFamily = BibleChapterTitle?.FontFamily?.Source;
             double projectionTitleFontSize = BibleChapterTitle?.FontSize ?? (_configManager?.BibleTitleFontSize ?? 0d);

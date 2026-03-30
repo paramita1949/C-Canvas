@@ -244,6 +244,8 @@ namespace ImageColorChanger.UI
             // 更新按钮显示
             if (_isProjectionLocked)
             {
+                CaptureLockedProjectionSlideAnchor();
+
                 // 锁定状态：设置橙色，Tag标记锁定（样式会根据Tag禁用悬停效果）
                 SetLockProjectionButtonContent(true);
                 BtnLockProjection.ToolTip = "投影已锁定：切换幻灯片不会自动更新投影，点击解锁";
@@ -294,6 +296,8 @@ namespace ImageColorChanger.UI
             }
             else
             {
+                ClearLockedProjectionSlideAnchor();
+
                 // 未锁定状态：恢复默认蓝色
                 SetLockProjectionButtonContent(false);
                 BtnLockProjection.ToolTip = "投影未锁定：切换幻灯片自动更新投影，点击锁定";
@@ -313,6 +317,21 @@ namespace ImageColorChanger.UI
                     UpdateProjectionWithVideoBackground();
                 }
             }
+        }
+
+        private void CaptureLockedProjectionSlideAnchor()
+        {
+            if (_currentTextProject?.Id > 0 && _currentSlide?.Id > 0)
+            {
+                _lockedProjectionProjectId = _currentTextProject.Id;
+                _lockedProjectionSlideId = _currentSlide.Id;
+            }
+        }
+
+        private void ClearLockedProjectionSlideAnchor()
+        {
+            _lockedProjectionProjectId = null;
+            _lockedProjectionSlideId = null;
         }
 
         #endregion

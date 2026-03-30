@@ -391,6 +391,20 @@ namespace ImageColorChanger.UI
             if (item != null)
             {
                 _draggingSlide = item.DataContext as Slide;
+
+                // 点击已选中的同一张幻灯片时，ListBox 不会触发 SelectionChanged。
+                // 从圣经投影切回后，若投影层刚被清空，需要手动刷新当前画布到投影。
+                if (_draggingSlide != null &&
+                    _currentSlide != null &&
+                    _draggingSlide.Id == _currentSlide.Id &&
+                    _projectionManager?.IsProjectionActive == true &&
+                    !_isProjectionLocked &&
+                    !_isBibleMode)
+                {
+                    _ = Dispatcher.BeginInvoke(
+                        new Action(UpdateProjectionFromCanvas),
+                        System.Windows.Threading.DispatcherPriority.Render);
+                }
             }
         }
 
@@ -1060,6 +1074,14 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"====================================\n");
 
                 _currentSlide = slide;
+                if (_isProjectionLocked &&
+                    (!_lockedProjectionProjectId.HasValue || !_lockedProjectionSlideId.HasValue) &&
+                    _currentTextProject?.Id > 0 &&
+                    slide?.Id > 0)
+                {
+                    _lockedProjectionProjectId = _currentTextProject.Id;
+                    _lockedProjectionSlideId = slide.Id;
+                }
 
                 // 清空画布
                 ClearEditorCanvas();
@@ -1212,7 +1234,7 @@ namespace ImageColorChanger.UI
                     SortOrder = maxOrder + 1,
                     BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
+                    SplitStretchMode = _splitImageDisplayModePreference  // 使用全局分割显示偏好
                 };
 
                 await _textProjectService.AddSlideAsync(newSlide);

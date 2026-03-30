@@ -93,7 +93,8 @@ namespace ImageColorChanger.UI
         private Dictionary<int, System.Windows.Controls.Image> _regionImages = new Dictionary<int, System.Windows.Controls.Image>(); // 区域图片控件
         private Dictionary<int, string> _regionImagePaths = new Dictionary<int, string>(); // 区域图片路径
         private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
-        private SplitImageDisplayMode _splitImageDisplayMode = SplitImageDisplayMode.FitTop; // 分割图片显示模式（默认置顶）
+        private SplitImageDisplayMode _splitImageDisplayMode = SplitImageDisplayMode.FitTop; // 当前幻灯片分割图片显示模式
+        private SplitImageDisplayMode _splitImageDisplayModePreference = SplitImageDisplayMode.FitTop; // 创建新分割图时使用的全局偏好
         
         // 渲染节流（避免过于频繁的更新）
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
@@ -108,6 +109,8 @@ namespace ImageColorChanger.UI
         private bool _projectionAnimationEnabled = true;  //  默认启用
         private double _projectionAnimationOpacity = 0.1; //  默认透明度 0.1
         private int _projectionAnimationDuration = 800;   //  默认动画时长 800ms
+        private int? _lockedProjectionProjectId;
+        private int? _lockedProjectionSlideId;
         private bool _biblePopupAnimationEnabled = true;
         private double _biblePopupAnimationOpacity = 0.1;
         private int _biblePopupAnimationDuration = 800;
@@ -415,7 +418,7 @@ namespace ImageColorChanger.UI
                     SortOrder = 1,
                     BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = -1,  // 默认无分割模式
-                    SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
+                    SplitStretchMode = _splitImageDisplayModePreference  // 使用全局分割显示偏好
                 };
                 await _textProjectService.AddSlideAsync(firstSlide);
 
@@ -485,7 +488,7 @@ namespace ImageColorChanger.UI
                         SortOrder = 1,
                         BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                         SplitMode = -1,  // 默认无分割模式
-                        SplitStretchMode = _splitImageDisplayMode  // 使用当前分割显示偏好
+                        SplitStretchMode = _splitImageDisplayModePreference  // 使用全局分割显示偏好
                     };
                     await _textProjectService.AddSlideAsync(firstSlide);
                     

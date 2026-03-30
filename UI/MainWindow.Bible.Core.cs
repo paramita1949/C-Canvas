@@ -280,12 +280,42 @@ namespace ImageColorChanger.UI
                 if (BibleNavigationPanel.Visibility == Visibility.Visible)
                 {
                     // 当前显示圣经，切换回项目树
+                    bool wasInBibleMode = _isBibleMode;
+                    bool isProjectionActive = _projectionManager?.IsProjectionActive == true;
                     BibleNavigationPanel.Visibility = Visibility.Collapsed;
                     ProjectTree.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Projects;
                     _isBibleMode = false;  // 退出圣经模式
-                    ApplyBibleTitleDisplayMode(false);
-                    SyncProjectionBibleTitle();
+                    if (Modules.BibleUiBehaviorResolver.ShouldClearBibleProjectionWhenSwitchingToSlides(
+                            wasInBibleMode,
+                            isProjectionActive))
+                    {
+                        ClearProjectedBibleContentForSlideSwitch();
+                    }
+                    else
+                    {
+                        ApplyBibleTitleDisplayMode(false);
+                        SyncProjectionBibleTitle();
+                    }
+
+                    if (Modules.BibleUiBehaviorResolver.ShouldAutoLoadBlankSlideOnProjectsViewEntry(
+                            wasInBibleMode,
+                            isProjectionActive,
+                            _isProjectionLocked))
+                    {
+                        await EnsureBlankSlideOnBibleProjectionExitAsync();
+                    }
+                    else if (Modules.BibleUiBehaviorResolver.ShouldRestoreLockedSlideOnProjectsViewEntry(
+                                 _isProjectionLocked,
+                                 _lockedProjectionProjectId.HasValue,
+                                 _lockedProjectionSlideId.HasValue))
+                    {
+                        await RestoreLockedProjectionSlideAsync();
+                    }
+                    else
+                    {
+                        RefreshProjectionFromCurrentSlideIfNeeded();
+                    }
                     
                     //#if DEBUG
                     //Debug.WriteLine($" [圣经] 切换到项目树");
@@ -298,7 +328,10 @@ namespace ImageColorChanger.UI
                     BibleNavigationPanel.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Bible;
                     _isBibleMode = true;  // 进入圣经模式（关键修复！）
-                    ApplyBibleTitleDisplayMode(true);
+                    // 切入圣经时先清空旧标题，避免显示上一次投影记录的标题。
+                    // 当前版本要求：经文需手动点击历史槽/导航后才显示。
+                    BibleChapterTitle.Text = string.Empty;
+                    ApplyBibleTitleDisplayMode(false);
                     SyncProjectionBibleTitle();
                     
                     // 如果还未初始化，则初始化
@@ -333,6 +366,12 @@ namespace ImageColorChanger.UI
 
             _isBibleMode = true;
             _currentViewMode = NavigationViewMode.Bible;  // 设置当前视图模式为圣经
+
+            // 切入圣经时先清空旧标题，避免显示上一次投影记录的标题。
+            // 当前版本要求：经文需手动点击历史槽/导航后才显示。
+            BibleChapterTitle.Text = string.Empty;
+            ApplyBibleTitleDisplayMode(false);
+            SyncProjectionBibleTitle();
 
             // 清空图片显示（包括合成播放按钮）
             ClearImageDisplay();
@@ -378,72 +417,8 @@ namespace ImageColorChanger.UI
             // 加载圣经数据
             await LoadBibleNavigationDataAsync();
             
-            // 如果启用了保存历史记录，且有勾选或锁定的槽位，自动加载经文
-            //#if DEBUG
-            //System.Diagnostics.Debug.WriteLine($"[启动加载] 检查自动加载条件:");
-            //System.Diagnostics.Debug.WriteLine($"   SaveBibleHistory: {_configManager.SaveBibleHistory}");
-            //System.Diagnostics.Debug.WriteLine($"   _historySlots != null: {_historySlots != null}");
-            //System.Diagnostics.Debug.WriteLine($"   _historySlots.Count: {_historySlots?.Count ?? 0}");
-            //#endif
-            
-            if (_configManager.SaveBibleHistory && _historySlots != null && _historySlots.Count > 0)
-            {
-                // 检查是否有锁定的记录
-                var lockedSlots = _historySlots.Where(s => s.IsLocked && s.BookId > 0).ToList();
-                
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"   锁定记录数: {lockedSlots.Count}");
-                //#endif
-                
-                if (lockedSlots.Count > 0)
-                {
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"[启动加载] 发现 {lockedSlots.Count} 个锁定记录，加载到主屏幕");
-                    //#endif
-                    
-                    foreach (var lockedSlot in lockedSlots)
-                    {
-                        await AddLockedRecordVerses(lockedSlot);
-                    }
-                }
-                else
-                {
-                    // 没有锁定记录，检查是否有勾选的槽位
-                    //#if DEBUG
-                    //var allCheckedSlots = _historySlots.Where(s => s.IsChecked).ToList();
-                    //System.Diagnostics.Debug.WriteLine($"   所有勾选的槽位数: {allCheckedSlots.Count}");
-                    //foreach (var cs in allCheckedSlots)
-                    //{
-                    //    System.Diagnostics.Debug.WriteLine($"      - 槽位{cs.Index}: BookId={cs.BookId}, DisplayText={cs.DisplayText}");
-                    //}
-                    //#endif
-                    
-                    var checkedSlot = _historySlots.FirstOrDefault(s => s.IsChecked && s.BookId > 0);
-                    
-                    //#if DEBUG
-                    //System.Diagnostics.Debug.WriteLine($"   勾选且有内容的槽位: {(checkedSlot != null ? $"槽位{checkedSlot.Index}" : "无")}");
-                    //if (checkedSlot != null)
-                    //{
-                    //    System.Diagnostics.Debug.WriteLine($"   槽位详情: BookId={checkedSlot.BookId}, Chapter={checkedSlot.Chapter}, DisplayText={checkedSlot.DisplayText}");
-                    //}
-                    //#endif
-                    
-                    if (checkedSlot != null)
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine($"[启动加载] 自动加载勾选的槽位{checkedSlot.Index}的经文: {checkedSlot.DisplayText}");
-                        //#endif
-                        
-                        await LoadVerseRangeAsync(checkedSlot.BookId, checkedSlot.Chapter, checkedSlot.StartVerse, checkedSlot.EndVerse);
-                    }
-                }
-            }
-            else
-            {
-                //#if DEBUG
-                //System.Diagnostics.Debug.WriteLine($"    不满足自动加载条件，跳过");
-                //#endif
-            }
+            // 需求：从文件/幻灯片切回圣经时，不自动加载历史槽经文。
+            // 历史槽只保留状态，必须手动点击槽位才触发经文加载。
             
             // 初始化拼音快速定位服务
             InitializePinyinService();

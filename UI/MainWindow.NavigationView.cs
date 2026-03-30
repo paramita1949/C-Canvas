@@ -10,6 +10,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.TextEditor.Application;
+using ImageColorChanger.UI.Modules;
 using ImageColorChanger.Utils;
 using Microsoft.EntityFrameworkCore;
 using Color = System.Windows.Media.Color;
@@ -22,8 +23,6 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
-        // 添加标记，用于跟踪是否是第一次进入幻灯片模式
-        private static bool _isFirstTimeEnteringProjects = true;
         private int _textProjectTreeLoadToken;
         private const string FolderHierarchyModeSettingKey = "ProjectTree.FolderHierarchyModes";
         private bool _folderHierarchyModesLoaded;
@@ -764,11 +763,21 @@ namespace ImageColorChanger.UI
             if (_currentViewMode == NavigationViewMode.Projects && !_isBibleMode) return;
 
             bool wasInBibleMode = _isBibleMode;
+            bool isProjectionActive = _projectionManager?.IsProjectionActive == true;
 
             _currentViewMode = NavigationViewMode.Projects;
             _isBibleMode = false;
-            ApplyBibleTitleDisplayMode(false);
-            SyncProjectionBibleTitle();
+            if (BibleUiBehaviorResolver.ShouldClearBibleProjectionWhenSwitchingToSlides(
+                    wasInBibleMode,
+                    isProjectionActive))
+            {
+                ClearProjectedBibleContentForSlideSwitch();
+            }
+            else
+            {
+                ApplyBibleTitleDisplayMode(false);
+                SyncProjectionBibleTitle();
+            }
 
             BibleVerseScrollViewer.Visibility = Visibility.Collapsed;
             BibleNavigationPanel.Visibility = Visibility.Collapsed;
@@ -791,11 +800,41 @@ namespace ImageColorChanger.UI
                 ApplyUnifiedSearchResetAndTreeRefresh();
             }
 
-            if (_isFirstTimeEnteringProjects && _currentTextProject == null)
+            if (BibleUiBehaviorResolver.ShouldAutoLoadBlankSlideOnProjectsViewEntry(
+                    wasInBibleMode,
+                    isProjectionActive,
+                    _isProjectionLocked))
+            {
+                _ = EnsureBlankSlideOnBibleProjectionExitAsync();
+                return;
+            }
+
+            if (BibleUiBehaviorResolver.ShouldRestoreLockedSlideOnProjectsViewEntry(
+                    _isProjectionLocked,
+                    _lockedProjectionProjectId.HasValue,
+                    _lockedProjectionSlideId.HasValue))
+            {
+                _ = RestoreLockedProjectionSlideAsync();
+                return;
+            }
+
+            if (BibleUiBehaviorResolver.ShouldAutoLoadProjectOnProjectsViewEntry(_currentTextProject != null))
             {
                 _ = LoadFirstProjectAsync();
-                _isFirstTimeEnteringProjects = false;
+                return;
             }
+
+            RefreshProjectionFromCurrentSlideIfNeeded();
+        }
+
+        private void ClearProjectedBibleContentForSlideSwitch()
+        {
+            BibleChapterTitle.Text = string.Empty;
+            ApplyBibleTitleDisplayMode(false);
+
+            _mergedVerses?.Clear();
+            _projectionManager?.ClearProjectionDisplay();
+            SyncProjectionBibleTitle();
         }
 
         /// <summary>
@@ -993,7 +1032,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private async Task LoadFirstProjectAsync()
+        private async Task LoadFirstProjectAsync(bool preferBlankSlide = false)
         {
             try
             {
@@ -1011,6 +1050,10 @@ namespace ImageColorChanger.UI
                 if (firstProject != null)
                 {
                     await LoadTextProjectAsync(firstProject.Id);
+                    if (preferBlankSlide)
+                    {
+                        await SelectOrCreateBlankSlideInCurrentProjectAsync();
+                    }
                     ShowStatus($"已打开项目: {firstProject.Name}");
                 }
                 else
@@ -1021,6 +1064,175 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 ShowStatus($"加载项目失败: {ex.Message}");
+            }
+        }
+
+        private async Task EnsureBlankSlideOnBibleProjectionExitAsync()
+        {
+            try
+            {
+                if (_currentTextProject == null)
+                {
+                    await LoadFirstProjectAsync(preferBlankSlide: true);
+                    return;
+                }
+
+                await SelectOrCreateBlankSlideInCurrentProjectAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"加载空白幻灯片失败: {ex.Message}");
+            }
+        }
+
+        private async Task SelectOrCreateBlankSlideInCurrentProjectAsync()
+        {
+            if (_currentTextProject == null)
+            {
+                return;
+            }
+
+            var textProjectService = _mainWindowServices?.GetRequired<ITextProjectService>();
+            if (textProjectService == null)
+            {
+                return;
+            }
+
+            var slides = await textProjectService.GetSlidesByProjectWithElementsAsync(_currentTextProject.Id);
+            if (slides == null || slides.Count == 0)
+            {
+                return;
+            }
+
+            var blankSlide = slides
+                .OrderBy(s => s.SortOrder)
+                .FirstOrDefault(IsBlankSlide);
+
+            if (blankSlide == null)
+            {
+                int maxOrder = slides.Max(s => s.SortOrder);
+                blankSlide = new Slide
+                {
+                    ProjectId = _currentTextProject.Id,
+                    Title = "空白幻灯片",
+                    SortOrder = maxOrder + 1,
+                    BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
+                    SplitMode = -1,
+                    SplitStretchMode = _splitImageDisplayModePreference
+                };
+
+                blankSlide = await textProjectService.AddSlideAsync(blankSlide);
+                await LoadSlideList();
+            }
+
+            var selectableBlankSlide = blankSlide;
+            if (SlideListBox?.ItemsSource is IEnumerable<Slide> visibleSlides)
+            {
+                selectableBlankSlide = visibleSlides.FirstOrDefault(s => s.Id == blankSlide.Id) ?? blankSlide;
+            }
+
+            _isRevertingSlideSelection = true;
+            try
+            {
+                SlideListBox.SelectedItem = selectableBlankSlide;
+            }
+            finally
+            {
+                _isRevertingSlideSelection = false;
+            }
+
+            if (_currentSlide?.Id != selectableBlankSlide.Id)
+            {
+                await LoadSlide(selectableBlankSlide);
+            }
+
+            ShowStatus($"已切换到空白幻灯片: {selectableBlankSlide.Title}");
+        }
+
+        private static bool IsBlankSlide(Slide slide)
+        {
+            if (slide == null)
+            {
+                return false;
+            }
+
+            bool hasElements = slide.Elements?.Any() == true;
+            bool hasBackgroundImage = !string.IsNullOrWhiteSpace(slide.BackgroundImagePath);
+            bool hasGradientBackground = slide.BackgroundGradientEnabled;
+            bool hasVideoBackground = slide.VideoBackgroundEnabled;
+
+            return !hasElements &&
+                   !hasBackgroundImage &&
+                   !hasGradientBackground &&
+                   !hasVideoBackground;
+        }
+
+        private void RefreshProjectionFromCurrentSlideIfNeeded()
+        {
+            if (_projectionManager?.IsProjectionActive != true ||
+                _isProjectionLocked ||
+                _currentSlide == null ||
+                TextEditorPanel?.Visibility != Visibility.Visible)
+            {
+                return;
+            }
+
+            _ = Dispatcher.BeginInvoke(
+                new Action(UpdateProjectionFromCanvas),
+                System.Windows.Threading.DispatcherPriority.Render);
+        }
+
+        private async Task RestoreLockedProjectionSlideAsync()
+        {
+            if (!_lockedProjectionProjectId.HasValue || !_lockedProjectionSlideId.HasValue)
+            {
+                return;
+            }
+
+            try
+            {
+                int lockedProjectId = _lockedProjectionProjectId.Value;
+                int lockedSlideId = _lockedProjectionSlideId.Value;
+
+                await LoadTextProjectAsync(lockedProjectId);
+
+                if (SlideListBox?.ItemsSource is IEnumerable<Slide> slides)
+                {
+                    var lockedSlide = slides.FirstOrDefault(s => s.Id == lockedSlideId);
+                    if (lockedSlide != null)
+                    {
+                        _isRevertingSlideSelection = true;
+                        try
+                        {
+                            SlideListBox.SelectedItem = lockedSlide;
+                        }
+                        finally
+                        {
+                            _isRevertingSlideSelection = false;
+                        }
+
+                        if (_currentSlide?.Id != lockedSlide.Id)
+                        {
+                            await LoadSlide(lockedSlide);
+                        }
+
+                        if (_projectionManager?.IsProjectionActive == true)
+                        {
+                            _ = Dispatcher.BeginInvoke(
+                                new Action(UpdateProjectionFromCanvas),
+                                System.Windows.Threading.DispatcherPriority.Render);
+                        }
+
+                        ShowStatus($"已恢复锁定幻灯片: {lockedSlide.Title}");
+                        return;
+                    }
+                }
+
+                ShowStatus("锁定幻灯片不存在，已打开项目");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"恢复锁定幻灯片失败: {ex.Message}");
             }
         }
 

@@ -1309,6 +1309,7 @@ namespace ImageColorChanger.UI
                 return;
 
             _splitImageDisplayMode = mode;
+            _splitImageDisplayModePreference = mode;
             ApplySplitImageDisplayModeToAllRegions();
             UpdateStretchModeButton();
 
@@ -2258,7 +2259,9 @@ namespace ImageColorChanger.UI
                 UpdateSlideOutputModeButton();
 
                 // 恢复显示模式
-                _splitImageDisplayMode = slide.SplitStretchMode;
+                _splitImageDisplayMode = SplitImageDisplayModePreference.ResolveSlideMode(
+                    slide.SplitStretchMode,
+                    _splitImageDisplayModePreference);
                 UpdateStretchModeButton();
                 
                 // 检查是否有分割模式（-1 表示无分割模式）

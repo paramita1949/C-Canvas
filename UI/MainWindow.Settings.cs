@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using ImageColorChanger.Core;
 using SkiaSharp;
 
 namespace ImageColorChanger.UI
@@ -23,7 +24,9 @@ namespace ImageColorChanger.UI
                 _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
 
                 // 加载分割图片显示模式偏好（默认置顶）
-                _splitImageDisplayMode = _configManager.SplitImageDisplayMode;
+                _splitImageDisplayModePreference = SplitImageDisplayModePreference.ResolveInitialPreference(
+                    _configManager.SplitImageDisplayMode);
+                _splitImageDisplayMode = _splitImageDisplayModePreference;
                 
                 // 加载缩放比例
                 _currentZoom = _configManager.ZoomRatio;
@@ -111,7 +114,7 @@ namespace ImageColorChanger.UI
                 _configManager.OriginalTopScalePercent = _originalTopScalePercent;
 
                 // 保存分割图片显示模式偏好到 ConfigManager
-                _configManager.SplitImageDisplayMode = _splitImageDisplayMode;
+                _configManager.SplitImageDisplayMode = _splitImageDisplayModePreference;
                 
                 // 保存缩放比例
                 _configManager.ZoomRatio = _currentZoom;

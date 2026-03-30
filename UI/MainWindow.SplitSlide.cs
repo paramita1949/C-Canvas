@@ -260,7 +260,7 @@ namespace ImageColorChanger.UI
                         BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                         SplitMode = (int)splitMode,
                         SplitRegionsData = splitRegionsJson,
-                        SplitStretchMode = _splitImageDisplayMode,
+                        SplitStretchMode = _splitImageDisplayModePreference,
                         CreatedTime = DateTime.Now,
                         ModifiedTime = DateTime.Now
                     };
@@ -273,7 +273,7 @@ namespace ImageColorChanger.UI
                 firstSlide.BackgroundImagePath = null;
                 firstSlide.SplitMode = (int)splitMode;
                 firstSlide.SplitRegionsData = splitRegionsJson;
-                firstSlide.SplitStretchMode = _splitImageDisplayMode;
+                firstSlide.SplitStretchMode = _splitImageDisplayModePreference;
                 firstSlide.ModifiedTime = DateTime.Now;
 
                 await _textProjectService.UpdateSlideAsync(firstSlide);
@@ -426,7 +426,7 @@ namespace ImageColorChanger.UI
                     BackgroundColor = GetCurrentSlideThemeBackgroundColorHex(),
                     SplitMode = (int)ViewSplitMode.Single,  // 单画面
                     SplitRegionsData = splitRegionsJson,
-                    SplitStretchMode = _splitImageDisplayMode,  // 使用当前分割显示偏好
+                    SplitStretchMode = _splitImageDisplayModePreference,  // 使用全局分割显示偏好
                     CreatedTime = DateTime.Now,
                     ModifiedTime = DateTime.Now
                 };

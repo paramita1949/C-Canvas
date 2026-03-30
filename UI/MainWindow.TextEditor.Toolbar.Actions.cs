@@ -81,7 +81,7 @@ namespace ImageColorChanger.UI
                         BackgroundImagePath = imagePath,
                         BackgroundColor = null,
                         SplitMode = -1,
-                        SplitStretchMode = _splitImageDisplayMode,
+                        SplitStretchMode = _splitImageDisplayModePreference,
                         CreatedTime = DateTime.Now,
                         ModifiedTime = DateTime.Now
                     };
@@ -651,6 +651,10 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnUpdateProjection_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProjectionLocked)
+            {
+                CaptureLockedProjectionSlideAnchor();
+            }
             UpdateProjectionFromCanvas();
         }
     }
