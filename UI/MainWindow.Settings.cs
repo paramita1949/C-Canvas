@@ -22,7 +22,7 @@ namespace ImageColorChanger.UI
                 _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
                 _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
 
-                // 加载分割图片显示模式偏好（默认适中居中）
+                // 加载分割图片显示模式偏好（默认置顶）
                 _splitImageDisplayMode = _configManager.SplitImageDisplayMode;
                 
                 // 加载缩放比例

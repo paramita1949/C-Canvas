@@ -1266,11 +1266,11 @@ namespace ImageColorChanger.Core
         public int OriginalTopScalePercent { get; set; } = 80;
 
         /// <summary>
-        /// 分割图片显示模式（默认：适中居中）
+        /// 分割图片显示模式（默认：适中置顶）
         /// </summary>
         [JsonPropertyName("SplitStretchMode")]
         [JsonConverter(typeof(LegacySplitImageDisplayModeJsonConverter))]
-        public SplitImageDisplayMode SplitImageDisplayMode { get; set; } = SplitImageDisplayMode.FitCenter;
+        public SplitImageDisplayMode SplitImageDisplayMode { get; set; } = SplitImageDisplayMode.FitTop;
 
         /// <summary>
         /// 窗口状态（默认：最大化）
@@ -1962,9 +1962,9 @@ namespace ImageColorChanger.Core
         public bool BibleFixedTitle { get; set; } = true;
 
         /// <summary>
-        /// 圣经滚动置顶偏移（默认：0，目标节置顶）
+        /// 圣经滚动置顶偏移（默认：1，目标节显示在第2行）
         /// </summary>
-        public int BibleScrollTopOffset { get; set; } = 0;
+        public int BibleScrollTopOffset { get; set; } = 1;
 
         /// <summary>
         /// 圣经节号字体大小（默认：46，与经文相同）

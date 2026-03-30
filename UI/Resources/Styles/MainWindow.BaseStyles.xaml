@@ -28,6 +28,10 @@
     <SolidColorBrush x:Key="BrushScrollBarThumbHover" Color="{DynamicResource ColorScrollBarThumbHover}"/>
     <SolidColorBrush x:Key="BrushScrollBarTrackLight" Color="{DynamicResource ColorScrollBarTrackLight}"/>
     <SolidColorBrush x:Key="BrushScrollBarTrackDark" Color="{DynamicResource ColorScrollBarTrackDark}"/>
+    <Color x:Key="ColorBiblePinyinPreviewSelection">#CCFFD54F</Color>
+    <SolidColorBrush x:Key="BrushBiblePinyinPreviewSelection" Color="{DynamicResource ColorBiblePinyinPreviewSelection}"/>
+    <SolidColorBrush x:Key="BrushBiblePinyinPreviewHover" Color="{DynamicResource ColorGlobalIcon}" Opacity="0.34"/>
+    <SolidColorBrush x:Key="BrushBiblePinyinPreviewHoverBorder" Color="{DynamicResource ColorGlobalIcon}" Opacity="0.92"/>
 
     <!-- Lucide-like 24x24 stroke geometries -->
     <Geometry x:Key="IconLucideMonitor">M3 4H21V16H3V4Z M8 20H16 M12 16V20</Geometry>

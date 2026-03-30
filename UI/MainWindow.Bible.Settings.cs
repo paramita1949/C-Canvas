@@ -311,6 +311,7 @@ namespace ImageColorChanger.UI
 
                 // 应用经文样式到已生成的项
                 ApplyVerseStyles();
+                ApplyBiblePinyinPreviewThemeResources();
 
                 //#if DEBUG
                 //Debug.WriteLine("[圣经] 界面样式已更新");
@@ -321,6 +322,26 @@ namespace ImageColorChanger.UI
                 //#if DEBUG
                 //Debug.WriteLine($"[圣经] 应用设置失败: {ex.Message}");
                 //#endif
+            }
+        }
+
+        private void ApplyBiblePinyinPreviewThemeResources()
+        {
+            try
+            {
+                var appResources = System.Windows.Application.Current?.Resources;
+                if (appResources == null)
+                {
+                    return;
+                }
+
+                WpfColor highlightColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleHighlightColor);
+                appResources["ColorBiblePinyinPreviewSelection"] = WpfColor.FromArgb(0xCC, highlightColor.R, highlightColor.G, highlightColor.B);
+                appResources["BrushBiblePinyinPreviewSelection"] = new WpfSolidColorBrush((WpfColor)appResources["ColorBiblePinyinPreviewSelection"]);
+            }
+            catch
+            {
+                // ignore invalid color settings and keep existing resources
             }
         }
 

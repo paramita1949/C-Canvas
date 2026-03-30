@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -33,11 +34,8 @@ namespace ImageColorChanger.UI.Controls
         private const double MinPreviewFontSize = 15d;
         private const double MaxPreviewFontSize = 70d;
         private const double MinPreviewMaxHeight = 220d;
-        private const double MaxPreviewMaxHeight = 680d;
-        private const double PreviewHeightRatio = 0.58d;
-        private const double FallbackPreviewMaxHeight = 420d;
-        private const double PreviewHeightPadding = 6d;
-        private const double PreviewTextSidePadding = 78d;
+        private const int FixedVisiblePreviewVerseCount = 10;
+        private const double PreviewListVerticalPadding = 8d;
 
         private FrameworkElement _adaptiveWidthHost;
         private string _lastPreviewContent = string.Empty;
@@ -47,6 +45,18 @@ namespace ImageColorChanger.UI.Controls
         private bool _isCaretVisible = true;
         private int _lastMatchDisplayCount;
         private List<string> _lastMatchDisplayTexts = new();
+        private int? _pendingStartVerse;
+        private static readonly Regex PreviewVerseLineRegex = new(@"^\s*(\d+)\s+(.+)$", RegexOptions.Compiled);
+
+        public event Action<int, int> PreviewVerseRangeConfirmed;
+
+        private sealed class PreviewVerseItem
+        {
+            public int VerseNumber { get; init; }
+            public string DisplayText { get; init; }
+            public System.Windows.Media.Brush Foreground { get; init; }
+            public bool IsSelectable => VerseNumber > 0;
+        }
 
         public BiblePinyinHintControl()
         {
@@ -159,19 +169,18 @@ namespace ImageColorChanger.UI.Controls
                 PreviewPanel.Visibility = Visibility.Visible;
                 PreviewReferenceText.Text = string.Empty;
                 PreviewReferenceText.Visibility = Visibility.Collapsed;
-                PreviewContentText.Text = previewContent;
-                PreviewContentText.Foreground = ResolvePreviewForegroundBrush(previewReference);
+                PopulatePreviewVerses(previewContent, ResolvePreviewForegroundBrush(previewReference));
                 ApplyAdaptivePreviewLayout();
+                LogSelectionDebug("UpdateHint", $"configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}, hoverBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewHover") as System.Windows.Media.Brush)}");
             }
             else
             {
                 PreviewPanel.Visibility = Visibility.Collapsed;
                 PreviewReferenceText.Text = string.Empty;
                 PreviewReferenceText.Visibility = Visibility.Collapsed;
-                PreviewContentText.Text = string.Empty;
-                PreviewContentText.Foreground = new SolidColorBrush(Colors.White);
-                PreviewContentText.FontSize = DefaultPreviewFontSize;
-                PreviewContentText.ClearValue(TextBlock.LineHeightProperty);
+                PreviewVerseList.ItemsSource = null;
+                PreviewVerseList.SelectedItem = null;
+                _pendingStartVerse = null;
                 if (PreviewScrollViewer != null)
                 {
                     PreviewScrollViewer.MaxHeight = MinPreviewMaxHeight;
@@ -318,28 +327,23 @@ namespace ImageColorChanger.UI.Controls
                 return;
             }
 
-            double maxHeight = GetAdaptivePreviewMaxHeight();
+            double requestedFontSize = Math.Clamp(
+                _lastRequestedPreviewFontSize > 0 ? _lastRequestedPreviewFontSize : DefaultPreviewFontSize,
+                MinPreviewFontSize,
+                MaxPreviewFontSize);
+            double lineHeight = Math.Max(requestedFontSize * 1.25d, requestedFontSize + 2d);
+            double maxHeight = Math.Max(MinPreviewMaxHeight, lineHeight * FixedVisiblePreviewVerseCount + PreviewListVerticalPadding);
+
             if (PreviewScrollViewer != null)
             {
                 PreviewScrollViewer.MaxHeight = maxHeight;
             }
 
-            double requestedFontSize = Math.Clamp(
-                _lastRequestedPreviewFontSize > 0 ? _lastRequestedPreviewFontSize : DefaultPreviewFontSize,
-                MinPreviewFontSize,
-                MaxPreviewFontSize);
-            double textWidth = EstimatePreviewTextWidth();
-
-            double fittedFontSize = requestedFontSize;
-            double measuredHeight = MeasurePreviewHeight(_lastPreviewContent, fittedFontSize, textWidth);
-            while (measuredHeight > maxHeight - PreviewHeightPadding && fittedFontSize > MinPreviewFontSize)
+            if (PreviewVerseList != null)
             {
-                fittedFontSize = Math.Max(MinPreviewFontSize, fittedFontSize - 1);
-                measuredHeight = MeasurePreviewHeight(_lastPreviewContent, fittedFontSize, textWidth);
+                PreviewVerseList.FontSize = requestedFontSize;
+                PreviewVerseList.SetValue(TextBlock.LineHeightProperty, lineHeight);
             }
-
-            PreviewContentText.FontSize = fittedFontSize;
-            PreviewContentText.LineHeight = Math.Max(fittedFontSize * 1.25d, fittedFontSize + 2d);
         }
 
         private void ConfigureMatchResultsLayout(List<string> displayTexts)
@@ -465,55 +469,89 @@ namespace ImageColorChanger.UI.Controls
             return Math.Min(MatchColumnsPerRow, matchCount);
         }
 
-        private double GetAdaptivePreviewMaxHeight()
+        private void PopulatePreviewVerses(string previewContent, System.Windows.Media.Brush foreground)
         {
-            double hostHeight = _adaptiveWidthHost?.ActualHeight ?? 0d;
-            double rawHeight = hostHeight > 0
-                ? hostHeight * PreviewHeightRatio
-                : FallbackPreviewMaxHeight;
-            return Math.Clamp(rawHeight, MinPreviewMaxHeight, MaxPreviewMaxHeight);
-        }
+            _pendingStartVerse = null;
+            PreviewVerseList.SelectedItem = null;
 
-        private double EstimatePreviewTextWidth()
-        {
-            double hintWidth = ActualWidth > 0 ? ActualWidth : Width;
-            if (double.IsNaN(hintWidth) || hintWidth <= 0)
+            var lines = (previewContent ?? string.Empty)
+                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .ToList();
+
+            var items = new List<PreviewVerseItem>(lines.Count);
+            foreach (var line in lines)
             {
-                hintWidth = FallbackHintWidth;
+                var match = PreviewVerseLineRegex.Match(line);
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int verseNo))
+                {
+                    items.Add(new PreviewVerseItem
+                    {
+                        VerseNumber = verseNo,
+                        DisplayText = line,
+                        Foreground = foreground
+                    });
+                    continue;
+                }
+
+                items.Add(new PreviewVerseItem
+                {
+                    VerseNumber = 0,
+                    DisplayText = line,
+                    Foreground = foreground
+                });
             }
 
-            return Math.Max(240d, hintWidth - PreviewTextSidePadding);
+            PreviewVerseList.ItemsSource = items;
         }
 
-        private double MeasurePreviewHeight(string text, double fontSize, double width)
+        private void PreviewVerseList_PreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(text))
+            if (sender is not System.Windows.Controls.ListBox listBox)
             {
-                return 0d;
+                return;
             }
 
-            var typeface = new Typeface(
-                PreviewContentText.FontFamily,
-                PreviewContentText.FontStyle,
-                PreviewContentText.FontWeight,
-                PreviewContentText.FontStretch);
-
-            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-            var formattedText = new FormattedText(
-                text,
-                CultureInfo.CurrentUICulture,
-                System.Windows.FlowDirection.LeftToRight,
-                typeface,
-                fontSize,
-                System.Windows.Media.Brushes.White,
-                pixelsPerDip)
+            var listBoxItem = ItemsControl.ContainerFromElement(listBox, e.OriginalSource as DependencyObject) as System.Windows.Controls.ListBoxItem;
+            if (listBoxItem?.DataContext is not PreviewVerseItem verseItem || !verseItem.IsSelectable)
             {
-                MaxTextWidth = Math.Max(1d, width),
-                Trimming = TextTrimming.None,
-                TextAlignment = TextAlignment.Left
-            };
+                return;
+            }
 
-            return formattedText.Height;
+            if (!_pendingStartVerse.HasValue)
+            {
+                _pendingStartVerse = verseItem.VerseNumber;
+                listBox.SelectedItem = verseItem;
+                LogSelectionDebug("PreviewSelectStart", $"verse={verseItem.VerseNumber}, configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}");
+                return;
+            }
+
+            int start = _pendingStartVerse.Value;
+            int end = verseItem.VerseNumber;
+            if (end < start)
+            {
+                (start, end) = (end, start);
+            }
+
+            _pendingStartVerse = null;
+            listBox.SelectedItem = null;
+            PreviewVerseRangeConfirmed?.Invoke(start, end);
+            LogSelectionDebug("PreviewSelectEnd", $"start={start}, end={end}, configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}");
+            e.Handled = true;
+        }
+
+        private void PreviewVerseList_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (PreviewScrollViewer == null)
+            {
+                return;
+            }
+
+            // ListBox 作为内层控件会吞掉滚轮，这里统一转给外层 ScrollViewer。
+            double offset = e.Delta > 0 ? -48d : 48d;
+            PreviewScrollViewer.ScrollToVerticalOffset(PreviewScrollViewer.VerticalOffset + offset);
+            e.Handled = true;
         }
 
         /// <summary>
@@ -529,10 +567,11 @@ namespace ImageColorChanger.UI.Controls
             PreviewPanel.Visibility = Visibility.Collapsed;
             PreviewReferenceText.Text = string.Empty;
             PreviewReferenceText.Visibility = Visibility.Collapsed;
-            PreviewContentText.Text = string.Empty;
-            PreviewContentText.Foreground = new SolidColorBrush(Colors.White);
-            PreviewContentText.FontSize = DefaultPreviewFontSize;
-            PreviewContentText.ClearValue(TextBlock.LineHeightProperty);
+            PreviewVerseList.ItemsSource = null;
+            PreviewVerseList.SelectedItem = null;
+            PreviewVerseList.FontSize = DefaultPreviewFontSize;
+            PreviewVerseList.ClearValue(TextBlock.LineHeightProperty);
+            _pendingStartVerse = null;
             _lastPreviewContent = string.Empty;
             _lastRequestedPreviewFontSize = DefaultPreviewFontSize;
             MatchResultsPanel.Width = double.NaN;
@@ -543,6 +582,46 @@ namespace ImageColorChanger.UI.Controls
                 PreviewScrollViewer.MaxHeight = MinPreviewMaxHeight;
             }
             ApplyCompactWidth();
+        }
+
+        public void RefreshThemeResources()
+        {
+            try
+            {
+                if (PreviewVerseList == null)
+                {
+                    return;
+                }
+
+                if (TryFindResource("PreviewVerseListItemStyle") is Style itemStyle)
+                {
+                    PreviewVerseList.ItemContainerStyle = null;
+                    PreviewVerseList.ItemContainerStyle = itemStyle;
+                }
+
+                PreviewVerseList.Items.Refresh();
+                PreviewVerseList.UpdateLayout();
+            }
+            catch
+            {
+                // ignore refresh failures; preview will still pick up updated resources on next rebuild
+            }
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogSelectionDebug(string stage, string detail)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BiblePinyinPreviewColor][{stage}] {detail}");
+        }
+
+        private static string DescribeBrush(System.Windows.Media.Brush brush)
+        {
+            if (brush is SolidColorBrush solid)
+            {
+                return $"#{solid.Color.A:X2}{solid.Color.R:X2}{solid.Color.G:X2}{solid.Color.B:X2}";
+            }
+
+            return brush?.ToString() ?? "<null>";
         }
     }
 }

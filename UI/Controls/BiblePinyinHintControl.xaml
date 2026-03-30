@@ -3,6 +3,61 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="Auto"
              Visibility="Collapsed">
+    <UserControl.Resources>
+        <Style x:Key="PreviewVerseListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="0,1,0,1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource BrushBiblePinyinPreviewSelection}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="Transparent" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="0" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource BrushBiblePinyinPreviewHover}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource BrushBiblePinyinPreviewHoverBorder}" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource BrushBiblePinyinPreviewSelection}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="Transparent" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="0" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource BrushBiblePinyinPreviewHover}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource BrushBiblePinyinPreviewSelection}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
     <Border Background="#DD000000"
             BorderBrush="#FF5722"
             BorderThickness="2"
@@ -46,11 +101,27 @@
                     <ScrollViewer x:Name="PreviewScrollViewer"
                                   VerticalScrollBarVisibility="Auto"
                                   MaxHeight="220">
-                        <TextBlock x:Name="PreviewContentText"
-                                   Text=""
-                                   Foreground="#FFF5F5F5"
-                                   FontSize="15"
-                                   TextWrapping="Wrap"/>
+                        <ScrollViewer.Resources>
+                            <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource CompactScrollBarStyleDark}"/>
+                        </ScrollViewer.Resources>
+                        <ListBox x:Name="PreviewVerseList"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ItemContainerStyle="{StaticResource PreviewVerseListItemStyle}"
+                                  SelectionMode="Single"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 PreviewMouseWheel="PreviewVerseList_PreviewMouseWheel"
+                                 PreviewMouseLeftButtonUp="PreviewVerseList_PreviewMouseLeftButtonUp">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayText}"
+                                               Foreground="{Binding Foreground}"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </ScrollViewer>
                 </StackPanel>
             </Border>

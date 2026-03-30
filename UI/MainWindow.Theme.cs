@@ -108,6 +108,8 @@ namespace ImageColorChanger.UI
                 appResources["BrushGlobalIcon"] = new SolidColorBrush(color);
                 appResources["BrushIconDefault"] = new SolidColorBrush(color);
                 appResources["BrushMenuHover"] = new SolidColorBrush(color) { Opacity = 0.16 };
+                appResources["BrushBiblePinyinPreviewHover"] = new SolidColorBrush(WpfColor.FromArgb(0x99, color.R, color.G, color.B));
+                appResources["BrushBiblePinyinPreviewHoverBorder"] = new SolidColorBrush(WpfColor.FromArgb(0xFF, color.R, color.G, color.B));
                 appResources["ColorScrollBarThumb"] = WpfColor.FromArgb(0xCC, color.R, color.G, color.B);
                 appResources["ColorScrollBarThumbHover"] = WpfColor.FromArgb(
                     0xE6,
@@ -117,6 +119,10 @@ namespace ImageColorChanger.UI
                 ApplyScrollBarTrackThemeResources(appResources);
                 ApplyScrollBarBrushThemeResources(appResources);
             }
+
+            // 主题切换后，强制刷新拼音预览列表样式，避免悬浮色延迟到下次重建才生效。
+            BiblePinyinHintControl?.RefreshThemeResources();
+            TextEditorBiblePinyinHintControl?.RefreshThemeResources();
 
             if (saveSetting)
             {

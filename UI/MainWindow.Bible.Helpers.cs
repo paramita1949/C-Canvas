@@ -181,6 +181,7 @@ namespace ImageColorChanger.UI
                     OnPinyinHintUpdateAsync,
                     OnPinyinDeactivate
                 );
+                BindPinyinHintControlEvents();
                 LogBibleQuickLocateDebug("InitPinyinService", "success: manager initialized");
 
                 //System.Diagnostics.Debug.WriteLine("[圣经拼音] 拼音快速定位服务初始化成功");
@@ -214,6 +215,8 @@ namespace ImageColorChanger.UI
 
         private BiblePinyinHintControl ResolveBiblePinyinHintControl()
         {
+            BindPinyinHintControlEvents();
+
             if (TextEditorPanel?.Visibility == Visibility.Visible && TextEditorBiblePinyinHintControl != null)
             {
                 LogBibleQuickLocateDebug("ResolveHintControl", "use TextEditorBiblePinyinHintControl");
@@ -224,6 +227,80 @@ namespace ImageColorChanger.UI
                 ? "use BiblePinyinHintControl"
                 : "fallback control is null");
             return BiblePinyinHintControl;
+        }
+
+        private void BindPinyinHintControlEvents()
+        {
+            if (BiblePinyinHintControl != null)
+            {
+                BiblePinyinHintControl.PreviewVerseRangeConfirmed -= OnPinyinPreviewVerseRangeConfirmed;
+                BiblePinyinHintControl.PreviewVerseRangeConfirmed += OnPinyinPreviewVerseRangeConfirmed;
+            }
+
+            if (TextEditorBiblePinyinHintControl != null)
+            {
+                TextEditorBiblePinyinHintControl.PreviewVerseRangeConfirmed -= OnPinyinPreviewVerseRangeConfirmed;
+                TextEditorBiblePinyinHintControl.PreviewVerseRangeConfirmed += OnPinyinPreviewVerseRangeConfirmed;
+            }
+        }
+
+        private async void OnPinyinPreviewVerseRangeConfirmed(int startVerse, int endVerse)
+        {
+            try
+            {
+                if (_pinyinInputManager == null || !_pinyinInputManager.IsActive || _pinyinService == null || _bibleService == null)
+                {
+                    return;
+                }
+
+                string currentInput = _pinyinInputManager.CurrentInput?.Trim();
+                if (string.IsNullOrWhiteSpace(currentInput))
+                {
+                    return;
+                }
+
+                var parsed = await _pinyinService.ParseAsync(currentInput);
+                if (!parsed.Success || !parsed.BookId.HasValue || !parsed.Chapter.HasValue)
+                {
+                    return;
+                }
+
+                int chapter = parsed.Chapter.Value;
+                int verseCount = await _bibleService.GetVerseCountAsync(parsed.BookId.Value, chapter);
+                if (verseCount > 0)
+                {
+                    startVerse = Math.Clamp(startVerse, 1, verseCount);
+                    endVerse = Math.Clamp(endVerse, 1, verseCount);
+                }
+                else
+                {
+                    startVerse = Math.Max(1, startVerse);
+                    endVerse = Math.Max(1, endVerse);
+                }
+
+                if (endVerse < startVerse)
+                {
+                    (startVerse, endVerse) = (endVerse, startVerse);
+                }
+
+                var result = new ImageColorChanger.Services.ParseResult
+                {
+                    Success = true,
+                    BookId = parsed.BookId,
+                    BookName = parsed.BookName,
+                    Chapter = chapter,
+                    StartVerse = startVerse,
+                    EndVerse = endVerse,
+                    Type = ImageColorChanger.Services.LocationType.VerseRange
+                };
+
+                await OnPinyinLocationConfirmedAsync(result);
+                _pinyinInputManager.Deactivate();
+            }
+            catch (Exception ex)
+            {
+                LogBibleQuickLocateDebug("OnPinyinPreviewVerseRangeConfirmed", $"exception: {ex.Message}");
+            }
         }
 
         /// <summary>

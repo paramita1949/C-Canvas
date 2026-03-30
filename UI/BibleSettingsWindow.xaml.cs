@@ -59,6 +59,47 @@ namespace ImageColorChanger.UI
             LoadFontFamilies();
             PopulatePreviewFontSizeOptions();
             LoadSettings();
+            Loaded += BibleSettingsWindow_Loaded;
+        }
+
+        private void BibleSettingsWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            AdjustWindowHeightToContent();
+        }
+
+        private void AdjustWindowHeightToContent()
+        {
+            if (MainContentPanel == null)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    MainContentPanel.UpdateLayout();
+                    ChkSaveBibleHistory?.UpdateLayout();
+                    UpdateLayout();
+
+                    FrameworkElement bottomAnchor = (FrameworkElement)ChkSaveBibleHistory ?? MainContentPanel;
+                    var anchorBottom = bottomAnchor.TranslatePoint(new System.Windows.Point(0, bottomAnchor.ActualHeight), this).Y;
+                    const double bottomSafetyPadding = 4d;
+                    double targetHeight = Math.Ceiling(anchorBottom + bottomSafetyPadding);
+
+                    Height = Math.Max(280d, Math.Min(520d, targetHeight));
+
+#if DEBUG
+                    Debug.WriteLine($"[BibleSettingsWindow] AutoHeight anchor={bottomAnchor.Name}, anchorBottom={anchorBottom:F1}, targetHeight={targetHeight:F1}, applied={Height:F1}");
+#endif
+                }
+                catch (Exception)
+                {
+#if DEBUG
+                    Debug.WriteLine("[BibleSettingsWindow] AutoHeight failed");
+#endif
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void PopulatePreviewFontSizeOptions()

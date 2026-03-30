@@ -41,7 +41,7 @@ namespace ImageColorChanger.Core
                     break;
             }
 
-            return SplitImageDisplayMode.FitCenter;
+            return SplitImageDisplayMode.FitTop;
         }
 
         public override void Write(Utf8JsonWriter writer, SplitImageDisplayMode value, JsonSerializerOptions options)
@@ -56,7 +56,7 @@ namespace ImageColorChanger.Core
                 (int)SplitImageDisplayMode.FitCenter => SplitImageDisplayMode.FitCenter,
                 (int)SplitImageDisplayMode.Fill => SplitImageDisplayMode.Fill,
                 (int)SplitImageDisplayMode.FitTop => SplitImageDisplayMode.FitTop,
-                _ => SplitImageDisplayMode.FitCenter
+                _ => SplitImageDisplayMode.FitTop
             };
         }
     }

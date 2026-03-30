@@ -93,7 +93,7 @@ namespace ImageColorChanger.UI
         private Dictionary<int, System.Windows.Controls.Image> _regionImages = new Dictionary<int, System.Windows.Controls.Image>(); // 区域图片控件
         private Dictionary<int, string> _regionImagePaths = new Dictionary<int, string>(); // 区域图片路径
         private Dictionary<int, bool> _regionImageColorEffects = new Dictionary<int, bool>(); // 区域图片是否需要变色效果
-        private SplitImageDisplayMode _splitImageDisplayMode = SplitImageDisplayMode.FitCenter; // 分割图片显示模式
+        private SplitImageDisplayMode _splitImageDisplayMode = SplitImageDisplayMode.FitTop; // 分割图片显示模式（默认置顶）
         
         // 渲染节流（避免过于频繁的更新）
         private const int CanvasUpdateThrottleMs = 100; // 100ms内只更新一次
