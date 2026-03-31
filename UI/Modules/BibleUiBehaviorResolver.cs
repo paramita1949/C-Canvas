@@ -38,7 +38,9 @@ namespace ImageColorChanger.UI.Modules
 
             if (isBibleMode)
             {
-                return true;
+                // 圣经“滚动标题”模式下，标题已经在经文内容里（随内容一起投影），
+                // 这里不再叠加顶部 Overlay 标题，避免出现双标题。
+                return isBibleFixedTitle;
             }
 
             // 幻灯片投影场景下，固定标题模式应保持可见。

@@ -46,6 +46,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
 
         [Theory]
         [InlineData(true, true, false, false, true, true)]
+        [InlineData(true, false, false, false, true, false)]
         [InlineData(false, true, true, true, true, true)]
         [InlineData(false, false, true, true, true, false)]
         [InlineData(false, true, false, true, true, false)]
