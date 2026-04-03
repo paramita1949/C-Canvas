@@ -136,12 +136,12 @@ namespace ImageColorChanger.Services.Implementations
         public async Task StartPlaybackAsync(int imageId, CancellationToken cancellationToken = default)
         {
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"[合成播放][Service.Start] request imageId={imageId}, isPlaying={IsPlaying}, isPaused={IsPaused}");
+            //System.Diagnostics.Debug.WriteLine($"[合成播放][Service.Start] request imageId={imageId}, isPlaying={IsPlaying}, isPaused={IsPaused}");
             #endif
             if (IsPlaying)
             {
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("[合成播放][Service.Start] ignored because already playing");
+                //System.Diagnostics.Debug.WriteLine("[合成播放][Service.Start] ignored because already playing");
                 #endif
                 return;
             }
@@ -667,7 +667,7 @@ namespace ImageColorChanger.Services.Implementations
                     if (PlayCount == -1 || CompletedPlayCount < PlayCount)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine($" 新一轮播放开始，保持当前速度 {Speed:F2}x");
+                        //System.Diagnostics.Debug.WriteLine($" 新一轮播放开始，保持当前速度 {Speed:F2}x");
                         #endif
                         
                         // 触发跳回起始位置的事件
@@ -792,7 +792,7 @@ namespace ImageColorChanger.Services.Implementations
                 return;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"[合成播放][Service.UpdateTotalAndRestart] imageId={_currentImageId}, elapsed={_playbackStopwatch.Elapsed.TotalSeconds:F2}");
+            //System.Diagnostics.Debug.WriteLine($"[合成播放][Service.UpdateTotalAndRestart] imageId={_currentImageId}, elapsed={_playbackStopwatch.Elapsed.TotalSeconds:F2}");
             #endif
 
             // 获取已播放的时间（秒）

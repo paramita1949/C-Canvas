@@ -22,12 +22,25 @@ namespace ImageColorChanger.Managers
 
         private void RunOnMainDispatcher(Action action)
         {
-            _mainWindow.Dispatcher.Invoke(action);
+            var dispatcher = _mainWindow.Dispatcher;
+            if (dispatcher.CheckAccess())
+            {
+                action();
+                return;
+            }
+
+            dispatcher.Invoke(action);
         }
 
         private T RunOnMainDispatcher<T>(Func<T> action)
         {
-            return _mainWindow.Dispatcher.Invoke(action);
+            var dispatcher = _mainWindow.Dispatcher;
+            if (dispatcher.CheckAccess())
+            {
+                return action();
+            }
+
+            return dispatcher.Invoke(action);
         }
 
         private bool TryRunOnProjectionDispatcher(Action action)

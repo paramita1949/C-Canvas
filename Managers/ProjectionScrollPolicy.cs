@@ -5,6 +5,38 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public static class ProjectionScrollPolicy
     {
+        public static double CalculateMainScrollableRatio(double mainScrollTop, double mainScrollableHeight)
+        {
+            if (mainScrollableHeight <= 0)
+            {
+                return 0;
+            }
+
+            double ratio = mainScrollTop / mainScrollableHeight;
+            if (ratio < 0)
+            {
+                return 0;
+            }
+
+            if (ratio > 1)
+            {
+                return 1;
+            }
+
+            return ratio;
+        }
+
+        public static double CalculateByScrollableHeights(double mainScrollTop, double mainScrollableHeight, double projectionScrollableHeight)
+        {
+            if (projectionScrollableHeight <= 0)
+            {
+                return 0;
+            }
+
+            double ratio = CalculateMainScrollableRatio(mainScrollTop, mainScrollableHeight);
+            return CalculateByScrollableHeightRatio(ratio, projectionScrollableHeight);
+        }
+
         public static double CalculateByExtentRatio(double mainScrollTop, double mainExtentHeight, double projectionExtentHeight)
         {
             if (mainExtentHeight <= 0 || projectionExtentHeight <= 0)

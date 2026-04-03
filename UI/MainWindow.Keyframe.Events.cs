@@ -525,7 +525,7 @@ namespace ImageColorChanger.UI
                     if (isSingleAutoPauseKeyframe)
                     {
                         #if DEBUG
-                        System.Diagnostics.Debug.WriteLine(" [合成播放] 单P关键帧模式：跳过起播前首帧跳转");
+                        //System.Diagnostics.Debug.WriteLine(" [合成播放] 单P关键帧模式：跳过起播前首帧跳转");
                         #endif
                     }
                     else
@@ -599,7 +599,7 @@ namespace ImageColorChanger.UI
 
                 // 开始播放
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[合成播放][StartRequest] source=BtnCompositePlay_Click, imageId={_currentImageId}, isPlayingBefore={compositeService.IsPlaying}, isPausedBefore={compositeService.IsPaused}");
+                //System.Diagnostics.Debug.WriteLine($"[合成播放][StartRequest] source=BtnCompositePlay_Click, imageId={_currentImageId}, isPlayingBefore={compositeService.IsPlaying}, isPausedBefore={compositeService.IsPaused}");
                 #endif
                 await compositeService.StartPlaybackAsync(_currentImageId);
                 
@@ -1008,6 +1008,7 @@ namespace ImageColorChanger.UI
 
                     // 开始FPS监控
                     StartFpsMonitoring();
+                    SetAutoProjectionSyncEnabled(false);
 
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 开始滚动动画");
@@ -1024,6 +1025,7 @@ namespace ImageColorChanger.UI
                         {
                             // 滚动完成回调
                             _compositeScrollStoryboard = null; // 清除引用
+                            SetAutoProjectionSyncEnabled(true);
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($" [合成播放滚动] 滚动完成，最终位置: {scrollViewer.VerticalOffset:F1}");
                             //#endif
@@ -1031,6 +1033,7 @@ namespace ImageColorChanger.UI
                             // 更新投影
                             if (IsProjectionEnabled)
                             {
+                                _projectionManager?.SyncProjectionScroll(force: true);
                                 //#if DEBUG
                                 //System.Diagnostics.Debug.WriteLine($"    [合成播放滚动] 滚动完成后更新投影");
                                 //#endif
@@ -1042,11 +1045,21 @@ namespace ImageColorChanger.UI
                         },
                         _keyframeManager?.ScrollEasingType ?? "Bezier",
                         _keyframeManager?.IsLinearScrolling ?? false,
-                        e.SpeedRatio // 传递速度倍率，直接加速动画
+                        e.SpeedRatio, // 传递速度倍率，直接加速动画
+                        () =>
+                        {
+                            _fpsMonitor?.RecordMainFrame();
+                            _projectionManager?.SyncSharedRendering();
+                            if (IsProjectionEnabled)
+                            {
+                                _projectionManager?.SyncProjectionScroll(force: true);
+                            }
+                        }
                     );
                 }
                 catch (Exception)
                 {
+                    SetAutoProjectionSyncEnabled(true);
                     // 忽略异常
                 }
             });
@@ -1076,6 +1089,11 @@ namespace ImageColorChanger.UI
                     
                     // 保持当前位置
                     scrollViewer.ScrollToVerticalOffset(currentOffset);
+                    SetAutoProjectionSyncEnabled(true);
+                    if (IsProjectionEnabled)
+                    {
+                        _projectionManager?.SyncProjectionScroll(force: true);
+                    }
                 }
             }
         }
@@ -1158,7 +1176,7 @@ namespace ImageColorChanger.UI
                 }
 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] enter keyframeId={keyframeId}, currentImageId={_currentImageId}, last={_lastCompositeAutoStopKeyframeId}, isPlaying={compositeService.IsPlaying}, isPaused={compositeService.IsPaused}");
+                //System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] enter keyframeId={keyframeId}, currentImageId={_currentImageId}, last={_lastCompositeAutoStopKeyframeId}, isPlaying={compositeService.IsPlaying}, isPaused={compositeService.IsPaused}");
                 #endif
 
                 var keyframes = _keyframeManager.GetKeyframesFromCache(_currentImageId);
@@ -1171,7 +1189,7 @@ namespace ImageColorChanger.UI
                 if (keyframe == null || !keyframe.AutoPause)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] skip keyframeId={keyframeId}, found={keyframe != null}, autoStop={(keyframe?.AutoPause ?? false)}");
+                    //System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] skip keyframeId={keyframeId}, found={keyframe != null}, autoStop={(keyframe?.AutoPause ?? false)}");
                     #endif
                     return;
                 }
@@ -1179,7 +1197,7 @@ namespace ImageColorChanger.UI
                 if (_lastCompositeAutoStopKeyframeId == keyframeId)
                 {
                     #if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] dedup keyframeId={keyframeId}");
+                    //System.Diagnostics.Debug.WriteLine($"[合成播放][AutoStop] dedup keyframeId={keyframeId}");
                     #endif
                     return;
                 }
@@ -1210,7 +1228,7 @@ namespace ImageColorChanger.UI
             _lastCompositeAutoStopKeyframeId = -1;
 
             #if DEBUG
-            System.Diagnostics.Debug.WriteLine($"[合成播放][StopLikeButton] status='{statusMessage}', imageId={_currentImageId}, isPlayingAfterStop={compositeService.IsPlaying}, isPausedAfterStop={compositeService.IsPaused}");
+            //System.Diagnostics.Debug.WriteLine($"[合成播放][StopLikeButton] status='{statusMessage}', imageId={_currentImageId}, isPlayingAfterStop={compositeService.IsPlaying}, isPausedAfterStop={compositeService.IsPaused}");
             #endif
 
             SetCompositePlayButtonContent(false);
@@ -1487,7 +1505,7 @@ namespace ImageColorChanger.UI
 
                     #if DEBUG
                     var compositeService = sender as Services.Implementations.CompositePlaybackService;
-                    System.Diagnostics.Debug.WriteLine($"[合成播放][KeyframeChanged] keyframeId={e.KeyframeId}, y={e.YPosition:F1}, arrived={e.IsSegmentArrived}, isPlaying={compositeService?.IsPlaying}, isPaused={compositeService?.IsPaused}");
+                    //System.Diagnostics.Debug.WriteLine($"[合成播放][KeyframeChanged] keyframeId={e.KeyframeId}, y={e.YPosition:F1}, arrived={e.IsSegmentArrived}, isPlaying={compositeService?.IsPlaying}, isPaused={compositeService?.IsPaused}");
                     #endif
 
                     // 仅在滚动段真正到达终点时触发自动停止，避免回调竞态导致“停了又开”

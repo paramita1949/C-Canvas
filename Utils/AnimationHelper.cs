@@ -52,11 +52,6 @@ namespace ImageColorChanger.Utils
             if (d is ScrollViewer scrollViewer)
             {
                 scrollViewer.ScrollToVerticalOffset((double)e.NewValue);
-
-                //  每一帧记录FPS + 投影共享渲染（跟投影屏幕逻辑一样，直接调用方法）
-                var mainWindow = System.Windows.Application.Current.MainWindow as UI.MainWindow;
-                mainWindow?._fpsMonitor?.RecordMainFrame();
-                mainWindow?.ProjectionManager?.SyncSharedRendering();
             }
         }
 
@@ -80,7 +75,8 @@ namespace ImageColorChanger.Utils
             Action onCompleted = null,
             string easingType = "Bezier",
             bool isLinear = false,
-            double speedRatio = 1.0)
+            double speedRatio = 1.0,
+            Action onFrame = null)
         {
             if (scrollViewer == null)
                 throw new ArgumentNullException(nameof(scrollViewer));
@@ -120,6 +116,11 @@ namespace ImageColorChanger.Utils
             if (onCompleted != null)
             {
                 storyboard.Completed += (s, e) => onCompleted?.Invoke();
+            }
+
+            if (onFrame != null)
+            {
+                storyboard.CurrentTimeInvalidated += (s, e) => onFrame?.Invoke();
             }
 
             // 开始动画

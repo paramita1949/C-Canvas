@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Core;
@@ -10,6 +11,8 @@ namespace ImageColorChanger.Managers
     /// </summary>
     public partial class ProjectionManager
     {
+        private int _projectionScrollSyncRunning;
+
         /// <summary>
         /// 重置投影滚动位置到顶部
         /// </summary>
@@ -45,16 +48,21 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 同步投影滚动位置 - 使用图片绝对像素高度同步
         /// </summary>
-        public void SyncProjectionScroll()
+        public void SyncProjectionScroll(bool force = false)
         {
             if (!_syncEnabled || _projectionWindow == null || _currentImage == null)
             {
                 return;
             }
 
+            if (Interlocked.Exchange(ref _projectionScrollSyncRunning, 1) == 1)
+            {
+                return;
+            }
+
             try
             {
-                if (ShouldThrottleSync())
+                if (!force && ShouldThrottleSync())
                 {
                     return;
                 }
@@ -67,35 +75,22 @@ namespace ImageColorChanger.Managers
                     }
 
                     double mainScrollTop = _mainScrollViewer.VerticalOffset;
-                    double mainCanvasWidth = _mainScrollViewer.ActualWidth;
-                    double mainCanvasHeight = _mainScrollViewer.ActualHeight;
-
-                    var screen = GetCurrentProjectionScreenOrNull();
-                    if (screen == null)
-                    {
-                        return;
-                    }
-
-                    int projScreenWidth = screen.PhysicalWidth;
-                    int projScreenHeight = screen.PhysicalHeight;
-                    double mainImgHeight = CalculateDisplayedImageHeight(mainCanvasWidth, mainCanvasHeight);
-                    var (projCanvasWidth, projCanvasHeight) = GetProjectionCanvasSize(projScreenWidth, projScreenHeight);
-                    double projImgHeight = CalculateDisplayedImageHeight(projCanvasWidth, projCanvasHeight);
-                    if (mainImgHeight == 0 || projImgHeight == 0)
-                    {
-                        return;
-                    }
-
-                    double projScrollTop = ProjectionScrollPolicy.CalculateByImageHeights(
+                    double mainScrollableHeight = _mainScrollViewer.ScrollableHeight;
+                    double projectionScrollableHeight = _projectionScrollViewer.ScrollableHeight;
+                    double projScrollTop = ProjectionScrollPolicy.CalculateByScrollableHeights(
                         mainScrollTop,
-                        mainImgHeight,
-                        projImgHeight);
+                        mainScrollableHeight,
+                        projectionScrollableHeight);
                     _projectionScrollViewer.ScrollToVerticalOffset(projScrollTop);
                     _host.RecordProjectionSync();
                 });
             }
             catch
             {
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _projectionScrollSyncRunning, 0);
             }
         }
 
