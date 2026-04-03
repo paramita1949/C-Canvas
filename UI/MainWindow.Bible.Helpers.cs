@@ -410,7 +410,8 @@ namespace ImageColorChanger.UI
 
             if (IsBibleQuickLocateActivationKey(key))
             {
-                LogBibleQuickLocateDebug("TryHandleFromWindow", $"manager active: swallow activation key {key}");
+                _pinyinInputManager.Deactivate();
+                LogBibleQuickLocateDebug("TryHandleFromWindow", $"manager active: toggle off by activation key {key}");
                 return true;
             }
 
