@@ -135,5 +135,92 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
 
             Assert.Equal(expected, actual);
         }
+
+        [Theory]
+        [InlineData(true, true, false, false, true)]
+        [InlineData(true, false, true, false, false)]
+        [InlineData(true, false, false, true, true)]
+        [InlineData(false, true, false, true, false)]
+        public void ShouldAllowBibleQuickLocateContext_ReturnsExpected(
+            bool isBibleMode,
+            bool isActivationKey,
+            bool isAlphaKey,
+            bool isPinyinInputActive,
+            bool expected)
+        {
+            var actual = BibleUiBehaviorResolver.ShouldAllowBibleQuickLocateContext(
+                isBibleMode,
+                isActivationKey,
+                isAlphaKey,
+                isPinyinInputActive);
+
+            Assert.Equal(expected, actual);
+        }
+
+        [Theory]
+        [InlineData(false, true, false, true)]
+        [InlineData(false, false, true, false)]
+        [InlineData(true, true, false, false)]
+        [InlineData(true, false, true, false)]
+        public void ShouldAutoActivateBibleQuickLocateWhenInactive_ReturnsExpected(
+            bool isPinyinInputActive,
+            bool isActivationKey,
+            bool isAlphaKey,
+            bool expected)
+        {
+            var actual = BibleUiBehaviorResolver.ShouldAutoActivateBibleQuickLocateWhenInactive(
+                isPinyinInputActive,
+                isActivationKey,
+                isAlphaKey);
+
+            Assert.Equal(expected, actual);
+        }
+
+        [Theory]
+        [InlineData("马太福音 mtfy 1 12", true, 12, 0, false)]
+        [InlineData("马太福音1 12 1", true, 12, 1, true)]
+        [InlineData("mtfy 1:12-15", true, 12, 15, true)]
+        [InlineData("mtfy 1:12-", true, 12, 0, false)]
+        [InlineData("mtfy 1", false, 0, 0, false)]
+        public void TryExtractTypedVerseRangeForPreview_ReturnsExpected(
+            string input,
+            bool expectedSuccess,
+            int expectedStart,
+            int expectedEnd,
+            bool expectedHasExplicitEnd)
+        {
+            bool success = BibleUiBehaviorResolver.TryExtractTypedVerseRangeForPreview(
+                input,
+                out int start,
+                out int end,
+                out bool hasExplicitEnd);
+
+            Assert.Equal(expectedSuccess, success);
+            Assert.Equal(expectedStart, start);
+            Assert.Equal(expectedEnd, end);
+            Assert.Equal(expectedHasExplicitEnd, hasExplicitEnd);
+        }
+
+        [Theory]
+        [InlineData(12, 0, false, 28, 28)]
+        [InlineData(12, 17, true, 28, 17)]
+        [InlineData(12, 1, true, 28, 28)]
+        [InlineData(5, 99, true, 20, 20)]
+        [InlineData(5, 3, true, 20, 20)]
+        public void ResolvePinyinPreviewEndVerse_ReturnsExpected(
+            int startVerse,
+            int typedEndVerse,
+            bool hasExplicitEndVerse,
+            int verseCount,
+            int expected)
+        {
+            int actual = BibleUiBehaviorResolver.ResolvePinyinPreviewEndVerse(
+                startVerse,
+                typedEndVerse,
+                hasExplicitEndVerse,
+                verseCount);
+
+            Assert.Equal(expected, actual);
+        }
     }
 }

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -321,9 +320,13 @@ namespace ImageColorChanger.UI
                 (TextEditorPanel?.Visibility == Visibility.Visible || _currentTextProject != null) &&
                 (_projectionManager?.IsProjectionActive == true || _projectionManager?.IsProjecting == true);
             bool isAlphaKey = key >= Key.A && key <= Key.Z;
+            bool isPinyinInputActive = _pinyinInputManager?.IsActive ?? false;
             bool isBibleTabOrActive =
-                _isBibleMode &&
-                (IsBibleQuickLocateActivationKey(key) || isAlphaKey || (_pinyinInputManager?.IsActive ?? false));
+                Modules.BibleUiBehaviorResolver.ShouldAllowBibleQuickLocateContext(
+                    _isBibleMode,
+                    IsBibleQuickLocateActivationKey(key),
+                    isAlphaKey,
+                    isPinyinInputActive);
             bool canUseQuickLocate = isTextEditorContext || isSlideProjectionMode || isBibleTabOrActive;
 
             var focused = Keyboard.FocusedElement;
@@ -401,14 +404,6 @@ namespace ImageColorChanger.UI
                     return true;
                 }
 
-                if (key >= Key.A && key <= Key.Z)
-                {
-                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"manager inactive + alpha key -> activate by key={key}");
-                    var handledWhenInactive = await HandleBiblePinyinInputKeyAsync(key, showActivationStatus: false);
-                    LogBibleQuickLocateDebug("TryHandleFromWindow", $"inactive alpha delegated handled={handledWhenInactive}, key={key}");
-                    return handledWhenInactive;
-                }
-
                 LogBibleQuickLocateDebug("TryHandleFromWindow", "manager inactive and key is not activation key");
                 return false;
             }
@@ -445,10 +440,11 @@ namespace ImageColorChanger.UI
                 return true;
             }
 
-            if (!_pinyinInputManager.IsActive &&
-                (IsBibleQuickLocateActivationKey(key) || (key >= Key.A && key <= Key.Z)))
+            if (Modules.BibleUiBehaviorResolver.ShouldAutoActivateBibleQuickLocateWhenInactive(
+                    _pinyinInputManager.IsActive,
+                    IsBibleQuickLocateActivationKey(key),
+                    key >= Key.A && key <= Key.Z))
             {
-                bool activatedByTab = IsBibleQuickLocateActivationKey(key);
                 DisableIME();
                 _pinyinSessionFromSlideContext =
                     TextEditorPanel?.Visibility == Visibility.Visible &&
@@ -456,21 +452,14 @@ namespace ImageColorChanger.UI
                 ResetPinyinPreviewCache();
                 _pinyinInputManager.Activate();
                 ApplySlideQuickLocateInputLock();
-                LogBibleQuickLocateDebug(
-                    "HandlePinyinKey",
-                    activatedByTab
-                        ? $"activate by TAB key={key}"
-                        : $"auto-activate by alpha key={key}");
+                LogBibleQuickLocateDebug("HandlePinyinKey", $"activate by TAB key={key}");
                 if (showActivationStatus)
                 {
                     ShowBibleQuickLocateActivationHint();
                 }
 
                 // TAB仅用于唤醒，不作为输入字符传递给拼音输入管理器。
-                if (activatedByTab)
-                {
-                    return true;
-                }
+                return true;
             }
 
             if (_pinyinInputManager.IsActive)
@@ -1315,19 +1304,20 @@ namespace ImageColorChanger.UI
             int requestedEndVerse = Math.Clamp(result.EndVerse.Value, startVerse, verseCount);
             int endVerse = requestedEndVerse;
 
-            // 输入范围预览时，优先尊重用户正在输入的左侧起始节（例如 "10-1" 仍从10节开始预览）。
-            if (TryExtractTypedVerseRange(input, out int typedStartVerse, out int typedEndVerse))
+            // 输入范围预览时，优先尊重用户正在输入的起始节。
+            // 当输入未给结束节（例如 "mtfy 1 12"）时，预览从起始节延伸到章末。
+            if (Modules.BibleUiBehaviorResolver.TryExtractTypedVerseRangeForPreview(
+                    input,
+                    out int typedStartVerse,
+                    out int typedEndVerse,
+                    out bool hasExplicitEndVerse))
             {
                 startVerse = Math.Clamp(typedStartVerse, 1, verseCount);
-                if (typedEndVerse > 0)
-                {
-                    int normalizedTypedEnd = Math.Clamp(typedEndVerse, 1, verseCount);
-                    endVerse = normalizedTypedEnd >= startVerse ? normalizedTypedEnd : startVerse;
-                }
-                else
-                {
-                    endVerse = startVerse;
-                }
+                endVerse = Modules.BibleUiBehaviorResolver.ResolvePinyinPreviewEndVerse(
+                    startVerse,
+                    typedEndVerse,
+                    hasExplicitEndVerse,
+                    verseCount);
 
             }
 
@@ -1343,58 +1333,6 @@ namespace ImageColorChanger.UI
 
             string previewContent = FormatVerseWithNumbers(verses);
             return (previewReference, previewContent);
-        }
-
-        private static bool TryExtractTypedVerseRange(string input, out int typedStartVerse, out int typedEndVerse)
-        {
-            typedStartVerse = 0;
-            typedEndVerse = 0;
-
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return false;
-            }
-
-            // 1) 优先提取结尾的“起始节-结束节（可为空）”，避免受书卷与章之间是否空格影响。
-            var match = Regex.Match(input, @"(?<start>\d+)\s*-\s*(?<end>\d*)\s*$");
-            if (!match.Success)
-            {
-                // 2) 兼容输入过程中的空格分隔形式："... 章 起始节 结束节"
-                //    例如 "马太福音1 12 1"（显示会是 1:12-1），此时应从12节开始预览。
-                var numberMatches = Regex.Matches(input, @"\d+");
-                if (numberMatches.Count >= 3)
-                {
-                    string startCandidate = numberMatches[numberMatches.Count - 2].Value;
-                    string endCandidate = numberMatches[numberMatches.Count - 1].Value;
-                    if (!int.TryParse(startCandidate, out typedStartVerse))
-                    {
-                        typedStartVerse = 0;
-                        return false;
-                    }
-
-                    if (int.TryParse(endCandidate, out int parsedTailEnd))
-                    {
-                        typedEndVerse = parsedTailEnd;
-                    }
-
-                    return true;
-                }
-
-                return false;
-            }
-
-            if (!int.TryParse(match.Groups["start"].Value, out typedStartVerse))
-            {
-                return false;
-            }
-
-            string endPart = match.Groups["end"].Value;
-            if (!string.IsNullOrWhiteSpace(endPart) && int.TryParse(endPart, out int parsedEnd))
-            {
-                typedEndVerse = parsedEnd;
-            }
-
-            return true;
         }
 
         private static bool IsBibleQuickLocateActivationKey(Key key)
