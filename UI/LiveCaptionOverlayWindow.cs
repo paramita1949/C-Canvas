@@ -11,6 +11,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Shell;
 using System.Windows.Threading;
+using ImageColorChanger.Managers;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfCursor = System.Windows.Input.Cursor;
@@ -84,7 +85,13 @@ namespace ImageColorChanger.UI
 
         private readonly Border _captionSurface;
         private readonly TextBlock _captionText;
+        private readonly TextBlock _projectionActionText;
         private readonly Path _settingsIcon;
+        private readonly Border _projectionAction;
+        private readonly Border _orientationAction;
+        private readonly Border _positionAction;
+        private readonly TextBlock _orientationActionText;
+        private readonly TextBlock _positionActionText;
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
         private readonly DispatcherTimer _typingTimer;
@@ -94,6 +101,9 @@ namespace ImageColorChanger.UI
         private int _highlightStartIndex;
         private bool _typingAnimationEnabled;
         private bool _latestTextHighlightEnabled = true;
+        private ProjectionCaptionOrientation _captionOrientation = ProjectionCaptionOrientation.Horizontal;
+        private ProjectionCaptionHorizontalAnchor _captionHorizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
+        private ProjectionCaptionVerticalAnchor _captionVerticalAnchor = ProjectionCaptionVerticalAnchor.Top;
 
         private LiveCaptionDockMode _dockMode = LiveCaptionDockMode.TopBand;
         private double _bandHeight = 180;
@@ -115,6 +125,9 @@ namespace ImageColorChanger.UI
         private int _layoutApplySequence;
 
         public event Action SettingsRequested;
+        public event Action ProjectionToggleRequested;
+        public event Action<ProjectionCaptionOrientation> CaptionOrientationRequested;
+        public event Action<ProjectionCaptionHorizontalAnchor, ProjectionCaptionVerticalAnchor> CaptionPositionRequested;
         public event Action CloseRequested;
         public event Action<Rect> FloatingBoundsChanged;
 
@@ -194,6 +207,36 @@ namespace ImageColorChanger.UI
                 Margin = new Thickness(0, 0, 4, 0)
             };
 
+            _projectionAction = CreateTextActionItem("投影", out _projectionActionText);
+            _projectionAction.Margin = new Thickness(6, 0, 0, 0);
+            _projectionAction.ToolTip = "显示/隐藏投影字幕";
+            _projectionAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                ProjectionToggleRequested?.Invoke();
+            };
+            SetProjectionToggleState(hidden: false);
+
+            _orientationAction = CreateTextActionItem("横着", out _orientationActionText);
+            _orientationAction.Margin = new Thickness(6, 0, 0, 0);
+            _orientationAction.ToolTip = "字幕方向";
+            _orientationAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                ToggleCaptionOrientation();
+            };
+            SetCaptionOrientationState(_captionOrientation);
+
+            _positionAction = CreateTextActionItem("位置:中", out _positionActionText);
+            _positionAction.Margin = new Thickness(6, 0, 0, 0);
+            _positionAction.ToolTip = "字幕位置";
+            _positionAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                OpenCaptionPositionMenu();
+            };
+            SetCaptionPositionState(_captionHorizontalAnchor, _captionVerticalAnchor);
+
             _settingsAction = CreateActionItem("IconLucideSettings", out _settingsIcon);
             _settingsAction.Margin = new Thickness(6, 0, 0, 0);
             _settingsAction.ToolTip = "字幕设置";
@@ -212,6 +255,9 @@ namespace ImageColorChanger.UI
                 CloseRequested?.Invoke();
             };
 
+            actionPanel.Children.Add(_projectionAction);
+            actionPanel.Children.Add(_orientationAction);
+            actionPanel.Children.Add(_positionAction);
             actionPanel.Children.Add(_settingsAction);
             actionPanel.Children.Add(_closeAction);
             Grid.SetColumn(actionPanel, 0);
@@ -257,7 +303,7 @@ namespace ImageColorChanger.UI
                     $"OverlayLoaded: dock={_dockMode}, hasCustom={_hasCustomFloatingBounds}, cachedFloating=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##}), actual=({Left:0.##},{Top:0.##},{Width:0.##}x{Height:0.##})");
                 StartSettingsIconAnimation();
                 ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
-                    $"OverlayLoaded: settingsAction visible={_settingsAction.IsVisible}, size={_settingsAction.ActualWidth}x{_settingsAction.ActualHeight}; closeAction visible={_closeAction.IsVisible}, size={_closeAction.ActualWidth}x{_closeAction.ActualHeight}");
+                    $"OverlayLoaded: projectionAction visible={_projectionAction.IsVisible}, size={_projectionAction.ActualWidth}x{_projectionAction.ActualHeight}; settingsAction visible={_settingsAction.IsVisible}, size={_settingsAction.ActualWidth}x{_settingsAction.ActualHeight}; closeAction visible={_closeAction.IsVisible}, size={_closeAction.ActualWidth}x{_closeAction.ActualHeight}");
             };
 
             SourceInitialized += (_, _) =>
@@ -346,6 +392,21 @@ namespace ImageColorChanger.UI
 
         public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
 
+        public void SetCaptionOrientationState(ProjectionCaptionOrientation orientation)
+        {
+            _captionOrientation = orientation == ProjectionCaptionOrientation.Vertical
+                ? ProjectionCaptionOrientation.Vertical
+                : ProjectionCaptionOrientation.Horizontal;
+            UpdateCaptionOrientationActionState();
+        }
+
+        public void SetCaptionPositionState(ProjectionCaptionHorizontalAnchor horizontalAnchor, ProjectionCaptionVerticalAnchor verticalAnchor)
+        {
+            _captionHorizontalAnchor = NormalizeCaptionHorizontalAnchor(horizontalAnchor);
+            _captionVerticalAnchor = NormalizeCaptionVerticalAnchor(verticalAnchor);
+            UpdateCaptionPositionActionState();
+        }
+
         public void SetTypingAnimationEnabled(bool enabled)
         {
             _typingAnimationEnabled = enabled;
@@ -404,15 +465,35 @@ namespace ImageColorChanger.UI
             DependencyObject current = source;
             while (current != null)
             {
-                if (ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
+                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _orientationAction) || ReferenceEquals(current, _positionAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
                 {
                     return true;
                 }
 
-                current = VisualTreeHelper.GetParent(current);
+                current = GetHitTestParent(current);
             }
 
             return false;
+        }
+
+        private static DependencyObject GetHitTestParent(DependencyObject current)
+        {
+            if (current is Visual || current is System.Windows.Media.Media3D.Visual3D)
+            {
+                return VisualTreeHelper.GetParent(current);
+            }
+
+            if (current is FrameworkContentElement fce)
+            {
+                return fce.Parent ?? ContentOperations.GetParent(fce);
+            }
+
+            if (current is ContentElement ce)
+            {
+                return ContentOperations.GetParent(ce);
+            }
+
+            return null;
         }
 
         private void Overlay_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -618,6 +699,223 @@ namespace ImageColorChanger.UI
             return host;
         }
 
+        private Border CreateTextActionItem(string text, out TextBlock textBlock)
+        {
+            var host = new Border
+            {
+                MinWidth = 52,
+                Height = 28,
+                Padding = new Thickness(10, 0, 10, 0),
+                Background = new WpfSolidColorBrush(WpfColor.FromRgb(245, 243, 238)),
+                BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(33, 150, 243)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Cursor = WpfCursors.Hand
+            };
+            host.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
+            host.SetResourceReference(Border.BorderBrushProperty, "BrushMenuBorder");
+
+            textBlock = new TextBlock
+            {
+                Text = text,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+            };
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
+            host.Child = textBlock;
+            return host;
+        }
+
+        public void SetProjectionToggleState(bool hidden)
+        {
+            if (_projectionActionText == null || _projectionAction == null)
+            {
+                return;
+            }
+
+            if (hidden)
+            {
+                _projectionActionText.Text = "显示投影";
+                _projectionAction.Background = new WpfSolidColorBrush(WpfColor.FromRgb(220, 38, 38));
+                _projectionAction.BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(185, 28, 28));
+                _projectionActionText.Foreground = WpfBrushes.White;
+                _projectionAction.ToolTip = "投影字幕已隐藏（点击显示）";
+                return;
+            }
+
+            _projectionActionText.Text = "隐藏投影";
+            _projectionAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
+            _projectionAction.SetResourceReference(Border.BorderBrushProperty, "BrushMenuBorder");
+            _projectionActionText.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
+            _projectionAction.ToolTip = "投影字幕已显示（点击隐藏）";
+        }
+
+        private void ToggleCaptionOrientation()
+        {
+            var nextOrientation = _captionOrientation == ProjectionCaptionOrientation.Horizontal
+                ? ProjectionCaptionOrientation.Vertical
+                : ProjectionCaptionOrientation.Horizontal;
+
+            SetCaptionOrientationState(nextOrientation);
+            CaptionOrientationRequested?.Invoke(nextOrientation);
+        }
+
+        private void OpenCaptionPositionMenu()
+        {
+            var menu = new ContextMenu();
+
+            if (_captionOrientation == ProjectionCaptionOrientation.Vertical)
+            {
+                AddCaptionPositionItem(menu, "左", _captionHorizontalAnchor == ProjectionCaptionHorizontalAnchor.Left, () => ApplyCaptionPositionSelection(ProjectionCaptionHorizontalAnchor.Left, _captionVerticalAnchor));
+                AddCaptionPositionItem(menu, "中", _captionHorizontalAnchor == ProjectionCaptionHorizontalAnchor.Center, () => ApplyCaptionPositionSelection(ProjectionCaptionHorizontalAnchor.Center, _captionVerticalAnchor));
+                AddCaptionPositionItem(menu, "右", _captionHorizontalAnchor == ProjectionCaptionHorizontalAnchor.Right, () => ApplyCaptionPositionSelection(ProjectionCaptionHorizontalAnchor.Right, _captionVerticalAnchor));
+            }
+            else
+            {
+                AddCaptionPositionItem(menu, "上", _captionVerticalAnchor == ProjectionCaptionVerticalAnchor.Top, () => ApplyCaptionPositionSelection(_captionHorizontalAnchor, ProjectionCaptionVerticalAnchor.Top));
+                AddCaptionPositionItem(menu, "中", _captionVerticalAnchor == ProjectionCaptionVerticalAnchor.Center, () => ApplyCaptionPositionSelection(_captionHorizontalAnchor, ProjectionCaptionVerticalAnchor.Center));
+                AddCaptionPositionItem(menu, "下", _captionVerticalAnchor == ProjectionCaptionVerticalAnchor.Bottom, () => ApplyCaptionPositionSelection(_captionHorizontalAnchor, ProjectionCaptionVerticalAnchor.Bottom));
+            }
+
+            menu.PlacementTarget = _positionAction;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.HorizontalOffset = 0;
+            menu.VerticalOffset = 2;
+            menu.IsOpen = true;
+        }
+
+        private static void AddCaptionPositionItem(MenuItem parent, string text, bool selected, Action apply)
+        {
+            var item = new MenuItem
+            {
+                Header = BuildSelectedMenuHeader(text, selected)
+            };
+            item.Click += (_, _) => apply?.Invoke();
+            parent.Items.Add(item);
+        }
+
+        private static void AddCaptionPositionItem(ContextMenu parent, string text, bool selected, Action apply)
+        {
+            var item = new MenuItem
+            {
+                Header = BuildSelectedMenuHeader(text, selected)
+            };
+            item.Click += (_, _) => apply?.Invoke();
+            parent.Items.Add(item);
+        }
+
+        private static string BuildSelectedMenuHeader(string text, bool selected)
+        {
+            return selected ? $"{text}  ✓" : text;
+        }
+
+        private void ApplyCaptionPositionSelection(ProjectionCaptionHorizontalAnchor horizontalAnchor, ProjectionCaptionVerticalAnchor verticalAnchor)
+        {
+            SetCaptionPositionState(horizontalAnchor, verticalAnchor);
+            CaptionPositionRequested?.Invoke(_captionHorizontalAnchor, _captionVerticalAnchor);
+        }
+
+        private void UpdateCaptionOrientationActionState()
+        {
+            if (_orientationAction == null || _orientationActionText == null)
+            {
+                return;
+            }
+
+            bool isHorizontal = _captionOrientation == ProjectionCaptionOrientation.Horizontal;
+            _orientationAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
+            _orientationAction.SetResourceReference(Border.BorderBrushProperty, isHorizontal ? "BrushMenuBorder" : "BrushGlobalIcon");
+            _orientationActionText.Text = isHorizontal ? "横着" : "竖着";
+            _orientationActionText.SetResourceReference(TextBlock.ForegroundProperty, isHorizontal ? "BrushMenuText" : "BrushGlobalIcon");
+            _orientationAction.ToolTip = isHorizontal
+                ? "字幕方向：横着（点击切到竖着）"
+                : "字幕方向：竖着（点击切到横着）";
+        }
+
+        private void UpdateCaptionPositionActionState()
+        {
+            if (_positionAction == null || _positionActionText == null)
+            {
+                return;
+            }
+
+            _positionAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
+            _positionAction.SetResourceReference(Border.BorderBrushProperty, "BrushGlobalIcon");
+            _positionActionText.SetResourceReference(TextBlock.ForegroundProperty, "BrushGlobalIcon");
+            if (_captionOrientation == ProjectionCaptionOrientation.Vertical)
+            {
+                _positionActionText.Text = $"位置:{GetHorizontalAnchorShortName(_captionHorizontalAnchor)}";
+                _positionAction.ToolTip = $"字幕位置：{GetHorizontalAnchorDisplayName(_captionHorizontalAnchor)}";
+            }
+            else
+            {
+                _positionActionText.Text = $"位置:{GetVerticalAnchorShortName(_captionVerticalAnchor)}";
+                _positionAction.ToolTip = $"字幕位置：{GetVerticalAnchorDisplayName(_captionVerticalAnchor)}";
+            }
+        }
+
+        private static ProjectionCaptionHorizontalAnchor NormalizeCaptionHorizontalAnchor(ProjectionCaptionHorizontalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionHorizontalAnchor.Left => ProjectionCaptionHorizontalAnchor.Left,
+                ProjectionCaptionHorizontalAnchor.Right => ProjectionCaptionHorizontalAnchor.Right,
+                _ => ProjectionCaptionHorizontalAnchor.Center
+            };
+        }
+
+        private static ProjectionCaptionVerticalAnchor NormalizeCaptionVerticalAnchor(ProjectionCaptionVerticalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionVerticalAnchor.Top => ProjectionCaptionVerticalAnchor.Top,
+                ProjectionCaptionVerticalAnchor.Bottom => ProjectionCaptionVerticalAnchor.Bottom,
+                _ => ProjectionCaptionVerticalAnchor.Center
+            };
+        }
+
+        private static string GetHorizontalAnchorDisplayName(ProjectionCaptionHorizontalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionHorizontalAnchor.Left => "靠左",
+                ProjectionCaptionHorizontalAnchor.Right => "靠右",
+                _ => "中间"
+            };
+        }
+
+        private static string GetHorizontalAnchorShortName(ProjectionCaptionHorizontalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionHorizontalAnchor.Left => "左",
+                ProjectionCaptionHorizontalAnchor.Right => "右",
+                _ => "中"
+            };
+        }
+
+        private static string GetVerticalAnchorDisplayName(ProjectionCaptionVerticalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionVerticalAnchor.Top => "顶部",
+                ProjectionCaptionVerticalAnchor.Bottom => "底部",
+                _ => "居中"
+            };
+        }
+
+        private static string GetVerticalAnchorShortName(ProjectionCaptionVerticalAnchor anchor)
+        {
+            return anchor switch
+            {
+                ProjectionCaptionVerticalAnchor.Top => "上",
+                ProjectionCaptionVerticalAnchor.Bottom => "下",
+                _ => "中"
+            };
+        }
+
         private void ScheduleFloatingBoundsChanged()
         {
             if (_dockMode != LiveCaptionDockMode.Floating)
@@ -666,6 +964,8 @@ namespace ImageColorChanger.UI
                 {
                     "IconLucideX" => Geometry.Parse("M18 6L6 18 M6 6L18 18"),
                     "IconLucideSettings" => Geometry.Parse("M12 2V4 M12 20V22 M4.93 4.93L6.34 6.34 M17.66 17.66L19.07 19.07 M2 12H4 M20 12H22 M4.93 19.07L6.34 17.66 M17.66 6.34L19.07 4.93 M12 8A4 4 0 1 0 12 16A4 4 0 1 0 12 8"),
+                    "IconLucideLayout" => Geometry.Parse("M2 4H12 M2 7H12 M2 10H12"),
+                    "IconLucideCrosshair" => Geometry.Parse("M7 2V5 M7 9V12 M2 7H5 M9 7H12 M3.5 3.5L2 2 M10.5 3.5L12 2 M3.5 10.5L2 12 M10.5 10.5L12 12"),
                     _ => Geometry.Parse("M21 12A9 9 0 1 1 18.4 5.6 M21 3V9H15")
                 };
             }

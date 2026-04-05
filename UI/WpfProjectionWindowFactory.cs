@@ -100,6 +100,42 @@ namespace ImageColorChanger.UI
             RenderOptions.SetCachingHint(projectionNoticeOverlayImage, CachingHint.Cache);
             projectionNoticeOverlayContainer.Children.Add(projectionNoticeOverlayImage);
 
+            var projectionCaptionOverlayContainer = new Grid
+            {
+                HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ClipToBounds = true,
+                IsHitTestVisible = false,
+                Visibility = Visibility.Collapsed
+            };
+
+            var projectionCaptionBar = new Border
+            {
+                Background = new SolidColorBrush(WpfColor.FromArgb(206, 0, 0, 0)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromArgb(180, 33, 150, 243)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(18, 18, 18, 0),
+                Padding = new Thickness(28, 16, 28, 16),
+                HorizontalAlignment = WpfHorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+
+            var projectionCaptionOverlayText = new TextBlock
+            {
+                Text = string.Empty,
+                FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
+                FontSize = 46,
+                FontWeight = FontWeights.Bold,
+                Foreground = WpfBrushes.White,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+                LineHeight = 62
+            };
+            projectionCaptionBar.Child = projectionCaptionOverlayText;
+            projectionCaptionOverlayContainer.Children.Add(projectionCaptionBar);
+
             var projectionVideoContainer = new Grid
             {
                 Background = WpfBrushes.Black,
@@ -292,6 +328,7 @@ namespace ImageColorChanger.UI
             mainGrid.Children.Add(projectionScrollViewer);
             mainGrid.Children.Add(projectionVideoContainer);
             mainGrid.Children.Add(projectionNoticeOverlayContainer);
+            mainGrid.Children.Add(projectionCaptionOverlayContainer);
             mainGrid.Children.Add(projectionBibleTitleBorder);
             // 弹窗必须挂在可视视口层（mainGrid），不能挂在可滚动内容层（projectionContainer）。
             // projectionContainer 高度会动态扩展为 imageHeight + viewportHeight，挂在其上会导致定位偏移/裁切。
@@ -307,6 +344,9 @@ namespace ImageColorChanger.UI
                 ProjectionVisualBrushRect = projectionVisualBrushRect,
                 ProjectionNoticeOverlayContainer = projectionNoticeOverlayContainer,
                 ProjectionNoticeOverlayImage = projectionNoticeOverlayImage,
+                ProjectionCaptionOverlayContainer = projectionCaptionOverlayContainer,
+                ProjectionCaptionOverlayBorder = projectionCaptionBar,
+                ProjectionCaptionOverlayText = projectionCaptionOverlayText,
                 ProjectionVideoContainer = projectionVideoContainer,
                 ProjectionVideoImage = projectionVideoImage,
                 ProjectionVideoView = projectionVideoView,

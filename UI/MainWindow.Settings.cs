@@ -187,13 +187,8 @@ namespace ImageColorChanger.UI
             // 计算按钮尺寸参数（使用主字号计算，按Python版本逻辑）
             var buttonParams = CalculateButtonParameters(fontSize, adaptiveFontSize, screenWidth);
             
-            // 主菜单按钮（不包括文本编辑器按钮）
-            var mainMenuButtons = new[]
-            {
-                BtnImport, BtnProjection, BtnSync, BtnReset, BtnOriginal, BtnZoomReset, BtnColorEffect,
-                BtnAddKeyframe, BtnClearKeyframes, BtnPrevKeyframe, BtnNextKeyframe,
-                BtnPlay, BtnPlayCount, BtnRecord, BtnScript, BtnClearTiming, BtnPauseResume, BtnLogin
-            };
+            // 主菜单按钮：自动收集顶部菜单栏按钮，避免新增按钮时漏掉尺寸同步
+            var mainMenuButtons = GetTopMenuButtons();
             
             // 文本编辑器按钮（应用缩小比例）
             var textEditorButtons = new[]
@@ -273,6 +268,25 @@ namespace ImageColorChanger.UI
             #if DEBUG
             // System.Diagnostics.Debug.WriteLine($" 应用Python风格字号: 主字号={fontSize}, 显示字号={displayFontSize:F1}, 自适应={adaptiveFontSize:F1}, 屏幕宽度={screenWidth}, DPI缩放={dpiScale:F2}");
             #endif
+        }
+
+        private System.Collections.Generic.List<System.Windows.Controls.Button> GetTopMenuButtons()
+        {
+            var buttons = new System.Collections.Generic.List<System.Windows.Controls.Button>();
+            if (TopMenuButtonPanel == null)
+            {
+                return buttons;
+            }
+
+            foreach (var child in TopMenuButtonPanel.Children)
+            {
+                if (child is System.Windows.Controls.Button button)
+                {
+                    buttons.Add(button);
+                }
+            }
+
+            return buttons;
         }
         
         /// <summary>

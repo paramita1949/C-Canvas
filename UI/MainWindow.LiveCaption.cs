@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using ImageColorChanger.Managers;
 using ImageColorChanger.Services.LiveCaption;
 
 namespace ImageColorChanger.UI
@@ -12,6 +13,7 @@ namespace ImageColorChanger.UI
         private LiveCaptionDockMode _liveCaptionDockMode = LiveCaptionDockMode.Floating;
         private bool _isDisposingLiveCaption;
         private bool _liveCaptionOverlayManuallyHidden;
+        private bool _liveCaptionProjectionCaptionHidden;
         private bool _liveCaptionToggleInProgress;
         private int _liveCaptionF4HotKeyId = -1;
         private LiveCaptionAudioSource _liveCaptionCurrentSource = LiveCaptionAudioSource.SystemLoopback;
@@ -33,12 +35,17 @@ namespace ImageColorChanger.UI
             {
                 _liveCaptionOverlayWindow = new LiveCaptionOverlayWindow();
                 _liveCaptionOverlayWindow.SettingsRequested += OpenLiveCaptionOverlaySettings;
+                _liveCaptionOverlayWindow.ProjectionToggleRequested += ToggleProjectionFromLiveCaptionOverlay;
+                _liveCaptionOverlayWindow.CaptionOrientationRequested += OnLiveCaptionOverlayCaptionOrientationRequested;
+                _liveCaptionOverlayWindow.CaptionPositionRequested += OnLiveCaptionOverlayCaptionPositionRequested;
                 _liveCaptionOverlayWindow.CloseRequested += StopLiveCaption;
                 _liveCaptionOverlayWindow.FloatingBoundsChanged += OnLiveCaptionFloatingBoundsChanged;
                 _liveCaptionOverlayWindow.Closed += LiveCaptionOverlayWindow_Closed;
                 _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
                 _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
+                _liveCaptionOverlayWindow.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
                 LoadLiveCaptionFloatingBoundsFromConfig();
+                ApplyProjectionCaptionLayoutFromConfig();
                 LiveCaptionDebugLogger.Log("EnsureComponents: OverlayWindow created and handlers attached.");
             }
 
@@ -57,6 +64,13 @@ namespace ImageColorChanger.UI
         private void BtnLiveCaptionStop_Click(object sender, RoutedEventArgs e)
         {
             StopLiveCaption();
+        }
+
+        private void BtnAiCaption_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            StartLiveCaption(_liveCaptionCurrentSource);
         }
 
         private void OpenAiConfigFile()
@@ -118,6 +132,7 @@ namespace ImageColorChanger.UI
             }
 
             _liveCaptionOverlayManuallyHidden = false;
+            _liveCaptionProjectionCaptionHidden = false;
             _liveCaptionComposer.Reset();
 
             if (_liveCaptionOverlayWindow.GetDockMode() != _liveCaptionDockMode)
@@ -136,6 +151,8 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
             _liveCaptionOverlayWindow.UpdateCaption(string.Empty, 0);
             _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
+            UpdateLiveCaptionProjectionActionState();
+            SyncLiveCaptionProjectionCaptionForProjectionState(_projectionManager?.IsProjectionActive == true);
             ApplyMainWindowLiveCaptionReservation();
             _liveCaptionCurrentSource = source;
             SyncLiveCaptionVisibilityWithMainWindowContext("start");
@@ -165,7 +182,10 @@ namespace ImageColorChanger.UI
 
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionToggleInProgress = false;
+            _liveCaptionProjectionCaptionHidden = false;
             _liveCaptionComposer.Reset();
+            UpdateLiveCaptionProjectionActionState();
+            _projectionManager?.HideProjectionCaptionOverlay();
             ApplyMainWindowLiveCaptionReservation();
             UnregisterLiveCaptionF4HotKey();
             LiveCaptionDebugLogger.Log("Stop: completed.");
@@ -205,9 +225,13 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                // 投影字幕与本机字幕窗显示状态解耦：
+                // 即使本机字幕窗被手动隐藏，也要继续推送投影字幕。
+                UpdateLiveCaptionProjectionCaption(frame.Display);
+
                 if (_liveCaptionOverlayManuallyHidden)
                 {
-                    LiveCaptionDebugLogger.Log("SubtitleUpdated: overlay hidden manually, skipped showing.");
+                    LiveCaptionDebugLogger.Log("SubtitleUpdated: overlay hidden manually, local render skipped (projection kept updating).");
                     return;
                 }
 
@@ -248,16 +272,21 @@ namespace ImageColorChanger.UI
                 {
                     PersistLiveCaptionFloatingBoundsToConfig("dispose");
                     _liveCaptionOverlayWindow.SettingsRequested -= OpenLiveCaptionOverlaySettings;
+                    _liveCaptionOverlayWindow.ProjectionToggleRequested -= ToggleProjectionFromLiveCaptionOverlay;
+                    _liveCaptionOverlayWindow.CaptionOrientationRequested -= OnLiveCaptionOverlayCaptionOrientationRequested;
+                    _liveCaptionOverlayWindow.CaptionPositionRequested -= OnLiveCaptionOverlayCaptionPositionRequested;
                     _liveCaptionOverlayWindow.CloseRequested -= StopLiveCaption;
                     _liveCaptionOverlayWindow.FloatingBoundsChanged -= OnLiveCaptionFloatingBoundsChanged;
                     _liveCaptionOverlayWindow.Closed -= LiveCaptionOverlayWindow_Closed;
-                _liveCaptionOverlayWindow.Close();
-                _liveCaptionOverlayWindow = null;
-                LiveCaptionDebugLogger.Log("Dispose: overlay disposed.");
-            }
+                    _liveCaptionOverlayWindow.Close();
+                    _liveCaptionOverlayWindow = null;
+                    LiveCaptionDebugLogger.Log("Dispose: overlay disposed.");
+                }
 
             _liveCaptionComposer.Reset();
             _liveCaptionOverlayManuallyHidden = false;
+            _liveCaptionProjectionCaptionHidden = false;
+            _projectionManager?.HideProjectionCaptionOverlay();
             ApplyMainWindowLiveCaptionReservation();
             UnregisterLiveCaptionF4HotKey();
             }
@@ -307,6 +336,267 @@ namespace ImageColorChanger.UI
             menu.VerticalOffset = 0;
             menu.IsOpen = true;
             LiveCaptionDebugLogger.Log("Settings: context menu opened.");
+        }
+
+        private void OnLiveCaptionOverlayCaptionOrientationRequested(ProjectionCaptionOrientation orientation)
+        {
+            SetProjectionCaptionOrientation(
+                orientation == ProjectionCaptionOrientation.Vertical ? "vertical" : "horizontal",
+                orientation == ProjectionCaptionOrientation.Vertical ? "竖向" : "横向");
+        }
+
+        private void OnLiveCaptionOverlayCaptionPositionRequested(
+            ProjectionCaptionHorizontalAnchor horizontalAnchor,
+            ProjectionCaptionVerticalAnchor verticalAnchor)
+        {
+            string orientation = NormalizeProjectionCaptionOrientation(_configManager?.LiveCaptionProjectionOrientation);
+            string horizontal = horizontalAnchor switch
+            {
+                ProjectionCaptionHorizontalAnchor.Left => "left",
+                ProjectionCaptionHorizontalAnchor.Right => "right",
+                _ => "center"
+            };
+            string vertical = verticalAnchor switch
+            {
+                ProjectionCaptionVerticalAnchor.Top => "top",
+                ProjectionCaptionVerticalAnchor.Bottom => "bottom",
+                _ => "center"
+            };
+
+            if (orientation == "vertical")
+            {
+                SetProjectionCaptionHorizontalAnchor(horizontal, GetProjectionCaptionHorizontalAnchorDisplayName(horizontal));
+                return;
+            }
+
+            SetProjectionCaptionVerticalAnchor(vertical, GetProjectionCaptionVerticalAnchorDisplayName(vertical));
+        }
+
+        private void SetProjectionCaptionOrientation(string value, string displayName)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            string next = NormalizeProjectionCaptionOrientation(value);
+            if (string.Equals(NormalizeProjectionCaptionOrientation(_configManager.LiveCaptionProjectionOrientation), next, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _configManager.LiveCaptionProjectionOrientation = next;
+            if (next == "vertical")
+            {
+                // 竖向只看左右位置，垂直轴固定居中。
+                _configManager.LiveCaptionProjectionVerticalAnchor = "center";
+            }
+            else
+            {
+                // 横向只看上下位置，水平轴固定居中，保证吐字逻辑一致。
+                _configManager.LiveCaptionProjectionHorizontalAnchor = "center";
+            }
+            ApplyProjectionCaptionLayoutFromConfig();
+            ShowStatus($"投影字幕框已切换为{displayName}");
+        }
+
+        private void SetProjectionCaptionHorizontalAnchor(string value, string displayName)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            string next = NormalizeProjectionCaptionHorizontalAnchor(value);
+            if (string.Equals(NormalizeProjectionCaptionHorizontalAnchor(_configManager.LiveCaptionProjectionHorizontalAnchor), next, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _configManager.LiveCaptionProjectionHorizontalAnchor = next;
+            ApplyProjectionCaptionLayoutFromConfig();
+            ShowStatus($"投影字幕框水平位置：{displayName}");
+        }
+
+        private void SetProjectionCaptionVerticalAnchor(string value, string displayName)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            string next = NormalizeProjectionCaptionVerticalAnchor(value);
+            if (string.Equals(NormalizeProjectionCaptionVerticalAnchor(_configManager.LiveCaptionProjectionVerticalAnchor), next, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _configManager.LiveCaptionProjectionVerticalAnchor = next;
+            ApplyProjectionCaptionLayoutFromConfig();
+            ShowStatus($"投影字幕框垂直位置：{displayName}");
+        }
+
+        private void ApplyProjectionCaptionLayoutFromConfig()
+        {
+            if (_projectionManager == null || _configManager == null)
+            {
+                return;
+            }
+
+            ProjectionCaptionOrientation orientation = ParseProjectionCaptionOrientation(_configManager.LiveCaptionProjectionOrientation);
+            ProjectionCaptionHorizontalAnchor horizontalAnchor = ParseProjectionCaptionHorizontalAnchor(_configManager.LiveCaptionProjectionHorizontalAnchor);
+            ProjectionCaptionVerticalAnchor verticalAnchor = ParseProjectionCaptionVerticalAnchor(_configManager.LiveCaptionProjectionVerticalAnchor);
+            if (orientation == ProjectionCaptionOrientation.Vertical)
+            {
+                verticalAnchor = ProjectionCaptionVerticalAnchor.Center;
+            }
+            else
+            {
+                horizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
+            }
+            _projectionManager.SetProjectionCaptionLayout(orientation, horizontalAnchor, verticalAnchor);
+            _liveCaptionOverlayWindow?.SetCaptionOrientationState(orientation);
+            _liveCaptionOverlayWindow?.SetCaptionPositionState(horizontalAnchor, verticalAnchor);
+        }
+
+        private static string NormalizeProjectionCaptionOrientation(string value)
+        {
+            string normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized == "vertical" ? "vertical" : "horizontal";
+        }
+
+        private static string NormalizeProjectionCaptionHorizontalAnchor(string value)
+        {
+            string normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "left" => "left",
+                "right" => "right",
+                _ => "center"
+            };
+        }
+
+        private static string GetProjectionCaptionHorizontalAnchorDisplayName(string value)
+        {
+            return NormalizeProjectionCaptionHorizontalAnchor(value) switch
+            {
+                "left" => "靠左",
+                "right" => "靠右",
+                _ => "中间"
+            };
+        }
+
+        private static string NormalizeProjectionCaptionVerticalAnchor(string value)
+        {
+            string normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "top" => "top",
+                "bottom" => "bottom",
+                _ => "center"
+            };
+        }
+
+        private static string GetProjectionCaptionVerticalAnchorDisplayName(string value)
+        {
+            return NormalizeProjectionCaptionVerticalAnchor(value) switch
+            {
+                "top" => "顶部",
+                "bottom" => "底部",
+                _ => "居中"
+            };
+        }
+
+        private static ProjectionCaptionOrientation ParseProjectionCaptionOrientation(string value)
+        {
+            return NormalizeProjectionCaptionOrientation(value) == "vertical"
+                ? ProjectionCaptionOrientation.Vertical
+                : ProjectionCaptionOrientation.Horizontal;
+        }
+
+        private static ProjectionCaptionHorizontalAnchor ParseProjectionCaptionHorizontalAnchor(string value)
+        {
+            return NormalizeProjectionCaptionHorizontalAnchor(value) switch
+            {
+                "left" => ProjectionCaptionHorizontalAnchor.Left,
+                "right" => ProjectionCaptionHorizontalAnchor.Right,
+                _ => ProjectionCaptionHorizontalAnchor.Center
+            };
+        }
+
+        private static ProjectionCaptionVerticalAnchor ParseProjectionCaptionVerticalAnchor(string value)
+        {
+            return NormalizeProjectionCaptionVerticalAnchor(value) switch
+            {
+                "top" => ProjectionCaptionVerticalAnchor.Top,
+                "bottom" => ProjectionCaptionVerticalAnchor.Bottom,
+                _ => ProjectionCaptionVerticalAnchor.Center
+            };
+        }
+
+        private void ToggleProjectionFromLiveCaptionOverlay()
+        {
+            try
+            {
+                _liveCaptionProjectionCaptionHidden = !_liveCaptionProjectionCaptionHidden;
+                UpdateLiveCaptionProjectionActionState();
+                if (_liveCaptionProjectionCaptionHidden)
+                {
+                    _projectionManager?.HideProjectionCaptionOverlay();
+                    ShowStatus("投影字幕已隐藏");
+                }
+                else
+                {
+                    SyncLiveCaptionProjectionCaptionForProjectionState(_projectionManager?.IsProjectionActive == true);
+                    ShowStatus("投影字幕已显示");
+                }
+
+                LiveCaptionDebugLogger.Log($"ProjectionToggle: overlay-click hidden={_liveCaptionProjectionCaptionHidden}");
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"ProjectionToggle: overlay-click failed, error={ex.Message}");
+            }
+        }
+
+        private void UpdateLiveCaptionProjectionActionState()
+        {
+            _liveCaptionOverlayWindow?.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
+        }
+
+        private void UpdateLiveCaptionProjectionCaption(string captionText)
+        {
+            if (_projectionManager?.IsProjectionActive != true)
+            {
+                return;
+            }
+
+            if (_liveCaptionProjectionCaptionHidden)
+            {
+                _projectionManager.HideProjectionCaptionOverlay();
+                return;
+            }
+
+            _projectionManager.UpdateProjectionCaptionOverlay(captionText);
+        }
+
+        internal void SyncLiveCaptionProjectionCaptionForProjectionState(bool isProjectionActive)
+        {
+            if (!isProjectionActive)
+            {
+                _projectionManager?.HideProjectionCaptionOverlay();
+                return;
+            }
+
+            if (_liveCaptionEngine?.IsRunning == true &&
+                !_liveCaptionProjectionCaptionHidden &&
+                !string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
+            {
+                _projectionManager?.UpdateProjectionCaptionOverlay(_liveCaptionComposer.CurrentDisplay);
+                return;
+            }
+
+            _projectionManager?.HideProjectionCaptionOverlay();
         }
 
         private void PopulateLiveCaptionPlatformMenu(MenuItem platformMenu)

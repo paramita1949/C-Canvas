@@ -54,6 +54,12 @@ namespace ImageColorChanger.Managers
         private BitmapSource _projectionImage;
         private Grid _projectionNoticeOverlayContainer; // 通知覆盖层容器
         private System.Windows.Controls.Image _projectionNoticeOverlayImage; // 通知覆盖层图像
+        private Grid _projectionCaptionOverlayContainer; // 字幕覆盖层容器
+        private Border _projectionCaptionOverlayBorder; // 字幕覆盖层边框
+        private TextBlock _projectionCaptionOverlayText; // 字幕覆盖层文本
+        private ProjectionCaptionOrientation _projectionCaptionOrientation = ProjectionCaptionOrientation.Horizontal;
+        private ProjectionCaptionHorizontalAnchor _projectionCaptionHorizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
+        private ProjectionCaptionVerticalAnchor _projectionCaptionVerticalAnchor = ProjectionCaptionVerticalAnchor.Top;
         
         // 视频投影相关
         private Grid _projectionVideoContainer;  // 视频容器

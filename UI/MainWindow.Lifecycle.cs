@@ -33,6 +33,9 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark(
                 "MainWindow.AuthInitialized",
                 $"IsAuthenticated={_authService.IsAuthenticated}; Username={_authService.Username ?? "<null>"}; RemainingDays={_authService.RemainingDays}");
+#if DEBUG
+            InitializeTopBarButtonDebugProbe();
+#endif
             // 调试：输出幻灯片按钮的所有间距相关属性（已完成调试，注释掉）
             /*
             System.Diagnostics.Debug.WriteLine("========== 幻灯片按钮间距调试信息 ==========");
@@ -136,6 +139,108 @@ namespace ImageColorChanger.UI
             await CheckForUpdatesAsync();
             StartupPerfLogger.Mark("MainWindow.UpdateCheck.Completed");
         }
+
+#if DEBUG
+        private int _topBarButtonProbeLayoutTickCount;
+
+        private void InitializeTopBarButtonDebugProbe()
+        {
+            try
+            {
+                if (BtnColorEffect == null || BtnAiCaption == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[BtnProbe] init skipped: button reference is null.");
+                    return;
+                }
+
+                BtnColorEffect.SizeChanged -= TopBarButtonProbe_SizeChanged;
+                BtnAiCaption.SizeChanged -= TopBarButtonProbe_SizeChanged;
+                BtnColorEffect.SizeChanged += TopBarButtonProbe_SizeChanged;
+                BtnAiCaption.SizeChanged += TopBarButtonProbe_SizeChanged;
+                LayoutUpdated -= TopBarButtonProbe_LayoutUpdated;
+                LayoutUpdated += TopBarButtonProbe_LayoutUpdated;
+
+                LogTopBarButtonMetrics("init");
+
+                Dispatcher.BeginInvoke(new Action(() => LogTopBarButtonMetrics("dispatcher-loaded")),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
+                Dispatcher.BeginInvoke(new Action(() => LogTopBarButtonMetrics("dispatcher-render")),
+                    System.Windows.Threading.DispatcherPriority.Render);
+                Dispatcher.BeginInvoke(new Action(() => LogTopBarButtonMetrics("dispatcher-idle")),
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Dispatcher.BeginInvoke(new Action(() => LogTopBarButtonMetrics("dispatcher-context-idle")),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BtnProbe] init failed: {ex.Message}");
+            }
+        }
+
+        private void TopBarButtonProbe_LayoutUpdated(object sender, EventArgs e)
+        {
+            // 只采样前几次布局，避免刷屏。
+            if (_topBarButtonProbeLayoutTickCount >= 6)
+            {
+                LayoutUpdated -= TopBarButtonProbe_LayoutUpdated;
+                return;
+            }
+
+            _topBarButtonProbeLayoutTickCount++;
+            LogTopBarButtonMetrics($"layout-updated#{_topBarButtonProbeLayoutTickCount}");
+        }
+
+        private void TopBarButtonProbe_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var source = sender as FrameworkElement;
+            string sourceName = source?.Name ?? "<unknown>";
+            System.Diagnostics.Debug.WriteLine(
+                $"[BtnProbe] SizeChanged source={sourceName}, widthChanged={e.WidthChanged}, heightChanged={e.HeightChanged}, " +
+                $"new=({e.NewSize.Width:0.##},{e.NewSize.Height:0.##}), prev=({e.PreviousSize.Width:0.##},{e.PreviousSize.Height:0.##})");
+            LogTopBarButtonMetrics($"size-changed:{sourceName}");
+        }
+
+        private void LogTopBarButtonMetrics(string stage)
+        {
+            if (BtnColorEffect == null || BtnAiCaption == null)
+            {
+                return;
+            }
+
+            string colorStyle = BtnColorEffect.Style?.ToString() ?? "<null>";
+            string captionStyle = BtnAiCaption.Style?.ToString() ?? "<null>";
+            string captionWidthBinding = BtnAiCaption.ReadLocalValue(FrameworkElement.WidthProperty)?.ToString() ?? "<unset>";
+            var widthBindingExpr = System.Windows.Data.BindingOperations.GetBindingExpression(BtnAiCaption, FrameworkElement.WidthProperty);
+            string widthBindingStatus = widthBindingExpr?.Status.ToString() ?? "<no-binding-expr>";
+            string widthBindingResolvedSource = widthBindingExpr?.ResolvedSource?.GetType().Name ?? "<null>";
+            var colorParent = BtnColorEffect.Parent as FrameworkElement;
+            var captionParent = BtnAiCaption.Parent as FrameworkElement;
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+            double widthDiff = Math.Abs(BtnColorEffect.ActualWidth - BtnAiCaption.ActualWidth);
+            double heightDiff = Math.Abs(BtnColorEffect.ActualHeight - BtnAiCaption.ActualHeight);
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[BtnProbe:{stage}] " +
+                $"ColorEffect Actual={BtnColorEffect.ActualWidth:0.##}x{BtnColorEffect.ActualHeight:0.##}, Desired={BtnColorEffect.DesiredSize.Width:0.##}x{BtnColorEffect.DesiredSize.Height:0.##}, Width={BtnColorEffect.Width}, MinWidth={BtnColorEffect.MinWidth}, Padding={BtnColorEffect.Padding}, Margin={BtnColorEffect.Margin}, FontSize={BtnColorEffect.FontSize}, Style={colorStyle}");
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[BtnProbe:{stage}] " +
+                $"AiCaption  Actual={BtnAiCaption.ActualWidth:0.##}x{BtnAiCaption.ActualHeight:0.##}, Desired={BtnAiCaption.DesiredSize.Width:0.##}x{BtnAiCaption.DesiredSize.Height:0.##}, Width={BtnAiCaption.Width}, MinWidth={BtnAiCaption.MinWidth}, Padding={BtnAiCaption.Padding}, Margin={BtnAiCaption.Margin}, FontSize={BtnAiCaption.FontSize}, Style={captionStyle}, WidthLocalValue={captionWidthBinding}, WidthBindingStatus={widthBindingStatus}, WidthBindingSourceType={widthBindingResolvedSource}");
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[BtnProbe:{stage}] " +
+                $"Window={ActualWidth:0.##}x{ActualHeight:0.##}, DpiScale=({dpi.DpiScaleX:0.###},{dpi.DpiScaleY:0.###}), " +
+                $"ColorParent={colorParent?.ActualWidth:0.##}x{colorParent?.ActualHeight:0.##}, CaptionParent={captionParent?.ActualWidth:0.##}x{captionParent?.ActualHeight:0.##}, " +
+                $"Diff width={widthDiff:0.##}, height={heightDiff:0.##}");
+
+            if (widthDiff > 0.5 || heightDiff > 0.5)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[BtnProbe:{stage}] [WARN] 按钮尺寸不一致: ColorEffect={BtnColorEffect.ActualWidth:0.##}x{BtnColorEffect.ActualHeight:0.##}, " +
+                    $"AiCaption={BtnAiCaption.ActualWidth:0.##}x{BtnAiCaption.ActualHeight:0.##}");
+            }
+        }
+#endif
 
         private void QueueDeferredStartupFolderSync()
         {

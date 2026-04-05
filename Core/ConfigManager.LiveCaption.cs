@@ -306,6 +306,54 @@ namespace ImageColorChanger.Core
             _config.LiveCaptionFloatingHeight = nextHeight;
             SaveConfig();
         }
+
+        public string LiveCaptionProjectionOrientation
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionProjectionOrientation)
+                ? "horizontal"
+                : _config.LiveCaptionProjectionOrientation;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "horizontal" : value.Trim().ToLowerInvariant();
+                if (!string.Equals(_config.LiveCaptionProjectionOrientation, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionProjectionOrientation = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionProjectionHorizontalAnchor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionProjectionHorizontalAnchor)
+                ? "center"
+                : _config.LiveCaptionProjectionHorizontalAnchor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "center" : value.Trim().ToLowerInvariant();
+                if (!string.Equals(_config.LiveCaptionProjectionHorizontalAnchor, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionProjectionHorizontalAnchor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionProjectionVerticalAnchor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionProjectionVerticalAnchor)
+                ? "top"
+                : _config.LiveCaptionProjectionVerticalAnchor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "top" : value.Trim().ToLowerInvariant();
+                if (!string.Equals(_config.LiveCaptionProjectionVerticalAnchor, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionProjectionVerticalAnchor = next;
+                    SaveConfig();
+                }
+            }
+        }
     }
 
     public partial class AppConfig
@@ -332,5 +380,8 @@ namespace ImageColorChanger.Core
         public double LiveCaptionFloatingTop { get; set; } = 0;
         public double LiveCaptionFloatingWidth { get; set; } = 0;
         public double LiveCaptionFloatingHeight { get; set; } = 0;
+        public string LiveCaptionProjectionOrientation { get; set; } = "horizontal";
+        public string LiveCaptionProjectionHorizontalAnchor { get; set; } = "center";
+        public string LiveCaptionProjectionVerticalAnchor { get; set; } = "top";
     }
 }

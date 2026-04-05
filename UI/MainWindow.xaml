@@ -44,7 +44,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧：所有按钮在一排 -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel x:Name="TopMenuButtonPanel" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
                     <Button x:Name="BtnImport" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click" MouseEnter="BtnImport_MouseEnter" MouseLeave="BtnImport_MouseLeave">
@@ -100,6 +100,15 @@
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucideWand2}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
                             <TextBlock Text="变色" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnAiCaption" Style="{StaticResource MenuButtonStyle}"
+                            Width="{Binding ElementName=BtnColorEffect, Path=ActualWidth}"
+                            ToolTip="AI字幕" Click="BtnAiCaption_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconLucideCaptions}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
+                            <TextBlock Text="字幕" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 

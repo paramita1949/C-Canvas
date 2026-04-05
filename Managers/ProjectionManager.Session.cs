@@ -41,6 +41,9 @@ namespace ImageColorChanger.Managers
             _projectionVisualBrushRect = layout.ProjectionVisualBrushRect;
             _projectionNoticeOverlayContainer = layout.ProjectionNoticeOverlayContainer;
             _projectionNoticeOverlayImage = layout.ProjectionNoticeOverlayImage;
+            _projectionCaptionOverlayContainer = layout.ProjectionCaptionOverlayContainer;
+            _projectionCaptionOverlayBorder = layout.ProjectionCaptionOverlayBorder;
+            _projectionCaptionOverlayText = layout.ProjectionCaptionOverlayText;
             _projectionVideoContainer = layout.ProjectionVideoContainer;
             _projectionVideoImage = layout.ProjectionVideoImage;
             _projectionVideoView = layout.ProjectionVideoView;
@@ -56,6 +59,7 @@ namespace ImageColorChanger.Managers
 
             _projectionWindow.KeyDown += ProjectionWindow_KeyDown;
             _projectionWindow.Closed += ProjectionWindow_Closed;
+            ApplyProjectionCaptionOverlayLayoutOnUi();
             if (_projectionBiblePopupCloseButton != null)
             {
                 _projectionBiblePopupCloseButton.Click += ProjectionBiblePopupCloseButton_Click;
@@ -231,6 +235,8 @@ namespace ImageColorChanger.Managers
             _projectionVisualBrushRect = null;
             _projectionNoticeOverlayContainer = null;
             _projectionNoticeOverlayImage = null;
+            _projectionCaptionOverlayContainer = null;
+            _projectionCaptionOverlayText = null;
             _projectionVideoContainer = null;
             _projectionVideoImage = null;
             _projectionVideoView = null;

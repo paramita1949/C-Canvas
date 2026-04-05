@@ -300,6 +300,8 @@ namespace ImageColorChanger.UI
                     }
                 }
 
+                SyncLiveCaptionProjectionCaptionForProjectionState(isActive);
+
                 if (_isBibleMode)
                 {
                     OnBibleProjectionStateChanged(isActive);
