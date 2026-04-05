@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.0.4.6</Version>
-    <FileVersion>6.0.4.6</FileVersion>
-    <AssemblyVersion>6.0.4.6</AssemblyVersion>
+    <Version>6.0.4.7</Version>
+    <FileVersion>6.0.4.7</FileVersion>
+    <AssemblyVersion>6.0.4.7</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -38,9 +38,13 @@
   <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
   <ItemGroup>
     <Compile Remove="Canvas111\**" />
+    <Compile Remove="data\CLI-Anything\**" />
     <EmbeddedResource Remove="Canvas111\**" />
+    <EmbeddedResource Remove="data\CLI-Anything\**" />
     <None Remove="Canvas111\**" />
+    <None Remove="data\CLI-Anything\**" />
     <Page Remove="Canvas111\**" />
+    <Page Remove="data\CLI-Anything\**" />
     <Compile Remove="artifacts\**" />
     <EmbeddedResource Remove="artifacts\**" />
     <None Remove="artifacts\**" />
@@ -95,6 +99,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <!-- SharpDX for D3D11 + D3DImage video rendering -->
     <PackageReference Include="SharpDX" Version="4.2.0" />
     <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />

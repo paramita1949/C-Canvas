@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
+using ImageColorChanger.Services.LiveCaption;
 
 namespace ImageColorChanger.UI
 {
@@ -186,6 +187,21 @@ namespace ImageColorChanger.UI
             contextMenu.Items.Add(BuildThemeMenuItem());
             contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(BuildNdiSubMenu());
+
+            contextMenu.Items.Add(new Separator());
+
+            // AI字幕
+            var aiItem = new MenuItem { Header = "AI字幕" };
+
+            var aiConfigItem = new MenuItem { Header = "配置" };
+            aiConfigItem.Click += (s, args) => OpenAiConfigFile();
+            aiItem.Items.Add(aiConfigItem);
+
+            var aiStartItem = new MenuItem { Header = "开启" };
+            aiStartItem.Click += (s, args) => StartLiveCaption(_liveCaptionCurrentSource);
+            aiItem.Items.Add(aiStartItem);
+
+            contextMenu.Items.Add(aiItem);
 
             contextMenu.Items.Add(new Separator());
 

@@ -30,6 +30,14 @@ namespace ImageColorChanger.UI
 
         protected override void OnClosed(EventArgs e)
         {
+            try
+            {
+                DisposeLiveCaption();
+            }
+            catch
+            {
+                // ignored
+            }
             _imageProcessor?.Dispose();
             base.OnClosed(e);
         }
@@ -46,6 +54,7 @@ namespace ImageColorChanger.UI
             }
 
             Focus();
+            SyncLiveCaptionVisibilityWithMainWindowContext("window-activated");
         }
 
         /// <summary>

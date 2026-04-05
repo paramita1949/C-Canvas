@@ -1643,6 +1643,7 @@ namespace ImageColorChanger.UI
             //     _selectedTextBox.SetSelected(false);
             //     _selectedTextBox = null;
             // }
+            SyncLiveCaptionVisibilityWithMainWindowContext("window-deactivated");
         }
         
         /// <summary>
@@ -1678,6 +1679,7 @@ namespace ImageColorChanger.UI
             //     _selectedTextBox.SetSelected(false);
             //     _selectedTextBox = null;
             // }
+            SyncLiveCaptionVisibilityWithMainWindowContext("window-state-changed");
         }
         
         /// <summary>

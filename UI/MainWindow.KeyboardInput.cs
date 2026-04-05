@@ -37,6 +37,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (key == Key.F4 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                if (TryToggleLiveCaptionOverlayByShortcut())
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if (Keyboard.Modifiers == ModifierKeys.Control && (key == Key.C || key == Key.V))
             {
                 if (SlideListBox?.IsKeyboardFocusWithin == true)

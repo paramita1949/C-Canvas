@@ -21,7 +21,7 @@
         Activated="Window_Activated"
         Loaded="Window_Loaded">
 
-    <Grid>
+    <Grid x:Name="MainLayoutGrid">
         <Grid.RowDefinitions>
             <RowDefinition x:Name="MenuBarRow" Height="Auto"/>
             <!-- 单排按钮菜单栏 -->

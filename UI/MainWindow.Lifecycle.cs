@@ -477,6 +477,7 @@ namespace ImageColorChanger.UI
                 // System.Diagnostics.Debug.WriteLine("主窗口正在关闭,清理资源...");
                 _startupDeferredWorkCts.Cancel();
                 StopAutoDeleteSync();
+                DisposeLiveCaption();
                 MainWindow_Closing(sender, e);
                 DisposeBibleSearchComponents();
 
