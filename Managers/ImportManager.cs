@@ -457,6 +457,19 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public (int added, int removed, int updated) SyncAllFolders()
         {
+            return SyncAllFolders(includeAdditions: true);
+        }
+
+        /// <summary>
+        /// 仅同步删除项（不自动导入新增文件）
+        /// </summary>
+        public (int added, int removed, int updated) SyncAllFoldersRemovalsOnly()
+        {
+            return SyncAllFolders(includeAdditions: false);
+        }
+
+        private (int added, int removed, int updated) SyncAllFolders(bool includeAdditions)
+        {
             WriteLock.Wait();
             int totalAdded = 0;
             int totalRemoved = 0;
@@ -475,7 +488,7 @@ namespace ImageColorChanger.Managers
 
                 foreach (var folder in folders)
                 {
-                    var (added, removed, updated) = SyncFolderCore(folder, globalExistingPathSet);
+                    var (added, removed, updated) = SyncFolderCore(folder, globalExistingPathSet, includeAdditions);
                     totalAdded += added;
                     totalRemoved += removed;
                     totalUpdated += updated;
@@ -504,7 +517,8 @@ namespace ImageColorChanger.Managers
 
         private (int added, int removed, int updated) SyncFolderCore(
             Folder folder,
-            HashSet<string> globalExistingPathSet)
+            HashSet<string> globalExistingPathSet,
+            bool includeAdditions = true)
         {
             if (folder == null)
             {
@@ -532,15 +546,15 @@ namespace ImageColorChanger.Managers
 
             var dbFiles = _dbManager.GetMediaFilesByFolder(folder.Id);
 
-            var newFiles = currentFiles
-                .Where(f => !globalExistingPathSet.Contains(f))
-                .ToList();
+            var newFiles = includeAdditions
+                ? currentFiles.Where(f => !globalExistingPathSet.Contains(f)).ToList()
+                : new List<string>();
 
             var deletedFiles = dbFiles
                 .Where(f => !currentFileSet.Contains(NormalizePath(f.Path)))
                 .ToList();
 
-            if (newFiles.Count > 0)
+            if (includeAdditions && newFiles.Count > 0)
             {
                 _dbManager.AddMediaFiles(newFiles, folder.Id);
                 foreach (var file in newFiles)
@@ -551,8 +565,10 @@ namespace ImageColorChanger.Managers
 
             bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
             var mappedPathSet = new HashSet<string>(dbFiles.Select(f => NormalizePath(f.Path)), StringComparer.OrdinalIgnoreCase);
-            var pathsNeedingLink = currentFiles.Where(p => !mappedPathSet.Contains(p)).ToList();
-            if (folderV2Enabled && pathsNeedingLink.Count > 0)
+            var pathsNeedingLink = includeAdditions
+                ? currentFiles.Where(p => !mappedPathSet.Contains(p)).ToList()
+                : new List<string>();
+            if (includeAdditions && folderV2Enabled && pathsNeedingLink.Count > 0)
             {
                 var imageMap = context.MediaFiles
                     .Where(m => pathsNeedingLink.Contains(m.Path))

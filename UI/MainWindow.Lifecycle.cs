@@ -122,6 +122,7 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.LoadSearchScopes.Completed", $"ElapsedMs={refreshTreeSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupFolderSync.Completed", $"ElapsedMs={startupSyncSw.ElapsedMilliseconds}");
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
+            EnsureAutoDeleteSyncStarted();
             // 静默后台预热 LibVLC（不占 UI 线程），降低首次播放初始化开销。
             StartDeferredVideoPlayerInitialization(delayMs: 2000);
             StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Queued", "Reason=StartupCoreReady; DelayMs=2000");
@@ -221,6 +222,7 @@ namespace ImageColorChanger.UI
                 var refreshSw = System.Diagnostics.Stopwatch.StartNew();
                 bool hasMediaChanges = added > 0 || removed > 0 || updated > 0;
                 LoadProjects(enableDetailedIcons: true, clearMediaPlaylistCache: hasMediaChanges);
+                NotifyProjectFoldersMayChanged();
                 StartupPerfLogger.Mark(
                     "MainWindow.StartupFolderSync.Deferred.LoadProjects.Completed",
                     $"ElapsedMs={refreshSw.ElapsedMilliseconds}; ClearPlaylistCache={hasMediaChanges}");
@@ -474,6 +476,7 @@ namespace ImageColorChanger.UI
             {
                 // System.Diagnostics.Debug.WriteLine("主窗口正在关闭,清理资源...");
                 _startupDeferredWorkCts.Cancel();
+                StopAutoDeleteSync();
                 MainWindow_Closing(sender, e);
                 DisposeBibleSearchComponents();
 

@@ -14,6 +14,7 @@ namespace ImageColorChanger.UI
             var state = CaptureProjectTreeViewState();
             LoadProjects();
             RestoreProjectTreeViewState(state, preferredType, preferredId);
+            NotifyProjectFoldersMayChanged();
         }
 
         private ProjectTreeViewState CaptureProjectTreeViewState()
