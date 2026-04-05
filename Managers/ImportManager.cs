@@ -506,9 +506,22 @@ namespace ImageColorChanger.Managers
             Folder folder,
             HashSet<string> globalExistingPathSet)
         {
-            if (folder == null || !Directory.Exists(folder.Path))
+            if (folder == null)
             {
                 return (0, 0, 0);
+            }
+
+            var context = _dbManager.GetDbContext();
+            if (!Directory.Exists(folder.Path))
+            {
+                var staleFiles = _dbManager.GetMediaFilesByFolder(folder.Id);
+                int removedWhenFolderMissing = CleanupDeletedEntriesForFolder(folder, staleFiles, context);
+                if (removedWhenFolderMissing > 0)
+                {
+                    ReapplySortRuleForFolder(folder.Id);
+                }
+
+                return (0, removedWhenFolderMissing, 0);
             }
 
             // 同步阶段优先速度，不做拼音排序。
@@ -527,7 +540,6 @@ namespace ImageColorChanger.Managers
                 .Where(f => !currentFileSet.Contains(NormalizePath(f.Path)))
                 .ToList();
 
-            var context = _dbManager.GetDbContext();
             if (newFiles.Count > 0)
             {
                 _dbManager.AddMediaFiles(newFiles, folder.Id);
@@ -586,9 +598,28 @@ namespace ImageColorChanger.Managers
                 }
             }
 
-            if (folderV2Enabled && deletedFiles.Count > 0)
+            int removedCount = CleanupDeletedEntriesForFolder(folder, deletedFiles, context);
+
+            if (newFiles.Count > 0 || removedCount > 0)
             {
-                var deletedIds = deletedFiles.Select(f => f.Id).Distinct().ToList();
+                ReapplySortRuleForFolder(folder.Id);
+            }
+
+            return (newFiles.Count, removedCount, 0);
+        }
+
+        private int CleanupDeletedEntriesForFolder(Folder folder, List<MediaFile> deletedFiles, CanvasDbContext context)
+        {
+            if (folder == null || deletedFiles == null || deletedFiles.Count == 0 || context == null)
+            {
+                return 0;
+            }
+
+            bool folderV2Enabled = _dbManager.IsFolderSystemV2Enabled();
+            var deletedIds = deletedFiles.Select(f => f.Id).Distinct().ToList();
+
+            if (folderV2Enabled && deletedIds.Count > 0)
+            {
                 var deleteLinks = context.FolderImages
                     .Where(fi => fi.FolderId == folder.Id && deletedIds.Contains(fi.ImageId))
                     .ToList();
@@ -599,12 +630,33 @@ namespace ImageColorChanger.Managers
                 }
             }
 
-            if (newFiles.Count > 0 || deletedFiles.Count > 0)
+            foreach (var deletedFile in deletedFiles)
             {
-                ReapplySortRuleForFolder(folder.Id);
+                var normalizedPath = NormalizePath(deletedFile.Path);
+                bool existsOnDisk = File.Exists(normalizedPath);
+                if (!existsOnDisk)
+                {
+                    // 文件物理不存在时，直接删除媒体主记录及关联数据（单次同步即可生效）。
+                    _dbManager.DeleteMediaFile(deletedFile.Id);
+                    continue;
+                }
+
+                if (folderV2Enabled)
+                {
+                    bool hasAnyFolderLink = context.FolderImages.Any(fi => fi.ImageId == deletedFile.Id);
+                    if (!hasAnyFolderLink)
+                    {
+                        var media = context.MediaFiles.FirstOrDefault(m => m.Id == deletedFile.Id);
+                        if (media != null && media.FolderId == folder.Id)
+                        {
+                            media.FolderId = null;
+                            context.SaveChanges();
+                        }
+                    }
+                }
             }
 
-            return (newFiles.Count, deletedFiles.Count, 0);
+            return deletedFiles.Count;
         }
 
         private static string NormalizePath(string path)
