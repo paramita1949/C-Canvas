@@ -60,6 +60,7 @@ namespace ImageColorChanger.Managers
             _projectionWindow.KeyDown += ProjectionWindow_KeyDown;
             _projectionWindow.Closed += ProjectionWindow_Closed;
             ApplyProjectionCaptionOverlayLayoutOnUi();
+            ApplyProjectionCaptionTypographyFromCacheOnUi();
             if (_projectionBiblePopupCloseButton != null)
             {
                 _projectionBiblePopupCloseButton.Click += ProjectionBiblePopupCloseButton_Click;

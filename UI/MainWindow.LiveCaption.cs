@@ -35,6 +35,7 @@ namespace ImageColorChanger.UI
             {
                 _liveCaptionOverlayWindow = new LiveCaptionOverlayWindow();
                 _liveCaptionOverlayWindow.SettingsRequested += OpenLiveCaptionOverlaySettings;
+                _liveCaptionOverlayWindow.CaptionStyleRequested += OpenLiveCaptionStyleSettings;
                 _liveCaptionOverlayWindow.ProjectionToggleRequested += ToggleProjectionFromLiveCaptionOverlay;
                 _liveCaptionOverlayWindow.CaptionOrientationRequested += OnLiveCaptionOverlayCaptionOrientationRequested;
                 _liveCaptionOverlayWindow.CaptionPositionRequested += OnLiveCaptionOverlayCaptionPositionRequested;
@@ -45,6 +46,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
                 _liveCaptionOverlayWindow.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
                 LoadLiveCaptionFloatingBoundsFromConfig();
+                ApplyLiveCaptionTypographyFromBible();
                 ApplyProjectionCaptionLayoutFromConfig();
                 LiveCaptionDebugLogger.Log("EnsureComponents: OverlayWindow created and handlers attached.");
             }
@@ -149,6 +151,7 @@ namespace ImageColorChanger.UI
             LiveCaptionDebugLogger.Log($"StartPerf: overlay-show={sw.ElapsedMilliseconds}ms");
 
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
+            ApplyLiveCaptionTypographyFromBible();
             _liveCaptionOverlayWindow.UpdateCaption(string.Empty, 0);
             _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
             UpdateLiveCaptionProjectionActionState();
@@ -212,6 +215,7 @@ namespace ImageColorChanger.UI
                 }
 
                 LiveCaptionDebugLogger.Log($"SubtitleUpdated: raw='{TrimForLog(update.Text)}', final={update.IsFinal}");
+                RecalculateLiveCaptionComposerLayout();
                 LiveCaptionRenderFrame frame = _liveCaptionComposer.Push(update);
                 if (!frame.HasChanged)
                 {
@@ -227,7 +231,7 @@ namespace ImageColorChanger.UI
 
                 // 投影字幕与本机字幕窗显示状态解耦：
                 // 即使本机字幕窗被手动隐藏，也要继续推送投影字幕。
-                UpdateLiveCaptionProjectionCaption(frame.Display);
+                UpdateLiveCaptionProjectionCaption(frame.Display, frame.HighlightStart);
 
                 if (_liveCaptionOverlayManuallyHidden)
                 {
@@ -272,6 +276,7 @@ namespace ImageColorChanger.UI
                 {
                     PersistLiveCaptionFloatingBoundsToConfig("dispose");
                     _liveCaptionOverlayWindow.SettingsRequested -= OpenLiveCaptionOverlaySettings;
+                    _liveCaptionOverlayWindow.CaptionStyleRequested -= OpenLiveCaptionStyleSettings;
                     _liveCaptionOverlayWindow.ProjectionToggleRequested -= ToggleProjectionFromLiveCaptionOverlay;
                     _liveCaptionOverlayWindow.CaptionOrientationRequested -= OnLiveCaptionOverlayCaptionOrientationRequested;
                     _liveCaptionOverlayWindow.CaptionPositionRequested -= OnLiveCaptionOverlayCaptionPositionRequested;
@@ -336,6 +341,169 @@ namespace ImageColorChanger.UI
             menu.VerticalOffset = 0;
             menu.IsOpen = true;
             LiveCaptionDebugLogger.Log("Settings: context menu opened.");
+        }
+
+        private void OpenLiveCaptionStyleSettings()
+        {
+            if (_liveCaptionOverlayWindow == null || _configManager == null)
+            {
+                return;
+            }
+
+            var menu = new ContextMenu();
+
+            var fontMenu = new MenuItem { Header = "字体" };
+            PopulateLiveCaptionFontMenu(fontMenu);
+            menu.Items.Add(fontMenu);
+
+            var fontSizeMenu = new MenuItem { Header = "字号" };
+            PopulateLiveCaptionFontSizeMenu(fontSizeMenu);
+            menu.Items.Add(fontSizeMenu);
+
+            var letterSpacingMenu = new MenuItem { Header = "字间距" };
+            PopulateLiveCaptionLetterSpacingMenu(letterSpacingMenu);
+            menu.Items.Add(letterSpacingMenu);
+
+            var lineGapMenu = new MenuItem { Header = "段间距" };
+            PopulateLiveCaptionLineGapMenu(lineGapMenu);
+            menu.Items.Add(lineGapMenu);
+
+            menu.Items.Add(new Separator());
+
+            var textColorMenu = new MenuItem { Header = "字幕颜色" };
+            PopulateLiveCaptionTextColorMenu(textColorMenu);
+            menu.Items.Add(textColorMenu);
+
+            var latestColorMenu = new MenuItem { Header = "最新字颜色" };
+            PopulateLiveCaptionLatestColorMenu(latestColorMenu);
+            menu.Items.Add(latestColorMenu);
+
+            menu.PlacementTarget = _liveCaptionOverlayWindow.GetStyleAnchorElement();
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.HorizontalOffset = 0;
+            menu.VerticalOffset = 2;
+            menu.IsOpen = true;
+            LiveCaptionDebugLogger.Log("StyleSettings: context menu opened.");
+        }
+
+        private void PopulateLiveCaptionFontMenu(MenuItem root)
+        {
+            string current = string.IsNullOrWhiteSpace(_configManager?.LiveCaptionFontFamily)
+                ? (string.IsNullOrWhiteSpace(_configManager?.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
+                : _configManager.LiveCaptionFontFamily.Trim();
+            AddLiveCaptionFontItem(root, "微软雅黑", "Microsoft YaHei UI", current);
+            AddLiveCaptionFontItem(root, "等线", "DengXian", current);
+            AddLiveCaptionFontItem(root, "黑体", "SimHei", current);
+            AddLiveCaptionFontItem(root, "宋体", "SimSun", current);
+        }
+
+        private void AddLiveCaptionFontItem(MenuItem root, string display, string family, string current)
+        {
+            var item = new MenuItem
+            {
+                Header = BuildSelectedMenuHeader(display, string.Equals(current, family, StringComparison.OrdinalIgnoreCase))
+            };
+            item.Click += (_, _) =>
+            {
+                if (_configManager == null)
+                {
+                    return;
+                }
+
+                _configManager.LiveCaptionFontFamily = family;
+                ApplyLiveCaptionTypographyFromBible();
+                ShowStatus($"字幕字体：{display}");
+            };
+            root.Items.Add(item);
+        }
+
+        private void PopulateLiveCaptionFontSizeMenu(MenuItem root)
+        {
+            int current = (int)Math.Round(Math.Clamp((_configManager?.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager?.BibleFontSize ?? 36)), 20, 112));
+            int[] sizes = { 20, 24, 28, 32, 36, 40, 46, 52, 60, 68, 76, 88, 100, 112 };
+            foreach (int size in sizes)
+            {
+                AddLiveCaptionNumericItem(root, size.ToString(), current == size, () => SetLiveCaptionFontSize(size));
+            }
+        }
+
+        private void SetLiveCaptionFontSize(double value)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            _configManager.LiveCaptionFontSize = Math.Clamp(value, 20, 112);
+            ApplyLiveCaptionTypographyFromBible();
+            ShowStatus($"字幕字号：{value:0}");
+        }
+
+        private void PopulateLiveCaptionLetterSpacingMenu(MenuItem root)
+        {
+            int current = (int)Math.Round(Math.Clamp(_configManager?.LiveCaptionLetterSpacing ?? 0, 0, 10));
+            for (int value = 0; value <= 10; value++)
+            {
+                int selected = value;
+                AddLiveCaptionNumericItem(root, value.ToString(), current == value, () => SetLiveCaptionLetterSpacing(selected));
+            }
+        }
+
+        private void SetLiveCaptionLetterSpacing(double value)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            _configManager.LiveCaptionLetterSpacing = Math.Clamp(value, 0, 10);
+            ApplyLiveCaptionTypographyFromBible();
+            ShowStatus($"字幕字间距：{value:0}");
+        }
+
+        private void PopulateLiveCaptionLineGapMenu(MenuItem root)
+        {
+            int currentLevel = LineGapToLevel(_configManager?.LiveCaptionLineGap ?? 10);
+            for (int level = 0; level <= 10; level++)
+            {
+                int selectedLevel = level;
+                AddLiveCaptionNumericItem(root, level.ToString(), currentLevel == level, () => SetLiveCaptionLineGap(selectedLevel));
+            }
+        }
+
+        private void SetLiveCaptionLineGap(double value)
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            int level = (int)Math.Round(Math.Clamp(value, 0, 10));
+            double actualGap = LevelToLineGap(level);
+            _configManager.LiveCaptionLineGap = actualGap;
+            ApplyLiveCaptionTypographyFromBible();
+            ShowStatus($"字幕段间距：{level}");
+        }
+
+        private static int LineGapToLevel(double lineGap)
+        {
+            double normalized = (Math.Clamp(lineGap, 10, 60) - 10) / 5.0;
+            return (int)Math.Round(normalized);
+        }
+
+        private static double LevelToLineGap(int level)
+        {
+            return 10 + (Math.Clamp(level, 0, 10) * 5);
+        }
+
+        private static void AddLiveCaptionNumericItem(MenuItem root, string text, bool selected, Action apply)
+        {
+            var item = new MenuItem
+            {
+                Header = BuildSelectedMenuHeader(text, selected)
+            };
+            item.Click += (_, _) => apply?.Invoke();
+            root.Items.Add(item);
         }
 
         private void OnLiveCaptionOverlayCaptionOrientationRequested(ProjectionCaptionOrientation orientation)
@@ -457,6 +625,7 @@ namespace ImageColorChanger.UI
             _projectionManager.SetProjectionCaptionLayout(orientation, horizontalAnchor, verticalAnchor);
             _liveCaptionOverlayWindow?.SetCaptionOrientationState(orientation);
             _liveCaptionOverlayWindow?.SetCaptionPositionState(horizontalAnchor, verticalAnchor);
+            ApplyLiveCaptionTypographyFromBible();
         }
 
         private static string NormalizeProjectionCaptionOrientation(string value)
@@ -564,7 +733,7 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayWindow?.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
         }
 
-        private void UpdateLiveCaptionProjectionCaption(string captionText)
+        private void UpdateLiveCaptionProjectionCaption(string captionText, int? highlightStart = null)
         {
             if (_projectionManager?.IsProjectionActive != true)
             {
@@ -577,7 +746,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _projectionManager.UpdateProjectionCaptionOverlay(captionText);
+            _projectionManager.UpdateProjectionCaptionOverlay(captionText, highlightStart);
         }
 
         internal void SyncLiveCaptionProjectionCaptionForProjectionState(bool isProjectionActive)
@@ -592,7 +761,9 @@ namespace ImageColorChanger.UI
                 !_liveCaptionProjectionCaptionHidden &&
                 !string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
             {
-                _projectionManager?.UpdateProjectionCaptionOverlay(_liveCaptionComposer.CurrentDisplay);
+                _projectionManager?.UpdateProjectionCaptionOverlay(
+                    _liveCaptionComposer.CurrentDisplay,
+                    _liveCaptionComposer.CurrentHighlightStart);
                 return;
             }
 
@@ -635,6 +806,241 @@ namespace ImageColorChanger.UI
         private static string BuildSelectedMenuHeader(string text, bool selected)
         {
             return selected ? $"{text}  ✓" : text;
+        }
+
+        private void PopulateLiveCaptionLatestColorMenu(MenuItem root)
+        {
+            string current = NormalizeColorHex(_configManager?.LiveCaptionLatestTextColor, "#FFFF00");
+            PopulateColorMenuFromPresets(
+                root,
+                current,
+                (hex, name) =>
+                {
+                    if (_configManager == null) return;
+                    _configManager.LiveCaptionLatestTextColor = hex;
+                    ApplyLiveCaptionTypographyFromBible();
+                    ShowStatus($"最新字颜色：{name}");
+                });
+            AddCustomColorPickerMenuItem(
+                root,
+                "自定义颜色...",
+                current,
+                (hex) =>
+                {
+                    if (_configManager == null) return;
+                    _configManager.LiveCaptionLatestTextColor = hex;
+                    ApplyLiveCaptionTypographyFromBible();
+                    ShowStatus($"最新字颜色：{hex}");
+                });
+        }
+
+        private void PopulateLiveCaptionTextColorMenu(MenuItem root)
+        {
+            string current = NormalizeColorHex(_configManager?.LiveCaptionTextColor, "#FFFFFF");
+            PopulateColorMenuFromPresets(
+                root,
+                current,
+                (hex, name) =>
+                {
+                    if (_configManager == null) return;
+                    _configManager.LiveCaptionTextColor = hex;
+                    ApplyLiveCaptionTypographyFromBible();
+                    ShowStatus($"字幕颜色：{name}");
+                });
+            AddCustomColorPickerMenuItem(
+                root,
+                "自定义颜色...",
+                current,
+                (hex) =>
+                {
+                    if (_configManager == null) return;
+                    _configManager.LiveCaptionTextColor = hex;
+                    ApplyLiveCaptionTypographyFromBible();
+                    ShowStatus($"字幕颜色：{hex}");
+                });
+        }
+
+        private void ApplyLiveCaptionTypographyFromBible()
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            string fontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
+                ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
+                : _configManager.LiveCaptionFontFamily.Trim();
+            double fontSize = Math.Clamp(_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : _configManager.BibleFontSize, 20, 112);
+            double padding = Math.Clamp(_configManager.LiveCaptionPadding > 0 ? _configManager.LiveCaptionPadding : _configManager.BibleMargin, 6, 120);
+            double letterSpacing = Math.Clamp(_configManager.LiveCaptionLetterSpacing, 0, 10);
+            double lineGap = Math.Clamp(_configManager.LiveCaptionLineGap, 10, 60);
+            double lineHeight = fontSize + lineGap;
+
+            string textColor = NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF");
+            string latestColor = NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00");
+            _liveCaptionOverlayWindow?.SetCaptionTypography(fontFamily, fontSize, padding, lineHeight);
+            _liveCaptionOverlayWindow?.SetCaptionLetterSpacing(letterSpacing);
+            _liveCaptionOverlayWindow?.SetCaptionTextColor(textColor);
+            _liveCaptionOverlayWindow?.SetLatestTextHighlightColor(latestColor);
+            _projectionManager?.SetProjectionCaptionTypography(fontFamily, fontSize, padding, lineHeight, letterSpacing, textColor, latestColor);
+            RecalculateLiveCaptionComposerLayout(fontSize, padding, letterSpacing);
+
+            // 样式改动必须立即可见：强制用当前显示文本重绘一次，不依赖下一条 ASR 更新。
+            if (!string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
+            {
+                _liveCaptionOverlayWindow?.UpdateCaption(_liveCaptionComposer.CurrentDisplay, _liveCaptionComposer.CurrentHighlightStart);
+                if (_projectionManager?.IsProjectionActive == true && !_liveCaptionProjectionCaptionHidden)
+                {
+                    _projectionManager.UpdateProjectionCaptionOverlay(
+                        _liveCaptionComposer.CurrentDisplay,
+                        _liveCaptionComposer.CurrentHighlightStart);
+                }
+            }
+        }
+
+        private void RecalculateLiveCaptionComposerLayout()
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            RecalculateLiveCaptionComposerLayout(
+                Math.Clamp(_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : _configManager.BibleFontSize, 20, 112),
+                Math.Clamp(_configManager.LiveCaptionPadding > 0 ? _configManager.LiveCaptionPadding : _configManager.BibleMargin, 6, 120),
+                Math.Clamp(_configManager.LiveCaptionLetterSpacing, 0, 10));
+        }
+
+        private void RecalculateLiveCaptionComposerLayout(double fontSize, double padding, double letterSpacing)
+        {
+            double available = _liveCaptionOverlayWindow?.GetCaptionTextAvailableWidth() > 0
+                ? _liveCaptionOverlayWindow.GetCaptionTextAvailableWidth()
+                : 1320 - (padding * 2) - 80;
+            available = Math.Max(220, available);
+
+            // 稳定优先：对可用宽度做保守预留，避免“行尾最后几个字被裁切”。
+            double safetyReserve = Math.Max(56, (fontSize * 1.4) + (Math.Clamp(letterSpacing, 0, 10) * 8));
+            double effectiveWidth = Math.Max(160, available - safetyReserve);
+
+            // 中文/粗体/字距场景采用更保守的单字宽度估算，防止过度塞字。
+            double spacingFactor = 0.12 * Math.Clamp(letterSpacing, 0, 10);
+            double perChar = Math.Max(14, fontSize * (1.08 + spacingFactor));
+            int dynamicLineCharLimit = (int)Math.Floor(available / perChar);
+            int safeLineCharLimit = (int)Math.Floor(effectiveWidth / perChar);
+            _liveCaptionComposer.SetLineCharLimit(Math.Clamp(safeLineCharLimit <= 0 ? dynamicLineCharLimit : safeLineCharLimit, 4, 60));
+        }
+
+        private void PopulateColorMenuFromPresets(MenuItem root, string currentHex, Action<string, string> applyColor)
+        {
+            var presets = _configManager?.GetAllColorPresets();
+            if (presets == null)
+            {
+                return;
+            }
+
+            foreach (var preset in presets)
+            {
+                string hex = $"#{preset.R:X2}{preset.G:X2}{preset.B:X2}";
+                string normalized = NormalizeColorHex(hex, "#FFFFFF");
+                var item = new MenuItem
+                {
+                    Header = BuildSelectedMenuHeader(preset.Name, string.Equals(currentHex, normalized, StringComparison.OrdinalIgnoreCase))
+                };
+                string displayName = preset.Name;
+                item.Click += (_, _) => applyColor?.Invoke(normalized, displayName);
+                root.Items.Add(item);
+            }
+        }
+
+        private void AddCustomColorPickerMenuItem(MenuItem root, string header, string initialHex, Action<string> applyColor)
+        {
+            var customItem = new MenuItem { Header = header };
+            customItem.Click += (_, _) =>
+            {
+                string picked = PickColorHex(initialHex);
+                if (string.IsNullOrWhiteSpace(picked))
+                {
+                    return;
+                }
+
+                applyColor?.Invoke(NormalizeColorHex(picked, "#FFFFFF"));
+            };
+            root.Items.Add(new Separator());
+            root.Items.Add(customItem);
+        }
+
+        private static string PickColorHex(string initialHex)
+        {
+            try
+            {
+                using var dialog = new System.Windows.Forms.ColorDialog
+                {
+                    AllowFullOpen = true,
+                    FullOpen = true
+                };
+                if (TryHexToDrawingColor(initialHex, out var initial))
+                {
+                    dialog.Color = initial;
+                }
+
+                if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return string.Empty;
+                }
+
+                var c = dialog.Color;
+                return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static bool TryHexToDrawingColor(string hex, out System.Drawing.Color color)
+        {
+            color = default;
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                return false;
+            }
+
+            string text = hex.Trim().TrimStart('#');
+            if (text.Length != 6)
+            {
+                return false;
+            }
+
+            if (!byte.TryParse(text.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out byte r) ||
+                !byte.TryParse(text.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out byte g) ||
+                !byte.TryParse(text.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out byte b))
+            {
+                return false;
+            }
+
+            color = System.Drawing.Color.FromArgb(r, g, b);
+            return true;
+        }
+
+        private static string NormalizeColorHex(string value, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return fallback;
+            }
+
+            string text = value.Trim().ToUpperInvariant();
+            if (!text.StartsWith("#", StringComparison.Ordinal))
+            {
+                text = "#" + text;
+            }
+
+            if (text.Length == 7 || text.Length == 9)
+            {
+                return text;
+            }
+
+            return fallback;
         }
 
         private static string NormalizeLiveCaptionProvider(string provider)

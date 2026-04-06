@@ -43,6 +43,8 @@ namespace ImageColorChanger.UI
         private const uint ABE_TOP = 1;
         private const uint ABE_BOTTOM = 3;
         private const double FloatingResizeHitThickness = 10;
+        private const int VisibleCaptionLines = 2;
+        private const double DefaultActionButtonHeight = 28;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -86,12 +88,15 @@ namespace ImageColorChanger.UI
         private readonly Border _captionSurface;
         private readonly TextBlock _captionText;
         private readonly TextBlock _projectionActionText;
+        private readonly Path _styleIcon;
         private readonly Path _settingsIcon;
         private readonly Border _projectionAction;
         private readonly Border _orientationAction;
         private readonly Border _positionAction;
+        private readonly StackPanel _actionPanel;
         private readonly TextBlock _orientationActionText;
         private readonly TextBlock _positionActionText;
+        private readonly Border _styleAction;
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
         private readonly DispatcherTimer _typingTimer;
@@ -101,6 +106,10 @@ namespace ImageColorChanger.UI
         private int _highlightStartIndex;
         private bool _typingAnimationEnabled;
         private bool _latestTextHighlightEnabled = true;
+        private System.Windows.Media.Brush _baseTextBrush = WpfBrushes.White;
+        private System.Windows.Media.Brush _latestTextHighlightBrush = new WpfSolidColorBrush(WpfColor.FromRgb(255, 255, 0));
+        private double _captionLetterSpacing;
+        private double _captionParagraphGap = 4;
         private ProjectionCaptionOrientation _captionOrientation = ProjectionCaptionOrientation.Horizontal;
         private ProjectionCaptionHorizontalAnchor _captionHorizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
         private ProjectionCaptionVerticalAnchor _captionVerticalAnchor = ProjectionCaptionVerticalAnchor.Top;
@@ -112,6 +121,7 @@ namespace ImageColorChanger.UI
         private double _floatingLeft;
         private double _floatingTop;
         private bool _hasCustomFloatingBounds;
+        private double _autoMinCaptionHeight = 96;
 
         private IntPtr _handle = IntPtr.Zero;
         private bool _appBarRegistered;
@@ -128,6 +138,7 @@ namespace ImageColorChanger.UI
         public event Action ProjectionToggleRequested;
         public event Action<ProjectionCaptionOrientation> CaptionOrientationRequested;
         public event Action<ProjectionCaptionHorizontalAnchor, ProjectionCaptionVerticalAnchor> CaptionPositionRequested;
+        public event Action CaptionStyleRequested;
         public event Action CloseRequested;
         public event Action<Rect> FloatingBoundsChanged;
 
@@ -179,7 +190,10 @@ namespace ImageColorChanger.UI
             _floatingBoundsChangedTimer.Tick += FloatingBoundsChangedTimer_Tick;
 
             var captionGrid = new Grid();
+            captionGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            captionGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _captionText = new TextBlock
             {
@@ -189,7 +203,7 @@ namespace ImageColorChanger.UI
                 TextWrapping = TextWrapping.NoWrap,
                 LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
                 LineHeight = 46,
-                TextAlignment = TextAlignment.Center,
+                TextAlignment = TextAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 2, 0, 2),
@@ -198,8 +212,10 @@ namespace ImageColorChanger.UI
             TextOptions.SetTextFormattingMode(_captionText, TextFormattingMode.Display);
             TextOptions.SetTextHintingMode(_captionText, TextHintingMode.Fixed);
             Grid.SetColumn(_captionText, 0);
+            Grid.SetColumnSpan(_captionText, 2);
+            Grid.SetRow(_captionText, 1);
 
-            var actionPanel = new StackPanel
+            _actionPanel = new StackPanel
             {
                 Orientation = WpfOrientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Top,
@@ -237,6 +253,15 @@ namespace ImageColorChanger.UI
             };
             SetCaptionPositionState(_captionHorizontalAnchor, _captionVerticalAnchor);
 
+            _styleAction = CreateActionItem("IconLucideType", out _styleIcon);
+            _styleAction.Margin = new Thickness(6, 0, 0, 0);
+            _styleAction.ToolTip = "字幕样式";
+            _styleAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                CaptionStyleRequested?.Invoke();
+            };
+
             _settingsAction = CreateActionItem("IconLucideSettings", out _settingsIcon);
             _settingsAction.Margin = new Thickness(6, 0, 0, 0);
             _settingsAction.ToolTip = "字幕设置";
@@ -255,13 +280,14 @@ namespace ImageColorChanger.UI
                 CloseRequested?.Invoke();
             };
 
-            actionPanel.Children.Add(_projectionAction);
-            actionPanel.Children.Add(_orientationAction);
-            actionPanel.Children.Add(_positionAction);
-            actionPanel.Children.Add(_settingsAction);
-            actionPanel.Children.Add(_closeAction);
-            Grid.SetColumn(actionPanel, 0);
-            System.Windows.Controls.Panel.SetZIndex(actionPanel, 5);
+            _actionPanel.Children.Add(_projectionAction);
+            _actionPanel.Children.Add(_orientationAction);
+            _actionPanel.Children.Add(_positionAction);
+            _actionPanel.Children.Add(_styleAction);
+            _actionPanel.Children.Add(_settingsAction);
+            _actionPanel.Children.Add(_closeAction);
+            Grid.SetColumn(_actionPanel, 1);
+            Grid.SetRow(_actionPanel, 0);
 
             var shellGrid = new Grid();
             shellGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2) });
@@ -276,7 +302,7 @@ namespace ImageColorChanger.UI
             Grid.SetRow(accentBar, 0);
 
             captionGrid.Children.Add(_captionText);
-            captionGrid.Children.Add(actionPanel);
+            captionGrid.Children.Add(_actionPanel);
             Grid.SetRow(captionGrid, 1);
 
             shellGrid.Children.Add(accentBar);
@@ -386,9 +412,12 @@ namespace ImageColorChanger.UI
                     _bandHeight = Math.Max(MinHeight, Height);
                 }
             };
+
+            EnsureAutoCaptionHeight();
         }
 
         public UIElement GetSettingsAnchorElement() => _settingsAction;
+        public UIElement GetStyleAnchorElement() => _styleAction;
 
         public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
 
@@ -425,6 +454,156 @@ namespace ImageColorChanger.UI
         public void SetLatestTextHighlightEnabled(bool enabled)
         {
             _latestTextHighlightEnabled = enabled;
+            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+        }
+
+        public void SetCaptionTypography(string fontFamily, double fontSize, double margin, double lineHeight)
+        {
+            if (_captionSurface == null || _captionText == null)
+            {
+                return;
+            }
+
+            string nextFamily = string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily.Trim();
+            double nextSize = Math.Clamp(fontSize, 16, 88);
+            double nextMargin = Math.Clamp(margin, 6, 120);
+            double nextLineHeight = Math.Max(nextSize, lineHeight);
+
+            _captionText.FontFamily = new System.Windows.Media.FontFamily(nextFamily);
+            _captionText.FontSize = nextSize;
+            _captionParagraphGap = Math.Clamp(nextLineHeight - nextSize, 0, 60);
+            _captionText.LineHeight = nextSize + _captionParagraphGap;
+            _captionSurface.Padding = new Thickness(nextMargin);
+            EnsureAutoCaptionHeight();
+        }
+
+        public void SetCaptionLetterSpacing(double spacing)
+        {
+            _captionLetterSpacing = Math.Clamp(spacing, 0, 10);
+            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+        }
+
+        private void EnsureAutoCaptionHeight()
+        {
+            _autoMinCaptionHeight = ComputeCaptionAutoMinHeight();
+            MinHeight = Math.Max(96, _autoMinCaptionHeight);
+
+            if (_dockMode == LiveCaptionDockMode.Floating)
+            {
+                if (_floatingHeight < _autoMinCaptionHeight || Height < _autoMinCaptionHeight)
+                {
+                    _suppressFloatingBoundsTracking = true;
+                    try
+                    {
+                        _floatingHeight = Math.Max(_autoMinCaptionHeight, _floatingHeight);
+                        if (Height < _autoMinCaptionHeight)
+                        {
+                            Height = _autoMinCaptionHeight;
+                        }
+                    }
+                    finally
+                    {
+                        _suppressFloatingBoundsTracking = false;
+                    }
+
+                    if (IsVisible)
+                    {
+                        ScheduleApplyLayout();
+                    }
+                }
+            }
+            else
+            {
+                if (_bandHeight < _autoMinCaptionHeight || Height < _autoMinCaptionHeight)
+                {
+                    _bandHeight = Math.Max(_autoMinCaptionHeight, _bandHeight);
+                    if (Height < _autoMinCaptionHeight)
+                    {
+                        Height = _autoMinCaptionHeight;
+                    }
+
+                    if (IsVisible)
+                    {
+                        ScheduleApplyLayout();
+                    }
+                }
+            }
+
+            ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
+                $"CaptionAutoHeight: min={_autoMinCaptionHeight:0.##}, lineHeight={_captionText.LineHeight:0.##}, fontSize={_captionText.FontSize:0.##}, padding={_captionSurface.Padding.Top:0.##}/{_captionSurface.Padding.Bottom:0.##}, mode={_dockMode}, floating={_floatingHeight:0.##}, band={_bandHeight:0.##}");
+        }
+
+        private double ComputeCaptionAutoMinHeight()
+        {
+            double lineHeight = _captionText.LineHeight > 0
+                ? _captionText.LineHeight
+                : _captionText.FontSize * 1.5;
+
+            double textAreaNeed = (lineHeight * VisibleCaptionLines)
+                + _captionText.Margin.Top
+                + _captionText.Margin.Bottom;
+
+            double actionNeed = Math.Max(
+                Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_orientationAction)),
+                Math.Max(GetActionHeight(_positionAction), Math.Max(GetActionHeight(_styleAction), Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)))));
+
+            double bodyNeed = Math.Max(textAreaNeed, actionNeed);
+
+            double shellNeed = 2 + bodyNeed;
+            double surfaceNeed =
+                _captionSurface.Margin.Top + _captionSurface.Margin.Bottom +
+                _captionSurface.Padding.Top + _captionSurface.Padding.Bottom +
+                _captionSurface.BorderThickness.Top + _captionSurface.BorderThickness.Bottom;
+
+            double target = Math.Ceiling(shellNeed + surfaceNeed + 8);
+            return Math.Clamp(target, 96, SystemParameters.WorkArea.Height * 0.85);
+        }
+
+        private static double GetActionHeight(FrameworkElement element)
+        {
+            if (element == null)
+            {
+                return DefaultActionButtonHeight;
+            }
+
+            if (element.ActualHeight > 0)
+            {
+                return element.ActualHeight;
+            }
+
+            if (!double.IsNaN(element.Height) && element.Height > 0)
+            {
+                return element.Height;
+            }
+
+            return DefaultActionButtonHeight;
+        }
+
+        public void SetLatestTextHighlightColor(string hexColor)
+        {
+            if (TryParseColor(hexColor, out WpfColor color))
+            {
+                _latestTextHighlightBrush = new WpfSolidColorBrush(color);
+            }
+            else
+            {
+                _latestTextHighlightBrush = new WpfSolidColorBrush(WpfColor.FromRgb(255, 255, 0));
+            }
+
+            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+        }
+
+        public void SetCaptionTextColor(string hexColor)
+        {
+            if (TryParseColor(hexColor, out WpfColor color))
+            {
+                _baseTextBrush = new WpfSolidColorBrush(color);
+            }
+            else
+            {
+                _baseTextBrush = WpfBrushes.White;
+            }
+
             RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
         }
 
@@ -465,7 +644,7 @@ namespace ImageColorChanger.UI
             DependencyObject current = source;
             while (current != null)
             {
-                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _orientationAction) || ReferenceEquals(current, _positionAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
+                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _orientationAction) || ReferenceEquals(current, _positionAction) || ReferenceEquals(current, _styleAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
                 {
                     return true;
                 }
@@ -963,6 +1142,7 @@ namespace ImageColorChanger.UI
                 path.Data = iconKey switch
                 {
                     "IconLucideX" => Geometry.Parse("M18 6L6 18 M6 6L18 18"),
+                    "IconLucideType" => Geometry.Parse("M4 6H20 M12 6V20 M8 20H16"),
                     "IconLucideSettings" => Geometry.Parse("M12 2V4 M12 20V22 M4.93 4.93L6.34 6.34 M17.66 17.66L19.07 19.07 M2 12H4 M20 12H22 M4.93 19.07L6.34 17.66 M17.66 6.34L19.07 4.93 M12 8A4 4 0 1 0 12 16A4 4 0 1 0 12 8"),
                     "IconLucideLayout" => Geometry.Parse("M2 4H12 M2 7H12 M2 10H12"),
                     "IconLucideCrosshair" => Geometry.Parse("M7 2V5 M7 9V12 M2 7H5 M9 7H12 M3.5 3.5L2 2 M10.5 3.5L12 2 M3.5 10.5L2 12 M10.5 10.5L12 12"),
@@ -1130,6 +1310,24 @@ namespace ImageColorChanger.UI
             }
 
             return new Rect(_floatingLeft, _floatingTop, _floatingWidth, _floatingHeight);
+        }
+
+        public double GetCaptionTextAvailableWidth()
+        {
+            double windowWidth = ActualWidth > 0 ? ActualWidth : Width;
+            if (windowWidth <= 0)
+            {
+                windowWidth = _dockMode == LiveCaptionDockMode.Floating
+                    ? _floatingWidth
+                    : SystemParameters.WorkArea.Width;
+            }
+
+            double shell = _captionSurface.Margin.Left + _captionSurface.Margin.Right
+                + _captionSurface.Padding.Left + _captionSurface.Padding.Right
+                + _captionSurface.BorderThickness.Left + _captionSurface.BorderThickness.Right;
+
+            double available = windowWidth - shell - 24;
+            return Math.Max(220, available);
         }
 
         public void ResetFloatingPlacement()
@@ -1445,31 +1643,105 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            bool hasSecondLine = text.IndexOf('\n') >= 0;
+            double size = _captionText.FontSize > 0 ? _captionText.FontSize : 30;
+            double effectiveGap = hasSecondLine ? _captionParagraphGap : 0;
+            _captionText.LineHeight = size + effectiveGap;
+
             int split = Math.Clamp(highlightFrom, 0, text.Length);
+            string spaced = ApplyLetterSpacing(text, out int[] indexMap);
+            int splitSpaced = indexMap[Math.Clamp(split, 0, indexMap.Length - 1)];
             if (!_latestTextHighlightEnabled)
             {
-                _captionText.Inlines.Add(new Run(text)
+                _captionText.Inlines.Add(new Run(spaced)
                 {
-                    Foreground = WpfBrushes.White
+                    Foreground = _baseTextBrush
                 });
                 return;
             }
 
-            if (split > 0)
+            if (splitSpaced > 0)
             {
-                _captionText.Inlines.Add(new Run(text.Substring(0, split))
+                _captionText.Inlines.Add(new Run(spaced.Substring(0, splitSpaced))
                 {
-                    Foreground = WpfBrushes.White
+                    Foreground = _baseTextBrush
                 });
             }
 
-            if (split < text.Length)
+            if (splitSpaced < spaced.Length)
             {
-                _captionText.Inlines.Add(new Run(text.Substring(split))
+                _captionText.Inlines.Add(new Run(spaced.Substring(splitSpaced))
                 {
-                    Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 219, 77))
+                    Foreground = _latestTextHighlightBrush
                 });
             }
+        }
+
+        private string ApplyLetterSpacing(string text, out int[] indexMap)
+        {
+            if (string.IsNullOrEmpty(text) || _captionLetterSpacing <= 0.01)
+            {
+                indexMap = BuildIdentityIndexMap(text ?? string.Empty);
+                return text ?? string.Empty;
+            }
+
+            int repeat = Math.Clamp((int)Math.Round(_captionLetterSpacing), 1, 10);
+            string spacer = new string('\u200A', repeat);
+            var sb = new System.Text.StringBuilder(text.Length * (repeat + 1));
+            indexMap = new int[text.Length + 1];
+            for (int i = 0; i < text.Length; i++)
+            {
+                indexMap[i] = sb.Length;
+                char ch = text[i];
+                sb.Append(ch);
+                if (ch != '\n' && ch != '\r' && i < text.Length - 1)
+                {
+                    char next = text[i + 1];
+                    if (next != '\n' && next != '\r')
+                    {
+                        sb.Append(spacer);
+                    }
+                }
+            }
+            indexMap[text.Length] = sb.Length;
+
+            return sb.ToString();
+        }
+
+        private static int[] BuildIdentityIndexMap(string text)
+        {
+            int length = text?.Length ?? 0;
+            var map = new int[length + 1];
+            for (int i = 0; i <= length; i++)
+            {
+                map[i] = i;
+            }
+
+            return map;
+        }
+
+        private static bool TryParseColor(string value, out WpfColor color)
+        {
+            color = default;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            try
+            {
+                object converted = System.Windows.Media.ColorConverter.ConvertFromString(value.Trim());
+                if (converted is WpfColor parsed)
+                {
+                    color = parsed;
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
 
         private static int FindCommonPrefix(string a, string b)

@@ -354,6 +354,126 @@ namespace ImageColorChanger.Core
                 }
             }
         }
+
+        public string LiveCaptionLatestTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionLatestTextColor)
+                ? "#FFFF00"
+                : _config.LiveCaptionLatestTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFF00" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionLatestTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionLatestTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionTextColor)
+                ? "#FFFFFF"
+                : _config.LiveCaptionTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFFFF" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionFontFamily
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionFontFamily)
+                ? string.Empty
+                : _config.LiveCaptionFontFamily;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionFontFamily, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionFontFamily = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionFontSize
+        {
+            get => _config.LiveCaptionFontSize <= 0 ? 0 : _config.LiveCaptionFontSize;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionFontSize - next) > 0.001)
+                {
+                    _config.LiveCaptionFontSize = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionPadding
+        {
+            get => _config.LiveCaptionPadding <= 0 ? 0 : _config.LiveCaptionPadding;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionPadding - next) > 0.001)
+                {
+                    _config.LiveCaptionPadding = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLetterSpacing
+        {
+            get => _config.LiveCaptionLetterSpacing;
+            set
+            {
+                double next = Math.Clamp(value, 0, 10);
+                if (Math.Abs(_config.LiveCaptionLetterSpacing - next) > 0.001)
+                {
+                    _config.LiveCaptionLetterSpacing = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLineGap
+        {
+            get => _config.LiveCaptionLineGap;
+            set
+            {
+                double next = Math.Clamp(value, 10, 60);
+                if (Math.Abs(_config.LiveCaptionLineGap - next) > 0.001)
+                {
+                    _config.LiveCaptionLineGap = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionTextAlignment
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionTextAlignment)
+                ? "left"
+                : _config.LiveCaptionTextAlignment;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "left" : value.Trim().ToLowerInvariant();
+                if (!string.Equals(_config.LiveCaptionTextAlignment, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionTextAlignment = next;
+                    SaveConfig();
+                }
+            }
+        }
     }
 
     public partial class AppConfig
@@ -383,5 +503,13 @@ namespace ImageColorChanger.Core
         public string LiveCaptionProjectionOrientation { get; set; } = "horizontal";
         public string LiveCaptionProjectionHorizontalAnchor { get; set; } = "center";
         public string LiveCaptionProjectionVerticalAnchor { get; set; } = "top";
+        public string LiveCaptionLatestTextColor { get; set; } = "#FFFF00";
+        public string LiveCaptionTextColor { get; set; } = "#FFFFFF";
+        public string LiveCaptionFontFamily { get; set; } = "";
+        public double LiveCaptionFontSize { get; set; } = 0;
+        public double LiveCaptionPadding { get; set; } = 0;
+        public double LiveCaptionLetterSpacing { get; set; } = 0;
+        public double LiveCaptionLineGap { get; set; } = 30;
+        public string LiveCaptionTextAlignment { get; set; } = "left";
     }
 }

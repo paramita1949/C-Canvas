@@ -57,6 +57,15 @@ namespace ImageColorChanger.Managers
         private Grid _projectionCaptionOverlayContainer; // 字幕覆盖层容器
         private Border _projectionCaptionOverlayBorder; // 字幕覆盖层边框
         private TextBlock _projectionCaptionOverlayText; // 字幕覆盖层文本
+        private System.Windows.Media.Brush _projectionCaptionBaseBrush = WpfBrushes.White;
+        private System.Windows.Media.Brush _projectionCaptionLatestBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 0));
+        private double _projectionCaptionLetterSpacing;
+        private string _projectionCaptionPreferredFontFamily = "Microsoft YaHei UI";
+        private double _projectionCaptionPreferredFontSize = 46;
+        private double _projectionCaptionPreferredPadding = 28;
+        private double _projectionCaptionPreferredLineGap = 12;
+        private string _projectionCaptionLastRawText = string.Empty;
+        private int? _projectionCaptionLastHighlightStart;
         private ProjectionCaptionOrientation _projectionCaptionOrientation = ProjectionCaptionOrientation.Horizontal;
         private ProjectionCaptionHorizontalAnchor _projectionCaptionHorizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
         private ProjectionCaptionVerticalAnchor _projectionCaptionVerticalAnchor = ProjectionCaptionVerticalAnchor.Top;

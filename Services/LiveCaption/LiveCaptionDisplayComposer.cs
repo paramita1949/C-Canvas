@@ -26,7 +26,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly Queue<string> _committed = new();
         private readonly int _maxCommittedHistory;
         private readonly int _displayLineLimit;
-        private readonly int _lineCharLimit;
+        private int _lineCharLimit;
         private readonly int _maxSourceChars;
 
         private string _draft = string.Empty;
@@ -38,7 +38,7 @@ namespace ImageColorChanger.Services.LiveCaption
             int maxCommittedHistory = 96,
             int maxSourceChars = 320)
         {
-            _lineCharLimit = Math.Max(8, lineCharLimit);
+            _lineCharLimit = Math.Max(4, lineCharLimit);
             _displayLineLimit = Math.Max(1, displayLineLimit);
             _maxCommittedHistory = Math.Max(16, maxCommittedHistory);
             _maxSourceChars = Math.Max(64, maxSourceChars);
@@ -56,6 +56,11 @@ namespace ImageColorChanger.Services.LiveCaption
             CurrentDisplay = string.Empty;
             CurrentHighlightStart = 0;
             LiveCaptionDebugLogger.Log("Composer: reset.");
+        }
+
+        public void SetLineCharLimit(int lineCharLimit)
+        {
+            _lineCharLimit = Math.Max(4, lineCharLimit);
         }
 
         public LiveCaptionRenderFrame Push(in LiveCaptionAsrText update)
@@ -246,6 +251,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
             if (string.IsNullOrEmpty(previous))
             {
+                // 首帧不做“最新字高亮”，避免整段突变为高亮色。
                 return current.Length;
             }
 
@@ -260,6 +266,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return overlap;
             }
 
+            // 无法稳定识别新增片段时，不高亮，避免整段颜色跳变。
             return current.Length;
         }
 
