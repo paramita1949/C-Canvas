@@ -20,13 +20,18 @@
         <Border Grid.Row="0" Background="#1976D2" CornerRadius="8" Padding="16,12">
             <StackPanel>
                 <TextBlock Text="AI字幕配置" Foreground="White" FontSize="20" FontWeight="SemiBold"/>
-                <TextBlock Text="选择平台后自动加载地址与字段，只需填写密钥" Margin="0,6,0,0" Foreground="#E3F2FD" FontSize="13"/>
+                <TextBlock Text="平台、连接地址、模型名都可自定义配置" Margin="0,6,0,0" Foreground="#E3F2FD" FontSize="13"/>
             </StackPanel>
         </Border>
 
         <Border Grid.Row="1" Margin="0,12,0,0" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="8" Padding="16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          CanContentScroll="True">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -52,29 +57,46 @@
                     <ComboBoxItem Content="豆包语音" Tag="doubao"/>
                 </ComboBox>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,12,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="识别地址" Visibility="Collapsed"/>
-                <TextBox x:Name="AsrEndpointTextBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Height="36" Padding="8,4" FontSize="14" IsReadOnly="True" Visibility="Collapsed"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,12,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="连接地址"/>
+                <TextBox x:Name="BaseUrlTextBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Height="36" Padding="8,4" FontSize="14"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="鉴权地址" Visibility="Collapsed"/>
-                <TextBox x:Name="AuthEndpointTextBox" Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14" IsReadOnly="True" Visibility="Collapsed"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="模型选择"/>
+                <ComboBox x:Name="ModelSelectComboBox"
+                          Grid.Row="2" Grid.Column="1"
+                          Margin="0,10,0,0"
+                          Height="36"
+                          FontSize="14"
+                          SelectionChanged="ModelSelectComboBox_SelectionChanged"/>
 
-                <TextBlock x:Name="Credential1Label" Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证1"/>
-                <TextBox x:Name="Credential1TextBox" Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="方言模型"/>
+                <ComboBox x:Name="DialectSelectComboBox"
+                          Grid.Row="3" Grid.Column="1"
+                          Margin="0,10,0,0"
+                          Height="36"
+                          FontSize="14"
+                          SelectionChanged="DialectSelectComboBox_SelectionChanged"/>
 
-                <TextBlock x:Name="Credential2Label" Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证2"/>
-                <TextBox x:Name="Credential2TextBox" Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="模型ID（自动）"/>
+                <TextBox x:Name="ModelTextBox" Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14" IsReadOnly="True" Background="#F7F7F7"/>
 
-                <TextBlock x:Name="Credential3Label" Grid.Row="5" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证3"/>
-                <TextBox x:Name="Credential3TextBox" Grid.Row="5" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
+                <TextBlock x:Name="Credential1Label" Grid.Row="5" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证1"/>
+                <TextBox x:Name="Credential1TextBox" Grid.Row="5" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
+
+                <TextBlock x:Name="Credential2Label" Grid.Row="6" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证2"/>
+                <TextBox x:Name="Credential2TextBox" Grid.Row="6" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
+
+                <TextBlock x:Name="Credential3Label" Grid.Row="7" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Foreground="#333333" FontSize="15" Text="凭证3"/>
+                <TextBox x:Name="Credential3TextBox" Grid.Row="7" Grid.Column="1" Margin="0,10,0,0" Height="36" Padding="8,4" FontSize="14"/>
 
                 <TextBlock x:Name="HintTextBlock"
-                           Grid.Row="6" Grid.ColumnSpan="2"
+                           Grid.Row="8" Grid.ColumnSpan="2"
                            Margin="0,16,0,0"
                            Foreground="#757575"
                            FontSize="12"
                            TextWrapping="Wrap"
                            Text="保存后将写入 config.json。当前识别引擎已接入百度，腾讯云/阿里云界面已预留。"/>
             </Grid>
+            </ScrollViewer>
         </Border>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

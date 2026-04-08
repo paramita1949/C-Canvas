@@ -1,0 +1,20 @@
+你只需要用简体版时，直接上传下面这些文件：
+
+1) bible_simplified_top20000.txt
+- 推荐优先上传
+- 简体短语高频前 20000 条
+
+2) bible_simplified_top50000.txt
+- 简体短语高频前 50000 条
+- 覆盖更高
+
+3) bible_simplified_phrases.txt
+- 简体全量短语（按标点拆分、去重）
+- 共 94170 条
+
+4) bible_simplified_merged_raw.txt
+- 简体整句版（去重）
+- 共 30551 条
+
+建议：
+先上传 bible_simplified_top20000.txt，效果不够再升级到 top50000 或全量短语版。

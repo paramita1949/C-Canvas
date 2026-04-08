@@ -192,7 +192,16 @@ namespace ImageColorChanger.Services.LiveCaption
 
             if (source.Length > _maxSourceChars)
             {
-                source = source.Substring(source.Length - _maxSourceChars);
+                // 仅按“整行”裁剪，避免每来一个字就把开头挤掉造成横移感。
+                int overflow = source.Length - _maxSourceChars;
+                int trimStep = Math.Max(1, _lineCharLimit);
+                int trim = (overflow / trimStep) * trimStep;
+                if (trim > 0)
+                {
+                    LiveCaptionDebugLogger.Log(
+                        $"[ComposerTrim] overflow={overflow}, trim={trim}, step={trimStep}, sourceLen={source.Length}, max={_maxSourceChars}");
+                    source = source.Substring(trim);
+                }
             }
 
             return RenderWindow(source);
@@ -200,46 +209,36 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private string RenderWindow(string source)
         {
-            var lines = new List<string>(_displayLineLimit) { string.Empty };
-
-            foreach (char rawChar in source)
+            if (string.IsNullOrWhiteSpace(source))
             {
-                if (rawChar == '\r' || rawChar == '\n')
-                {
-                    continue;
-                }
-
-                int tailIndex = lines.Count - 1;
-                string tail = lines[tailIndex];
-                if (tail.Length >= _lineCharLimit)
-                {
-                    lines.Add(string.Empty);
-                    if (lines.Count > _displayLineLimit)
-                    {
-                        lines.RemoveAt(0);
-                    }
-
-                    tailIndex = lines.Count - 1;
-                    tail = lines[tailIndex];
-                }
-
-                char next = rawChar;
-                if (char.IsWhiteSpace(next))
-                {
-                    if (tail.Length == 0 || tail[^1] == ' ')
-                    {
-                        continue;
-                    }
-
-                    next = ' ';
-                }
-
-                lines[tailIndex] = tail + next;
+                return string.Empty;
             }
 
-            return string.Join(
-                Environment.NewLine,
-                lines.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()));
+            // 固定分段：避免“逐字滑窗”导致的横向漂移感。
+            string compact = source.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
+            if (compact.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var segments = new List<string>((compact.Length / _lineCharLimit) + 2);
+            for (int i = 0; i < compact.Length; i += _lineCharLimit)
+            {
+                int len = Math.Min(_lineCharLimit, compact.Length - i);
+                string piece = compact.Substring(i, len).Trim();
+                if (!string.IsNullOrWhiteSpace(piece))
+                {
+                    segments.Add(piece);
+                }
+            }
+
+            if (segments.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            int start = Math.Max(0, segments.Count - _displayLineLimit);
+            return string.Join(Environment.NewLine, segments.Skip(start));
         }
 
         private static int ComputeHighlightStart(string previous, string current)

@@ -56,6 +56,37 @@ namespace ImageColorChanger.Services.Projection.Output
             }
         }
 
+        public bool PublishFrameDirect(SKBitmap frame, bool transparent = false, SKColor? transparencyKeyColor = null)
+        {
+            if (frame == null)
+            {
+                return false;
+            }
+
+            if (!_sender.IsRunning && !_sender.Start(CreateOptions()))
+            {
+                ThrottledLog(ref _lastStartFailLogTick, "PublishFrameDirect failed: sender start returned false.");
+                return false;
+            }
+
+            SKBitmap frameToSend = frame;
+            SKBitmap transformed = null;
+            try
+            {
+                if (transparent && transparencyKeyColor.HasValue)
+                {
+                    transformed = BuildColorKeyTransparentFrame(frame, transparencyKeyColor.Value, tolerance: 8);
+                    frameToSend = transformed ?? frame;
+                }
+
+                return _sender.SendFrame(frameToSend);
+            }
+            finally
+            {
+                transformed?.Dispose();
+            }
+        }
+
         public void Stop()
         {
             _sender.Stop();

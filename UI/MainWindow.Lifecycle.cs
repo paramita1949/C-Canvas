@@ -141,10 +141,20 @@ namespace ImageColorChanger.UI
         }
 
 #if DEBUG
+        private static bool EnableTopBarButtonProbe =>
+            string.Equals(
+                Environment.GetEnvironmentVariable("CANVAS_ENABLE_BTN_PROBE"),
+                "1",
+                StringComparison.Ordinal);
         private int _topBarButtonProbeLayoutTickCount;
 
         private void InitializeTopBarButtonDebugProbe()
         {
+            if (!EnableTopBarButtonProbe)
+            {
+                return;
+            }
+
             try
             {
                 if (BtnColorEffect == null || BtnAiCaption == null)

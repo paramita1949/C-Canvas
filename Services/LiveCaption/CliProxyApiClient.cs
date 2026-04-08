@@ -14,7 +14,9 @@ using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
+using System.Net.Security;
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
 using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Services.LiveCaption
@@ -26,6 +28,8 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly string _baseUrl;
         private readonly string _apiKey;
         private readonly string _asrModel;
+        private readonly string _funAsrWsUrl;
+        private readonly bool _funAsrAllowInsecureTls;
 
         private readonly string _baiduAppId;
         private readonly string _baiduApiKey;
@@ -110,6 +114,12 @@ namespace ImageColorChanger.Services.LiveCaption
         private Action<LiveCaptionAsrText> _doubaoRealtimeTextHandler;
         private Action<string> _doubaoRealtimeStatusHandler;
         private string _doubaoConnectId = string.Empty;
+        private ClientWebSocket _funAsrRealtimeWs;
+        private Task _funAsrRealtimeReceiveTask;
+        private readonly SemaphoreSlim _funAsrRealtimeSendLock = new(1, 1);
+        private readonly SemaphoreSlim _funAsrRealtimeConnectLock = new(1, 1);
+        private Action<LiveCaptionAsrText> _funAsrRealtimeTextHandler;
+        private Action<string> _funAsrRealtimeStatusHandler;
         public string LastError { get; private set; } = string.Empty;
         public string AsrProvider => _provider;
         public string AsrModel => _asrModel;
@@ -134,17 +144,23 @@ namespace ImageColorChanger.Services.LiveCaption
             IsDoubaoProvider()
             && !string.IsNullOrWhiteSpace(_doubaoAppKey)
             && !string.IsNullOrWhiteSpace(_doubaoAccessKey);
-        public bool SupportsRealtimeSession => IsBaiduRealtimeAvailable || IsTencentRealtimeAvailable || IsAliyunRealtimeAvailable || IsDoubaoRealtimeAvailable;
-        public bool IsRealtimeConnected => IsBaiduRealtimeConnected || IsTencentRealtimeConnected || IsAliyunRealtimeConnected || IsDoubaoRealtimeConnected;
+        public bool IsFunAsrRealtimeAvailable =>
+            IsFunAsrProvider()
+            && !string.IsNullOrWhiteSpace(_funAsrWsUrl);
+        public bool SupportsRealtimeSession => IsBaiduRealtimeAvailable || IsTencentRealtimeAvailable || IsAliyunRealtimeAvailable || IsDoubaoRealtimeAvailable || IsFunAsrRealtimeAvailable;
+        public bool IsRealtimeConnected => IsBaiduRealtimeConnected || IsTencentRealtimeConnected || IsAliyunRealtimeConnected || IsDoubaoRealtimeConnected || IsFunAsrRealtimeConnected;
         public bool IsBaiduRealtimeConnected => _baiduRealtimeWs != null && _baiduRealtimeWs.State == WebSocketState.Open;
         public bool IsTencentRealtimeConnected => _tencentRealtimeWs != null && _tencentRealtimeWs.State == WebSocketState.Open;
         public bool IsAliyunRealtimeConnected => _aliyunRealtimeWs != null && _aliyunRealtimeWs.State == WebSocketState.Open;
         public bool IsDoubaoRealtimeConnected => _doubaoRealtimeWs != null && _doubaoRealtimeWs.State == WebSocketState.Open;
+        public bool IsFunAsrRealtimeConnected => _funAsrRealtimeWs != null && _funAsrRealtimeWs.State == WebSocketState.Open;
 
         public CliProxyApiClient(ConfigManager config)
         {
-            _provider = (config?.LiveCaptionAsrProvider ?? "baidu").Trim().ToLowerInvariant();
+            _provider = NormalizeAsrProvider(config?.LiveCaptionAsrProvider);
             _baseUrl = (config?.LiveCaptionProxyBaseUrl ?? "http://localhost:8317/v1").TrimEnd('/');
+            _funAsrWsUrl = ResolveFunAsrWsUrl(_baseUrl);
+            _funAsrAllowInsecureTls = config?.LiveCaptionFunAsrAllowInsecureTls ?? true;
             _apiKey = config?.LiveCaptionApiKey ?? string.Empty;
             _asrModel = config?.LiveCaptionAsrModel ?? "gpt-4o-mini-transcribe";
 
@@ -196,6 +212,10 @@ namespace ImageColorChanger.Services.LiveCaption
                     return !string.IsNullOrWhiteSpace(_doubaoAppKey)
                         && !string.IsNullOrWhiteSpace(_doubaoAccessKey);
                 }
+                if (IsFunAsrProvider())
+                {
+                    return !string.IsNullOrWhiteSpace(_funAsrWsUrl);
+                }
 
                 return !string.IsNullOrWhiteSpace(_apiKey);
             }
@@ -235,6 +255,14 @@ namespace ImageColorChanger.Services.LiveCaption
                 LastTranscribeUrl = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async";
                 return string.Empty;
             }
+            if (IsFunAsrProvider())
+            {
+                LastError = "FunASR当前仅接入实时识别，会话失败时不支持短语音回退";
+                LastTranscribeStatusCode = 0;
+                LastTranscribeElapsedMs = 0;
+                LastTranscribeUrl = _funAsrWsUrl;
+                return string.Empty;
+            }
 
             return await TranscribeWithOpenAiCompatAsync(wavBytes, cancellationToken);
         }
@@ -261,6 +289,10 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 return StartDoubaoRealtimeSessionAsync(onText, onStatus, cancellationToken);
             }
+            if (IsFunAsrProvider())
+            {
+                return StartFunAsrRealtimeSessionAsync(onText, onStatus, cancellationToken);
+            }
 
             LastError = "当前ASR服务未接入实时语音识别";
             onStatus?.Invoke(LastError);
@@ -286,6 +318,10 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 return SendDoubaoRealtimeAudioAsync(pcm16kMono, cancellationToken);
             }
+            if (IsFunAsrProvider())
+            {
+                return SendFunAsrRealtimeAudioAsync(pcm16kMono, cancellationToken);
+            }
 
             LastError = "当前ASR服务未接入实时语音识别";
             return Task.FromResult(false);
@@ -309,6 +345,10 @@ namespace ImageColorChanger.Services.LiveCaption
             if (IsDoubaoProvider())
             {
                 return StopDoubaoRealtimeSessionAsync(cancellationToken);
+            }
+            if (IsFunAsrProvider())
+            {
+                return StopFunAsrRealtimeSessionAsync(cancellationToken);
             }
 
             return Task.CompletedTask;
@@ -383,6 +423,263 @@ namespace ImageColorChanger.Services.LiveCaption
             }
         }
 
+        public async Task<bool> StartFunAsrRealtimeSessionAsync(
+            Action<LiveCaptionAsrText> onText,
+            Action<string> onStatus,
+            CancellationToken cancellationToken)
+        {
+            if (!IsFunAsrRealtimeAvailable)
+            {
+                LastError = "FunASR 本地实时配置不完整";
+                onStatus?.Invoke(LastError);
+                return false;
+            }
+
+            await _funAsrRealtimeConnectLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (_funAsrRealtimeWs != null && _funAsrRealtimeWs.State == WebSocketState.Open)
+                {
+                    _funAsrRealtimeTextHandler = onText;
+                    _funAsrRealtimeStatusHandler = onStatus;
+                    return true;
+                }
+
+                _funAsrRealtimeTextHandler = onText;
+                _funAsrRealtimeStatusHandler = onStatus;
+                _funAsrRealtimeWs?.Dispose();
+                _funAsrRealtimeWs = new ClientWebSocket();
+                _funAsrRealtimeWs.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+                ApplyFunAsrTlsPolicy(_funAsrRealtimeWs.Options, _funAsrWsUrl);
+
+                LastTranscribeUrl = _funAsrWsUrl;
+                await _funAsrRealtimeWs.ConnectAsync(new Uri(_funAsrWsUrl), cancellationToken);
+
+                // FunASR runtime 初始化帧。后续音频通过 binary 帧连续发送。
+                // 同时携带新旧字段，兼容：
+                // - 新协议：type=start/end + partial/result
+                // - 旧协议：mode/is_speaking + is_final
+                var initPayload = new
+                {
+                    type = "start",
+                    language = "中文",
+                    partial_interval_ms = 1200,
+                    mode = "2pass",
+                    wav_name = "live-caption",
+                    wav_format = "pcm",
+                    chunk_size = new[] { 5, 10, 5 },
+                    chunk_interval = 10,
+                    is_speaking = true,
+                    audio_fs = 16000,
+                    itn = true
+                };
+                byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(initPayload));
+                await _funAsrRealtimeWs.SendAsync(
+                    new ArraySegment<byte>(payload),
+                    WebSocketMessageType.Text,
+                    true,
+                    cancellationToken);
+
+                _funAsrRealtimeReceiveTask = Task.Run(
+                    () => ReceiveFunAsrRealtimeLoopAsync(_funAsrRealtimeWs, cancellationToken),
+                    cancellationToken);
+                LastError = string.Empty;
+                onStatus?.Invoke("FunASR 实时ASR连接成功");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LastError = $"FunASR实时会话启动失败: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                return false;
+            }
+            finally
+            {
+                _funAsrRealtimeConnectLock.Release();
+            }
+        }
+
+        public async Task<bool> SendFunAsrRealtimeAudioAsync(byte[] pcm16kMono, CancellationToken cancellationToken)
+        {
+            if (pcm16kMono == null || pcm16kMono.Length == 0)
+            {
+                return false;
+            }
+
+            if (_funAsrRealtimeWs == null || _funAsrRealtimeWs.State != WebSocketState.Open)
+            {
+                LastError = "FunASR实时会话未连接";
+                return false;
+            }
+
+            await _funAsrRealtimeSendLock.WaitAsync(cancellationToken);
+            try
+            {
+                await _funAsrRealtimeWs.SendAsync(
+                    new ArraySegment<byte>(pcm16kMono),
+                    WebSocketMessageType.Binary,
+                    true,
+                    cancellationToken);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LastError = $"FunASR实时音频发送失败: {ex.Message}";
+                _funAsrRealtimeStatusHandler?.Invoke(LastError);
+                return false;
+            }
+            finally
+            {
+                _funAsrRealtimeSendLock.Release();
+            }
+        }
+
+        public async Task StopFunAsrRealtimeSessionAsync(CancellationToken cancellationToken)
+        {
+            await _funAsrRealtimeConnectLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (_funAsrRealtimeWs != null && _funAsrRealtimeWs.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        byte[] stopPayload = Encoding.UTF8.GetBytes("{\"type\":\"end\",\"is_speaking\":false}");
+                        await _funAsrRealtimeWs.SendAsync(
+                            new ArraySegment<byte>(stopPayload),
+                            WebSocketMessageType.Text,
+                            true,
+                            cancellationToken);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    try
+                    {
+                        await _funAsrRealtimeWs.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "stop", cancellationToken);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
+            }
+            finally
+            {
+                _funAsrRealtimeTextHandler = null;
+                _funAsrRealtimeStatusHandler = null;
+                if (_funAsrRealtimeWs != null)
+                {
+                    try
+                    {
+                        _funAsrRealtimeWs.Dispose();
+                    }
+                    catch
+                    {
+                    }
+
+                    _funAsrRealtimeWs = null;
+                }
+
+                _funAsrRealtimeConnectLock.Release();
+            }
+        }
+
+        private async Task ReceiveFunAsrRealtimeLoopAsync(ClientWebSocket ws, CancellationToken cancellationToken)
+        {
+            var buffer = new byte[32 * 1024];
+            using var ms = new MemoryStream();
+            try
+            {
+                while (ws != null && ws.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                {
+                    ms.SetLength(0);
+                    WebSocketReceiveResult result;
+                    do
+                    {
+                        result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            return;
+                        }
+
+                        ms.Write(buffer, 0, result.Count);
+                    }
+                    while (!result.EndOfMessage);
+
+                    if (result.MessageType != WebSocketMessageType.Text || ms.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    string raw = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
+                    if (TryExtractFunAsrText(raw, out string text, out bool isFinal) && !string.IsNullOrWhiteSpace(text))
+                    {
+                        _funAsrRealtimeTextHandler?.Invoke(new LiveCaptionAsrText(text.Trim(), isFinal));
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // ignore
+            }
+            catch (Exception ex)
+            {
+                LastError = $"FunASR实时接收失败: {ex.Message}";
+                _funAsrRealtimeStatusHandler?.Invoke(LastError);
+            }
+        }
+
+        private static bool TryExtractFunAsrText(string json, out string text, out bool isFinal)
+        {
+            text = string.Empty;
+            isFinal = false;
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.TryGetProperty("text", out JsonElement textElement))
+                {
+                    text = textElement.GetString() ?? string.Empty;
+                }
+
+                if (root.TryGetProperty("type", out JsonElement typeElement))
+                {
+                    string msgType = (typeElement.GetString() ?? string.Empty).Trim().ToLowerInvariant();
+                    if (string.Equals(msgType, "result", StringComparison.Ordinal))
+                    {
+                        isFinal = true;
+                    }
+                    else if (string.Equals(msgType, "partial", StringComparison.Ordinal))
+                    {
+                        isFinal = false;
+                    }
+                }
+                else if (root.TryGetProperty("is_final", out JsonElement finalElement) &&
+                         finalElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    isFinal = finalElement.GetBoolean();
+                }
+                else if (root.TryGetProperty("mode", out JsonElement modeElement))
+                {
+                    string mode = (modeElement.GetString() ?? string.Empty).ToLowerInvariant();
+                    isFinal = mode.Contains("offline", StringComparison.Ordinal);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return !string.IsNullOrWhiteSpace(text);
+        }
+
         public async Task<bool> StartTencentRealtimeSessionAsync(
             Action<LiveCaptionAsrText> onText,
             Action<string> onStatus,
@@ -424,6 +721,12 @@ namespace ImageColorChanger.Services.LiveCaption
                 _tencentRealtimeReceiveTask = Task.Run(() => ReceiveTencentRealtimeLoopAsync(_tencentRealtimeWs, cancellationToken), cancellationToken);
                 return true;
             }
+            catch (WebSocketException wsex)
+            {
+                LastError = $"腾讯实时ASR连接失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                onStatus?.Invoke(LastError);
+                return false;
+            }
             catch (Exception ex)
             {
                 LastError = $"腾讯实时ASR连接失败: {ex.Message}";
@@ -458,6 +761,12 @@ namespace ImageColorChanger.Services.LiveCaption
                     true,
                     cancellationToken);
                 return true;
+            }
+            catch (WebSocketException wsex)
+            {
+                LastError = $"腾讯实时ASR发送失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                _tencentRealtimeStatusHandler?.Invoke(LastError);
+                return false;
             }
             catch (Exception ex)
             {
@@ -1954,9 +2263,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private string BuildTencentRealtimeWebSocketUrl(string voiceId)
         {
-            string engineType = string.IsNullOrWhiteSpace(_asrModel) || _asrModel.Contains("gpt-", StringComparison.OrdinalIgnoreCase)
-                ? "16k_zh"
-                : _asrModel;
+            string engineType = ResolveTencentEngineModelType(_asrModel);
             long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             long expired = timestamp + 3600;
             long nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -1992,6 +2299,25 @@ namespace ImageColorChanger.Services.LiveCaption
                 .Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value)}"));
             string encodedSignature = Uri.EscapeDataString(signature);
             return $"wss://{TencentRealtimeHost}{TencentRealtimePathPrefix}/{_tencentAppId}?{encodedQuery}&signature={encodedSignature}";
+        }
+
+        private static string ResolveTencentEngineModelType(string asrModel)
+        {
+            string raw = (asrModel ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return "16k_zh";
+            }
+
+            string normalized = raw.ToLowerInvariant();
+            return normalized switch
+            {
+                "tencent-realtime" => "16k_zh",
+                "tencent" => "16k_zh",
+                "default" => "16k_zh",
+                _ when normalized.Contains("gpt-") => "16k_zh",
+                _ => raw
+            };
         }
 
         private string BuildAliyunRealtimeStartFrameJson(string taskId)
@@ -2498,6 +2824,98 @@ namespace ImageColorChanger.Services.LiveCaption
         private bool IsTencentProvider() => _provider == "tencent";
         private bool IsAliyunProvider() => _provider == "aliyun";
         private bool IsDoubaoProvider() => _provider == "doubao";
+        private bool IsFunAsrProvider() => _provider == "funasr";
+
+        private static string NormalizeAsrProvider(string provider)
+        {
+            string normalized = (provider ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "baidu" => "baidu",
+                "tencent" => "tencent",
+                "aliyun" => "aliyun",
+                "doubao" => "doubao",
+                "funasr" => "doubao",
+                _ => "baidu"
+            };
+        }
+
+        private static string ResolveFunAsrWsUrl(string baseUrl)
+        {
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                return "ws://127.0.0.1:10096";
+            }
+
+            string candidate = baseUrl.Trim();
+            if (candidate.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) ||
+                candidate.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate.TrimEnd('/');
+            }
+
+            if (candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ws://" + candidate.Substring("http://".Length).TrimEnd('/');
+            }
+
+            if (candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "wss://" + candidate.Substring("https://".Length).TrimEnd('/');
+            }
+
+            return "ws://127.0.0.1:10096";
+        }
+
+        private void ApplyFunAsrTlsPolicy(ClientWebSocketOptions options, string url)
+        {
+            if (!_funAsrAllowInsecureTls || string.IsNullOrWhiteSpace(url))
+            {
+                return;
+            }
+
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri))
+            {
+                return;
+            }
+
+            if (!string.Equals(uri.Scheme, "wss", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!IsLoopbackHost(uri.Host))
+            {
+                return;
+            }
+
+            options.RemoteCertificateValidationCallback = static (
+                object sender,
+                X509Certificate certificate,
+                X509Chain chain,
+                SslPolicyErrors sslPolicyErrors) => true;
+        }
+
+        private static bool IsLoopbackHost(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                return false;
+            }
+
+            if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                host.Equals("::1", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         private string[] BuildCandidateUrls(string path)
         {
@@ -2571,6 +2989,14 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 // ignore
             }
+            try
+            {
+                _ = StopFunAsrRealtimeSessionAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // ignore
+            }
             _httpClient.Dispose();
             _baiduTokenLock.Dispose();
             _aliyunTokenLock.Dispose();
@@ -2582,6 +3008,8 @@ namespace ImageColorChanger.Services.LiveCaption
             _aliyunRealtimeConnectLock.Dispose();
             _doubaoRealtimeSendLock.Dispose();
             _doubaoRealtimeConnectLock.Dispose();
+            _funAsrRealtimeSendLock.Dispose();
+            _funAsrRealtimeConnectLock.Dispose();
             _disposed = true;
         }
 

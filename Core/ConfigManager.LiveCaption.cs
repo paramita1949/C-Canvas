@@ -6,16 +6,35 @@ namespace ImageColorChanger.Core
     {
         public string LiveCaptionAsrProvider
         {
-            get => string.IsNullOrWhiteSpace(_config.LiveCaptionAsrProvider) ? "baidu" : _config.LiveCaptionAsrProvider;
+            get
+            {
+                var current = string.IsNullOrWhiteSpace(_config.LiveCaptionAsrProvider) ? "baidu" : _config.LiveCaptionAsrProvider;
+                return NormalizeLiveCaptionAsrProvider(current);
+            }
             set
             {
-                var next = string.IsNullOrWhiteSpace(value) ? "baidu" : value.Trim();
+                var next = NormalizeLiveCaptionAsrProvider(value);
                 if (!string.Equals(_config.LiveCaptionAsrProvider, next, StringComparison.OrdinalIgnoreCase))
                 {
                     _config.LiveCaptionAsrProvider = next;
                     SaveConfig();
                 }
             }
+        }
+
+        private static string NormalizeLiveCaptionAsrProvider(string value)
+        {
+            var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "baidu" => "baidu",
+                "tencent" => "tencent",
+                "aliyun" => "aliyun",
+                "doubao" => "doubao",
+                // 迁移历史本地模式：统一切回云端豆包。
+                "funasr" => "doubao",
+                _ => "baidu"
+            };
         }
 
         public string LiveCaptionProxyBaseUrl
@@ -28,6 +47,31 @@ namespace ImageColorChanger.Core
                 {
                     _config.LiveCaptionProxyBaseUrl = next;
                     SaveConfig();
+                }
+            }
+        }
+
+        public bool LiveCaptionFunAsrAllowInsecureTls
+        {
+            get => _config.LiveCaptionFunAsrAllowInsecureTls;
+            set
+            {
+                if (_config.LiveCaptionFunAsrAllowInsecureTls != value)
+                {
+                    _config.LiveCaptionFunAsrAllowInsecureTls = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public bool LiveCaptionNdiEnabled
+        {
+            get => _config.LiveCaptionNdiEnabled;
+            set
+            {
+                if (_config.LiveCaptionNdiEnabled != value)
+                {
+                    _config.LiveCaptionNdiEnabled = value;
                 }
             }
         }
@@ -474,12 +518,265 @@ namespace ImageColorChanger.Core
                 }
             }
         }
+
+        public string LiveCaptionLocalLatestTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionLocalLatestTextColor)
+                ? LiveCaptionLatestTextColor
+                : _config.LiveCaptionLocalLatestTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFF00" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionLocalLatestTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionLocalLatestTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionLocalTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionLocalTextColor)
+                ? LiveCaptionTextColor
+                : _config.LiveCaptionLocalTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFFFF" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionLocalTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionLocalTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionLocalFontFamily
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionLocalFontFamily)
+                ? LiveCaptionFontFamily
+                : _config.LiveCaptionLocalFontFamily;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionLocalFontFamily, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionLocalFontFamily = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLocalFontSize
+        {
+            get => _config.LiveCaptionLocalFontSize <= 0 ? LiveCaptionFontSize : _config.LiveCaptionLocalFontSize;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionLocalFontSize - next) > 0.001)
+                {
+                    _config.LiveCaptionLocalFontSize = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLocalPadding
+        {
+            get => _config.LiveCaptionLocalPadding <= 0 ? LiveCaptionPadding : _config.LiveCaptionLocalPadding;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionLocalPadding - next) > 0.001)
+                {
+                    _config.LiveCaptionLocalPadding = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLocalLetterSpacing
+        {
+            get => _config.LiveCaptionLocalLetterSpacing <= 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionLocalLetterSpacing;
+            set
+            {
+                double next = Math.Clamp(value, 0, 10);
+                if (Math.Abs(_config.LiveCaptionLocalLetterSpacing - next) > 0.001)
+                {
+                    _config.LiveCaptionLocalLetterSpacing = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionLocalLineGap
+        {
+            get => _config.LiveCaptionLocalLineGap <= 0 ? LiveCaptionLineGap : _config.LiveCaptionLocalLineGap;
+            set
+            {
+                double next = Math.Clamp(value, 10, 60);
+                if (Math.Abs(_config.LiveCaptionLocalLineGap - next) > 0.001)
+                {
+                    _config.LiveCaptionLocalLineGap = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public int LiveCaptionNdiLineCharLimit
+        {
+            get => _config.LiveCaptionNdiLineCharLimit <= 0 ? 30 : Math.Clamp(_config.LiveCaptionNdiLineCharLimit, 8, 80);
+            set
+            {
+                int next = Math.Clamp(value, 8, 80);
+                if (_config.LiveCaptionNdiLineCharLimit != next)
+                {
+                    _config.LiveCaptionNdiLineCharLimit = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionNdiTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionNdiTextColor)
+                ? LiveCaptionTextColor
+                : _config.LiveCaptionNdiTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFFFF" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionNdiTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionNdiTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionNdiLatestTextColor
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionNdiLatestTextColor)
+                ? LiveCaptionLatestTextColor
+                : _config.LiveCaptionNdiLatestTextColor;
+            set
+            {
+                var next = string.IsNullOrWhiteSpace(value) ? "#FFFF00" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionNdiLatestTextColor, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionNdiLatestTextColor = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionNdiFontFamily
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionNdiFontFamily)
+                ? LiveCaptionFontFamily
+                : _config.LiveCaptionNdiFontFamily;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionNdiFontFamily, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionNdiFontFamily = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionNdiFontSize
+        {
+            get => _config.LiveCaptionNdiFontSize <= 0 ? LiveCaptionFontSize : _config.LiveCaptionNdiFontSize;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionNdiFontSize - next) > 0.001)
+                {
+                    _config.LiveCaptionNdiFontSize = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionNdiPadding
+        {
+            get => _config.LiveCaptionNdiPadding <= 0 ? LiveCaptionPadding : _config.LiveCaptionNdiPadding;
+            set
+            {
+                double next = value <= 0 ? 0 : value;
+                if (Math.Abs(_config.LiveCaptionNdiPadding - next) > 0.001)
+                {
+                    _config.LiveCaptionNdiPadding = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionNdiLetterSpacing
+        {
+            get => _config.LiveCaptionNdiLetterSpacing <= 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionNdiLetterSpacing;
+            set
+            {
+                double next = Math.Clamp(value, 0, 10);
+                if (Math.Abs(_config.LiveCaptionNdiLetterSpacing - next) > 0.001)
+                {
+                    _config.LiveCaptionNdiLetterSpacing = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public double LiveCaptionNdiLineGap
+        {
+            get => _config.LiveCaptionNdiLineGap <= 0 ? LiveCaptionLineGap : _config.LiveCaptionNdiLineGap;
+            set
+            {
+                double next = Math.Clamp(value, 10, 60);
+                if (Math.Abs(_config.LiveCaptionNdiLineGap - next) > 0.001)
+                {
+                    _config.LiveCaptionNdiLineGap = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionNdiTextAlignment
+        {
+            get => NormalizeNdiTextAlignment(_config.LiveCaptionNdiTextAlignment);
+            set
+            {
+                string next = NormalizeNdiTextAlignment(value);
+                if (!string.Equals(_config.LiveCaptionNdiTextAlignment, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionNdiTextAlignment = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        private static string NormalizeNdiTextAlignment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "center";
+            }
+
+            return value.Trim().ToLowerInvariant() switch
+            {
+                "left" => "left",
+                "right" => "right",
+                _ => "center"
+            };
+        }
     }
 
     public partial class AppConfig
     {
         public string LiveCaptionAsrProvider { get; set; } = "baidu";
         public string LiveCaptionProxyBaseUrl { get; set; } = "http://localhost:8317/v1";
+        public bool LiveCaptionFunAsrAllowInsecureTls { get; set; } = true;
+        public bool LiveCaptionNdiEnabled { get; set; } = false;
         public string LiveCaptionApiKey { get; set; } = "";
         public string LiveCaptionAsrModel { get; set; } = "gpt-4o-mini-transcribe";
         public string LiveCaptionBaiduAppId { get; set; } = "";
@@ -511,5 +808,21 @@ namespace ImageColorChanger.Core
         public double LiveCaptionLetterSpacing { get; set; } = 0;
         public double LiveCaptionLineGap { get; set; } = 30;
         public string LiveCaptionTextAlignment { get; set; } = "left";
+        public string LiveCaptionLocalLatestTextColor { get; set; } = "";
+        public string LiveCaptionLocalTextColor { get; set; } = "";
+        public string LiveCaptionLocalFontFamily { get; set; } = "";
+        public double LiveCaptionLocalFontSize { get; set; } = 0;
+        public double LiveCaptionLocalPadding { get; set; } = 0;
+        public double LiveCaptionLocalLetterSpacing { get; set; } = 0;
+        public double LiveCaptionLocalLineGap { get; set; } = 0;
+        public int LiveCaptionNdiLineCharLimit { get; set; } = 30;
+        public string LiveCaptionNdiTextColor { get; set; } = "";
+        public string LiveCaptionNdiLatestTextColor { get; set; } = "";
+        public string LiveCaptionNdiFontFamily { get; set; } = "";
+        public double LiveCaptionNdiFontSize { get; set; } = 0;
+        public double LiveCaptionNdiPadding { get; set; } = 0;
+        public double LiveCaptionNdiLetterSpacing { get; set; } = 0;
+        public double LiveCaptionNdiLineGap { get; set; } = 0;
+        public string LiveCaptionNdiTextAlignment { get; set; } = "center";
     }
 }

@@ -88,9 +88,15 @@ namespace ImageColorChanger.UI
         private readonly Border _captionSurface;
         private readonly TextBlock _captionText;
         private readonly TextBlock _projectionActionText;
+        private readonly TextBlock _ndiActionText;
+        private readonly TextBlock _ndiStyleActionText;
+        private readonly TextBlock _localStyleActionText;
         private readonly Path _styleIcon;
         private readonly Path _settingsIcon;
         private readonly Border _projectionAction;
+        private readonly Border _ndiAction;
+        private readonly Border _ndiStyleAction;
+        private readonly Border _localStyleAction;
         private readonly Border _orientationAction;
         private readonly Border _positionAction;
         private readonly StackPanel _actionPanel;
@@ -102,6 +108,7 @@ namespace ImageColorChanger.UI
         private readonly DispatcherTimer _typingTimer;
         private readonly DispatcherTimer _floatingBoundsChangedTimer;
         private string _typingTarget = string.Empty;
+        private string _currentCaptionRawText = string.Empty;
         private int _typingIndex;
         private int _highlightStartIndex;
         private bool _typingAnimationEnabled;
@@ -136,6 +143,9 @@ namespace ImageColorChanger.UI
 
         public event Action SettingsRequested;
         public event Action ProjectionToggleRequested;
+        public event Action NdiToggleRequested;
+        public event Action NdiStyleRequested;
+        public event Action LocalStyleRequested;
         public event Action<ProjectionCaptionOrientation> CaptionOrientationRequested;
         public event Action<ProjectionCaptionHorizontalAnchor, ProjectionCaptionVerticalAnchor> CaptionPositionRequested;
         public event Action CaptionStyleRequested;
@@ -233,6 +243,34 @@ namespace ImageColorChanger.UI
             };
             SetProjectionToggleState(hidden: false);
 
+            _ndiAction = CreateTextActionItem("NDI", out _ndiActionText);
+            _ndiAction.Margin = new Thickness(6, 0, 0, 0);
+            _ndiAction.ToolTip = "NDI转发（点击开启）";
+            _ndiAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                NdiToggleRequested?.Invoke();
+            };
+            SetNdiToggleState(enabled: false);
+
+            _ndiStyleAction = CreateTextActionItem("NDI样式", out _ndiStyleActionText);
+            _ndiStyleAction.Margin = new Thickness(6, 0, 0, 0);
+            _ndiStyleAction.ToolTip = "NDI字幕样式设置";
+            _ndiStyleAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                NdiStyleRequested?.Invoke();
+            };
+
+            _localStyleAction = CreateTextActionItem("本机样式", out _localStyleActionText);
+            _localStyleAction.Margin = new Thickness(6, 0, 0, 0);
+            _localStyleAction.ToolTip = "本机字幕样式设置";
+            _localStyleAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                LocalStyleRequested?.Invoke();
+            };
+
             _orientationAction = CreateTextActionItem("横着", out _orientationActionText);
             _orientationAction.Margin = new Thickness(6, 0, 0, 0);
             _orientationAction.ToolTip = "字幕方向";
@@ -255,7 +293,7 @@ namespace ImageColorChanger.UI
 
             _styleAction = CreateActionItem("IconLucideType", out _styleIcon);
             _styleAction.Margin = new Thickness(6, 0, 0, 0);
-            _styleAction.ToolTip = "字幕样式";
+            _styleAction.ToolTip = "投影字幕样式";
             _styleAction.PreviewMouseLeftButtonDown += (_, e) =>
             {
                 e.Handled = true;
@@ -281,6 +319,9 @@ namespace ImageColorChanger.UI
             };
 
             _actionPanel.Children.Add(_projectionAction);
+            _actionPanel.Children.Add(_ndiAction);
+            _actionPanel.Children.Add(_ndiStyleAction);
+            _actionPanel.Children.Add(_localStyleAction);
             _actionPanel.Children.Add(_orientationAction);
             _actionPanel.Children.Add(_positionAction);
             _actionPanel.Children.Add(_styleAction);
@@ -418,6 +459,7 @@ namespace ImageColorChanger.UI
 
         public UIElement GetSettingsAnchorElement() => _settingsAction;
         public UIElement GetStyleAnchorElement() => _styleAction;
+        public UIElement GetLocalStyleAnchorElement() => _localStyleAction;
 
         public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
 
@@ -454,7 +496,7 @@ namespace ImageColorChanger.UI
         public void SetLatestTextHighlightEnabled(bool enabled)
         {
             _latestTextHighlightEnabled = enabled;
-            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
         }
 
         public void SetCaptionTypography(string fontFamily, double fontSize, double margin, double lineHeight)
@@ -480,7 +522,7 @@ namespace ImageColorChanger.UI
         public void SetCaptionLetterSpacing(double spacing)
         {
             _captionLetterSpacing = Math.Clamp(spacing, 0, 10);
-            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
         }
 
         private void EnsureAutoCaptionHeight()
@@ -590,7 +632,7 @@ namespace ImageColorChanger.UI
                 _latestTextHighlightBrush = new WpfSolidColorBrush(WpfColor.FromRgb(255, 255, 0));
             }
 
-            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
         }
 
         public void SetCaptionTextColor(string hexColor)
@@ -604,7 +646,7 @@ namespace ImageColorChanger.UI
                 _baseTextBrush = WpfBrushes.White;
             }
 
-            RenderCaption(_captionText.Text ?? string.Empty, _highlightStartIndex);
+            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
         }
 
         private void CaptionSurface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -931,6 +973,29 @@ namespace ImageColorChanger.UI
             _projectionAction.ToolTip = "投影字幕已显示（点击隐藏）";
         }
 
+        public void SetNdiToggleState(bool enabled)
+        {
+            if (_ndiActionText == null || _ndiAction == null)
+            {
+                return;
+            }
+
+            _ndiActionText.Text = "NDI";
+            if (enabled)
+            {
+                _ndiAction.Background = new WpfSolidColorBrush(WpfColor.FromRgb(22, 163, 74));
+                _ndiAction.BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(21, 128, 61));
+                _ndiActionText.Foreground = WpfBrushes.White;
+                _ndiAction.ToolTip = "NDI已开启（点击关闭）";
+                return;
+            }
+
+            _ndiAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
+            _ndiAction.SetResourceReference(Border.BorderBrushProperty, "BrushMenuBorder");
+            _ndiActionText.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
+            _ndiAction.ToolTip = "NDI已关闭（点击开启）";
+        }
+
         private void ToggleCaptionOrientation()
         {
             var nextOrientation = _captionOrientation == ProjectionCaptionOrientation.Horizontal
@@ -1171,6 +1236,7 @@ namespace ImageColorChanger.UI
             {
                 _typingTimer.Stop();
                 _typingTarget = string.Empty;
+                _currentCaptionRawText = string.Empty;
                 _typingIndex = 0;
                 _highlightStartIndex = 0;
                 RenderCaption(string.Empty, 0);
@@ -1181,13 +1247,14 @@ namespace ImageColorChanger.UI
             {
                 _typingTimer.Stop();
                 _typingTarget = target;
+                _currentCaptionRawText = target;
                 _typingIndex = target.Length;
                 _highlightStartIndex = Math.Clamp(highlightStart.Value, 0, target.Length);
                 RenderCaption(target, _highlightStartIndex);
                 return;
             }
 
-            string baseline = string.IsNullOrEmpty(_typingTarget) ? (_captionText.Text ?? string.Empty) : _typingTarget;
+            string baseline = string.IsNullOrEmpty(_typingTarget) ? _currentCaptionRawText : _typingTarget;
             if (string.Equals(baseline, target, StringComparison.Ordinal))
             {
                 return;
@@ -1207,12 +1274,14 @@ namespace ImageColorChanger.UI
             {
                 _typingTimer.Stop();
                 _typingTarget = target;
+                _currentCaptionRawText = target;
                 _typingIndex = target.Length;
                 RenderCaption(target, _highlightStartIndex);
                 return;
             }
 
             _typingTarget = target;
+            _currentCaptionRawText = target;
             _typingIndex = common;
             RenderCaption(target.Substring(0, common), _highlightStartIndex);
             if (!_typingTimer.IsEnabled)
@@ -1326,7 +1395,19 @@ namespace ImageColorChanger.UI
                 + _captionSurface.Padding.Left + _captionSurface.Padding.Right
                 + _captionSurface.BorderThickness.Left + _captionSurface.BorderThickness.Right;
 
-            double available = windowWidth - shell - 24;
+            double actionPanelWidth = 0;
+            if (_actionPanel != null && _actionPanel.Visibility == Visibility.Visible)
+            {
+                double panelMeasured = _actionPanel.ActualWidth;
+                if (panelMeasured <= 0)
+                {
+                    panelMeasured = _actionPanel.DesiredSize.Width;
+                }
+
+                actionPanelWidth = Math.Max(0, panelMeasured) + 16;
+            }
+
+            double available = windowWidth - shell - 24 - actionPanelWidth;
             return Math.Max(220, available);
         }
 

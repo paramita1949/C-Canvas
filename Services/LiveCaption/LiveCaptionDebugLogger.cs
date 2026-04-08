@@ -1,11 +1,17 @@
-using System;
 using System.Diagnostics;
 
 namespace ImageColorChanger.Services.LiveCaption
 {
     internal static class LiveCaptionDebugLogger
     {
-        private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
+        private static readonly string[] ProjectionDebugTags =
+        {
+            "[CaptionLayout:Vertical]",
+            "[VerticalCapacity]",
+            "[VerticalPaging]",
+            "[CaptionShiftProbe:Vertical]",
+            "[CaptionShiftProbe:Projection]"
+        };
 
         public static void Log(string message)
         {
@@ -14,16 +20,22 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [LiveCaption] [S:{SessionId}] {message}";
+            bool isProjectionCaptionDebug = false;
+            foreach (string tag in ProjectionDebugTags)
+            {
+                if (message.IndexOf(tag, System.StringComparison.Ordinal) >= 0)
+                {
+                    isProjectionCaptionDebug = true;
+                    break;
+                }
+            }
 
-            try
+            if (!isProjectionCaptionDebug)
             {
-                Debug.WriteLine(line);
+                return;
             }
-            catch
-            {
-                // ignored
-            }
+
+            Debug.WriteLine(message);
         }
     }
 }

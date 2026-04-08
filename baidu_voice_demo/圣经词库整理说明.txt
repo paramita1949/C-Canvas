@@ -1,0 +1,26 @@
+已从数据库提取并整理完成，以下文件可用于百度识别词库上传（每行一条）：
+
+1) bible_upload_top20000.txt
+- 推荐优先上传
+- 按经文短语出现频次排序的前 20000 条
+- 适合先做效果验证，体量较小
+
+2) bible_upload_top50000.txt
+- 频次排序前 50000 条
+- 适合需要更高覆盖率的场景
+
+3) bible_merged_phrases.txt
+- 全量短语版（标点拆分、去重后）
+- 条目最多，覆盖最全
+
+4) bible_merged_raw.txt
+- 整句版（简体+繁体合并，去重）
+- 适合做整句识别增强
+
+另外保留了原始导出：
+- bible_simplified_raw.txt（简体库）
+- bible_traditional_raw.txt（繁体库）
+
+建议上传顺序：
+先用 bible_upload_top20000.txt；
+若还需提升覆盖，再叠加 bible_upload_top50000.txt 或直接改用 bible_merged_phrases.txt。

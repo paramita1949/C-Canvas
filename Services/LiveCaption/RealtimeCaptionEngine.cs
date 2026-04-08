@@ -93,6 +93,13 @@ namespace ImageColorChanger.Services.LiveCaption
                 _realtimePacketBytes = 6400;
                 _realtimeMaxQueueBytes = _realtimePacketBytes * 30;
             }
+            else if (string.Equals(_client.AsrProvider, "funasr", StringComparison.OrdinalIgnoreCase))
+            {
+                // FunASR 本地 websocket 推荐较稳妥分包，兼顾延迟与稳定。
+                _realtimeTickMs = 100;
+                _realtimePacketBytes = 3200;
+                _realtimeMaxQueueBytes = _realtimePacketBytes * 40;
+            }
             else
             {
                 _realtimeTickMs = 40;
