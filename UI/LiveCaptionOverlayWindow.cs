@@ -91,7 +91,6 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _ndiActionText;
         private readonly TextBlock _ndiStyleActionText;
         private readonly TextBlock _localStyleActionText;
-        private readonly Path _styleIcon;
         private readonly Path _settingsIcon;
         private readonly Border _projectionAction;
         private readonly Border _ndiAction;
@@ -291,7 +290,7 @@ namespace ImageColorChanger.UI
             };
             SetCaptionPositionState(_captionHorizontalAnchor, _captionVerticalAnchor);
 
-            _styleAction = CreateActionItem("IconLucideType", out _styleIcon);
+            _styleAction = CreateTextActionItem("投影样式", out _);
             _styleAction.Margin = new Thickness(6, 0, 0, 0);
             _styleAction.ToolTip = "投影字幕样式";
             _styleAction.PreviewMouseLeftButtonDown += (_, e) =>
@@ -322,9 +321,9 @@ namespace ImageColorChanger.UI
             _actionPanel.Children.Add(_ndiAction);
             _actionPanel.Children.Add(_ndiStyleAction);
             _actionPanel.Children.Add(_localStyleAction);
+            _actionPanel.Children.Add(_styleAction);
             _actionPanel.Children.Add(_orientationAction);
             _actionPanel.Children.Add(_positionAction);
-            _actionPanel.Children.Add(_styleAction);
             _actionPanel.Children.Add(_settingsAction);
             _actionPanel.Children.Add(_closeAction);
             Grid.SetColumn(_actionPanel, 1);
@@ -460,6 +459,7 @@ namespace ImageColorChanger.UI
         public UIElement GetSettingsAnchorElement() => _settingsAction;
         public UIElement GetStyleAnchorElement() => _styleAction;
         public UIElement GetLocalStyleAnchorElement() => _localStyleAction;
+        public UIElement GetNdiStyleAnchorElement() => _ndiStyleAction;
 
         public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
 

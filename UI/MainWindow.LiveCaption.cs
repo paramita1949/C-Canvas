@@ -16,7 +16,7 @@ namespace ImageColorChanger.UI
         private LiveCaptionDockMode _liveCaptionDockMode = LiveCaptionDockMode.Floating;
         private bool _isDisposingLiveCaption;
         private bool _liveCaptionOverlayManuallyHidden;
-        private bool _liveCaptionProjectionCaptionHidden;
+        private bool _liveCaptionProjectionCaptionHidden = true;
         private bool _liveCaptionToggleInProgress;
         private int _liveCaptionF4HotKeyId = -1;
         private LiveCaptionAudioSource _liveCaptionCurrentSource = LiveCaptionAudioSource.SystemLoopback;
@@ -145,7 +145,7 @@ namespace ImageColorChanger.UI
             }
 
             _liveCaptionOverlayManuallyHidden = false;
-            _liveCaptionProjectionCaptionHidden = false;
+            _liveCaptionProjectionCaptionHidden = true;
             _liveCaptionComposer.Reset();
 
             if (_liveCaptionOverlayWindow.GetDockMode() != _liveCaptionDockMode)
@@ -197,7 +197,7 @@ namespace ImageColorChanger.UI
 
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionToggleInProgress = false;
-            _liveCaptionProjectionCaptionHidden = false;
+            _liveCaptionProjectionCaptionHidden = true;
             _liveCaptionComposer.Reset();
             _liveCaptionNdiComposer.Reset();
             UpdateLiveCaptionProjectionActionState();
@@ -318,7 +318,7 @@ namespace ImageColorChanger.UI
 
             _liveCaptionComposer.Reset();
             _liveCaptionOverlayManuallyHidden = false;
-            _liveCaptionProjectionCaptionHidden = false;
+            _liveCaptionProjectionCaptionHidden = true;
             _projectionManager?.HideProjectionCaptionOverlay();
             _projectionNdiOutputManager?.PushTransparentIdleFrame();
             StopProjectionNdiSenderIfUnused();
@@ -409,7 +409,7 @@ namespace ImageColorChanger.UI
             PopulateLiveCaptionLatestColorMenu(latestColorMenu);
             menu.Items.Add(latestColorMenu);
 
-            menu.PlacementTarget = _liveCaptionOverlayWindow.GetStyleAnchorElement();
+            menu.PlacementTarget = _liveCaptionOverlayWindow.GetNdiStyleAnchorElement();
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             menu.HorizontalOffset = 0;
             menu.VerticalOffset = 2;
