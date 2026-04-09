@@ -409,7 +409,7 @@ namespace ImageColorChanger.UI
             PopulateLiveCaptionLatestColorMenu(latestColorMenu);
             menu.Items.Add(latestColorMenu);
 
-            menu.PlacementTarget = _liveCaptionOverlayWindow.GetNdiStyleAnchorElement();
+            menu.PlacementTarget = _liveCaptionOverlayWindow.GetStyleAnchorElement();
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             menu.HorizontalOffset = 0;
             menu.VerticalOffset = 2;
@@ -477,10 +477,6 @@ namespace ImageColorChanger.UI
             PopulateNdiFontSizeMenu(fontSizeMenu);
             menu.Items.Add(fontSizeMenu);
 
-            var paddingMenu = new MenuItem { Header = "边距" };
-            PopulateNdiPaddingMenu(paddingMenu);
-            menu.Items.Add(paddingMenu);
-
             var letterSpacingMenu = new MenuItem { Header = "字间距" };
             PopulateNdiLetterSpacingMenu(letterSpacingMenu);
             menu.Items.Add(letterSpacingMenu);
@@ -507,7 +503,7 @@ namespace ImageColorChanger.UI
             PopulateNdiLatestColorMenu(latestColorMenu);
             menu.Items.Add(latestColorMenu);
 
-            menu.PlacementTarget = _liveCaptionOverlayWindow.GetStyleAnchorElement();
+            menu.PlacementTarget = _liveCaptionOverlayWindow.GetNdiStyleAnchorElement();
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             menu.HorizontalOffset = 0;
             menu.VerticalOffset = 2;
@@ -524,10 +520,6 @@ namespace ImageColorChanger.UI
             var fontSizeMenu = new MenuItem { Header = "字号" };
             PopulateNdiFontSizeMenu(fontSizeMenu);
             root.Items.Add(fontSizeMenu);
-
-            var paddingMenu = new MenuItem { Header = "边距" };
-            PopulateNdiPaddingMenu(paddingMenu);
-            root.Items.Add(paddingMenu);
 
             var letterSpacingMenu = new MenuItem { Header = "字间距" };
             PopulateNdiLetterSpacingMenu(letterSpacingMenu);
@@ -923,25 +915,6 @@ namespace ImageColorChanger.UI
             _configManager.LiveCaptionNdiFontSize = Math.Clamp(value, 20, 112);
             RefreshLiveCaptionNdiPreview();
             ShowStatus($"NDI字号：{value:0}");
-        }
-
-        private void PopulateNdiPaddingMenu(MenuItem root)
-        {
-            int current = (int)Math.Round(Math.Clamp((_configManager?.LiveCaptionNdiPadding > 0 ? _configManager.LiveCaptionNdiPadding : (_configManager?.LiveCaptionPadding > 0 ? _configManager.LiveCaptionPadding : (_configManager?.BibleMargin ?? 36))), 6, 120));
-            int[] values = { 6, 10, 14, 18, 24, 30, 36, 44, 52, 60, 72, 84, 96, 110, 120 };
-            foreach (int value in values)
-            {
-                int selected = value;
-                AddLiveCaptionNumericItem(root, value.ToString(), current == value, () => SetNdiPadding(selected));
-            }
-        }
-
-        private void SetNdiPadding(double value)
-        {
-            if (_configManager == null) return;
-            _configManager.LiveCaptionNdiPadding = Math.Clamp(value, 6, 120);
-            RefreshLiveCaptionNdiPreview();
-            ShowStatus($"NDI边距：{value:0}");
         }
 
         private void PopulateNdiLetterSpacingMenu(MenuItem root)
