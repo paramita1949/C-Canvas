@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Managers;
@@ -18,8 +19,13 @@ namespace ImageColorChanger.UI
         private bool _liveCaptionOverlayManuallyHidden;
         private bool _liveCaptionProjectionCaptionHidden = true;
         private bool _liveCaptionToggleInProgress;
+        private bool _liveCaptionPlatformSwitchInProgress;
+        private readonly SemaphoreSlim _liveCaptionLifecycleGate = new(1, 1);
+        private bool _liveCaptionReconfigInProgress;
         private int _liveCaptionF4HotKeyId = -1;
         private LiveCaptionAudioSource _liveCaptionCurrentSource = LiveCaptionAudioSource.SystemLoopback;
+        private string _liveCaptionSelectedInputDeviceId = string.Empty;
+        private string _liveCaptionSelectedSystemDeviceId = string.Empty;
         private readonly LiveCaptionDisplayComposer _liveCaptionComposer = new(lineCharLimit: 30, displayLineLimit: 2);
         private readonly LiveCaptionDisplayComposer _liveCaptionNdiComposer = new(lineCharLimit: 20, displayLineLimit: 2);
         private DateTime _liveCaptionLastToggleUtc = DateTime.MinValue;
@@ -30,11 +36,14 @@ namespace ImageColorChanger.UI
 
         private void EnsureLiveCaptionComponents()
         {
+            LoadLiveCaptionAudioSourceFromConfig();
+
             if (_liveCaptionEngine == null)
             {
                 _liveCaptionEngine = new RealtimeCaptionEngine(_configManager);
                 _liveCaptionEngine.SubtitleUpdated += OnLiveCaptionSubtitleUpdated;
                 _liveCaptionEngine.StatusChanged += OnLiveCaptionStatusChanged;
+                _liveCaptionEngine.DebugInfoUpdated += OnLiveCaptionDebugInfoUpdated;
                 LiveCaptionDebugLogger.Log("EnsureComponents: RealtimeCaptionEngine created and handlers attached.");
             }
 
@@ -83,6 +92,7 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
+            LoadLiveCaptionAudioSourceFromConfig();
             StartLiveCaption(_liveCaptionCurrentSource);
         }
 
@@ -104,31 +114,47 @@ namespace ImageColorChanger.UI
 
         private void ApplyLiveCaptionConfigImmediately()
         {
-            bool wasRunning = _liveCaptionEngine?.IsRunning == true;
-            LiveCaptionAudioSource source = _liveCaptionCurrentSource;
-
-            if (wasRunning)
+            if (_liveCaptionReconfigInProgress)
             {
-                StopLiveCaption();
-            }
-
-            if (_liveCaptionEngine != null)
-            {
-                _liveCaptionEngine.SubtitleUpdated -= OnLiveCaptionSubtitleUpdated;
-                _liveCaptionEngine.StatusChanged -= OnLiveCaptionStatusChanged;
-                _liveCaptionEngine.Dispose();
-                _liveCaptionEngine = null;
-                LiveCaptionDebugLogger.Log("ConfigReload: previous engine disposed.");
-            }
-
-            if (wasRunning)
-            {
-                StartLiveCaption(source);
-                ShowStatus("AI配置已保存并立即生效（实时字幕已重启）");
+                LiveCaptionDebugLogger.Log("ConfigReload: skipped because reconfigure is already running.");
                 return;
             }
 
-            ShowStatus("AI配置已保存并立即生效");
+            _liveCaptionReconfigInProgress = true;
+            _liveCaptionLifecycleGate.Wait();
+            bool wasRunning = _liveCaptionEngine?.IsRunning == true;
+            LiveCaptionAudioSource source = _liveCaptionCurrentSource;
+            try
+            {
+                if (wasRunning)
+                {
+                    StopLiveCaption();
+                }
+
+                if (_liveCaptionEngine != null)
+                {
+                    _liveCaptionEngine.SubtitleUpdated -= OnLiveCaptionSubtitleUpdated;
+                    _liveCaptionEngine.StatusChanged -= OnLiveCaptionStatusChanged;
+                    _liveCaptionEngine.DebugInfoUpdated -= OnLiveCaptionDebugInfoUpdated;
+                    _liveCaptionEngine.Dispose();
+                    _liveCaptionEngine = null;
+                    LiveCaptionDebugLogger.Log("ConfigReload: previous engine disposed.");
+                }
+
+                if (wasRunning)
+                {
+                    StartLiveCaption(source);
+                    ShowStatus("AI配置已保存并立即生效（实时字幕已重启）");
+                    return;
+                }
+
+                ShowStatus("AI配置已保存并立即生效");
+            }
+            finally
+            {
+                _liveCaptionLifecycleGate.Release();
+                _liveCaptionReconfigInProgress = false;
+            }
         }
 
         private void StartLiveCaption(LiveCaptionAudioSource source)
@@ -174,40 +200,60 @@ namespace ImageColorChanger.UI
             LiveCaptionDebugLogger.Log($"StartPerf: overlay-prepare={sw.ElapsedMilliseconds}ms");
 
             RegisterLiveCaptionF4HotKey();
-            LiveCaptionDebugLogger.Log($"StartPerf: engine-start-scheduled={sw.ElapsedMilliseconds}ms");
-            Dispatcher.BeginInvoke(new Action(() =>
+            LiveCaptionDebugLogger.Log($"StartPerf: engine-start-begin={sw.ElapsedMilliseconds}ms");
+            var engine = _liveCaptionEngine;
+            if (engine == null)
             {
-                var startSw = System.Diagnostics.Stopwatch.StartNew();
-                _liveCaptionEngine.Start(source);
+                LiveCaptionDebugLogger.Log("Start: engine is null, skipped.");
+                return;
+            }
+
+            var startSw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                engine.Start(source, _liveCaptionSelectedInputDeviceId, _liveCaptionSelectedSystemDeviceId);
                 LiveCaptionDebugLogger.Log($"StartPerf: engine-start-done={startSw.ElapsedMilliseconds}ms");
                 LiveCaptionDebugLogger.Log($"Start: engine started, dock={_liveCaptionDockMode}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}");
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"Start: engine start failed, error={ex.Message}");
+                ShowStatus($"实时字幕启动失败：{ex.Message}");
+            }
         }
 
         private void StopLiveCaption()
         {
-            LiveCaptionDebugLogger.Log($"Stop: request running={_liveCaptionEngine?.IsRunning}, overlayVisible={_liveCaptionOverlayWindow?.IsVisible}");
-            _liveCaptionEngine?.Stop();
-            PersistLiveCaptionFloatingBoundsToConfig("stop");
-
-            if (_liveCaptionOverlayWindow != null && _liveCaptionOverlayWindow.IsVisible)
+            try
             {
-                _liveCaptionOverlayWindow.Hide();
-            }
+                LiveCaptionDebugLogger.Log($"Stop: request running={_liveCaptionEngine?.IsRunning}, overlayVisible={_liveCaptionOverlayWindow?.IsVisible}");
+                _liveCaptionEngine?.Stop();
+                PersistLiveCaptionFloatingBoundsToConfig("stop");
 
-            _liveCaptionOverlayManuallyHidden = false;
-            _liveCaptionToggleInProgress = false;
-            _liveCaptionProjectionCaptionHidden = true;
-            _liveCaptionComposer.Reset();
-            _liveCaptionNdiComposer.Reset();
-            UpdateLiveCaptionProjectionActionState();
-            UpdateLiveCaptionNdiActionState();
-            _projectionManager?.HideProjectionCaptionOverlay();
-            _projectionNdiOutputManager?.PushTransparentIdleFrame();
-            StopProjectionNdiSenderIfUnused();
-            ApplyMainWindowLiveCaptionReservation();
-            UnregisterLiveCaptionF4HotKey();
-            LiveCaptionDebugLogger.Log("Stop: completed.");
+                if (_liveCaptionOverlayWindow != null && _liveCaptionOverlayWindow.IsVisible)
+                {
+                    _liveCaptionOverlayWindow.Hide();
+                }
+
+                _liveCaptionOverlayManuallyHidden = false;
+                _liveCaptionToggleInProgress = false;
+                _liveCaptionProjectionCaptionHidden = true;
+                _liveCaptionComposer.Reset();
+                _liveCaptionNdiComposer.Reset();
+                UpdateLiveCaptionProjectionActionState();
+                UpdateLiveCaptionNdiActionState();
+                _projectionManager?.HideProjectionCaptionOverlay();
+                _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
+                StopProjectionNdiSenderIfUnused();
+                ApplyMainWindowLiveCaptionReservation();
+                UnregisterLiveCaptionF4HotKey();
+                LiveCaptionDebugLogger.Log("Stop: completed.");
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"Stop: failed with {ex.GetType().Name}: {ex.Message}");
+                ShowStatus($"关闭字幕失败：{ex.Message}");
+            }
         }
 
         private void LiveCaptionOverlayWindow_Closed(object sender, EventArgs e)
@@ -225,6 +271,12 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
+                {
+                    LiveCaptionDebugLogger.Log("SubtitleUpdated: dropped because engine is stopped.");
+                    return;
+                }
+
                 if (_liveCaptionOverlayWindow == null)
                 {
                     return;
@@ -282,6 +334,16 @@ namespace ImageColorChanger.UI
             Dispatcher.BeginInvoke(new Action(() => ShowStatus(status)));
         }
 
+        private void OnLiveCaptionDebugInfoUpdated(string debugInfo)
+        {
+            if (string.IsNullOrWhiteSpace(debugInfo))
+            {
+                return;
+            }
+
+            LiveCaptionDebugLogger.Log($"EngineDebug: {debugInfo}");
+        }
+
         private void DisposeLiveCaption()
         {
             LiveCaptionDebugLogger.Log("Dispose: begin.");
@@ -292,6 +354,7 @@ namespace ImageColorChanger.UI
                 {
                     _liveCaptionEngine.SubtitleUpdated -= OnLiveCaptionSubtitleUpdated;
                     _liveCaptionEngine.StatusChanged -= OnLiveCaptionStatusChanged;
+                    _liveCaptionEngine.DebugInfoUpdated -= OnLiveCaptionDebugInfoUpdated;
                     _liveCaptionEngine.Dispose();
                     _liveCaptionEngine = null;
                     LiveCaptionDebugLogger.Log("Dispose: engine disposed.");
@@ -320,7 +383,7 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionProjectionCaptionHidden = true;
             _projectionManager?.HideProjectionCaptionOverlay();
-            _projectionNdiOutputManager?.PushTransparentIdleFrame();
+            _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
             StopProjectionNdiSenderIfUnused();
             _liveCaptionNdiComposer.Reset();
             ApplyMainWindowLiveCaptionReservation();
@@ -340,31 +403,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            var menu = new ContextMenu();
-
-            var sourceMenu = new MenuItem { Header = "输入源" };
-            bool isSystemSource = _liveCaptionCurrentSource == LiveCaptionAudioSource.SystemLoopback;
-            var sourceSystemItem = new MenuItem
+            var menu = new ContextMenu
             {
-                Header = BuildSelectedMenuHeader("系统声音", isSystemSource)
+                MinWidth = 220,
+                FontSize = 14
             };
-            sourceSystemItem.Click += (_, _) => SetLiveCaptionAudioSource(LiveCaptionAudioSource.SystemLoopback);
-            sourceMenu.Items.Add(sourceSystemItem);
 
-            bool isMicSource = _liveCaptionCurrentSource == LiveCaptionAudioSource.Microphone;
-            var sourceMicItem = new MenuItem
-            {
-                Header = BuildSelectedMenuHeader("麦克风", isMicSource)
-            };
-            sourceMicItem.Click += (_, _) => SetLiveCaptionAudioSource(LiveCaptionAudioSource.Microphone);
-            sourceMenu.Items.Add(sourceMicItem);
-            menu.Items.Add(sourceMenu);
-
-            menu.Items.Add(new Separator());
-
-            var platformMenu = new MenuItem { Header = "平台切换" };
-            PopulateLiveCaptionPlatformMenu(platformMenu);
-            menu.Items.Add(platformMenu);
+            PopulateLiveCaptionInputDeviceMenu(menu);
 
             menu.PlacementTarget = _liveCaptionOverlayWindow.GetSettingsAnchorElement();
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Right;
@@ -1316,7 +1361,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
+                    _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
                     StopProjectionNdiSenderIfUnused();
                     ShowStatus("字幕NDI已关闭");
                 }
@@ -1952,19 +1997,39 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string next = NormalizeLiveCaptionProvider(provider);
-            if (string.Equals(
-                NormalizeLiveCaptionProvider(_configManager.LiveCaptionAsrProvider),
-                next,
-                StringComparison.OrdinalIgnoreCase))
+            if (_liveCaptionPlatformSwitchInProgress)
             {
+                LiveCaptionDebugLogger.Log("PlatformSwitch: ignored because previous switch is still in progress.");
                 return;
             }
 
-            _configManager.LiveCaptionAsrProvider = next;
-            ApplyLiveCaptionConfigImmediately();
-            ShowStatus($"已切换平台：{displayName}");
-            LiveCaptionDebugLogger.Log($"PlatformSwitch: provider={next}");
+            _liveCaptionPlatformSwitchInProgress = true;
+
+            try
+            {
+                string next = NormalizeLiveCaptionProvider(provider);
+                if (string.Equals(
+                    NormalizeLiveCaptionProvider(_configManager.LiveCaptionAsrProvider),
+                    next,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _configManager.LiveCaptionAsrProvider = next;
+                ApplyLiveCaptionConfigImmediately();
+                ShowStatus($"已切换平台：{displayName}");
+                LiveCaptionDebugLogger.Log($"PlatformSwitch: provider={next}");
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"PlatformSwitch: failed, error={ex.Message}");
+                ShowStatus($"平台切换失败：{ex.Message}");
+            }
+            finally
+            {
+                _liveCaptionPlatformSwitchInProgress = false;
+            }
         }
 
         private void LoadLiveCaptionFloatingBoundsFromConfig()
@@ -2024,21 +2089,278 @@ namespace ImageColorChanger.UI
 
         private void SetLiveCaptionAudioSource(LiveCaptionAudioSource source)
         {
-            if (_liveCaptionCurrentSource == source)
+            bool sourceChanged = _liveCaptionCurrentSource != source;
+            string nextInputId = _liveCaptionSelectedInputDeviceId ?? string.Empty;
+            string nextSystemId = _liveCaptionSelectedSystemDeviceId ?? string.Empty;
+
+            bool inputChanged = !string.Equals(_configManager?.LiveCaptionInputDeviceId ?? string.Empty, nextInputId, StringComparison.Ordinal);
+            bool systemChanged = !string.Equals(_configManager?.LiveCaptionSystemDeviceId ?? string.Empty, nextSystemId, StringComparison.Ordinal);
+            if (!sourceChanged && !inputChanged && !systemChanged)
             {
                 return;
             }
 
             _liveCaptionCurrentSource = source;
-            LiveCaptionDebugLogger.Log($"AudioSource: switched to {source}.");
+            if (_configManager != null)
+            {
+                _configManager.LiveCaptionAudioInputMode = source == LiveCaptionAudioSource.SystemLoopback ? "system" : "input";
+                _configManager.LiveCaptionInputDeviceId = nextInputId;
+                _configManager.LiveCaptionSystemDeviceId = nextSystemId;
+            }
+
+            LiveCaptionDebugLogger.Log($"AudioSource: switched to {source}, inputId='{nextInputId}', systemId='{nextSystemId}'.");
 
             if (_liveCaptionEngine?.IsRunning == true)
             {
                 StartLiveCaption(source);
                 ShowStatus(source == LiveCaptionAudioSource.SystemLoopback
-                    ? "已切换为系统声音"
-                    : "已切换为麦克风");
+                    ? $"已切换为系统声音：{GetLiveCaptionSystemDeviceDisplayName(_liveCaptionSelectedSystemDeviceId)}"
+                    : $"已切换为输入设备：{GetLiveCaptionInputDeviceDisplayName(_liveCaptionSelectedInputDeviceId)}");
             }
+        }
+
+        private void SelectLiveCaptionSystemSource(string deviceId)
+        {
+            _liveCaptionSelectedSystemDeviceId = deviceId ?? string.Empty;
+            SetLiveCaptionAudioSource(LiveCaptionAudioSource.SystemLoopback);
+        }
+
+        private void SelectLiveCaptionInputDevice(string deviceId)
+        {
+            _liveCaptionSelectedInputDeviceId = deviceId ?? string.Empty;
+            SetLiveCaptionAudioSource(LiveCaptionAudioSource.Microphone);
+        }
+
+        private void PopulateLiveCaptionInputDeviceMenu(ContextMenu root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var systemDevices = RealtimeCaptionEngine.EnumerateSystemLoopbackDevices();
+            var devices = RealtimeCaptionEngine.EnumerateInputDevices();
+            string current = _liveCaptionCurrentSource == LiveCaptionAudioSource.Microphone
+                ? (_liveCaptionSelectedInputDeviceId ?? string.Empty)
+                : string.Empty;
+            string currentSystem = _liveCaptionCurrentSource == LiveCaptionAudioSource.SystemLoopback
+                ? (_liveCaptionSelectedSystemDeviceId ?? string.Empty)
+                : (_liveCaptionSelectedSystemDeviceId ?? string.Empty);
+
+            var systemItems = new List<MenuItem>();
+            bool systemCategorySelected = _liveCaptionCurrentSource == LiveCaptionAudioSource.SystemLoopback;
+            if (systemDevices != null)
+            {
+                foreach (var device in systemDevices)
+                {
+                    if (device == null)
+                    {
+                        continue;
+                    }
+
+                    bool isSelected = _liveCaptionCurrentSource == LiveCaptionAudioSource.SystemLoopback &&
+                                      (string.IsNullOrWhiteSpace(currentSystem)
+                                          ? device.IsDefault
+                                          : string.Equals(currentSystem, device.Id, StringComparison.Ordinal));
+                    var item = new MenuItem
+                    {
+                        Header = BuildSelectedMenuHeader(device.Name, isSelected)
+                    };
+                    string selectedId = device.Id;
+                    item.Click += (_, _) => SelectLiveCaptionSystemSource(selectedId);
+                    if (isSelected)
+                    {
+                        systemCategorySelected = true;
+                    }
+
+                    systemItems.Add(item);
+                }
+            }
+
+            var micItems = new List<MenuItem>();
+            var lineInItems = new List<MenuItem>();
+            var otherItems = new List<MenuItem>();
+            bool micCategorySelected = false;
+            bool lineInCategorySelected = false;
+            bool otherCategorySelected = false;
+
+            if (devices != null)
+            {
+                foreach (var device in devices)
+                {
+                    if (device == null)
+                    {
+                        continue;
+                    }
+
+                    bool isSelected = string.IsNullOrWhiteSpace(current)
+                        ? (_liveCaptionCurrentSource == LiveCaptionAudioSource.Microphone && device.IsDefault)
+                        : string.Equals(current, device.Id, StringComparison.Ordinal);
+                    var item = new MenuItem
+                    {
+                        Header = BuildSelectedMenuHeader(device.Name, isSelected)
+                    };
+                    string selectedId = device.Id;
+                    item.Click += (_, _) => SelectLiveCaptionInputDevice(selectedId);
+
+                    switch (ClassifyLiveCaptionInputDevice(device))
+                    {
+                        case LiveCaptionInputDeviceCategory.Microphone:
+                            micItems.Add(item);
+                            if (isSelected) micCategorySelected = true;
+                            break;
+                        case LiveCaptionInputDeviceCategory.LineIn:
+                            lineInItems.Add(item);
+                            if (isSelected) lineInCategorySelected = true;
+                            break;
+                        case LiveCaptionInputDeviceCategory.Virtual:
+                        default:
+                            otherItems.Add(item);
+                            if (isSelected) otherCategorySelected = true;
+                            break;
+                    }
+                }
+            }
+
+            AppendInputCategoryMenu(root, BuildSelectedMenuHeader("系统声音", systemCategorySelected), systemItems);
+            AppendInputCategoryMenu(root, BuildSelectedMenuHeader("麦克风", micCategorySelected), micItems);
+            AppendInputCategoryMenu(root, BuildSelectedMenuHeader("线路输入", lineInCategorySelected), lineInItems);
+            AppendInputCategoryMenu(root, BuildSelectedMenuHeader("未知", otherCategorySelected), otherItems);
+        }
+
+        private enum LiveCaptionInputDeviceCategory
+        {
+            Microphone = 0,
+            LineIn = 1,
+            Virtual = 2,
+            Other = 3
+        }
+
+        private static void AppendInputCategoryMenu(ContextMenu root, string title, List<MenuItem> items)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var categoryMenu = new MenuItem
+            {
+                Header = title
+            };
+            if (items == null || items.Count == 0)
+            {
+                categoryMenu.IsEnabled = false;
+            }
+            else
+            {
+                foreach (var item in items)
+                {
+                    categoryMenu.Items.Add(item);
+                }
+            }
+
+            root.Items.Add(categoryMenu);
+        }
+
+        private static LiveCaptionInputDeviceCategory ClassifyLiveCaptionInputDevice(RealtimeCaptionEngine.InputAudioDeviceInfo device)
+        {
+            if (device == null)
+            {
+                return LiveCaptionInputDeviceCategory.Other;
+            }
+
+            string name = (device.Name ?? string.Empty).ToLowerInvariant();
+            string id = (device.Id ?? string.Empty).ToLowerInvariant();
+
+            if (ContainsAny(name, id, "vb-cable", "voicemeeter", "virtual", "blackhole", "soundflower", "loopback", "virtual cable", "virtual audio", "obs virtual"))
+            {
+                return LiveCaptionInputDeviceCategory.Virtual;
+            }
+
+            if (ContainsAny(name, id, "line in", "line-in", "线路输入", "lineinput", "aux", "aux in"))
+            {
+                return LiveCaptionInputDeviceCategory.LineIn;
+            }
+
+            if (ContainsAny(name, id, "mic", "microphone", "麦克风", "array microphone", "阵列麦克风", "headset microphone"))
+            {
+                return LiveCaptionInputDeviceCategory.Microphone;
+            }
+
+            return LiveCaptionInputDeviceCategory.Other;
+        }
+
+        private static bool ContainsAny(string name, string id, params string[] keywords)
+        {
+            if (keywords == null || keywords.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (string keyword in keywords)
+            {
+                if (string.IsNullOrWhiteSpace(keyword))
+                {
+                    continue;
+                }
+
+                if (name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private string GetLiveCaptionInputDeviceDisplayName(string deviceId)
+        {
+            string id = deviceId ?? string.Empty;
+            foreach (var device in RealtimeCaptionEngine.EnumerateInputDevices())
+            {
+                if (string.Equals(device.Id, id, StringComparison.Ordinal))
+                {
+                    return device.IsDefault ? $"{device.Name}（默认）" : device.Name;
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(id) ? "默认输入设备" : "指定输入设备";
+        }
+
+        private string GetLiveCaptionSystemDeviceDisplayName(string deviceId)
+        {
+            string id = deviceId ?? string.Empty;
+            foreach (var device in RealtimeCaptionEngine.EnumerateSystemLoopbackDevices())
+            {
+                if (string.Equals(device.Id, id, StringComparison.Ordinal))
+                {
+                    return device.Name;
+                }
+
+                if (string.IsNullOrWhiteSpace(id) && device.IsDefault)
+                {
+                    return device.Name;
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(id) ? "系统默认设备" : "指定系统设备";
+        }
+
+        private void LoadLiveCaptionAudioSourceFromConfig()
+        {
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            string mode = (_configManager.LiveCaptionAudioInputMode ?? "system").Trim().ToLowerInvariant();
+            _liveCaptionCurrentSource = mode == "input"
+                ? LiveCaptionAudioSource.Microphone
+                : LiveCaptionAudioSource.SystemLoopback;
+            _liveCaptionSelectedInputDeviceId = _configManager.LiveCaptionInputDeviceId ?? string.Empty;
+            _liveCaptionSelectedSystemDeviceId = _configManager.LiveCaptionSystemDeviceId ?? string.Empty;
+            LiveCaptionDebugLogger.Log($"AudioSource: loaded from config mode={mode}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'.");
         }
 
         private void RegisterLiveCaptionF4HotKey()

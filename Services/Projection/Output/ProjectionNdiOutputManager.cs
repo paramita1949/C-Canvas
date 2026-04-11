@@ -125,13 +125,16 @@ namespace ImageColorChanger.Services.Projection.Output
             }
         }
 
-        public void PushTransparentIdleFrame()
+        public void PushTransparentIdleFrame(bool startSenderIfNeeded = true)
         {
             try
             {
-                if (!_sender.IsRunning && !_sender.Start(CreateOptions()))
+                if (!_sender.IsRunning)
                 {
-                    return;
+                    if (!startSenderIfNeeded || !_sender.Start(CreateOptions()))
+                    {
+                        return;
+                    }
                 }
 
                 int width = System.Math.Max(16, _configProvider.ProjectionNdiWidth);

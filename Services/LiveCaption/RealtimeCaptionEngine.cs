@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using ImageColorChanger.Core;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -16,11 +19,19 @@ namespace ImageColorChanger.Services.LiveCaption
 
     internal sealed class RealtimeCaptionEngine : IDisposable
     {
+        internal sealed class InputAudioDeviceInfo
+        {
+            public string Id { get; init; } = string.Empty;
+            public string Name { get; init; } = string.Empty;
+            public bool IsDefault { get; init; }
+        }
+
         private readonly object _bufferGate = new();
         private readonly CliProxyApiClient _client;
         private readonly MemoryStream _pcmBuffer = new();
         private readonly MemoryStream _realtimePcmBuffer = new();
         private readonly System.Timers.Timer _flushTimer;
+        private readonly ElapsedEventHandler _flushTimerHandler;
         private static readonly WaveFormat RealtimeTargetFormat = new WaveFormat(16000, 16, 1);
         private int _realtimePacketBytes = 3200; // default 100ms @ 16k/16bit/mono
         private int _realtimeTickMs = 100;
@@ -55,6 +66,8 @@ namespace ImageColorChanger.Services.LiveCaption
         private int _realtimeReconnectAttempt;
         private bool _realtimeSessionStartInFlight;
         private DateTime _realtimeConnectGraceUntilUtc = DateTime.MinValue;
+        private volatile bool _isDisposing;
+        private volatile bool _isDisposed;
 
         public event Action<LiveCaptionAsrText> SubtitleUpdated;
         public event Action<string> StatusChanged;
@@ -66,7 +79,8 @@ namespace ImageColorChanger.Services.LiveCaption
             // 高频轮询：实时链路按 200ms 包（6400 bytes）发送。
             _flushTimer = new System.Timers.Timer(200);
             _flushTimer.AutoReset = true;
-            _flushTimer.Elapsed += async (_, _) => await FlushChunkAsync();
+            _flushTimerHandler = async (_, _) => await FlushChunkSafeAsync();
+            _flushTimer.Elapsed += _flushTimerHandler;
         }
 
         private void ConfigureRealtimeProfile()
@@ -114,8 +128,80 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public bool IsConfigured => _client.IsReady;
 
-        public void Start(LiveCaptionAudioSource source)
+        public static IReadOnlyList<InputAudioDeviceInfo> EnumerateInputDevices()
         {
+            var result = new List<InputAudioDeviceInfo>();
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                MMDevice defaultDevice = null;
+                try
+                {
+                    defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+                }
+                catch
+                {
+                }
+
+                foreach (var endpoint in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+                {
+                    result.Add(new InputAudioDeviceInfo
+                    {
+                        Id = endpoint.ID ?? string.Empty,
+                        Name = string.IsNullOrWhiteSpace(endpoint.FriendlyName) ? "未命名输入设备" : endpoint.FriendlyName.Trim(),
+                        IsDefault = defaultDevice != null && string.Equals(defaultDevice.ID, endpoint.ID, StringComparison.OrdinalIgnoreCase)
+                    });
+                }
+            }
+            catch
+            {
+                // 忽略枚举异常，保持菜单可打开。
+            }
+
+            return result;
+        }
+
+        public static IReadOnlyList<InputAudioDeviceInfo> EnumerateSystemLoopbackDevices()
+        {
+            var result = new List<InputAudioDeviceInfo>();
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                MMDevice defaultDevice = null;
+                try
+                {
+                    defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                }
+                catch
+                {
+                }
+
+                foreach (var endpoint in enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+                {
+                    result.Add(new InputAudioDeviceInfo
+                    {
+                        Id = endpoint.ID ?? string.Empty,
+                        Name = string.IsNullOrWhiteSpace(endpoint.FriendlyName) ? "未命名系统设备" : endpoint.FriendlyName.Trim(),
+                        IsDefault = defaultDevice != null && string.Equals(defaultDevice.ID, endpoint.ID, StringComparison.OrdinalIgnoreCase)
+                    });
+                }
+            }
+            catch
+            {
+                // 忽略枚举异常，保持菜单可打开。
+            }
+
+            return result;
+        }
+
+        public void Start(LiveCaptionAudioSource source, string preferredInputDeviceId = null, string preferredSystemDeviceId = null)
+        {
+            if (_isDisposed || _isDisposing)
+            {
+                StatusChanged?.Invoke("实时字幕引擎正在释放，请稍后重试");
+                return;
+            }
+
             if (_isRunning)
             {
                 return;
@@ -129,13 +215,18 @@ namespace ImageColorChanger.Services.LiveCaption
 
             try
             {
-                _capture = source == LiveCaptionAudioSource.SystemLoopback
-                    ? new WasapiLoopbackCapture()
-                    : new WaveInEvent
-                    {
-                        WaveFormat = new WaveFormat(16000, 16, 1),
-                        BufferMilliseconds = 100
-                    };
+                if (source == LiveCaptionAudioSource.SystemLoopback)
+                {
+                    string selectedName;
+                    _capture = CreateSystemLoopbackCapture(preferredSystemDeviceId, out selectedName);
+                    _captureInfo = $"capture=system:{selectedName}";
+                }
+                else
+                {
+                    string selectedName;
+                    _capture = CreateInputCapture(preferredInputDeviceId, out selectedName);
+                    _captureInfo = $"capture=input:{selectedName}";
+                }
             }
             catch (Exception ex)
             {
@@ -145,7 +236,7 @@ namespace ImageColorChanger.Services.LiveCaption
             _captureFormat = _capture.WaveFormat;
             _capture.DataAvailable += Capture_DataAvailable;
             _capture.RecordingStopped += Capture_RecordingStopped;
-            _captureInfo = $"capture={source}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
+            _captureInfo = $"{_captureInfo}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
 
             _cts = new CancellationTokenSource();
             _isInFlight = false;
@@ -207,19 +298,103 @@ namespace ImageColorChanger.Services.LiveCaption
                 });
                 StatusChanged?.Invoke(source == LiveCaptionAudioSource.SystemLoopback
                     ? "实时字幕已启动（系统声卡-实时）"
-                    : "实时字幕已启动（麦克风-实时）");
+                    : "实时字幕已启动（输入设备-实时）");
             }
             else
             {
                 StatusChanged?.Invoke(source == LiveCaptionAudioSource.SystemLoopback
                     ? "实时字幕已启动（系统声卡）"
-                    : "实时字幕已启动（麦克风）");
+                    : "实时字幕已启动（输入设备）");
             }
             PublishDebugInfo("started");
         }
 
+        private static IWaveIn CreateInputCapture(string preferredInputDeviceId, out string selectedName)
+        {
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                MMDevice device = null;
+
+                if (!string.IsNullOrWhiteSpace(preferredInputDeviceId))
+                {
+                    try
+                    {
+                        var target = enumerator.GetDevice(preferredInputDeviceId.Trim());
+                        if (target.DataFlow == DataFlow.Capture && target.State == DeviceState.Active)
+                        {
+                            device = target;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                device ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+                selectedName = string.IsNullOrWhiteSpace(device?.FriendlyName) ? "默认输入设备" : device.FriendlyName.Trim();
+                if (device != null)
+                {
+                    return new WasapiCapture(device);
+                }
+            }
+            catch
+            {
+            }
+
+            // 兜底：老路径，避免在少数机器上 WASAPI 初始化失败导致不可用。
+            selectedName = "系统默认输入设备(WaveIn)";
+            return new WaveInEvent
+            {
+                WaveFormat = new WaveFormat(16000, 16, 1),
+                BufferMilliseconds = 100
+            };
+        }
+
+        private static IWaveIn CreateSystemLoopbackCapture(string preferredSystemDeviceId, out string selectedName)
+        {
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                MMDevice device = null;
+
+                if (!string.IsNullOrWhiteSpace(preferredSystemDeviceId))
+                {
+                    try
+                    {
+                        var target = enumerator.GetDevice(preferredSystemDeviceId.Trim());
+                        if (target.DataFlow == DataFlow.Render && target.State == DeviceState.Active)
+                        {
+                            device = target;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                device ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                selectedName = string.IsNullOrWhiteSpace(device?.FriendlyName) ? "默认系统输出设备" : device.FriendlyName.Trim();
+                if (device != null)
+                {
+                    return new WasapiLoopbackCapture(device);
+                }
+            }
+            catch
+            {
+            }
+
+            selectedName = "默认系统输出设备";
+            return new WasapiLoopbackCapture();
+        }
+
         public void Stop()
         {
+            if (_isDisposed || _isDisposing)
+            {
+                return;
+            }
+
             if (!_isRunning)
             {
                 return;
@@ -230,32 +405,57 @@ namespace ImageColorChanger.Services.LiveCaption
             _cts?.Cancel();
             if (_useRealtimeSession)
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
+                    Task.Run(async () =>
                     {
-                        await _client.StopRealtimeSessionAsync(CancellationToken.None);
-                    }
-                    catch
-                    {
-                        // ignore
-                    }
-                });
+                        try
+                        {
+                            await _client.StopRealtimeSessionAsync(CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    }).Wait(1200);
+                }
+                catch
+                {
+                    // ignore
+                }
             }
 
             if (_capture != null)
             {
-                _capture.DataAvailable -= Capture_DataAvailable;
-                _capture.RecordingStopped -= Capture_RecordingStopped;
+                var capture = _capture;
+                _capture = null!;
                 try
                 {
-                    _capture.StopRecording();
+                    capture.DataAvailable -= Capture_DataAvailable;
+                    capture.RecordingStopped -= Capture_RecordingStopped;
                 }
                 catch
                 {
                 }
-                _capture.Dispose();
-                _capture = null!;
+
+                try
+                {
+                    capture.StopRecording();
+                }
+                catch (Exception ex)
+                {
+                    RaiseStatusSafe($"实时字幕采集停止异常: {ex.Message}");
+                }
+
+                try
+                {
+                    capture.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    RaiseStatusSafe($"实时字幕采集释放异常: {ex.Message}");
+                    RaiseDebugSafe($"[stop] capture dispose exception: {ex.GetType().Name}: {ex.Message}");
+                }
             }
 
             lock (_bufferGate)
@@ -267,46 +467,90 @@ namespace ImageColorChanger.Services.LiveCaption
                 _tailSilenceMs = 0;
             }
 
-            StatusChanged?.Invoke("实时字幕已停止");
+            RaiseStatusSafe("实时字幕已停止");
             PublishDebugInfo("stopped");
         }
 
         private void Capture_DataAvailable(object sender, WaveInEventArgs e)
         {
-            if (!_isRunning || e.BytesRecorded <= 0)
+            if (_isDisposed || _isDisposing || !_isRunning || e.BytesRecorded <= 0)
             {
                 return;
             }
-            _dataEventCount++;
-            _lastAudioUtc = DateTime.UtcNow;
-            CalculateLevels(e.Buffer, e.BytesRecorded, _captureFormat, out var peakDb, out var rmsDb);
-            _lastPeakDb = peakDb;
-            _lastRmsDb = rmsDb;
-            double chunkMs = CalculateChunkMs(e.BytesRecorded, _captureFormat);
-            bool isSpeech = rmsDb > SilenceDbThreshold;
 
-            if (_useRealtimeSession)
+            try
             {
-                byte[] normalizedPcm;
-                try
+                _dataEventCount++;
+                _lastAudioUtc = DateTime.UtcNow;
+                CalculateLevels(e.Buffer, e.BytesRecorded, _captureFormat, out var peakDb, out var rmsDb);
+                _lastPeakDb = peakDb;
+                _lastRmsDb = rmsDb;
+                double chunkMs = CalculateChunkMs(e.BytesRecorded, _captureFormat);
+                bool isSpeech = rmsDb > SilenceDbThreshold;
+
+                if (_useRealtimeSession)
                 {
-                    normalizedPcm = ConvertToPcm16Mono16k(e.Buffer, _captureFormat, e.BytesRecorded);
-                }
-                catch (Exception ex)
-                {
-                    StatusChanged?.Invoke($"实时字幕音频转换异常: {ex.Message}");
+                    byte[] normalizedPcm;
+                    try
+                    {
+                        normalizedPcm = ConvertToPcm16Mono16k(e.Buffer, _captureFormat, e.BytesRecorded);
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusChanged?.Invoke($"实时字幕音频转换异常: {ex.Message}");
+                        return;
+                    }
+
+                    lock (_bufferGate)
+                    {
+                        _realtimePcmBuffer.Write(normalizedPcm, 0, normalizedPcm.Length);
+                        if (_realtimePcmBuffer.Length > _realtimeMaxQueueBytes)
+                        {
+                            var data = _realtimePcmBuffer.ToArray();
+                            int keep = Math.Min(data.Length, _realtimePacketBytes * 10);
+                            _realtimePcmBuffer.SetLength(0);
+                            _realtimePcmBuffer.Write(data, data.Length - keep, keep);
+                        }
+                    }
+
+                    if ((DateTime.UtcNow - _lastDebugUtc).TotalMilliseconds >= 500)
+                    {
+                        PublishDebugInfo("capturing");
+                    }
+
                     return;
                 }
 
                 lock (_bufferGate)
                 {
-                    _realtimePcmBuffer.Write(normalizedPcm, 0, normalizedPcm.Length);
-                    if (_realtimePcmBuffer.Length > _realtimeMaxQueueBytes)
+                    _pcmBuffer.Write(e.Buffer, 0, e.BytesRecorded);
+                    _bufferMs += chunkMs;
+                    if (isSpeech)
                     {
-                        var data = _realtimePcmBuffer.ToArray();
-                        int keep = Math.Min(data.Length, _realtimePacketBytes * 10);
-                        _realtimePcmBuffer.SetLength(0);
-                        _realtimePcmBuffer.Write(data, data.Length - keep, keep);
+                        _speechMs += chunkMs;
+                        _tailSilenceMs = 0;
+                    }
+                    else
+                    {
+                        _tailSilenceMs += chunkMs;
+                    }
+
+                    const int maxBufferBytes = 2 * 1024 * 1024;
+                    if (_pcmBuffer.Length > maxBufferBytes)
+                    {
+                        // 防止代理不可用时堆积过大：仅保留最近半段，元数据按比例缩放。
+                        var trimmed = _pcmBuffer.ToArray();
+                        int oldLen = trimmed.Length;
+                        int keep = Math.Min(trimmed.Length, maxBufferBytes / 2);
+                        _pcmBuffer.SetLength(0);
+                        _pcmBuffer.Write(trimmed, trimmed.Length - keep, keep);
+                        if (oldLen > 0)
+                        {
+                            double ratio = (double)keep / oldLen;
+                            _bufferMs *= ratio;
+                            _speechMs *= ratio;
+                            _tailSilenceMs = Math.Min(_tailSilenceMs, _bufferMs);
+                        }
                     }
                 }
 
@@ -314,65 +558,40 @@ namespace ImageColorChanger.Services.LiveCaption
                 {
                     PublishDebugInfo("capturing");
                 }
-
-                return;
             }
-
-            lock (_bufferGate)
+            catch (ObjectDisposedException)
             {
-                _pcmBuffer.Write(e.Buffer, 0, e.BytesRecorded);
-                _bufferMs += chunkMs;
-                if (isSpeech)
-                {
-                    _speechMs += chunkMs;
-                    _tailSilenceMs = 0;
-                }
-                else
-                {
-                    _tailSilenceMs += chunkMs;
-                }
-
-                const int maxBufferBytes = 2 * 1024 * 1024;
-                if (_pcmBuffer.Length > maxBufferBytes)
-                {
-                    // 防止代理不可用时堆积过大：仅保留最近半段，元数据按比例缩放。
-                    var trimmed = _pcmBuffer.ToArray();
-                    int oldLen = trimmed.Length;
-                    int keep = Math.Min(trimmed.Length, maxBufferBytes / 2);
-                    _pcmBuffer.SetLength(0);
-                    _pcmBuffer.Write(trimmed, trimmed.Length - keep, keep);
-                    if (oldLen > 0)
-                    {
-                        double ratio = (double)keep / oldLen;
-                        _bufferMs *= ratio;
-                        _speechMs *= ratio;
-                        _tailSilenceMs = Math.Min(_tailSilenceMs, _bufferMs);
-                    }
-                }
+                // dispose 竞争窗口，安全忽略，避免线程异常冒泡导致进程退出。
             }
-
-            if ((DateTime.UtcNow - _lastDebugUtc).TotalMilliseconds >= 500)
+            catch (Exception ex)
             {
-                PublishDebugInfo("capturing");
+                StatusChanged?.Invoke($"实时字幕采集回调异常: {ex.Message}");
             }
         }
 
         private void Capture_RecordingStopped(object sender, StoppedEventArgs e)
         {
-            if (e.Exception != null)
+            try
             {
-                StatusChanged?.Invoke($"实时字幕采集已停止: {e.Exception.Message}");
-                PublishDebugInfo($"capture-stop-ex: {e.Exception.Message}");
+                if (e?.Exception != null)
+                {
+                    RaiseStatusSafe($"实时字幕采集已停止: {e.Exception.Message}");
+                    PublishDebugInfo($"capture-stop-ex: {e.Exception.Message}");
+                }
+                else
+                {
+                    PublishDebugInfo("capture-stopped");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                PublishDebugInfo("capture-stopped");
+                RaiseDebugSafe($"[capture-stopped-handler] {ex.GetType().Name}: {ex.Message}");
             }
         }
 
         private async Task FlushChunkAsync()
         {
-            if (!_isRunning || _cts == null || _cts.IsCancellationRequested)
+            if (_isDisposed || _isDisposing || !_isRunning || _cts == null || _cts.IsCancellationRequested)
             {
                 return;
             }
@@ -697,26 +916,67 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            _lastDebugUtc = DateTime.UtcNow;
-            long bufferBytes;
-            lock (_bufferGate)
+            try
             {
-                bufferBytes = _useRealtimeSession ? _realtimePcmBuffer.Length : _pcmBuffer.Length;
+                _lastDebugUtc = DateTime.UtcNow;
+                long bufferBytes;
+                lock (_bufferGate)
+                {
+                    bufferBytes = _useRealtimeSession ? _realtimePcmBuffer.Length : _pcmBuffer.Length;
+                }
+
+                double idleMs = _lastAudioUtc == DateTime.MinValue ? -1 : (DateTime.UtcNow - _lastAudioUtc).TotalMilliseconds;
+                string idleText = idleMs < 0 ? "n/a" : $"{idleMs:0}ms";
+                string queuedText = queuedBytes < 0 ? "n/a" : $"{queuedBytes}";
+                string sentText = sentBytes < 0 ? "n/a" : $"{sentBytes}";
+                string debug = $"[{stage}] {_captureInfo} | dataEvt={_dataEventCount} idle={idleText} " +
+                               $"peak={_lastPeakDb:0.0}dB rms={_lastRmsDb:0.0}dB buf={bufferBytes}B " +
+                               $"bufMs={_bufferMs:0} speechMs={_speechMs:0} tailSil={_tailSilenceMs:0} " +
+                               $"chunk={_chunkCount}/{_chunkSentCount}/{_chunkTextCount} q/s={queuedText}/{sentText}B " +
+                               $"provider/model={_client.AsrProvider}/{_client.AsrModel} " +
+                               $"asr={_client.LastTranscribeStatusCode}@{_client.LastTranscribeElapsedMs}ms " +
+                               $"url(asr)={_client.LastTranscribeUrl} " +
+                               $"{(string.IsNullOrWhiteSpace(_client.LastError) ? string.Empty : $"err={_client.LastError}")}";
+                RaiseDebugSafe(debug.Trim());
+            }
+            catch (Exception ex)
+            {
+                RaiseDebugSafe($"[debug-info-failed] stage={stage}, ex={ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        private void RaiseStatusSafe(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
             }
 
-            double idleMs = _lastAudioUtc == DateTime.MinValue ? -1 : (DateTime.UtcNow - _lastAudioUtc).TotalMilliseconds;
-            string idleText = idleMs < 0 ? "n/a" : $"{idleMs:0}ms";
-            string queuedText = queuedBytes < 0 ? "n/a" : $"{queuedBytes}";
-            string sentText = sentBytes < 0 ? "n/a" : $"{sentBytes}";
-            string debug = $"[{stage}] {_captureInfo} | dataEvt={_dataEventCount} idle={idleText} " +
-                           $"peak={_lastPeakDb:0.0}dB rms={_lastRmsDb:0.0}dB buf={bufferBytes}B " +
-                           $"bufMs={_bufferMs:0} speechMs={_speechMs:0} tailSil={_tailSilenceMs:0} " +
-                           $"chunk={_chunkCount}/{_chunkSentCount}/{_chunkTextCount} q/s={queuedText}/{sentText}B " +
-                           $"provider/model={_client.AsrProvider}/{_client.AsrModel} " +
-                           $"asr={_client.LastTranscribeStatusCode}@{_client.LastTranscribeElapsedMs}ms " +
-                           $"url(asr)={_client.LastTranscribeUrl} " +
-                           $"{(string.IsNullOrWhiteSpace(_client.LastError) ? string.Empty : $"err={_client.LastError}")}";
-            DebugInfoUpdated?.Invoke(debug.Trim());
+            try
+            {
+                StatusChanged?.Invoke(message);
+            }
+            catch
+            {
+                // 避免事件订阅方异常反向杀死采集线程。
+            }
+        }
+
+        private void RaiseDebugSafe(string debug)
+        {
+            if (string.IsNullOrWhiteSpace(debug))
+            {
+                return;
+            }
+
+            try
+            {
+                DebugInfoUpdated?.Invoke(debug);
+            }
+            catch
+            {
+                // 调试输出异常不应影响主流程。
+            }
         }
 
         private static void CalculateLevels(byte[] buffer, int bytesRecorded, WaveFormat format, out float peakDb, out float rmsDb)
@@ -849,12 +1109,72 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public void Dispose()
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposing = true;
             Stop();
-            _flushTimer.Dispose();
-            _cts?.Dispose();
-            _client.Dispose();
-            _pcmBuffer.Dispose();
-            _realtimePcmBuffer.Dispose();
+            try
+            {
+                _flushTimer.Elapsed -= _flushTimerHandler;
+                _flushTimer.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _cts?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _client.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                lock (_bufferGate)
+                {
+                    _pcmBuffer.Dispose();
+                    _realtimePcmBuffer.Dispose();
+                }
+            }
+            catch
+            {
+            }
+
+            _isDisposed = true;
+            _isDisposing = false;
+        }
+
+        private async Task FlushChunkSafeAsync()
+        {
+            try
+            {
+                await FlushChunkAsync();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 引擎释放过程中回调晚到，忽略。
+            }
+            catch (OperationCanceledException)
+            {
+                // 停止流程中的正常取消，忽略。
+            }
+            catch (Exception ex)
+            {
+                StatusChanged?.Invoke($"实时字幕调度异常: {ex.Message}");
+            }
         }
     }
 }

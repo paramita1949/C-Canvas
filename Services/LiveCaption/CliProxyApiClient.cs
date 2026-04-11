@@ -272,31 +272,106 @@ namespace ImageColorChanger.Services.LiveCaption
             Action<string> onStatus,
             CancellationToken cancellationToken)
         {
-            if (IsBaiduProvider())
+            try
             {
-                return StartBaiduRealtimeSessionAsync(onText, onStatus, cancellationToken);
-            }
+                if (IsBaiduProvider())
+                {
+                    return StartBaiduRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
 
-            if (IsTencentProvider())
-            {
-                return StartTencentRealtimeSessionAsync(onText, onStatus, cancellationToken);
+                if (IsTencentProvider())
+                {
+                    return StartTencentRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
+                if (IsAliyunProvider())
+                {
+                    return StartAliyunRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
+                if (IsDoubaoProvider())
+                {
+                    return StartDoubaoRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
+                if (IsFunAsrProvider())
+                {
+                    return StartFunAsrRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
             }
-            if (IsAliyunProvider())
+            catch (Exception ex)
             {
-                return StartAliyunRealtimeSessionAsync(onText, onStatus, cancellationToken);
-            }
-            if (IsDoubaoProvider())
-            {
-                return StartDoubaoRealtimeSessionAsync(onText, onStatus, cancellationToken);
-            }
-            if (IsFunAsrProvider())
-            {
-                return StartFunAsrRealtimeSessionAsync(onText, onStatus, cancellationToken);
+                LastError = $"实时会话启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][Realtime][StartFail] {LastError}");
+                return Task.FromResult(false);
             }
 
             LastError = "当前ASR服务未接入实时语音识别";
             onStatus?.Invoke(LastError);
             return Task.FromResult(false);
+        }
+
+        private async Task<bool> StartBaiduRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartBaiduRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"百度实时ASR启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][BaiduWS][StartFail] {LastError}");
+                return false;
+            }
+        }
+
+        private async Task<bool> StartTencentRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartTencentRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"腾讯实时ASR启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][TencentWS][StartFail] {LastError}");
+                return false;
+            }
+        }
+
+        private async Task<bool> StartAliyunRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartAliyunRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"阿里云实时ASR启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][AliyunWS][StartFail] {LastError}");
+                return false;
+            }
+        }
+
+        private async Task<bool> StartDoubaoRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartDoubaoRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"豆包实时ASR启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][DoubaoWS][StartFail] {LastError}");
+                return false;
+            }
+        }
+
+        private async Task<bool> StartFunAsrRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartFunAsrRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"FunASR实时启动异常: {ex.Message}";
+                onStatus?.Invoke(LastError);
+                Debug.WriteLine($"[LiveCaption][FunASRWS][StartFail] {LastError}");
+                return false;
+            }
         }
 
         public Task<bool> SendRealtimeAudioAsync(byte[] pcm16kMono, CancellationToken cancellationToken)
@@ -724,12 +799,14 @@ namespace ImageColorChanger.Services.LiveCaption
             catch (WebSocketException wsex)
             {
                 LastError = $"腾讯实时ASR连接失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                Debug.WriteLine($"[LiveCaption][TencentWS][ConnectFail] {LastError}");
                 onStatus?.Invoke(LastError);
                 return false;
             }
             catch (Exception ex)
             {
                 LastError = $"腾讯实时ASR连接失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][TencentWS][ConnectFail] {LastError}");
                 onStatus?.Invoke(LastError);
                 return false;
             }
@@ -765,12 +842,14 @@ namespace ImageColorChanger.Services.LiveCaption
             catch (WebSocketException wsex)
             {
                 LastError = $"腾讯实时ASR发送失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                Debug.WriteLine($"[LiveCaption][TencentWS][SendFail] {LastError}");
                 _tencentRealtimeStatusHandler?.Invoke(LastError);
                 return false;
             }
             catch (Exception ex)
             {
                 LastError = $"腾讯实时ASR发送失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][TencentWS][SendFail] {LastError}");
                 _tencentRealtimeStatusHandler?.Invoke(LastError);
                 return false;
             }
@@ -1387,6 +1466,7 @@ namespace ImageColorChanger.Services.LiveCaption
             catch (Exception ex)
             {
                 LastError = $"腾讯实时ASR接收失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][TencentWS][ReceiveFail] {LastError}");
                 _tencentRealtimeStatusHandler?.Invoke(LastError);
             }
         }
@@ -2956,9 +3036,11 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
+            _disposed = true;
+
             try
             {
-                _ = StopBaiduRealtimeSessionAsync(CancellationToken.None);
+                Task.Run(() => StopBaiduRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
             {
@@ -2967,7 +3049,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
             try
             {
-                _ = StopTencentRealtimeSessionAsync(CancellationToken.None);
+                Task.Run(() => StopTencentRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
             {
@@ -2975,7 +3057,7 @@ namespace ImageColorChanger.Services.LiveCaption
             }
             try
             {
-                _ = StopAliyunRealtimeSessionAsync(CancellationToken.None);
+                Task.Run(() => StopAliyunRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
             {
@@ -2983,7 +3065,7 @@ namespace ImageColorChanger.Services.LiveCaption
             }
             try
             {
-                _ = StopDoubaoRealtimeSessionAsync(CancellationToken.None);
+                Task.Run(() => StopDoubaoRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
             {
@@ -2991,26 +3073,26 @@ namespace ImageColorChanger.Services.LiveCaption
             }
             try
             {
-                _ = StopFunAsrRealtimeSessionAsync(CancellationToken.None);
+                Task.Run(() => StopFunAsrRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
             {
                 // ignore
             }
-            _httpClient.Dispose();
-            _baiduTokenLock.Dispose();
-            _aliyunTokenLock.Dispose();
-            _baiduRealtimeSendLock.Dispose();
-            _baiduRealtimeConnectLock.Dispose();
-            _tencentRealtimeSendLock.Dispose();
-            _tencentRealtimeConnectLock.Dispose();
-            _aliyunRealtimeSendLock.Dispose();
-            _aliyunRealtimeConnectLock.Dispose();
-            _doubaoRealtimeSendLock.Dispose();
-            _doubaoRealtimeConnectLock.Dispose();
-            _funAsrRealtimeSendLock.Dispose();
-            _funAsrRealtimeConnectLock.Dispose();
-            _disposed = true;
+
+            try { _httpClient.Dispose(); } catch { }
+            try { _baiduTokenLock.Dispose(); } catch { }
+            try { _aliyunTokenLock.Dispose(); } catch { }
+            try { _baiduRealtimeSendLock.Dispose(); } catch { }
+            try { _baiduRealtimeConnectLock.Dispose(); } catch { }
+            try { _tencentRealtimeSendLock.Dispose(); } catch { }
+            try { _tencentRealtimeConnectLock.Dispose(); } catch { }
+            try { _aliyunRealtimeSendLock.Dispose(); } catch { }
+            try { _aliyunRealtimeConnectLock.Dispose(); } catch { }
+            try { _doubaoRealtimeSendLock.Dispose(); } catch { }
+            try { _doubaoRealtimeConnectLock.Dispose(); } catch { }
+            try { _funAsrRealtimeSendLock.Dispose(); } catch { }
+            try { _funAsrRealtimeConnectLock.Dispose(); } catch { }
         }
 
         private sealed class OpenAiTranscriptionResponse

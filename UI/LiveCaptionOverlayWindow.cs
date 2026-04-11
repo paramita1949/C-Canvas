@@ -91,7 +91,6 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _ndiActionText;
         private readonly TextBlock _ndiStyleActionText;
         private readonly TextBlock _localStyleActionText;
-        private readonly Path _settingsIcon;
         private readonly Border _projectionAction;
         private readonly Border _ndiAction;
         private readonly Border _ndiStyleAction;
@@ -299,9 +298,9 @@ namespace ImageColorChanger.UI
                 CaptionStyleRequested?.Invoke();
             };
 
-            _settingsAction = CreateActionItem("IconLucideSettings", out _settingsIcon);
+            _settingsAction = CreateTextActionItem("输入源", out _);
             _settingsAction.Margin = new Thickness(6, 0, 0, 0);
-            _settingsAction.ToolTip = "字幕设置";
+            _settingsAction.ToolTip = "音频输入源";
             _settingsAction.PreviewMouseLeftButtonDown += (_, e) =>
             {
                 e.Handled = true;
@@ -367,7 +366,6 @@ namespace ImageColorChanger.UI
 
                 ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
                     $"OverlayLoaded: dock={_dockMode}, hasCustom={_hasCustomFloatingBounds}, cachedFloating=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##}), actual=({Left:0.##},{Top:0.##},{Width:0.##}x{Height:0.##})");
-                StartSettingsIconAnimation();
                 ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
                     $"OverlayLoaded: projectionAction visible={_projectionAction.IsVisible}, size={_projectionAction.ActualWidth}x{_projectionAction.ActualHeight}; settingsAction visible={_settingsAction.IsVisible}, size={_settingsAction.ActualWidth}x{_settingsAction.ActualHeight}; closeAction visible={_closeAction.IsVisible}, size={_closeAction.ActualWidth}x{_closeAction.ActualHeight}");
             };
@@ -1216,17 +1214,6 @@ namespace ImageColorChanger.UI
             }
 
             return path;
-        }
-
-        private void StartSettingsIconAnimation()
-        {
-            var rotate = new RotateTransform(0, 7, 7);
-            _settingsIcon.RenderTransform = rotate;
-            var spin = new DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(3.2)))
-            {
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            rotate.BeginAnimation(RotateTransform.AngleProperty, spin);
         }
 
         public void UpdateCaption(string text, int? highlightStart = null)

@@ -22,6 +22,57 @@ namespace ImageColorChanger.Core
             }
         }
 
+        public string LiveCaptionAudioInputMode
+        {
+            get => NormalizeLiveCaptionAudioInputMode(_config.LiveCaptionAudioInputMode);
+            set
+            {
+                string next = NormalizeLiveCaptionAudioInputMode(value);
+                if (!string.Equals(_config.LiveCaptionAudioInputMode, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionAudioInputMode = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionInputDeviceId
+        {
+            get => _config.LiveCaptionInputDeviceId ?? string.Empty;
+            set
+            {
+                string next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionInputDeviceId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionInputDeviceId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionSystemDeviceId
+        {
+            get => _config.LiveCaptionSystemDeviceId ?? string.Empty;
+            set
+            {
+                string next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionSystemDeviceId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionSystemDeviceId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        private static string NormalizeLiveCaptionAudioInputMode(string value)
+        {
+            return (value ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "input" => "input",
+                _ => "system"
+            };
+        }
+
         private static string NormalizeLiveCaptionAsrProvider(string value)
         {
             var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
@@ -774,6 +825,9 @@ namespace ImageColorChanger.Core
     public partial class AppConfig
     {
         public string LiveCaptionAsrProvider { get; set; } = "baidu";
+        public string LiveCaptionAudioInputMode { get; set; } = "system";
+        public string LiveCaptionInputDeviceId { get; set; } = "";
+        public string LiveCaptionSystemDeviceId { get; set; } = "";
         public string LiveCaptionProxyBaseUrl { get; set; } = "http://localhost:8317/v1";
         public bool LiveCaptionFunAsrAllowInsecureTls { get; set; } = true;
         public bool LiveCaptionNdiEnabled { get; set; } = false;
