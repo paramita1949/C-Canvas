@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services;
 using ImageColorChanger.Services.LiveCaption;
 using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
@@ -13,6 +14,8 @@ namespace ImageColorChanger.UI
     public partial class MainWindow : Window
     {
         private RealtimeCaptionEngine _liveCaptionEngine;
+        private SharedAudioCaptureSession _sharedAudioCaptureSession;
+        private BibleShortPhraseRuntime _bibleShortPhraseRuntime;
         private LiveCaptionOverlayWindow _liveCaptionOverlayWindow;
         private LiveCaptionDockMode _liveCaptionDockMode = LiveCaptionDockMode.Floating;
         private bool _isDisposingLiveCaption;
@@ -29,6 +32,8 @@ namespace ImageColorChanger.UI
         private readonly LiveCaptionDisplayComposer _liveCaptionComposer = new(lineCharLimit: 30, displayLineLimit: 2);
         private readonly LiveCaptionDisplayComposer _liveCaptionNdiComposer = new(lineCharLimit: 20, displayLineLimit: 2);
         private DateTime _liveCaptionLastToggleUtc = DateTime.MinValue;
+        private DateTime _shortPhraseLastFeedbackUtc = DateTime.MinValue;
+        private bool _hasShownRealtimeSubtitleFeedback;
         private DateTime _captionShiftProbeLastLogUtc = DateTime.MinValue;
         private string _captionShiftProbePrevDisplay = string.Empty;
         private const int LiveCaptionToggleDebounceMs = 220;
@@ -37,6 +42,8 @@ namespace ImageColorChanger.UI
         private void EnsureLiveCaptionComponents()
         {
             LoadLiveCaptionAudioSourceFromConfig();
+
+            _sharedAudioCaptureSession ??= new SharedAudioCaptureSession();
 
             if (_liveCaptionEngine == null)
             {
@@ -59,17 +66,55 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.CaptionOrientationRequested += OnLiveCaptionOverlayCaptionOrientationRequested;
                 _liveCaptionOverlayWindow.CaptionPositionRequested += OnLiveCaptionOverlayCaptionPositionRequested;
                 _liveCaptionOverlayWindow.CloseRequested += StopLiveCaption;
+                _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested += OnRealtimeRecognitionToggleRequested;
+                _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested += OnShortPhraseRecognitionToggleRequested;
                 _liveCaptionOverlayWindow.FloatingBoundsChanged += OnLiveCaptionFloatingBoundsChanged;
                 _liveCaptionOverlayWindow.Closed += LiveCaptionOverlayWindow_Closed;
                 _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
                 _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
                 _liveCaptionOverlayWindow.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
+                _liveCaptionOverlayWindow.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, _configManager.LiveCaptionShortPhraseEnabled);
                 UpdateLiveCaptionNdiActionState();
                 LoadLiveCaptionFloatingBoundsFromConfig();
                 ApplyLiveCaptionTypographyFromBible();
                 ApplyProjectionCaptionLayoutFromConfig();
                 LiveCaptionDebugLogger.Log("EnsureComponents: OverlayWindow created and handlers attached.");
             }
+
+            if (_bibleService == null)
+            {
+                InitializeBibleService();
+            }
+
+            _bibleBaiduShortSpeechClient ??= new BibleBaiduShortSpeechClient(_configManager);
+            _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService();
+            _bibleShortPhraseRuntime ??= new BibleShortPhraseRuntime(
+                new BibleShortPhraseConsumer(
+                    _bibleService,
+                    (wav, ct) => _bibleBaiduShortSpeechClient.TranscribeWavAsync(wav, ct),
+                    _bibleSpeechReverseLookupService,
+                    msg => LiveCaptionDebugLogger.Log($"BibleShortPhrase: {msg}")),
+                result =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (result.Success)
+                        {
+                            ShowToast(FormatBibleReferenceToastText(
+                                result.Reference.BookId,
+                                result.Reference.Chapter,
+                                Math.Max(1, result.Reference.StartVerse),
+                                Math.Max(1, result.FinalEndVerse)));
+                            AddPinyinHistoryToEmptySlot(
+                                result.Reference.BookId,
+                                result.Reference.Chapter,
+                                Math.Max(1, result.Reference.StartVerse),
+                                Math.Max(1, result.FinalEndVerse));
+                        }
+
+                        ShowShortPhraseFeedback(result);
+                    }));
+                });
 
         }
 
@@ -92,8 +137,20 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
-            LoadLiveCaptionAudioSourceFromConfig();
             StartLiveCaption(_liveCaptionCurrentSource);
+        }
+
+        private void OpenLiveCaptionPanel()
+        {
+            if (!_liveCaptionOverlayWindow.IsVisible)
+            {
+                _liveCaptionOverlayWindow.Show();
+            }
+
+            _liveCaptionOverlayWindow.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, _configManager.LiveCaptionShortPhraseEnabled);
+            _liveCaptionOverlayWindow.RefreshDockLayoutNow();
+            ApplyLiveCaptionTypographyFromBible();
+            SyncLiveCaptionVisibilityWithMainWindowContext("panel-open");
         }
 
         private void OpenAiConfigFile()
@@ -157,22 +214,18 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void StartLiveCaption(LiveCaptionAudioSource source)
+        private async void StartLiveCaption(LiveCaptionAudioSource source)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             EnsureLiveCaptionComponents();
             LiveCaptionDebugLogger.Log($"StartPerf: ensure-components={sw.ElapsedMilliseconds}ms");
             LiveCaptionDebugLogger.Log($"Start: request source={source}, configured={_liveCaptionEngine?.IsConfigured}, running={_liveCaptionEngine?.IsRunning}");
-            if (!_liveCaptionEngine.IsConfigured)
-            {
-                ShowStatus("实时字幕未启动：请先完成 AI配置（ASR服务与鉴权信息）");
-                LiveCaptionDebugLogger.Log("Start: blocked because configuration is incomplete.");
-                return;
-            }
 
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionProjectionCaptionHidden = true;
             _liveCaptionComposer.Reset();
+            _hasShownRealtimeSubtitleFeedback = false;
+            _shortPhraseLastFeedbackUtc = DateTime.MinValue;
 
             if (_liveCaptionOverlayWindow.GetDockMode() != _liveCaptionDockMode)
             {
@@ -196,30 +249,26 @@ namespace ImageColorChanger.UI
             SyncLiveCaptionProjectionCaptionForProjectionState(_projectionManager?.IsProjectionActive == true);
             ApplyMainWindowLiveCaptionReservation();
             _liveCaptionCurrentSource = source;
+            _liveCaptionOverlayWindow.SetRecognitionToggleStates(
+                _configManager.LiveCaptionRealtimeEnabled,
+                _configManager.LiveCaptionShortPhraseEnabled);
             SyncLiveCaptionVisibilityWithMainWindowContext("start");
             LiveCaptionDebugLogger.Log($"StartPerf: overlay-prepare={sw.ElapsedMilliseconds}ms");
 
-            RegisterLiveCaptionF4HotKey();
-            LiveCaptionDebugLogger.Log($"StartPerf: engine-start-begin={sw.ElapsedMilliseconds}ms");
-            var engine = _liveCaptionEngine;
-            if (engine == null)
+            bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
+            bool shortPhraseEnabled = _configManager.LiveCaptionShortPhraseEnabled;
+            if (!LiveCaptionStartupPolicy.ShouldAutoStartRecognition(realtimeEnabled, shortPhraseEnabled))
             {
-                LiveCaptionDebugLogger.Log("Start: engine is null, skipped.");
+                LiveCaptionDebugLogger.Log("Start: no recognition mode enabled, panel opened without starting engines.");
+                ShowStatus("请选择实时语音或经文识别");
+                RegisterLiveCaptionF4HotKey();
                 return;
             }
 
-            var startSw = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                engine.Start(source, _liveCaptionSelectedInputDeviceId, _liveCaptionSelectedSystemDeviceId);
-                LiveCaptionDebugLogger.Log($"StartPerf: engine-start-done={startSw.ElapsedMilliseconds}ms");
-                LiveCaptionDebugLogger.Log($"Start: engine started, dock={_liveCaptionDockMode}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}");
-            }
-            catch (Exception ex)
-            {
-                LiveCaptionDebugLogger.Log($"Start: engine start failed, error={ex.Message}");
-                ShowStatus($"实时字幕启动失败：{ex.Message}");
-            }
+            RegisterLiveCaptionF4HotKey();
+            LiveCaptionDebugLogger.Log($"StartPerf: engine-start-begin={sw.ElapsedMilliseconds}ms");
+            await ApplyRecognitionStateAsync();
+            LiveCaptionDebugLogger.Log($"Start: recognition state applied, dock={_liveCaptionDockMode}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}");
         }
 
         private void StopLiveCaption()
@@ -228,6 +277,14 @@ namespace ImageColorChanger.UI
             {
                 LiveCaptionDebugLogger.Log($"Stop: request running={_liveCaptionEngine?.IsRunning}, overlayVisible={_liveCaptionOverlayWindow?.IsVisible}");
                 _liveCaptionEngine?.Stop();
+                if (_bibleShortPhraseRuntime?.IsRunning == true)
+                {
+                    _ = _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                }
+                _sharedAudioCaptureSession?.Stop();
+                _configManager.LiveCaptionRealtimeEnabled = false;
+                _configManager.LiveCaptionShortPhraseEnabled = false;
+                _liveCaptionOverlayWindow?.SetRecognitionToggleStates(false, false);
                 PersistLiveCaptionFloatingBoundsToConfig("stop");
 
                 if (_liveCaptionOverlayWindow != null && _liveCaptionOverlayWindow.IsVisible)
@@ -240,6 +297,8 @@ namespace ImageColorChanger.UI
                 _liveCaptionProjectionCaptionHidden = true;
                 _liveCaptionComposer.Reset();
                 _liveCaptionNdiComposer.Reset();
+                _hasShownRealtimeSubtitleFeedback = false;
+                _shortPhraseLastFeedbackUtc = DateTime.MinValue;
                 UpdateLiveCaptionProjectionActionState();
                 UpdateLiveCaptionNdiActionState();
                 _projectionManager?.HideProjectionCaptionOverlay();
@@ -265,6 +324,117 @@ namespace ImageColorChanger.UI
             }
 
             StopLiveCaption();
+        }
+
+        private async void OnRealtimeRecognitionToggleRequested(bool enabled)
+        {
+            LiveCaptionDebugLogger.Log($"RecognitionToggle: realtime={enabled}");
+            _configManager.LiveCaptionRealtimeEnabled = enabled;
+            await ApplyRecognitionStateAsync();
+        }
+
+        private async void OnShortPhraseRecognitionToggleRequested(bool enabled)
+        {
+            LiveCaptionDebugLogger.Log($"RecognitionToggle: shortPhrase={enabled}");
+            _configManager.LiveCaptionShortPhraseEnabled = enabled;
+            await ApplyRecognitionStateAsync();
+        }
+
+        private async Task ApplyRecognitionStateAsync()
+        {
+            EnsureLiveCaptionComponents();
+
+            bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
+            bool shortEnabled = _configManager.LiveCaptionShortPhraseEnabled;
+            LiveCaptionDebugLogger.Log($"RecognitionState: realtime={realtimeEnabled}, short={shortEnabled}, source={_liveCaptionCurrentSource}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'");
+            _liveCaptionOverlayWindow?.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
+
+            if (!realtimeEnabled && !shortEnabled)
+            {
+                LiveCaptionDebugLogger.Log("RecognitionState: both disabled, stopping all consumers and shared capture.");
+                _liveCaptionEngine?.Stop();
+                if (_bibleShortPhraseRuntime?.IsRunning == true)
+                {
+                    await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                }
+                _sharedAudioCaptureSession?.Stop();
+                ShowStatus("字幕识别已关闭");
+                return;
+            }
+
+            _sharedAudioCaptureSession.SetSelection(_liveCaptionCurrentSource, _liveCaptionSelectedInputDeviceId, _liveCaptionSelectedSystemDeviceId);
+            if (!_sharedAudioCaptureSession.IsRunning)
+            {
+                LiveCaptionDebugLogger.Log("RecognitionState: starting shared audio capture.");
+                _sharedAudioCaptureSession.Start();
+                LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture started, device='{_sharedAudioCaptureSession.SelectedDeviceName}'.");
+            }
+
+            if (realtimeEnabled)
+            {
+                if (!_liveCaptionEngine.IsConfigured)
+                {
+                    LiveCaptionDebugLogger.Log("RecognitionState: realtime requested but ASR config incomplete.");
+                    ShowStatus("实时字幕未启动：请先完成 AI配置（ASR服务与鉴权信息）");
+                }
+                else if (!_liveCaptionEngine.IsRunning)
+                {
+                    LiveCaptionDebugLogger.Log("RecognitionState: starting realtime engine with shared capture.");
+                    _liveCaptionEngine.StartWithSharedCapture(_sharedAudioCaptureSession);
+                    ShowStatus("实时语音已启用");
+                }
+            }
+            else
+            {
+                LiveCaptionDebugLogger.Log("RecognitionState: stopping realtime engine.");
+                _liveCaptionEngine?.Stop();
+            }
+
+            if (shortEnabled)
+            {
+                if (!_bibleBaiduShortSpeechClient.IsConfigured)
+                {
+                    string missing = _bibleBaiduShortSpeechClient.MissingConfigSummary;
+                    LiveCaptionDebugLogger.Log($"RecognitionState: short phrase requested but Baidu short speech config incomplete. missing={missing}");
+                    ShowStatus(string.IsNullOrWhiteSpace(missing)
+                        ? "经文识别未启动：请先在 AI配置 中填写百度短语鉴权信息"
+                        : $"经文识别未启动：缺少 {missing}");
+                }
+                else if (!_bibleShortPhraseRuntime.IsRunning)
+                {
+                    LiveCaptionDebugLogger.Log("RecognitionState: starting short phrase runtime with shared capture.");
+                    _bibleShortPhraseRuntime.Start(_sharedAudioCaptureSession);
+                    ShowStatus("经文识别已启用，等待识别结果");
+                }
+                else
+                {
+                    LiveCaptionDebugLogger.Log("RecognitionState: short phrase runtime already running.");
+                }
+            }
+            else if (_bibleShortPhraseRuntime?.IsRunning == true)
+            {
+                LiveCaptionDebugLogger.Log("RecognitionState: stopping short phrase runtime.");
+                await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                ShowStatus("经文识别已关闭");
+            }
+        }
+
+        internal async Task ApplyLiveCaptionRecognitionStateFromConfigAsync()
+        {
+            if (_liveCaptionOverlayWindow != null)
+            {
+                _liveCaptionOverlayWindow.SetRecognitionToggleStates(
+                    _configManager.LiveCaptionRealtimeEnabled,
+                    _configManager.LiveCaptionShortPhraseEnabled);
+            }
+
+            if ((_liveCaptionOverlayWindow?.IsVisible == true) ||
+                (_sharedAudioCaptureSession?.IsRunning == true) ||
+                (_liveCaptionEngine?.IsRunning == true) ||
+                (_bibleShortPhraseRuntime?.IsRunning == true))
+            {
+                await ApplyRecognitionStateAsync();
+            }
         }
 
         private void OnLiveCaptionSubtitleUpdated(LiveCaptionAsrText update)
@@ -306,6 +476,12 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                if (!_hasShownRealtimeSubtitleFeedback)
+                {
+                    _hasShownRealtimeSubtitleFeedback = true;
+                    ShowStatus("实时字幕已接收");
+                }
+
                 // 投影字幕与本机字幕窗显示状态解耦：
                 // 即使本机字幕窗被手动隐藏，也要继续推送投影字幕。
                 UpdateLiveCaptionProjectionCaption(frame.Display, frame.HighlightStart);
@@ -326,6 +502,20 @@ namespace ImageColorChanger.UI
                 ApplyMainWindowLiveCaptionReservation();
                 LiveCaptionDebugLogger.Log($"SubtitleUpdated: rendered='{TrimForLog(frame.Display)}'");
             }));
+        }
+
+        private void ShowShortPhraseFeedback(BibleShortPhraseConsumer.Result result)
+        {
+            string message = BibleShortPhraseFeedbackPolicy.BuildStatusMessage(result);
+            bool isSuccess = result?.Success == true;
+            var nowUtc = DateTime.UtcNow;
+            if (!isSuccess && (nowUtc - _shortPhraseLastFeedbackUtc).TotalSeconds < 6)
+            {
+                return;
+            }
+
+            _shortPhraseLastFeedbackUtc = nowUtc;
+            ShowStatus(message);
         }
 
         private void OnLiveCaptionStatusChanged(string status)
@@ -360,6 +550,18 @@ namespace ImageColorChanger.UI
                     LiveCaptionDebugLogger.Log("Dispose: engine disposed.");
                 }
 
+                if (_sharedAudioCaptureSession != null)
+                {
+                    _sharedAudioCaptureSession.Dispose();
+                    _sharedAudioCaptureSession = null;
+                }
+
+                if (_bibleShortPhraseRuntime != null)
+                {
+                    _bibleShortPhraseRuntime.Dispose();
+                    _bibleShortPhraseRuntime = null;
+                }
+
                 if (_liveCaptionOverlayWindow != null)
                 {
                     PersistLiveCaptionFloatingBoundsToConfig("dispose");
@@ -372,6 +574,8 @@ namespace ImageColorChanger.UI
                     _liveCaptionOverlayWindow.CaptionOrientationRequested -= OnLiveCaptionOverlayCaptionOrientationRequested;
                     _liveCaptionOverlayWindow.CaptionPositionRequested -= OnLiveCaptionOverlayCaptionPositionRequested;
                     _liveCaptionOverlayWindow.CloseRequested -= StopLiveCaption;
+                    _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested -= OnRealtimeRecognitionToggleRequested;
+                    _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested -= OnShortPhraseRecognitionToggleRequested;
                     _liveCaptionOverlayWindow.FloatingBoundsChanged -= OnLiveCaptionFloatingBoundsChanged;
                     _liveCaptionOverlayWindow.Closed -= LiveCaptionOverlayWindow_Closed;
                     _liveCaptionOverlayWindow.Close();
@@ -2262,7 +2466,7 @@ namespace ImageColorChanger.UI
             root.Items.Add(categoryMenu);
         }
 
-        private static LiveCaptionInputDeviceCategory ClassifyLiveCaptionInputDevice(RealtimeCaptionEngine.InputAudioDeviceInfo device)
+        private static LiveCaptionInputDeviceCategory ClassifyLiveCaptionInputDevice(SharedAudioCaptureSession.InputAudioDeviceInfo device)
         {
             if (device == null)
             {
@@ -2393,7 +2597,7 @@ namespace ImageColorChanger.UI
 
         internal bool TryToggleLiveCaptionOverlayByShortcut()
         {
-            if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning || _liveCaptionOverlayWindow == null)
+            if (_liveCaptionOverlayWindow == null)
             {
                 return false;
             }
@@ -2405,8 +2609,7 @@ namespace ImageColorChanger.UI
                 return true;
             }
 
-            TryToggleLiveCaptionOverlayVisibilityInternal("window-keydown-fallback");
-            return true;
+            return TryHideLiveCaptionOverlayByShortcut("window-keydown-fallback");
         }
 
         private void ToggleLiveCaptionOverlayVisibility()
@@ -2416,9 +2619,9 @@ namespace ImageColorChanger.UI
 
         private void TryToggleLiveCaptionOverlayVisibilityInternal(string source)
         {
-            if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning || _liveCaptionOverlayWindow == null)
+            if (_liveCaptionOverlayWindow == null)
             {
-                LiveCaptionDebugLogger.Log($"F4:Toggle ignored source={source}, engineNull={_liveCaptionEngine == null}, running={_liveCaptionEngine?.IsRunning}, overlayNull={_liveCaptionOverlayWindow == null}");
+                LiveCaptionDebugLogger.Log($"F4:Toggle ignored source={source}, overlayNull={_liveCaptionOverlayWindow == null}");
                 return;
             }
 
@@ -2441,28 +2644,11 @@ namespace ImageColorChanger.UI
             {
                 if (_liveCaptionOverlayWindow.IsVisible)
                 {
-                    _liveCaptionOverlayManuallyHidden = true;
-                    _liveCaptionOverlayWindow.Hide();
-                    ApplyMainWindowLiveCaptionReservation();
-                    LiveCaptionDebugLogger.Log($"F4: overlay hidden manually, source={source}.");
+                    HideLiveCaptionOverlay(source);
                     return;
                 }
 
-                _liveCaptionOverlayManuallyHidden = false;
-                if (_liveCaptionOverlayWindow.GetDockMode() != _liveCaptionDockMode)
-                {
-                    _liveCaptionOverlayWindow.SetDockMode(_liveCaptionDockMode);
-                }
-                _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
-                _liveCaptionOverlayWindow.Show();
-                _liveCaptionOverlayWindow.RefreshDockLayoutNow();
-                _liveCaptionOverlayWindow.UpdateCaption(
-                    _liveCaptionComposer.CurrentDisplay,
-                    _liveCaptionComposer.CurrentHighlightStart);
-                SyncLiveCaptionVisibilityWithMainWindowContext("f4-show");
-                ApplyMainWindowLiveCaptionReservation();
-
-                LiveCaptionDebugLogger.Log($"F4: overlay shown, source={source}.");
+                LiveCaptionDebugLogger.Log($"F4: hide ignored source={source}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}.");
             }
             finally
             {
@@ -2471,6 +2657,25 @@ namespace ImageColorChanger.UI
                     _liveCaptionToggleInProgress = false;
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
+        }
+
+        private bool TryHideLiveCaptionOverlayByShortcut(string source)
+        {
+            TryToggleLiveCaptionOverlayVisibilityInternal(source);
+            return true;
+        }
+
+        private void HideLiveCaptionOverlay(string source)
+        {
+            if (_liveCaptionOverlayWindow == null || !_liveCaptionOverlayWindow.IsVisible)
+            {
+                return;
+            }
+
+            _liveCaptionOverlayManuallyHidden = true;
+            _liveCaptionOverlayWindow.Hide();
+            ApplyMainWindowLiveCaptionReservation();
+            LiveCaptionDebugLogger.Log($"Overlay: hidden manually, source={source}.");
         }
 
         private static string TrimForLog(string text)

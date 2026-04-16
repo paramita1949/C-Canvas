@@ -2489,7 +2489,8 @@ namespace ImageColorChanger.Services.LiveCaption
                 return string.Empty;
             }
 
-            LastTranscribeUrl = "https://vop.baidu.com/server_api";
+            LastTranscribeUrl = ResolveBaiduShortSpeechEndpoint(_asrModel);
+            int shortSpeechDevPid = ResolveBaiduShortSpeechDevPid(_asrModel, _baiduDevPid);
             var body = new
             {
                 format = "wav",
@@ -2497,7 +2498,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 channel = 1,
                 token,
                 cuid = string.IsNullOrWhiteSpace(_baiduAppId) ? Environment.MachineName : _baiduAppId,
-                dev_pid = _baiduDevPid,
+                dev_pid = shortSpeechDevPid,
                 speech = Convert.ToBase64String(wavBytes),
                 len = wavBytes.Length
             };
@@ -2549,6 +2550,48 @@ namespace ImageColorChanger.Services.LiveCaption
 
             LastError = string.Empty;
             return payload.Result[0].Trim();
+        }
+
+        private static string ResolveBaiduShortSpeechEndpoint(string modelId)
+        {
+            return IsBaiduShortSpeechProModel(modelId)
+                ? "https://vop.baidu.com/pro_api"
+                : "http://vop.baidu.com/server_api";
+        }
+
+        private static int ResolveBaiduShortSpeechDevPid(string modelId, int configuredDevPid)
+        {
+            bool isProModel = IsBaiduShortSpeechProModel(modelId);
+            if (configuredDevPid > 0)
+            {
+                if (isProModel && configuredDevPid == 1537)
+                {
+                    return 80001;
+                }
+
+                if (!isProModel && configuredDevPid == 80001)
+                {
+                    return 1537;
+                }
+
+                return configuredDevPid;
+            }
+
+            return isProModel ? 80001 : 1537;
+        }
+
+        private static bool IsBaiduShortSpeechProModel(string modelId)
+        {
+            if (string.IsNullOrWhiteSpace(modelId))
+            {
+                return false;
+            }
+
+            string normalized = modelId.Trim().ToLowerInvariant();
+            return normalized.Contains("short-pro", StringComparison.Ordinal)
+                || normalized.Contains("pro_api", StringComparison.Ordinal)
+                || normalized.Contains("极速", StringComparison.Ordinal)
+                || normalized.Contains("80001", StringComparison.Ordinal);
         }
 
         private async Task<string> TranscribeWithTencentAsync(byte[] wavBytes, CancellationToken cancellationToken)

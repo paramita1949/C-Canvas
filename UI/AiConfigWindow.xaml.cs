@@ -7,9 +7,18 @@ namespace ImageColorChanger.UI
 {
     public partial class AiConfigWindow : Window
     {
+        private enum SpeechMode
+        {
+            Realtime = 0,
+            ShortPhrase = 1
+        }
+
         private readonly ConfigManager _configManager;
         private bool _isApplyingModelSelection;
         private bool _isApplyingDialectSelection;
+        private bool _isApplyingSpeechModeSelection;
+        private bool _isApplyingProviderSelection;
+        private SpeechMode _speechMode = SpeechMode.Realtime;
         private string _baseHint = string.Empty;
 
         private sealed class ProviderPreset
@@ -38,6 +47,12 @@ namespace ImageColorChanger.UI
             public string Description { get; set; } = string.Empty;
         }
 
+        private sealed class ProviderOption
+        {
+            public string Provider { get; set; } = "baidu";
+            public string DisplayName { get; set; } = string.Empty;
+        }
+
         public AiConfigWindow(ConfigManager configManager)
         {
             InitializeComponent();
@@ -47,25 +62,26 @@ namespace ImageColorChanger.UI
 
         private void LoadValues()
         {
-            string provider = NormalizeProvider(_configManager.LiveCaptionAsrProvider);
-            BaseUrlTextBox.Text = _configManager.LiveCaptionProxyBaseUrl;
-            SelectProvider(provider);
-            InitializeModelSelection(provider, _configManager.LiveCaptionAsrModel);
+            ApplySpeechMode(ResolveSpeechMode(_configManager.LiveCaptionSpeechMode));
+            string provider = GetModeProvider(_speechMode);
+            BaseUrlTextBox.Text = GetModeBaseUrl(_speechMode);
+            PopulateProviderOptions(_speechMode, provider);
+            provider = GetSelectedProvider();
+            InitializeModelSelection(provider, GetModeModel(_speechMode));
             InitializeDialectSelection(provider);
             LoadProviderCredentials(provider);
         }
 
         private void ProviderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ProviderComboBox.SelectedItem is not ComboBoxItem item)
+            if (_isApplyingProviderSelection || ProviderComboBox.SelectedItem is not ComboBoxItem item)
             {
                 return;
             }
 
             string provider = NormalizeProvider(item.Tag?.ToString());
             ApplyPreset(GetPreset(provider));
-            ApplyProviderDefaults(provider);
-            PopulateModelOptions(provider, _configManager.LiveCaptionAsrModel);
+            PopulateModelOptions(provider, GetModeModel(_speechMode));
             PopulateDialectOptions(provider, GetCurrentDialectValue(provider));
             LoadProviderCredentials(provider);
         }
@@ -75,6 +91,13 @@ namespace ImageColorChanger.UI
             if (_isApplyingModelSelection)
             {
                 return;
+            }
+
+            string provider = GetSelectedProvider();
+            if (_speechMode == SpeechMode.ShortPhrase &&
+                string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase))
+            {
+                BaseUrlTextBox.Text = GetShortSpeechDefaultBaseUrl(GetSelectedModelId());
             }
 
             RefreshHintWithModelDescription();
@@ -152,6 +175,10 @@ namespace ImageColorChanger.UI
 
             }
 
+            _configManager.LiveCaptionSpeechMode = _speechMode == SpeechMode.ShortPhrase ? "short" : "realtime";
+            SaveModeConfig(_speechMode, provider, baseUrl, model, dialect);
+
+            // Keep current-mode values mirrored to legacy global fields so existing runtime paths continue working.
             _configManager.LiveCaptionAsrProvider = provider;
             _configManager.LiveCaptionProxyBaseUrl = baseUrl;
             _configManager.LiveCaptionAsrModel = model;
@@ -209,8 +236,30 @@ namespace ImageColorChanger.UI
                 "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
                 "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
-                _ => "https://vop.baidu.com/server_api"
+                _ => "wss://vop.baidu.com/realtime_asr"
             };
+        }
+
+        private static string GetProviderDefaultBaseUrl(SpeechMode mode, string provider)
+        {
+            if (mode == SpeechMode.ShortPhrase)
+            {
+                return NormalizeProvider(provider) switch
+                {
+                    "tencent" => "https://asr.tencentcloudapi.com",
+                    _ => "http://vop.baidu.com/server_api"
+                };
+            }
+
+            return GetProviderDefaultBaseUrl(provider);
+        }
+
+        private static string GetShortSpeechDefaultBaseUrl(string modelId)
+        {
+            string model = (modelId ?? string.Empty).Trim().ToLowerInvariant();
+            return model.Contains("short-pro", StringComparison.Ordinal) || model.Contains("80001", StringComparison.Ordinal)
+                ? "https://vop.baidu.com/pro_api"
+                : "http://vop.baidu.com/server_api";
         }
 
         private static string NormalizeProvider(string provider)
@@ -232,12 +281,42 @@ namespace ImageColorChanger.UI
             PopulateModelOptions(provider, currentModel);
         }
 
+        private void SpeechModeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_isApplyingSpeechModeSelection || !IsLoaded)
+            {
+                return;
+            }
+
+            _speechMode = ShortSpeechModeToggle?.IsChecked == true
+                ? SpeechMode.ShortPhrase
+                : SpeechMode.Realtime;
+
+            if (RealtimeSpeechModeToggle != null)
+            {
+                RealtimeSpeechModeToggle.IsChecked = _speechMode == SpeechMode.Realtime;
+            }
+            if (ShortSpeechModeToggle != null)
+            {
+                ShortSpeechModeToggle.IsChecked = _speechMode == SpeechMode.ShortPhrase;
+            }
+
+            string provider = GetModeProvider(_speechMode);
+            string preferredModelId = GetModeModel(_speechMode);
+            PopulateProviderOptions(_speechMode, provider);
+            provider = GetSelectedProvider();
+            BaseUrlTextBox.Text = GetModeBaseUrl(_speechMode);
+            PopulateModelOptions(provider, preferredModelId);
+            InitializeDialectSelection(provider);
+            LoadProviderCredentials(provider);
+        }
+
         private void PopulateModelOptions(string provider, string preferredModelId)
         {
             _isApplyingModelSelection = true;
             try
             {
-                var options = GetBuiltInModelOptions(provider);
+                var options = GetBuiltInModelOptions(provider, _speechMode);
                 ModelSelectComboBox.Items.Clear();
                 foreach (ModelOption option in options)
                 {
@@ -283,10 +362,11 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            return GetBuiltInModelOptions(GetSelectedProvider())[0].ModelId;
+            var builtIn = GetBuiltInModelOptions(GetSelectedProvider(), _speechMode);
+            return builtIn.Length > 0 ? builtIn[0].ModelId : string.Empty;
         }
 
-        private static ModelOption[] GetBuiltInModelOptions(string provider)
+        private static ModelOption[] GetBuiltInModelOptions(string provider, SpeechMode speechMode)
         {
             string p = NormalizeProvider(provider);
             return p switch
@@ -313,20 +393,38 @@ namespace ImageColorChanger.UI
                 {
                     new ModelOption
                     {
-                        Label = "腾讯实时语音（默认）",
+                        Label = speechMode == SpeechMode.ShortPhrase ? "腾讯一句话识别（默认）" : "腾讯实时语音（默认）",
                         ModelId = "16k_zh",
-                        Description = "实时流式识别（普通话 16k）。"
+                        Description = speechMode == SpeechMode.ShortPhrase
+                            ? "腾讯云一句话识别（普通话 16k，60 秒内短音频）。"
+                            : "实时流式识别（普通话 16k）。"
                     }
                 },
-                _ => new[]
-                {
-                    new ModelOption
+                _ => speechMode == SpeechMode.ShortPhrase
+                    ? new[]
                     {
-                        Label = "百度实时语音（默认）",
-                        ModelId = "baidu-realtime",
-                        Description = "实时识别主链路。"
+                        new ModelOption
+                        {
+                            Label = "百度经文识别标准版",
+                            ModelId = "baidu-short-standard",
+                            Description = "标准版经文识别（server_api，默认 dev_pid=1537）。"
+                        },
+                        new ModelOption
+                        {
+                            Label = "百度经文识别极速版",
+                            ModelId = "baidu-short-pro",
+                            Description = "极速版经文识别（pro_api，默认 dev_pid=80001）。"
+                        }
                     }
-                }
+                    : new[]
+                    {
+                        new ModelOption
+                        {
+                            Label = "百度实时语音（WebSocket）",
+                            ModelId = "baidu-realtime",
+                            Description = "实时识别主链路；失败时回退经文识别。"
+                        }
+                    }
             };
         }
 
@@ -378,7 +476,9 @@ namespace ImageColorChanger.UI
         {
             if (string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase))
             {
-                int devPid = _configManager.LiveCaptionBaiduDevPid > 0 ? _configManager.LiveCaptionBaiduDevPid : 1537;
+                int devPid = _speechMode == SpeechMode.ShortPhrase
+                    ? _configManager.LiveCaptionShortBaiduDevPid
+                    : _configManager.LiveCaptionRealtimeBaiduDevPid;
                 return devPid.ToString();
             }
 
@@ -461,7 +561,9 @@ namespace ImageColorChanger.UI
                     Label1 = "AppID（可选）",
                     Label2 = "SecretId",
                     Label3 = "SecretKey",
-                    Hint = "腾讯云实时识别：连接地址示例 wss://asr.cloud.tencent.com/asr/v2（实时链路会自动拼接 AppID 与签名参数）"
+                    Hint = _speechMode == SpeechMode.ShortPhrase
+                        ? "腾讯云一句话识别：接口地址 https://asr.tencentcloudapi.com（短语识别链会自动完成 TC3 签名）。"
+                        : "腾讯云实时识别：连接地址示例 wss://asr.cloud.tencent.com/asr/v2（实时链路会自动拼接 AppID 与签名参数）"
                 },
                 "aliyun" => new ProviderPreset
                 {
@@ -486,7 +588,7 @@ namespace ImageColorChanger.UI
                     Label1 = "AppID",
                     Label2 = "API Key",
                     Label3 = "Secret Key",
-                    Hint = "百度语音实时识别：连接地址示例 https://vop.baidu.com/server_api（短语音回退）"
+                    Hint = "百度语音实时识别：连接地址示例 wss://vop.baidu.com/realtime_asr（经文识别独立配置）"
                 }
             };
         }
@@ -502,8 +604,137 @@ namespace ImageColorChanger.UI
             Credential2TextBox.Visibility = preset.ShowCredential2 ? Visibility.Visible : Visibility.Collapsed;
             Credential3Label.Visibility = preset.ShowCredential3 ? Visibility.Visible : Visibility.Collapsed;
             Credential3TextBox.Visibility = preset.ShowCredential3 ? Visibility.Visible : Visibility.Collapsed;
-            _baseHint = preset.Hint;
+                _baseHint = preset.Hint;
             RefreshHintWithModelDescription();
+        }
+
+        private void ApplySpeechMode(SpeechMode speechMode)
+        {
+            _speechMode = speechMode;
+            if (RealtimeSpeechModeToggle == null || ShortSpeechModeToggle == null)
+            {
+                return;
+            }
+
+            _isApplyingSpeechModeSelection = true;
+            try
+            {
+                RealtimeSpeechModeToggle.IsChecked = speechMode == SpeechMode.Realtime;
+                ShortSpeechModeToggle.IsChecked = speechMode == SpeechMode.ShortPhrase;
+            }
+            finally
+            {
+                _isApplyingSpeechModeSelection = false;
+            }
+        }
+
+        private static SpeechMode ResolveSpeechMode(string modelId)
+        {
+            string model = (modelId ?? string.Empty).Trim().ToLowerInvariant();
+            return model.Contains("short", StringComparison.Ordinal)
+                ? SpeechMode.ShortPhrase
+                : SpeechMode.Realtime;
+        }
+
+        private void PopulateProviderOptions(SpeechMode mode, string preferredProvider)
+        {
+            _isApplyingProviderSelection = true;
+            try
+            {
+                ProviderComboBox.Items.Clear();
+                foreach (ProviderOption option in GetProviderOptions(mode))
+                {
+                    ProviderComboBox.Items.Add(new ComboBoxItem
+                    {
+                        Content = option.DisplayName,
+                        Tag = option.Provider
+                    });
+                }
+
+                SelectProvider(preferredProvider);
+            }
+            finally
+            {
+                _isApplyingProviderSelection = false;
+            }
+
+            string selectedProvider = GetSelectedProvider();
+            ApplyPreset(GetPreset(selectedProvider));
+        }
+
+        private static ProviderOption[] GetProviderOptions(SpeechMode mode)
+        {
+            if (mode == SpeechMode.ShortPhrase)
+            {
+                return new[]
+                {
+                    new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
+                    new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
+                };
+            }
+
+            return new[]
+            {
+                new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
+                new ProviderOption { Provider = "aliyun", DisplayName = "阿里云语音" },
+                new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
+                new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
+            };
+        }
+
+        private string GetModeProvider(SpeechMode mode)
+        {
+            return mode == SpeechMode.ShortPhrase
+                ? _configManager.LiveCaptionShortAsrProvider
+                : _configManager.LiveCaptionRealtimeAsrProvider;
+        }
+
+        private string GetModeBaseUrl(SpeechMode mode)
+        {
+            string provider = GetModeProvider(mode);
+            string value = mode == SpeechMode.ShortPhrase
+                ? _configManager.LiveCaptionShortProxyBaseUrl
+                : _configManager.LiveCaptionRealtimeProxyBaseUrl;
+
+            return string.IsNullOrWhiteSpace(value)
+                ? (mode == SpeechMode.ShortPhrase && string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase)
+                    ? GetShortSpeechDefaultBaseUrl(GetModeModel(mode))
+                    : GetProviderDefaultBaseUrl(mode, provider))
+                : value;
+        }
+
+        private string GetModeModel(SpeechMode mode)
+        {
+            return mode == SpeechMode.ShortPhrase
+                ? _configManager.LiveCaptionShortAsrModel
+                : _configManager.LiveCaptionRealtimeAsrModel;
+        }
+
+        private void SaveModeConfig(SpeechMode mode, string provider, string baseUrl, string model, string dialect)
+        {
+            if (mode == SpeechMode.ShortPhrase)
+            {
+                _configManager.LiveCaptionShortAsrProvider = provider;
+                _configManager.LiveCaptionShortProxyBaseUrl = baseUrl;
+                _configManager.LiveCaptionShortAsrModel = model;
+                if (string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(dialect, out int shortDevPid) &&
+                    shortDevPid > 0)
+                {
+                    _configManager.LiveCaptionShortBaiduDevPid = shortDevPid;
+                }
+                return;
+            }
+
+            _configManager.LiveCaptionRealtimeAsrProvider = provider;
+            _configManager.LiveCaptionRealtimeProxyBaseUrl = baseUrl;
+            _configManager.LiveCaptionRealtimeAsrModel = model;
+            if (string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(dialect, out int realtimeDevPid) &&
+                realtimeDevPid > 0)
+            {
+                _configManager.LiveCaptionRealtimeBaiduDevPid = realtimeDevPid;
+            }
         }
 
         private void LoadProviderCredentials(string provider)

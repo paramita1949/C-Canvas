@@ -22,4 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ImageColorChanger.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="Services\Fixtures\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

@@ -369,6 +369,19 @@
                         MouseLeftButtonDown="ColorButton_Click"/>
             </StackPanel>
 
+            <!-- 经文识别选项 -->
+            <CheckBox x:Name="ChkBibleShortPhraseRecognition"
+                      Content="经文识别"
+                      Foreground="White"
+                      FontSize="13"
+                      FontFamily="Microsoft YaHei UI"
+                      HorizontalAlignment="Right"
+                      VerticalContentAlignment="Center"
+                      Padding="0"
+                      Margin="0,6,0,0"
+                      Checked="BibleShortPhraseRecognition_Changed"
+                      Unchecked="BibleShortPhraseRecognition_Changed"/>
+
             <!-- 保存投影记录选项 -->
             <CheckBox x:Name="ChkSaveBibleHistory" 
                       Content="退出程序，保存投影记录" 

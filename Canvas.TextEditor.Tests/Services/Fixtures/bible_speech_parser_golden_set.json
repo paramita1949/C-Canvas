@@ -1,0 +1,3175 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-04-14T12:28:28+08:00",
+  "sampleCount": 352,
+  "samples": [
+    {
+      "text": "创世记一章一节",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "创世记1:1",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "创世记二章三节",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "创世记2:3-4",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "创世记一章",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "诗篇一章一节",
+      "expect": "accept",
+      "bookId": 19,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "诗篇1:1",
+      "expect": "accept",
+      "bookId": 19,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "诗篇二章三节",
+      "expect": "accept",
+      "bookId": 19,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "诗篇2:3-4",
+      "expect": "accept",
+      "bookId": 19,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "诗篇一章",
+      "expect": "accept",
+      "bookId": 19,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "以赛亚书一章一节",
+      "expect": "accept",
+      "bookId": 23,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "以赛亚书1:1",
+      "expect": "accept",
+      "bookId": 23,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "以赛亚书二章三节",
+      "expect": "accept",
+      "bookId": 23,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "以赛亚书2:3-4",
+      "expect": "accept",
+      "bookId": 23,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "以赛亚书一章",
+      "expect": "accept",
+      "bookId": 23,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "马太福音一章一节",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "马太福音1:1",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "马太福音二章三节",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "马太福音2:3-4",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "马太福音一章",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "路加福音一章一节",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "路加福音1:1",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "路加福音二章三节",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "路加福音2:3-4",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "路加福音一章",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约翰福音一章一节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约翰福音1:1",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约翰福音二章三节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约翰福音2:3-4",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约翰福音一章",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "罗马书一章一节",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "罗马书1:1",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "罗马书二章三节",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "罗马书2:3-4",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "罗马书一章",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多前书一章一节",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多前书1:1",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多前书二章三节",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多前书2:3-4",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多前书一章",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多后书一章一节",
+      "expect": "accept",
+      "bookId": 47,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多后书1:1",
+      "expect": "accept",
+      "bookId": 47,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多后书二章三节",
+      "expect": "accept",
+      "bookId": 47,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多后书2:3-4",
+      "expect": "accept",
+      "bookId": 47,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "哥林多后书一章",
+      "expect": "accept",
+      "bookId": 47,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "启示录一章一节",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "启示录1:1",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "启示录二章三节",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "启示录2:3-4",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 2,
+      "startVerse": 3,
+      "endVerse": 4,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "启示录一章",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "约韩福音三章十六节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 3,
+      "startVerse": 16,
+      "endVerse": 16,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "约喊福音三章十六节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 3,
+      "startVerse": 16,
+      "endVerse": 16,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "路家福音二章一节",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 2,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "路夹福音二章一节",
+      "expect": "accept",
+      "bookId": 42,
+      "chapter": 2,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "马太服音五章三节",
+      "expect": "accept",
+      "bookId": 40,
+      "chapter": 5,
+      "startVerse": 3,
+      "endVerse": 3,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "创世一章",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 1,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_fuzzy_missing_char"
+    },
+    {
+      "text": "约福音三章十六节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 3,
+      "startVerse": 16,
+      "endVerse": 16,
+      "bucket": "positives_fuzzy_missing_char"
+    },
+    {
+      "text": "哥林多前一三章四节",
+      "expect": "accept",
+      "bookId": 46,
+      "chapter": 13,
+      "startVerse": 4,
+      "endVerse": 4,
+      "bucket": "positives_fuzzy_missing_char"
+    },
+    {
+      "text": "启示录二一章四节",
+      "expect": "accept",
+      "bookId": 66,
+      "chapter": 21,
+      "startVerse": 4,
+      "endVerse": 4,
+      "bucket": "positives_fuzzy_missing_char"
+    },
+    {
+      "text": "罗马数五章一节",
+      "expect": "accept",
+      "bookId": 45,
+      "chapter": 5,
+      "startVerse": 1,
+      "endVerse": 1,
+      "bucket": "positives_fuzzy_homophone"
+    },
+    {
+      "text": "约翰福音三章十六到十八节",
+      "expect": "accept",
+      "bookId": 43,
+      "chapter": 3,
+      "startVerse": 16,
+      "endVerse": 18,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "创世记三章",
+      "expect": "accept",
+      "bookId": 1,
+      "chapter": 3,
+      "startVerse": 1,
+      "endVerse": 0,
+      "bucket": "positives_exact"
+    },
+    {
+      "text": "今天1点11分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第1章第11页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长1分11秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天2点12分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第2章第12页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长2分12秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天3点13分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第3章第13页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长3分13秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天4点14分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第4章第14页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长4分14秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天5点15分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第5章第15页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长5分15秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天6点16分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第6章第16页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长6分16秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天7点17分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第7章第17页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长7分17秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天8点18分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第8章第18页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长8分18秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天9点19分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第9章第19页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长9分19秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天10点20分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第10章第20页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长10分20秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天11点21分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第11章第21页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长11分21秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天12点22分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第12章第22页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长12分22秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天13点23分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第13章第23页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长13分23秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天14点24分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第14章第24页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长14分24秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天15点25分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第15章第25页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长15分25秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天16点26分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第16章第26页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长16分26秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天17点27分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第17章第27页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长17分27秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天18点28分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第18章第28页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长18分28秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天19点29分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第19章第29页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长19分29秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天20点30分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第20章第30页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长20分30秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天21点31分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第21章第31页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长21分31秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天22点32分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第22章第32页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长22分32秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天23点33分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第23章第33页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长23分33秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天24点34分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第24章第34页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长24分34秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天25点35分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第25章第35页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长25分35秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天26点36分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第26章第36页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长26分36秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天27点37分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第27章第37页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长27分37秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天28点38分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第28章第38页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长28分38秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天29点39分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第29章第39页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长29分39秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天30点40分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第30章第40页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长30分40秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天31点41分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第31章第41页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长31分41秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天32点42分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第32章第42页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长32分42秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天33点43分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第33章第43页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长33分43秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天34点44分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第34章第44页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长34分44秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天35点45分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第35章第45页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长35分45秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天36点46分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第36章第46页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长36分46秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天37点47分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第37章第47页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长37分47秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天38点48分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第38章第48页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长38分48秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天39点49分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第39章第49页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长39分49秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天40点50分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第40章第50页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长40分50秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天41点51分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第41章第51页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长41分51秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天42点52分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第42章第52页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长42分52秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天43点53分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第43章第53页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长43分53秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天44点54分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第44章第54页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长44分54秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天45点55分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第45章第55页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长45分55秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天46点56分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第46章第56页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长46分56秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天47点57分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第47章第57页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长47分57秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天48点58分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第48章第58页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长48分58秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天49点59分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第49章第59页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长49分59秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天50点10分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第50章第10页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长50分10秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天51点11分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第51章第11页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长51分11秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天52点12分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第52章第12页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长52分12秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天53点13分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第53章第13页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长53分13秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天54点14分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第54章第14页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长54分14秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天55点15分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第55章第15页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长55分15秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天56点16分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第56章第16页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长56分16秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天57点17分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第57章第17页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长57分17秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天58点18分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第58章第18页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长58分18秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天59点19分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第59章第19页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长59分19秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天60点20分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第60章第20页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长60分20秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天61点21分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第61章第21页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长61分21秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天62点22分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第62章第22页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长62分22秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天63点23分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第63章第23页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长63分23秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天64点24分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第64章第24页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长64分24秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天65点25分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第65章第25页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长65分25秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天66点26分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第66章第26页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长66分26秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天67点27分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第67章第27页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长67分27秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天68点28分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第68章第28页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长68分28秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天69点29分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第69章第29页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长69分29秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天70点30分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第70章第30页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长70分30秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天71点31分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第71章第31页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长71分31秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天72点32分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第72章第32页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长72分32秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天73点33分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第73章第33页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长73分33秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天74点34分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第74章第34页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长74分34秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天75点35分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第75章第35页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长75分35秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天76点36分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第76章第36页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长76分36秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天77点37分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第77章第37页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长77分37秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天78点38分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第78章第38页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长78分38秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天79点39分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第79章第39页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长79分39秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天80点40分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第80章第40页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长80分40秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天81点41分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第81章第41页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长81分41秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天82点42分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第82章第42页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长82分42秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天83点43分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第83章第43页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长83分43秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天84点44分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第84章第44页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长84分44秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天85点45分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第85章第45页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长85分45秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天86点46分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第86章第46页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长86分46秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天87点47分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第87章第47页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长87分47秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天88点48分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第88章第48页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长88分48秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天89点49分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第89章第49页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长89分49秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "今天90点50分开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "本周第90章第50页需要校对",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "这首歌时长90分50秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_numeric_plain_sentence"
+    },
+    {
+      "text": "约一章九节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约二章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约一三章十六节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约二一章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "本周诗歌三章十六节练习",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "歌曲三章十六节开始",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "我们约一下三章内容",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "周报约三章内容整理",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约翰福音3:16分开始祷告",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约翰福音3:16秒静默",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约翰福音3:16点开始",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "约翰福音3:16页",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "今天三点十六分我们开始聚会",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "请把第3章第16页发到群里",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "这首歌一共3分16秒",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_ambiguous_book_like"
+    },
+    {
+      "text": "犹大书二章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_overflow_constraints"
+    },
+    {
+      "text": "约翰三书三章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_overflow_constraints"
+    },
+    {
+      "text": "提多书四章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_overflow_constraints"
+    },
+    {
+      "text": "约翰二书二章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_overflow_constraints"
+    },
+    {
+      "text": "腓利门书二章一节",
+      "expect": "abstain",
+      "bookId": 0,
+      "chapter": 0,
+      "startVerse": 0,
+      "endVerse": 0,
+      "bucket": "negatives_overflow_constraints"
+    }
+  ]
+}

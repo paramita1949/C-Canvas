@@ -22,6 +22,46 @@ namespace ImageColorChanger.Core
             }
         }
 
+        public string LiveCaptionSpeechMode
+        {
+            get => NormalizeLiveCaptionSpeechMode(_config.LiveCaptionSpeechMode);
+            set
+            {
+                string next = NormalizeLiveCaptionSpeechMode(value);
+                if (!string.Equals(_config.LiveCaptionSpeechMode, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionSpeechMode = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public bool LiveCaptionRealtimeEnabled
+        {
+            get => _config.LiveCaptionRealtimeEnabled;
+            set
+            {
+                if (_config.LiveCaptionRealtimeEnabled != value)
+                {
+                    _config.LiveCaptionRealtimeEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public bool LiveCaptionShortPhraseEnabled
+        {
+            get => _config.LiveCaptionShortPhraseEnabled;
+            set
+            {
+                if (_config.LiveCaptionShortPhraseEnabled != value)
+                {
+                    _config.LiveCaptionShortPhraseEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
         public string LiveCaptionAudioInputMode
         {
             get => NormalizeLiveCaptionAudioInputMode(_config.LiveCaptionAudioInputMode);
@@ -88,6 +128,31 @@ namespace ImageColorChanger.Core
             };
         }
 
+        private static string NormalizeLiveCaptionSpeechMode(string value)
+        {
+            return (value ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "short" => "short",
+                _ => "realtime"
+            };
+        }
+
+        private static string GetDefaultRealtimeBaseUrl(string provider)
+        {
+            return NormalizeLiveCaptionAsrProvider(provider) switch
+            {
+                "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
+                "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
+                "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
+                _ => "wss://vop.baidu.com/realtime_asr"
+            };
+        }
+
+        private static bool IsLegacyCustomProxyUrl(string value)
+        {
+            return string.Equals((value ?? string.Empty).Trim(), "http://localhost:8317/v1", StringComparison.OrdinalIgnoreCase);
+        }
+
         public string LiveCaptionProxyBaseUrl
         {
             get => string.IsNullOrWhiteSpace(_config.LiveCaptionProxyBaseUrl) ? "http://localhost:8317/v1" : _config.LiveCaptionProxyBaseUrl;
@@ -97,6 +162,147 @@ namespace ImageColorChanger.Core
                 if (!string.Equals(_config.LiveCaptionProxyBaseUrl, next, StringComparison.Ordinal))
                 {
                     _config.LiveCaptionProxyBaseUrl = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionRealtimeAsrProvider
+        {
+            get
+            {
+                string current = string.IsNullOrWhiteSpace(_config.LiveCaptionRealtimeAsrProvider)
+                    ? LiveCaptionAsrProvider
+                    : _config.LiveCaptionRealtimeAsrProvider;
+                return NormalizeLiveCaptionAsrProvider(current);
+            }
+            set
+            {
+                string next = NormalizeLiveCaptionAsrProvider(value);
+                if (!string.Equals(_config.LiveCaptionRealtimeAsrProvider, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionRealtimeAsrProvider = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionRealtimeProxyBaseUrl
+        {
+            get
+            {
+                string current = _config.LiveCaptionRealtimeProxyBaseUrl ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(current) || IsLegacyCustomProxyUrl(current))
+                {
+                    return GetDefaultRealtimeBaseUrl(LiveCaptionRealtimeAsrProvider);
+                }
+
+                return current;
+            }
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value)
+                    ? GetDefaultRealtimeBaseUrl(LiveCaptionRealtimeAsrProvider)
+                    : value.Trim();
+                if (!string.Equals(_config.LiveCaptionRealtimeProxyBaseUrl, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionRealtimeProxyBaseUrl = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionRealtimeAsrModel
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionRealtimeAsrModel)
+                ? LiveCaptionAsrModel
+                : _config.LiveCaptionRealtimeAsrModel;
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value) ? LiveCaptionAsrModel : value.Trim();
+                if (!string.Equals(_config.LiveCaptionRealtimeAsrModel, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionRealtimeAsrModel = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public int LiveCaptionRealtimeBaiduDevPid
+        {
+            get => _config.LiveCaptionRealtimeBaiduDevPid <= 0 ? LiveCaptionBaiduDevPid : _config.LiveCaptionRealtimeBaiduDevPid;
+            set
+            {
+                int next = value <= 0 ? LiveCaptionBaiduDevPid : value;
+                if (_config.LiveCaptionRealtimeBaiduDevPid != next)
+                {
+                    _config.LiveCaptionRealtimeBaiduDevPid = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionShortAsrProvider
+        {
+            get
+            {
+                string current = string.IsNullOrWhiteSpace(_config.LiveCaptionShortAsrProvider)
+                    ? "baidu"
+                    : _config.LiveCaptionShortAsrProvider;
+                return NormalizeLiveCaptionAsrProvider(current);
+            }
+            set
+            {
+                string next = NormalizeLiveCaptionAsrProvider(value);
+                if (!string.Equals(_config.LiveCaptionShortAsrProvider, next, StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.LiveCaptionShortAsrProvider = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionShortProxyBaseUrl
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionShortProxyBaseUrl)
+                ? "http://vop.baidu.com/server_api"
+                : _config.LiveCaptionShortProxyBaseUrl;
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value) ? "http://vop.baidu.com/server_api" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionShortProxyBaseUrl, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionShortProxyBaseUrl = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionShortAsrModel
+        {
+            get => string.IsNullOrWhiteSpace(_config.LiveCaptionShortAsrModel)
+                ? "baidu-short-standard"
+                : _config.LiveCaptionShortAsrModel;
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value) ? "baidu-short-standard" : value.Trim();
+                if (!string.Equals(_config.LiveCaptionShortAsrModel, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionShortAsrModel = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public int LiveCaptionShortBaiduDevPid
+        {
+            get => _config.LiveCaptionShortBaiduDevPid <= 0 ? 1537 : _config.LiveCaptionShortBaiduDevPid;
+            set
+            {
+                int next = value <= 0 ? 1537 : value;
+                if (_config.LiveCaptionShortBaiduDevPid != next)
+                {
+                    _config.LiveCaptionShortBaiduDevPid = next;
                     SaveConfig();
                 }
             }
@@ -824,7 +1030,18 @@ namespace ImageColorChanger.Core
 
     public partial class AppConfig
     {
+        public string LiveCaptionSpeechMode { get; set; } = "realtime";
+        public bool LiveCaptionRealtimeEnabled { get; set; } = false;
+        public bool LiveCaptionShortPhraseEnabled { get; set; } = false;
         public string LiveCaptionAsrProvider { get; set; } = "baidu";
+        public string LiveCaptionRealtimeAsrProvider { get; set; } = "baidu";
+        public string LiveCaptionRealtimeProxyBaseUrl { get; set; } = "http://localhost:8317/v1";
+        public string LiveCaptionRealtimeAsrModel { get; set; } = "baidu-realtime";
+        public int LiveCaptionRealtimeBaiduDevPid { get; set; } = 1537;
+        public string LiveCaptionShortAsrProvider { get; set; } = "baidu";
+        public string LiveCaptionShortProxyBaseUrl { get; set; } = "http://vop.baidu.com/server_api";
+        public string LiveCaptionShortAsrModel { get; set; } = "baidu-short-standard";
+        public int LiveCaptionShortBaiduDevPid { get; set; } = 1537;
         public string LiveCaptionAudioInputMode { get; set; } = "system";
         public string LiveCaptionInputDeviceId { get; set; } = "";
         public string LiveCaptionSystemDeviceId { get; set; } = "";

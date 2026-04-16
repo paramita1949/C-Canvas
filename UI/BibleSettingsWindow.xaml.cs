@@ -366,11 +366,15 @@ namespace ImageColorChanger.UI
                 }
 
                 // 保存投影记录复选框
+                if (ChkBibleShortPhraseRecognition != null)
+                {
+                    ChkBibleShortPhraseRecognition.IsChecked = _configManager.LiveCaptionShortPhraseEnabled;
+                }
+
                 if (ChkSaveBibleHistory != null)
                 {
                     ChkSaveBibleHistory.IsChecked = _configManager.SaveBibleHistory;
                 }
-
                 //#if DEBUG
                 //Debug.WriteLine("[圣经设置] 已加载当前设置");
                 //#endif
@@ -752,6 +756,16 @@ namespace ImageColorChanger.UI
                     //#endif
                 }
 
+                if (ChkSaveBibleHistory != null)
+                {
+                    _configManager.SaveBibleHistory = ChkSaveBibleHistory.IsChecked == true;
+                }
+
+                if (ChkBibleShortPhraseRecognition != null)
+                {
+                    _configManager.LiveCaptionShortPhraseEnabled = ChkBibleShortPhraseRecognition.IsChecked == true;
+                }
+
                 //#if DEBUG
                 //Debug.WriteLine("[圣经设置] 设置已实时保存");
                 //#endif
@@ -865,6 +879,19 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"[圣经设置] 保存投影记录: {_configManager.SaveBibleHistory}");
                 //#endif
             }
+
+        }
+
+        private void BibleShortPhraseRecognition_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoading) return;
+
+            if (ChkBibleShortPhraseRecognition != null)
+            {
+                _configManager.LiveCaptionShortPhraseEnabled = ChkBibleShortPhraseRecognition.IsChecked == true;
+            }
+
+            _onStyleChanged?.Invoke();
         }
     }
 }

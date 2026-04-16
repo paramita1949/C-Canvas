@@ -956,6 +956,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 是否启用圣经 AI 语音识别（默认：true）
+        /// </summary>
+        public bool BibleAiVoiceRecognitionEnabled
+        {
+            get => _config.BibleAiVoiceRecognitionEnabled;
+            set
+            {
+                if (_config.BibleAiVoiceRecognitionEnabled != value)
+                {
+                    _config.BibleAiVoiceRecognitionEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 合成播放默认时长（秒）
         /// </summary>
         public double CompositePlaybackDefaultDuration
@@ -2010,6 +2026,11 @@ namespace ImageColorChanger.Core
         /// 是否在退出程序时保存圣经投影记录（默认：false）
         /// </summary>
         public bool SaveBibleHistory { get; set; } = false;
+
+        /// <summary>
+        /// 是否启用圣经 AI 语音识别（默认：true）
+        /// </summary>
+        public bool BibleAiVoiceRecognitionEnabled { get; set; } = true;
 
         /// <summary>
         /// 合成播放默认时长（秒，默认：105）

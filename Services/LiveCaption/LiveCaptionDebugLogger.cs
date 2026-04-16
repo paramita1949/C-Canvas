@@ -5,9 +5,9 @@ namespace ImageColorChanger.Services.LiveCaption
 {
     internal static class LiveCaptionDebugLogger
     {
-        private static readonly bool Enabled =
+        internal static readonly bool Enabled =
 #if DEBUG
-            string.Equals(Environment.GetEnvironmentVariable("CANVAS_LIVECAPTION_DEBUG"), "1", StringComparison.Ordinal);
+            !string.Equals(Environment.GetEnvironmentVariable("CANVAS_LIVECAPTION_DEBUG"), "0", StringComparison.Ordinal);
 #else
             false;
 #endif
@@ -19,7 +19,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            Debug.WriteLine(message);
+            Debug.WriteLine($"[LiveCaption] {message}");
         }
     }
 }

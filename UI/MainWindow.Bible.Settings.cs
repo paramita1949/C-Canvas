@@ -94,6 +94,7 @@ namespace ImageColorChanger.UI
                         // 应用设置
                         ApplyBibleSettings();
                         ApplyBibleSearchResultFontSizes();
+                        await ApplyLiveCaptionRecognitionStateFromConfigAsync();
                         
                         // 如果投影已开启，重新渲染投影（保持当前经文和高亮状态）
                         if (_projectionManager != null && _projectionManager.IsProjecting)

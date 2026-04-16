@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "notes": "Deterministic seed confusions for Bible speech alias tuning.",
+  "bookFamilies": [
+    {
+      "family": "johannine",
+      "canonical": ["约翰福音", "约翰一书", "约翰二书", "约翰三书"],
+      "riskyPrefixes": ["约一", "约二", "约三", "约一三", "约二一"],
+      "policy": "prefer-abstain-when-ambiguous"
+    }
+  ],
+  "homophonePairs": [
+    ["翰", "韩"],
+    ["翰", "喊"],
+    ["加", "家"],
+    ["加", "夹"],
+    ["福", "服"]
+  ]
+}

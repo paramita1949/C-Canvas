@@ -103,6 +103,9 @@ namespace ImageColorChanger.UI
         private readonly Border _styleAction;
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
+        private readonly TextBlock _recognitionDebugMarkerText;
+        private readonly System.Windows.Controls.CheckBox _realtimeRecognitionToggle;
+        private readonly System.Windows.Controls.CheckBox _shortPhraseRecognitionToggle;
         private readonly DispatcherTimer _typingTimer;
         private readonly DispatcherTimer _floatingBoundsChangedTimer;
         private string _typingTarget = string.Empty;
@@ -138,6 +141,7 @@ namespace ImageColorChanger.UI
         private Rect _resizeStartBounds;
         private bool _suppressFloatingBoundsTracking = true;
         private int _layoutApplySequence;
+        private bool _suppressRecognitionToggleEvents;
 
         public event Action SettingsRequested;
         public event Action ProjectionToggleRequested;
@@ -149,6 +153,8 @@ namespace ImageColorChanger.UI
         public event Action CaptionStyleRequested;
         public event Action CloseRequested;
         public event Action<Rect> FloatingBoundsChanged;
+        public event Action<bool> RealtimeRecognitionToggleRequested;
+        public event Action<bool> ShortPhraseRecognitionToggleRequested;
 
         public LiveCaptionOverlayWindow()
         {
@@ -223,12 +229,62 @@ namespace ImageColorChanger.UI
             Grid.SetColumnSpan(_captionText, 2);
             Grid.SetRow(_captionText, 1);
 
+            _recognitionDebugMarkerText = new TextBlock
+            {
+                Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 244, 214)),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                Margin = new Thickness(0, 1, 0, 0),
+                Text = string.Empty,
+                Visibility = Visibility.Collapsed
+            };
+            Grid.SetColumn(_recognitionDebugMarkerText, 0);
+            Grid.SetRow(_recognitionDebugMarkerText, 0);
+
             _actionPanel = new StackPanel
             {
                 Orientation = WpfOrientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 4, 0)
+            };
+
+            _realtimeRecognitionToggle = CreateActionToggle("实时语音");
+            _realtimeRecognitionToggle.Margin = new Thickness(6, 0, 0, 0);
+            _realtimeRecognitionToggle.ToolTip = "开启或关闭实时语音";
+            _realtimeRecognitionToggle.Checked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    RealtimeRecognitionToggleRequested?.Invoke(true);
+                }
+            };
+            _realtimeRecognitionToggle.Unchecked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    RealtimeRecognitionToggleRequested?.Invoke(false);
+                }
+            };
+
+            _shortPhraseRecognitionToggle = CreateActionToggle("经文识别");
+            _shortPhraseRecognitionToggle.Margin = new Thickness(6, 0, 0, 0);
+            _shortPhraseRecognitionToggle.ToolTip = "开启或关闭经文识别";
+            _shortPhraseRecognitionToggle.Checked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    ShortPhraseRecognitionToggleRequested?.Invoke(true);
+                }
+            };
+            _shortPhraseRecognitionToggle.Unchecked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    ShortPhraseRecognitionToggleRequested?.Invoke(false);
+                }
             };
 
             _projectionAction = CreateTextActionItem("投影", out _projectionActionText);
@@ -316,6 +372,8 @@ namespace ImageColorChanger.UI
                 CloseRequested?.Invoke();
             };
 
+            _actionPanel.Children.Add(_realtimeRecognitionToggle);
+            _actionPanel.Children.Add(_shortPhraseRecognitionToggle);
             _actionPanel.Children.Add(_projectionAction);
             _actionPanel.Children.Add(_ndiAction);
             _actionPanel.Children.Add(_ndiStyleAction);
@@ -341,6 +399,7 @@ namespace ImageColorChanger.UI
             Grid.SetRow(accentBar, 0);
 
             captionGrid.Children.Add(_captionText);
+            captionGrid.Children.Add(_recognitionDebugMarkerText);
             captionGrid.Children.Add(_actionPanel);
             Grid.SetRow(captionGrid, 1);
 
@@ -413,16 +472,12 @@ namespace ImageColorChanger.UI
                 {
                     if (_suppressFloatingBoundsTracking)
                     {
-                        ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
-                            $"FloatingBounds: location ignored during programmatic-layout actual=({Left:0.##},{Top:0.##},{Width:0.##}x{Height:0.##}), cached=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##})");
                         return;
                     }
 
                     _hasCustomFloatingBounds = true;
                     _floatingLeft = Left;
                     _floatingTop = Top;
-                    ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
-                        $"FloatingBounds: location tracked actual=({Left:0.##},{Top:0.##},{Width:0.##}x{Height:0.##}), cached=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##})");
                     ScheduleFloatingBoundsChanged();
                 }
             };
@@ -945,6 +1000,48 @@ namespace ImageColorChanger.UI
             textBlock.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
             host.Child = textBlock;
             return host;
+        }
+
+        private System.Windows.Controls.CheckBox CreateActionToggle(string text)
+        {
+            var checkBox = new System.Windows.Controls.CheckBox
+            {
+                Content = text,
+                Foreground = WpfBrushes.White,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0),
+                Padding = new Thickness(2, 0, 2, 0)
+            };
+
+            return checkBox;
+        }
+
+        public void SetRecognitionToggleStates(bool realtimeEnabled, bool shortPhraseEnabled)
+        {
+            _suppressRecognitionToggleEvents = true;
+            try
+            {
+                _realtimeRecognitionToggle.IsChecked = realtimeEnabled;
+                _shortPhraseRecognitionToggle.IsChecked = shortPhraseEnabled;
+                UpdateRecognitionDebugMarker(realtimeEnabled, shortPhraseEnabled);
+            }
+            finally
+            {
+                _suppressRecognitionToggleEvents = false;
+            }
+        }
+
+        private void UpdateRecognitionDebugMarker(bool realtimeEnabled, bool shortPhraseEnabled)
+        {
+            string marker = ImageColorChanger.Services.LiveCaption.LiveCaptionDebugMarkerFormatter.Format(
+                realtimeEnabled,
+                shortPhraseEnabled);
+            _recognitionDebugMarkerText.Text = marker;
+            _recognitionDebugMarkerText.Visibility = string.IsNullOrWhiteSpace(marker)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
         }
 
         public void SetProjectionToggleState(bool hidden)

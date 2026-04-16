@@ -19,13 +19,6 @@ namespace ImageColorChanger.Services.LiveCaption
 
     internal sealed class RealtimeCaptionEngine : IDisposable
     {
-        internal sealed class InputAudioDeviceInfo
-        {
-            public string Id { get; init; } = string.Empty;
-            public string Name { get; init; } = string.Empty;
-            public bool IsDefault { get; init; }
-        }
-
         private readonly object _bufferGate = new();
         private readonly CliProxyApiClient _client;
         private readonly MemoryStream _pcmBuffer = new();
@@ -42,6 +35,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private const double MaxChunkMs = 5200.0;
         private const double MinSpeechMs = 260.0;
         private IWaveIn _capture;
+        private IDisposable _sharedAudioSubscription;
         private WaveFormat _captureFormat;
         private CancellationTokenSource _cts;
         private bool _isRunning;
@@ -128,70 +122,14 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public bool IsConfigured => _client.IsReady;
 
-        public static IReadOnlyList<InputAudioDeviceInfo> EnumerateInputDevices()
+        public static IReadOnlyList<SharedAudioCaptureSession.InputAudioDeviceInfo> EnumerateInputDevices()
         {
-            var result = new List<InputAudioDeviceInfo>();
-            try
-            {
-                using var enumerator = new MMDeviceEnumerator();
-                MMDevice defaultDevice = null;
-                try
-                {
-                    defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
-                }
-                catch
-                {
-                }
-
-                foreach (var endpoint in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
-                {
-                    result.Add(new InputAudioDeviceInfo
-                    {
-                        Id = endpoint.ID ?? string.Empty,
-                        Name = string.IsNullOrWhiteSpace(endpoint.FriendlyName) ? "未命名输入设备" : endpoint.FriendlyName.Trim(),
-                        IsDefault = defaultDevice != null && string.Equals(defaultDevice.ID, endpoint.ID, StringComparison.OrdinalIgnoreCase)
-                    });
-                }
-            }
-            catch
-            {
-                // 忽略枚举异常，保持菜单可打开。
-            }
-
-            return result;
+            return SharedAudioCaptureSession.EnumerateInputDevices();
         }
 
-        public static IReadOnlyList<InputAudioDeviceInfo> EnumerateSystemLoopbackDevices()
+        public static IReadOnlyList<SharedAudioCaptureSession.InputAudioDeviceInfo> EnumerateSystemLoopbackDevices()
         {
-            var result = new List<InputAudioDeviceInfo>();
-            try
-            {
-                using var enumerator = new MMDeviceEnumerator();
-                MMDevice defaultDevice = null;
-                try
-                {
-                    defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                }
-                catch
-                {
-                }
-
-                foreach (var endpoint in enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-                {
-                    result.Add(new InputAudioDeviceInfo
-                    {
-                        Id = endpoint.ID ?? string.Empty,
-                        Name = string.IsNullOrWhiteSpace(endpoint.FriendlyName) ? "未命名系统设备" : endpoint.FriendlyName.Trim(),
-                        IsDefault = defaultDevice != null && string.Equals(defaultDevice.ID, endpoint.ID, StringComparison.OrdinalIgnoreCase)
-                    });
-                }
-            }
-            catch
-            {
-                // 忽略枚举异常，保持菜单可打开。
-            }
-
-            return result;
+            return SharedAudioCaptureSession.EnumerateSystemLoopbackDevices();
         }
 
         public void Start(LiveCaptionAudioSource source, string preferredInputDeviceId = null, string preferredSystemDeviceId = null)
@@ -215,18 +153,15 @@ namespace ImageColorChanger.Services.LiveCaption
 
             try
             {
-                if (source == LiveCaptionAudioSource.SystemLoopback)
-                {
-                    string selectedName;
-                    _capture = CreateSystemLoopbackCapture(preferredSystemDeviceId, out selectedName);
-                    _captureInfo = $"capture=system:{selectedName}";
-                }
-                else
-                {
-                    string selectedName;
-                    _capture = CreateInputCapture(preferredInputDeviceId, out selectedName);
-                    _captureInfo = $"capture=input:{selectedName}";
-                }
+                string selectedName;
+                _capture = SharedAudioCaptureSession.CreateCaptureForSelection(
+                    source,
+                    preferredInputDeviceId,
+                    preferredSystemDeviceId,
+                    out selectedName);
+                _captureInfo = source == LiveCaptionAudioSource.SystemLoopback
+                    ? $"capture=system:{selectedName}"
+                    : $"capture=input:{selectedName}";
             }
             catch (Exception ex)
             {
@@ -238,6 +173,51 @@ namespace ImageColorChanger.Services.LiveCaption
             _capture.RecordingStopped += Capture_RecordingStopped;
             _captureInfo = $"{_captureInfo}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
 
+            InitializeRunningState(source);
+
+            _capture.StartRecording();
+            PublishStartedStatus(source);
+        }
+
+        internal void StartWithSharedCapture(SharedAudioCaptureSession session)
+        {
+            if (_isDisposed || _isDisposing)
+            {
+                StatusChanged?.Invoke("实时字幕引擎正在释放，请稍后重试");
+                return;
+            }
+
+            if (_isRunning)
+            {
+                return;
+            }
+
+            if (session == null)
+            {
+                StatusChanged?.Invoke("实时字幕未启动：共享采集会话不存在");
+                return;
+            }
+
+            if (!_client.IsReady)
+            {
+                StatusChanged?.Invoke("实时字幕未启动：请先在 AI 配置中完成服务商凭据");
+                return;
+            }
+
+            _capture = null;
+            _captureFormat = new WaveFormat(16000, 16, 1);
+            _captureInfo = session.CurrentSource == LiveCaptionAudioSource.SystemLoopback
+                ? $"capture=shared-system:{session.SelectedDeviceName}"
+                : $"capture=shared-input:{session.SelectedDeviceName}";
+            _captureInfo = $"{_captureInfo}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
+
+            InitializeRunningState(session.CurrentSource);
+            _sharedAudioSubscription = session.SubscribeChunk(ProcessSharedAudioChunk);
+            PublishStartedStatus(session.CurrentSource);
+        }
+
+        private void InitializeRunningState(LiveCaptionAudioSource source)
+        {
             _cts = new CancellationTokenSource();
             _isInFlight = false;
             _useRealtimeSession = _client.SupportsRealtimeSession;
@@ -266,7 +246,6 @@ namespace ImageColorChanger.Services.LiveCaption
                 _realtimePcmBuffer.SetLength(0);
             }
 
-            _capture.StartRecording();
             _flushTimer.Start();
             _isRunning = true;
             if (_useRealtimeSession)
@@ -296,6 +275,14 @@ namespace ImageColorChanger.Services.LiveCaption
                         _realtimeSessionStartInFlight = false;
                     }
                 });
+            }
+            PublishDebugInfo("started");
+        }
+
+        private void PublishStartedStatus(LiveCaptionAudioSource source)
+        {
+            if (_useRealtimeSession)
+            {
                 StatusChanged?.Invoke(source == LiveCaptionAudioSource.SystemLoopback
                     ? "实时字幕已启动（系统声卡-实时）"
                     : "实时字幕已启动（输入设备-实时）");
@@ -306,86 +293,6 @@ namespace ImageColorChanger.Services.LiveCaption
                     ? "实时字幕已启动（系统声卡）"
                     : "实时字幕已启动（输入设备）");
             }
-            PublishDebugInfo("started");
-        }
-
-        private static IWaveIn CreateInputCapture(string preferredInputDeviceId, out string selectedName)
-        {
-            try
-            {
-                using var enumerator = new MMDeviceEnumerator();
-                MMDevice device = null;
-
-                if (!string.IsNullOrWhiteSpace(preferredInputDeviceId))
-                {
-                    try
-                    {
-                        var target = enumerator.GetDevice(preferredInputDeviceId.Trim());
-                        if (target.DataFlow == DataFlow.Capture && target.State == DeviceState.Active)
-                        {
-                            device = target;
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                device ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
-                selectedName = string.IsNullOrWhiteSpace(device?.FriendlyName) ? "默认输入设备" : device.FriendlyName.Trim();
-                if (device != null)
-                {
-                    return new WasapiCapture(device);
-                }
-            }
-            catch
-            {
-            }
-
-            // 兜底：老路径，避免在少数机器上 WASAPI 初始化失败导致不可用。
-            selectedName = "系统默认输入设备(WaveIn)";
-            return new WaveInEvent
-            {
-                WaveFormat = new WaveFormat(16000, 16, 1),
-                BufferMilliseconds = 100
-            };
-        }
-
-        private static IWaveIn CreateSystemLoopbackCapture(string preferredSystemDeviceId, out string selectedName)
-        {
-            try
-            {
-                using var enumerator = new MMDeviceEnumerator();
-                MMDevice device = null;
-
-                if (!string.IsNullOrWhiteSpace(preferredSystemDeviceId))
-                {
-                    try
-                    {
-                        var target = enumerator.GetDevice(preferredSystemDeviceId.Trim());
-                        if (target.DataFlow == DataFlow.Render && target.State == DeviceState.Active)
-                        {
-                            device = target;
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                device ??= enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                selectedName = string.IsNullOrWhiteSpace(device?.FriendlyName) ? "默认系统输出设备" : device.FriendlyName.Trim();
-                if (device != null)
-                {
-                    return new WasapiLoopbackCapture(device);
-                }
-            }
-            catch
-            {
-            }
-
-            selectedName = "默认系统输出设备";
-            return new WasapiLoopbackCapture();
         }
 
         public void Stop()
@@ -458,6 +365,18 @@ namespace ImageColorChanger.Services.LiveCaption
                 }
             }
 
+            if (_sharedAudioSubscription != null)
+            {
+                try
+                {
+                    _sharedAudioSubscription.Dispose();
+                }
+                catch
+                {
+                }
+                _sharedAudioSubscription = null;
+            }
+
             lock (_bufferGate)
             {
                 _pcmBuffer.SetLength(0);
@@ -473,7 +392,17 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private void Capture_DataAvailable(object sender, WaveInEventArgs e)
         {
-            if (_isDisposed || _isDisposing || !_isRunning || e.BytesRecorded <= 0)
+            ProcessAudioChunk(e?.Buffer, e?.BytesRecorded ?? 0, _captureFormat);
+        }
+
+        internal void ProcessSharedAudioChunk(SharedAudioCaptureSession.AudioChunk chunk)
+        {
+            ProcessAudioChunk(chunk.Buffer, chunk.BytesRecorded, chunk.Format);
+        }
+
+        private void ProcessAudioChunk(byte[] buffer, int bytesRecorded, WaveFormat format)
+        {
+            if (_isDisposed || _isDisposing || !_isRunning || bytesRecorded <= 0 || buffer == null || format == null)
             {
                 return;
             }
@@ -482,10 +411,10 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 _dataEventCount++;
                 _lastAudioUtc = DateTime.UtcNow;
-                CalculateLevels(e.Buffer, e.BytesRecorded, _captureFormat, out var peakDb, out var rmsDb);
+                CalculateLevels(buffer, bytesRecorded, format, out var peakDb, out var rmsDb);
                 _lastPeakDb = peakDb;
                 _lastRmsDb = rmsDb;
-                double chunkMs = CalculateChunkMs(e.BytesRecorded, _captureFormat);
+                double chunkMs = CalculateChunkMs(bytesRecorded, format);
                 bool isSpeech = rmsDb > SilenceDbThreshold;
 
                 if (_useRealtimeSession)
@@ -493,7 +422,7 @@ namespace ImageColorChanger.Services.LiveCaption
                     byte[] normalizedPcm;
                     try
                     {
-                        normalizedPcm = ConvertToPcm16Mono16k(e.Buffer, _captureFormat, e.BytesRecorded);
+                        normalizedPcm = ConvertToPcm16Mono16k(buffer, format, bytesRecorded);
                     }
                     catch (Exception ex)
                     {
@@ -523,7 +452,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
                 lock (_bufferGate)
                 {
-                    _pcmBuffer.Write(e.Buffer, 0, e.BytesRecorded);
+                    _pcmBuffer.Write(buffer, 0, bytesRecorded);
                     _bufferMs += chunkMs;
                     if (isSpeech)
                     {

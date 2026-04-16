@@ -1085,6 +1085,18 @@ namespace ImageColorChanger.UI
                 string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
                 string displayText = $"{book?.Name}{chapter}章{verseText}";
 
+                var existingSlot = _historySlots.FirstOrDefault(s =>
+                    s.BookId == bookId &&
+                    s.Chapter == chapter &&
+                    s.StartVerse == startVerse &&
+                    s.EndVerse == endVerse);
+
+                if (existingSlot != null)
+                {
+                    LogBibleQuickLocateDebug("AddPinyinHistory", $"duplicate-exists slot={existingSlot.Index}, text={displayText}");
+                    return;
+                }
+
                 BibleHistoryItem targetSlot = null;
                 
                 // 1. 优先查找空槽位（DisplayText为空或BookId为0）
@@ -1156,6 +1168,15 @@ namespace ImageColorChanger.UI
             {
                 LogBibleQuickLocateDebug("AddPinyinHistory", $"exception: {ex.Message}");
             }
+        }
+
+        private string FormatBibleReferenceToastText(int bookId, int chapter, int startVerse, int endVerse)
+        {
+            var book = BibleBookConfig.GetBook(bookId);
+            string verseText = startVerse == endVerse
+                ? $"{startVerse}节"
+                : $"{startVerse}-{endVerse}节";
+            return $"识别到经文：{book?.Name}{chapter}章{verseText}";
         }
 
         /// <summary>
