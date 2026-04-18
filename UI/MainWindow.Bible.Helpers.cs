@@ -1057,6 +1057,9 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                int normalizedStartVerse = Math.Max(1, startVerse);
+                int normalizedEndVerse = NormalizeVerseRangeEnd(normalizedStartVerse, endVerse);
+
                 if (_historySlots == null)
                 {
                     _historySlots = new ObservableCollection<BibleHistoryItem>();
@@ -1082,18 +1085,84 @@ namespace ImageColorChanger.UI
 
                 var book = BibleBookConfig.GetBook(bookId);
                 // 如果开始节和结束节相同，只显示一个节号（如"3节"），否则显示范围（如"3-5节"）
-                string verseText = (startVerse == endVerse) ? $"{startVerse}节" : $"{startVerse}-{endVerse}节";
+                string verseText = (normalizedStartVerse == normalizedEndVerse)
+                    ? $"{normalizedStartVerse}节"
+                    : $"{normalizedStartVerse}-{normalizedEndVerse}节";
                 string displayText = $"{book?.Name}{chapter}章{verseText}";
 
                 var existingSlot = _historySlots.FirstOrDefault(s =>
                     s.BookId == bookId &&
                     s.Chapter == chapter &&
-                    s.StartVerse == startVerse &&
-                    s.EndVerse == endVerse);
+                    s.StartVerse == normalizedStartVerse &&
+                    NormalizeVerseRangeEnd(Math.Max(1, s.StartVerse), s.EndVerse) == normalizedEndVerse);
 
                 if (existingSlot != null)
                 {
                     LogBibleQuickLocateDebug("AddPinyinHistory", $"duplicate-exists slot={existingSlot.Index}, text={displayText}");
+                    return;
+                }
+
+                var sameChapterSlots = _historySlots
+                    .Where(s => s.BookId == bookId && s.Chapter == chapter && s.StartVerse > 0)
+                    .ToList();
+
+                // 升级策略：已有同章粗粒度（例如 1-48），新命中更具体（例如 4-4）时直接覆盖原槽位。
+                var upgradeTarget = sameChapterSlots
+                    .Where(s => !s.IsLocked)
+                    .Select(s => new
+                    {
+                        Slot = s,
+                        ExistingStart = Math.Max(1, s.StartVerse),
+                        ExistingEnd = NormalizeVerseRangeEnd(Math.Max(1, s.StartVerse), s.EndVerse)
+                    })
+                    .Where(x =>
+                        RangeContains(x.ExistingStart, x.ExistingEnd, normalizedStartVerse, normalizedEndVerse) &&
+                        GetVerseSpanLength(x.ExistingStart, x.ExistingEnd) > GetVerseSpanLength(normalizedStartVerse, normalizedEndVerse))
+                    .OrderByDescending(x => x.Slot.IsChecked)
+                    .ThenByDescending(x => GetVerseSpanLength(x.ExistingStart, x.ExistingEnd))
+                    .Select(x => x.Slot)
+                    .FirstOrDefault();
+
+                if (upgradeTarget != null)
+                {
+                    upgradeTarget.StartVerse = normalizedStartVerse;
+                    upgradeTarget.EndVerse = normalizedEndVerse;
+                    upgradeTarget.DisplayText = displayText;
+                    upgradeTarget.IsLocked = false;
+                    foreach (var slot in _historySlots)
+                    {
+                        slot.IsChecked = (slot == upgradeTarget);
+                    }
+
+                    LogBibleQuickLocateDebug(
+                        "AddPinyinHistory:Upgrade",
+                        $"slot={upgradeTarget.Index}, text={displayText}");
+                    BibleHistoryList?.Items.Refresh();
+                    return;
+                }
+
+                // 防降级策略：已有更具体经文时，忽略更粗粒度结果，避免从 5:4 回退到 5章。
+                bool shouldSkipDowngrade = sameChapterSlots
+                    .Select(s =>
+                    {
+                        int existingStart = Math.Max(1, s.StartVerse);
+                        int existingEnd = NormalizeVerseRangeEnd(existingStart, s.EndVerse);
+                        return new
+                        {
+                            ExistingStart = existingStart,
+                            ExistingEnd = existingEnd,
+                            ExistingSpan = GetVerseSpanLength(existingStart, existingEnd)
+                        };
+                    })
+                    .Any(x =>
+                        RangeContains(normalizedStartVerse, normalizedEndVerse, x.ExistingStart, x.ExistingEnd) &&
+                        x.ExistingSpan < GetVerseSpanLength(normalizedStartVerse, normalizedEndVerse));
+
+                if (shouldSkipDowngrade)
+                {
+                    LogBibleQuickLocateDebug(
+                        "AddPinyinHistory:SkipDowngrade",
+                        $"text={displayText}");
                     return;
                 }
 
@@ -1107,8 +1176,8 @@ namespace ImageColorChanger.UI
                     // 找到空槽位，直接填充
                     emptySlot.BookId = bookId;
                     emptySlot.Chapter = chapter;
-                    emptySlot.StartVerse = startVerse;
-                    emptySlot.EndVerse = endVerse;
+                    emptySlot.StartVerse = normalizedStartVerse;
+                    emptySlot.EndVerse = normalizedEndVerse;
                     emptySlot.DisplayText = displayText;
                     targetSlot = emptySlot;
                 }
@@ -1123,8 +1192,8 @@ namespace ImageColorChanger.UI
                         targetSlot = checkedSlots[0];
                         targetSlot.BookId = bookId;
                         targetSlot.Chapter = chapter;
-                        targetSlot.StartVerse = startVerse;
-                        targetSlot.EndVerse = endVerse;
+                        targetSlot.StartVerse = normalizedStartVerse;
+                        targetSlot.EndVerse = normalizedEndVerse;
                         targetSlot.DisplayText = displayText;
                     }
                     else
@@ -1135,8 +1204,8 @@ namespace ImageColorChanger.UI
                         {
                             lastSlot.BookId = bookId;
                             lastSlot.Chapter = chapter;
-                            lastSlot.StartVerse = startVerse;
-                            lastSlot.EndVerse = endVerse;
+                            lastSlot.StartVerse = normalizedStartVerse;
+                            lastSlot.EndVerse = normalizedEndVerse;
                             lastSlot.DisplayText = displayText;
                             targetSlot = lastSlot;
                         }
@@ -1168,6 +1237,27 @@ namespace ImageColorChanger.UI
             {
                 LogBibleQuickLocateDebug("AddPinyinHistory", $"exception: {ex.Message}");
             }
+        }
+
+        private static int NormalizeVerseRangeEnd(int startVerse, int endVerse)
+        {
+            int normalizedStart = Math.Max(1, startVerse);
+            int normalizedEnd = endVerse <= 0 ? normalizedStart : endVerse;
+            return Math.Max(normalizedStart, normalizedEnd);
+        }
+
+        private static int GetVerseSpanLength(int startVerse, int endVerse)
+        {
+            return Math.Max(1, NormalizeVerseRangeEnd(startVerse, endVerse) - Math.Max(1, startVerse) + 1);
+        }
+
+        private static bool RangeContains(int outerStart, int outerEnd, int innerStart, int innerEnd)
+        {
+            int oStart = Math.Max(1, outerStart);
+            int oEnd = NormalizeVerseRangeEnd(oStart, outerEnd);
+            int iStart = Math.Max(1, innerStart);
+            int iEnd = NormalizeVerseRangeEnd(iStart, innerEnd);
+            return oStart <= iStart && oEnd >= iEnd;
         }
 
         private string FormatBibleReferenceToastText(int bookId, int chapter, int startVerse, int endVerse)

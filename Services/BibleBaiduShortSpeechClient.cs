@@ -132,13 +132,15 @@ namespace ImageColorChanger.Services
 
         public async Task<string> TranscribeWavAsync(byte[] wavBytes, CancellationToken cancellationToken)
         {
+            string provider = GetShortSpeechProvider();
+            string shortTag = LiveCaption.LiveCaptionPlatformLabelFormatter.BuildShortPhraseTag(provider);
             if (wavBytes == null || wavBytes.Length == 0 || !IsConfigured)
             {
-                Debug.WriteLine("[BibleVoice][Baidu] short-speech skipped: empty-audio-or-missing-config");
+                Debug.WriteLine($"[BibleVoice][{shortTag}] skipped: empty-audio-or-missing-config");
                 return string.Empty;
             }
 
-            string provider = GetShortSpeechProvider();
+            Debug.WriteLine($"[BibleVoice][{shortTag}] request: wavBytes={wavBytes.Length}");
             return provider switch
             {
                 "tencent" => await TranscribeWithTencentAsync(wavBytes, cancellationToken),
@@ -231,17 +233,23 @@ namespace ImageColorChanger.Services
             string engineType = string.IsNullOrWhiteSpace(model) || model.Contains("gpt-", StringComparison.OrdinalIgnoreCase)
                 ? "16k_zh"
                 : model.Trim();
+            string customizationId = (_config.LiveCaptionTencentShortCustomizationId ?? string.Empty).Trim();
             string requestUrl = "https://asr.tencentcloudapi.com";
-            string bodyJson = JsonSerializer.Serialize(new
+            var requestPayload = new Dictionary<string, object>
             {
-                ProjectId = 0,
-                SubServiceType = 2,
-                EngSerViceType = engineType,
-                SourceType = 1,
-                VoiceFormat = "wav",
-                Data = Convert.ToBase64String(wavBytes),
-                DataLen = wavBytes.Length
-            });
+                ["ProjectId"] = 0,
+                ["SubServiceType"] = 2,
+                ["EngSerViceType"] = engineType,
+                ["SourceType"] = 1,
+                ["VoiceFormat"] = "wav",
+                ["Data"] = Convert.ToBase64String(wavBytes),
+                ["DataLen"] = wavBytes.Length
+            };
+            if (!string.IsNullOrWhiteSpace(customizationId))
+            {
+                requestPayload["CustomizationId"] = customizationId;
+            }
+            string bodyJson = JsonSerializer.Serialize(requestPayload);
 
             long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string date = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime.ToString("yyyy-MM-dd");
@@ -254,7 +262,7 @@ namespace ImageColorChanger.Services
                 date,
                 bodyJson);
 
-            Debug.WriteLine($"[BibleVoice][Tencent] short-speech request: model={model}, engineType={engineType}, url={requestUrl}, wavBytes={wavBytes.Length}");
+            Debug.WriteLine($"[BibleVoice][Tencent] short-speech request: model={model}, engineType={engineType}, customizationId={(string.IsNullOrWhiteSpace(customizationId) ? "(none)" : customizationId)}, url={requestUrl}, wavBytes={wavBytes.Length}");
 
             using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
             {
@@ -274,10 +282,10 @@ namespace ImageColorChanger.Services
                 return string.Empty;
             }
 
-            TencentSentenceRecognitionEnvelope payload = null;
+            TencentSentenceRecognitionEnvelope responseEnvelope = null;
             try
             {
-                payload = JsonSerializer.Deserialize<TencentSentenceRecognitionEnvelope>(responseText);
+                responseEnvelope = JsonSerializer.Deserialize<TencentSentenceRecognitionEnvelope>(responseText);
             }
             catch (Exception ex)
             {
@@ -285,19 +293,19 @@ namespace ImageColorChanger.Services
                 return string.Empty;
             }
 
-            if (payload?.Response == null)
+            if (responseEnvelope?.Response == null)
             {
                 Debug.WriteLine($"[BibleVoice][Tencent] short-speech empty-response: raw={TrimForLog(responseText)}");
                 return string.Empty;
             }
 
-            if (payload.Response.Error != null && !string.IsNullOrWhiteSpace(payload.Response.Error.Code))
+            if (responseEnvelope.Response.Error != null && !string.IsNullOrWhiteSpace(responseEnvelope.Response.Error.Code))
             {
-                Debug.WriteLine($"[BibleVoice][Tencent] short-speech asr-error: code={payload.Response.Error.Code}, message={payload.Response.Error.Message}, raw={TrimForLog(responseText)}");
+                Debug.WriteLine($"[BibleVoice][Tencent] short-speech asr-error: code={responseEnvelope.Response.Error.Code}, message={responseEnvelope.Response.Error.Message}, raw={TrimForLog(responseText)}");
                 return string.Empty;
             }
 
-            string recognized = (payload.Response.Result ?? string.Empty).Trim();
+            string recognized = (responseEnvelope.Response.Result ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(recognized))
             {
                 Debug.WriteLine($"[BibleVoice][Tencent] short-speech empty-result: raw={TrimForLog(responseText)}");

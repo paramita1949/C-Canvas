@@ -1035,13 +1035,9 @@ namespace ImageColorChanger.UI
 
         private void UpdateRecognitionDebugMarker(bool realtimeEnabled, bool shortPhraseEnabled)
         {
-            string marker = ImageColorChanger.Services.LiveCaption.LiveCaptionDebugMarkerFormatter.Format(
-                realtimeEnabled,
-                shortPhraseEnabled);
-            _recognitionDebugMarkerText.Text = marker;
-            _recognitionDebugMarkerText.Visibility = string.IsNullOrWhiteSpace(marker)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            // UI优化：不再在左上角显示识别调试标记（如 [实时语音][实时短语]）。
+            _recognitionDebugMarkerText.Text = string.Empty;
+            _recognitionDebugMarkerText.Visibility = Visibility.Collapsed;
         }
 
         public void SetProjectionToggleState(bool hidden)

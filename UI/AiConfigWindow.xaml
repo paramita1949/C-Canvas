@@ -159,12 +159,59 @@
                 <TextBox x:Name="BaseUrlTextBox" Grid.Row="2" Grid.Column="1" Margin="0,18,0,0" Style="{StaticResource FieldTextBoxStyle}"/>
 
                 <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,18,0,0" Style="{StaticResource FieldLabelStyle}" Text="模型选择"/>
-                <ComboBox x:Name="ModelSelectComboBox"
-                          Grid.Row="3" Grid.Column="1"
-                          Margin="0,18,0,0"
-                          Style="{StaticResource FieldComboBoxStyle}"
-                          ItemContainerStyle="{StaticResource ComboBoxItemFixStyle}"
-                          SelectionChanged="ModelSelectComboBox_SelectionChanged"/>
+                <Grid Grid.Row="3" Grid.Column="1" Margin="0,18,0,0">
+                    <ComboBox x:Name="ModelSelectComboBox"
+                              Style="{StaticResource FieldComboBoxStyle}"
+                              ItemContainerStyle="{StaticResource ComboBoxItemFixStyle}"
+                              SelectionChanged="ModelSelectComboBox_SelectionChanged">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding DisplayText}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1"
+                                            Width="22"
+                                            Height="22"
+                                            Margin="8,0,0,0"
+                                            Content="−"
+                                            FontSize="14"
+                                            FontWeight="Bold"
+                                            Foreground="#C0392B"
+                                            Background="Transparent"
+                                            BorderBrush="#E6E6E6"
+                                            BorderThickness="1"
+                                            Padding="0"
+                                            Cursor="Hand"
+                                            Click="ModelItemDeleteButton_Click">
+                                        <Button.Tag>
+                                            <Binding Path="ModelId"/>
+                                        </Button.Tag>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsCustom}" Value="True"/>
+                                                            <Condition Binding="{Binding IsDropDownOpen, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,18,0,0" Style="{StaticResource FieldLabelStyle}" Text="方言模型"/>
                 <ComboBox x:Name="DialectSelectComboBox"

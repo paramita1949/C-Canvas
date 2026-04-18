@@ -1,4 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Core;
@@ -28,6 +38,14 @@ namespace ImageColorChanger.UI
         private string _draftShortBaseUrl = string.Empty;
         private string _draftShortModel = string.Empty;
         private string _draftShortDialect = "default";
+        private string _draftTencentRealtimeCustomizationId = string.Empty;
+        private string _draftTencentShortCustomizationId = string.Empty;
+        private readonly List<TencentCustomizationModelEntry> _tencentCustomizationModels = new();
+        private string _lastTencentCustomizationSyncFingerprint = string.Empty;
+        private bool _tencentCustomizationSyncInFlight;
+        private const string TencentAsrHost = "asr.tencentcloudapi.com";
+        private const string TencentAsrVersion = "2019-06-14";
+        private const string TencentAsrService = "asr";
 
         private sealed class ProviderPreset
         {
@@ -46,6 +64,15 @@ namespace ImageColorChanger.UI
             public string Label { get; set; } = string.Empty;
             public string ModelId { get; set; } = string.Empty;
             public string Description { get; set; } = string.Empty;
+        }
+
+        private sealed class ModelPickerItem
+        {
+            public string DisplayText { get; set; } = string.Empty;
+            public string ModelId { get; set; } = string.Empty;
+            public string Description { get; set; } = string.Empty;
+            public bool IsCustom { get; set; }
+            public bool IsAddAction { get; set; }
         }
 
         private sealed class DialectOption
@@ -76,9 +103,10 @@ namespace ImageColorChanger.UI
             BaseUrlTextBox.Text = GetModeBaseUrl(_speechMode);
             PopulateProviderOptions(_speechMode, provider);
             provider = GetSelectedProvider();
-            InitializeModelSelection(provider, GetModeModel(_speechMode));
+            InitializeModelSelection(provider, GetPreferredModelSelectionId(_speechMode, provider));
             InitializeDialectSelection(provider);
             LoadProviderCredentials(provider);
+            TriggerTencentCustomizationSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
             InitializeVerseSourceComboBox();
         }
@@ -94,6 +122,31 @@ namespace ImageColorChanger.UI
             _draftShortBaseUrl = (_configManager.LiveCaptionShortProxyBaseUrl ?? string.Empty).Trim();
             _draftShortModel = (_configManager.LiveCaptionShortAsrModel ?? string.Empty).Trim();
             _draftShortDialect = _configManager.LiveCaptionShortBaiduDevPid.ToString();
+
+            _draftTencentRealtimeCustomizationId = (_configManager.LiveCaptionTencentRealtimeCustomizationId ?? string.Empty).Trim();
+            _draftTencentShortCustomizationId = (_configManager.LiveCaptionTencentShortCustomizationId ?? string.Empty).Trim();
+            _tencentCustomizationModels.Clear();
+            var configuredModels = _configManager.LiveCaptionTencentCustomizationModels ?? Array.Empty<TencentCustomizationModelEntry>();
+            for (int i = 0; i < configuredModels.Length; i++)
+            {
+                var item = configuredModels[i];
+                if (item == null)
+                {
+                    continue;
+                }
+
+                string id = (item.Id ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    continue;
+                }
+
+                _tencentCustomizationModels.Add(new TencentCustomizationModelEntry
+                {
+                    Id = id,
+                    Name = (item.Name ?? string.Empty).Trim()
+                });
+            }
         }
 
         private void SetModeDraft(SpeechMode mode, string provider, string baseUrl, string model, string dialect)
@@ -141,10 +194,11 @@ namespace ImageColorChanger.UI
 
             string provider = NormalizeProvider(item.Tag?.ToString());
             ApplyPreset(GetPreset(provider));
-            PopulateModelOptions(provider, GetModeModel(_speechMode));
+            PopulateModelOptions(provider, GetPreferredModelSelectionId(_speechMode, provider));
             ApplyProviderDefaults(provider);
             PopulateDialectOptions(provider, GetCurrentDialectValue(provider));
             LoadProviderCredentials(provider);
+            TriggerTencentCustomizationSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
         }
 
@@ -155,6 +209,34 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (ModelSelectComboBox.SelectedItem is ModelPickerItem picked && picked.IsAddAction)
+            {
+                var addResult = ShowTencentCustomModelAddDialog();
+                if (addResult.Ok)
+                {
+                    var customId = addResult.ModelId;
+                    var customName = addResult.ModelName;
+                    UpsertTencentCustomModel(customId, customName);
+                    SetModeTencentCustomizationId(_speechMode, customId);
+                    if (_speechMode == SpeechMode.ShortPhrase)
+                    {
+                        _draftShortModel = "16k_zh";
+                    }
+                    else
+                    {
+                        _draftRealtimeModel = "16k_zh";
+                    }
+                    PopulateModelOptions(GetSelectedProvider(), customId);
+                    CaptureCurrentModeDraftFromUi();
+                }
+                else
+                {
+                    string selectedProvider = GetSelectedProvider();
+                    PopulateModelOptions(selectedProvider, GetPreferredModelSelectionId(_speechMode, selectedProvider));
+                }
+                return;
+            }
+
             string provider = GetSelectedProvider();
             if (_speechMode == SpeechMode.ShortPhrase &&
                 string.Equals(provider, "baidu", StringComparison.OrdinalIgnoreCase))
@@ -162,8 +244,23 @@ namespace ImageColorChanger.UI
                 BaseUrlTextBox.Text = GetShortSpeechDefaultBaseUrl(GetSelectedModelId());
             }
 
+            string modelId = GetSelectedModelId();
             RefreshHintWithModelDescription();
-            ModelTextBox.Text = GetSelectedModelId();
+            ModelTextBox.Text = modelId;
+            if (IsTencentRealtimeModelManageMode(provider))
+            {
+                if (ModelSelectComboBox.SelectedItem is ModelPickerItem selectedItem)
+                {
+                    if (selectedItem.IsCustom)
+                    {
+                        SetModeTencentCustomizationId(_speechMode, selectedItem.ModelId);
+                    }
+                    else if (!selectedItem.IsAddAction)
+                    {
+                        SetModeTencentCustomizationId(_speechMode, string.Empty);
+                    }
+                }
+            }
             CaptureCurrentModeDraftFromUi();
         }
 
@@ -245,6 +342,13 @@ namespace ImageColorChanger.UI
             }
 
             _configManager.LiveCaptionSpeechMode = _speechMode == SpeechMode.ShortPhrase ? "short" : "realtime";
+            _configManager.LiveCaptionTencentRealtimeCustomizationId = (_draftTencentRealtimeCustomizationId ?? string.Empty).Trim();
+            _configManager.LiveCaptionTencentShortCustomizationId = (_draftTencentShortCustomizationId ?? string.Empty).Trim();
+            _configManager.LiveCaptionTencentCustomizationModels = _tencentCustomizationModels.ToArray();
+            Debug.WriteLine(
+                $"[AiConfig][TencentCustom] save: provider={provider}, mode={_speechMode}, model={model}, " +
+                $"realtimeCustomizationId='{_configManager.LiveCaptionTencentRealtimeCustomizationId}', " +
+                $"shortCustomizationId='{_configManager.LiveCaptionTencentShortCustomizationId}', listCount={_tencentCustomizationModels.Count}");
             SaveModeConfig(_speechMode, provider, baseUrl, model, dialect);
 
             // Keep current-mode values mirrored to legacy global fields so existing runtime paths continue working.
@@ -417,13 +521,14 @@ namespace ImageColorChanger.UI
             }
 
             string provider = GetModeProvider(_speechMode);
-            string preferredModelId = GetModeModel(_speechMode);
+            string preferredModelId = GetPreferredModelSelectionId(_speechMode, provider);
             PopulateProviderOptions(_speechMode, provider);
             provider = GetSelectedProvider();
             BaseUrlTextBox.Text = GetModeBaseUrl(_speechMode);
             PopulateModelOptions(provider, preferredModelId);
             InitializeDialectSelection(provider);
             LoadProviderCredentials(provider);
+            TriggerTencentCustomizationSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
         }
 
@@ -433,31 +538,82 @@ namespace ImageColorChanger.UI
             try
             {
                 var options = GetBuiltInModelOptions(provider, _speechMode);
-                ModelSelectComboBox.Items.Clear();
+                bool canManageCustom = IsTencentRealtimeModelManageMode(provider);
+                var items = new List<ModelPickerItem>();
                 foreach (ModelOption option in options)
                 {
-                    ModelSelectComboBox.Items.Add(new ComboBoxItem
+                    items.Add(new ModelPickerItem
                     {
-                        Content = option.Label,
-                        Tag = option.ModelId,
-                        ToolTip = option.Description
+                        DisplayText = option.Label,
+                        ModelId = option.ModelId,
+                        Description = option.Description,
+                        IsCustom = false,
+                        IsAddAction = false
+                    });
+                }
+                if (canManageCustom)
+                {
+                    for (int i = 0; i < _tencentCustomizationModels.Count; i++)
+                    {
+                        var custom = _tencentCustomizationModels[i];
+                        string id = (custom?.Id ?? string.Empty).Trim();
+                        if (string.IsNullOrWhiteSpace(id))
+                        {
+                            continue;
+                        }
+
+                        bool duplicated = false;
+                        for (int j = 0; j < options.Length; j++)
+                        {
+                            if (string.Equals(options[j].ModelId, id, StringComparison.OrdinalIgnoreCase))
+                            {
+                                duplicated = true;
+                                break;
+                            }
+                        }
+                        if (duplicated)
+                        {
+                            continue;
+                        }
+
+                        string name = (custom.Name ?? string.Empty).Trim();
+                        string display = string.IsNullOrWhiteSpace(name) ? $"{id}（自学习）" : $"{name}（自学习）";
+                        items.Add(new ModelPickerItem
+                        {
+                            DisplayText = display,
+                            ModelId = id,
+                            Description = $"腾讯自学习模型：{id}",
+                            IsCustom = true,
+                            IsAddAction = false
+                        });
+                    }
+
+                    items.Add(new ModelPickerItem
+                    {
+                        DisplayText = "➕ 新增自学习模型",
+                        ModelId = "__add_custom_model__",
+                        Description = "添加腾讯自学习模型（请输入模型ID）",
+                        IsCustom = false,
+                        IsAddAction = true
                     });
                 }
 
                 int index = 0;
                 if (!string.IsNullOrWhiteSpace(preferredModelId))
                 {
-                    for (int i = 0; i < ModelSelectComboBox.Items.Count; i++)
+                    for (int i = 0; i < items.Count; i++)
                     {
-                        if (ModelSelectComboBox.Items[i] is ComboBoxItem item &&
-                            string.Equals(item.Tag?.ToString(), preferredModelId, StringComparison.OrdinalIgnoreCase))
+                        if (!items[i].IsAddAction &&
+                            string.Equals(items[i].ModelId, preferredModelId, StringComparison.OrdinalIgnoreCase))
                         {
                             index = i;
                             break;
                         }
                     }
                 }
-                ModelSelectComboBox.SelectedIndex = index;
+
+                ModelSelectComboBox.ItemsSource = items;
+                ModelSelectComboBox.SelectedIndex = items.Count == 0 ? -1 : Math.Clamp(index, 0, items.Count - 1);
             }
             finally
             {
@@ -469,9 +625,20 @@ namespace ImageColorChanger.UI
 
         private string GetSelectedModelId()
         {
-            if (ModelSelectComboBox.SelectedItem is ComboBoxItem item)
+            if (ModelSelectComboBox.SelectedItem is ModelPickerItem item)
             {
-                string model = (item.Tag?.ToString() ?? string.Empty).Trim();
+                if (item.IsAddAction)
+                {
+                    return GetModeModel(_speechMode);
+                }
+
+                // 腾讯实时下拉里自学习模型是 customization_id，不是 engine_model_type。
+                if (IsTencentRealtimeModelManageMode(GetSelectedProvider()) && item.IsCustom)
+                {
+                    return "16k_zh";
+                }
+
+                string model = (item.ModelId ?? string.Empty).Trim();
                 if (!string.IsNullOrWhiteSpace(model))
                 {
                     return model;
@@ -647,12 +814,406 @@ namespace ImageColorChanger.UI
             RefreshHintWithModelDescription();
         }
 
+        private bool IsTencentRealtimeModelManageMode(string provider)
+        {
+            return string.Equals(provider, "tencent", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void TriggerTencentCustomizationSyncIfNeeded(string provider)
+        {
+            if (!IsTencentRealtimeModelManageMode(provider))
+            {
+                return;
+            }
+
+            if (_tencentCustomizationSyncInFlight)
+            {
+                return;
+            }
+
+            string secretId = (_configManager.LiveCaptionTencentSecretId ?? string.Empty).Trim();
+            string secretKey = (_configManager.LiveCaptionTencentSecretKey ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(secretId) || string.IsNullOrWhiteSpace(secretKey))
+            {
+                return;
+            }
+
+            string fingerprint = $"{secretId}|{secretKey}";
+            if (string.Equals(_lastTencentCustomizationSyncFingerprint, fingerprint, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _tencentCustomizationSyncInFlight = true;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var remote = await FetchTencentCustomizationModelsAsync(secretId, secretKey, CancellationToken.None);
+                    if (remote == null || remote.Count == 0)
+                    {
+                        return;
+                    }
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        _tencentCustomizationModels.Clear();
+                        _tencentCustomizationModels.AddRange(remote);
+                        _lastTencentCustomizationSyncFingerprint = fingerprint;
+                        string selectedProvider = GetSelectedProvider();
+                        PopulateModelOptions(selectedProvider, GetPreferredModelSelectionId(_speechMode, selectedProvider));
+                        Debug.WriteLine($"[AiConfig][TencentCustom] auto-sync success: count={remote.Count}");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[AiConfig][TencentCustom] auto-sync failed: {ex.Message}");
+                }
+                finally
+                {
+                    _tencentCustomizationSyncInFlight = false;
+                }
+            });
+        }
+
+        private static async Task<List<TencentCustomizationModelEntry>> FetchTencentCustomizationModelsAsync(
+            string secretId,
+            string secretKey,
+            CancellationToken cancellationToken)
+        {
+            long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            string date = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string payload = "{\"Limit\":100,\"Offset\":0}";
+            string authorization = BuildTencentAuthorization(
+                secretId,
+                secretKey,
+                TencentAsrHost,
+                TencentAsrService,
+                timestamp,
+                date,
+                "GetCustomizationList",
+                payload);
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"https://{TencentAsrHost}")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+            request.Headers.TryAddWithoutValidation("Authorization", authorization);
+            request.Headers.TryAddWithoutValidation("Host", TencentAsrHost);
+            request.Headers.TryAddWithoutValidation("X-TC-Action", "GetCustomizationList");
+            request.Headers.TryAddWithoutValidation("X-TC-Version", TencentAsrVersion);
+            request.Headers.TryAddWithoutValidation("X-TC-Timestamp", timestamp.ToString(CultureInfo.InvariantCulture));
+
+            using var response = await client.SendAsync(request, cancellationToken);
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                Debug.WriteLine($"[AiConfig][TencentCustom] auto-sync http-failed: status={(int)response.StatusCode}, raw={TrimForLog(json)}");
+                return new List<TencentCustomizationModelEntry>();
+            }
+
+            using JsonDocument doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("Response", out JsonElement resp))
+            {
+                return new List<TencentCustomizationModelEntry>();
+            }
+
+            if (resp.TryGetProperty("Error", out JsonElement err))
+            {
+                string code = err.TryGetProperty("Code", out JsonElement codeEl) ? (codeEl.GetString() ?? string.Empty) : string.Empty;
+                string message = err.TryGetProperty("Message", out JsonElement msgEl) ? (msgEl.GetString() ?? string.Empty) : string.Empty;
+                Debug.WriteLine($"[AiConfig][TencentCustom] auto-sync api-error: code={code}, message={message}");
+                return new List<TencentCustomizationModelEntry>();
+            }
+
+            var result = new List<TencentCustomizationModelEntry>();
+            if (!resp.TryGetProperty("Data", out JsonElement data) || data.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var item in data.EnumerateArray())
+            {
+                string id = item.TryGetProperty("ModelId", out JsonElement idEl) ? (idEl.GetString() ?? string.Empty).Trim() : string.Empty;
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    continue;
+                }
+
+                string serviceType = item.TryGetProperty("ServiceType", out JsonElement typeEl) ? (typeEl.GetString() ?? string.Empty).Trim().ToLowerInvariant() : string.Empty;
+                if (!string.IsNullOrWhiteSpace(serviceType) && !string.Equals(serviceType, "realtime", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string name = item.TryGetProperty("ModelName", out JsonElement nameEl) ? (nameEl.GetString() ?? string.Empty).Trim() : string.Empty;
+                result.Add(new TencentCustomizationModelEntry
+                {
+                    Id = id,
+                    Name = string.IsNullOrWhiteSpace(name) ? id : name
+                });
+            }
+
+            return result;
+        }
+
+        private static string BuildTencentAuthorization(
+            string secretId,
+            string secretKey,
+            string host,
+            string service,
+            long timestamp,
+            string date,
+            string action,
+            string payloadJson)
+        {
+            const string algorithm = "TC3-HMAC-SHA256";
+            string httpRequestMethod = "POST";
+            string canonicalUri = "/";
+            string canonicalQueryString = string.Empty;
+            string canonicalHeaders = $"content-type:application/json; charset=utf-8\nhost:{host}\nx-tc-action:{action.ToLowerInvariant()}\n";
+            string signedHeaders = "content-type;host;x-tc-action";
+            string hashedRequestPayload = Sha256Hex(payloadJson);
+            string canonicalRequest = $"{httpRequestMethod}\n{canonicalUri}\n{canonicalQueryString}\n{canonicalHeaders}\n{signedHeaders}\n{hashedRequestPayload}";
+
+            string credentialScope = $"{date}/{service}/tc3_request";
+            string stringToSign = $"{algorithm}\n{timestamp}\n{credentialScope}\n{Sha256Hex(canonicalRequest)}";
+
+            byte[] secretDate = HmacSha256Bytes(Encoding.UTF8.GetBytes("TC3" + secretKey), date);
+            byte[] secretService = HmacSha256Bytes(secretDate, service);
+            byte[] secretSigning = HmacSha256Bytes(secretService, "tc3_request");
+            string signature = ToHex(HmacSha256Bytes(secretSigning, stringToSign));
+
+            return $"{algorithm} Credential={secretId}/{credentialScope}, SignedHeaders={signedHeaders}, Signature={signature}";
+        }
+
+        private static byte[] HmacSha256Bytes(byte[] key, string message)
+        {
+            using var hmac = new HMACSHA256(key);
+            return hmac.ComputeHash(Encoding.UTF8.GetBytes(message ?? string.Empty));
+        }
+
+        private static string Sha256Hex(string content)
+        {
+            using var sha = SHA256.Create();
+            return ToHex(sha.ComputeHash(Encoding.UTF8.GetBytes(content ?? string.Empty)));
+        }
+
+        private static string ToHex(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(bytes.Length * 2);
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                sb.Append(bytes[i].ToString("x2", CultureInfo.InvariantCulture));
+            }
+
+            return sb.ToString();
+        }
+
+        private static string TrimForLog(string text)
+        {
+            const int max = 220;
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            string normalized = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return normalized.Length <= max ? normalized : normalized.Substring(0, max) + "...";
+        }
+
+        private static (bool Ok, string ModelId, string ModelName) ShowTencentCustomModelAddDialog()
+        {
+            string resultId = string.Empty;
+            string resultName = string.Empty;
+
+            var dialog = new Window
+            {
+                Title = "新增自学习模型",
+                Width = 460,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                Background = System.Windows.Media.Brushes.White
+            };
+
+            var root = new Grid { Margin = new Thickness(20) };
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var nameLabel = new TextBlock { Text = "模型名称", VerticalAlignment = VerticalAlignment.Center };
+            var nameBox = new System.Windows.Controls.TextBox { Height = 34, Padding = new Thickness(8, 0, 8, 0) };
+            Grid.SetRow(nameLabel, 0); Grid.SetColumn(nameLabel, 0);
+            Grid.SetRow(nameBox, 0); Grid.SetColumn(nameBox, 1);
+
+            var idLabel = new TextBlock { Text = "模型ID", Margin = new Thickness(0, 12, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var idBox = new System.Windows.Controls.TextBox { Height = 34, Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+            Grid.SetRow(idLabel, 1); Grid.SetColumn(idLabel, 0);
+            Grid.SetRow(idBox, 1); Grid.SetColumn(idBox, 1);
+
+            var hint = new TextBlock
+            {
+                Text = "模型ID必填，名称可选。默认模型不支持删除。",
+                Margin = new Thickness(0, 12, 0, 0),
+                Foreground = System.Windows.Media.Brushes.Gray
+            };
+            Grid.SetRow(hint, 2); Grid.SetColumnSpan(hint, 2);
+
+            var actions = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 16, 0, 0)
+            };
+            var cancel = new System.Windows.Controls.Button { Content = "取消", Width = 82, Height = 32, Margin = new Thickness(0, 0, 8, 0) };
+            var ok = new System.Windows.Controls.Button { Content = "确定", Width = 82, Height = 32 };
+            actions.Children.Add(cancel);
+            actions.Children.Add(ok);
+            Grid.SetRow(actions, 3); Grid.SetColumnSpan(actions, 2);
+
+            cancel.Click += (_, _) => dialog.DialogResult = false;
+            ok.Click += (_, _) =>
+            {
+                string id = (idBox.Text ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    System.Windows.MessageBox.Show(dialog, "请输入模型ID。", "AI配置", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    idBox.Focus();
+                    return;
+                }
+                resultId = id;
+                resultName = (nameBox.Text ?? string.Empty).Trim();
+                dialog.DialogResult = true;
+            };
+
+            root.Children.Add(nameLabel);
+            root.Children.Add(nameBox);
+            root.Children.Add(idLabel);
+            root.Children.Add(idBox);
+            root.Children.Add(hint);
+            root.Children.Add(actions);
+            dialog.Content = root;
+
+            bool confirmed = dialog.ShowDialog() == true;
+            return confirmed
+                ? (true, resultId, resultName)
+                : (false, string.Empty, string.Empty);
+        }
+
+        private void UpsertTencentCustomModel(string id, string name)
+        {
+            string normalizedId = (id ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(normalizedId))
+            {
+                return;
+            }
+
+            int index = _tencentCustomizationModels.FindIndex(m => string.Equals(m.Id, normalizedId, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    _tencentCustomizationModels[index].Name = name.Trim();
+                }
+                return;
+            }
+
+            _tencentCustomizationModels.Add(new TencentCustomizationModelEntry
+            {
+                Id = normalizedId,
+                Name = (name ?? string.Empty).Trim()
+            });
+        }
+
+        private bool IsBuiltInModelIdForCurrentProvider(string modelId)
+        {
+            string id = (modelId ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
+
+            var options = GetBuiltInModelOptions(GetSelectedProvider(), _speechMode);
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (string.Equals(options[i].ModelId, id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ModelItemDeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button button)
+            {
+                return;
+            }
+
+            if (button.Tag is not string id || string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+
+            string provider = GetSelectedProvider();
+            if (!IsTencentRealtimeModelManageMode(provider))
+            {
+                return;
+            }
+
+            if (IsBuiltInModelIdForCurrentProvider(id))
+            {
+                return;
+            }
+
+            int index = _tencentCustomizationModels.FindIndex(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                return;
+            }
+
+            _tencentCustomizationModels.RemoveAt(index);
+            if (string.Equals(_draftTencentRealtimeCustomizationId, id, StringComparison.OrdinalIgnoreCase))
+            {
+                _draftTencentRealtimeCustomizationId = string.Empty;
+            }
+
+            if (string.Equals(_draftTencentShortCustomizationId, id, StringComparison.OrdinalIgnoreCase))
+            {
+                _draftTencentShortCustomizationId = string.Empty;
+            }
+
+            string fallback = "16k_zh";
+            if (_speechMode == SpeechMode.ShortPhrase)
+            {
+                _draftShortModel = fallback;
+            }
+            else
+            {
+                _draftRealtimeModel = fallback;
+            }
+            PopulateModelOptions(provider, fallback);
+            e.Handled = true;
+        }
+
         private void RefreshHintWithModelDescription()
         {
             string desc = string.Empty;
-            if (ModelSelectComboBox.SelectedItem is ComboBoxItem item)
+            if (ModelSelectComboBox.SelectedItem is ModelPickerItem item)
             {
-                desc = (item.ToolTip?.ToString() ?? string.Empty).Trim();
+                desc = (item.Description ?? string.Empty).Trim();
             }
             string dialectDesc = string.Empty;
             if (DialectSelectComboBox.SelectedItem is ComboBoxItem dialectItem)
@@ -682,7 +1243,7 @@ namespace ImageColorChanger.UI
                     Label3 = "SecretKey",
                     Hint = _speechMode == SpeechMode.ShortPhrase
                         ? "腾讯云一句话识别：接口地址 https://asr.tencentcloudapi.com（短语识别链会自动完成 TC3 签名）。"
-                        : "腾讯云实时识别：连接地址示例 wss://asr.cloud.tencent.com/asr/v2（实时链路会自动拼接 AppID 与签名参数）"
+                        : "腾讯云实时识别：连接地址示例 wss://asr.cloud.tencent.com/asr/v2（实时链路会自动拼接 AppID、签名及 customization_id）"
                 },
                 "aliyun" => new ProviderPreset
                 {
@@ -835,6 +1396,36 @@ namespace ImageColorChanger.UI
             return mode == SpeechMode.ShortPhrase
                 ? _draftShortModel
                 : _draftRealtimeModel;
+        }
+
+        private string GetPreferredModelSelectionId(SpeechMode mode, string provider)
+        {
+            if (string.Equals(provider, "tencent", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(GetModeTencentCustomizationId(mode)))
+            {
+                return GetModeTencentCustomizationId(mode);
+            }
+
+            return GetModeModel(mode);
+        }
+
+        private string GetModeTencentCustomizationId(SpeechMode mode)
+        {
+            return mode == SpeechMode.ShortPhrase
+                ? (_draftTencentShortCustomizationId ?? string.Empty).Trim()
+                : (_draftTencentRealtimeCustomizationId ?? string.Empty).Trim();
+        }
+
+        private void SetModeTencentCustomizationId(SpeechMode mode, string customizationId)
+        {
+            string next = (customizationId ?? string.Empty).Trim();
+            if (mode == SpeechMode.ShortPhrase)
+            {
+                _draftTencentShortCustomizationId = next;
+                return;
+            }
+
+            _draftTencentRealtimeCustomizationId = next;
         }
 
         private void SaveModeConfig(SpeechMode mode, string provider, string baseUrl, string model, string dialect)

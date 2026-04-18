@@ -3,6 +3,12 @@ using System.Text.Json.Serialization;
 
 namespace ImageColorChanger.Core
 {
+    public sealed class TencentCustomizationModelEntry
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Id { get; set; } = string.Empty;
+    }
+
     public partial class ConfigManager
     {
         public string LiveCaptionAsrProvider
@@ -471,6 +477,130 @@ namespace ImageColorChanger.Core
                     _config.LiveCaptionTencentSecretKey = next;
                     SaveConfig();
                 }
+            }
+        }
+
+        public string LiveCaptionTencentCustomizationId
+        {
+            get => _config.LiveCaptionTencentCustomizationId ?? string.Empty;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionTencentCustomizationId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionTencentCustomizationId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionTencentRealtimeCustomizationId
+        {
+            get
+            {
+                string value = _config.LiveCaptionTencentRealtimeCustomizationId ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+
+                return _config.LiveCaptionTencentCustomizationId ?? string.Empty;
+            }
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionTencentRealtimeCustomizationId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionTencentRealtimeCustomizationId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionTencentShortCustomizationId
+        {
+            get
+            {
+                string value = _config.LiveCaptionTencentShortCustomizationId ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+
+                return _config.LiveCaptionTencentCustomizationId ?? string.Empty;
+            }
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionTencentShortCustomizationId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionTencentShortCustomizationId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public TencentCustomizationModelEntry[] LiveCaptionTencentCustomizationModels
+        {
+            get
+            {
+                var raw = _config.LiveCaptionTencentCustomizationModels ?? Array.Empty<TencentCustomizationModelEntry>();
+                if (raw.Length == 0)
+                {
+                    return Array.Empty<TencentCustomizationModelEntry>();
+                }
+
+                var list = new System.Collections.Generic.List<TencentCustomizationModelEntry>(raw.Length);
+                for (int i = 0; i < raw.Length; i++)
+                {
+                    var item = raw[i];
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    string id = (item.Id ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        continue;
+                    }
+
+                    list.Add(new TencentCustomizationModelEntry
+                    {
+                        Id = id,
+                        Name = (item.Name ?? string.Empty).Trim()
+                    });
+                }
+
+                return list.ToArray();
+            }
+            set
+            {
+                var incoming = value ?? Array.Empty<TencentCustomizationModelEntry>();
+                var list = new System.Collections.Generic.List<TencentCustomizationModelEntry>(incoming.Length);
+                for (int i = 0; i < incoming.Length; i++)
+                {
+                    var item = incoming[i];
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    string id = (item.Id ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        continue;
+                    }
+
+                    list.Add(new TencentCustomizationModelEntry
+                    {
+                        Id = id,
+                        Name = (item.Name ?? string.Empty).Trim()
+                    });
+                }
+
+                _config.LiveCaptionTencentCustomizationModels = list.ToArray();
+                SaveConfig();
             }
         }
 
@@ -1080,6 +1210,10 @@ namespace ImageColorChanger.Core
         public string LiveCaptionTencentAppId { get; set; } = "";
         public string LiveCaptionTencentSecretId { get; set; } = "";
         public string LiveCaptionTencentSecretKey { get; set; } = "";
+        public string LiveCaptionTencentCustomizationId { get; set; } = "";
+        public string LiveCaptionTencentRealtimeCustomizationId { get; set; } = "";
+        public string LiveCaptionTencentShortCustomizationId { get; set; } = "";
+        public TencentCustomizationModelEntry[] LiveCaptionTencentCustomizationModels { get; set; } = Array.Empty<TencentCustomizationModelEntry>();
         public string LiveCaptionAliAppKey { get; set; } = "";
         public string LiveCaptionAliAccessKeyId { get; set; } = "";
         public string LiveCaptionAliAccessKeySecret { get; set; } = "";

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -73,12 +74,14 @@ namespace ImageColorChanger.Services.LiveCaption
             var reverseLookupTask = _reverseLookupService.TryResolveAsync(
                 _bibleService, recognized, cancellationToken);
 
+            var parseCandidates = BibleSpeechTextNormalizer.BuildReferenceCandidates(recognized, aggressive: true);
             BibleSpeechReference reference;
-            if (BibleSpeechReferenceParser.TryParse(recognized, out reference))
+            if (TryParseReferenceFromCandidates(parseCandidates, out reference, out string matchedCandidate))
             {
                 // Path1 成功：引用格式精确解析，置信度最高，直接采纳
                 // reverseLookupTask 在后台自然完成，不阻塞当前路径
-                _log("Direct parse succeeded.");
+                _reverseLookupService.NotifyDirectParse(reference.BookId, reference.Chapter, Math.Max(1, reference.StartVerse));
+                _log($"Direct parse succeeded. matched='{matchedCandidate}'");
             }
             else
             {
@@ -111,6 +114,58 @@ namespace ImageColorChanger.Services.LiveCaption
                 Reference = reference,
                 FinalEndVerse = finalEndVerse
             };
+        }
+
+        private static bool TryParseReferenceFromCandidates(
+            IReadOnlyList<string> candidates,
+            out BibleSpeechReference reference,
+            out string matchedCandidate)
+        {
+            reference = default;
+            matchedCandidate = string.Empty;
+            if (candidates == null || candidates.Count == 0)
+            {
+                return false;
+            }
+
+            int bestScore = int.MinValue;
+            bool matched = false;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                string candidate = candidates[i];
+                if (!BibleSpeechReferenceParser.TryParse(candidate, out var parsed))
+                {
+                    continue;
+                }
+
+                int score = 0;
+                if (parsed.EndVerse > 0)
+                {
+                    score += 6;
+                }
+                if (parsed.StartVerse > 1)
+                {
+                    score += 3;
+                }
+                if (candidate.Contains("节", StringComparison.Ordinal) || candidate.Contains(":", StringComparison.Ordinal))
+                {
+                    score += 2;
+                }
+                if (candidate.Contains("章", StringComparison.Ordinal))
+                {
+                    score += 1;
+                }
+
+                if (!matched || score > bestScore)
+                {
+                    matched = true;
+                    bestScore = score;
+                    reference = parsed;
+                    matchedCandidate = candidate;
+                }
+            }
+
+            return matched;
         }
 
         internal static byte[] BuildWavFromPcm16kMono(byte[] pcmBytes)

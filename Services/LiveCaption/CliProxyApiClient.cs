@@ -38,6 +38,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly string _tencentAppId;
         private readonly string _tencentSecretId;
         private readonly string _tencentSecretKey;
+        private readonly string _tencentCustomizationId;
         private readonly string _aliAppKey;
         private readonly string _aliAccessKeyId;
         private readonly string _aliAccessKeySecret;
@@ -93,6 +94,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private Action<LiveCaptionAsrText> _tencentRealtimeTextHandler;
         private Action<string> _tencentRealtimeStatusHandler;
         private string _tencentRealtimeVoiceId = string.Empty;
+        private string _tencentRealtimeParamSummary = string.Empty;
         private ClientWebSocket _baiduRealtimeWs;
         private Task _baiduRealtimeReceiveTask;
         private readonly SemaphoreSlim _baiduRealtimeSendLock = new(1, 1);
@@ -155,22 +157,38 @@ namespace ImageColorChanger.Services.LiveCaption
         public bool IsDoubaoRealtimeConnected => _doubaoRealtimeWs != null && _doubaoRealtimeWs.State == WebSocketState.Open;
         public bool IsFunAsrRealtimeConnected => _funAsrRealtimeWs != null && _funAsrRealtimeWs.State == WebSocketState.Open;
 
-        public CliProxyApiClient(ConfigManager config)
+        public CliProxyApiClient(ConfigManager config, bool useRealtimeSettings = false)
         {
-            _provider = NormalizeAsrProvider(config?.LiveCaptionAsrProvider);
-            _baseUrl = (config?.LiveCaptionProxyBaseUrl ?? "http://localhost:8317/v1").TrimEnd('/');
+            string configuredBaseUrl = useRealtimeSettings
+                ? config?.LiveCaptionRealtimeProxyBaseUrl
+                : config?.LiveCaptionProxyBaseUrl;
+            _provider = NormalizeAsrProvider(useRealtimeSettings
+                ? config?.LiveCaptionRealtimeAsrProvider
+                : config?.LiveCaptionAsrProvider);
+            _baseUrl = (string.IsNullOrWhiteSpace(configuredBaseUrl)
+                    ? "http://localhost:8317/v1"
+                    : configuredBaseUrl)
+                .TrimEnd('/');
             _funAsrWsUrl = ResolveFunAsrWsUrl(_baseUrl);
             _funAsrAllowInsecureTls = config?.LiveCaptionFunAsrAllowInsecureTls ?? true;
             _apiKey = config?.LiveCaptionApiKey ?? string.Empty;
-            _asrModel = config?.LiveCaptionAsrModel ?? "gpt-4o-mini-transcribe";
+            _asrModel = (useRealtimeSettings
+                ? config?.LiveCaptionRealtimeAsrModel
+                : config?.LiveCaptionAsrModel)
+                ?? "gpt-4o-mini-transcribe";
 
             _baiduAppId = config?.LiveCaptionBaiduAppId ?? string.Empty;
             _baiduApiKey = config?.LiveCaptionBaiduApiKey ?? string.Empty;
             _baiduSecretKey = config?.LiveCaptionBaiduSecretKey ?? string.Empty;
-            _baiduDevPid = config?.LiveCaptionBaiduDevPid > 0 ? config.LiveCaptionBaiduDevPid : 1537;
+            _baiduDevPid = useRealtimeSettings
+                ? (config?.LiveCaptionRealtimeBaiduDevPid > 0 ? config.LiveCaptionRealtimeBaiduDevPid : 1537)
+                : (config?.LiveCaptionBaiduDevPid > 0 ? config.LiveCaptionBaiduDevPid : 1537);
             _tencentAppId = config?.LiveCaptionTencentAppId ?? string.Empty;
             _tencentSecretId = config?.LiveCaptionTencentSecretId ?? string.Empty;
             _tencentSecretKey = config?.LiveCaptionTencentSecretKey ?? string.Empty;
+            _tencentCustomizationId = useRealtimeSettings
+                ? (config?.LiveCaptionTencentRealtimeCustomizationId ?? string.Empty)
+                : (config?.LiveCaptionTencentShortCustomizationId ?? string.Empty);
             _aliAppKey = config?.LiveCaptionAliAppKey ?? string.Empty;
             _aliAccessKeyId = config?.LiveCaptionAliAccessKeyId ?? string.Empty;
             _aliAccessKeySecret = config?.LiveCaptionAliAccessKeySecret ?? string.Empty;
@@ -780,6 +798,10 @@ namespace ImageColorChanger.Services.LiveCaption
                 _tencentRealtimeStatusHandler = onStatus;
                 _tencentRealtimeVoiceId = Guid.NewGuid().ToString("N");
                 string url = BuildTencentRealtimeWebSocketUrl(_tencentRealtimeVoiceId);
+                if (!string.IsNullOrWhiteSpace(_tencentRealtimeParamSummary))
+                {
+                    Debug.WriteLine($"[LiveCaption][TencentWS][StartParams] {_tencentRealtimeParamSummary}");
+                }
                 LastTranscribeUrl = url;
                 LastError = string.Empty;
                 LastTranscribeStatusCode = 0;
@@ -2124,6 +2146,7 @@ namespace ImageColorChanger.Services.LiveCaption
                     {
                         string msg = root.TryGetProperty("message", out JsonElement msgEl) ? msgEl.GetString() ?? string.Empty : string.Empty;
                         LastError = $"腾讯实时ASR错误: {code} {msg}".Trim();
+                        Debug.WriteLine($"[LiveCaption][TencentWS][ServerError] code={code}, message='{msg}', params={_tencentRealtimeParamSummary}");
                         _tencentRealtimeStatusHandler?.Invoke(LastError);
                         return;
                     }
@@ -2361,10 +2384,16 @@ namespace ImageColorChanger.Services.LiveCaption
                 ["nonce"] = nonce.ToString(),
                 ["secretid"] = _tencentSecretId,
                 ["timestamp"] = timestamp.ToString(),
-                ["vad_silence_time"] = "300",
+                ["vad_silence_time"] = "1000",
                 ["voice_format"] = "1",
                 ["voice_id"] = voiceId
             };
+            if (!string.IsNullOrWhiteSpace(_tencentCustomizationId))
+            {
+                parameters["customization_id"] = _tencentCustomizationId.Trim();
+            }
+            _tencentRealtimeParamSummary =
+                $"engine_model_type={engineType}, customization_id={(_tencentCustomizationId ?? string.Empty).Trim()}, needvad={parameters["needvad"]}, vad_silence_time={parameters["vad_silence_time"]}, voice_id={voiceId}";
 
             string canonicalQuery = string.Join("&", parameters.OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv => $"{kv.Key}={kv.Value}"));
@@ -2395,8 +2424,17 @@ namespace ImageColorChanger.Services.LiveCaption
                 "tencent-realtime" => "16k_zh",
                 "tencent" => "16k_zh",
                 "default" => "16k_zh",
+                "16k_zh" => "16k_zh",
+                "16k_zh_en" => "16k_zh_en",
+                "16k_en" => "16k_en",
+                "16k_zh_large" => "16k_zh_large",
+                "16k_en_large" => "16k_en_large",
+                "8k_zh" => "8k_zh",
+                "8k_zh_finance" => "8k_zh_finance",
+                "8k_zh_large" => "8k_zh_large",
                 _ when normalized.Contains("gpt-") => "16k_zh",
-                _ => raw
+                // 兜底：未知值（例如误传 customization_id）不作为引擎类型，回退默认16k_zh
+                _ => "16k_zh"
             };
         }
 
@@ -2419,7 +2457,7 @@ namespace ImageColorChanger.Services.LiveCaption
                     enable_intermediate_result = true,
                     enable_punctuation_prediction = true,
                     enable_inverse_text_normalization = true,
-                    max_sentence_silence = 400
+                    max_sentence_silence = 1200
                 }
             };
             return JsonSerializer.Serialize(frame);
@@ -2600,16 +2638,23 @@ namespace ImageColorChanger.Services.LiveCaption
             string engineType = string.IsNullOrWhiteSpace(_asrModel) || _asrModel.Contains("gpt-", StringComparison.OrdinalIgnoreCase)
                 ? "16k_zh"
                 : _asrModel;
-            string bodyJson = JsonSerializer.Serialize(new
+            string customizationId = (_tencentCustomizationId ?? string.Empty).Trim();
+            var requestPayload = new Dictionary<string, object>
             {
-                ProjectId = 0,
-                SubServiceType = 2,
-                EngSerViceType = engineType,
-                SourceType = 1,
-                VoiceFormat = "wav",
-                Data = Convert.ToBase64String(wavBytes),
-                DataLen = wavBytes.Length
-            });
+                ["ProjectId"] = 0,
+                ["SubServiceType"] = 2,
+                ["EngSerViceType"] = engineType,
+                ["SourceType"] = 1,
+                ["VoiceFormat"] = "wav",
+                ["Data"] = Convert.ToBase64String(wavBytes),
+                ["DataLen"] = wavBytes.Length
+            };
+            if (!string.IsNullOrWhiteSpace(customizationId))
+            {
+                requestPayload["CustomizationId"] = customizationId;
+            }
+            string bodyJson = JsonSerializer.Serialize(requestPayload);
+            Debug.WriteLine($"[LiveCaption][TencentShort] request: engineType={engineType}, customizationId={(string.IsNullOrWhiteSpace(customizationId) ? "(none)" : customizationId)}, wavBytes={wavBytes.Length}");
 
             long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string date = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime.ToString("yyyy-MM-dd");
@@ -2646,36 +2691,36 @@ namespace ImageColorChanger.Services.LiveCaption
                 return string.Empty;
             }
 
-            TencentSentenceRecognitionEnvelope payload = null;
+            TencentSentenceRecognitionEnvelope responseEnvelope = null;
             try
             {
-                payload = JsonSerializer.Deserialize<TencentSentenceRecognitionEnvelope>(responseText);
+                responseEnvelope = JsonSerializer.Deserialize<TencentSentenceRecognitionEnvelope>(responseText);
             }
             catch
             {
                 // ignored
             }
 
-            if (payload?.Response == null)
+            if (responseEnvelope?.Response == null)
             {
                 LastError = "腾讯ASR响应解析失败";
                 return string.Empty;
             }
 
-            if (payload.Response.Error != null && !string.IsNullOrWhiteSpace(payload.Response.Error.Code))
+            if (responseEnvelope.Response.Error != null && !string.IsNullOrWhiteSpace(responseEnvelope.Response.Error.Code))
             {
-                LastError = $"腾讯ASR错误: {payload.Response.Error.Code} {payload.Response.Error.Message}";
+                LastError = $"腾讯ASR错误: {responseEnvelope.Response.Error.Code} {responseEnvelope.Response.Error.Message}";
                 return string.Empty;
             }
 
-            if (string.IsNullOrWhiteSpace(payload.Response.Result))
+            if (string.IsNullOrWhiteSpace(responseEnvelope.Response.Result))
             {
                 LastError = "腾讯ASR无文本结果";
                 return string.Empty;
             }
 
             LastError = string.Empty;
-            return payload.Response.Result.Trim();
+            return responseEnvelope.Response.Result.Trim();
         }
 
         private static string BuildTencentAuthorization(
