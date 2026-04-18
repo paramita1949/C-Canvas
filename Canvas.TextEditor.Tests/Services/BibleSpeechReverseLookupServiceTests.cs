@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ImageColorChanger.Database.Models.Bible;
@@ -40,6 +41,62 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
                 default);
 
             Assert.False(resolved.HasValue);
+        }
+
+        // ── 索引路径测试 ──────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task TryResolveAsync_WithReadyIndex_UsesIndexPath()
+        {
+            // 构建内存索引（不依赖 DB）
+            var index = new BibleVerseContentIndex();
+            index.Build(new[]
+            {
+                (43, 3, 16, "神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。"),
+                (19, 23, 1, "耶和华是我的牧者，我必不致缺乏。"),
+            });
+
+            var svc = new BibleSpeechReverseLookupService(index);
+
+            var resolved = await svc.TryResolveAsync(null, "神爱世人甚至将他的独生子赐给他们", default);
+
+            Assert.True(resolved.HasValue);
+            Assert.Equal(43, resolved.Value.BookId);
+            Assert.Equal(3,  resolved.Value.Chapter);
+            Assert.Equal(16, resolved.Value.StartVerse);
+        }
+
+        [Fact]
+        public async Task TryResolveAsync_WithReadyIndex_LowScoreReturnsNull()
+        {
+            var index = new BibleVerseContentIndex();
+            index.Build(new[]
+            {
+                (43, 3, 16, "神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。"),
+            });
+
+            var svc = new BibleSpeechReverseLookupService(index);
+
+            // 完全不相关的文本
+            var resolved = await svc.TryResolveAsync(null, "今天天气晴好适合出游", default);
+
+            Assert.False(resolved.HasValue);
+        }
+
+        [Fact]
+        public async Task TryResolveAsync_IndexNotReady_FallsBackToDb()
+        {
+            var index = new BibleVerseContentIndex(); // 未调用 Build，IsReady=false
+            var svc = new BibleSpeechReverseLookupService(index);
+            var bible = new FakeBibleService();
+
+            var resolved = await svc.TryResolveAsync(
+                bible,
+                "神爱世人甚至将他的独生子赐给他们",
+                default);
+
+            Assert.True(resolved.HasValue);   // DB 路径兜底
+            Assert.Equal(43, resolved.Value.BookId);
         }
 
         private sealed class FakeBibleService : IBibleService

@@ -186,6 +186,14 @@
                 <TextBlock x:Name="Credential3Label" Grid.Row="8" Grid.Column="0" Margin="0,18,0,0" Style="{StaticResource FieldLabelStyle}" Text="凭证3"/>
                 <TextBox x:Name="Credential3TextBox" Grid.Row="8" Grid.Column="1" Margin="0,18,0,0" Style="{StaticResource FieldTextBoxStyle}"/>
 
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,18,0,0" Style="{StaticResource FieldLabelStyle}" Text="经文识别来源"/>
+                <ComboBox x:Name="VerseSourceComboBox"
+                          Grid.Row="9" Grid.Column="1"
+                          Margin="0,18,0,0"
+                          Style="{StaticResource FieldComboBoxStyle}"
+                          ItemContainerStyle="{StaticResource ComboBoxItemFixStyle}"
+                          SelectionChanged="VerseSourceComboBox_SelectionChanged"/>
+
                 <TextBlock x:Name="HintTextBlock"
                            Grid.Row="10" Grid.ColumnSpan="2"
                            Margin="0,22,0,0"

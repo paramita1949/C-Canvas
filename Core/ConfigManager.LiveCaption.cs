@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace ImageColorChanger.Core
 {
@@ -57,6 +58,20 @@ namespace ImageColorChanger.Core
                 if (_config.LiveCaptionShortPhraseEnabled != value)
                 {
                     _config.LiveCaptionShortPhraseEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionVerseSource
+        {
+            get => _config.LiveCaptionVerseSource ?? "shortPhrase";
+            set
+            {
+                string v = value ?? "shortPhrase";
+                if (!string.Equals(_config.LiveCaptionVerseSource, v, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionVerseSource = v;
                     SaveConfig();
                 }
             }
@@ -1032,7 +1047,15 @@ namespace ImageColorChanger.Core
     {
         public string LiveCaptionSpeechMode { get; set; } = "realtime";
         public bool LiveCaptionRealtimeEnabled { get; set; } = false;
+        /// <summary>
+        /// 经文识别开关：不持久化，每次启动默认 false，用户手动勾选后本次会话有效。
+        /// </summary>
+        [JsonIgnore]
         public bool LiveCaptionShortPhraseEnabled { get; set; } = false;
+        /// <summary>
+        /// 经文识别文本来源：shortPhrase=短语ASR, realtime=实时语音ASR, both=双路
+        /// </summary>
+        public string LiveCaptionVerseSource { get; set; } = "shortPhrase";
         public string LiveCaptionAsrProvider { get; set; } = "baidu";
         public string LiveCaptionRealtimeAsrProvider { get; set; } = "baidu";
         public string LiveCaptionRealtimeProxyBaseUrl { get; set; } = "http://localhost:8317/v1";

@@ -43,5 +43,31 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             Assert.NotNull(values);
             Assert.Equal("诗篇102篇25到27节", values[0]);
         }
+
+        [Fact]
+        public void DoubaoAsrResponse_MapsFields()
+        {
+            Type responseType = typeof(ImageColorChanger.Services.BibleBaiduShortSpeechClient)
+                .GetNestedType("DoubaoAsrResponse", BindingFlags.NonPublic);
+
+            Assert.NotNull(responseType);
+
+            object result = JsonSerializer.Deserialize(
+                "{\"code\":1000,\"message\":\"Success\",\"sequence\":-1,\"result\":[{\"text\":\"约翰福音三章十六节\"}]}",
+                responseType);
+
+            Assert.NotNull(result);
+            Assert.Equal(1000, (int)(responseType.GetProperty("Code")?.GetValue(result) ?? -1));
+            Assert.Equal("Success", responseType.GetProperty("Message")?.GetValue(result) as string);
+            Assert.Equal(-1, (int)(responseType.GetProperty("Sequence")?.GetValue(result) ?? 0));
+
+            var values = responseType.GetProperty("Result")?.GetValue(result) as Array;
+            Assert.NotNull(values);
+            Assert.True(values.Length > 0);
+
+            object first = values.GetValue(0);
+            Assert.NotNull(first);
+            Assert.Equal("约翰福音三章十六节", first.GetType().GetProperty("Text")?.GetValue(first) as string);
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using ImageColorChanger.Core;
 using TinyPinyin;
@@ -126,6 +127,8 @@ namespace ImageColorChanger.Services
             public int BookId { get; init; }
             public string Alias { get; init; } = string.Empty;
             public string Initials { get; init; } = string.Empty;
+            /// <summary>完整拼音串（无声调），例如"腓利比" → "feilibili"</summary>
+            public string FullPinyin { get; init; } = string.Empty;
         }
 
         private readonly struct AmbiguousOrdinalProfile
@@ -668,7 +671,8 @@ namespace ImageColorChanger.Services
                     {
                         BookId = book.BookId,
                         Alias = alias,
-                        Initials = ToInitials(alias)
+                        Initials = ToInitials(alias),
+                        FullPinyin = ToFullPinyin(alias)
                     });
                 }
 
@@ -679,7 +683,8 @@ namespace ImageColorChanger.Services
                     {
                         BookId = book.BookId,
                         Alias = alias,
-                        Initials = ToInitials(alias)
+                        Initials = ToInitials(alias),
+                        FullPinyin = ToFullPinyin(alias)
                     });
                 }
             }
@@ -718,38 +723,45 @@ namespace ImageColorChanger.Services
                 return 0;
             }
 
+            // ① 汉字字符级 Levenshtein
             int dist = LevenshteinDistance(segment, alias.Alias);
             int maxLen = Math.Max(segment.Length, alias.Alias.Length);
-            if (maxLen <= 0)
-            {
-                return 0;
-            }
-
+            if (maxLen <= 0) return 0;
             double charScore = 1.0 - (double)dist / maxLen;
 
+            // ② 拼音首字母级（原有）
             string segInitials = ToInitials(segment);
-            double pyScore = 0;
+            double initialsScore = 0;
             if (!string.IsNullOrWhiteSpace(segInitials) && !string.IsNullOrWhiteSpace(alias.Initials))
             {
                 int pyDist = LevenshteinDistance(segInitials, alias.Initials);
                 int pyMax = Math.Max(segInitials.Length, alias.Initials.Length);
                 if (pyMax > 0)
-                {
-                    pyScore = 1.0 - (double)pyDist / pyMax;
-                }
+                    initialsScore = 1.0 - (double)pyDist / pyMax;
             }
 
-            double score = Math.Max(charScore, pyScore * 0.95);
-            if (segment.Length > 0 && alias.Alias.Length > 0 && segment[0] == alias.Alias[0])
+            // ③ 完整拼音音节级（新增）
+            // 例："可林多前书" fullPinyin="kelinduoqianshu" vs "哥林多前书" fullPinyin="gelinduoqianshu"
+            // Levenshtein距离=1，得分≈0.93，显著高于首字母对比的误差容忍上限
+            string segFullPinyin = ToFullPinyin(segment);
+            double fullPinyinScore = 0;
+            if (!string.IsNullOrWhiteSpace(segFullPinyin) && !string.IsNullOrWhiteSpace(alias.FullPinyin))
             {
-                score += 0.03;
+                int fpDist = LevenshteinDistance(segFullPinyin, alias.FullPinyin);
+                int fpMax = Math.Max(segFullPinyin.Length, alias.FullPinyin.Length);
+                if (fpMax > 0)
+                    fullPinyinScore = 1.0 - (double)fpDist / fpMax;
             }
+
+            // 综合取最优：字符匹配最权威，完整拼音次之，首字母最低
+            double score = Math.Max(Math.Max(charScore, initialsScore * 0.95), fullPinyinScore * 0.97);
+
+            if (segment.Length > 0 && alias.Alias.Length > 0 && segment[0] == alias.Alias[0])
+                score += 0.03;
 
             if (alias.Alias.StartsWith(segment, StringComparison.Ordinal) ||
                 segment.StartsWith(alias.Alias, StringComparison.Ordinal))
-            {
                 score += 0.12;
-            }
 
             return Math.Clamp(score, 0, 1);
         }
@@ -791,6 +803,40 @@ namespace ImageColorChanger.Services
             }
 
             return new string(chars.ToArray());
+        }
+
+        /// <summary>
+        /// 将汉字转为完整拼音音节串（无声调），非汉字字符原样保留小写字母/数字。
+        /// 例："腓利比" → "feilibili"，"哥林多前书" → "gelinduoqianshu"
+        /// 用途：在字符 Levenshtein 和首字母匹配均不足时，提供第三维度的相似度。
+        /// </summary>
+        private static string ToFullPinyin(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            var sb = new StringBuilder(text.Length * 4);
+            foreach (char ch in text)
+            {
+                if (char.IsWhiteSpace(ch))
+                    continue;
+
+                if (ch <= 127)
+                {
+                    if (char.IsLetterOrDigit(ch))
+                        sb.Append(char.ToLowerInvariant(ch));
+                    continue;
+                }
+
+                if (!PinyinHelper.IsChinese(ch))
+                    continue;
+
+                string syllable = PinyinHelper.GetPinyin(ch.ToString());
+                if (!string.IsNullOrWhiteSpace(syllable))
+                    sb.Append(syllable.ToLowerInvariant());
+            }
+
+            return sb.ToString();
         }
 
         private static int LevenshteinDistance(string a, string b)

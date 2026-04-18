@@ -1,6 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,8 +24,30 @@ namespace ImageColorChanger.Services
         private readonly SemaphoreSlim _tokenLock = new(1, 1);
         private readonly string _tencentRegion = "ap-shanghai";
         private readonly string _tencentVersion = "2019-06-14";
+        private const string DoubaoShortSpeechWsUrl = "wss://openspeech.bytedance.com/api/v2/asr";
+        private const string DoubaoShortDefaultCluster = "volcengine_input_common";
+        private const string DoubaoRealtimeDefaultResourceId = "volc.seedasr.sauc.duration";
+        private const byte DoubaoProtocolVersion = 1;
+        private const byte DoubaoHeaderWords = 1;
+        private const byte DoubaoMessageTypeFullClientRequest = 0x1;
+        private const byte DoubaoMessageTypeAudioOnlyRequest = 0x2;
+        private const byte DoubaoMessageTypeFullServerResponse = 0x9;
+        private const byte DoubaoMessageTypeServerError = 0xF;
+        private const byte DoubaoFlagAudioLast = 0x2;
+        private const byte DoubaoSerializationNone = 0x0;
+        private const byte DoubaoSerializationJson = 0x1;
+        private const byte DoubaoCompressionNone = 0x0;
+        private const byte DoubaoCompressionGzip = 0x1;
         private string _token = string.Empty;
         private DateTime _tokenExpireUtc = DateTime.MinValue;
+        private string _aliyunToken = string.Empty;
+        private DateTime _aliyunTokenExpireUtc = DateTime.MinValue;
+        private readonly SemaphoreSlim _aliyunTokenLock = new(1, 1);
+        private const string AliyunAsrEndpoint = "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/asr";
+        private const string AliyunTokenHostPrimary = "nls-meta.cn-shanghai.aliyuncs.com";
+        private const string AliyunTokenHostFallback = "nlsmeta.cn-shanghai.aliyuncs.com";
+        private const string AliyunRegionId = "cn-shanghai";
+        private const string AliyunApiVersion = "2019-02-28";
         private bool _disposed;
 
         public BibleBaiduShortSpeechClient(ConfigManager config)
@@ -33,6 +61,11 @@ namespace ImageColorChanger.Services
             {
                 "tencent" => !string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretId) &&
                              !string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretKey),
+                "doubao" => !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey) &&
+                             !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey),
+                "aliyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAppKey) &&
+                            !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeyId) &&
+                            !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret),
                 _ => !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduAppId) &&
                      !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduApiKey) &&
                      !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduSecretKey)
@@ -43,7 +76,8 @@ namespace ImageColorChanger.Services
             get
             {
                 var missing = new System.Collections.Generic.List<string>();
-                if (string.Equals(GetShortSpeechProvider(), "tencent", StringComparison.Ordinal))
+                string provider = GetShortSpeechProvider();
+                if (string.Equals(provider, "tencent", StringComparison.Ordinal))
                 {
                     if (string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretId))
                     {
@@ -53,6 +87,26 @@ namespace ImageColorChanger.Services
                     {
                         missing.Add("SecretKey");
                     }
+                }
+                else if (string.Equals(provider, "doubao", StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey))
+                    {
+                        missing.Add("AppID");
+                    }
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey))
+                    {
+                        missing.Add("Token");
+                    }
+                }
+                else if (string.Equals(provider, "aliyun", StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAppKey))
+                        missing.Add("AppKey");
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeyId))
+                        missing.Add("AccessKeyId");
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret))
+                        missing.Add("AccessKeySecret");
                 }
                 else
                 {
@@ -84,9 +138,14 @@ namespace ImageColorChanger.Services
                 return string.Empty;
             }
 
-            return string.Equals(GetShortSpeechProvider(), "tencent", StringComparison.Ordinal)
-                ? await TranscribeWithTencentAsync(wavBytes, cancellationToken)
-                : await TranscribeWithBaiduAsync(wavBytes, cancellationToken);
+            string provider = GetShortSpeechProvider();
+            return provider switch
+            {
+                "tencent" => await TranscribeWithTencentAsync(wavBytes, cancellationToken),
+                "doubao" => await TranscribeWithDoubaoAsync(wavBytes, cancellationToken),
+                "aliyun" => await TranscribeWithAliyunAsync(wavBytes, cancellationToken),
+                _ => await TranscribeWithBaiduAsync(wavBytes, cancellationToken)
+            };
         }
 
         private async Task<string> TranscribeWithBaiduAsync(byte[] wavBytes, CancellationToken cancellationToken)
@@ -249,6 +308,322 @@ namespace ImageColorChanger.Services
             return recognized;
         }
 
+        private async Task<string> TranscribeWithDoubaoAsync(byte[] wavBytes, CancellationToken cancellationToken)
+        {
+            if (wavBytes == null || wavBytes.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string appId = (_config.LiveCaptionDoubaoAppKey ?? string.Empty).Trim();
+            string rawToken = (_config.LiveCaptionDoubaoAccessKey ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(rawToken))
+            {
+                Debug.WriteLine("[BibleVoice][Doubao] short-speech skipped: missing-appid-or-token");
+                return string.Empty;
+            }
+
+            string wsUrl = ResolveDoubaoShortSpeechWsUrl(_config.LiveCaptionShortProxyBaseUrl);
+            string cluster = ResolveDoubaoShortSpeechCluster(_config.LiveCaptionDoubaoResourceId, _config.LiveCaptionShortAsrModel);
+            string authorization = BuildDoubaoAuthorizationHeader(rawToken);
+            string payloadToken = BuildDoubaoPayloadToken(rawToken);
+            string requestId = Guid.NewGuid().ToString("N");
+
+            using var ws = new ClientWebSocket();
+            ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+            ws.Options.SetRequestHeader("Authorization", authorization);
+
+            Debug.WriteLine($"[BibleVoice][Doubao] short-speech request: cluster={cluster}, url={wsUrl}, wavBytes={wavBytes.Length}");
+            await ws.ConnectAsync(new Uri(wsUrl), cancellationToken);
+
+            string startJson = BuildDoubaoShortSpeechInitialPayloadJson(appId, payloadToken, cluster, requestId);
+            byte[] startFrame = BuildDoubaoFrame(
+                DoubaoMessageTypeFullClientRequest,
+                0,
+                DoubaoSerializationJson,
+                DoubaoCompressionGzip,
+                GzipCompress(Encoding.UTF8.GetBytes(startJson)),
+                sequence: null);
+
+            await ws.SendAsync(
+                new ArraySegment<byte>(startFrame),
+                WebSocketMessageType.Binary,
+                true,
+                cancellationToken);
+
+            byte[] audioFrame = BuildDoubaoFrame(
+                DoubaoMessageTypeAudioOnlyRequest,
+                DoubaoFlagAudioLast,
+                DoubaoSerializationNone,
+                DoubaoCompressionGzip,
+                GzipCompress(wavBytes),
+                sequence: null);
+
+            await ws.SendAsync(
+                new ArraySegment<byte>(audioFrame),
+                WebSocketMessageType.Binary,
+                true,
+                cancellationToken);
+
+            string recognized = string.Empty;
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                byte[] packet = await ReceiveDoubaoPacketAsync(ws, cancellationToken);
+                if (packet == null || packet.Length == 0)
+                {
+                    break;
+                }
+
+                if (LooksLikeJsonText(packet))
+                {
+                    string jsonText = Encoding.UTF8.GetString(packet);
+                    if (TryHandleDoubaoJsonPayload(jsonText, out string recognizedText, out bool isFinal))
+                    {
+                        if (!string.IsNullOrWhiteSpace(recognizedText))
+                        {
+                            recognized = recognizedText;
+                        }
+                        if (isFinal)
+                        {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+
+                if (!TryReadDoubaoFrame(packet, out byte messageType, out byte serialization, out byte compression, out int? sequence, out byte[] payload))
+                {
+                    continue;
+                }
+
+                if (messageType == DoubaoMessageTypeServerError)
+                {
+                    string serverError = ParseDoubaoServerError(packet);
+                    if (!string.IsNullOrWhiteSpace(serverError))
+                    {
+                        Debug.WriteLine($"[BibleVoice][Doubao] short-speech server-error: {serverError}");
+                    }
+                    return string.Empty;
+                }
+
+                if (messageType != DoubaoMessageTypeFullServerResponse || payload.Length == 0)
+                {
+                    continue;
+                }
+
+                if (compression == DoubaoCompressionGzip)
+                {
+                    payload = GzipDecompress(payload);
+                }
+
+                if (serialization != DoubaoSerializationJson || !LooksLikeJsonText(payload))
+                {
+                    continue;
+                }
+
+                string json = Encoding.UTF8.GetString(payload);
+                if (TryHandleDoubaoJsonPayload(json, out string parsedText, out bool isFinalByPayload))
+                {
+                    if (!string.IsNullOrWhiteSpace(parsedText))
+                    {
+                        recognized = parsedText;
+                    }
+                    if (isFinalByPayload || (sequence.HasValue && sequence.Value < 0))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+            {
+                try
+                {
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", cancellationToken);
+                }
+                catch
+                {
+                    // ignore close failure
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(recognized))
+            {
+                Debug.WriteLine("[BibleVoice][Doubao] short-speech empty-result.");
+                return string.Empty;
+            }
+
+            string finalText = recognized.Trim();
+            Debug.WriteLine($"[BibleVoice][Doubao] short-speech success: recognized={finalText}");
+            return finalText;
+        }
+
+        private async Task<string> TranscribeWithAliyunAsync(byte[] wavBytes, CancellationToken cancellationToken)
+        {
+            if (wavBytes == null || wavBytes.Length == 0)
+                return string.Empty;
+
+            string appKey = (_config.LiveCaptionAliAppKey ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(appKey))
+            {
+                Debug.WriteLine("[BibleVoice][Aliyun] short-speech skipped: missing-appkey");
+                return string.Empty;
+            }
+
+            string token = await GetAliyunAccessTokenAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Debug.WriteLine("[BibleVoice][Aliyun] short-speech skipped: access-token-empty");
+                return string.Empty;
+            }
+
+            // WAV 文件中提取 PCM 数据（跳过 44 字节 WAV 头）
+            byte[] pcmData = wavBytes.Length > 44 ? wavBytes.AsSpan(44).ToArray() : wavBytes;
+
+            string url = $"{AliyunAsrEndpoint}?appkey={Uri.EscapeDataString(appKey)}&format=pcm&sample_rate=16000&enable_punctuation_prediction=true";
+            Debug.WriteLine($"[BibleVoice][Aliyun] short-speech request: wavBytes={wavBytes.Length}, pcmBytes={pcmData.Length}");
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new ByteArrayContent(pcmData)
+            };
+            req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            req.Headers.TryAddWithoutValidation("X-NLS-Token", token);
+
+            using var resp = await _httpClient.SendAsync(req, cancellationToken);
+            string json = await resp.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                Debug.WriteLine($"[BibleVoice][Aliyun] short-speech http-failed: status={(int)resp.StatusCode}, raw={TrimForLog(json)}");
+                return string.Empty;
+            }
+
+            AliyunAsrResponse result = null;
+            try
+            {
+                result = JsonSerializer.Deserialize<AliyunAsrResponse>(json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BibleVoice][Aliyun] short-speech deserialize-failed: {ex.Message}; raw={TrimForLog(json)}");
+                return string.Empty;
+            }
+
+            if (result == null || result.Status != 20000000)
+            {
+                Debug.WriteLine($"[BibleVoice][Aliyun] short-speech asr-error: status={result?.Status}, message={result?.Message}, raw={TrimForLog(json)}");
+                return string.Empty;
+            }
+
+            string recognized = (result.Result ?? string.Empty).Trim();
+            Debug.WriteLine($"[BibleVoice][Aliyun] short-speech success: recognized={recognized}");
+            return recognized;
+        }
+
+        private async Task<string> GetAliyunAccessTokenAsync(CancellationToken cancellationToken)
+        {
+            if (!string.IsNullOrWhiteSpace(_aliyunToken) && DateTime.UtcNow < _aliyunTokenExpireUtc)
+                return _aliyunToken;
+
+            await _aliyunTokenLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(_aliyunToken) && DateTime.UtcNow < _aliyunTokenExpireUtc)
+                    return _aliyunToken;
+
+                string accessKeyId = (_config.LiveCaptionAliAccessKeyId ?? string.Empty).Trim();
+                string accessKeySecret = (_config.LiveCaptionAliAccessKeySecret ?? string.Empty).Trim();
+
+                var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["AccessKeyId"] = accessKeyId,
+                    ["Action"] = "CreateToken",
+                    ["Format"] = "JSON",
+                    ["RegionId"] = AliyunRegionId,
+                    ["SignatureMethod"] = "HMAC-SHA1",
+                    ["SignatureNonce"] = Guid.NewGuid().ToString("D"),
+                    ["SignatureVersion"] = "1.0",
+                    ["Timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+                    ["Version"] = AliyunApiVersion
+                };
+                string canonicalQuery = BuildAliyunCanonicalizedQuery(parameters);
+                string stringToSign = $"GET&%2F&{AliyunPercentEncode(canonicalQuery)}";
+                string signature;
+                using (var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(accessKeySecret + "&")))
+                {
+                    signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(stringToSign)));
+                }
+
+                string signedQuery = $"Signature={AliyunPercentEncode(signature)}&{canonicalQuery}";
+                string[] candidates =
+                {
+                    $"https://{AliyunTokenHostPrimary}/?{signedQuery}",
+                    $"https://{AliyunTokenHostFallback}/?{signedQuery}"
+                };
+
+                foreach (string url in candidates)
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    using var response = await _httpClient.SendAsync(request, cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Debug.WriteLine($"[BibleVoice][Aliyun] token http-failed: host={new Uri(url).Host}, status={(int)response.StatusCode}");
+                        continue;
+                    }
+
+                    string json = await response.Content.ReadAsStringAsync(cancellationToken);
+                    AliyunTokenResponse payload = null;
+                    try
+                    {
+                        payload = JsonSerializer.Deserialize<AliyunTokenResponse>(json);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(payload?.Token?.Id))
+                    {
+                        _aliyunToken = payload.Token.Id;
+                        DateTime expireUtc = payload.Token.ExpireTime > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(payload.Token.ExpireTime).UtcDateTime
+                            : DateTime.UtcNow.AddHours(1);
+                        _aliyunTokenExpireUtc = expireUtc.AddMinutes(-5);
+                        Debug.WriteLine($"[BibleVoice][Aliyun] token success");
+                        return _aliyunToken;
+                    }
+
+                    Debug.WriteLine($"[BibleVoice][Aliyun] token error: {payload?.Code} {payload?.Message}");
+                }
+
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BibleVoice][Aliyun] token failed: {ex.Message}");
+                return string.Empty;
+            }
+            finally
+            {
+                _aliyunTokenLock.Release();
+            }
+        }
+
+        private static string BuildAliyunCanonicalizedQuery(Dictionary<string, string> parameters)
+        {
+            var sorted = new List<string>(parameters.Count);
+            foreach (var kv in parameters.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                sorted.Add($"{AliyunPercentEncode(kv.Key)}={AliyunPercentEncode(kv.Value)}");
+            return string.Join("&", sorted);
+        }
+
+        private static string AliyunPercentEncode(string value)
+        {
+            string encoded = Uri.EscapeDataString(value ?? string.Empty);
+            return encoded.Replace("+", "%20").Replace("*", "%2A").Replace("%7E", "~");
+        }
+
         private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
         {
             if (!string.IsNullOrWhiteSpace(_token) && DateTime.UtcNow < _tokenExpireUtc)
@@ -356,8 +731,377 @@ namespace ImageColorChanger.Services
             return (_config.LiveCaptionShortAsrProvider ?? string.Empty).Trim().ToLowerInvariant() switch
             {
                 "tencent" => "tencent",
+                "doubao" => "doubao",
+                "funasr" => "doubao",
+                "aliyun" => "aliyun",
                 _ => "baidu"
             };
+        }
+
+        private static string ResolveDoubaoShortSpeechWsUrl(string configuredUrl)
+        {
+            string raw = (configuredUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return DoubaoShortSpeechWsUrl;
+            }
+
+            if (raw.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) ||
+                raw.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+
+            if (raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ws://" + raw.Substring("http://".Length);
+            }
+
+            if (raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "wss://" + raw.Substring("https://".Length);
+            }
+
+            return DoubaoShortSpeechWsUrl;
+        }
+
+        private static string ResolveDoubaoShortSpeechCluster(string configuredCluster, string modelId)
+        {
+            string normalizedModel = (modelId ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedModel) &&
+                !normalizedModel.Contains("doubao", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedModel;
+            }
+
+            string normalizedConfig = (configuredCluster ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedConfig) &&
+                !string.Equals(normalizedConfig, DoubaoRealtimeDefaultResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedConfig;
+            }
+
+            return DoubaoShortDefaultCluster;
+        }
+
+        private static string BuildDoubaoAuthorizationHeader(string token)
+        {
+            string raw = (token ?? string.Empty).Trim();
+            if (raw.StartsWith("Bearer;", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+
+            if (raw.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                raw = raw.Substring("Bearer ".Length).Trim();
+            }
+
+            return $"Bearer; {raw}";
+        }
+
+        private static string BuildDoubaoPayloadToken(string token)
+        {
+            string raw = (token ?? string.Empty).Trim();
+            if (raw.StartsWith("Bearer;", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw.Substring("Bearer;".Length).Trim();
+            }
+
+            if (raw.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw.Substring("Bearer ".Length).Trim();
+            }
+
+            return raw;
+        }
+
+        private static string BuildDoubaoShortSpeechInitialPayloadJson(string appId, string token, string cluster, string requestId)
+        {
+            var payload = new
+            {
+                app = new
+                {
+                    appid = appId,
+                    token,
+                    cluster
+                },
+                user = new
+                {
+                    uid = string.IsNullOrWhiteSpace(Environment.UserName)
+                        ? "canvas-user"
+                        : Environment.UserName
+                },
+                request = new
+                {
+                    reqid = requestId,
+                    sequence = 1
+                },
+                audio = new
+                {
+                    format = "wav",
+                    rate = 16000,
+                    bits = 16,
+                    channel = 1
+                }
+            };
+
+            return JsonSerializer.Serialize(payload);
+        }
+
+        private static byte[] BuildDoubaoFrame(
+            byte messageType,
+            byte messageFlags,
+            byte serialization,
+            byte compression,
+            byte[] payload,
+            int? sequence)
+        {
+            byte[] body = payload ?? Array.Empty<byte>();
+            int totalLength = 4 + (sequence.HasValue ? 4 : 0) + 4 + body.Length;
+            byte[] frame = new byte[totalLength];
+            frame[0] = (byte)((DoubaoProtocolVersion << 4) | DoubaoHeaderWords);
+            frame[1] = (byte)((messageType << 4) | (messageFlags & 0x0F));
+            frame[2] = (byte)(((serialization & 0x0F) << 4) | (compression & 0x0F));
+            frame[3] = 0;
+
+            int offset = 4;
+            if (sequence.HasValue)
+            {
+                WriteInt32BE(frame, offset, sequence.Value);
+                offset += 4;
+            }
+
+            WriteInt32BE(frame, offset, body.Length);
+            offset += 4;
+
+            if (body.Length > 0)
+            {
+                Buffer.BlockCopy(body, 0, frame, offset, body.Length);
+            }
+
+            return frame;
+        }
+
+        private static bool TryReadDoubaoFrame(
+            byte[] frameBytes,
+            out byte messageType,
+            out byte serialization,
+            out byte compression,
+            out int? sequence,
+            out byte[] payload)
+        {
+            messageType = 0;
+            serialization = 0;
+            compression = 0;
+            sequence = null;
+            payload = Array.Empty<byte>();
+
+            if (frameBytes == null || frameBytes.Length < 8)
+            {
+                return false;
+            }
+
+            int headerWords = frameBytes[0] & 0x0F;
+            int headerBytes = Math.Max(4, headerWords * 4);
+            if (frameBytes.Length < headerBytes + 4)
+            {
+                return false;
+            }
+
+            messageType = (byte)(frameBytes[1] >> 4);
+            byte messageFlags = (byte)(frameBytes[1] & 0x0F);
+            serialization = (byte)((frameBytes[2] >> 4) & 0x0F);
+            compression = (byte)(frameBytes[2] & 0x0F);
+
+            int offset = headerBytes;
+            if ((messageFlags & 0x1) != 0 && frameBytes.Length >= offset + 4)
+            {
+                sequence = ReadInt32BE(frameBytes, offset);
+                offset += 4;
+            }
+
+            if (frameBytes.Length < offset + 4)
+            {
+                return false;
+            }
+
+            uint payloadSizeRaw = ReadUInt32BE(frameBytes, offset);
+            offset += 4;
+            int available = Math.Max(0, frameBytes.Length - offset);
+            int payloadSize = (int)Math.Min(payloadSizeRaw, (uint)available);
+            if (payloadSize <= 0)
+            {
+                return true;
+            }
+
+            payload = new byte[payloadSize];
+            Buffer.BlockCopy(frameBytes, offset, payload, 0, payloadSize);
+            return true;
+        }
+
+        private static string ParseDoubaoServerError(byte[] frameBytes)
+        {
+            if (frameBytes == null || frameBytes.Length < 12)
+            {
+                return string.Empty;
+            }
+
+            int headerWords = frameBytes[0] & 0x0F;
+            int headerBytes = Math.Max(4, headerWords * 4);
+            if (frameBytes.Length < headerBytes + 8)
+            {
+                return string.Empty;
+            }
+
+            int code = ReadInt32BE(frameBytes, headerBytes);
+            uint messageSize = ReadUInt32BE(frameBytes, headerBytes + 4);
+            int available = Math.Max(0, frameBytes.Length - (headerBytes + 8));
+            int size = (int)Math.Min(messageSize, (uint)available);
+            if (size <= 0)
+            {
+                return code == 0 ? string.Empty : code.ToString();
+            }
+
+            byte[] payload = new byte[size];
+            Buffer.BlockCopy(frameBytes, headerBytes + 8, payload, 0, size);
+            if (payload.Length > 0 && payload[0] == 0x1F && payload.Length > 1 && payload[1] == 0x8B)
+            {
+                payload = GzipDecompress(payload);
+            }
+
+            string msg = Encoding.UTF8.GetString(payload).Trim();
+            return string.IsNullOrWhiteSpace(msg) ? code.ToString() : $"{code} {msg}".Trim();
+        }
+
+        private static bool TryHandleDoubaoJsonPayload(string json, out string recognized, out bool isFinal)
+        {
+            recognized = string.Empty;
+            isFinal = false;
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            DoubaoAsrResponse payload = null;
+            try
+            {
+                payload = JsonSerializer.Deserialize<DoubaoAsrResponse>(json);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (payload == null)
+            {
+                return false;
+            }
+
+            if (payload.Code != 0 && payload.Code != 1000)
+            {
+                return false;
+            }
+
+            string text = string.Empty;
+            if (payload.Result != null && payload.Result.Length > 0)
+            {
+                text = payload.Result[0]?.Text ?? string.Empty;
+            }
+
+            recognized = text.Trim();
+            isFinal = payload.Sequence < 0;
+            return true;
+        }
+
+        private static async Task<byte[]> ReceiveDoubaoPacketAsync(ClientWebSocket ws, CancellationToken cancellationToken)
+        {
+            var buffer = new byte[8192];
+            using var ms = new MemoryStream();
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    return null;
+                }
+
+                if (result.Count > 0)
+                {
+                    ms.Write(buffer, 0, result.Count);
+                }
+            } while (!result.EndOfMessage);
+
+            return ms.ToArray();
+        }
+
+        private static bool LooksLikeJsonText(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0)
+            {
+                return false;
+            }
+
+            byte first = payload[0];
+            if (first == '{' || first == '[')
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static byte[] GzipCompress(byte[] data)
+        {
+            byte[] source = data ?? Array.Empty<byte>();
+            using var ms = new MemoryStream();
+            using (var gzip = new GZipStream(ms, CompressionLevel.Fastest, leaveOpen: true))
+            {
+                gzip.Write(source, 0, source.Length);
+            }
+
+            return ms.ToArray();
+        }
+
+        private static byte[] GzipDecompress(byte[] data)
+        {
+            byte[] source = data ?? Array.Empty<byte>();
+            if (source.Length == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            using var input = new MemoryStream(source);
+            using var gzip = new GZipStream(input, CompressionMode.Decompress);
+            using var output = new MemoryStream();
+            gzip.CopyTo(output);
+            return output.ToArray();
+        }
+
+        private static void WriteInt32BE(byte[] buffer, int offset, int value)
+        {
+            buffer[offset] = (byte)((value >> 24) & 0xFF);
+            buffer[offset + 1] = (byte)((value >> 16) & 0xFF);
+            buffer[offset + 2] = (byte)((value >> 8) & 0xFF);
+            buffer[offset + 3] = (byte)(value & 0xFF);
+        }
+
+        private static int ReadInt32BE(byte[] buffer, int offset)
+        {
+            return (buffer[offset] << 24)
+                 | (buffer[offset + 1] << 16)
+                 | (buffer[offset + 2] << 8)
+                 | buffer[offset + 3];
+        }
+
+        private static uint ReadUInt32BE(byte[] buffer, int offset)
+        {
+            return (uint)((buffer[offset] << 24)
+                | (buffer[offset + 1] << 16)
+                | (buffer[offset + 2] << 8)
+                | buffer[offset + 3]);
         }
 
         private static string BuildTencentAuthorization(
@@ -423,6 +1167,7 @@ namespace ImageColorChanger.Services
 
             _disposed = true;
             try { _tokenLock.Dispose(); } catch { }
+            try { _aliyunTokenLock.Dispose(); } catch { }
             try { _httpClient.Dispose(); } catch { }
         }
 
@@ -447,6 +1192,27 @@ namespace ImageColorChanger.Services
             public string[] Result { get; set; } = Array.Empty<string>();
         }
 
+        private sealed class DoubaoAsrResponse
+        {
+            [JsonPropertyName("code")]
+            public int Code { get; set; }
+
+            [JsonPropertyName("message")]
+            public string Message { get; set; } = string.Empty;
+
+            [JsonPropertyName("sequence")]
+            public int Sequence { get; set; }
+
+            [JsonPropertyName("result")]
+            public DoubaoAsrResult[] Result { get; set; } = Array.Empty<DoubaoAsrResult>();
+        }
+
+        private sealed class DoubaoAsrResult
+        {
+            [JsonPropertyName("text")]
+            public string Text { get; set; } = string.Empty;
+        }
+
         private sealed class TencentSentenceRecognitionEnvelope
         {
             [JsonPropertyName("Response")]
@@ -469,6 +1235,35 @@ namespace ImageColorChanger.Services
 
             [JsonPropertyName("Message")]
             public string Message { get; set; } = string.Empty;
+        }
+
+        private sealed class AliyunAsrResponse
+        {
+            [JsonPropertyName("task_id")]
+            public string TaskId { get; set; } = string.Empty;
+
+            [JsonPropertyName("result")]
+            public string Result { get; set; } = string.Empty;
+
+            [JsonPropertyName("status")]
+            public int Status { get; set; }
+
+            [JsonPropertyName("message")]
+            public string Message { get; set; } = string.Empty;
+        }
+
+        private sealed class AliyunTokenResponse
+        {
+            public string RequestId { get; set; } = string.Empty;
+            public string Code { get; set; } = string.Empty;
+            public string Message { get; set; } = string.Empty;
+            public AliyunTokenData Token { get; set; } = new();
+        }
+
+        private sealed class AliyunTokenData
+        {
+            public string Id { get; set; } = string.Empty;
+            public long ExpireTime { get; set; }
         }
 
         private static string TrimForLog(string value)

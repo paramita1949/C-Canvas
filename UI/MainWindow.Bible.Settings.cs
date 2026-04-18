@@ -233,6 +233,13 @@ namespace ImageColorChanger.UI
                 
                 // 更新数据库路径
                 _bibleService?.UpdateDatabasePath();
+
+                // 译本切换：在后台重建经文内容索引（旧索引仍可用直到新索引就绪）
+                if (_bibleVerseContentIndex != null)
+                {
+                    _ = Task.Run(() => _bibleVerseContentIndex.LoadAsync(_bibleService, dbFilePath: GetBibleDbFilePath()));
+                    // ReverseLookupService 持有同一 index 引用，自动使用新数据，无需重建
+                }
                 
                 // 重新加载当前章节
                 if (_isBibleMode && _currentBook > 0 && _currentChapter > 0)

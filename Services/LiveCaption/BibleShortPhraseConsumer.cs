@@ -66,11 +66,24 @@ namespace ImageColorChanger.Services.LiveCaption
 
             _log($"Transcribe result: {recognized}");
 
+            // ── 并行双路识别 ──────────────────────────────────────────────────
+            // Path2（内容反查）提前启动，与 Path1（引用解析）并行执行。
+            // 当索引已就绪时，Path2 为 <1ms 的内存操作，几乎无额外开销；
+            // 当 Path2 走 DB 降级路径时，提前启动可消除 Path1 成功后的等待浪费。
+            var reverseLookupTask = _reverseLookupService.TryResolveAsync(
+                _bibleService, recognized, cancellationToken);
+
             BibleSpeechReference reference;
-            if (!BibleSpeechReferenceParser.TryParse(recognized, out reference))
+            if (BibleSpeechReferenceParser.TryParse(recognized, out reference))
             {
-                _log("Direct parse failed. Trying reverse lookup.");
-                BibleSpeechReference? reversed = await _reverseLookupService.TryResolveAsync(_bibleService, recognized, cancellationToken);
+                // Path1 成功：引用格式精确解析，置信度最高，直接采纳
+                // reverseLookupTask 在后台自然完成，不阻塞当前路径
+                _log("Direct parse succeeded.");
+            }
+            else
+            {
+                _log("Direct parse failed. Waiting for reverse lookup.");
+                BibleSpeechReference? reversed = await reverseLookupTask.ConfigureAwait(false);
                 if (!reversed.HasValue)
                 {
                     _log("Reverse lookup failed.");
@@ -80,7 +93,6 @@ namespace ImageColorChanger.Services.LiveCaption
                         FailureReason = "unresolved-reference"
                     };
                 }
-
                 reference = reversed.Value;
             }
 

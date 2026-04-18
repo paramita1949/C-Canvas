@@ -17,7 +17,15 @@ namespace ImageColorChanger.Services.LiveCaption
         private bool _isRunning;
         private bool _isProcessing;
         private bool _disposed;
-        private readonly TimeSpan _segmentInterval = TimeSpan.FromSeconds(4.5);
+        // 定时器周期：3.0s（原4.5s）—— 缩短最大等待时间，让识别结果更快送达
+        private readonly TimeSpan _segmentInterval = TimeSpan.FromSeconds(3.0);
+        // 滑动窗口：识别失败时保留末尾 1.5s PCM 作为下一窗口的前缀上下文，
+        // 防止说话内容恰好跨越窗口边界时被两个窗口各截一半而无法识别。
+        // 16kHz / 16-bit / mono → 32 000 bytes/s × 1.5s = 48 000 bytes
+        private const int OverlapPcmBytes = 48_000;
+        private const int OverlapPcmBytesMedium = 80_000;
+        private const int OverlapPcmBytesMax = 112_000;
+        private int _consecutiveFailures;
 
         public BibleShortPhraseRuntime(
             BibleShortPhraseConsumer consumer,
@@ -47,6 +55,7 @@ namespace ImageColorChanger.Services.LiveCaption
             _cts?.Cancel();
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
+            _consecutiveFailures = 0;
             _subscription = session.SubscribeChunk(OnAudioChunk);
             _timer = new System.Threading.Timer(OnTimerTick, null, _segmentInterval, _segmentInterval);
             _isRunning = true;
@@ -103,7 +112,50 @@ namespace ImageColorChanger.Services.LiveCaption
             _isProcessing = true;
             try
             {
-                return await _consumer.ProcessPcmAsync(pcmBytes, cancellationToken);
+                var result = await _consumer.ProcessPcmAsync(pcmBytes, cancellationToken);
+
+                // 滑动窗口：识别失败且本次有足够音频时，将末尾 1.5s 写回缓冲区头部
+                // 作为下一窗口的前缀，防止说话内容恰好被窗口边界截断而丢失上下文。
+                // 取消/停止场景通过 _isRunning 守卫排除。
+                if (result.Success)
+                {
+                    _consecutiveFailures = 0;
+                }
+                else if (result.FailureReason != "canceled" && result.FailureReason != "audio-too-short")
+                {
+                    _consecutiveFailures++;
+                }
+
+                int overlapSize = _consecutiveFailures switch
+                {
+                    <= 1 => OverlapPcmBytes,
+                    <= 3 => OverlapPcmBytesMedium,
+                    _    => OverlapPcmBytesMax
+                };
+
+                if (!result.Success
+                    && result.FailureReason != "canceled"
+                    && pcmBytes.Length > overlapSize)
+                {
+                    int overlapStart = pcmBytes.Length - overlapSize;
+                    var overlapBytes = new byte[overlapSize];
+                    Array.Copy(pcmBytes, overlapStart, overlapBytes, 0, overlapSize);
+
+                    lock (_gate)
+                    {
+                        if (_pcmBuffer != null && _isRunning)
+                        {
+                            // 在 API 调用期间已追加的新音频
+                            byte[] newAudio = _pcmBuffer.ToArray();
+                            _pcmBuffer.SetLength(0);
+                            // overlap 前缀 + 新音频
+                            _pcmBuffer.Write(overlapBytes, 0, overlapBytes.Length);
+                            _pcmBuffer.Write(newAudio, 0, newAudio.Length);
+                        }
+                    }
+                }
+
+                return result;
             }
             finally
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Managers;
@@ -38,8 +39,16 @@ namespace ImageColorChanger.UI
         private string _captionShiftProbePrevDisplay = string.Empty;
         private const int LiveCaptionToggleDebounceMs = 220;
         private const int LiveCaptionMainLineCharLimit = 30;
+        private DateTime _realtimeVerseLastAttemptUtc = DateTime.MinValue;
+        private string _realtimeVerseLastText = string.Empty;
 
         private void EnsureLiveCaptionComponents()
+        {
+            EnsureLiveCaptionCoreComponents();
+            EnsureLiveCaptionOverlayWindow();
+        }
+
+        private void EnsureLiveCaptionCoreComponents()
         {
             LoadLiveCaptionAudioSourceFromConfig();
 
@@ -51,9 +60,54 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine.SubtitleUpdated += OnLiveCaptionSubtitleUpdated;
                 _liveCaptionEngine.StatusChanged += OnLiveCaptionStatusChanged;
                 _liveCaptionEngine.DebugInfoUpdated += OnLiveCaptionDebugInfoUpdated;
-                LiveCaptionDebugLogger.Log("EnsureComponents: RealtimeCaptionEngine created and handlers attached.");
             }
 
+            if (_bibleService == null)
+            {
+                InitializeBibleService();
+            }
+
+            _bibleBaiduShortSpeechClient ??= new BibleBaiduShortSpeechClient(_configManager);
+
+            if (_bibleVerseContentIndex == null)
+            {
+                _bibleVerseContentIndex = new BibleVerseContentIndex();
+                _ = Task.Run(() => _bibleVerseContentIndex.LoadAsync(_bibleService, dbFilePath: GetBibleDbFilePath()));
+            }
+
+            _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService(
+                _bibleVerseContentIndex,
+                msg => LiveCaptionDebugLogger.Log($"BibleShortPhrase: {msg}"));
+            _bibleShortPhraseRuntime ??= new BibleShortPhraseRuntime(
+                new BibleShortPhraseConsumer(
+                    _bibleService,
+                    (wav, ct) => _bibleBaiduShortSpeechClient.TranscribeWavAsync(wav, ct),
+                    _bibleSpeechReverseLookupService,
+                    msg => LiveCaptionDebugLogger.Log($"BibleShortPhrase: {msg}")),
+                result =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (result.Success)
+                        {
+                            int startVs = Math.Max(1, result.Reference.StartVerse);
+                            int endVs   = Math.Max(1, result.FinalEndVerse);
+                            LiveCaptionDebugLogger.Log(
+                                $"BibleShortPhrase: ✅ 插入历史 book={result.Reference.BookId} " +
+                                $"ch={result.Reference.Chapter} vs={startVs}~{endVs} | '{result.RecognizedText}'");
+                            ShowToast(FormatBibleReferenceToastText(
+                                result.Reference.BookId, result.Reference.Chapter, startVs, endVs));
+                            AddPinyinHistoryToEmptySlot(
+                                result.Reference.BookId, result.Reference.Chapter, startVs, endVs);
+                        }
+
+                        ShowShortPhraseFeedback(result);
+                    }));
+                });
+        }
+
+        private void EnsureLiveCaptionOverlayWindow()
+        {
             if (_liveCaptionOverlayWindow == null)
             {
                 _liveCaptionOverlayWindow = new LiveCaptionOverlayWindow();
@@ -78,44 +132,7 @@ namespace ImageColorChanger.UI
                 LoadLiveCaptionFloatingBoundsFromConfig();
                 ApplyLiveCaptionTypographyFromBible();
                 ApplyProjectionCaptionLayoutFromConfig();
-                LiveCaptionDebugLogger.Log("EnsureComponents: OverlayWindow created and handlers attached.");
             }
-
-            if (_bibleService == null)
-            {
-                InitializeBibleService();
-            }
-
-            _bibleBaiduShortSpeechClient ??= new BibleBaiduShortSpeechClient(_configManager);
-            _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService();
-            _bibleShortPhraseRuntime ??= new BibleShortPhraseRuntime(
-                new BibleShortPhraseConsumer(
-                    _bibleService,
-                    (wav, ct) => _bibleBaiduShortSpeechClient.TranscribeWavAsync(wav, ct),
-                    _bibleSpeechReverseLookupService,
-                    msg => LiveCaptionDebugLogger.Log($"BibleShortPhrase: {msg}")),
-                result =>
-                {
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (result.Success)
-                        {
-                            ShowToast(FormatBibleReferenceToastText(
-                                result.Reference.BookId,
-                                result.Reference.Chapter,
-                                Math.Max(1, result.Reference.StartVerse),
-                                Math.Max(1, result.FinalEndVerse)));
-                            AddPinyinHistoryToEmptySlot(
-                                result.Reference.BookId,
-                                result.Reference.Chapter,
-                                Math.Max(1, result.Reference.StartVerse),
-                                Math.Max(1, result.FinalEndVerse));
-                        }
-
-                        ShowShortPhraseFeedback(result);
-                    }));
-                });
-
         }
 
         private void BtnLiveCaptionMic_Click(object sender, RoutedEventArgs e)
@@ -342,11 +359,12 @@ namespace ImageColorChanger.UI
 
         private async Task ApplyRecognitionStateAsync()
         {
-            EnsureLiveCaptionComponents();
+            EnsureLiveCaptionCoreComponents();
 
             bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
             bool shortEnabled = _configManager.LiveCaptionShortPhraseEnabled;
-            LiveCaptionDebugLogger.Log($"RecognitionState: realtime={realtimeEnabled}, short={shortEnabled}, source={_liveCaptionCurrentSource}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'");
+            string verseSource = _configManager.LiveCaptionVerseSource ?? "shortPhrase";
+            LiveCaptionDebugLogger.Log($"RecognitionState: realtime={realtimeEnabled}, short={shortEnabled}, verseSource={verseSource}, source={_liveCaptionCurrentSource}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'");
             _liveCaptionOverlayWindow?.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
 
             if (!realtimeEnabled && !shortEnabled)
@@ -370,7 +388,8 @@ namespace ImageColorChanger.UI
                 LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture started, device='{_sharedAudioCaptureSession.SelectedDeviceName}'.");
             }
 
-            if (realtimeEnabled)
+            bool needRealtimeEngine = realtimeEnabled || (shortEnabled && IsVerseSourceRealtime());
+            if (needRealtimeEngine)
             {
                 if (!_liveCaptionEngine.IsConfigured)
                 {
@@ -390,14 +409,15 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine?.Stop();
             }
 
-            if (shortEnabled)
+            bool needShortPhraseAsr = shortEnabled && IsVerseSourceShortPhrase();
+            if (needShortPhraseAsr)
             {
                 if (!_bibleBaiduShortSpeechClient.IsConfigured)
                 {
                     string missing = _bibleBaiduShortSpeechClient.MissingConfigSummary;
-                    LiveCaptionDebugLogger.Log($"RecognitionState: short phrase requested but Baidu short speech config incomplete. missing={missing}");
+                    LiveCaptionDebugLogger.Log($"RecognitionState: short phrase requested but short speech config incomplete. missing={missing}");
                     ShowStatus(string.IsNullOrWhiteSpace(missing)
-                        ? "经文识别未启动：请先在 AI配置 中填写百度短语鉴权信息"
+                        ? "经文识别未启动：请先在 AI配置 中填写短语识别鉴权信息"
                         : $"经文识别未启动：缺少 {missing}");
                 }
                 else if (!_bibleShortPhraseRuntime.IsRunning)
@@ -421,18 +441,28 @@ namespace ImageColorChanger.UI
 
         internal async Task ApplyLiveCaptionRecognitionStateFromConfigAsync()
         {
+            bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
+            bool shortEnabled = _configManager.LiveCaptionShortPhraseEnabled;
+
             if (_liveCaptionOverlayWindow != null)
             {
-                _liveCaptionOverlayWindow.SetRecognitionToggleStates(
-                    _configManager.LiveCaptionRealtimeEnabled,
-                    _configManager.LiveCaptionShortPhraseEnabled);
+                _liveCaptionOverlayWindow.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
             }
 
-            if ((_liveCaptionOverlayWindow?.IsVisible == true) ||
+            bool sessionActive =
+                (_liveCaptionOverlayWindow?.IsVisible == true) ||
                 (_sharedAudioCaptureSession?.IsRunning == true) ||
                 (_liveCaptionEngine?.IsRunning == true) ||
-                (_bibleShortPhraseRuntime?.IsRunning == true))
+                (_bibleShortPhraseRuntime?.IsRunning == true);
+
+            if (sessionActive)
             {
+                await ApplyRecognitionStateAsync();
+            }
+            else if (shortEnabled || realtimeEnabled)
+            {
+                // 识别模式已在设置中启用，但引擎尚未运行 → 静默启动识别引擎
+                // 不调用 StartLiveCaption()，避免显示字幕框
                 await ApplyRecognitionStateAsync();
             }
         }
@@ -443,16 +473,30 @@ namespace ImageColorChanger.UI
             {
                 if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
                 {
-                    LiveCaptionDebugLogger.Log("SubtitleUpdated: dropped because engine is stopped.");
                     return;
                 }
 
-                if (_liveCaptionOverlayWindow == null)
+                // 经文匹配：不依赖 overlay 窗口，静默运行也能触发
+                // 只取尾部 30 字符匹配，避免长文本累积导致误匹配
+                if (IsVerseSourceRealtime() && !string.IsNullOrWhiteSpace(update.Text))
                 {
-                    return;
+                    string trimmed = update.Text.Trim();
+                    int tailLen = Math.Min(trimmed.Length, 30);
+                    string tail = trimmed.Substring(trimmed.Length - tailLen);
+                    bool textChanged = !string.Equals(tail, _realtimeVerseLastText, StringComparison.Ordinal);
+                    bool cooldownPassed = (DateTime.UtcNow - _realtimeVerseLastAttemptUtc).TotalMilliseconds >= 3000;
+                    if (textChanged && cooldownPassed && tail.Length >= 6)
+                    {
+                        _realtimeVerseLastAttemptUtc = DateTime.UtcNow;
+                        _realtimeVerseLastText = tail;
+                        LiveCaptionDebugLogger.Log($"RealtimeVerse: ASR文本 '{(tail.Length > 30 ? tail.Substring(0, 30) + "…" : tail)}'");
+                        _ = TryMatchVerseFromRealtimeAsync(tail);
+                    }
                 }
 
-                LiveCaptionDebugLogger.Log($"SubtitleUpdated: raw='{TrimForLog(update.Text)}', final={update.IsFinal}");
+                // 实时语音未启用或 overlay 未创建 → 不渲染字幕
+                if (!_configManager.LiveCaptionRealtimeEnabled || _liveCaptionOverlayWindow == null)
+                    return;
 
                 // NDI 独立链路：不复用主屏/投影链路的排版与窗口更新条件。
                 LiveCaptionRenderFrame ndiFrame = PushNdiCaptionFrame(update);
@@ -466,13 +510,13 @@ namespace ImageColorChanger.UI
                 ProbeHorizontalShiftAnomaly(frame, update);
                 if (!frame.HasChanged)
                 {
-                    LiveCaptionDebugLogger.Log("SubtitleUpdated: unchanged, skipped.");
+                    // unchanged, skip
                     return;
                 }
 
                 if (string.IsNullOrWhiteSpace(frame.Display))
                 {
-                    LiveCaptionDebugLogger.Log("SubtitleUpdated: display empty, skipped.");
+                    // display empty, skip
                     return;
                 }
 
@@ -488,7 +532,7 @@ namespace ImageColorChanger.UI
 
                 if (_liveCaptionOverlayManuallyHidden)
                 {
-                    LiveCaptionDebugLogger.Log("SubtitleUpdated: overlay hidden manually, local render skipped (projection kept updating).");
+                    // overlay hidden manually, local render skipped
                     return;
                 }
 
@@ -500,7 +544,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.UpdateCaption(frame.Display, frame.HighlightStart);
                 SyncLiveCaptionVisibilityWithMainWindowContext("subtitle-updated");
                 ApplyMainWindowLiveCaptionReservation();
-                LiveCaptionDebugLogger.Log($"SubtitleUpdated: rendered='{TrimForLog(frame.Display)}'");
+                // subtitle rendered
             }));
         }
 
@@ -518,6 +562,68 @@ namespace ImageColorChanger.UI
             ShowStatus(message);
         }
 
+        private bool IsVerseSourceRealtime()
+        {
+            string src = _configManager?.LiveCaptionVerseSource ?? "shortPhrase";
+            return string.Equals(src, "realtime", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(src, "both", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool IsVerseSourceShortPhrase()
+        {
+            string src = _configManager?.LiveCaptionVerseSource ?? "shortPhrase";
+            return string.Equals(src, "shortPhrase", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(src, "both", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task TryMatchVerseFromRealtimeAsync(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || _bibleSpeechReverseLookupService == null)
+                return;
+
+            try
+            {
+                if (BibleSpeechReferenceParser.TryParse(text, out var directRef))
+                {
+                    int endVs = directRef.EndVerse;
+                    if (endVs <= 0)
+                    {
+                        int vc = await _bibleService.GetVerseCountAsync(directRef.BookId, directRef.Chapter);
+                        endVs = vc > 0 ? vc : Math.Max(1, directRef.StartVerse);
+                    }
+                    LiveCaptionDebugLogger.Log(
+                        $"RealtimeVerse: ✅ 直接解析 book={directRef.BookId} ch={directRef.Chapter} vs={directRef.StartVerse}~{endVs} | '{TrimForLog(text)}'");
+                    ShowToast(FormatBibleReferenceToastText(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs));
+                    AddPinyinHistoryToEmptySlot(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs);
+                    return;
+                }
+
+                var resolved = await _bibleSpeechReverseLookupService.TryResolveAsync(
+                    _bibleService, text, CancellationToken.None);
+                if (!resolved.HasValue)
+                    return;
+
+                var r = resolved.Value;
+                int finalEnd = r.EndVerse;
+                if (finalEnd <= 0)
+                {
+                    int vc = await _bibleService.GetVerseCountAsync(r.BookId, r.Chapter);
+                    finalEnd = vc > 0 ? vc : Math.Max(1, r.StartVerse);
+                }
+                LiveCaptionDebugLogger.Log(
+                    $"RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
+                    AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd);
+                }));
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"RealtimeVerse: error {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
         private void OnLiveCaptionStatusChanged(string status)
         {
             LiveCaptionDebugLogger.Log($"EngineStatus: {status}");
@@ -527,11 +633,14 @@ namespace ImageColorChanger.UI
         private void OnLiveCaptionDebugInfoUpdated(string debugInfo)
         {
             if (string.IsNullOrWhiteSpace(debugInfo))
-            {
                 return;
-            }
 
-            LiveCaptionDebugLogger.Log($"EngineDebug: {debugInfo}");
+            if (debugInfo.StartsWith("[started]", StringComparison.Ordinal)
+                || debugInfo.StartsWith("[stopped]", StringComparison.Ordinal)
+                || debugInfo.StartsWith("[error]", StringComparison.Ordinal))
+            {
+                LiveCaptionDebugLogger.Log($"EngineDebug: {debugInfo}");
+            }
         }
 
         private void DisposeLiveCaption()

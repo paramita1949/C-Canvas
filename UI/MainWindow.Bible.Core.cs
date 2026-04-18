@@ -188,6 +188,13 @@ namespace ImageColorChanger.UI
 
         #region 圣经服务初始化
 
+        private string GetBibleDbFilePath()
+        {
+            var dbFileName = _configManager?.BibleDatabaseFileName ?? "bible.db";
+            return System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "data", "assets", dbFileName);
+        }
+
         /// <summary>
         /// 初始化圣经服务
         /// </summary>

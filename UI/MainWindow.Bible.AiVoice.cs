@@ -17,6 +17,11 @@ namespace ImageColorChanger.UI
         private bool _isBibleAiVoiceListening;
         private BibleBaiduShortSpeechClient _bibleBaiduShortSpeechClient;
         private BibleSpeechReverseLookupService _bibleSpeechReverseLookupService;
+        /// <summary>
+        /// 经文内容内存索引（Bigram 倒排），由 EnsureLiveCaptionComponents 负责创建并预热，
+        /// 同时在圣经译本切换后触发重建。MainWindow.Bible.AiVoice 的单次识别路径共享此实例。
+        /// </summary>
+        private BibleVerseContentIndex _bibleVerseContentIndex;
 
         private static void LogBibleAiVoice(string message)
         {
@@ -53,8 +58,8 @@ namespace ImageColorChanger.UI
             _bibleBaiduShortSpeechClient ??= new BibleBaiduShortSpeechClient(_configManager);
             if (!_bibleBaiduShortSpeechClient.IsConfigured)
             {
-                LogBibleAiVoice("Blocked: Baidu short speech client not configured.");
-                ShowStatus("百度语音凭据未配置，请先在 AI 配置中填写 AppID/API Key/Secret Key");
+                LogBibleAiVoice("Blocked: short speech client not configured.");
+                ShowStatus("短语识别凭据未配置，请先在 AI 配置中填写对应平台鉴权信息");
                 return;
             }
 
@@ -166,7 +171,10 @@ namespace ImageColorChanger.UI
             if (!BibleSpeechReferenceParser.TryParse(recognized, out reference))
             {
                 LogBibleAiVoice("Direct parser failed. Trying reverse lookup.");
-                _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService();
+                // 优先使用带索引的实例；若索引尚未就绪，服务内部会降级到 DB 路径
+                _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService(
+                    _bibleVerseContentIndex,
+                    msg => LogBibleAiVoice(msg));
                 var reversed = await _bibleSpeechReverseLookupService.TryResolveAsync(
                     _bibleService,
                     recognized,
