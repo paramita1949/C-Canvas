@@ -40,12 +40,23 @@ namespace ImageColorChanger.UI
         private string _draftShortDialect = "default";
         private string _draftTencentRealtimeCustomizationId = string.Empty;
         private string _draftTencentShortCustomizationId = string.Empty;
+        private string _draftDoubaoBoostingTableId = string.Empty;
+        private string _draftDoubaoBoostingTableName = string.Empty;
+        private string _draftDoubaoHotwordOpenApiAk = string.Empty;
+        private string _draftDoubaoHotwordOpenApiSk = string.Empty;
         private readonly List<TencentCustomizationModelEntry> _tencentCustomizationModels = new();
+        private readonly List<DoubaoBoostingTableEntry> _doubaoBoostingTables = new();
         private string _lastTencentCustomizationSyncFingerprint = string.Empty;
         private bool _tencentCustomizationSyncInFlight;
+        private string _lastDoubaoHotwordSyncFingerprint = string.Empty;
+        private bool _doubaoHotwordSyncInFlight;
         private const string TencentAsrHost = "asr.tencentcloudapi.com";
         private const string TencentAsrVersion = "2019-06-14";
         private const string TencentAsrService = "asr";
+        private const string VolcOpenApiHost = "open.volcengineapi.com";
+        private const string VolcOpenApiRegion = "cn-north-1";
+        private const string VolcOpenApiService = "speech_saas_prod";
+        private const string VolcListBoostingTableVersion = "2022-08-30";
 
         private sealed class ProviderPreset
         {
@@ -88,6 +99,12 @@ namespace ImageColorChanger.UI
             public string DisplayName { get; set; } = string.Empty;
         }
 
+        private sealed class DoubaoBoostingTableEntry
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+        }
+
         public AiConfigWindow(ConfigManager configManager)
         {
             InitializeComponent();
@@ -107,6 +124,10 @@ namespace ImageColorChanger.UI
             InitializeDialectSelection(provider);
             LoadProviderCredentials(provider);
             TriggerTencentCustomizationSyncIfNeeded(provider);
+            PopulateDoubaoHotwordOptions(_draftDoubaoBoostingTableId, _draftDoubaoBoostingTableName);
+            DoubaoHotwordAkTextBox.Text = _draftDoubaoHotwordOpenApiAk;
+            DoubaoHotwordSkTextBox.Text = _draftDoubaoHotwordOpenApiSk;
+            TriggerDoubaoHotwordSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
             InitializeVerseSourceComboBox();
         }
@@ -125,6 +146,10 @@ namespace ImageColorChanger.UI
 
             _draftTencentRealtimeCustomizationId = (_configManager.LiveCaptionTencentRealtimeCustomizationId ?? string.Empty).Trim();
             _draftTencentShortCustomizationId = (_configManager.LiveCaptionTencentShortCustomizationId ?? string.Empty).Trim();
+            _draftDoubaoBoostingTableId = (_configManager.LiveCaptionDoubaoBoostingTableId ?? string.Empty).Trim();
+            _draftDoubaoBoostingTableName = (_configManager.LiveCaptionDoubaoBoostingTableName ?? string.Empty).Trim();
+            _draftDoubaoHotwordOpenApiAk = (_configManager.LiveCaptionDoubaoHotwordOpenApiAk ?? string.Empty).Trim();
+            _draftDoubaoHotwordOpenApiSk = (_configManager.LiveCaptionDoubaoHotwordOpenApiSk ?? string.Empty).Trim();
             _tencentCustomizationModels.Clear();
             var configuredModels = _configManager.LiveCaptionTencentCustomizationModels ?? Array.Empty<TencentCustomizationModelEntry>();
             for (int i = 0; i < configuredModels.Length; i++)
@@ -199,6 +224,7 @@ namespace ImageColorChanger.UI
             PopulateDialectOptions(provider, GetCurrentDialectValue(provider));
             LoadProviderCredentials(provider);
             TriggerTencentCustomizationSyncIfNeeded(provider);
+            TriggerDoubaoHotwordSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
         }
 
@@ -337,6 +363,10 @@ namespace ImageColorChanger.UI
                             ? "volc.seedasr.sauc.duration"
                             : v3;
                     }
+                    _configManager.LiveCaptionDoubaoBoostingTableId = _draftDoubaoBoostingTableId;
+                    _configManager.LiveCaptionDoubaoBoostingTableName = _draftDoubaoBoostingTableName;
+                    _configManager.LiveCaptionDoubaoHotwordOpenApiAk = (DoubaoHotwordAkTextBox.Text ?? string.Empty).Trim();
+                    _configManager.LiveCaptionDoubaoHotwordOpenApiSk = (DoubaoHotwordSkTextBox.Text ?? string.Empty).Trim();
                     break;
 
             }
@@ -529,6 +559,7 @@ namespace ImageColorChanger.UI
             InitializeDialectSelection(provider);
             LoadProviderCredentials(provider);
             TriggerTencentCustomizationSyncIfNeeded(provider);
+            TriggerDoubaoHotwordSyncIfNeeded(provider);
             CaptureCurrentModeDraftFromUi();
         }
 
@@ -874,6 +905,351 @@ namespace ImageColorChanger.UI
                     _tencentCustomizationSyncInFlight = false;
                 }
             });
+        }
+
+        private async void RefreshDoubaoHotwordButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshDoubaoHotwordTablesAsync(force: true);
+        }
+
+        private void DoubaoHotwordComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DoubaoHotwordComboBox?.SelectedItem is not ComboBoxItem item)
+            {
+                return;
+            }
+
+            if (item.Tag is DoubaoBoostingTableEntry table)
+            {
+                _draftDoubaoBoostingTableId = (table.Id ?? string.Empty).Trim();
+                _draftDoubaoBoostingTableName = (table.Name ?? string.Empty).Trim();
+                return;
+            }
+
+            _draftDoubaoBoostingTableId = string.Empty;
+            _draftDoubaoBoostingTableName = string.Empty;
+        }
+
+        private void TriggerDoubaoHotwordSyncIfNeeded(string provider)
+        {
+            if (!string.Equals(provider, "doubao", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _ = RefreshDoubaoHotwordTablesAsync(force: false);
+        }
+
+        private async Task RefreshDoubaoHotwordTablesAsync(bool force)
+        {
+            if (!string.Equals(GetSelectedProvider(), "doubao", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (_doubaoHotwordSyncInFlight)
+            {
+                return;
+            }
+
+            string appId = (Credential1TextBox.Text ?? string.Empty).Trim();
+            string accessKey = (DoubaoHotwordAkTextBox.Text ?? string.Empty).Trim();
+            string secretKey = (DoubaoHotwordSkTextBox.Text ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(appId))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretKey))
+            {
+                if (force)
+                {
+                    System.Windows.MessageBox.Show(
+                        this,
+                        "请先填写“热词管理 AK/SK”（IAM 访问密钥），再刷新热词列表。",
+                        "AI配置",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                return;
+            }
+
+            if (!int.TryParse(appId, NumberStyles.Integer, CultureInfo.InvariantCulture, out int appIdValue) || appIdValue <= 0)
+            {
+                if (force)
+                {
+                    System.Windows.MessageBox.Show(this, "豆包热词自动获取需要 AppID 为数字。", "AI配置", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                return;
+            }
+
+            string fingerprint = $"{appId}|{accessKey}|{secretKey}";
+            if (!force && string.Equals(_lastDoubaoHotwordSyncFingerprint, fingerprint, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _doubaoHotwordSyncInFlight = true;
+            string originalButtonText = RefreshDoubaoHotwordButton.Content?.ToString() ?? "刷新列表";
+            try
+            {
+                RefreshDoubaoHotwordButton.IsEnabled = false;
+                RefreshDoubaoHotwordButton.Content = "加载中...";
+
+                List<DoubaoBoostingTableEntry> tables = await FetchDoubaoBoostingTablesAsync(
+                    appIdValue,
+                    accessKey,
+                    secretKey,
+                    CancellationToken.None);
+
+                _doubaoBoostingTables.Clear();
+                _doubaoBoostingTables.AddRange(tables);
+                _lastDoubaoHotwordSyncFingerprint = fingerprint;
+                PopulateDoubaoHotwordOptions(_draftDoubaoBoostingTableId, _draftDoubaoBoostingTableName);
+
+                if (force)
+                {
+                    System.Windows.MessageBox.Show(
+                        this,
+                        $"已加载豆包热词表 {tables.Count} 条。",
+                        "AI配置",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AiConfig][DoubaoHotword] sync failed: {ex.Message}");
+                if (force)
+                {
+                    System.Windows.MessageBox.Show(
+                        this,
+                        $"加载豆包热词表失败：{ex.Message}",
+                        "AI配置",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+            }
+            finally
+            {
+                _doubaoHotwordSyncInFlight = false;
+                RefreshDoubaoHotwordButton.IsEnabled = true;
+                RefreshDoubaoHotwordButton.Content = originalButtonText;
+            }
+        }
+
+        private void PopulateDoubaoHotwordOptions(string preferredId, string preferredName)
+        {
+            if (DoubaoHotwordComboBox == null)
+            {
+                return;
+            }
+
+            string normalizedPreferredId = (preferredId ?? string.Empty).Trim();
+            string normalizedPreferredName = (preferredName ?? string.Empty).Trim();
+
+            DoubaoHotwordComboBox.Items.Clear();
+            var noneItem = new ComboBoxItem
+            {
+                Content = "不使用（保留内置热词上下文）",
+                Tag = null
+            };
+            DoubaoHotwordComboBox.Items.Add(noneItem);
+
+            ComboBoxItem matchedItem = null;
+            for (int i = 0; i < _doubaoBoostingTables.Count; i++)
+            {
+                var table = _doubaoBoostingTables[i];
+                string id = (table.Id ?? string.Empty).Trim();
+                string name = (table.Name ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                var item = new ComboBoxItem
+                {
+                    Content = string.IsNullOrWhiteSpace(name) ? id : $"{name} ({id})",
+                    Tag = new DoubaoBoostingTableEntry { Id = id, Name = name }
+                };
+                DoubaoHotwordComboBox.Items.Add(item);
+
+                if (!string.IsNullOrWhiteSpace(normalizedPreferredId) &&
+                    string.Equals(id, normalizedPreferredId, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedItem = item;
+                }
+                else if (matchedItem == null &&
+                    string.IsNullOrWhiteSpace(normalizedPreferredId) &&
+                    !string.IsNullOrWhiteSpace(normalizedPreferredName) &&
+                    string.Equals(name, normalizedPreferredName, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedItem = item;
+                }
+            }
+
+            if (matchedItem == null &&
+                (!string.IsNullOrWhiteSpace(normalizedPreferredId) || !string.IsNullOrWhiteSpace(normalizedPreferredName)))
+            {
+                var unresolved = new ComboBoxItem
+                {
+                    Content = $"当前配置（未匹配到列表）：{(string.IsNullOrWhiteSpace(normalizedPreferredName) ? normalizedPreferredId : normalizedPreferredName)}",
+                    Tag = new DoubaoBoostingTableEntry
+                    {
+                        Id = normalizedPreferredId,
+                        Name = normalizedPreferredName
+                    }
+                };
+                DoubaoHotwordComboBox.Items.Add(unresolved);
+                matchedItem = unresolved;
+            }
+
+            DoubaoHotwordComboBox.SelectedItem = matchedItem ?? noneItem;
+        }
+
+        private static async Task<List<DoubaoBoostingTableEntry>> FetchDoubaoBoostingTablesAsync(
+            int appId,
+            string accessKey,
+            string secretKey,
+            CancellationToken cancellationToken)
+        {
+            const string action = "ListBoostingTable";
+            const string canonicalQuery = "Action=ListBoostingTable&Version=2022-08-30";
+            string body = JsonSerializer.Serialize(new Dictionary<string, object>
+            {
+                ["Action"] = action,
+                ["Version"] = VolcListBoostingTableVersion,
+                ["AppID"] = appId,
+                ["PageNumber"] = 1,
+                ["PageSize"] = 200,
+                ["PreviewSize"] = 10
+            });
+
+            string payloadHash = Sha256Hex(body);
+            DateTime utcNow = DateTime.UtcNow;
+            string xDate = utcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+            string shortDate = utcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+            string authorization = BuildVolcAuthorization(
+                accessKey,
+                secretKey,
+                xDate,
+                shortDate,
+                canonicalQuery,
+                payloadHash);
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://{VolcOpenApiHost}/?{canonicalQuery}")
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+
+            request.Headers.TryAddWithoutValidation("Host", VolcOpenApiHost);
+            request.Headers.TryAddWithoutValidation("X-Date", xDate);
+            request.Headers.TryAddWithoutValidation("X-Content-Sha256", payloadHash);
+            request.Headers.TryAddWithoutValidation("Authorization", authorization);
+
+            using var response = await client.SendAsync(request, cancellationToken);
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"HTTP {(int)response.StatusCode}: {TrimForLog(json)}");
+            }
+
+            var parsed = ParseDoubaoBoostingTableList(json);
+            if (!string.IsNullOrWhiteSpace(parsed.ErrorMessage))
+            {
+                throw new InvalidOperationException(parsed.ErrorMessage);
+            }
+
+            return parsed.Tables;
+        }
+
+        private static string BuildVolcAuthorization(
+            string accessKey,
+            string secretKey,
+            string xDate,
+            string shortDate,
+            string canonicalQueryString,
+            string payloadHash)
+        {
+            string credentialScope = $"{shortDate}/{VolcOpenApiRegion}/{VolcOpenApiService}/request";
+            string canonicalHeaders =
+                $"content-type:application/json; charset=utf-8\n" +
+                $"host:{VolcOpenApiHost}\n" +
+                $"x-content-sha256:{payloadHash}\n" +
+                $"x-date:{xDate}\n";
+            const string signedHeaders = "content-type;host;x-content-sha256;x-date";
+            string canonicalRequest =
+                $"POST\n/\n{canonicalQueryString}\n{canonicalHeaders}\n{signedHeaders}\n{payloadHash}";
+            string stringToSign =
+                $"HMAC-SHA256\n{xDate}\n{credentialScope}\n{Sha256Hex(canonicalRequest)}";
+
+            byte[] kDate = HmacSha256Bytes(Encoding.UTF8.GetBytes(secretKey ?? string.Empty), shortDate);
+            byte[] kRegion = HmacSha256Bytes(kDate, VolcOpenApiRegion);
+            byte[] kService = HmacSha256Bytes(kRegion, VolcOpenApiService);
+            byte[] kSigning = HmacSha256Bytes(kService, "request");
+            string signature = ToHex(HmacSha256Bytes(kSigning, stringToSign));
+
+            return $"HMAC-SHA256 Credential={accessKey}/{credentialScope}, SignedHeaders={signedHeaders}, Signature={signature}";
+        }
+
+        private sealed class DoubaoBoostingTableParseResult
+        {
+            public List<DoubaoBoostingTableEntry> Tables { get; } = new();
+            public string ErrorMessage { get; set; } = string.Empty;
+        }
+
+        private static DoubaoBoostingTableParseResult ParseDoubaoBoostingTableList(string json)
+        {
+            var result = new DoubaoBoostingTableParseResult();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return result;
+            }
+
+            using JsonDocument doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("ResponseMetadata", out JsonElement metadata) &&
+                metadata.TryGetProperty("Error", out JsonElement error))
+            {
+                string code = error.TryGetProperty("Code", out JsonElement codeEl) ? (codeEl.GetString() ?? string.Empty) : string.Empty;
+                string message = error.TryGetProperty("Message", out JsonElement messageEl) ? (messageEl.GetString() ?? string.Empty) : string.Empty;
+                result.ErrorMessage = string.IsNullOrWhiteSpace(code)
+                    ? message
+                    : $"{code}: {message}";
+                return result;
+            }
+
+            if (!doc.RootElement.TryGetProperty("Result", out JsonElement rootResult))
+            {
+                return result;
+            }
+
+            if (!rootResult.TryGetProperty("BoostingTables", out JsonElement listElement) ||
+                listElement.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (JsonElement item in listElement.EnumerateArray())
+            {
+                string id = item.TryGetProperty("BoostingTableID", out JsonElement idEl) ? (idEl.GetString() ?? string.Empty).Trim() : string.Empty;
+                string name = item.TryGetProperty("BoostingTableName", out JsonElement nameEl) ? (nameEl.GetString() ?? string.Empty).Trim() : string.Empty;
+                if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                result.Tables.Add(new DoubaoBoostingTableEntry
+                {
+                    Id = id,
+                    Name = name
+                });
+            }
+
+            return result;
         }
 
         private static async Task<List<TencentCustomizationModelEntry>> FetchTencentCustomizationModelsAsync(
@@ -1265,8 +1641,8 @@ namespace ImageColorChanger.UI
                         : "Resource ID（默认 volc.seedasr.sauc.duration）",
                     ShowCredential3 = false,
                     Hint = _speechMode == SpeechMode.ShortPhrase
-                        ? "豆包一句话识别：连接地址示例 wss://openspeech.bytedance.com/api/v2/asr（请求头 Authorization=Bearer; Token；模型框填写 Cluster，默认 volcengine_input_common）。"
-                        : "豆包实时识别：连接地址示例 wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
+                        ? "豆包一句话识别：连接地址示例 wss://openspeech.bytedance.com/api/v2/asr（请求头 Authorization=Bearer; Token；模型框填写 Cluster，默认 volcengine_input_common）。热词表自动获取需填写“热词管理 AK/SK”（IAM 访问密钥）。"
+                        : "豆包实时识别：连接地址示例 wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async。热词表自动获取需填写“热词管理 AK/SK”（IAM 访问密钥）。"
                 },
                 _ => new ProviderPreset
                 {
@@ -1290,7 +1666,14 @@ namespace ImageColorChanger.UI
             Credential2TextBox.Visibility = preset.ShowCredential2 ? Visibility.Visible : Visibility.Collapsed;
             Credential3Label.Visibility = preset.ShowCredential3 ? Visibility.Visible : Visibility.Collapsed;
             Credential3TextBox.Visibility = preset.ShowCredential3 ? Visibility.Visible : Visibility.Collapsed;
-                _baseHint = preset.Hint;
+            bool showDoubaoHotword = string.Equals(preset.Provider, "doubao", StringComparison.OrdinalIgnoreCase);
+            DoubaoHotwordLabel.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            DoubaoHotwordPanel.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            DoubaoHotwordAkLabel.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            DoubaoHotwordAkTextBox.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            DoubaoHotwordSkLabel.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            DoubaoHotwordSkTextBox.Visibility = showDoubaoHotword ? Visibility.Visible : Visibility.Collapsed;
+            _baseHint = preset.Hint;
             RefreshHintWithModelDescription();
         }
 
@@ -1473,12 +1856,21 @@ namespace ImageColorChanger.UI
                     Credential1TextBox.Text = _configManager.LiveCaptionDoubaoAppKey;
                     Credential2TextBox.Text = _configManager.LiveCaptionDoubaoAccessKey;
                     Credential3TextBox.Text = _configManager.LiveCaptionDoubaoResourceId;
+                    DoubaoHotwordAkTextBox.Text = _configManager.LiveCaptionDoubaoHotwordOpenApiAk;
+                    DoubaoHotwordSkTextBox.Text = _configManager.LiveCaptionDoubaoHotwordOpenApiSk;
                     break;
                 default:
                     Credential1TextBox.Text = _configManager.LiveCaptionBaiduAppId;
                     Credential2TextBox.Text = _configManager.LiveCaptionBaiduApiKey;
                     Credential3TextBox.Text = _configManager.LiveCaptionBaiduSecretKey;
+                    DoubaoHotwordAkTextBox.Text = string.Empty;
+                    DoubaoHotwordSkTextBox.Text = string.Empty;
                     break;
+            }
+
+            if (string.Equals(provider, "doubao", StringComparison.OrdinalIgnoreCase))
+            {
+                PopulateDoubaoHotwordOptions(_draftDoubaoBoostingTableId, _draftDoubaoBoostingTableName);
             }
         }
     }

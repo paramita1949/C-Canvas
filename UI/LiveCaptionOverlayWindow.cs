@@ -104,6 +104,10 @@ namespace ImageColorChanger.UI
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
         private readonly TextBlock _recognitionDebugMarkerText;
+        private string _realtimeRecognitionPlatformName = "百度";
+        private string _shortPhraseRecognitionPlatformName = "百度";
+        private bool _realtimeRecognitionEnabled;
+        private bool _shortPhraseRecognitionEnabled;
         private readonly System.Windows.Controls.CheckBox _realtimeRecognitionToggle;
         private readonly System.Windows.Controls.CheckBox _shortPhraseRecognitionToggle;
         private readonly DispatcherTimer _typingTimer;
@@ -1025,6 +1029,8 @@ namespace ImageColorChanger.UI
             {
                 _realtimeRecognitionToggle.IsChecked = realtimeEnabled;
                 _shortPhraseRecognitionToggle.IsChecked = shortPhraseEnabled;
+                _realtimeRecognitionEnabled = realtimeEnabled;
+                _shortPhraseRecognitionEnabled = shortPhraseEnabled;
                 UpdateRecognitionDebugMarker(realtimeEnabled, shortPhraseEnabled);
             }
             finally
@@ -1033,11 +1039,20 @@ namespace ImageColorChanger.UI
             }
         }
 
+        public void SetRecognitionPlatformNames(string realtimePlatformName, string shortPhrasePlatformName)
+        {
+            _realtimeRecognitionPlatformName = string.IsNullOrWhiteSpace(realtimePlatformName) ? "百度" : realtimePlatformName.Trim();
+            _shortPhraseRecognitionPlatformName = string.IsNullOrWhiteSpace(shortPhrasePlatformName) ? "百度" : shortPhrasePlatformName.Trim();
+            UpdateRecognitionDebugMarker(_realtimeRecognitionEnabled, _shortPhraseRecognitionEnabled);
+        }
+
         private void UpdateRecognitionDebugMarker(bool realtimeEnabled, bool shortPhraseEnabled)
         {
-            // UI优化：不再在左上角显示识别调试标记（如 [实时语音][实时短语]）。
-            _recognitionDebugMarkerText.Text = string.Empty;
-            _recognitionDebugMarkerText.Visibility = Visibility.Collapsed;
+            string realtimeState = realtimeEnabled ? "开" : "关";
+            string shortPhraseState = shortPhraseEnabled ? "开" : "关";
+            _recognitionDebugMarkerText.Text =
+                $"实时:{_realtimeRecognitionPlatformName}({realtimeState})  经文:{_shortPhraseRecognitionPlatformName}({shortPhraseState})";
+            _recognitionDebugMarkerText.Visibility = Visibility.Visible;
         }
 
         public void SetProjectionToggleState(bool hidden)

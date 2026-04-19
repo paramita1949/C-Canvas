@@ -692,6 +692,62 @@ namespace ImageColorChanger.Core
             }
         }
 
+        public string LiveCaptionDoubaoBoostingTableId
+        {
+            get => _config.LiveCaptionDoubaoBoostingTableId ?? string.Empty;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionDoubaoBoostingTableId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionDoubaoBoostingTableId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionDoubaoBoostingTableName
+        {
+            get => _config.LiveCaptionDoubaoBoostingTableName ?? string.Empty;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionDoubaoBoostingTableName, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionDoubaoBoostingTableName = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionDoubaoHotwordOpenApiAk
+        {
+            get => _config.LiveCaptionDoubaoHotwordOpenApiAk ?? string.Empty;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionDoubaoHotwordOpenApiAk, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionDoubaoHotwordOpenApiAk = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionDoubaoHotwordOpenApiSk
+        {
+            get => _config.LiveCaptionDoubaoHotwordOpenApiSk ?? string.Empty;
+            set
+            {
+                var next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionDoubaoHotwordOpenApiSk, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionDoubaoHotwordOpenApiSk = next;
+                    SaveConfig();
+                }
+            }
+        }
+
         public bool LiveCaptionReserveWorkArea
         {
             get => _config.LiveCaptionReserveWorkArea;
@@ -1220,6 +1276,10 @@ namespace ImageColorChanger.Core
         public string LiveCaptionDoubaoAppKey { get; set; } = "";
         public string LiveCaptionDoubaoAccessKey { get; set; } = "";
         public string LiveCaptionDoubaoResourceId { get; set; } = "volc.seedasr.sauc.duration";
+        public string LiveCaptionDoubaoBoostingTableId { get; set; } = "";
+        public string LiveCaptionDoubaoBoostingTableName { get; set; } = "";
+        public string LiveCaptionDoubaoHotwordOpenApiAk { get; set; } = "";
+        public string LiveCaptionDoubaoHotwordOpenApiSk { get; set; } = "";
         public bool LiveCaptionReserveWorkArea { get; set; } = false;
         public double LiveCaptionFloatingLeft { get; set; } = 0;
         public double LiveCaptionFloatingTop { get; set; } = 0;

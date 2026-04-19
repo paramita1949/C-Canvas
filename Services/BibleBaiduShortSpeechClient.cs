@@ -336,15 +336,28 @@ namespace ImageColorChanger.Services
             string authorization = BuildDoubaoAuthorizationHeader(rawToken);
             string payloadToken = BuildDoubaoPayloadToken(rawToken);
             string requestId = Guid.NewGuid().ToString("N");
+            string boostingTableId = (_config.LiveCaptionDoubaoBoostingTableId ?? string.Empty).Trim();
+            string boostingTableName = (_config.LiveCaptionDoubaoBoostingTableName ?? string.Empty).Trim();
 
             using var ws = new ClientWebSocket();
             ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
             ws.Options.SetRequestHeader("Authorization", authorization);
 
-            Debug.WriteLine($"[BibleVoice][Doubao] short-speech request: cluster={cluster}, url={wsUrl}, wavBytes={wavBytes.Length}");
+            string hotwordMode = !string.IsNullOrWhiteSpace(boostingTableId)
+                ? $"热词表ID:{boostingTableId}"
+                : (!string.IsNullOrWhiteSpace(boostingTableName)
+                    ? $"热词表名:{boostingTableName}"
+                    : "未配置热词表");
+            Debug.WriteLine($"[BibleVoice][Doubao] short-speech request: cluster={cluster}, url={wsUrl}, wavBytes={wavBytes.Length}, hotword={hotwordMode}");
             await ws.ConnectAsync(new Uri(wsUrl), cancellationToken);
 
-            string startJson = BuildDoubaoShortSpeechInitialPayloadJson(appId, payloadToken, cluster, requestId);
+            string startJson = BuildDoubaoShortSpeechInitialPayloadJson(
+                appId,
+                payloadToken,
+                cluster,
+                requestId,
+                boostingTableId,
+                boostingTableName);
             byte[] startFrame = BuildDoubaoFrame(
                 DoubaoMessageTypeFullClientRequest,
                 0,
@@ -824,8 +837,33 @@ namespace ImageColorChanger.Services
             return raw;
         }
 
-        private static string BuildDoubaoShortSpeechInitialPayloadJson(string appId, string token, string cluster, string requestId)
+        private static string BuildDoubaoShortSpeechInitialPayloadJson(
+            string appId,
+            string token,
+            string cluster,
+            string requestId,
+            string boostingTableId = "",
+            string boostingTableName = "")
         {
+            string effectiveBoostingTableId = (boostingTableId ?? string.Empty).Trim();
+            string effectiveBoostingTableName = string.IsNullOrWhiteSpace(effectiveBoostingTableId)
+                ? (boostingTableName ?? string.Empty).Trim()
+                : string.Empty;
+
+            var request = new Dictionary<string, object>
+            {
+                ["reqid"] = requestId,
+                ["sequence"] = 1
+            };
+            if (!string.IsNullOrWhiteSpace(effectiveBoostingTableId))
+            {
+                request["boosting_table_id"] = effectiveBoostingTableId;
+            }
+            else if (!string.IsNullOrWhiteSpace(effectiveBoostingTableName))
+            {
+                request["boosting_table_name"] = effectiveBoostingTableName;
+            }
+
             var payload = new
             {
                 app = new
@@ -840,11 +878,7 @@ namespace ImageColorChanger.Services
                         ? "canvas-user"
                         : Environment.UserName
                 },
-                request = new
-                {
-                    reqid = requestId,
-                    sequence = 1
-                },
+                request,
                 audio = new
                 {
                     format = "wav",

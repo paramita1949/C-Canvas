@@ -45,6 +45,8 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly string _doubaoAppKey;
         private readonly string _doubaoAccessKey;
         private readonly string _doubaoResourceId;
+        private readonly string _doubaoBoostingTableId;
+        private readonly string _doubaoBoostingTableName;
         private readonly string _tencentRegion = "ap-shanghai";
         private readonly string _tencentVersion = "2019-06-14";
         private const string BaiduRealtimeBaseUrl = "wss://vop.baidu.com/realtime_asr";
@@ -197,6 +199,8 @@ namespace ImageColorChanger.Services.LiveCaption
             _doubaoResourceId = string.IsNullOrWhiteSpace(config?.LiveCaptionDoubaoResourceId)
                 ? DoubaoRealtimeDefaultResourceId
                 : config.LiveCaptionDoubaoResourceId.Trim();
+            _doubaoBoostingTableId = (config?.LiveCaptionDoubaoBoostingTableId ?? string.Empty).Trim();
+            _doubaoBoostingTableName = (config?.LiveCaptionDoubaoBoostingTableName ?? string.Empty).Trim();
 
             _httpClient = new HttpClient
             {
@@ -1119,6 +1123,7 @@ namespace ImageColorChanger.Services.LiveCaption
                     "X-Api-Resource-Id",
                     string.IsNullOrWhiteSpace(_doubaoResourceId) ? DoubaoRealtimeDefaultResourceId : _doubaoResourceId);
                 _doubaoRealtimeWs.Options.SetRequestHeader("X-Api-Connect-Id", _doubaoConnectId);
+                Debug.WriteLine($"[LiveCaption][DoubaoWS] hotword={ResolveDoubaoHotwordModeForLog()}");
 
                 var sw = Stopwatch.StartNew();
                 await _doubaoRealtimeWs.ConnectAsync(new Uri(DoubaoRealtimeWsBaseUrl), cancellationToken);
@@ -1135,7 +1140,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 _doubaoRealtimeReceiveTask = Task.Run(
                     () => ReceiveDoubaoRealtimeLoopAsync(_doubaoRealtimeWs, cancellationToken),
                     cancellationToken);
-                onStatus?.Invoke("豆包实时ASR连接成功（教会直播预设）");
+                onStatus?.Invoke($"豆包实时ASR连接成功（{ResolveDoubaoHotwordModeForLog()}）");
                 return true;
             }
             catch (Exception ex)
@@ -1633,6 +1638,9 @@ namespace ImageColorChanger.Services.LiveCaption
             string uid = string.IsNullOrWhiteSpace(Environment.UserName)
                 ? Guid.NewGuid().ToString("N")
                 : Environment.UserName;
+
+            string boostingTableId = _doubaoBoostingTableId;
+            string boostingTableName = string.IsNullOrWhiteSpace(boostingTableId) ? _doubaoBoostingTableName : string.Empty;
             string hotwordsContext = JsonSerializer.Serialize(new
             {
                 hotwords = DefaultChurchHotwords
@@ -1641,6 +1649,35 @@ namespace ImageColorChanger.Services.LiveCaption
                     .Select(x => new { word = x.Trim() })
                     .ToArray()
             });
+
+            var corpus = new System.Collections.Generic.Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(boostingTableId))
+            {
+                corpus["boosting_table_id"] = boostingTableId;
+            }
+            else if (!string.IsNullOrWhiteSpace(boostingTableName))
+            {
+                corpus["boosting_table_name"] = boostingTableName;
+            }
+            else
+            {
+                corpus["context"] = hotwordsContext;
+            }
+
+            var request = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["model_name"] = "bigmodel",
+                ["enable_itn"] = true,
+                ["enable_ddc"] = true,
+                ["enable_punc"] = true,
+                ["show_utterances"] = true,
+                ["result_type"] = "single",
+                ["enable_accelerate_text"] = true,
+                ["accelerate_score"] = 2,
+                ["enable_nonstream"] = true,
+                ["end_window_size"] = 700
+            };
+            request["corpus"] = corpus;
 
             var payload = new
             {
@@ -1655,26 +1692,25 @@ namespace ImageColorChanger.Services.LiveCaption
                     bits = 16,
                     channel = 1
                 },
-                request = new
-                {
-                    model_name = "bigmodel",
-                    enable_itn = true,
-                    enable_ddc = true,
-                    enable_punc = true,
-                    show_utterances = true,
-                    result_type = "single",
-                    enable_accelerate_text = true,
-                    accelerate_score = 2,
-                    enable_nonstream = true,
-                    end_window_size = 700,
-                    corpus = new
-                    {
-                        context = hotwordsContext
-                    }
-                }
+                request
             };
 
             return JsonSerializer.Serialize(payload);
+        }
+
+        private string ResolveDoubaoHotwordModeForLog()
+        {
+            if (!string.IsNullOrWhiteSpace(_doubaoBoostingTableId))
+            {
+                return $"热词表ID:{_doubaoBoostingTableId}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(_doubaoBoostingTableName))
+            {
+                return $"热词表名:{_doubaoBoostingTableName}";
+            }
+
+            return "未配置热词表(回退内置context)";
         }
 
         private static byte[] BuildDoubaoFrame(

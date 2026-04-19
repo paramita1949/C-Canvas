@@ -51,9 +51,39 @@ namespace ImageColorChanger.UI
             return LiveCaptionPlatformLabelFormatter.BuildRealtimeTag(_configManager?.LiveCaptionRealtimeAsrProvider);
         }
 
+        private string GetRealtimeProviderDisplayName()
+        {
+            return LiveCaptionPlatformLabelFormatter.ToPlatformDisplayName(_configManager?.LiveCaptionRealtimeAsrProvider);
+        }
+
         private string GetShortPhraseLogTag()
         {
             return LiveCaptionPlatformLabelFormatter.BuildShortPhraseTag(_configManager?.LiveCaptionShortAsrProvider);
+        }
+
+        private string GetShortPhraseProviderDisplayName()
+        {
+            return LiveCaptionPlatformLabelFormatter.ToPlatformDisplayName(_configManager?.LiveCaptionShortAsrProvider);
+        }
+
+        private string GetVerseRecognitionProviderDisplayName()
+        {
+            string verseSource = (_configManager?.LiveCaptionVerseSource ?? "shortPhrase").Trim().ToLowerInvariant();
+            string realtime = GetRealtimeProviderDisplayName();
+            string shortPhrase = GetShortPhraseProviderDisplayName();
+            return verseSource switch
+            {
+                "realtime" => $"跟随实时({realtime})",
+                "both" => $"双路({shortPhrase}+{realtime})",
+                _ => shortPhrase
+            };
+        }
+
+        private void SyncRecognitionPlatformNamesToOverlay()
+        {
+            _liveCaptionOverlayWindow?.SetRecognitionPlatformNames(
+                GetRealtimeProviderDisplayName(),
+                GetVerseRecognitionProviderDisplayName());
         }
 
         private void LogRealtimeCaption(string message)
@@ -151,6 +181,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
                 _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
                 _liveCaptionOverlayWindow.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
+                SyncRecognitionPlatformNamesToOverlay();
                 _liveCaptionOverlayWindow.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, _configManager.LiveCaptionShortPhraseEnabled);
                 UpdateLiveCaptionNdiActionState();
                 LoadLiveCaptionFloatingBoundsFromConfig();
@@ -188,6 +219,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.Show();
             }
 
+            SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, _configManager.LiveCaptionShortPhraseEnabled);
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
             ApplyLiveCaptionTypographyFromBible();
@@ -246,6 +278,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                SyncRecognitionPlatformNamesToOverlay();
                 ShowStatus("AI配置已保存并立即生效");
             }
             finally
@@ -290,6 +323,7 @@ namespace ImageColorChanger.UI
             SyncLiveCaptionProjectionCaptionForProjectionState(_projectionManager?.IsProjectionActive == true);
             ApplyMainWindowLiveCaptionReservation();
             _liveCaptionCurrentSource = source;
+            SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow.SetRecognitionToggleStates(
                 _configManager.LiveCaptionRealtimeEnabled,
                 _configManager.LiveCaptionShortPhraseEnabled);
@@ -400,6 +434,7 @@ namespace ImageColorChanger.UI
                 $"[{GetRealtimeLogTag()}|{GetShortPhraseLogTag()}] RecognitionState: " +
                 $"realtime={realtimeEnabled}, short={shortEnabled}, verseSource={verseSource}, " +
                 $"source={_liveCaptionCurrentSource}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'");
+            SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow?.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
 
             if (!realtimeEnabled && !shortEnabled)
