@@ -203,9 +203,16 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            WaveFormat sourceFormat = _capture?.WaveFormat;
-            byte[] normalized = NormalizeToPcm16Mono(e.Buffer, e.BytesRecorded, sourceFormat, out WaveFormat normalizedFormat);
-            PublishToSubscribers(new AudioChunk(normalized, normalized.Length, normalizedFormat));
+            try
+            {
+                WaveFormat sourceFormat = _capture?.WaveFormat;
+                byte[] normalized = NormalizeToPcm16Mono(e.Buffer, e.BytesRecorded, sourceFormat, out WaveFormat normalizedFormat);
+                PublishToSubscribers(new AudioChunk(normalized, normalized.Length, normalizedFormat));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveCaption] Capture_DataAvailable normalize failed: {ex.GetType().Name}: {ex.Message}");
+            }
         }
 
         private void Capture_RecordingStopped(object sender, StoppedEventArgs e)
@@ -418,13 +425,17 @@ namespace ImageColorChanger.Services.LiveCaption
 
             using var sourceStream = new RawSourceWaveStream(buffer, 0, bytesRecorded, sourceFormat ?? outputFormat);
             ISampleProvider sampleProvider = sourceStream.ToSampleProvider();
-            if (sampleProvider.WaveFormat.Channels > 1)
+            if (sampleProvider.WaveFormat.Channels == 2)
             {
                 sampleProvider = new StereoToMonoSampleProvider(sampleProvider)
                 {
                     LeftVolume = 0.5f,
                     RightVolume = 0.5f
                 };
+            }
+            else if (sampleProvider.WaveFormat.Channels > 2)
+            {
+                sampleProvider = new MultiChannelToMonoSampleProvider(sampleProvider);
             }
 
             if (sampleProvider.WaveFormat.SampleRate != outputFormat.SampleRate)
@@ -442,6 +453,57 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             return converted.ToArray();
+        }
+
+        private sealed class MultiChannelToMonoSampleProvider : ISampleProvider
+        {
+            private readonly ISampleProvider _source;
+            private readonly int _sourceChannels;
+            private float[] _sourceBuffer = Array.Empty<float>();
+
+            public MultiChannelToMonoSampleProvider(ISampleProvider source)
+            {
+                _source = source ?? throw new ArgumentNullException(nameof(source));
+                _sourceChannels = Math.Max(1, source.WaveFormat.Channels);
+                WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(source.WaveFormat.SampleRate, 1);
+            }
+
+            public WaveFormat WaveFormat { get; }
+
+            public int Read(float[] buffer, int offset, int count)
+            {
+                if (buffer == null)
+                {
+                    throw new ArgumentNullException(nameof(buffer));
+                }
+
+                if (count <= 0)
+                {
+                    return 0;
+                }
+
+                int sourceSamplesRequested = count * _sourceChannels;
+                if (_sourceBuffer.Length < sourceSamplesRequested)
+                {
+                    _sourceBuffer = new float[sourceSamplesRequested];
+                }
+
+                int sourceRead = _source.Read(_sourceBuffer, 0, sourceSamplesRequested);
+                int framesRead = sourceRead / _sourceChannels;
+                int sourceIndex = 0;
+                for (int i = 0; i < framesRead; i++)
+                {
+                    float sum = 0f;
+                    for (int c = 0; c < _sourceChannels; c++)
+                    {
+                        sum += _sourceBuffer[sourceIndex++];
+                    }
+
+                    buffer[offset + i] = sum / _sourceChannels;
+                }
+
+                return framesRead;
+            }
         }
 
         private IWaveIn CreateAndStartCapture(

@@ -207,6 +207,39 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             Assert.Equal(3200, received.Length);
         }
 
+        [Fact]
+        public void Subscribe_ConvertsFloatMultiChannelCaptureToPcm16Mono()
+        {
+            var fakeCapture = new FakeWaveIn
+            {
+                WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 6)
+            };
+            byte[] received = null;
+            var session = new SharedAudioCaptureSession((LiveCaptionAudioSource source, string inputId, string systemId, out string selectedName) =>
+            {
+                selectedName = "ASIO";
+                return fakeCapture;
+            });
+            using var sub = session.Subscribe(bytes => received = bytes);
+
+            session.Start();
+
+            float[] samples = new float[4800 * 6];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                samples[i] = 0.25f;
+            }
+
+            byte[] buffer = new byte[samples.Length * sizeof(float)];
+            Buffer.BlockCopy(samples, 0, buffer, 0, buffer.Length);
+
+            var ex = Record.Exception(() => fakeCapture.RaiseData(buffer, buffer.Length));
+
+            Assert.Null(ex);
+            Assert.NotNull(received);
+            Assert.Equal(3200, received.Length);
+        }
+
         private sealed class FakeWaveIn : IWaveIn
         {
             public WaveFormat WaveFormat { get; set; } = new WaveFormat(16000, 16, 1);
