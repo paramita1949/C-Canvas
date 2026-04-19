@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -51,6 +52,8 @@ namespace ImageColorChanger.Services.LiveCaption
         public string CurrentInputDeviceId { get; private set; } = string.Empty;
         public string CurrentSystemDeviceId { get; private set; } = string.Empty;
         public string SelectedDeviceName { get; private set; } = string.Empty;
+        public string LastStartError { get; private set; } = string.Empty;
+        public bool LastStartFallbackApplied { get; private set; }
         public bool IsRunning { get; private set; }
 
         public IDisposable Subscribe(Action<byte[]> onPcmChunk)
@@ -93,12 +96,47 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            _capture = _captureFactory(CurrentSource, CurrentInputDeviceId, CurrentSystemDeviceId, out string selectedName);
-            SelectedDeviceName = selectedName ?? string.Empty;
-            _capture.DataAvailable += Capture_DataAvailable;
-            _capture.RecordingStopped += Capture_RecordingStopped;
-            _capture.StartRecording();
-            IsRunning = true;
+            LastStartError = string.Empty;
+            LastStartFallbackApplied = false;
+            try
+            {
+                _capture = CreateAndStartCapture(CurrentSource, CurrentInputDeviceId, CurrentSystemDeviceId, out string selectedName);
+                SelectedDeviceName = selectedName ?? string.Empty;
+                IsRunning = true;
+            }
+            catch (Exception ex)
+            {
+                if (CurrentSource == LiveCaptionAudioSource.Microphone)
+                {
+                    string micError = BuildCaptureStartErrorMessage(ex, LiveCaptionAudioSource.Microphone, SelectedDeviceName);
+                    try
+                    {
+                        _capture = CreateAndStartCapture(
+                            LiveCaptionAudioSource.SystemLoopback,
+                            CurrentInputDeviceId,
+                            CurrentSystemDeviceId,
+                            out string fallbackSelectedName);
+                        SelectedDeviceName = fallbackSelectedName ?? string.Empty;
+                        CurrentSource = LiveCaptionAudioSource.SystemLoopback;
+                        LastStartFallbackApplied = true;
+                        LastStartError = $"{micError} 已自动切换到系统声音。";
+                        IsRunning = true;
+                        return;
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        string fallbackError = BuildCaptureStartErrorMessage(fallbackEx, LiveCaptionAudioSource.SystemLoopback, SelectedDeviceName);
+                        LastStartError = $"{micError}；系统声音回退也失败：{fallbackError}";
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(LastStartError))
+                {
+                    LastStartError = BuildCaptureStartErrorMessage(ex, CurrentSource, SelectedDeviceName);
+                }
+                _capture = null;
+                IsRunning = false;
+            }
         }
 
         public void Stop()
@@ -404,6 +442,72 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             return converted.ToArray();
+        }
+
+        private IWaveIn CreateAndStartCapture(
+            LiveCaptionAudioSource source,
+            string inputDeviceId,
+            string systemDeviceId,
+            out string selectedName)
+        {
+            IWaveIn capture = null;
+            try
+            {
+                capture = _captureFactory(source, inputDeviceId, systemDeviceId, out selectedName);
+                capture.DataAvailable += Capture_DataAvailable;
+                capture.RecordingStopped += Capture_RecordingStopped;
+                capture.StartRecording();
+                return capture;
+            }
+            catch
+            {
+                try
+                {
+                    if (capture != null)
+                    {
+                        capture.DataAvailable -= Capture_DataAvailable;
+                        capture.RecordingStopped -= Capture_RecordingStopped;
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    capture?.Dispose();
+                }
+                catch
+                {
+                }
+
+                throw;
+            }
+        }
+
+        private static string BuildCaptureStartErrorMessage(Exception ex, LiveCaptionAudioSource source, string selectedDeviceName)
+        {
+            string deviceType = source == LiveCaptionAudioSource.SystemLoopback ? "系统声卡" : "输入设备";
+            string deviceName = string.IsNullOrWhiteSpace(selectedDeviceName) ? "默认设备" : selectedDeviceName.Trim();
+
+            bool isBusy = ex is COMException com &&
+                          (com.ErrorCode == unchecked((int)0x8889000A) || com.ErrorCode == unchecked((int)0x80070020));
+            if (!isBusy)
+            {
+                string message = ex?.Message ?? string.Empty;
+                string lower = message.ToLowerInvariant();
+                isBusy = lower.Contains("0x8889000a") ||
+                         lower.Contains("device in use") ||
+                         lower.Contains("used by another") ||
+                         message.Contains("占用", StringComparison.Ordinal);
+            }
+
+            if (isBusy)
+            {
+                return $"音频采集启动失败：{deviceType}“{deviceName}”正被其他应用占用，请关闭独占模式或切换其他设备重试。";
+            }
+
+            return $"音频采集启动失败：{deviceType}“{deviceName}”不可用（{ex?.Message ?? "未知错误"}）。";
         }
 
         private sealed class Subscription : IDisposable

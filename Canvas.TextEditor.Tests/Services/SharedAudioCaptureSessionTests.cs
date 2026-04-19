@@ -109,6 +109,58 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
         }
 
         [Fact]
+        public void Start_WhenCaptureStartThrows_DoesNotLeaveSessionRunning()
+        {
+            var fakeCapture = new FakeWaveIn
+            {
+                ThrowOnStart = new InvalidOperationException("device busy")
+            };
+            var session = new SharedAudioCaptureSession((LiveCaptionAudioSource source, string inputId, string systemId, out string selectedName) =>
+            {
+                selectedName = "Busy Mic";
+                return fakeCapture;
+            });
+
+            var ex = Record.Exception(() => session.Start());
+
+            Assert.Null(ex);
+            Assert.False(session.IsRunning);
+            Assert.True(fakeCapture.Disposed);
+            Assert.False(string.IsNullOrWhiteSpace(session.LastStartError));
+        }
+
+        [Fact]
+        public void Start_WhenMicrophoneFails_FallsBackToSystemLoopback()
+        {
+            var micCapture = new FakeWaveIn
+            {
+                ThrowOnStart = new InvalidOperationException("mic busy")
+            };
+            var systemCapture = new FakeWaveIn();
+            var session = new SharedAudioCaptureSession((LiveCaptionAudioSource source, string inputId, string systemId, out string selectedName) =>
+            {
+                if (source == LiveCaptionAudioSource.Microphone)
+                {
+                    selectedName = "Busy Mic";
+                    return micCapture;
+                }
+
+                selectedName = "System Output";
+                return systemCapture;
+            });
+
+            session.SetSelection(LiveCaptionAudioSource.Microphone, "mic-1", "sys-1");
+            var ex = Record.Exception(() => session.Start());
+
+            Assert.Null(ex);
+            Assert.True(session.IsRunning);
+            Assert.Equal(LiveCaptionAudioSource.SystemLoopback, session.CurrentSource);
+            Assert.Equal("System Output", session.SelectedDeviceName);
+            Assert.True(session.LastStartFallbackApplied);
+            Assert.True(systemCapture.Started);
+        }
+
+        [Fact]
         public void SubscribeChunk_ProvidesFormatMetadata()
         {
             var session = new SharedAudioCaptureSession();
@@ -163,9 +215,14 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             public bool Started { get; private set; }
             public bool Stopped { get; private set; }
             public bool Disposed { get; private set; }
+            public Exception ThrowOnStart { get; set; }
 
             public void StartRecording()
             {
+                if (ThrowOnStart != null)
+                {
+                    throw ThrowOnStart;
+                }
                 Started = true;
             }
 

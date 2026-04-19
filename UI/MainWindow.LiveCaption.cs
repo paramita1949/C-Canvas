@@ -308,7 +308,15 @@ namespace ImageColorChanger.UI
 
             RegisterLiveCaptionF4HotKey();
             LiveCaptionDebugLogger.Log($"StartPerf: engine-start-begin={sw.ElapsedMilliseconds}ms");
-            await ApplyRecognitionStateAsync();
+            try
+            {
+                await ApplyRecognitionStateAsync();
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"Start: apply recognition failed with {ex.GetType().Name}: {ex.Message}");
+                ShowStatus($"字幕启动失败：{ex.Message}");
+            }
             LiveCaptionDebugLogger.Log($"Start: recognition state applied, dock={_liveCaptionDockMode}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}");
         }
 
@@ -412,6 +420,39 @@ namespace ImageColorChanger.UI
             {
                 LiveCaptionDebugLogger.Log("RecognitionState: starting shared audio capture.");
                 _sharedAudioCaptureSession.Start();
+                if (!_sharedAudioCaptureSession.IsRunning)
+                {
+                    string error = _sharedAudioCaptureSession.LastStartError;
+                    if (string.IsNullOrWhiteSpace(error))
+                    {
+                        error = "音频采集启动失败：当前设备不可用，请切换其他设备重试。";
+                    }
+
+                    LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture failed, error='{error}'.");
+                    ShowStatus(error);
+                    return;
+                }
+
+                if (_sharedAudioCaptureSession.LastStartFallbackApplied &&
+                    _liveCaptionCurrentSource != _sharedAudioCaptureSession.CurrentSource)
+                {
+                    _liveCaptionCurrentSource = _sharedAudioCaptureSession.CurrentSource;
+                    if (_configManager != null)
+                    {
+                        _configManager.LiveCaptionAudioInputMode = _liveCaptionCurrentSource == LiveCaptionAudioSource.SystemLoopback ? "system" : "input";
+                        _configManager.LiveCaptionInputDeviceId = _liveCaptionSelectedInputDeviceId ?? string.Empty;
+                        _configManager.LiveCaptionSystemDeviceId = _liveCaptionSelectedSystemDeviceId ?? string.Empty;
+                    }
+
+                    string fallbackInfo = _sharedAudioCaptureSession.LastStartError;
+                    if (string.IsNullOrWhiteSpace(fallbackInfo))
+                    {
+                        fallbackInfo = $"输入设备不可用，已自动切换为系统声音：{GetLiveCaptionSystemDeviceDisplayName(_liveCaptionSelectedSystemDeviceId)}";
+                    }
+                    ShowStatus(fallbackInfo);
+                    LiveCaptionDebugLogger.Log($"RecognitionState: source auto-fallback applied, source={_liveCaptionCurrentSource}, info='{fallbackInfo}'.");
+                }
+
                 LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture started, device='{_sharedAudioCaptureSession.SelectedDeviceName}'.");
             }
 
@@ -685,7 +726,7 @@ namespace ImageColorChanger.UI
                 UpdateRealtimeVerseContext(r.BookId, r.Chapter);
                 LiveCaptionDebugLogger.Log(
                     $"[{GetRealtimeLogTag()}] RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
-                Dispatcher.BeginInvoke(new Action(() =>
+                _ = Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
                     AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd);
@@ -2012,7 +2053,7 @@ namespace ImageColorChanger.UI
         {
             var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             using var canvas = new SKCanvas(bitmap);
-            canvas.Clear(SKColors.Black);
+            canvas.Clear(LiveCaptionNdiFrameDefaults.TransparentBackground);
 
             string normalized = (captionText ?? string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
             int ndiLineCharLimit = Math.Clamp(_configManager?.LiveCaptionNdiLineCharLimit ?? 30, 8, 80);

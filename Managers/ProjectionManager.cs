@@ -144,7 +144,9 @@ namespace ImageColorChanger.Managers
         private BitmapSource _lastSharedBitmap = null;
 
         // BibleTitle 低频诊断日志门控（仅关键参数变化时输出）
+#if DEBUG
         private string _lastBibleTitleDiagSignature;
+#endif
         
         
         //  投影时间限制（未登录状态）
