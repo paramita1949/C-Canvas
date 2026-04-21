@@ -262,27 +262,50 @@ jobs:
         $updateDir = "update_temp"
         New-Item -ItemType Directory -Path $updateDir -Force | Out-Null
         
-        # 复制核心文件到临时目录
-        $exeFile = "publish\CanvasCast.exe"
-        $dllFile = "publish\CanvasCast.dll"
+        # 复制核心与依赖文件到临时目录
+        $requiredFiles = @(
+          "CanvasCast.exe",
+          "CanvasCast.dll",
+          "CanvasCast.deps.json",
+          "CanvasCast.runtimeconfig.json"
+        )
+        $optionalFiles = @(
+          "config.json",
+          "System.IO.Pipelines.dll"
+        )
+        $wildcardPatterns = @(
+          "NAudio*.dll"
+        )
         $pakFile = "publish\Resources.pak"
-        
-        if (Test-Path $exeFile) {
-          Copy-Item $exeFile $updateDir\
-          $exeSize = (Get-Item $exeFile).Length / 1MB
-          echo "✅ 已添加 CanvasCast.exe ($([math]::Round($exeSize, 2)) MB)"
-        } else {
-          echo "❌ 错误: CanvasCast.exe 不存在"
-          exit 1
+
+        foreach ($name in $requiredFiles) {
+          $file = Join-Path "publish" $name
+          if (Test-Path $file) {
+            Copy-Item $file $updateDir\
+            $size = (Get-Item $file).Length / 1MB
+            echo "✅ 已添加 $name ($([math]::Round($size, 2)) MB)"
+          } else {
+            echo "❌ 错误: 必需文件缺失 $name"
+            exit 1
+          }
         }
-        
-        if (Test-Path $dllFile) {
-          Copy-Item $dllFile $updateDir\
-          $dllSize = (Get-Item $dllFile).Length / 1MB
-          echo "✅ 已添加 CanvasCast.dll ($([math]::Round($dllSize, 2)) MB)"
-        } else {
-          echo "❌ 错误: CanvasCast.dll 不存在"
-          exit 1
+
+        foreach ($name in $optionalFiles) {
+          $file = Join-Path "publish" $name
+          if (Test-Path $file) {
+            Copy-Item $file $updateDir\ -Force
+            $size = (Get-Item $file).Length / 1MB
+            echo "✅ 已添加 $name ($([math]::Round($size, 2)) MB)"
+          }
+        }
+
+        foreach ($pattern in $wildcardPatterns) {
+          $matches = Get-ChildItem -Path "publish" -Filter $pattern -File -ErrorAction SilentlyContinue
+          foreach ($m in $matches) {
+            Copy-Item $m.FullName $updateDir\ -Force
+            $size = $m.Length / 1MB
+            echo "✅ 已添加 $($m.Name) ($([math]::Round($size, 2)) MB)"
+          }
         }
 
         if (Test-Path $pakFile) {
@@ -528,7 +551,7 @@ jobs:
 
           #### 🔄 老用户 - 增量更新（推荐）
           - 📥 下载 `Canvas-Update.zip`
-          - 📂 解压得到 `CanvasCast.exe` 和 `CanvasCast.dll`
+          - 📂 解压并覆盖（含 `CanvasCast.exe`、`CanvasCast.dll`、`CanvasCast.deps.json`、`CanvasCast.runtimeconfig.json` 及音频依赖）
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
 
