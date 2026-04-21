@@ -237,6 +237,7 @@ jobs:
         $fullZipName = "cast.zip"
         $updateZipName = "Canvas-Update.zip"
         $resourcesZipName = "Resources.zip"
+        $addedZipName = "Added-Files.zip"
         
         # ========== 创建完整包 ==========
         echo "=== 创建完整包 ==="
@@ -319,14 +320,101 @@ jobs:
         }
         $ratio = ((Get-Item $updateZipName).Length / (Get-Item $fullZipName).Length) * 100
         echo "更新包仅为完整包的 $([math]::Round($ratio, 1))%"
+
+        # ========== 对比上一个版本并生成新增文件包 ==========
+        echo ""
+        echo "=== 生成新增文件包（对比上一个版本） ==="
+        $prevZip = "prev-cast.zip"
+        $prevExtract = "prev_release_extract"
+        $addedDir = "added_files_temp"
+        $currentListFile = "current_files.txt"
+        $prevListFile = "prev_files.txt"
+        $apiHeaders = @{
+          Authorization = "Bearer $env:GITHUB_TOKEN"
+          "X-GitHub-Api-Version" = "2022-11-28"
+          "User-Agent" = "canvas-release-workflow"
+        }
+
+        if (Test-Path $prevExtract) { Remove-Item $prevExtract -Recurse -Force }
+        if (Test-Path $addedDir) { Remove-Item $addedDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $addedDir -Force | Out-Null
+
+        $repoApi = "https://api.github.com/repos/${{ github.repository }}"
+        $latestRelease = $null
+        try {
+          $latestRelease = Invoke-RestMethod -Uri "$repoApi/releases/latest" -Headers $apiHeaders
+          echo "检测到上一个Release: $($latestRelease.tag_name)"
+        } catch {
+          echo "未找到历史Release，新增文件包将包含当前全部文件"
+        }
+
+        if ($latestRelease -and $latestRelease.assets) {
+          $prevAsset = $latestRelease.assets | Where-Object { $_.name -eq "cast.zip" } | Select-Object -First 1
+          if ($prevAsset) {
+            Invoke-WebRequest -Uri $prevAsset.browser_download_url -Headers $apiHeaders -OutFile $prevZip
+            Expand-Archive -Path $prevZip -DestinationPath $prevExtract -Force
+          } else {
+            echo "上一个Release未找到 cast.zip，新增文件包将包含当前全部文件"
+          }
+        }
+
+        Get-ChildItem -Path "publish" -File -Recurse | ForEach-Object {
+          $_.FullName.Substring((Resolve-Path "publish").Path.Length + 1).Replace('\','/')
+        } | Sort-Object | Set-Content -Path $currentListFile -Encoding UTF8
+
+        if (Test-Path $prevExtract) {
+          Get-ChildItem -Path $prevExtract -File -Recurse | ForEach-Object {
+            $_.FullName.Substring((Resolve-Path $prevExtract).Path.Length + 1).Replace('\','/')
+          } | Sort-Object | Set-Content -Path $prevListFile -Encoding UTF8
+        } else {
+          "" | Set-Content -Path $prevListFile -Encoding UTF8
+        }
+
+        $currentFiles = Get-Content $currentListFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $prevFiles = @(Get-Content $prevListFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $addedFiles = $currentFiles | Where-Object { $_ -notin $prevFiles }
+
+        if ($addedFiles.Count -gt 0) {
+          foreach ($relative in $addedFiles) {
+            $srcPath = Join-Path "publish" ($relative -replace '/', '\')
+            $dstPath = Join-Path $addedDir ($relative -replace '/', '\')
+            $dstParent = Split-Path -Path $dstPath -Parent
+            if (-not (Test-Path $dstParent)) {
+              New-Item -ItemType Directory -Path $dstParent -Force | Out-Null
+            }
+            Copy-Item -Path $srcPath -Destination $dstPath -Force
+          }
+          echo "新增文件数量: $($addedFiles.Count)"
+        } else {
+          "No added files compared to previous release." | Set-Content -Path (Join-Path $addedDir "README.txt") -Encoding UTF8
+          echo "新增文件数量: 0"
+        }
+
+        Compress-Archive -Path "$addedDir\*" -DestinationPath $addedZipName -Force
+        if (Test-Path $addedZipName) {
+          $addedSize = (Get-Item $addedZipName).Length / 1MB
+          echo "✅ 新增文件包创建成功: $addedZipName ($([math]::Round($addedSize, 2)) MB)"
+        } else {
+          echo "❌ 新增文件包创建失败"
+          exit 1
+        }
+
+        if (Test-Path $prevZip) { Remove-Item $prevZip -Force }
+        if (Test-Path $prevExtract) { Remove-Item $prevExtract -Recurse -Force }
+        if (Test-Path $addedDir) { Remove-Item $addedDir -Recurse -Force }
+        if (Test-Path $currentListFile) { Remove-Item $currentListFile -Force }
+        if (Test-Path $prevListFile) { Remove-Item $prevListFile -Force }
         
         # 输出文件名供后续步骤使用
         echo "full_zip_name=$fullZipName" >> $env:GITHUB_OUTPUT
         echo "update_zip_name=$updateZipName" >> $env:GITHUB_OUTPUT
+        echo "added_zip_name=$addedZipName" >> $env:GITHUB_OUTPUT
         if (Test-Path $resourcesZipName) {
           echo "resources_zip_name=$resourcesZipName" >> $env:GITHUB_OUTPUT
         }
       id: create_package
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: 上传完整包
       uses: actions/upload-artifact@v4
@@ -348,6 +436,13 @@ jobs:
       with:
         name: Canvas-Cast-Resources-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.resources_zip_name }}
+        retention-days: 7
+
+    - name: 上传新增文件包
+      uses: actions/upload-artifact@v4
+      with:
+        name: Canvas-Cast-Added-${{ steps.get_version.outputs.full_version }}
+        path: ${{ steps.create_package.outputs.added_zip_name }}
         retention-days: 7
 
     - name: 调试Release信息
@@ -378,6 +473,13 @@ jobs:
           $size = (Get-Item '${{ steps.create_package.outputs.resources_zip_name }}').Length / 1MB
           echo "资源包大小: $([math]::Round($size, 2)) MB"
         }
+        echo ""
+        echo "新增文件包: ${{ steps.create_package.outputs.added_zip_name }}"
+        echo "新增文件包存在: $(Test-Path '${{ steps.create_package.outputs.added_zip_name }}')"
+        if (Test-Path '${{ steps.create_package.outputs.added_zip_name }}') {
+          $size = (Get-Item '${{ steps.create_package.outputs.added_zip_name }}').Length / 1MB
+          echo "新增文件包大小: $([math]::Round($size, 2)) MB"
+        }
         echo "======================"
     
     - name: 验证上传文件
@@ -387,7 +489,8 @@ jobs:
         $files = @(
           "${{ steps.create_package.outputs.full_zip_name }}",
           "${{ steps.create_package.outputs.update_zip_name }}",
-          "${{ steps.create_package.outputs.resources_zip_name }}"
+          "${{ steps.create_package.outputs.resources_zip_name }}",
+          "${{ steps.create_package.outputs.added_zip_name }}"
         )
         foreach ($file in $files) {
           if (Test-Path $file) {
@@ -405,6 +508,7 @@ jobs:
           ${{ steps.create_package.outputs.full_zip_name }}
           ${{ steps.create_package.outputs.update_zip_name }}
           ${{ steps.create_package.outputs.resources_zip_name }}
+          ${{ steps.create_package.outputs.added_zip_name }}
         tag_name: ${{ steps.get_version.outputs.tag }}
         name: 咏慕投影 ${{ steps.get_version.outputs.full_version }}
         draft: false
@@ -415,7 +519,7 @@ jobs:
 
           ### 📦 下载说明
 
-          本次发布提供三种文件，请根据需要选择：
+          本次发布提供四种文件，请根据需要选择：
 
           #### 🆕 新用户 - 完整安装包
           - 📥 下载 `cast.zip`
@@ -434,8 +538,13 @@ jobs:
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
 
+          #### ➕ 新增文件包（对比上一版本）
+          - 📥 下载 `Added-Files.zip`
+          - 📂 内含“相对上一版新增”的文件
+          - 🔁 仅当你按需补丁更新时使用
+
           > **提示**:
-          > - `Canvas-Update.zip` 与 `Resources.zip` 为独立文件
+          > - `Canvas-Update.zip`、`Resources.zip` 与 `Added-Files.zip` 为独立文件
           > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，请下载并解压 `Resources.zip` 后替换 `Resources.pak`
           > - 如果主程序有更新，需要替换 `CanvasCast.exe`
@@ -472,6 +581,10 @@ jobs:
         if (Test-Path "${{ steps.create_package.outputs.resources_zip_name }}") {
           $resourcesSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.resources_zip_name }}").Length / 1MB, 2)
           echo "- **资源包**: ``${{ steps.create_package.outputs.resources_zip_name }}`` - $resourcesSize MB" >> $env:GITHUB_STEP_SUMMARY
+        }
+        if (Test-Path "${{ steps.create_package.outputs.added_zip_name }}") {
+          $addedSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.added_zip_name }}").Length / 1MB, 2)
+          echo "- **新增文件包**: ``${{ steps.create_package.outputs.added_zip_name }}`` - $addedSize MB" >> $env:GITHUB_STEP_SUMMARY
         }
 
 
