@@ -37,6 +37,8 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly CaptureFactory _captureFactory;
         private IWaveIn _capture;
         private bool _disposed;
+        private DateTime _lastUnexpectedStopUtc = DateTime.MinValue;
+        private int _unexpectedStopCount;
 
         public SharedAudioCaptureSession()
             : this(CreateCapture)
@@ -217,7 +219,54 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private void Capture_RecordingStopped(object sender, StoppedEventArgs e)
         {
+            // Stop()/Dispose() 触发的正常停止，不做自动恢复。
+            if (_disposed || _capture == null || !ReferenceEquals(sender, _capture))
+            {
+                IsRunning = false;
+                return;
+            }
+
             IsRunning = false;
+            var stoppedCapture = _capture;
+
+            try
+            {
+                stoppedCapture.DataAvailable -= Capture_DataAvailable;
+                stoppedCapture.RecordingStopped -= Capture_RecordingStopped;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                stoppedCapture.Dispose();
+            }
+            catch
+            {
+            }
+
+            _capture = null;
+            DateTime now = DateTime.UtcNow;
+            if ((now - _lastUnexpectedStopUtc).TotalSeconds > 12)
+            {
+                _unexpectedStopCount = 0;
+            }
+            _lastUnexpectedStopUtc = now;
+            _unexpectedStopCount++;
+
+            try
+            {
+                _capture = CreateAndStartCapture(CurrentSource, CurrentInputDeviceId, CurrentSystemDeviceId, out string selectedName);
+                SelectedDeviceName = selectedName ?? string.Empty;
+                LastStartError = $"音频采集中断，已自动恢复（{_unexpectedStopCount}）";
+                IsRunning = true;
+            }
+            catch (Exception ex)
+            {
+                LastStartError = BuildCaptureStartErrorMessage(ex, CurrentSource, SelectedDeviceName);
+                System.Diagnostics.Debug.WriteLine($"[LiveCaption] Capture_RecordingStopped auto-restart failed: {LastStartError}");
+            }
         }
 
         private void PublishToSubscribers(AudioChunk chunk)

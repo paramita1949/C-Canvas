@@ -46,6 +46,37 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
         }
 
         [Fact]
+        public void Constructor_WhenRealtimeProviderIsXfyun_ShouldReadXfyunRealtimeBinding()
+        {
+            string tempFile = Path.Combine(Path.GetTempPath(), $"canvas_config_{System.Guid.NewGuid():N}.json");
+            try
+            {
+                var config = new ConfigManager(tempFile);
+                config.LiveCaptionAsrProvider = "baidu";
+                config.LiveCaptionProxyBaseUrl = "http://legacy-proxy/v1";
+                config.LiveCaptionAsrModel = "legacy-model";
+                config.LiveCaptionBaiduDevPid = 1537;
+
+                config.LiveCaptionRealtimeAsrProvider = "xfyun";
+                config.LiveCaptionRealtimeProxyBaseUrl = "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1";
+                config.LiveCaptionRealtimeAsrModel = "xfyun-rtasr-llm";
+
+                using var client = new CliProxyApiClient(config, useRealtimeSettings: true);
+
+                Assert.Equal("xfyun", client.AsrProvider);
+                Assert.Equal("xfyun-rtasr-llm", client.AsrModel);
+                Assert.Equal("wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1", ReadPrivateField<string>(client, "_baseUrl"));
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+        }
+
+        [Fact]
         public void Constructor_WhenUseRealtimeSettingsFalse_ShouldKeepLegacyGlobalBinding()
         {
             string tempFile = Path.Combine(Path.GetTempPath(), $"canvas_config_{System.Guid.NewGuid():N}.json");

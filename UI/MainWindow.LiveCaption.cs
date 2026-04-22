@@ -51,6 +51,16 @@ namespace ImageColorChanger.UI
             return LiveCaptionPlatformLabelFormatter.BuildRealtimeTag(_configManager?.LiveCaptionRealtimeAsrProvider);
         }
 
+        private string GetRealtimeVerseLogTag()
+        {
+            if (ShouldRouteXfyunShortPhraseToRealtime())
+            {
+                return $"[{GetShortPhraseProviderDisplayName()}短语(实时链路)]";
+            }
+
+            return GetRealtimeLogTag();
+        }
+
         private string GetRealtimeProviderDisplayName()
         {
             return LiveCaptionPlatformLabelFormatter.ToPlatformDisplayName(_configManager?.LiveCaptionRealtimeAsrProvider);
@@ -491,6 +501,13 @@ namespace ImageColorChanger.UI
                 LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture started, device='{_sharedAudioCaptureSession.SelectedDeviceName}'.");
             }
 
+            if (ShouldRouteXfyunShortPhraseToRealtime() &&
+                !string.Equals(_configManager.LiveCaptionRealtimeAsrProvider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            {
+                _configManager.LiveCaptionRealtimeAsrProvider = "xfyun";
+                LogShortPhraseCaption("飞讯短语已按实时语音链路处理。");
+            }
+
             bool needRealtimeEngine = realtimeEnabled || (shortEnabled && IsVerseSourceRealtime());
             if (needRealtimeEngine)
             {
@@ -586,7 +603,7 @@ namespace ImageColorChanger.UI
                 bool verseSourceRealtime = IsVerseSourceRealtime();
                 if (!verseSourceRealtime && update.IsFinal && !string.IsNullOrWhiteSpace(update.Text))
                 {
-                    LogRealtimeCaption($"RealtimeVerse: ASR文本(final-passive) '{TrimForLog(update.Text.Trim())}'");
+                    LiveCaptionDebugLogger.Log($"{GetRealtimeVerseLogTag()} RealtimeVerse: ASR文本(final-passive) '{TrimForLog(update.Text.Trim())}'");
                 }
 
                 if (verseSourceRealtime && !string.IsNullOrWhiteSpace(update.Text))
@@ -596,7 +613,7 @@ namespace ImageColorChanger.UI
                     {
                         _realtimeVerseLastAttemptUtc = DateTime.UtcNow;
                         _realtimeVerseLastText = probeText;
-                        LogRealtimeCaption($"RealtimeVerse: ASR文本({probeReason}) '{TrimForLog(probeText)}'");
+                        LiveCaptionDebugLogger.Log($"{GetRealtimeVerseLogTag()} RealtimeVerse: ASR文本({probeReason}) '{TrimForLog(probeText)}'");
                         _ = TryMatchVerseFromRealtimeAsync(probeText, update.IsFinal);
                     }
                 }
@@ -672,6 +689,10 @@ namespace ImageColorChanger.UI
         private bool IsVerseSourceRealtime()
         {
             string src = _configManager?.LiveCaptionVerseSource ?? "shortPhrase";
+            if (ShouldRouteXfyunShortPhraseToRealtime())
+            {
+                return true;
+            }
             return string.Equals(src, "realtime", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(src, "both", StringComparison.OrdinalIgnoreCase);
         }
@@ -679,8 +700,34 @@ namespace ImageColorChanger.UI
         private bool IsVerseSourceShortPhrase()
         {
             string src = _configManager?.LiveCaptionVerseSource ?? "shortPhrase";
+            if (ShouldRouteXfyunShortPhraseToRealtime())
+            {
+                return false;
+            }
             return string.Equals(src, "shortPhrase", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(src, "both", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool ShouldRouteXfyunShortPhraseToRealtime()
+        {
+            if (_configManager == null)
+            {
+                return false;
+            }
+
+            if (!_configManager.LiveCaptionShortPhraseEnabled)
+            {
+                return false;
+            }
+
+            string verseSource = (_configManager.LiveCaptionVerseSource ?? "shortPhrase").Trim();
+            if (!string.Equals(verseSource, "shortPhrase", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string shortProvider = (_configManager.LiveCaptionShortAsrProvider ?? string.Empty).Trim();
+            return string.Equals(shortProvider, "xfyun", StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task TryMatchVerseFromRealtimeAsync(string text, bool isFinal)
@@ -705,7 +752,7 @@ namespace ImageColorChanger.UI
                     _bibleSpeechReverseLookupService.NotifyDirectParse(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse));
                     UpdateRealtimeVerseContext(directRef.BookId, directRef.Chapter);
                     LiveCaptionDebugLogger.Log(
-                        $"[{GetRealtimeLogTag()}] RealtimeVerse: ✅ 直接解析 book={directRef.BookId} ch={directRef.Chapter} vs={directRef.StartVerse}~{endVs} | src='{TrimForLog(text)}' matched='{TrimForLog(matchedCandidate)}'");
+                        $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 直接解析 book={directRef.BookId} ch={directRef.Chapter} vs={directRef.StartVerse}~{endVs} | src='{TrimForLog(text)}' matched='{TrimForLog(matchedCandidate)}'");
                     ShowToast(FormatBibleReferenceToastText(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs));
                     AddPinyinHistoryToEmptySlot(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs);
                     return;
@@ -732,7 +779,7 @@ namespace ImageColorChanger.UI
                         Math.Max(1, contextualRef.StartVerse));
                     UpdateRealtimeVerseContext(contextualRef.BookId, contextualRef.Chapter);
                     LiveCaptionDebugLogger.Log(
-                        $"[{GetRealtimeLogTag()}] RealtimeVerse: ✅ 上下文补全 book={contextualRef.BookId} ch={contextualRef.Chapter} vs={contextualRef.StartVerse}~{contextualEnd} | src='{TrimForLog(text)}' matched='{TrimForLog(contextualCandidate)}'");
+                        $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 上下文补全 book={contextualRef.BookId} ch={contextualRef.Chapter} vs={contextualRef.StartVerse}~{contextualEnd} | src='{TrimForLog(text)}' matched='{TrimForLog(contextualCandidate)}'");
                     ShowToast(FormatBibleReferenceToastText(
                         contextualRef.BookId,
                         contextualRef.Chapter,
@@ -760,7 +807,7 @@ namespace ImageColorChanger.UI
                 }
                 UpdateRealtimeVerseContext(r.BookId, r.Chapter);
                 LiveCaptionDebugLogger.Log(
-                    $"[{GetRealtimeLogTag()}] RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
+                    $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
                 _ = Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
@@ -2362,6 +2409,13 @@ namespace ImageColorChanger.UI
             aliyunItem.Click += (_, _) => SetLiveCaptionPlatform("aliyun", "阿里");
             platformMenu.Items.Add(aliyunItem);
 
+            var xfyunItem = new MenuItem
+            {
+                Header = BuildSelectedMenuHeader("飞讯语音", string.Equals(provider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            };
+            xfyunItem.Click += (_, _) => SetLiveCaptionPlatform("xfyun", "飞讯语音");
+            platformMenu.Items.Add(xfyunItem);
+
             var doubaoItem = new MenuItem
             {
                 Header = BuildSelectedMenuHeader("豆包", string.Equals(provider, "doubao", StringComparison.OrdinalIgnoreCase))
@@ -2619,6 +2673,7 @@ namespace ImageColorChanger.UI
                 "baidu" => "baidu",
                 "tencent" => "tencent",
                 "aliyun" => "aliyun",
+                "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 _ => "baidu"

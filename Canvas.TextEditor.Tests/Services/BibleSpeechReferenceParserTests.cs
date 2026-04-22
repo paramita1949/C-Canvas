@@ -73,6 +73,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
         [InlineData("非利比书第四章第四节", 50, 4, 4, 4)]
         [InlineData("飞利笔数第四章第四节", 50, 4, 4, 4)]
         [InlineData("新约的非利比书的第四章第四节", 50, 4, 4, 4)]
+        [InlineData("翻到以后呢我们就一同来读这一处的经文啊在新约的菲利比书的第四章第四节来我们一起来读", 50, 4, 4, 4)]
         public void TryParse_HarshFuzzySamples_ShouldParse(string text, int bookId, int chapter, int startVerse, int endVerse)
         {
             bool ok = BibleSpeechReferenceParser.TryParse(text, out var result);

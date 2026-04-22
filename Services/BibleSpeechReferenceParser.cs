@@ -227,11 +227,6 @@ namespace ImageColorChanger.Services
                 return false;
             }
 
-            if (bookSegment.Length > 8)
-            {
-                return false;
-            }
-
             if (IsAmbiguousJohannineOrdinal(bookSegment, marker.Groups["num"].Value))
             {
                 return false;
@@ -569,15 +564,26 @@ namespace ImageColorChanger.Services
                 .Replace("读", string.Empty, StringComparison.Ordinal)
                 .Replace("第", string.Empty, StringComparison.Ordinal)
                 .Replace("的", string.Empty, StringComparison.Ordinal)
+                .Replace("菲利比", "腓立比", StringComparison.Ordinal)
+                .Replace("非利比", "腓立比", StringComparison.Ordinal)
+                .Replace("飞利比", "腓立比", StringComparison.Ordinal)
+                .Replace("飞利笔", "腓立比", StringComparison.Ordinal)
                 .Trim();
 
-            foreach (string prefix in BookSegmentNoisePrefixes)
+            bool removed;
+            do
             {
-                if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+                removed = false;
+                foreach (string prefix in BookSegmentNoisePrefixes)
                 {
-                    normalized = normalized.Substring(prefix.Length).Trim();
+                    if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        normalized = normalized.Substring(prefix.Length).Trim();
+                        removed = true;
+                    }
                 }
             }
+            while (removed && normalized.Length > 0);
 
             return normalized;
         }

@@ -24,18 +24,19 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            Debug.WriteLine($"[LiveCaption] {message}");
+            string ts = DateTime.Now.ToString("HH:mm:ss.fff");
+            Debug.WriteLine($"[LiveCaption][{ts}] {message}");
         }
 
         private static bool ShouldLogMessage(string message)
         {
-            // 仅保留识别与经文命中核心日志，其他生命周期/布局/性能日志全部静默。
+            // 仅保留识别文本 + 经文命中/入槽结果，屏蔽发送帧/重连/诊断噪声。
             return message.Contains("RealtimeVerse: ASR文本", StringComparison.Ordinal)
-                || message.Contains("RealtimeVerse: ✅ 直接解析", StringComparison.Ordinal)
-                || message.Contains("RealtimeVerse: ✅ 内容反查", StringComparison.Ordinal)
+                || message.Contains("RealtimeVerse: ✅", StringComparison.Ordinal)
                 || message.Contains("✅ 插入历史", StringComparison.Ordinal)
                 || message.Contains("[RL] ✅ triggered", StringComparison.Ordinal)
-                || message.Contains("Direct parse succeeded.", StringComparison.Ordinal);
+                || message.Contains("short-speech success: recognized=", StringComparison.Ordinal)
+                || message.Contains("Transcribe result:", StringComparison.Ordinal);
         }
     }
 }

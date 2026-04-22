@@ -76,7 +76,11 @@ namespace ImageColorChanger.Services
                 .Replace("福应", "福音", StringComparison.Ordinal)
                 .Replace("福英", "福音", StringComparison.Ordinal)
                 .Replace("伏音", "福音", StringComparison.Ordinal)
-                .Replace("副音", "福音", StringComparison.Ordinal);
+                .Replace("副音", "福音", StringComparison.Ordinal)
+                .Replace("菲利比", "腓立比", StringComparison.Ordinal)
+                .Replace("非利比", "腓立比", StringComparison.Ordinal)
+                .Replace("飞利比", "腓立比", StringComparison.Ordinal)
+                .Replace("飞利笔", "腓立比", StringComparison.Ordinal);
 
             output = ChapterTokenRegex.Replace(output, "${num}章");
             output = VerseTokenRegex.Replace(output, "${num}节");

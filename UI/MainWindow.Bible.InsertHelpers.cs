@@ -64,10 +64,29 @@ namespace ImageColorChanger.UI
                 : $"{book.Name}{chapter}章{startVerse}-{endVerse}节";
 
             bool isProjectionActive = _projectionManager?.IsProjectionActive == true;
-            string actionText = isProjectionActive ? "弹窗显示" : "插入到幻灯片";
+
+            if (isProjectionActive)
+            {
+                var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
+                if (verses == null || verses.Count == 0)
+                {
+                    return;
+                }
+
+                string previewContent = FormatVerseWithNumbers(verses);
+                bool confirmed = ShowBibleProjectionPreviewDialog(reference, previewContent);
+                if (!confirmed)
+                {
+                    return;
+                }
+
+                await ShowBibleVersePopupAsync(bookId, chapter, startVerse, endVerse, verses);
+                return;
+            }
+
             var confirm = WpfMessageBox.Show(
-                $"已选中经文：{reference}\n\n是否{actionText}？",
-                "经文投影确认",
+                $"已选中经文：{reference}\n\n是否插入到幻灯片？",
+                "经文插入确认",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
@@ -76,18 +95,17 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (isProjectionActive)
-            {
-                await ShowBibleVersePopupAsync(bookId, chapter, startVerse, endVerse);
-                return;
-            }
-
             await CreateBibleTextElements(bookId, chapter, startVerse, endVerse);
         }
 
-        private async Task ShowBibleVersePopupAsync(int bookId, int chapter, int startVerse, int endVerse)
+        private async Task ShowBibleVersePopupAsync(
+            int bookId,
+            int chapter,
+            int startVerse,
+            int endVerse,
+            List<BibleVerse> preloadedVerses = null)
         {
-            var verses = await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
+            var verses = preloadedVerses ?? await _bibleService.GetVerseRangeAsync(bookId, chapter, startVerse, endVerse);
             if (verses == null || verses.Count == 0)
             {
                 return;
@@ -108,6 +126,165 @@ namespace ImageColorChanger.UI
             _biblePopupOverlayStartVerse = startVerse;
             _biblePopupOverlayEndVerse = endVerse;
             ShowMainBibleVersePopup(reference, content, config, popupAutoHideSeconds);
+        }
+
+        private bool ShowBibleProjectionPreviewDialog(string reference, string previewContent)
+        {
+            var dialog = new Window
+            {
+                Title = "经文预览",
+                Width = 720,
+                Height = 520,
+                MinWidth = 640,
+                MinHeight = 420,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                ShowInTaskbar = false,
+                Background = System.Windows.Media.Brushes.Transparent,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true
+            };
+
+            var root = new Border
+            {
+                CornerRadius = new CornerRadius(16),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 28,
+                    ShadowDepth = 0,
+                    Opacity = 0.18,
+                    Color = System.Windows.Media.Colors.Black
+                }
+            };
+
+            var layout = new Grid
+            {
+                Margin = new Thickness(26)
+            };
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var title = new TextBlock
+            {
+                Text = "投影经文预览",
+                FontSize = 24,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(15, 23, 42))
+            };
+            Grid.SetRow(title, 0);
+            layout.Children.Add(title);
+
+            var refText = new TextBlock
+            {
+                Text = reference ?? string.Empty,
+                Margin = new Thickness(0, 10, 0, 16),
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235))
+            };
+            Grid.SetRow(refText, 1);
+            layout.Children.Add(refText);
+
+            var previewBox = new System.Windows.Controls.TextBox
+            {
+                IsReadOnly = true,
+                Text = previewContent ?? string.Empty,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Padding = new Thickness(16),
+                FontSize = 18,
+                FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei"),
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59)),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225)),
+                Background = System.Windows.Media.Brushes.White,
+                CaretBrush = System.Windows.Media.Brushes.Transparent
+            };
+            Grid.SetRow(previewBox, 2);
+            layout.Children.Add(previewBox);
+
+            var actionPanel = new Grid
+            {
+                Margin = new Thickness(0, 18, 0, 0)
+            };
+            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var hint = new TextBlock
+            {
+                Text = "确认后将以弹窗方式投影显示该段经文",
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139)),
+                FontSize = 13
+            };
+            Grid.SetColumn(hint, 0);
+            actionPanel.Children.Add(hint);
+
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "取消",
+                Width = 112,
+                Height = 42,
+                Margin = new Thickness(10, 0, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(148, 163, 184)),
+                BorderThickness = new Thickness(1),
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 65, 85)),
+                FontSize = 14
+            };
+            cancelBtn.Click += (_, _) => dialog.DialogResult = false;
+            Grid.SetColumn(cancelBtn, 1);
+            actionPanel.Children.Add(cancelBtn);
+
+            var confirmBtn = new System.Windows.Controls.Button
+            {
+                Content = "投影弹窗显示",
+                Width = 152,
+                Height = 42,
+                Margin = new Thickness(10, 0, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)),
+                BorderBrush = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold
+            };
+            confirmBtn.Click += (_, _) => dialog.DialogResult = true;
+            Grid.SetColumn(confirmBtn, 2);
+            actionPanel.Children.Add(confirmBtn);
+
+            Grid.SetRow(actionPanel, 3);
+            layout.Children.Add(actionPanel);
+
+            root.Child = layout;
+            dialog.Content = root;
+            dialog.Loaded += (_, _) => previewBox.Focus();
+            dialog.KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Escape)
+                {
+                    dialog.DialogResult = false;
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+                {
+                    dialog.DialogResult = true;
+                    e.Handled = true;
+                }
+            };
+
+            return dialog.ShowDialog() == true;
         }
 
         private static string BuildBibleReference(string bookName, int chapter, int startVerse, int endVerse, BiblePopupTitleFormat format)

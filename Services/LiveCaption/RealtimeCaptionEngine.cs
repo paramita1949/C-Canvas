@@ -38,6 +38,11 @@ namespace ImageColorChanger.Services.LiveCaption
         private IWaveIn _capture;
         private IDisposable _sharedAudioSubscription;
         private WaveFormat _captureFormat;
+        private LiveCaptionAudioSource _captureSource = LiveCaptionAudioSource.SystemLoopback;
+        private string _preferredInputDeviceId = string.Empty;
+        private string _preferredSystemDeviceId = string.Empty;
+        private DateTime _lastUnexpectedCaptureStopUtc = DateTime.MinValue;
+        private int _unexpectedCaptureStopCount;
         private CancellationTokenSource _cts;
         private bool _isRunning;
         private bool _isInFlight;
@@ -59,6 +64,8 @@ namespace ImageColorChanger.Services.LiveCaption
         private DateTime _realtimeNextReconnectUtc = DateTime.MinValue;
         private bool _realtimeReconnectInFlight;
         private int _realtimeReconnectAttempt;
+        private DateTime _xfyunStallRecoverLastUtc = DateTime.MinValue;
+        private int _xfyunStallRecoverCount;
         private bool _realtimeSessionStartInFlight;
         private DateTime _realtimeConnectGraceUntilUtc = DateTime.MinValue;
         private volatile bool _isDisposing;
@@ -175,6 +182,9 @@ namespace ImageColorChanger.Services.LiveCaption
             _captureFormat = _capture.WaveFormat;
             _capture.DataAvailable += Capture_DataAvailable;
             _capture.RecordingStopped += Capture_RecordingStopped;
+            _captureSource = source;
+            _preferredInputDeviceId = preferredInputDeviceId ?? string.Empty;
+            _preferredSystemDeviceId = preferredSystemDeviceId ?? string.Empty;
             _captureInfo = $"{_captureInfo}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
 
             InitializeRunningState(source);
@@ -209,6 +219,9 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             _capture = null;
+            _captureSource = session.CurrentSource;
+            _preferredInputDeviceId = string.Empty;
+            _preferredSystemDeviceId = string.Empty;
             _captureFormat = new WaveFormat(16000, 16, 1);
             _captureInfo = session.CurrentSource == LiveCaptionAudioSource.SystemLoopback
                 ? $"capture=shared-system:{session.SelectedDeviceName}"
@@ -247,6 +260,8 @@ namespace ImageColorChanger.Services.LiveCaption
             _realtimeNextReconnectUtc = DateTime.MinValue;
             _realtimeReconnectInFlight = false;
             _realtimeReconnectAttempt = 0;
+            _xfyunStallRecoverLastUtc = DateTime.MinValue;
+            _xfyunStallRecoverCount = 0;
             _realtimeSessionStartInFlight = false;
             _realtimeConnectGraceUntilUtc = DateTime.MinValue;
             lock (_bufferGate)
@@ -516,15 +531,75 @@ namespace ImageColorChanger.Services.LiveCaption
                 {
                     RaiseStatusSafe($"实时字幕采集已停止: {e.Exception.Message}");
                     PublishDebugInfo($"capture-stop-ex: {e.Exception.Message}");
+                    LiveCaptionDebugLogger.Log($"CaptureDiag: recording-stopped exception={e.Exception.GetType().Name}, message={e.Exception.Message}");
                 }
                 else
                 {
                     PublishDebugInfo("capture-stopped");
+                    LiveCaptionDebugLogger.Log("CaptureDiag: recording-stopped without exception");
                 }
+
+                // 仅对引擎独立采集做自恢复；共享采集由 SharedAudioCaptureSession 自己恢复。
+                if (_sharedAudioSubscription != null || _capture == null || !ReferenceEquals(sender, _capture))
+                {
+                    LiveCaptionDebugLogger.Log($"CaptureDiag: skip-auto-recover shared={_sharedAudioSubscription != null}, captureNull={_capture == null}, senderMatch={ReferenceEquals(sender, _capture)}");
+                    return;
+                }
+                if (_isDisposed || _isDisposing || !_isRunning || _cts == null || _cts.IsCancellationRequested)
+                {
+                    LiveCaptionDebugLogger.Log($"CaptureDiag: skip-auto-recover disposed={_isDisposed}, disposing={_isDisposing}, running={_isRunning}, ctsNull={_cts == null}, canceled={_cts?.IsCancellationRequested}");
+                    return;
+                }
+
+                DateTime now = DateTime.UtcNow;
+                if ((now - _lastUnexpectedCaptureStopUtc).TotalSeconds > 12)
+                {
+                    _unexpectedCaptureStopCount = 0;
+                }
+                _lastUnexpectedCaptureStopUtc = now;
+                _unexpectedCaptureStopCount++;
+
+                var oldCapture = _capture;
+                _capture = null;
+                try
+                {
+                    oldCapture.DataAvailable -= Capture_DataAvailable;
+                    oldCapture.RecordingStopped -= Capture_RecordingStopped;
+                }
+                catch
+                {
+                }
+                try
+                {
+                    oldCapture.Dispose();
+                }
+                catch
+                {
+                }
+
+                string selectedName;
+                var newCapture = SharedAudioCaptureSession.CreateCaptureForSelection(
+                    _captureSource,
+                    _preferredInputDeviceId,
+                    _preferredSystemDeviceId,
+                    out selectedName);
+                newCapture.DataAvailable += Capture_DataAvailable;
+                newCapture.RecordingStopped += Capture_RecordingStopped;
+                _capture = newCapture;
+                _captureFormat = newCapture.WaveFormat;
+                newCapture.StartRecording();
+                _captureInfo = _captureSource == LiveCaptionAudioSource.SystemLoopback
+                    ? $"capture=system:{selectedName}"
+                    : $"capture=input:{selectedName}";
+                _captureInfo = $"{_captureInfo}, fmt={_captureFormat.SampleRate}Hz/{_captureFormat.BitsPerSample}bit/{_captureFormat.Channels}ch/{_captureFormat.Encoding}";
+                RaiseStatusSafe($"实时字幕采集中断，已自动恢复（{_unexpectedCaptureStopCount}）");
+                PublishDebugInfo("capture-auto-recovered");
+                LiveCaptionDebugLogger.Log($"CaptureDiag: auto-recovered count={_unexpectedCaptureStopCount}, source={_captureSource}, device={selectedName}");
             }
             catch (Exception ex)
             {
                 RaiseDebugSafe($"[capture-stopped-handler] {ex.GetType().Name}: {ex.Message}");
+                LiveCaptionDebugLogger.Log($"CaptureDiag: auto-recover-fail ex={ex.GetType().Name}, msg={ex.Message}");
             }
         }
 
@@ -647,6 +722,7 @@ namespace ImageColorChanger.Services.LiveCaption
             TryFlushAliyunMergedFinal(force: false);
             if (!_client.IsRealtimeConnected)
             {
+                LiveCaptionDebugLogger.Log($"ReconnectDiag: disconnected detected, startInFlight={_realtimeSessionStartInFlight}, graceUntil={_realtimeConnectGraceUntilUtc:O}, now={DateTime.UtcNow:O}, lastError={_client.LastError}");
                 if (_realtimeSessionStartInFlight || DateTime.UtcNow < _realtimeConnectGraceUntilUtc)
                 {
                     if ((DateTime.UtcNow - _lastDebugUtc).TotalMilliseconds >= 1200)
@@ -664,6 +740,15 @@ namespace ImageColorChanger.Services.LiveCaption
                 }
 
                 return;
+            }
+
+            if (string.Equals(_client.AsrProvider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            {
+                await TryRecoverXfyunStalledSessionAsync();
+                if (!_client.IsRealtimeConnected)
+                {
+                    return;
+                }
             }
 
             byte[] packet;
@@ -766,6 +851,12 @@ namespace ImageColorChanger.Services.LiveCaption
                 return 800;
             }
 
+            if (string.Equals(_client.AsrProvider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            {
+                // 讯飞在静默期长期无音频包时可能关闭会话，发送静音保活包维持链路。
+                return 800;
+            }
+
             return 0;
         }
 
@@ -792,6 +883,7 @@ namespace ImageColorChanger.Services.LiveCaption
             try
             {
                 StatusChanged?.Invoke($"实时链路断开，正在自动重连（{_realtimeReconnectAttempt}）");
+                LiveCaptionDebugLogger.Log($"ReconnectDiag: attempt={_realtimeReconnectAttempt}, provider={_client.AsrProvider}, nextAllowed={_realtimeNextReconnectUtc:O}");
                 bool ok = await _client.StartRealtimeSessionAsync(
                     HandleRealtimeText,
                     msg => StatusChanged?.Invoke(msg),
@@ -802,6 +894,7 @@ namespace ImageColorChanger.Services.LiveCaption
                     _realtimeNextReconnectUtc = DateTime.MinValue;
                     _realtimeLastKeepAliveUtc = DateTime.UtcNow;
                     StatusChanged?.Invoke("实时链路已自动恢复");
+                    LiveCaptionDebugLogger.Log("ReconnectDiag: recover-success");
                     return;
                 }
 
@@ -811,20 +904,60 @@ namespace ImageColorChanger.Services.LiveCaption
                 }
 
                 _realtimeNextReconnectUtc = now.AddSeconds(2);
+                LiveCaptionDebugLogger.Log($"ReconnectDiag: recover-failed, lastError={_client.LastError}, retryAt={_realtimeNextReconnectUtc:O}");
             }
             catch (OperationCanceledException)
             {
-                // ignore
+                LiveCaptionDebugLogger.Log("ReconnectDiag: recover-canceled");
             }
             catch (Exception ex)
             {
                 StatusChanged?.Invoke($"实时链路重连异常: {ex.Message}");
                 _realtimeNextReconnectUtc = now.AddSeconds(2);
+                LiveCaptionDebugLogger.Log($"ReconnectDiag: recover-exception ex={ex.GetType().Name}, msg={ex.Message}, retryAt={_realtimeNextReconnectUtc:O}");
             }
             finally
             {
                 _realtimeReconnectInFlight = false;
             }
+        }
+
+        private async Task TryRecoverXfyunStalledSessionAsync()
+        {
+            // 讯飞链路偶发“WS保持Open但长时间无回包”，需主动重建会话。
+            if (_cts == null || _cts.IsCancellationRequested || !_client.IsRealtimeConnected)
+            {
+                return;
+            }
+
+            if (!_client.IsXfyunReceiveStalled(TimeSpan.FromSeconds(8)))
+            {
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if ((now - _xfyunStallRecoverLastUtc).TotalSeconds < 5)
+            {
+                return;
+            }
+            _xfyunStallRecoverLastUtc = now;
+            _xfyunStallRecoverCount++;
+
+            long noRecvMs = _client.XfyunNoReceiveForMs;
+            LiveCaptionDebugLogger.Log($"ReconnectDiag: xfyun-stall detected noRecvMs={noRecvMs}, recoverCount={_xfyunStallRecoverCount}");
+            StatusChanged?.Invoke($"讯飞链路{Math.Max(1, noRecvMs / 1000)}秒无回包，正在重建会话（{_xfyunStallRecoverCount}）");
+
+            try
+            {
+                await _client.StopRealtimeSessionAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"ReconnectDiag: xfyun-stop-before-recover fail {ex.GetType().Name}: {ex.Message}");
+            }
+
+            _realtimeNextReconnectUtc = DateTime.MinValue;
+            await TryRecoverRealtimeConnectionAsync();
         }
 
         private void HandleRealtimeText(LiveCaptionAsrText update)

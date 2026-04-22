@@ -142,6 +142,7 @@ namespace ImageColorChanger.Core
                 "baidu" => "baidu",
                 "tencent" => "tencent",
                 "aliyun" => "aliyun",
+                "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 // 迁移历史本地模式：统一切回云端豆包。
                 "funasr" => "doubao",
@@ -163,6 +164,7 @@ namespace ImageColorChanger.Core
             return NormalizeLiveCaptionAsrProvider(provider) switch
             {
                 "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
+                "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
                 "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
                 _ => "wss://vop.baidu.com/realtime_asr"
@@ -641,6 +643,48 @@ namespace ImageColorChanger.Core
                 if (!string.Equals(_config.LiveCaptionAliAccessKeySecret, next, StringComparison.Ordinal))
                 {
                     _config.LiveCaptionAliAccessKeySecret = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionXfyunAppId
+        {
+            get => _config.LiveCaptionXfyunAppId ?? string.Empty;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionXfyunAppId, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionXfyunAppId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionXfyunApiKey
+        {
+            get => _config.LiveCaptionXfyunApiKey ?? string.Empty;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionXfyunApiKey, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionXfyunApiKey = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionXfyunApiSecret
+        {
+            get => _config.LiveCaptionXfyunApiSecret ?? string.Empty;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionXfyunApiSecret, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionXfyunApiSecret = next;
                     SaveConfig();
                 }
             }
@@ -1273,6 +1317,9 @@ namespace ImageColorChanger.Core
         public string LiveCaptionAliAppKey { get; set; } = "";
         public string LiveCaptionAliAccessKeyId { get; set; } = "";
         public string LiveCaptionAliAccessKeySecret { get; set; } = "";
+        public string LiveCaptionXfyunAppId { get; set; } = "";
+        public string LiveCaptionXfyunApiKey { get; set; } = "";
+        public string LiveCaptionXfyunApiSecret { get; set; } = "";
         public string LiveCaptionDoubaoAppKey { get; set; } = "";
         public string LiveCaptionDoubaoAccessKey { get; set; } = "";
         public string LiveCaptionDoubaoResourceId { get; set; } = "volc.seedasr.sauc.duration";

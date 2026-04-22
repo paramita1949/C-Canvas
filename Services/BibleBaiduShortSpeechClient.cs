@@ -27,6 +27,9 @@ namespace ImageColorChanger.Services
         private const string DoubaoShortSpeechWsUrl = "wss://openspeech.bytedance.com/api/v2/asr";
         private const string DoubaoShortDefaultCluster = "volcengine_input_common";
         private const string DoubaoRealtimeDefaultResourceId = "volc.seedasr.sauc.duration";
+        private const string XfyunShortSpeechHost = "iat.xf-yun.com";
+        private const string XfyunShortSpeechPath = "/v1";
+        private const string XfyunShortSpeechWsUrl = "wss://iat.xf-yun.com/v1";
         private const byte DoubaoProtocolVersion = 1;
         private const byte DoubaoHeaderWords = 1;
         private const byte DoubaoMessageTypeFullClientRequest = 0x1;
@@ -66,6 +69,9 @@ namespace ImageColorChanger.Services
                 "aliyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAppKey) &&
                             !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeyId) &&
                             !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret),
+                "xfyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunAppId) &&
+                           !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiKey) &&
+                           !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiSecret),
                 _ => !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduAppId) &&
                      !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduApiKey) &&
                      !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduSecretKey)
@@ -108,6 +114,15 @@ namespace ImageColorChanger.Services
                     if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret))
                         missing.Add("AccessKeySecret");
                 }
+                else if (string.Equals(provider, "xfyun", StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunAppId))
+                        missing.Add("AppID");
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiKey))
+                        missing.Add("APIKey");
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiSecret))
+                        missing.Add("APISecret");
+                }
                 else
                 {
                     if (string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduAppId))
@@ -146,6 +161,7 @@ namespace ImageColorChanger.Services
                 "tencent" => await TranscribeWithTencentAsync(wavBytes, cancellationToken),
                 "doubao" => await TranscribeWithDoubaoAsync(wavBytes, cancellationToken),
                 "aliyun" => await TranscribeWithAliyunAsync(wavBytes, cancellationToken),
+                "xfyun" => await TranscribeWithXfyunAsync(wavBytes, cancellationToken),
                 _ => await TranscribeWithBaiduAsync(wavBytes, cancellationToken)
             };
         }
@@ -542,6 +558,182 @@ namespace ImageColorChanger.Services
             return recognized;
         }
 
+        private async Task<string> TranscribeWithXfyunAsync(byte[] wavBytes, CancellationToken cancellationToken)
+        {
+            if (wavBytes == null || wavBytes.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string appId = (_config.LiveCaptionXfyunAppId ?? string.Empty).Trim();
+            string apiKey = (_config.LiveCaptionXfyunApiKey ?? string.Empty).Trim();
+            string apiSecret = (_config.LiveCaptionXfyunApiSecret ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+            {
+                return string.Empty;
+            }
+
+            byte[] pcmData = wavBytes.Length > 44 ? wavBytes.AsSpan(44).ToArray() : wavBytes;
+            string wsBaseUrl = ResolveXfyunShortSpeechWsUrl(_config.LiveCaptionShortProxyBaseUrl);
+            string wsUrl = BuildXfyunShortSpeechWebSocketUrl(wsBaseUrl, apiKey, apiSecret);
+
+            using var ws = new ClientWebSocket();
+            ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+            await ws.ConnectAsync(new Uri(wsUrl), cancellationToken);
+
+            string recognized = string.Empty;
+            int frameSize = 1280;
+            int offset = 0;
+            bool firstFrameSent = false;
+            var recvBuffer = new byte[8192];
+
+            // 按官方流式协议发送：首帧(status=0) -> 中间帧(status=1) -> 末帧(status=2)
+            while (offset < pcmData.Length && !cancellationToken.IsCancellationRequested)
+            {
+                int bytes = Math.Min(frameSize, pcmData.Length - offset);
+                byte[] frame = new byte[bytes];
+                Buffer.BlockCopy(pcmData, offset, frame, 0, bytes);
+                offset += bytes;
+
+                int status = firstFrameSent ? 1 : 0;
+                firstFrameSent = true;
+
+                string frameJson = BuildXfyunShortAudioFrameJson(appId, Convert.ToBase64String(frame), status);
+                byte[] payload = Encoding.UTF8.GetBytes(frameJson);
+                await ws.SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text, true, cancellationToken);
+
+                await Task.Delay(40, cancellationToken);
+            }
+
+            string lastFrameJson = BuildXfyunShortAudioFrameJson(appId, string.Empty, 2);
+            byte[] lastPayload = Encoding.UTF8.GetBytes(lastFrameJson);
+            await ws.SendAsync(new ArraySegment<byte>(lastPayload), WebSocketMessageType.Text, true, cancellationToken);
+
+            bool finalArrived = await ReadXfyunShortMessagesAsync(ws, recvBuffer, cancellationToken, text =>
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    recognized = text.Trim();
+                }
+            }, stopOnFinal: true);
+
+            if (!finalArrived)
+            {
+            }
+
+            if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+            {
+                try
+                {
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", cancellationToken);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(recognized))
+            {
+                return string.Empty;
+            }
+
+            Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [BibleVoice][Xfyun] recognized={recognized}");
+            return recognized;
+        }
+
+        private static async Task<bool> ReadXfyunShortMessagesAsync(
+            ClientWebSocket ws,
+            byte[] buffer,
+            CancellationToken cancellationToken,
+            Action<string> onText,
+            bool stopOnFinal)
+        {
+            bool gotFinal = false;
+            var wpgsSegments = new SortedDictionary<int, string>();
+            int lastSn = -1;
+            while (!cancellationToken.IsCancellationRequested && ws.State == WebSocketState.Open)
+            {
+                string message = await ReceiveXfyunShortTextMessageAsync(ws, buffer, cancellationToken);
+                if (message == null)
+                {
+                    break;
+                }
+
+                if (!TryParseXfyunShortMessage(
+                        message,
+                        out int code,
+                        out int status,
+                        out string text,
+                        out bool sentenceFinal,
+                        out int ret,
+                        out string pgs,
+                        out int sn,
+                        out int rgStart,
+                        out int rgEnd,
+                        out string err))
+                {
+                    continue;
+                }
+
+                if (code != 0)
+                {
+                    break;
+                }
+                if (ret > 0)
+                {
+                    break;
+                }
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    string merged = text;
+                    if (sn >= 0)
+                    {
+                        if (lastSn >= 0 && sn < lastSn)
+                        {
+                            wpgsSegments.Clear();
+                        }
+                        lastSn = Math.Max(lastSn, sn);
+
+                        if (string.Equals(pgs, "rpl", StringComparison.OrdinalIgnoreCase) && rgStart > 0 && rgEnd >= rgStart)
+                        {
+                            for (int i = rgStart; i <= rgEnd; i++)
+                            {
+                                wpgsSegments.Remove(i);
+                            }
+                        }
+
+                        wpgsSegments[sn] = text;
+                        var sb = new StringBuilder();
+                        foreach (var kv in wpgsSegments.OrderBy(k => k.Key))
+                        {
+                            sb.Append(kv.Value);
+                        }
+                        merged = sb.ToString();
+                    }
+
+                    onText?.Invoke(merged);
+                }
+
+                if (sentenceFinal || status == 2)
+                {
+                    gotFinal = true;
+                    if (stopOnFinal)
+                    {
+                        break;
+                    }
+                }
+
+                if (!stopOnFinal)
+                {
+                    break;
+                }
+            }
+
+            return gotFinal;
+        }
+
         private async Task<string> GetAliyunAccessTokenAsync(CancellationToken cancellationToken)
         {
             if (!string.IsNullOrWhiteSpace(_aliyunToken) && DateTime.UtcNow < _aliyunTokenExpireUtc)
@@ -755,8 +947,267 @@ namespace ImageColorChanger.Services
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 "aliyun" => "aliyun",
+                "xfyun" => "xfyun",
                 _ => "baidu"
             };
+        }
+
+        private static string ResolveXfyunShortSpeechWsUrl(string configuredUrl)
+        {
+            string raw = (configuredUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return XfyunShortSpeechWsUrl;
+            }
+
+            if (raw.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) ||
+                raw.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+
+            if (raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ws://" + raw.Substring("http://".Length);
+            }
+
+            if (raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "wss://" + raw.Substring("https://".Length);
+            }
+
+            return XfyunShortSpeechWsUrl;
+        }
+
+        private static string BuildXfyunShortSpeechWebSocketUrl(string wsBaseUrl, string apiKey, string apiSecret)
+        {
+            var baseUri = new Uri(string.IsNullOrWhiteSpace(wsBaseUrl) ? XfyunShortSpeechWsUrl : wsBaseUrl);
+            string host = string.IsNullOrWhiteSpace(baseUri.Host) ? XfyunShortSpeechHost : baseUri.Host;
+            string path = string.IsNullOrWhiteSpace(baseUri.AbsolutePath) ? XfyunShortSpeechPath : baseUri.AbsolutePath;
+            string scheme = string.Equals(baseUri.Scheme, "ws", StringComparison.OrdinalIgnoreCase) ? "ws" : "wss";
+
+            string date = DateTime.UtcNow.ToString("r", CultureInfo.InvariantCulture);
+            string requestLine = $"GET {path} HTTP/1.1";
+            string signatureOrigin = $"host: {host}\ndate: {date}\n{requestLine}";
+            string signature;
+            using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(apiSecret)))
+            {
+                signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(signatureOrigin)));
+            }
+
+            string authorizationOrigin =
+                $"api_key=\"{apiKey}\",algorithm=\"hmac-sha256\",headers=\"host date request-line\",signature=\"{signature}\"";
+            string authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes(authorizationOrigin));
+            string query =
+                $"authorization={Uri.EscapeDataString(authorization)}&date={Uri.EscapeDataString(date)}&host={Uri.EscapeDataString(host)}";
+
+            return $"{scheme}://{host}{path}?{query}";
+        }
+
+        private static string BuildXfyunShortAudioFrameJson(string appId, string audioBase64, int frameStatus)
+        {
+            var frame = new
+            {
+                header = new
+                {
+                    status = frameStatus,
+                    app_id = appId
+                },
+                parameter = new
+                {
+                    iat = new
+                    {
+                        domain = "slm",
+                        language = "zh_cn",
+                        accent = "mandarin",
+                        eos = 1800,
+                        ltc = 2,
+                        dwa = "wpgs",
+                        result = new
+                        {
+                            encoding = "utf8",
+                            compress = "raw",
+                            format = "json"
+                        }
+                    }
+                },
+                payload = new
+                {
+                    audio = new
+                    {
+                        audio = audioBase64 ?? string.Empty,
+                        sample_rate = 16000,
+                        encoding = "raw"
+                    }
+                }
+            };
+
+            return JsonSerializer.Serialize(frame);
+        }
+
+        private static async Task<string> ReceiveXfyunShortTextMessageAsync(ClientWebSocket ws, byte[] buffer, CancellationToken cancellationToken)
+        {
+            using var ms = new MemoryStream();
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    return null;
+                }
+
+                if (result.MessageType != WebSocketMessageType.Text)
+                {
+                    continue;
+                }
+
+                if (result.Count > 0)
+                {
+                    ms.Write(buffer, 0, result.Count);
+                }
+            } while (!result.EndOfMessage);
+
+            return Encoding.UTF8.GetString(ms.ToArray());
+        }
+
+        private static bool TryParseXfyunShortMessage(
+            string message,
+            out int code,
+            out int status,
+            out string text,
+            out bool sentenceFinal,
+            out int ret,
+            out string pgs,
+            out int sn,
+            out int rgStart,
+            out int rgEnd,
+            out string errorMessage)
+        {
+            code = 0;
+            status = 0;
+            text = string.Empty;
+            sentenceFinal = false;
+            ret = -1;
+            pgs = string.Empty;
+            sn = -1;
+            rgStart = -1;
+            rgEnd = -1;
+            errorMessage = string.Empty;
+
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(message);
+                JsonElement root = doc.RootElement;
+                JsonElement header = root.TryGetProperty("header", out JsonElement headerEl) &&
+                                     headerEl.ValueKind == JsonValueKind.Object
+                    ? headerEl
+                    : default;
+
+                if (header.ValueKind == JsonValueKind.Object &&
+                    header.TryGetProperty("code", out JsonElement codeEl) &&
+                    codeEl.ValueKind == JsonValueKind.Number)
+                {
+                    code = codeEl.GetInt32();
+                }
+                if (header.ValueKind == JsonValueKind.Object &&
+                    header.TryGetProperty("status", out JsonElement statusEl) &&
+                    statusEl.ValueKind == JsonValueKind.Number)
+                {
+                    status = statusEl.GetInt32();
+                }
+                if (header.ValueKind == JsonValueKind.Object &&
+                    header.TryGetProperty("message", out JsonElement msgEl) &&
+                    msgEl.ValueKind == JsonValueKind.String)
+                {
+                    errorMessage = msgEl.GetString() ?? string.Empty;
+                }
+
+                if (code != 0)
+                {
+                    return true;
+                }
+
+                if (!root.TryGetProperty("payload", out JsonElement payloadEl) || payloadEl.ValueKind != JsonValueKind.Object
+                    || !payloadEl.TryGetProperty("result", out JsonElement resultEl) || resultEl.ValueKind != JsonValueKind.Object
+                    || !resultEl.TryGetProperty("text", out JsonElement textEl) || textEl.ValueKind != JsonValueKind.String)
+                {
+                    return true;
+                }
+
+                string encoded = textEl.GetString() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(encoded))
+                {
+                    return true;
+                }
+
+                byte[] decodedBytes = Convert.FromBase64String(encoded);
+                string decodedJson = Encoding.UTF8.GetString(decodedBytes);
+                using JsonDocument resultDoc = JsonDocument.Parse(decodedJson);
+                if (resultDoc.RootElement.TryGetProperty("ret", out JsonElement retEl) && retEl.ValueKind == JsonValueKind.Number)
+                {
+                    ret = retEl.GetInt32();
+                }
+                sentenceFinal = resultDoc.RootElement.TryGetProperty("ls", out JsonElement lsEl) &&
+                                lsEl.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                                lsEl.GetBoolean();
+                if (resultDoc.RootElement.TryGetProperty("pgs", out JsonElement pgsEl) && pgsEl.ValueKind == JsonValueKind.String)
+                {
+                    pgs = pgsEl.GetString() ?? string.Empty;
+                }
+                if (resultDoc.RootElement.TryGetProperty("sn", out JsonElement snEl) && snEl.ValueKind == JsonValueKind.Number)
+                {
+                    sn = snEl.GetInt32();
+                }
+                if (resultDoc.RootElement.TryGetProperty("rg", out JsonElement rgEl) && rgEl.ValueKind == JsonValueKind.Array)
+                {
+                    int[] nums = rgEl.EnumerateArray()
+                        .Where(e => e.ValueKind == JsonValueKind.Number)
+                        .Select(e => e.GetInt32())
+                        .Take(2)
+                        .ToArray();
+                    if (nums.Length >= 2)
+                    {
+                        rgStart = nums[0];
+                        rgEnd = nums[1];
+                        if (rgEnd < rgStart)
+                        {
+                            (rgStart, rgEnd) = (rgEnd, rgStart);
+                        }
+                    }
+                }
+
+                if (!resultDoc.RootElement.TryGetProperty("ws", out JsonElement wsEl) || wsEl.ValueKind != JsonValueKind.Array)
+                {
+                    return true;
+                }
+
+                var sb = new StringBuilder();
+                foreach (JsonElement wsItem in wsEl.EnumerateArray())
+                {
+                    if (!wsItem.TryGetProperty("cw", out JsonElement cwEl) || cwEl.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (JsonElement cwItem in cwEl.EnumerateArray())
+                    {
+                        if (cwItem.TryGetProperty("w", out JsonElement wEl) && wEl.ValueKind == JsonValueKind.String)
+                        {
+                            sb.Append(wEl.GetString() ?? string.Empty);
+                            break;
+                        }
+                    }
+                }
+
+                text = sb.ToString().Trim();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
         }
 
         private static string ResolveDoubaoShortSpeechWsUrl(string configuredUrl)

@@ -345,6 +345,18 @@ namespace ImageColorChanger.UI
                     _configManager.LiveCaptionAliAccessKeySecret = v3;
                     break;
 
+                case "xfyun":
+                    if (string.IsNullOrWhiteSpace(v1) || string.IsNullOrWhiteSpace(v2) || string.IsNullOrWhiteSpace(v3))
+                    {
+                        System.Windows.MessageBox.Show("讯飞识别需填写 AppID / APIKey / APISecret。", "AI配置", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        Credential1TextBox.Focus();
+                        return;
+                    }
+                    _configManager.LiveCaptionXfyunAppId = v1;
+                    _configManager.LiveCaptionXfyunApiKey = v2;
+                    _configManager.LiveCaptionXfyunApiSecret = v3;
+                    break;
+
                 case "doubao":
                     if (string.IsNullOrWhiteSpace(v1) || string.IsNullOrWhiteSpace(v2))
                     {
@@ -479,6 +491,7 @@ namespace ImageColorChanger.UI
             return NormalizeProvider(provider) switch
             {
                 "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
+                "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
                 "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
                 _ => "wss://vop.baidu.com/realtime_asr"
@@ -494,6 +507,7 @@ namespace ImageColorChanger.UI
                     "aliyun" => "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/asr",
                     "doubao" => "wss://openspeech.bytedance.com/api/v2/asr",
                     "tencent" => "https://asr.tencentcloudapi.com",
+                    "xfyun" => "wss://iat.xf-yun.com/v1",
                     _ => "http://vop.baidu.com/server_api"
                 };
             }
@@ -517,6 +531,7 @@ namespace ImageColorChanger.UI
                 "baidu" => "baidu",
                 "tencent" => "tencent",
                 "aliyun" => "aliyun",
+                "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 _ => "baidu"
@@ -718,6 +733,17 @@ namespace ImageColorChanger.UI
                             : "实时流式识别（普通话 16k）。"
                     }
                 },
+                "xfyun" => new[]
+                {
+                    new ModelOption
+                    {
+                        Label = speechMode == SpeechMode.ShortPhrase ? "讯飞中英识别大模型（短语）" : "讯飞实时语音转写大模型（实时）",
+                        ModelId = speechMode == SpeechMode.ShortPhrase ? "xfyun-spark-zh-iat" : "xfyun-rtasr-llm",
+                        Description = speechMode == SpeechMode.ShortPhrase
+                            ? "短会话流式识别（约 60s），适合经文短语识别。"
+                            : "实时语音转写大模型（rtasr_llm），支持中英+202方言免切。"
+                    }
+                },
                 _ => speechMode == SpeechMode.ShortPhrase
                     ? new[]
                     {
@@ -798,6 +824,10 @@ namespace ImageColorChanger.UI
                     ? (string.IsNullOrWhiteSpace(_draftShortDialect) ? _configManager.LiveCaptionShortBaiduDevPid.ToString() : _draftShortDialect)
                     : (string.IsNullOrWhiteSpace(_draftRealtimeDialect) ? _configManager.LiveCaptionRealtimeBaiduDevPid.ToString() : _draftRealtimeDialect);
             }
+            if (string.Equals(provider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            {
+                return "mandarin";
+            }
 
             return "default";
         }
@@ -827,6 +857,10 @@ namespace ImageColorChanger.UI
                     new DialectOption { Label = "普通话远场", Value = "1936", Description = "百度 dev_pid=1936，远场识别场景。" },
                     new DialectOption { Label = "粤语", Value = "1637", Description = "百度 dev_pid=1637。" },
                     new DialectOption { Label = "四川话", Value = "1837", Description = "百度 dev_pid=1837。" }
+                },
+                "xfyun" => new[]
+                {
+                    new DialectOption { Label = "自动免切（默认）", Value = "mandarin", Description = "讯飞中英识别大模型支持方言自动识别，默认保持 accent=mandarin。" }
                 },
                 _ => new[]
                 {
@@ -1644,6 +1678,16 @@ namespace ImageColorChanger.UI
                         ? "豆包一句话识别：连接地址示例 wss://openspeech.bytedance.com/api/v2/asr（请求头 Authorization=Bearer; Token；模型框填写 Cluster，默认 volcengine_input_common）。热词表自动获取需填写“热词管理 AK/SK”（IAM 访问密钥）。"
                         : "豆包实时识别：连接地址示例 wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async。热词表自动获取需填写“热词管理 AK/SK”（IAM 访问密钥）。"
                 },
+                "xfyun" => new ProviderPreset
+                {
+                    Provider = "xfyun",
+                    Label1 = "AppID",
+                    Label2 = "APIKey",
+                    Label3 = "APISecret",
+                    Hint = _speechMode == SpeechMode.ShortPhrase
+                        ? "讯飞中英识别（短会话）：连接地址示例 wss://iat.xf-yun.com/v1（约60秒短语识别）。"
+                        : "讯飞实时语音转写大模型：连接地址示例 wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1（支持中英+202方言免切）。"
+                },
                 _ => new ProviderPreset
                 {
                     Provider = "baidu",
@@ -1739,6 +1783,7 @@ namespace ImageColorChanger.UI
                 {
                     new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
                     new ProviderOption { Provider = "aliyun", DisplayName = "阿里云语音" },
+                    new ProviderOption { Provider = "xfyun", DisplayName = "飞讯语音" },
                     new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
                     new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
                 };
@@ -1748,6 +1793,7 @@ namespace ImageColorChanger.UI
             {
                 new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
                 new ProviderOption { Provider = "aliyun", DisplayName = "阿里云语音" },
+                new ProviderOption { Provider = "xfyun", DisplayName = "飞讯语音" },
                 new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
                 new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
             };
@@ -1858,6 +1904,13 @@ namespace ImageColorChanger.UI
                     Credential3TextBox.Text = _configManager.LiveCaptionDoubaoResourceId;
                     DoubaoHotwordAkTextBox.Text = _configManager.LiveCaptionDoubaoHotwordOpenApiAk;
                     DoubaoHotwordSkTextBox.Text = _configManager.LiveCaptionDoubaoHotwordOpenApiSk;
+                    break;
+                case "xfyun":
+                    Credential1TextBox.Text = _configManager.LiveCaptionXfyunAppId;
+                    Credential2TextBox.Text = _configManager.LiveCaptionXfyunApiKey;
+                    Credential3TextBox.Text = _configManager.LiveCaptionXfyunApiSecret;
+                    DoubaoHotwordAkTextBox.Text = string.Empty;
+                    DoubaoHotwordSkTextBox.Text = string.Empty;
                     break;
                 default:
                     Credential1TextBox.Text = _configManager.LiveCaptionBaiduAppId;

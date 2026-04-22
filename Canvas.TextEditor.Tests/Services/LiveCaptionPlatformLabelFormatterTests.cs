@@ -10,6 +10,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
         [InlineData("aliyun", "阿里实时", "阿里短语")]
         [InlineData("tencent", "腾讯实时", "腾讯短语")]
         [InlineData("baidu", "百度实时", "百度短语")]
+        [InlineData("xfyun", "飞讯语音实时", "飞讯语音短语")]
         [InlineData("funasr", "FunASR实时", "FunASR短语")]
         [InlineData("unknown", "百度实时", "百度短语")]
         public void BuildTags_ShouldIncludePlatformAndChannel(string provider, string expectedRealtime, string expectedShort)

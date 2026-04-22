@@ -42,6 +42,9 @@ namespace ImageColorChanger.Services.LiveCaption
         private readonly string _aliAppKey;
         private readonly string _aliAccessKeyId;
         private readonly string _aliAccessKeySecret;
+        private readonly string _xfyunAppId;
+        private readonly string _xfyunApiKey;
+        private readonly string _xfyunApiSecret;
         private readonly string _doubaoAppKey;
         private readonly string _doubaoAccessKey;
         private readonly string _doubaoResourceId;
@@ -53,6 +56,9 @@ namespace ImageColorChanger.Services.LiveCaption
         private const string TencentRealtimeHost = "asr.cloud.tencent.com";
         private const string TencentRealtimePathPrefix = "/asr/v2";
         private const string AliyunRealtimeWsBaseUrl = "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1";
+        private const string XfyunRealtimeHost = "office-api-ast-dx.iflyaisol.com";
+        private const string XfyunRealtimePath = "/ast/communicate/v1";
+        private const string XfyunRealtimeWsBaseUrl = "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1";
         private const string DoubaoRealtimeWsBaseUrl = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async";
         private const string DoubaoRealtimeDefaultResourceId = "volc.seedasr.sauc.duration";
         private const byte DoubaoProtocolVersion = 1;
@@ -80,6 +86,11 @@ namespace ImageColorChanger.Services.LiveCaption
         private const string AliyunTokenHostFallback = "nlsmeta.cn-shanghai.aliyuncs.com";
         private const string AliyunRegionId = "cn-shanghai";
         private const string AliyunApiVersion = "2019-02-28";
+
+        private static void LogXfyunDiag(string message)
+        {
+            LiveCaptionDebugLogger.Log($"XfyunDiag: {message}");
+        }
 
         private string _baiduAccessToken = string.Empty;
         private DateTime _baiduTokenExpireUtc = DateTime.MinValue;
@@ -111,6 +122,19 @@ namespace ImageColorChanger.Services.LiveCaption
         private Action<LiveCaptionAsrText> _aliyunRealtimeTextHandler;
         private Action<string> _aliyunRealtimeStatusHandler;
         private string _aliyunRealtimeTaskId = string.Empty;
+        private ClientWebSocket _xfyunRealtimeWs;
+        private Task _xfyunRealtimeReceiveTask;
+        private readonly SemaphoreSlim _xfyunRealtimeSendLock = new(1, 1);
+        private readonly SemaphoreSlim _xfyunRealtimeConnectLock = new(1, 1);
+        private Action<LiveCaptionAsrText> _xfyunRealtimeTextHandler;
+        private Action<string> _xfyunRealtimeStatusHandler;
+        private int _xfyunAudioSeq;
+        private string _xfyunSessionId = string.Empty;
+        private volatile bool _xfyunServerSessionEnded;
+        private DateTime _xfyunLastSendUtc = DateTime.MinValue;
+        private DateTime _xfyunLastRecvUtc = DateTime.MinValue;
+        private long _xfyunSendCount;
+        private long _xfyunRecvCount;
         private ClientWebSocket _doubaoRealtimeWs;
         private Task _doubaoRealtimeReceiveTask;
         private readonly SemaphoreSlim _doubaoRealtimeSendLock = new(1, 1);
@@ -144,6 +168,11 @@ namespace ImageColorChanger.Services.LiveCaption
             && !string.IsNullOrWhiteSpace(_aliAppKey)
             && !string.IsNullOrWhiteSpace(_aliAccessKeyId)
             && !string.IsNullOrWhiteSpace(_aliAccessKeySecret);
+        public bool IsXfyunRealtimeAvailable =>
+            IsXfyunProvider()
+            && !string.IsNullOrWhiteSpace(_xfyunAppId)
+            && !string.IsNullOrWhiteSpace(_xfyunApiKey)
+            && !string.IsNullOrWhiteSpace(_xfyunApiSecret);
         public bool IsDoubaoRealtimeAvailable =>
             IsDoubaoProvider()
             && !string.IsNullOrWhiteSpace(_doubaoAppKey)
@@ -151,13 +180,22 @@ namespace ImageColorChanger.Services.LiveCaption
         public bool IsFunAsrRealtimeAvailable =>
             IsFunAsrProvider()
             && !string.IsNullOrWhiteSpace(_funAsrWsUrl);
-        public bool SupportsRealtimeSession => IsBaiduRealtimeAvailable || IsTencentRealtimeAvailable || IsAliyunRealtimeAvailable || IsDoubaoRealtimeAvailable || IsFunAsrRealtimeAvailable;
-        public bool IsRealtimeConnected => IsBaiduRealtimeConnected || IsTencentRealtimeConnected || IsAliyunRealtimeConnected || IsDoubaoRealtimeConnected || IsFunAsrRealtimeConnected;
+        public bool SupportsRealtimeSession => IsBaiduRealtimeAvailable || IsTencentRealtimeAvailable || IsAliyunRealtimeAvailable || IsXfyunRealtimeAvailable || IsDoubaoRealtimeAvailable || IsFunAsrRealtimeAvailable;
+        public bool IsRealtimeConnected => IsBaiduRealtimeConnected || IsTencentRealtimeConnected || IsAliyunRealtimeConnected || IsXfyunRealtimeConnected || IsDoubaoRealtimeConnected || IsFunAsrRealtimeConnected;
         public bool IsBaiduRealtimeConnected => _baiduRealtimeWs != null && _baiduRealtimeWs.State == WebSocketState.Open;
         public bool IsTencentRealtimeConnected => _tencentRealtimeWs != null && _tencentRealtimeWs.State == WebSocketState.Open;
         public bool IsAliyunRealtimeConnected => _aliyunRealtimeWs != null && _aliyunRealtimeWs.State == WebSocketState.Open;
+        public bool IsXfyunRealtimeConnected => _xfyunRealtimeWs != null && _xfyunRealtimeWs.State == WebSocketState.Open;
         public bool IsDoubaoRealtimeConnected => _doubaoRealtimeWs != null && _doubaoRealtimeWs.State == WebSocketState.Open;
         public bool IsFunAsrRealtimeConnected => _funAsrRealtimeWs != null && _funAsrRealtimeWs.State == WebSocketState.Open;
+        public long XfyunNoReceiveForMs =>
+            _xfyunLastRecvUtc == DateTime.MinValue ? 0 : Math.Max(0, (long)(DateTime.UtcNow - _xfyunLastRecvUtc).TotalMilliseconds);
+        public bool IsXfyunReceiveStalled(TimeSpan threshold) =>
+            IsXfyunProvider()
+            && IsXfyunRealtimeConnected
+            && _xfyunLastRecvUtc != DateTime.MinValue
+            && (DateTime.UtcNow - _xfyunLastRecvUtc) >= threshold
+            && _xfyunSendCount > _xfyunRecvCount;
 
         public CliProxyApiClient(ConfigManager config, bool useRealtimeSettings = false)
         {
@@ -194,6 +232,9 @@ namespace ImageColorChanger.Services.LiveCaption
             _aliAppKey = config?.LiveCaptionAliAppKey ?? string.Empty;
             _aliAccessKeyId = config?.LiveCaptionAliAccessKeyId ?? string.Empty;
             _aliAccessKeySecret = config?.LiveCaptionAliAccessKeySecret ?? string.Empty;
+            _xfyunAppId = config?.LiveCaptionXfyunAppId ?? string.Empty;
+            _xfyunApiKey = config?.LiveCaptionXfyunApiKey ?? string.Empty;
+            _xfyunApiSecret = config?.LiveCaptionXfyunApiSecret ?? string.Empty;
             _doubaoAppKey = config?.LiveCaptionDoubaoAppKey ?? string.Empty;
             _doubaoAccessKey = config?.LiveCaptionDoubaoAccessKey ?? string.Empty;
             _doubaoResourceId = string.IsNullOrWhiteSpace(config?.LiveCaptionDoubaoResourceId)
@@ -228,6 +269,12 @@ namespace ImageColorChanger.Services.LiveCaption
                     return !string.IsNullOrWhiteSpace(_aliAppKey)
                         && !string.IsNullOrWhiteSpace(_aliAccessKeyId)
                         && !string.IsNullOrWhiteSpace(_aliAccessKeySecret);
+                }
+                if (IsXfyunProvider())
+                {
+                    return !string.IsNullOrWhiteSpace(_xfyunAppId)
+                        && !string.IsNullOrWhiteSpace(_xfyunApiKey)
+                        && !string.IsNullOrWhiteSpace(_xfyunApiSecret);
                 }
                 if (IsDoubaoProvider())
                 {
@@ -269,6 +316,14 @@ namespace ImageColorChanger.Services.LiveCaption
                 LastTranscribeUrl = "https://nls-gateway-cn-shanghai.aliyuncs.com";
                 return string.Empty;
             }
+            if (IsXfyunProvider())
+            {
+                LastError = "讯飞当前仅接入实时识别，会话失败时不支持短语音回退";
+                LastTranscribeStatusCode = 0;
+                LastTranscribeElapsedMs = 0;
+                LastTranscribeUrl = XfyunRealtimeWsBaseUrl;
+                return string.Empty;
+            }
             if (IsDoubaoProvider())
             {
                 LastError = "豆包当前仅接入实时识别，会话失败时不支持短语音回退";
@@ -308,6 +363,10 @@ namespace ImageColorChanger.Services.LiveCaption
                 if (IsAliyunProvider())
                 {
                     return StartAliyunRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
+                }
+                if (IsXfyunProvider())
+                {
+                    return StartXfyunRealtimeSessionSafeAsync(onText, onStatus, cancellationToken);
                 }
                 if (IsDoubaoProvider())
                 {
@@ -370,6 +429,19 @@ namespace ImageColorChanger.Services.LiveCaption
             }
         }
 
+        private async Task<bool> StartXfyunRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
+        {
+            try { return await StartXfyunRealtimeSessionAsync(onText, onStatus, cancellationToken); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastError = $"讯飞实时ASR启动异常: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][StartFail] {LastError}");
+                onStatus?.Invoke(LastError);
+                return false;
+            }
+        }
+
         private async Task<bool> StartDoubaoRealtimeSessionSafeAsync(Action<LiveCaptionAsrText> onText, Action<string> onStatus, CancellationToken cancellationToken)
         {
             try { return await StartDoubaoRealtimeSessionAsync(onText, onStatus, cancellationToken); }
@@ -411,6 +483,10 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 return SendAliyunRealtimeAudioAsync(pcm16kMono, cancellationToken);
             }
+            if (IsXfyunProvider())
+            {
+                return SendXfyunRealtimeAudioAsync(pcm16kMono, cancellationToken);
+            }
             if (IsDoubaoProvider())
             {
                 return SendDoubaoRealtimeAudioAsync(pcm16kMono, cancellationToken);
@@ -438,6 +514,10 @@ namespace ImageColorChanger.Services.LiveCaption
             if (IsAliyunProvider())
             {
                 return StopAliyunRealtimeSessionAsync(cancellationToken);
+            }
+            if (IsXfyunProvider())
+            {
+                return StopXfyunRealtimeSessionAsync(cancellationToken);
             }
             if (IsDoubaoProvider())
             {
@@ -1084,6 +1164,212 @@ namespace ImageColorChanger.Services.LiveCaption
             }
         }
 
+        public async Task<bool> StartXfyunRealtimeSessionAsync(
+            Action<LiveCaptionAsrText> onText,
+            Action<string> onStatus,
+            CancellationToken cancellationToken)
+        {
+            if (!IsXfyunRealtimeAvailable)
+            {
+                LastError = "讯飞实时ASR配置不完整（需 AppID/APIKey/APISecret）";
+                return false;
+            }
+
+            await _xfyunRealtimeConnectLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (_xfyunRealtimeWs != null && _xfyunRealtimeWs.State == WebSocketState.Open)
+                {
+                    _xfyunRealtimeTextHandler = onText;
+                    _xfyunRealtimeStatusHandler = onStatus;
+                    return true;
+                }
+
+                _xfyunRealtimeTextHandler = onText;
+                _xfyunRealtimeStatusHandler = onStatus;
+                _xfyunAudioSeq = 0;
+                _xfyunSessionId = Guid.NewGuid().ToString("N");
+                _xfyunServerSessionEnded = false;
+                _xfyunLastSendUtc = DateTime.MinValue;
+                _xfyunLastRecvUtc = DateTime.MinValue;
+                _xfyunSendCount = 0;
+                _xfyunRecvCount = 0;
+                string url = BuildXfyunRealtimeWebSocketUrl();
+                LastTranscribeUrl = url;
+                LastError = string.Empty;
+                LastTranscribeStatusCode = 0;
+                LastTranscribeElapsedMs = 0;
+
+                _xfyunRealtimeWs?.Dispose();
+                _xfyunRealtimeWs = new ClientWebSocket();
+                _xfyunRealtimeWs.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+
+                var sw = Stopwatch.StartNew();
+                await _xfyunRealtimeWs.ConnectAsync(new Uri(url), cancellationToken);
+                sw.Stop();
+                LastTranscribeElapsedMs = sw.ElapsedMilliseconds;
+                _xfyunRealtimeReceiveTask = Task.Run(() => ReceiveXfyunRealtimeLoopAsync(_xfyunRealtimeWs, cancellationToken), cancellationToken);
+                _xfyunRealtimeStatusHandler?.Invoke("讯飞实时ASR连接成功");
+                LogXfyunDiag($"connect ok, elapsedMs={LastTranscribeElapsedMs}, state={_xfyunRealtimeWs.State}, host={XfyunRealtimeHost}, path={XfyunRealtimePath}");
+                return true;
+            }
+            catch (WebSocketException wsex)
+            {
+                LastError = $"讯飞实时ASR连接失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][ConnectFail] {LastError}");
+                LogXfyunDiag($"connect fail(websocket), err={wsex.WebSocketErrorCode}, msg={wsex.Message}");
+                onStatus?.Invoke(LastError);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LastError = $"讯飞实时ASR连接失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][ConnectFail] {LastError}");
+                LogXfyunDiag($"connect fail, ex={ex.GetType().Name}, msg={ex.Message}");
+                onStatus?.Invoke(LastError);
+                return false;
+            }
+            finally
+            {
+                _xfyunRealtimeConnectLock.Release();
+            }
+        }
+
+        public async Task<bool> SendXfyunRealtimeAudioAsync(byte[] pcm16kMono, CancellationToken cancellationToken)
+        {
+            if (pcm16kMono == null || pcm16kMono.Length == 0)
+            {
+                return false;
+            }
+
+            if (_xfyunRealtimeWs == null || _xfyunRealtimeWs.State != WebSocketState.Open)
+            {
+                LastError = "讯飞实时ASR连接未建立";
+                return false;
+            }
+            if (_xfyunServerSessionEnded)
+            {
+                LastError = "讯飞实时ASR会话已结束，等待自动重连";
+                return false;
+            }
+
+            await _xfyunRealtimeSendLock.WaitAsync(cancellationToken);
+            try
+            {
+                _xfyunAudioSeq++;
+                bool allZero = true;
+                for (int i = 0; i < pcm16kMono.Length; i++)
+                {
+                    if (pcm16kMono[i] != 0)
+                    {
+                        allZero = false;
+                        break;
+                    }
+                }
+                LogXfyunDiag($"send audio, bytes={pcm16kMono.Length}, seq={_xfyunAudioSeq}, silent={allZero}, wsState={_xfyunRealtimeWs.State}");
+                _xfyunLastSendUtc = DateTime.UtcNow;
+                _xfyunSendCount++;
+                if (_xfyunLastRecvUtc != DateTime.MinValue &&
+                    (_xfyunLastSendUtc - _xfyunLastRecvUtc).TotalSeconds >= 6)
+                {
+                    LogXfyunDiag(
+                        $"send-watchdog: no-recv-for={(int)(_xfyunLastSendUtc - _xfyunLastRecvUtc).TotalSeconds}s, " +
+                        $"sendCount={_xfyunSendCount}, recvCount={_xfyunRecvCount}, wsState={_xfyunRealtimeWs.State}");
+                }
+                await _xfyunRealtimeWs.SendAsync(
+                    new ArraySegment<byte>(pcm16kMono),
+                    WebSocketMessageType.Binary,
+                    true,
+                    cancellationToken);
+                return true;
+            }
+            catch (WebSocketException wsex)
+            {
+                LastError = $"讯飞实时ASR发送失败: {wsex.Message} (WebSocketError={wsex.WebSocketErrorCode})";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][SendFail] {LastError}");
+                LogXfyunDiag($"send fail(websocket), err={wsex.WebSocketErrorCode}, msg={wsex.Message}");
+                _xfyunRealtimeStatusHandler?.Invoke(LastError);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LastError = $"讯飞实时ASR发送失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][SendFail] {LastError}");
+                LogXfyunDiag($"send fail, ex={ex.GetType().Name}, msg={ex.Message}");
+                _xfyunRealtimeStatusHandler?.Invoke(LastError);
+                return false;
+            }
+            finally
+            {
+                _xfyunRealtimeSendLock.Release();
+            }
+        }
+
+        public async Task StopXfyunRealtimeSessionAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (_xfyunRealtimeWs != null && _xfyunRealtimeWs.State == WebSocketState.Open)
+                {
+                    if (string.IsNullOrWhiteSpace(_xfyunSessionId))
+                    {
+                        _xfyunSessionId = Guid.NewGuid().ToString("N");
+                    }
+                    LogXfyunDiag($"stop begin, sending end marker, sessionId={_xfyunSessionId}");
+                    string stopJson = JsonSerializer.Serialize(new
+                    {
+                        end = true,
+                        sessionId = _xfyunSessionId
+                    });
+                    byte[] stopPayload = Encoding.UTF8.GetBytes(stopJson);
+                    await _xfyunRealtimeWs.SendAsync(
+                        new ArraySegment<byte>(stopPayload),
+                        WebSocketMessageType.Text,
+                        true,
+                        cancellationToken);
+                    try
+                    {
+                        LogXfyunDiag("stop begin, close output");
+                        await _xfyunRealtimeWs.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "stop", cancellationToken);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+            finally
+            {
+                LogXfyunDiag("stop finalize, dispose websocket and reset state");
+                _xfyunAudioSeq = 0;
+                _xfyunSessionId = string.Empty;
+                _xfyunServerSessionEnded = false;
+                _xfyunLastSendUtc = DateTime.MinValue;
+                _xfyunLastRecvUtc = DateTime.MinValue;
+                _xfyunSendCount = 0;
+                _xfyunRecvCount = 0;
+                _xfyunRealtimeTextHandler = null;
+                _xfyunRealtimeStatusHandler = null;
+
+                if (_xfyunRealtimeWs != null)
+                {
+                    try
+                    {
+                        _xfyunRealtimeWs.Dispose();
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                    _xfyunRealtimeWs = null;
+                }
+            }
+        }
+
         public async Task<bool> StartDoubaoRealtimeSessionAsync(
             Action<LiveCaptionAsrText> onText,
             Action<string> onStatus,
@@ -1522,6 +1808,49 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 LastError = $"阿里云实时ASR接收失败: {ex.Message}";
                 _aliyunRealtimeStatusHandler?.Invoke(LastError);
+            }
+        }
+
+        private async Task ReceiveXfyunRealtimeLoopAsync(ClientWebSocket ws, CancellationToken cancellationToken)
+        {
+            byte[] buffer = new byte[8192];
+            try
+            {
+                LogXfyunDiag($"recv loop start, state={ws.State}");
+                while (ws.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                {
+                    (WebSocketMessageType type, byte[] payload) = await ReadWebSocketMessageAsync(ws, buffer, cancellationToken);
+                    if (type == WebSocketMessageType.Close)
+                    {
+                        LogXfyunDiag($"recv loop end(null/close), state={ws.State}, closeStatus={ws.CloseStatus}, closeDesc={ws.CloseStatusDescription}");
+                        return;
+                    }
+
+                    if (payload == null || payload.Length == 0)
+                    {
+                        continue;
+                    }
+                    if (type != WebSocketMessageType.Text)
+                    {
+                        LogXfyunDiag($"recv non-text frame ignored, type={type}, bytes={payload.Length}");
+                        continue;
+                    }
+
+                    string message = Encoding.UTF8.GetString(payload);
+                    HandleXfyunRealtimeMessage(message);
+                }
+                LogXfyunDiag($"recv loop exit, state={ws.State}, canceled={cancellationToken.IsCancellationRequested}, closeStatus={ws.CloseStatus}, closeDesc={ws.CloseStatusDescription}");
+            }
+            catch (OperationCanceledException)
+            {
+                LogXfyunDiag($"recv canceled, state={ws.State}, closeStatus={ws.CloseStatus}, closeDesc={ws.CloseStatusDescription}");
+            }
+            catch (Exception ex)
+            {
+                LastError = $"讯飞实时ASR接收失败: {ex.Message}";
+                Debug.WriteLine($"[LiveCaption][XfyunWS][ReceiveFail] {LastError}");
+                LogXfyunDiag($"recv fail, ex={ex.GetType().Name}, msg={ex.Message}, state={ws.State}, closeStatus={ws.CloseStatus}, closeDesc={ws.CloseStatusDescription}");
+                _xfyunRealtimeStatusHandler?.Invoke(LastError);
             }
         }
 
@@ -2162,6 +2491,82 @@ namespace ImageColorChanger.Services.LiveCaption
             }
         }
 
+        private void HandleXfyunRealtimeMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(message);
+                JsonElement root = doc.RootElement;
+                int code = TryGetInt(root, "code")
+                    ?? TryGetIntFromObject(root, "data", "code")
+                    ?? 0;
+                LastTranscribeStatusCode = code;
+
+                string msgType = TryGetString(root, "msg_type")
+                    ?? TryGetString(root, "action")
+                    ?? string.Empty;
+
+                if (code != 0 || string.Equals(msgType, "error", StringComparison.OrdinalIgnoreCase))
+                {
+                    string messageText = TryGetString(root, "message")
+                        ?? TryGetString(root, "desc")
+                        ?? TryGetStringFromObject(root, "data", "desc")
+                        ?? string.Empty;
+                    LastError = $"讯飞实时ASR错误: {code} {messageText}".Trim();
+                    _xfyunRealtimeStatusHandler?.Invoke(LastError);
+                    LogXfyunDiag($"recv error, code={code}, msgType={msgType}, msg={messageText}");
+                    return;
+                }
+
+                LastError = string.Empty;
+                (string text, bool sentenceFinal, bool sessionFinal, int segId) = ExtractXfyunRealtimeResult(root);
+                _xfyunLastRecvUtc = DateTime.UtcNow;
+                _xfyunRecvCount++;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    bool isFinal = sessionFinal;
+                    LogXfyunDiag($"recv msg, code={code}, msgType={msgType}, segId={segId}, textLen={text.Length}, sentenceFinal={sentenceFinal}, final={isFinal}");
+                    _xfyunRealtimeTextHandler?.Invoke(new LiveCaptionAsrText(text, isFinal));
+                }
+                else
+                {
+                    LogXfyunDiag($"recv msg, code={code}, msgType={msgType}, segId={segId}, empty-text, sentenceFinal={sentenceFinal}, final={sessionFinal}");
+                }
+
+                if (sessionFinal)
+                {
+                    _xfyunServerSessionEnded = true;
+                    _xfyunRealtimeStatusHandler?.Invoke("讯飞实时ASR会话结束");
+                    LogXfyunDiag("recv status=2(server session ended)");
+
+                    try
+                    {
+                        ClientWebSocket ws = _xfyunRealtimeWs;
+                        if (ws != null && (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived))
+                        {
+                            LogXfyunDiag("recv status=2 -> abort websocket to force reconnect");
+                            ws.Abort();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogXfyunDiag($"recv status=2 -> abort failed, ex={ex.GetType().Name}, msg={ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LastError = $"讯飞实时ASR消息解析失败: {ex.Message}";
+                _xfyunRealtimeStatusHandler?.Invoke(LastError);
+                LogXfyunDiag($"parse fail, ex={ex.GetType().Name}, msg={ex.Message}");
+            }
+        }
+
         private void HandleTencentRealtimeMessage(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
@@ -2261,6 +2666,63 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 LastError = $"豆包实时ASR消息解析失败: {ex.Message}";
                 _doubaoRealtimeStatusHandler?.Invoke(LastError);
+            }
+        }
+
+        private static (string Text, bool SentenceFinal, bool SessionFinal, int SegId) ExtractXfyunRealtimeResult(JsonElement root)
+        {
+            if (!root.TryGetProperty("data", out JsonElement dataEl) || dataEl.ValueKind != JsonValueKind.Object)
+            {
+                return (string.Empty, false, false, -1);
+            }
+            bool sessionFinal = TryGetBool(dataEl, "ls") ?? false;
+            int segId = TryGetInt(dataEl, "seg_id") ?? -1;
+
+            try
+            {
+                if (!dataEl.TryGetProperty("cn", out JsonElement cnEl) || cnEl.ValueKind != JsonValueKind.Object
+                    || !cnEl.TryGetProperty("st", out JsonElement stEl) || stEl.ValueKind != JsonValueKind.Object)
+                {
+                    return (string.Empty, false, sessionFinal, segId);
+                }
+
+                bool sentenceFinal = TryGetInt(stEl, "type") == 0;
+                if (!stEl.TryGetProperty("rt", out JsonElement rtEl) || rtEl.ValueKind != JsonValueKind.Array)
+                {
+                    return (string.Empty, sentenceFinal, sessionFinal, segId);
+                }
+
+                var sb = new StringBuilder();
+                foreach (JsonElement rtItem in rtEl.EnumerateArray())
+                {
+                    if (!rtItem.TryGetProperty("ws", out JsonElement wsEl) || wsEl.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (JsonElement wsItem in wsEl.EnumerateArray())
+                    {
+                        if (!wsItem.TryGetProperty("cw", out JsonElement cwEl) || cwEl.ValueKind != JsonValueKind.Array)
+                        {
+                            continue;
+                        }
+
+                        foreach (JsonElement cwItem in cwEl.EnumerateArray())
+                        {
+                            if (cwItem.TryGetProperty("w", out JsonElement wEl) && wEl.ValueKind == JsonValueKind.String)
+                            {
+                                sb.Append(wEl.GetString() ?? string.Empty);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return (sb.ToString(), sentenceFinal, sessionFinal, segId);
+            }
+            catch
+            {
+                return (string.Empty, false, sessionFinal, segId);
             }
         }
 
@@ -2398,6 +2860,52 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             return TryGetString(objEl, propertyName);
+        }
+
+        private string BuildXfyunRealtimeWebSocketUrl()
+        {
+            DateTimeOffset cstNow;
+            try
+            {
+                TimeZoneInfo cst = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                cstNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, cst);
+            }
+            catch
+            {
+                cstNow = DateTimeOffset.Now;
+            }
+
+            string utc = cstNow.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture)
+                + cstNow.ToString("zzz", CultureInfo.InvariantCulture).Replace(":", string.Empty);
+
+            if (string.IsNullOrWhiteSpace(_xfyunSessionId))
+            {
+                _xfyunSessionId = Guid.NewGuid().ToString("N");
+            }
+
+            var parameters = new SortedDictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["accessKeyId"] = _xfyunApiKey,
+                ["appId"] = _xfyunAppId,
+                ["audio_encode"] = "pcm_s16le",
+                ["lang"] = "autodialect",
+                ["samplerate"] = "16000",
+                ["utc"] = utc,
+                ["uuid"] = _xfyunSessionId
+            };
+
+            string baseString = string.Join(
+                "&",
+                parameters.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+
+            string signature;
+            using (var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(_xfyunApiSecret)))
+            {
+                signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(baseString)));
+            }
+
+            string query = $"{baseString}&{Uri.EscapeDataString("signature")}={Uri.EscapeDataString(signature)}";
+            return $"{XfyunRealtimeWsBaseUrl}?{query}";
         }
 
         private string BuildTencentRealtimeWebSocketUrl(string voiceId)
@@ -3027,6 +3535,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private bool IsBaiduProvider() => _provider == "baidu";
         private bool IsTencentProvider() => _provider == "tencent";
         private bool IsAliyunProvider() => _provider == "aliyun";
+        private bool IsXfyunProvider() => _provider == "xfyun";
         private bool IsDoubaoProvider() => _provider == "doubao";
         private bool IsFunAsrProvider() => _provider == "funasr";
 
@@ -3038,6 +3547,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 "baidu" => "baidu",
                 "tencent" => "tencent",
                 "aliyun" => "aliyun",
+                "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 _ => "baidu"
@@ -3189,6 +3699,14 @@ namespace ImageColorChanger.Services.LiveCaption
             }
             try
             {
+                Task.Run(() => StopXfyunRealtimeSessionAsync(CancellationToken.None)).Wait(800);
+            }
+            catch
+            {
+                // ignore
+            }
+            try
+            {
                 Task.Run(() => StopDoubaoRealtimeSessionAsync(CancellationToken.None)).Wait(800);
             }
             catch
@@ -3213,6 +3731,8 @@ namespace ImageColorChanger.Services.LiveCaption
             try { _tencentRealtimeConnectLock.Dispose(); } catch { }
             try { _aliyunRealtimeSendLock.Dispose(); } catch { }
             try { _aliyunRealtimeConnectLock.Dispose(); } catch { }
+            try { _xfyunRealtimeSendLock.Dispose(); } catch { }
+            try { _xfyunRealtimeConnectLock.Dispose(); } catch { }
             try { _doubaoRealtimeSendLock.Dispose(); } catch { }
             try { _doubaoRealtimeConnectLock.Dispose(); } catch { }
             try { _funAsrRealtimeSendLock.Dispose(); } catch { }
