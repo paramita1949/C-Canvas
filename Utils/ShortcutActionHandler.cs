@@ -45,6 +45,12 @@ namespace ImageColorChanger.Utils
         /// <returns>是否处理了该按键</returns>
         public async Task<bool> HandleEscapeAsync()
         {
+            // 投影中的“插入经文预览”优先：Esc 只取消预览，不关闭投影
+            if (_mainWindow.TryCancelProjectionVersePreview())
+            {
+                return true;
+            }
+
             // 优先检查拼音输入
             if (await HandlePinyinEscapeAsync())
             {

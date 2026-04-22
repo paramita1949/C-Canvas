@@ -22,6 +22,13 @@ namespace ImageColorChanger.UI
                 "WindowPreviewKeyDown",
                 $"raw={e.Key}, effective={key}, mods={Keyboard.Modifiers}, handled={e.Handled}, focused={Keyboard.FocusedElement?.GetType().Name ?? "null"}");
 
+            if (TryHandleProjectionVersePreviewConfirmCancelByKey(key))
+            {
+                e.Handled = true;
+                LogBibleQuickLocateDebug("WindowPreviewKeyDown", $"handled projection verse preview key={key}");
+                return;
+            }
+
             if (key == Key.Escape && HasAnyBibleVersePopupVisible())
             {
                 HideBibleVersePopupIfVisible();

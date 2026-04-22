@@ -49,6 +49,7 @@ namespace ImageColorChanger.UI.Controls
         private static readonly Regex PreviewVerseLineRegex = new(@"^\s*(\d+)\s+(.+)$", RegexOptions.Compiled);
 
         public event Action<int, int> PreviewVerseRangeConfirmed;
+        public event Action<bool> ConfirmActionRequested;
 
         private sealed class PreviewVerseItem
         {
@@ -171,7 +172,6 @@ namespace ImageColorChanger.UI.Controls
                 PreviewReferenceText.Visibility = Visibility.Collapsed;
                 PopulatePreviewVerses(previewContent, ResolvePreviewForegroundBrush(previewReference));
                 ApplyAdaptivePreviewLayout();
-                LogSelectionDebug("UpdateHint", $"configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}, hoverBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewHover") as System.Windows.Media.Brush)}");
             }
             else
             {
@@ -189,6 +189,18 @@ namespace ImageColorChanger.UI.Controls
 
             // 显示提示框
             Visibility = Visibility.Visible;
+        }
+
+        public void SetConfirmActionsVisible(bool visible, string confirmText = "确认", string cancelText = "取消")
+        {
+            if (ConfirmActionPanel == null || BtnPreviewConfirm == null || BtnPreviewCancel == null)
+            {
+                return;
+            }
+
+            ConfirmActionPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            BtnPreviewConfirm.Content = string.IsNullOrWhiteSpace(confirmText) ? "确认" : confirmText;
+            BtnPreviewCancel.Content = string.IsNullOrWhiteSpace(cancelText) ? "取消" : cancelText;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -523,7 +535,6 @@ namespace ImageColorChanger.UI.Controls
             {
                 _pendingStartVerse = verseItem.VerseNumber;
                 listBox.SelectedItem = verseItem;
-                LogSelectionDebug("PreviewSelectStart", $"verse={verseItem.VerseNumber}, configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}");
                 return;
             }
 
@@ -537,7 +548,6 @@ namespace ImageColorChanger.UI.Controls
             _pendingStartVerse = null;
             listBox.SelectedItem = null;
             PreviewVerseRangeConfirmed?.Invoke(start, end);
-            LogSelectionDebug("PreviewSelectEnd", $"start={start}, end={end}, configHighlight={ConfigManager.Instance?.BibleHighlightColor ?? "<null>"}, selectionBrush={DescribeBrush(TryFindResource("BrushBiblePinyinPreviewSelection") as System.Windows.Media.Brush)}");
             e.Handled = true;
         }
 
@@ -561,6 +571,7 @@ namespace ImageColorChanger.UI.Controls
         {
             StopCaretBlinking();
             Visibility = Visibility.Collapsed;
+            SetConfirmActionsVisible(false);
             MatchResultsPanel.Children.Clear();
             _inputDisplayText = string.Empty;
             InputText.Text = string.Empty;
@@ -582,6 +593,18 @@ namespace ImageColorChanger.UI.Controls
                 PreviewScrollViewer.MaxHeight = MinPreviewMaxHeight;
             }
             ApplyCompactWidth();
+        }
+
+        private void BtnPreviewCancel_Click(object sender, RoutedEventArgs e)
+        {
+            ConfirmActionRequested?.Invoke(false);
+            e.Handled = true;
+        }
+
+        private void BtnPreviewConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            ConfirmActionRequested?.Invoke(true);
+            e.Handled = true;
         }
 
         public void RefreshThemeResources()
@@ -608,21 +631,6 @@ namespace ImageColorChanger.UI.Controls
             }
         }
 
-        [System.Diagnostics.Conditional("DEBUG")]
-        private static void LogSelectionDebug(string stage, string detail)
-        {
-            System.Diagnostics.Debug.WriteLine($"[BiblePinyinPreviewColor][{stage}] {detail}");
-        }
-
-        private static string DescribeBrush(System.Windows.Media.Brush brush)
-        {
-            if (brush is SolidColorBrush solid)
-            {
-                return $"#{solid.Color.A:X2}{solid.Color.R:X2}{solid.Color.G:X2}{solid.Color.B:X2}";
-            }
-
-            return brush?.ToString() ?? "<null>";
-        }
     }
 }
 

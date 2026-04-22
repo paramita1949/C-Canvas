@@ -22,6 +22,9 @@ namespace ImageColorChanger.Managers
 
                 RunOnMainDispatcher(() => OpenProjectionOnUiThread(screen));
                 StartProjectionAuthWatch();
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => true (source=OpenProjection)");
+#endif
                 ProjectionStateChanged?.Invoke(this, true);
                 return true;
             }
@@ -85,6 +88,9 @@ namespace ImageColorChanger.Managers
             ClearLockedVideo();
             _projectionWindow = null;
             ClearProjectionUiReferences();
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=ProjectionWindow_Closed)");
+#endif
             ProjectionStateChanged?.Invoke(this, false);
         }
 
@@ -190,6 +196,9 @@ namespace ImageColorChanger.Managers
                 bool hadProjection = RunOnMainDispatcher(CloseProjectionOnUiThread);
                 if (hadProjection)
                 {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=CloseProjection)");
+#endif
                     ProjectionStateChanged?.Invoke(this, false);
                 }
 

@@ -125,6 +125,36 @@
                     </ScrollViewer>
                 </StackPanel>
             </Border>
+
+            <!-- 投影确认动作区（按需启用） -->
+            <StackPanel x:Name="ConfirmActionPanel"
+                        Visibility="Collapsed"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,10,0,0">
+                <Button x:Name="BtnPreviewCancel"
+                        Content="取消"
+                        MinWidth="86"
+                        Height="30"
+                        Margin="0,0,8,0"
+                        Padding="12,0"
+                        Foreground="White"
+                        Background="#22000000"
+                        BorderBrush="#66FFFFFF"
+                        BorderThickness="1"
+                        Click="BtnPreviewCancel_Click"/>
+                <Button x:Name="BtnPreviewConfirm"
+                        Content="确认"
+                        MinWidth="96"
+                        Height="30"
+                        Padding="12,0"
+                        Foreground="White"
+                        Background="#FF5722"
+                        BorderBrush="#FF5722"
+                        BorderThickness="1"
+                        FontWeight="SemiBold"
+                        Click="BtnPreviewConfirm_Click"/>
+            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

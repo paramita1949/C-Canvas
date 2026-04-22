@@ -42,6 +42,9 @@ namespace ImageColorChanger.UI
         private Rect _biblePopupOverlayLastRect = Rect.Empty;
         private Rect _biblePopupOverlayLastVerseViewportRect = Rect.Empty;
         private bool _suppressNextProjectionAnimation;
+        private bool _isProjectionVersePreviewActive;
+        private TaskCompletionSource<bool> _projectionVersePreviewTcs;
+        private UI.Controls.BiblePinyinHintControl _projectionVersePreviewControl;
 
         private bool HasAnyBibleVersePopupVisible()
         {
@@ -74,7 +77,7 @@ namespace ImageColorChanger.UI
                 }
 
                 string previewContent = FormatVerseWithNumbers(verses);
-                bool confirmed = ShowBibleProjectionPreviewDialog(reference, previewContent);
+                bool confirmed = await ShowBibleProjectionPreviewLikeTabAsync(reference, previewContent);
                 if (!confirmed)
                 {
                     return;
@@ -128,163 +131,155 @@ namespace ImageColorChanger.UI
             ShowMainBibleVersePopup(reference, content, config, popupAutoHideSeconds);
         }
 
-        private bool ShowBibleProjectionPreviewDialog(string reference, string previewContent)
+        private async Task<bool> ShowBibleProjectionPreviewLikeTabAsync(string reference, string previewContent)
         {
-            var dialog = new Window
+            var hintControl = TextEditorBiblePinyinHintControl ?? BiblePinyinHintControl;
+            if (hintControl == null)
             {
-                Title = "经文预览",
-                Width = 720,
-                Height = 520,
-                MinWidth = 640,
-                MinHeight = 420,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize,
-                ShowInTaskbar = false,
-                Background = System.Windows.Media.Brushes.Transparent,
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true
-            };
+                var confirm = WpfMessageBox.Show(
+                    $"已选中经文：{reference}\n\n是否弹窗显示？",
+                    "经文投影确认",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                return confirm == MessageBoxResult.Yes;
+            }
 
-            var root = new Border
+            // 复用 TAB 搜索预览控件的显示逻辑：同一控件、同一位置、同一交互层级。
+            if (_pinyinInputManager?.IsActive == true)
             {
-                CornerRadius = new CornerRadius(16),
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 250, 252)),
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(226, 232, 240)),
-                BorderThickness = new Thickness(1),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    BlurRadius = 28,
-                    ShadowDepth = 0,
-                    Opacity = 0.18,
-                    Color = System.Windows.Media.Colors.Black
-                }
-            };
+                _pinyinInputManager.Deactivate();
+            }
 
-            var layout = new Grid
+            hintControl.UpdateHint(
+                $"经文预览 {reference}",
+                new List<ImageColorChanger.Services.BibleBookMatch>(),
+                reference,
+                previewContent,
+                _configManager?.BiblePreviewFontSize ?? 35d);
+            hintControl.SetConfirmActionsVisible(true, "确认投影", "取消");
+
+            _projectionVersePreviewControl = hintControl;
+            _projectionVersePreviewTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _isProjectionVersePreviewActive = true;
+            PreviewKeyDown += MainWindow_ProjectionVersePreview_PreviewKeyDown;
+            PreviewMouseDown += MainWindow_ProjectionVersePreview_PreviewMouseDown;
+            _projectionVersePreviewControl.ConfirmActionRequested += MainWindow_ProjectionVersePreview_ConfirmActionRequested;
+
+            Focus();
+            Keyboard.Focus(this);
+            ShowStatus("经文预览：点击确认/取消，或 Enter 确认、Esc 取消");
+
+            bool result = false;
+            try
             {
-                Margin = new Thickness(26)
-            };
-            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var title = new TextBlock
+                result = await _projectionVersePreviewTcs.Task;
+            }
+            finally
             {
-                Text = "投影经文预览",
-                FontSize = 24,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(15, 23, 42))
-            };
-            Grid.SetRow(title, 0);
-            layout.Children.Add(title);
+                CleanupProjectionVersePreview();
+            }
 
-            var refText = new TextBlock
+            return result;
+        }
+
+        private void MainWindow_ProjectionVersePreview_ConfirmActionRequested(bool confirmed)
+        {
+            if (!_isProjectionVersePreviewActive || _projectionVersePreviewTcs == null)
             {
-                Text = reference ?? string.Empty,
-                Margin = new Thickness(0, 10, 0, 16),
-                FontSize = 16,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235))
-            };
-            Grid.SetRow(refText, 1);
-            layout.Children.Add(refText);
+                return;
+            }
 
-            var previewBox = new System.Windows.Controls.TextBox
+            _projectionVersePreviewTcs.TrySetResult(confirmed);
+        }
+
+        private void MainWindow_ProjectionVersePreview_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (!_isProjectionVersePreviewActive || _projectionVersePreviewTcs == null)
             {
-                IsReadOnly = true,
-                Text = previewContent ?? string.Empty,
-                TextWrapping = TextWrapping.Wrap,
-                AcceptsReturn = true,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Padding = new Thickness(16),
-                FontSize = 18,
-                FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei"),
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59)),
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225)),
-                Background = System.Windows.Media.Brushes.White,
-                CaretBrush = System.Windows.Media.Brushes.Transparent
-            };
-            Grid.SetRow(previewBox, 2);
-            layout.Children.Add(previewBox);
+                return;
+            }
 
-            var actionPanel = new Grid
+            if (e.Key == Key.Enter)
             {
-                Margin = new Thickness(0, 18, 0, 0)
-            };
-            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            actionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var hint = new TextBlock
+                e.Handled = true;
+                _projectionVersePreviewTcs.TrySetResult(true);
+            }
+            else if (e.Key == Key.Escape)
             {
-                Text = "确认后将以弹窗方式投影显示该段经文",
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139)),
-                FontSize = 13
-            };
-            Grid.SetColumn(hint, 0);
-            actionPanel.Children.Add(hint);
+                e.Handled = true;
+                _projectionVersePreviewTcs.TrySetResult(false);
+            }
+        }
 
-            var cancelBtn = new System.Windows.Controls.Button
+        private void MainWindow_ProjectionVersePreview_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (!_isProjectionVersePreviewActive || _projectionVersePreviewTcs == null || e.OriginalSource is not DependencyObject source)
             {
-                Content = "取消",
-                Width = 112,
-                Height = 42,
-                Margin = new Thickness(10, 0, 0, 0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Background = System.Windows.Media.Brushes.White,
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(148, 163, 184)),
-                BorderThickness = new Thickness(1),
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 65, 85)),
-                FontSize = 14
-            };
-            cancelBtn.Click += (_, _) => dialog.DialogResult = false;
-            Grid.SetColumn(cancelBtn, 1);
-            actionPanel.Children.Add(cancelBtn);
+                return;
+            }
 
-            var confirmBtn = new System.Windows.Controls.Button
+            bool clickedHint =
+                _projectionVersePreviewControl != null &&
+                (ReferenceEquals(source, _projectionVersePreviewControl) || IsDescendantOf(source, _projectionVersePreviewControl));
+
+            if (!clickedHint)
             {
-                Content = "投影弹窗显示",
-                Width = 152,
-                Height = 42,
-                Margin = new Thickness(10, 0, 0, 0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)),
-                BorderBrush = System.Windows.Media.Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground = System.Windows.Media.Brushes.White,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold
-            };
-            confirmBtn.Click += (_, _) => dialog.DialogResult = true;
-            Grid.SetColumn(confirmBtn, 2);
-            actionPanel.Children.Add(confirmBtn);
+                e.Handled = true;
+                _projectionVersePreviewTcs.TrySetResult(false);
+            }
+        }
 
-            Grid.SetRow(actionPanel, 3);
-            layout.Children.Add(actionPanel);
-
-            root.Child = layout;
-            dialog.Content = root;
-            dialog.Loaded += (_, _) => previewBox.Focus();
-            dialog.KeyDown += (_, e) =>
+        private void CleanupProjectionVersePreview()
+        {
+            if (!_isProjectionVersePreviewActive)
             {
-                if (e.Key == Key.Escape)
-                {
-                    dialog.DialogResult = false;
-                    e.Handled = true;
-                }
-                else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-                {
-                    dialog.DialogResult = true;
-                    e.Handled = true;
-                }
-            };
+                return;
+            }
 
-            return dialog.ShowDialog() == true;
+            PreviewKeyDown -= MainWindow_ProjectionVersePreview_PreviewKeyDown;
+            PreviewMouseDown -= MainWindow_ProjectionVersePreview_PreviewMouseDown;
+            if (_projectionVersePreviewControl != null)
+            {
+                _projectionVersePreviewControl.ConfirmActionRequested -= MainWindow_ProjectionVersePreview_ConfirmActionRequested;
+                _projectionVersePreviewControl.SetConfirmActionsVisible(false);
+            }
+            _projectionVersePreviewControl?.Hide();
+            _projectionVersePreviewControl = null;
+            _projectionVersePreviewTcs = null;
+            _isProjectionVersePreviewActive = false;
+        }
+
+        internal bool TryHandleProjectionVersePreviewConfirmCancelByKey(Key key)
+        {
+            if (!_isProjectionVersePreviewActive || _projectionVersePreviewTcs == null)
+            {
+                return false;
+            }
+
+            if (key == Key.Enter)
+            {
+                _projectionVersePreviewTcs.TrySetResult(true);
+                return true;
+            }
+
+            if (key == Key.Escape)
+            {
+                _projectionVersePreviewTcs.TrySetResult(false);
+                return true;
+            }
+
+            return false;
+        }
+
+        internal bool TryCancelProjectionVersePreview()
+        {
+            if (!_isProjectionVersePreviewActive || _projectionVersePreviewTcs == null)
+            {
+                return false;
+            }
+
+            _projectionVersePreviewTcs.TrySetResult(false);
+            return true;
         }
 
         private static string BuildBibleReference(string bookName, int chapter, int startVerse, int endVerse, BiblePopupTitleFormat format)

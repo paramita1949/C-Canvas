@@ -12,47 +12,28 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private DateTime _projectionToggleDebounceUntilUtc = DateTime.MinValue;
+
         private void BtnProjection_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                var nowUtc = DateTime.UtcNow;
+                if (nowUtc < _projectionToggleDebounceUntilUtc)
+                {
+                    return;
+                }
+                _projectionToggleDebounceUntilUtc = nowUtc.AddMilliseconds(500);
+
                 // 如果是圣经模式，处理圣经投影
                 if (BibleVerseScrollViewer.Visibility == Visibility.Visible && _isBibleMode)
                 {
-                    if (!_projectionManager.IsProjectionActive)
-                    {
-                        _projectionManager.ToggleProjection();
-                        if (_projectionManager.IsProjectionActive)
-                        {
-                            Dispatcher.InvokeAsync(() =>
-                            {
-                                OnProjectionStateChanged(true);
-                            }, System.Windows.Threading.DispatcherPriority.Background);
-                        }
-                    }
-                    else
-                    {
-                        _projectionManager.ToggleProjection();
-                    }
+                    _projectionManager.ToggleProjection();
                 }
                 // 如果是歌词模式，处理歌词投影
                 else if (LyricsEditorPanel.Visibility == Visibility.Visible)
                 {
-                    if (!_projectionManager.IsProjectionActive)
-                    {
-                        _projectionManager.ToggleProjection();
-                        if (_projectionManager.IsProjectionActive)
-                        {
-                            Dispatcher.InvokeAsync(() =>
-                            {
-                                OnProjectionStateChanged(true);
-                            }, System.Windows.Threading.DispatcherPriority.Background);
-                        }
-                    }
-                    else
-                    {
-                        _projectionManager.ToggleProjection();
-                    }
+                    _projectionManager.ToggleProjection();
                 }
                 // 如果是文本编辑器模式，先更新投影内容
                 else if (TextEditorPanel.Visibility == Visibility.Visible && _currentTextProject != null)
@@ -201,7 +182,7 @@ namespace ImageColorChanger.UI
                     SetProjectionButtonContent(false);
                     BtnProjection.Background = System.Windows.Media.Brushes.Transparent;
                     DisableGlobalHotKeys();
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
+                    _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
                     StopVideoNdiTimer();
 
                     if (_projectionTimeoutTimer != null)
