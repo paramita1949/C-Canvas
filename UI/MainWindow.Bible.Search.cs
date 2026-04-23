@@ -110,6 +110,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BibleHistoryItem_Click(object sender, MouseButtonEventArgs e)
         {
+            HideBibleHistoryPreviewPopup();
+
             //#if DEBUG
             //System.Diagnostics.Debug.WriteLine($"[历史记录点击] ========== 开始 ==========");
             //#endif
@@ -271,6 +273,155 @@ namespace ImageColorChanger.UI
         {
             // 此事件暂时保留，用于未来可能的选中状态同步
             // 实际的经文加载由BibleHistoryItem_Click事件处理，避免重复加载
+        }
+
+        private async void BibleHistoryItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_configManager.BibleHistoryHoverPreviewEnabled)
+            {
+                return;
+            }
+
+            if (sender is not Border border || border.DataContext is not BibleHistoryItem item)
+            {
+                return;
+            }
+
+            if (item.BookId <= 0 || item.Chapter <= 0 || item.StartVerse <= 0)
+            {
+                HideBibleHistoryPreviewPopup();
+                return;
+            }
+
+            CancelBibleHistoryPreviewPendingTask();
+            _bibleHistoryPreviewPendingItem = item;
+            _bibleHistoryPreviewCts = new System.Threading.CancellationTokenSource();
+            var token = _bibleHistoryPreviewCts.Token;
+
+            try
+            {
+                await Task.Delay(120, token);
+                if (token.IsCancellationRequested || _bibleHistoryPreviewPendingItem != item)
+                {
+                    return;
+                }
+
+                int endVerse = item.EndVerse > 0 ? item.EndVerse : item.StartVerse;
+                var verses = await _bibleService.GetVerseRangeAsync(item.BookId, item.Chapter, item.StartVerse, endVerse);
+                if (token.IsCancellationRequested || _bibleHistoryPreviewPendingItem != item)
+                {
+                    return;
+                }
+
+                var book = BibleBookConfig.GetBook(item.BookId);
+                string reference = $"{book?.Name ?? "未知书卷"} {item.Chapter}:{item.StartVerse}";
+                if (endVerse != item.StartVerse)
+                {
+                    reference += $"-{endVerse}";
+                }
+
+                string content = verses == null || verses.Count == 0
+                    ? "暂无经文内容"
+                    : string.Join(Environment.NewLine, verses.Select(v => $"{v.Verse}. {v.Scripture}"));
+
+                if (BibleHistoryPreviewReferenceText != null)
+                {
+                    BibleHistoryPreviewReferenceText.Text = reference;
+                }
+
+                if (BibleHistoryPreviewContentText != null)
+                {
+                    BibleHistoryPreviewContentText.Text = content;
+                }
+
+                if (BibleHistoryPreviewPopup != null)
+                {
+                    System.Windows.Point itemTopLeftScreen = border.PointToScreen(new System.Windows.Point(0, 0));
+                    double virtualRight = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth;
+                    bool placeLeft = itemTopLeftScreen.X + border.ActualWidth + 24 + 430 > virtualRight;
+
+                    BibleHistoryPreviewPopup.PlacementTarget = border;
+                    BibleHistoryPreviewPopup.Placement = placeLeft
+                        ? System.Windows.Controls.Primitives.PlacementMode.Left
+                        : System.Windows.Controls.Primitives.PlacementMode.Right;
+                    BibleHistoryPreviewPopup.HorizontalOffset = placeLeft ? -8 : 8;
+                    BibleHistoryPreviewPopup.VerticalOffset = 0;
+                    BibleHistoryPreviewPopup.IsOpen = true;
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // ignore
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                Debug.WriteLine($"[BibleHistoryPreview] show failed: {ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
+        }
+
+        private async void BibleHistoryItem_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_configManager.BibleHistoryHoverPreviewEnabled)
+            {
+                return;
+            }
+
+            CancelBibleHistoryPreviewPendingTask();
+            _bibleHistoryPreviewPendingItem = null;
+            _bibleHistoryPreviewCts = new System.Threading.CancellationTokenSource();
+            var token = _bibleHistoryPreviewCts.Token;
+
+            try
+            {
+                await Task.Delay(180, token);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                HideBibleHistoryPreviewPopup();
+            }
+            catch (TaskCanceledException)
+            {
+                // ignore
+            }
+        }
+
+        private void CancelBibleHistoryPreviewPendingTask()
+        {
+            if (_bibleHistoryPreviewCts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _bibleHistoryPreviewCts.Cancel();
+            }
+            catch
+            {
+            }
+
+            _bibleHistoryPreviewCts.Dispose();
+            _bibleHistoryPreviewCts = null;
+        }
+
+        private bool HideBibleHistoryPreviewPopup()
+        {
+            CancelBibleHistoryPreviewPendingTask();
+            _bibleHistoryPreviewPendingItem = null;
+
+            if (BibleHistoryPreviewPopup == null || !BibleHistoryPreviewPopup.IsOpen)
+            {
+                return false;
+            }
+
+            BibleHistoryPreviewPopup.IsOpen = false;
+            return true;
         }
 
         private async Task HandleBibleHistoryItemVerseSelectionAsync(BibleHistoryItem item)

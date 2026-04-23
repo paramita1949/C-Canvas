@@ -95,6 +95,10 @@ namespace ImageColorChanger.UI
                         ApplyBibleSettings();
                         ApplyBibleSearchResultFontSizes();
                         await ApplyLiveCaptionRecognitionStateFromConfigAsync();
+                        if (!_configManager.BibleHistoryHoverPreviewEnabled)
+                        {
+                            HideBibleHistoryPreviewPopup();
+                        }
                         
                         // 如果投影已开启，重新渲染投影（保持当前经文和高亮状态）
                         if (_projectionManager != null && _projectionManager.IsProjecting)

@@ -79,6 +79,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BibleHistoryList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            HideBibleHistoryPreviewPopup();
+
             if (BibleHistoryScrollViewer != null)
             {
                 // 计算滚动偏移量

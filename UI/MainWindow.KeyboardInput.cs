@@ -29,6 +29,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (key == Key.Escape && HideBibleHistoryPreviewPopup())
+            {
+                e.Handled = true;
+                LogBibleQuickLocateDebug("WindowPreviewKeyDown", "handled Escape for bible history hover preview");
+                return;
+            }
+
             if (key == Key.Escape && HasAnyBibleVersePopupVisible())
             {
                 HideBibleVersePopupIfVisible();

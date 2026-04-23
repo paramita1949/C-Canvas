@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using ImageColorChanger.Core;
@@ -82,7 +83,11 @@ namespace ImageColorChanger.UI
                     ChkSaveBibleHistory?.UpdateLayout();
                     UpdateLayout();
 
-                    FrameworkElement bottomAnchor = (FrameworkElement)ChkSaveBibleHistory ?? MainContentPanel;
+                    FrameworkElement bottomAnchor = ChkSaveBibleHistory;
+                    if (bottomAnchor == null)
+                    {
+                        bottomAnchor = MainContentPanel;
+                    }
                     var anchorBottom = bottomAnchor.TranslatePoint(new System.Windows.Point(0, bottomAnchor.ActualHeight), this).Y;
                     const double bottomSafetyPadding = 4d;
                     double targetHeight = Math.Ceiling(anchorBottom + bottomSafetyPadding);
@@ -366,15 +371,13 @@ namespace ImageColorChanger.UI
                 }
 
                 // 保存投影记录复选框
-                if (ChkBibleShortPhraseRecognition != null)
-                {
-                    ChkBibleShortPhraseRecognition.IsChecked = _configManager.LiveCaptionShortPhraseEnabled;
-                }
-
                 if (ChkSaveBibleHistory != null)
                 {
                     ChkSaveBibleHistory.IsChecked = _configManager.SaveBibleHistory;
                 }
+
+                SetBinaryToggleState(BtnBibleShortPhraseOn, BtnBibleShortPhraseOff, _configManager.LiveCaptionShortPhraseEnabled);
+                SetBinaryToggleState(BtnBibleHistoryPreviewOn, BtnBibleHistoryPreviewOff, _configManager.BibleHistoryHoverPreviewEnabled);
                 //#if DEBUG
                 //Debug.WriteLine("[圣经设置] 已加载当前设置");
                 //#endif
@@ -449,6 +452,52 @@ namespace ImageColorChanger.UI
                     return;
                 }
             }
+        }
+
+        private void SelectComboBoxItemByTag(System.Windows.Controls.ComboBox comboBox, string tag)
+        {
+            if (comboBox == null)
+            {
+                return;
+            }
+
+            foreach (var item in comboBox.Items)
+            {
+                if (item is System.Windows.Controls.ComboBoxItem comboItem &&
+                    string.Equals(comboItem.Tag?.ToString(), tag, StringComparison.Ordinal))
+                {
+                    comboItem.IsSelected = true;
+                    return;
+                }
+            }
+        }
+
+        private static void SetBinaryToggleState(ToggleButton onButton, ToggleButton offButton, bool enabled)
+        {
+            if (onButton != null)
+            {
+                onButton.IsChecked = enabled;
+            }
+
+            if (offButton != null)
+            {
+                offButton.IsChecked = !enabled;
+            }
+        }
+
+        private static bool ReadBinaryToggleState(ToggleButton onButton, ToggleButton offButton, bool defaultValue)
+        {
+            if (onButton?.IsChecked == true)
+            {
+                return true;
+            }
+
+            if (offButton?.IsChecked == true)
+            {
+                return false;
+            }
+
+            return defaultValue;
         }
 
         /// <summary>
@@ -761,10 +810,11 @@ namespace ImageColorChanger.UI
                     _configManager.SaveBibleHistory = ChkSaveBibleHistory.IsChecked == true;
                 }
 
-                if (ChkBibleShortPhraseRecognition != null)
-                {
-                    _configManager.LiveCaptionShortPhraseEnabled = ChkBibleShortPhraseRecognition.IsChecked == true;
-                }
+                _configManager.LiveCaptionShortPhraseEnabled =
+                    ReadBinaryToggleState(BtnBibleShortPhraseOn, BtnBibleShortPhraseOff, _configManager.LiveCaptionShortPhraseEnabled);
+
+                _configManager.BibleHistoryHoverPreviewEnabled =
+                    ReadBinaryToggleState(BtnBibleHistoryPreviewOn, BtnBibleHistoryPreviewOff, _configManager.BibleHistoryHoverPreviewEnabled);
 
                 //#if DEBUG
                 //Debug.WriteLine("[圣经设置] 设置已实时保存");
@@ -882,14 +932,24 @@ namespace ImageColorChanger.UI
 
         }
 
-        private void BibleShortPhraseRecognition_Changed(object sender, RoutedEventArgs e)
+        private void BibleShortPhraseToggle_Click(object sender, RoutedEventArgs e)
         {
             if (_isLoading) return;
 
-            if (ChkBibleShortPhraseRecognition != null)
-            {
-                _configManager.LiveCaptionShortPhraseEnabled = ChkBibleShortPhraseRecognition.IsChecked == true;
-            }
+            bool enable = ReferenceEquals(sender, BtnBibleShortPhraseOn);
+            SetBinaryToggleState(BtnBibleShortPhraseOn, BtnBibleShortPhraseOff, enable);
+            _configManager.LiveCaptionShortPhraseEnabled = enable;
+
+            _onStyleChanged?.Invoke();
+        }
+
+        private void BibleHistoryPreviewToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isLoading) return;
+
+            bool enable = ReferenceEquals(sender, BtnBibleHistoryPreviewOn);
+            SetBinaryToggleState(BtnBibleHistoryPreviewOn, BtnBibleHistoryPreviewOff, enable);
+            _configManager.BibleHistoryHoverPreviewEnabled = enable;
 
             _onStyleChanged?.Invoke();
         }

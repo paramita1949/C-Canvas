@@ -54,6 +54,44 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin" Value="7,0,0,0"/>
         </Style>
+
+        <Style x:Key="BinarySwitchButtonStyle" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Foreground" Value="#FFD0D0D0"/>
+            <Setter Property="Background" Value="#474747"/>
+            <Setter Property="BorderBrush" Value="#6A6A6A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#B0B0B0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="#2D6CDF"/>
+                                <Setter Property="BorderBrush" Value="#2D6CDF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -336,6 +374,50 @@
                 </ComboBox>
             </Grid>
 
+            <!-- 经文预览（历史记录悬浮） -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="经文预览" Style="{StaticResource LabelStyle}" Width="72"/>
+                <UniformGrid Grid.Column="1" Columns="2">
+                    <ToggleButton x:Name="BtnBibleHistoryPreviewOn"
+                                  Content="开启"
+                                  Style="{StaticResource BinarySwitchButtonStyle}"
+                                  Margin="0,0,3,0"
+                                  Click="BibleHistoryPreviewToggle_Click"/>
+                    <ToggleButton x:Name="BtnBibleHistoryPreviewOff"
+                                  Content="关闭"
+                                  Style="{StaticResource BinarySwitchButtonStyle}"
+                                  Margin="3,0,0,0"
+                                  Click="BibleHistoryPreviewToggle_Click"/>
+                </UniformGrid>
+            </Grid>
+
+            <!-- 经文识别 -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="经文识别" Style="{StaticResource LabelStyle}" Width="72"/>
+                <UniformGrid Grid.Column="1" Columns="2">
+                    <ToggleButton x:Name="BtnBibleShortPhraseOn"
+                                  Content="开启"
+                                  Style="{StaticResource BinarySwitchButtonStyle}"
+                                  Margin="0,0,3,0"
+                                  Click="BibleShortPhraseToggle_Click"/>
+                    <ToggleButton x:Name="BtnBibleShortPhraseOff"
+                                  Content="关闭"
+                                  Style="{StaticResource BinarySwitchButtonStyle}"
+                                  Margin="3,0,0,0"
+                                  Click="BibleShortPhraseToggle_Click"/>
+                </UniformGrid>
+            </Grid>
+
             <!-- 颜色设置（横向一行：背景 ■ 经文 ■ 标题 ■ 节号 ■ 选中 ■） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <TextBlock Text="背景" Style="{StaticResource ColorLabelStyle}" Margin="0,0,5,0"/>
@@ -368,19 +450,6 @@
                         Background="#FFFF00"
                         MouseLeftButtonDown="ColorButton_Click"/>
             </StackPanel>
-
-            <!-- 经文识别选项 -->
-            <CheckBox x:Name="ChkBibleShortPhraseRecognition"
-                      Content="经文识别"
-                      Foreground="White"
-                      FontSize="13"
-                      FontFamily="Microsoft YaHei UI"
-                      HorizontalAlignment="Right"
-                      VerticalContentAlignment="Center"
-                      Padding="0"
-                      Margin="0,6,0,0"
-                      Checked="BibleShortPhraseRecognition_Changed"
-                      Unchecked="BibleShortPhraseRecognition_Changed"/>
 
             <!-- 保存投影记录选项 -->
             <CheckBox x:Name="ChkSaveBibleHistory" 

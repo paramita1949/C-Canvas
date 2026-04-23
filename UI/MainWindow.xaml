@@ -503,6 +503,8 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="8,6"
                                                 Cursor="Hand"
+                                                MouseEnter="BibleHistoryItem_MouseEnter"
+                                                MouseLeave="BibleHistoryItem_MouseLeave"
                                                 MouseLeftButtonDown="BibleHistoryItem_Click">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -559,6 +561,51 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </ScrollViewer>
+
+                        <Popup x:Name="BibleHistoryPreviewPopup"
+                               Placement="Right"
+                               PlacementTarget="{Binding ElementName=BibleHistoryList}"
+                               HorizontalOffset="8"
+                               VerticalOffset="0"
+                               AllowsTransparency="True"
+                               StaysOpen="True"
+                               Focusable="False"
+                               IsHitTestVisible="False"
+                               PopupAnimation="Fade">
+                            <Border Background="#EE101828"
+                                    BorderBrush="#335D6B84"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="14"
+                                    Width="430"
+                                    SnapsToDevicePixels="True">
+                                <StackPanel>
+                                    <TextBlock x:Name="BibleHistoryPreviewReferenceText"
+                                               Text=""
+                                               Foreground="#FFB8D7FF"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,8"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <Border Background="#22000000"
+                                            BorderBrush="#33475567"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="8">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      MaxHeight="300">
+                                            <TextBlock x:Name="BibleHistoryPreviewContentText"
+                                                       Text=""
+                                                       Foreground="#FFF8FAFC"
+                                                       FontSize="13"
+                                                       TextWrapping="Wrap"
+                                                       LineHeight="24"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
                             
                             <!-- 历史操作按钮 -->
                             <Border Grid.Row="1" Background="#3C3C3C" BorderBrush="#4D4D4D" BorderThickness="0,0,0,1" Padding="5">

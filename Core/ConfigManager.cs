@@ -956,6 +956,22 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 是否启用圣经历史记录悬浮预览（默认：true）
+        /// </summary>
+        public bool BibleHistoryHoverPreviewEnabled
+        {
+            get => _config.BibleHistoryHoverPreviewEnabled;
+            set
+            {
+                if (_config.BibleHistoryHoverPreviewEnabled != value)
+                {
+                    _config.BibleHistoryHoverPreviewEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 是否启用圣经 AI 语音识别（默认：true）
         /// </summary>
         public bool BibleAiVoiceRecognitionEnabled
@@ -2150,6 +2166,11 @@ namespace ImageColorChanger.Core
         /// 是否在退出程序时保存圣经投影记录（默认：false）
         /// </summary>
         public bool SaveBibleHistory { get; set; } = false;
+
+        /// <summary>
+        /// 是否启用圣经历史记录悬浮预览（默认：true）
+        /// </summary>
+        public bool BibleHistoryHoverPreviewEnabled { get; set; } = true;
 
         /// <summary>
         /// 是否启用圣经 AI 语音识别（默认：true）

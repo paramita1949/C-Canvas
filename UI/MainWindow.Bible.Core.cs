@@ -71,6 +71,10 @@ namespace ImageColorChanger.UI
         
         // 圣经设置窗口（复用实例）
         private BibleSettingsWindow _bibleSettingsWindow = null;
+
+        // 历史记录悬浮预览
+        private System.Threading.CancellationTokenSource _bibleHistoryPreviewCts = null;
+        private BibleHistoryItem _bibleHistoryPreviewPendingItem = null;
         
         /// <summary>
         /// 拼音输入是否激活（供主窗口ESC键判断使用）
