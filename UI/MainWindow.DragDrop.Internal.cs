@@ -521,6 +521,7 @@ namespace ImageColorChanger.UI
 
                 // 保存更改
                 DatabaseManagerService.UpdateMediaFilesOrder(files);
+                SyncFolderImageOrderForManualReorder(sourceFolderId, files);
 
                 // 关键修复：直接在内存中更新顺序，避免重新加载整个TreeView
                 UpdateTreeItemOrder(sourceFolderId, files);
@@ -714,6 +715,53 @@ namespace ImageColorChanger.UI
                 System.Diagnostics.Debug.WriteLine($"文件夹下移失败: {ex}");
                 #endif
                 ShowStatus($"下移失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// V2 文件夹模式下，同步 folder_images 顺序，避免下一次拖拽读取顺序与界面不一致
+        /// </summary>
+        private void SyncFolderImageOrderForManualReorder(int? folderId, List<MediaFile> sortedFiles)
+        {
+            if (!folderId.HasValue || sortedFiles == null || sortedFiles.Count == 0)
+            {
+                return;
+            }
+
+            if (!DatabaseManagerService.IsFolderSystemV2Enabled())
+            {
+                return;
+            }
+
+            try
+            {
+                var desiredOrderByImageId = sortedFiles
+                    .Select((f, idx) => new { f.Id, OrderIndex = idx + 1 })
+                    .ToDictionary(x => x.Id, x => x.OrderIndex);
+
+                var context = DatabaseManagerService.GetDbContext();
+                var folderLinks = context.FolderImages
+                    .Where(fi => fi.FolderId == folderId.Value && desiredOrderByImageId.Keys.Contains(fi.ImageId))
+                    .ToList();
+
+                foreach (var link in folderLinks)
+                {
+                    if (desiredOrderByImageId.TryGetValue(link.ImageId, out int nextOrder))
+                    {
+                        link.OrderIndex = nextOrder;
+                        link.UpdatedAt = DateTime.Now;
+                    }
+                }
+
+                context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[ProjectTreeDragDrop] 同步 folder_images 顺序失败: {ex.Message}");
+                #else
+                _ = ex;
+                #endif
             }
         }
 
