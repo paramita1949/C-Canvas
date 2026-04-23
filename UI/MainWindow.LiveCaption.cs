@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
@@ -38,8 +39,13 @@ namespace ImageColorChanger.UI
         private bool _hasShownRealtimeSubtitleFeedback;
         private DateTime _captionShiftProbeLastLogUtc = DateTime.MinValue;
         private string _captionShiftProbePrevDisplay = string.Empty;
+        private DispatcherTimer _liveCaptionIdleShutdownTimer;
+        private DateTime _liveCaptionLastRecognitionUtc = DateTime.MinValue;
+        private bool _liveCaptionIdleShutdownInProgress;
         private const int LiveCaptionToggleDebounceMs = 220;
         private const int LiveCaptionMainLineCharLimit = 30;
+        private static readonly TimeSpan LiveCaptionIdleShutdownCheckInterval = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan LiveCaptionIdleShutdownTimeout = TimeSpan.FromMinutes(1);
         private DateTime _realtimeVerseLastAttemptUtc = DateTime.MinValue;
         private string _realtimeVerseLastText = string.Empty;
         private int _realtimeLastResolvedBookId;
@@ -106,6 +112,123 @@ namespace ImageColorChanger.UI
             LiveCaptionDebugLogger.Log($"[{GetShortPhraseLogTag()}] {message}");
         }
 
+        private void EnsureLiveCaptionIdleShutdownTimer()
+        {
+            if (_liveCaptionIdleShutdownTimer != null)
+            {
+                return;
+            }
+
+            _liveCaptionIdleShutdownTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+            {
+                Interval = LiveCaptionIdleShutdownCheckInterval
+            };
+            _liveCaptionIdleShutdownTimer.Tick += LiveCaptionIdleShutdownTimer_Tick;
+        }
+
+        private void UpdateLiveCaptionIdleShutdownWatcherState(bool realtimeEnabled, bool shortPhraseEnabled)
+        {
+            bool recognitionEnabled = realtimeEnabled || shortPhraseEnabled;
+            if (!recognitionEnabled)
+            {
+                if (_liveCaptionIdleShutdownTimer != null)
+                {
+                    _liveCaptionIdleShutdownTimer.Stop();
+                }
+
+                _liveCaptionIdleShutdownInProgress = false;
+                _liveCaptionLastRecognitionUtc = DateTime.MinValue;
+                return;
+            }
+
+            EnsureLiveCaptionIdleShutdownTimer();
+            if (_liveCaptionLastRecognitionUtc == DateTime.MinValue)
+            {
+                _liveCaptionLastRecognitionUtc = DateTime.UtcNow;
+            }
+
+            if (_liveCaptionIdleShutdownTimer != null && !_liveCaptionIdleShutdownTimer.IsEnabled)
+            {
+                _liveCaptionIdleShutdownTimer.Start();
+            }
+        }
+
+        private void TouchLiveCaptionRecognitionActivity()
+        {
+            _liveCaptionLastRecognitionUtc = DateTime.UtcNow;
+        }
+
+        private static string BuildLiveCaptionAutoShutdownToastMessage(bool realtimeWasEnabled, bool shortPhraseWasEnabled)
+        {
+            if (realtimeWasEnabled && shortPhraseWasEnabled)
+            {
+                return "实时语音已关闭，经文识别已关闭";
+            }
+
+            if (realtimeWasEnabled)
+            {
+                return "实时语音已关闭";
+            }
+
+            if (shortPhraseWasEnabled)
+            {
+                return "经文识别已关闭";
+            }
+
+            return "字幕识别已关闭";
+        }
+
+        private async void LiveCaptionIdleShutdownTimer_Tick(object sender, EventArgs e)
+        {
+            _ = sender;
+            _ = e;
+
+            if (_configManager == null)
+            {
+                return;
+            }
+
+            bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
+            bool shortPhraseEnabled = _configManager.LiveCaptionShortPhraseEnabled;
+            if (!LiveCaptionIdleShutdownPolicy.ShouldAutoDisable(
+                    _liveCaptionLastRecognitionUtc,
+                    DateTime.UtcNow,
+                    realtimeEnabled,
+                    shortPhraseEnabled,
+                    LiveCaptionIdleShutdownTimeout))
+            {
+                return;
+            }
+
+            if (_liveCaptionIdleShutdownInProgress)
+            {
+                return;
+            }
+
+            _liveCaptionIdleShutdownInProgress = true;
+            try
+            {
+                bool realtimeWasEnabled = _configManager.LiveCaptionRealtimeEnabled;
+                bool shortPhraseWasEnabled = _configManager.LiveCaptionShortPhraseEnabled;
+                LiveCaptionDebugLogger.Log("RecognitionIdleWatch: no recognition for over 1 minute, auto disabling toggles.");
+                _configManager.LiveCaptionRealtimeEnabled = false;
+                _configManager.LiveCaptionShortPhraseEnabled = false;
+                await ApplyRecognitionStateAsync();
+                _liveCaptionOverlayWindow?.SetRecognitionToggleStates(false, false);
+                string toastMessage = BuildLiveCaptionAutoShutdownToastMessage(realtimeWasEnabled, shortPhraseWasEnabled);
+                ShowToast(toastMessage);
+                ShowStatus($"超过1分钟未识别到声音，{toastMessage}");
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"RecognitionIdleWatch: auto shutdown failed with {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                _liveCaptionIdleShutdownInProgress = false;
+            }
+        }
+
         private void EnsureLiveCaptionComponents()
         {
             EnsureLiveCaptionCoreComponents();
@@ -152,6 +275,11 @@ namespace ImageColorChanger.UI
                 {
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
+                        if (!string.IsNullOrWhiteSpace(result?.RecognizedText))
+                        {
+                            TouchLiveCaptionRecognitionActivity();
+                        }
+
                         if (result.Success)
                         {
                             int startVs = Math.Max(1, result.Reference.StartVerse);
@@ -392,6 +520,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionNdiComposer.Reset();
                 _hasShownRealtimeSubtitleFeedback = false;
                 _shortPhraseLastFeedbackUtc = DateTime.MinValue;
+                UpdateLiveCaptionIdleShutdownWatcherState(realtimeEnabled: false, shortPhraseEnabled: false);
                 UpdateLiveCaptionProjectionActionState();
                 UpdateLiveCaptionNdiActionState();
                 _projectionManager?.HideProjectionCaptionOverlay();
@@ -446,6 +575,7 @@ namespace ImageColorChanger.UI
                 $"source={_liveCaptionCurrentSource}, inputId='{_liveCaptionSelectedInputDeviceId}', systemId='{_liveCaptionSelectedSystemDeviceId}'");
             SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow?.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
+            UpdateLiveCaptionIdleShutdownWatcherState(realtimeEnabled, shortEnabled);
 
             if (!realtimeEnabled && !shortEnabled)
             {
@@ -594,6 +724,11 @@ namespace ImageColorChanger.UI
                 if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
                 {
                     return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(update.Text))
+                {
+                    TouchLiveCaptionRecognitionActivity();
                 }
 
                 // 经文匹配：不依赖 overlay 窗口，静默运行也能触发
@@ -1018,6 +1153,15 @@ namespace ImageColorChanger.UI
             _isDisposingLiveCaption = true;
             try
             {
+                if (_liveCaptionIdleShutdownTimer != null)
+                {
+                    _liveCaptionIdleShutdownTimer.Stop();
+                    _liveCaptionIdleShutdownTimer.Tick -= LiveCaptionIdleShutdownTimer_Tick;
+                    _liveCaptionIdleShutdownTimer = null;
+                }
+                _liveCaptionLastRecognitionUtc = DateTime.MinValue;
+                _liveCaptionIdleShutdownInProgress = false;
+
                 if (_liveCaptionEngine != null)
                 {
                     _liveCaptionEngine.SubtitleUpdated -= OnLiveCaptionSubtitleUpdated;
