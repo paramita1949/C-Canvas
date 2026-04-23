@@ -40,6 +40,7 @@ namespace ImageColorChanger.Services.Projection.Output
 
             SKBitmap frameToSend = frame;
             SKBitmap transformed = null;
+            SKBitmap watermarked = null;
             try
             {
                 if (mode == ProjectionNdiTransmissionMode.Transparent && transparencyKeyColor.HasValue)
@@ -48,11 +49,15 @@ namespace ImageColorChanger.Services.Projection.Output
                     frameToSend = transformed ?? frame;
                 }
 
+                watermarked = BuildWatermarkedFrameIfNeeded(frameToSend);
+                frameToSend = watermarked ?? frameToSend;
+
                 return _sender.SendFrame(frameToSend);
             }
             finally
             {
                 transformed?.Dispose();
+                watermarked?.Dispose();
             }
         }
 
@@ -71,6 +76,7 @@ namespace ImageColorChanger.Services.Projection.Output
 
             SKBitmap frameToSend = frame;
             SKBitmap transformed = null;
+            SKBitmap watermarked = null;
             try
             {
                 if (transparent && transparencyKeyColor.HasValue)
@@ -79,11 +85,15 @@ namespace ImageColorChanger.Services.Projection.Output
                     frameToSend = transformed ?? frame;
                 }
 
+                watermarked = BuildWatermarkedFrameIfNeeded(frameToSend);
+                frameToSend = watermarked ?? frameToSend;
+
                 return _sender.SendFrame(frameToSend);
             }
             finally
             {
                 transformed?.Dispose();
+                watermarked?.Dispose();
             }
         }
 
@@ -141,12 +151,103 @@ namespace ImageColorChanger.Services.Projection.Output
                 int height = System.Math.Max(16, _configProvider.ProjectionNdiHeight);
                 using var transparent = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
                 transparent.Erase(new SKColor(0, 0, 0, 0));
+                DrawWatermark(
+                    transparent,
+                    _configProvider.ProjectionNdiIdleFrameWatermarkText,
+                    _configProvider.ProjectionNdiIdleFrameWatermarkPosition,
+                    _configProvider.ProjectionNdiIdleFrameWatermarkFontSize,
+                    _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily);
                 _sender.SendFrame(transparent);
             }
             catch
             {
                 // 空闲透明帧发送失败不影响主流程
             }
+        }
+
+        private SKBitmap BuildWatermarkedFrameIfNeeded(SKBitmap source)
+        {
+            if (source == null || string.IsNullOrWhiteSpace(_configProvider.ProjectionNdiIdleFrameWatermarkText))
+            {
+                return null;
+            }
+
+            var output = new SKBitmap(source.Info);
+            using var canvas = new SKCanvas(output);
+            canvas.Clear(SKColors.Transparent);
+            canvas.DrawBitmap(source, 0, 0);
+            DrawWatermark(
+                output,
+                _configProvider.ProjectionNdiIdleFrameWatermarkText,
+                _configProvider.ProjectionNdiIdleFrameWatermarkPosition,
+                _configProvider.ProjectionNdiIdleFrameWatermarkFontSize,
+                _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily);
+            return output;
+        }
+
+        private static void DrawWatermark(
+            SKBitmap target,
+            string watermark,
+            string position,
+            double fontSize,
+            string fontFamily)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(watermark))
+            {
+                return;
+            }
+
+            string text = watermark.Trim();
+            if (text.Length == 0)
+            {
+                return;
+            }
+
+            using var canvas = new SKCanvas(target);
+            float resolvedFontSize = (float)System.Math.Clamp(fontSize, 10d, 220d);
+            using var paint = new SKPaint
+            {
+                IsAntialias = true,
+                Color = new SKColor(255, 255, 255, 110)
+            };
+            using var typeface = ResolveTypeface(fontFamily);
+            using var font = new SKFont(typeface, resolvedFontSize);
+
+            float margin = System.Math.Max(12f, resolvedFontSize * 0.6f);
+            float textWidth = font.MeasureText(text, paint);
+            float ascent = -font.Metrics.Ascent;
+            float descent = font.Metrics.Descent;
+            float textHeight = System.Math.Max(1f, ascent + descent);
+
+            float x = position switch
+            {
+                "LeftTop" => margin,
+                "RightTop" => System.Math.Max(margin, target.Width - margin - textWidth),
+                "LeftBottom" => margin,
+                "Center" => System.Math.Max(margin, (target.Width - textWidth) / 2f),
+                _ => System.Math.Max(margin, target.Width - margin - textWidth)
+            };
+
+            float y = position switch
+            {
+                "LeftTop" => margin + ascent,
+                "RightTop" => margin + ascent,
+                "Center" => System.Math.Max(margin + ascent, (target.Height + textHeight) / 2f - descent),
+                _ => System.Math.Max(margin + ascent, target.Height - margin - descent)
+            };
+            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
+        }
+
+        private static SKTypeface ResolveTypeface(string fontFamily)
+        {
+            string name = (fontFamily ?? string.Empty).Trim();
+            if (name.Length == 0)
+            {
+                return SKTypeface.Default;
+            }
+
+            var typeface = SKTypeface.FromFamilyName(name);
+            return typeface ?? SKTypeface.Default;
         }
 
         private ProjectionNdiOutputOptions CreateOptions()

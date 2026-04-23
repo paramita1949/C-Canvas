@@ -1491,6 +1491,26 @@ namespace ImageColorChanger.Core
         public bool ProjectionNdiBibleTransparentEnabled { get; set; } = true;
 
         /// <summary>
+        /// 全投影 NDI 空气帧文字水印（默认：空）
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkText { get; set; } = "";
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印位置（LeftTop|RightTop|LeftBottom|RightBottom|Center）
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkPosition { get; set; } = "RightBottom";
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印字号（默认：48）
+        /// </summary>
+        public double ProjectionNdiIdleFrameWatermarkFontSize { get; set; } = 48.0;
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印字体（默认：Microsoft YaHei UI）
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkFontFamily { get; set; } = "Microsoft YaHei UI";
+
+        /// <summary>
         /// 画布宽高比（默认：16:9）
         /// 可选值："16:9" 或 "4:3"
         /// </summary>
@@ -1860,6 +1880,110 @@ namespace ImageColorChanger.Core
                 if (_config.ProjectionNdiBibleTransparentEnabled != value)
                 {
                     _config.ProjectionNdiBibleTransparentEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkText
+        {
+            get => _config.ProjectionNdiIdleFrameWatermarkText ?? string.Empty;
+            set
+            {
+                string next = value?.Trim() ?? string.Empty;
+                if (!string.Equals(_config.ProjectionNdiIdleFrameWatermarkText ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiIdleFrameWatermarkText = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印位置
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkPosition
+        {
+            get
+            {
+                string value = (_config.ProjectionNdiIdleFrameWatermarkPosition ?? string.Empty).Trim();
+                return value switch
+                {
+                    "LeftTop" => "LeftTop",
+                    "RightTop" => "RightTop",
+                    "LeftBottom" => "LeftBottom",
+                    "Center" => "Center",
+                    _ => "RightBottom"
+                };
+            }
+            set
+            {
+                string next = (value ?? string.Empty).Trim() switch
+                {
+                    "LeftTop" => "LeftTop",
+                    "RightTop" => "RightTop",
+                    "LeftBottom" => "LeftBottom",
+                    "Center" => "Center",
+                    _ => "RightBottom"
+                };
+                if (!string.Equals(_config.ProjectionNdiIdleFrameWatermarkPosition ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiIdleFrameWatermarkPosition = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印字号
+        /// </summary>
+        public double ProjectionNdiIdleFrameWatermarkFontSize
+        {
+            get
+            {
+                double configured = _config.ProjectionNdiIdleFrameWatermarkFontSize;
+                if (configured <= 0.001)
+                {
+                    configured = 48;
+                }
+
+                return Math.Clamp(configured, 10, 220);
+            }
+            set
+            {
+                double next = Math.Clamp(value, 10, 220);
+                if (Math.Abs((_config.ProjectionNdiIdleFrameWatermarkFontSize <= 0.001 ? 48 : _config.ProjectionNdiIdleFrameWatermarkFontSize) - next) > 0.001)
+                {
+                    _config.ProjectionNdiIdleFrameWatermarkFontSize = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印字体
+        /// </summary>
+        public string ProjectionNdiIdleFrameWatermarkFontFamily
+        {
+            get
+            {
+                string value = (_config.ProjectionNdiIdleFrameWatermarkFontFamily ?? string.Empty).Trim();
+                return string.IsNullOrWhiteSpace(value) ? "Microsoft YaHei UI" : value;
+            }
+            set
+            {
+                string next = (value ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(next))
+                {
+                    next = "Microsoft YaHei UI";
+                }
+
+                if (!string.Equals(_config.ProjectionNdiIdleFrameWatermarkFontFamily ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiIdleFrameWatermarkFontFamily = next;
                     SaveConfig();
                 }
             }
