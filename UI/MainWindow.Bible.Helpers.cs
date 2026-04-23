@@ -1185,33 +1185,13 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    // 2. 所有槽位都满了，查找勾选的槽位
-                    var checkedSlots = _historySlots.Where(s => s.IsChecked).ToList();
-                    
-                    if (checkedSlots.Count > 0)
-                    {
-                        // 覆盖第一个勾选的槽位
-                        targetSlot = checkedSlots[0];
-                        targetSlot.BookId = bookId;
-                        targetSlot.Chapter = chapter;
-                        targetSlot.StartVerse = normalizedStartVerse;
-                        targetSlot.EndVerse = normalizedEndVerse;
-                        targetSlot.DisplayText = displayText;
-                    }
-                    else
-                    {
-                        // 没有勾选的槽位，覆盖最后一个槽位（槽位20）
-                        var lastSlot = _historySlots.LastOrDefault();
-                        if (lastSlot != null)
-                        {
-                            lastSlot.BookId = bookId;
-                            lastSlot.Chapter = chapter;
-                            lastSlot.StartVerse = normalizedStartVerse;
-                            lastSlot.EndVerse = normalizedEndVerse;
-                            lastSlot.DisplayText = displayText;
-                            targetSlot = lastSlot;
-                        }
-                    }
+                    // 2. 所有槽位都满了：自动扩容（21、22、23...）
+                    targetSlot = AppendBibleHistorySlot();
+                    targetSlot.BookId = bookId;
+                    targetSlot.Chapter = chapter;
+                    targetSlot.StartVerse = normalizedStartVerse;
+                    targetSlot.EndVerse = normalizedEndVerse;
+                    targetSlot.DisplayText = displayText;
                 }
 
                 // 取消其他槽位的勾选，勾选新填充的槽位
@@ -1246,6 +1226,29 @@ namespace ImageColorChanger.UI
             int normalizedStart = Math.Max(1, startVerse);
             int normalizedEnd = endVerse <= 0 ? normalizedStart : endVerse;
             return Math.Max(normalizedStart, normalizedEnd);
+        }
+
+        private BibleHistoryItem AppendBibleHistorySlot()
+        {
+            if (_historySlots == null)
+            {
+                _historySlots = new ObservableCollection<BibleHistoryItem>();
+            }
+
+            int nextIndex = (_historySlots.Count > 0 ? _historySlots.Max(s => s.Index) : 0) + 1;
+            var slot = new BibleHistoryItem
+            {
+                Index = nextIndex,
+                DisplayText = string.Empty,
+                BookId = 0,
+                Chapter = 0,
+                StartVerse = 0,
+                EndVerse = 0,
+                IsChecked = false,
+                IsLocked = false
+            };
+            _historySlots.Add(slot);
+            return slot;
         }
 
         private static int GetVerseSpanLength(int startVerse, int endVerse)
@@ -1548,6 +1551,16 @@ namespace ImageColorChanger.UI
                     foreach (var record in historyRecords)
                     {
                         var slot = _historySlots.FirstOrDefault(s => s.Index == record.SlotIndex);
+                        if (slot == null)
+                        {
+                            // 支持动态扩容槽位（21+）
+                            while (_historySlots.Count < record.SlotIndex)
+                            {
+                                AppendBibleHistorySlot();
+                            }
+                            slot = _historySlots.FirstOrDefault(s => s.Index == record.SlotIndex);
+                        }
+
                         if (slot != null)
                         {
                             slot.DisplayText = record.DisplayText;
