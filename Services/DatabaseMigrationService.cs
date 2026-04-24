@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
@@ -205,6 +206,7 @@ namespace ImageColorChanger.Services
             LogInfo($"[Import-Begin] source={sourcePath}, db={_defaultDbPath}");
             string backupPath = string.Empty;
             bool stagedForRestart = false;
+            var importedCompanionArtifacts = new List<string>();
             try
             {
                 // 检查源文件是否存在
@@ -280,6 +282,9 @@ namespace ImageColorChanger.Services
                     LogInfo(stagedForRestart
                         ? $"[Import] db staged for restart: {_pendingImportDbPath}"
                         : "[Import] db copied in single-file mode");
+
+                    // 兼容旧流程：当用户直接导入 .db 时，尝试从同目录加载配置/资源侧载文件，避免自定义设置丢失。
+                    importedCompanionArtifacts = await TryImportCompanionArtifactsForDbAsync(sourcePath);
                 }
                 else
                 {
@@ -311,17 +316,19 @@ namespace ImageColorChanger.Services
                 {
                     var sourceStats = ReadDatabaseStats(_pendingImportDbPath);
                     LogWarn($"[Import-Staged] pending={_pendingImportDbPath}, folders={sourceStats.Folders}, files={sourceStats.Files}, lyricsGroups={sourceStats.LyricsGroups}, lyricsProjects={sourceStats.LyricsProjects}");
+                    string companionMessage = BuildCompanionImportMessage(importedCompanionArtifacts);
                     return DatabaseMigrationResult.Ok(
                         "导入成功（待重启应用）",
-                        $"数据库文件当前被占用，已暂存导入。\n\n重启应用后将自动应用该数据库。\n\n待导入统计：\n文件夹: {sourceStats.Folders}\n文件: {sourceStats.Files}\n歌词库: {sourceStats.LyricsGroups}\n歌词: {sourceStats.LyricsProjects}",
+                        $"数据库文件当前被占用，已暂存导入。\n\n重启应用后将自动应用该数据库。\n\n待导入统计：\n文件夹: {sourceStats.Folders}\n文件: {sourceStats.Files}\n歌词库: {sourceStats.LyricsGroups}\n歌词: {sourceStats.LyricsProjects}{companionMessage}",
                         requiresRestart: true);
                 }
 
                 var stats = ReadDatabaseStats(_defaultDbPath);
                 LogInfo($"[Import-End] success=true, folders={stats.Folders}, files={stats.Files}, lyricsGroups={stats.LyricsGroups}, lyricsProjects={stats.LyricsProjects}");
+                string importedCompanionSummary = BuildCompanionImportMessage(importedCompanionArtifacts);
                 return DatabaseMigrationResult.Ok(
                     "导入成功",
-                    $"数据库导入成功！\n\n文件夹: {stats.Folders}\n文件: {stats.Files}\n歌词库: {stats.LyricsGroups}\n歌词: {stats.LyricsProjects}\n\n为使更改生效，需要重启应用程序。",
+                    $"数据库导入成功！\n\n文件夹: {stats.Folders}\n文件: {stats.Files}\n歌词库: {stats.LyricsGroups}\n歌词: {stats.LyricsProjects}{importedCompanionSummary}\n\n为使更改生效，需要重启应用程序。",
                     requiresRestart: true);
             }
             catch (Exception ex)
@@ -430,6 +437,90 @@ namespace ImageColorChanger.Services
             }
 
             return stagedForRestart;
+        }
+
+        private async Task<List<string>> TryImportCompanionArtifactsForDbAsync(string sourceDbPath)
+        {
+            var imported = new List<string>();
+            if (string.IsNullOrWhiteSpace(sourceDbPath) || !File.Exists(sourceDbPath))
+            {
+                return imported;
+            }
+
+            string sourceDir = Path.GetDirectoryName(sourceDbPath);
+            if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
+            {
+                return imported;
+            }
+
+            string sourceFileName = Path.GetFileName(sourceDbPath) ?? string.Empty;
+            string sourceBaseName = Path.GetFileNameWithoutExtension(sourceDbPath) ?? string.Empty;
+            bool sourceLooksLikeMainDb = string.Equals(sourceFileName, "pyimages.db", StringComparison.OrdinalIgnoreCase);
+
+            string[] configCandidates = sourceLooksLikeMainDb
+                ? new[]
+                {
+                    Path.Combine(sourceDir, $"{sourceBaseName}.config.json"),
+                    Path.Combine(sourceDir, "config.json")
+                }
+                : new[]
+                {
+                    Path.Combine(sourceDir, $"{sourceBaseName}.config.json")
+                };
+
+            foreach (string candidate in configCandidates)
+            {
+                if (!File.Exists(candidate))
+                {
+                    continue;
+                }
+
+                await Task.Run(() => File.Copy(candidate, _configFilePath, overwrite: true));
+                imported.Add("config.json");
+                LogInfo($"[ImportDB-Companion] config imported from {candidate}");
+                break;
+            }
+
+            if (sourceLooksLikeMainDb)
+            {
+                string sourceThumbnailsDir = Path.Combine(sourceDir, "Thumbnails");
+                if (Directory.Exists(sourceThumbnailsDir))
+                {
+                    if (Directory.Exists(_thumbnailsDir))
+                    {
+                        Directory.Delete(_thumbnailsDir, recursive: true);
+                    }
+
+                    await Task.Run(() => CopyDirectory(sourceThumbnailsDir, _thumbnailsDir));
+                    imported.Add("Thumbnails");
+                    LogInfo($"[ImportDB-Companion] thumbnails imported from {sourceThumbnailsDir}");
+                }
+
+                string sourceWatermarksDir = Path.Combine(sourceDir, "data", "watermarks");
+                if (Directory.Exists(sourceWatermarksDir))
+                {
+                    if (Directory.Exists(_watermarksDir))
+                    {
+                        Directory.Delete(_watermarksDir, recursive: true);
+                    }
+
+                    await Task.Run(() => CopyDirectory(sourceWatermarksDir, _watermarksDir));
+                    imported.Add("data/watermarks");
+                    LogInfo($"[ImportDB-Companion] watermarks imported from {sourceWatermarksDir}");
+                }
+            }
+
+            return imported;
+        }
+
+        private static string BuildCompanionImportMessage(IReadOnlyCollection<string> importedCompanionArtifacts)
+        {
+            if (importedCompanionArtifacts == null || importedCompanionArtifacts.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return $"\n\n同步导入配置资源：{string.Join("、", importedCompanionArtifacts)}";
         }
 
         /// <summary>

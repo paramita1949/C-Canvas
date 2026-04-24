@@ -352,6 +352,7 @@ namespace ImageColorChanger.Core
                 if (_config.LiveCaptionNdiEnabled != value)
                 {
                     _config.LiveCaptionNdiEnabled = value;
+                    SaveConfig();
                 }
             }
         }
