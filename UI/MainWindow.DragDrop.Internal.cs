@@ -10,6 +10,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.UI.Modules;
 
 // 引入WPF拖拽相关命名空间
 using DragEventArgs = System.Windows.DragEventArgs;
@@ -24,6 +25,12 @@ namespace ImageColorChanger.UI
     public partial class MainWindow : Window
     {
         #region 拖拽事件处理
+        private const int ProjectTreeAutoScrollTickMilliseconds = 16;
+        private const double ProjectTreeAutoScrollEdgeThreshold = 36;
+        private const double ProjectTreeAutoScrollMaxStep = 28;
+        private System.Windows.Threading.DispatcherTimer _projectTreeDragAutoScrollTimer;
+        private double _projectTreePendingAutoScrollDelta;
+        private ScrollViewer _projectTreeScrollViewer;
 
         /// <summary>
         /// 鼠标按下事件 - 记录拖拽起始点
@@ -88,6 +95,7 @@ namespace ImageColorChanger.UI
         private void ProjectTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             _draggedItem = null;
+            StopProjectTreeAutoScroll();
         }
 
         private static bool IsFromScrollBarChrome(DependencyObject source)
@@ -115,6 +123,8 @@ namespace ImageColorChanger.UI
         {
             if (e.Data.GetDataPresent(typeof(ProjectTreeItem)))
             {
+                UpdateProjectTreeAutoScroll(e, allowAutoScroll: true);
+
                 // 获取当前悬停的TreeViewItem
                 var targetTreeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
                 if (targetTreeViewItem != null)
@@ -171,6 +181,7 @@ namespace ImageColorChanger.UI
             }
             else
             {
+                StopProjectTreeAutoScroll();
                 e.Effects = System.Windows.DragDropEffects.None;
                 HideDragIndicator();
             }
@@ -182,6 +193,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ProjectTree_DragLeave(object sender, System.Windows.DragEventArgs e)
         {
+            StopProjectTreeAutoScroll();
             ClearDragHighlight();
         }
 
@@ -190,6 +202,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ProjectTree_Drop(object sender, System.Windows.DragEventArgs e)
         {
+            StopProjectTreeAutoScroll();
+
             // 清除拖拽高亮
             ClearDragHighlight();
             
@@ -240,6 +254,72 @@ namespace ImageColorChanger.UI
                 }
             }
             e.Handled = true;
+        }
+
+        private void UpdateProjectTreeAutoScroll(DragEventArgs e, bool allowAutoScroll)
+        {
+            if (!allowAutoScroll || ProjectTree == null)
+            {
+                StopProjectTreeAutoScroll();
+                return;
+            }
+
+            _projectTreeScrollViewer ??= FindVisualChild<ScrollViewer>(ProjectTree);
+            if (_projectTreeScrollViewer == null || _projectTreeScrollViewer.ScrollableHeight <= 0)
+            {
+                StopProjectTreeAutoScroll();
+                return;
+            }
+
+            System.Windows.Point position = e.GetPosition(ProjectTree);
+            _projectTreePendingAutoScrollDelta = ProjectTreeDragAutoScrollPolicy.ComputeVerticalScrollDelta(
+                cursorY: position.Y,
+                viewportHeight: ProjectTree.ActualHeight,
+                edgeThreshold: ProjectTreeAutoScrollEdgeThreshold,
+                maxStep: ProjectTreeAutoScrollMaxStep);
+
+            if (Math.Abs(_projectTreePendingAutoScrollDelta) <= 0.01)
+            {
+                StopProjectTreeAutoScroll();
+                return;
+            }
+
+            _projectTreeDragAutoScrollTimer ??= new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromMilliseconds(ProjectTreeAutoScrollTickMilliseconds),
+                System.Windows.Threading.DispatcherPriority.Background,
+                (_, _) => TickProjectTreeAutoScroll(),
+                Dispatcher);
+
+            if (!_projectTreeDragAutoScrollTimer.IsEnabled)
+            {
+                _projectTreeDragAutoScrollTimer.Start();
+            }
+        }
+
+        private void TickProjectTreeAutoScroll()
+        {
+            if (_projectTreeScrollViewer == null)
+            {
+                StopProjectTreeAutoScroll();
+                return;
+            }
+
+            double target = _projectTreeScrollViewer.VerticalOffset + _projectTreePendingAutoScrollDelta;
+            target = Math.Max(0, Math.Min(_projectTreeScrollViewer.ScrollableHeight, target));
+
+            if (Math.Abs(target - _projectTreeScrollViewer.VerticalOffset) < 0.01)
+            {
+                StopProjectTreeAutoScroll();
+                return;
+            }
+
+            _projectTreeScrollViewer.ScrollToVerticalOffset(target);
+        }
+
+        private void StopProjectTreeAutoScroll()
+        {
+            _projectTreePendingAutoScrollDelta = 0;
+            _projectTreeDragAutoScrollTimer?.Stop();
         }
 
         /// <summary>
@@ -1159,10 +1239,10 @@ namespace ImageColorChanger.UI
                     // 构建新显示名称：序号. 原始文件名（去序号，不带扩展名）
                     string newDisplayName = $"{newNumber}. {nameWithoutNumber}";
 
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[RenameFilesWithSequenceNumbers] idx={newNumber}, physical='{originalFileName}', normalized='{nameWithoutNumber}', display='{newDisplayName}'");
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine(
+//                        $"[RenameFilesWithSequenceNumbers] idx={newNumber}, physical='{originalFileName}', normalized='{nameWithoutNumber}', display='{newDisplayName}'");
+//#endif
                     
                     // 如果显示名称没有变化，跳过
                     if (newDisplayName == file.Name)
@@ -1213,9 +1293,9 @@ namespace ImageColorChanger.UI
             var match1 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+\.\s*(.+)$");
             if (match1.Success)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=dot-prefix, before='{name}', after='{match1.Groups[1].Value.Trim()}'");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=dot-prefix, before='{name}', after='{match1.Groups[1].Value.Trim()}'");
+//#endif
                 return match1.Groups[1].Value.Trim();
             }
             
@@ -1223,9 +1303,9 @@ namespace ImageColorChanger.UI
             var match2 = System.Text.RegularExpressions.Regex.Match(name, @"^第\d+(?:首)?\s*(.+)$");
             if (match2.Success)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=chinese-seq, before='{name}', after='{match2.Groups[1].Value.Trim()}'");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=chinese-seq, before='{name}', after='{match2.Groups[1].Value.Trim()}'");
+//#endif
                 return match2.Groups[1].Value.Trim();
             }
             
@@ -1234,9 +1314,9 @@ namespace ImageColorChanger.UI
             var match3 = System.Text.RegularExpressions.Regex.Match(name, @"^\d+([A-Za-z\u4E00-\u9FFF].*)$");
             if (match3.Success)
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=compact-prefix, before='{name}', after='{match3.Groups[1].Value.Trim()}'");
-#endif
+//#if DEBUG
+//                System.Diagnostics.Debug.WriteLine($"[RenameFilesWithSequenceNumbers] remove rule=compact-prefix, before='{name}', after='{match3.Groups[1].Value.Trim()}'");
+//#endif
                 return match3.Groups[1].Value.Trim();
             }
             
