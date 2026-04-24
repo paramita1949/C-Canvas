@@ -36,15 +36,67 @@
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="0" BlurRadius="8" Opacity="0.08" Color="#000000"/>
             </Border.Effect>
-            <Grid>
+            <Grid x:Name="TopMenuHostGrid" SizeChanged="TopMenuHostGrid_SizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 左侧：所有按钮在一排 -->
-                <StackPanel x:Name="TopMenuButtonPanel" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 最左：大箭头（无边框） -->
+                <Button x:Name="BtnTopMenuScrollLeft"
+                        Grid.Column="0"
+                        ToolTip="向左滚动"
+                        Style="{StaticResource TopMenuScrollArrowButtonStyle}"
+                        Visibility="Collapsed"
+                        Click="TopMenuScrollLeft_Click"
+                        PreviewMouseLeftButtonDown="TopMenuScrollLeft_PreviewMouseLeftButtonDown"
+                        PreviewMouseLeftButtonUp="TopMenuScrollArrow_PreviewMouseLeftButtonUp"
+                        MouseLeave="TopMenuScrollArrow_MouseLeave">
+                    <Grid Width="12" Height="24">
+                        <Path Data="{StaticResource IconLucideChevronLeft}"
+                              Width="6"
+                              Height="24"
+                              HorizontalAlignment="Left"
+                              Stretch="Fill"
+                              StrokeThickness="2.3"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Fill="Transparent"
+                              Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource IconLucideChevronLeft}"
+                              Width="6"
+                              Height="24"
+                              Margin="4,0,0,0"
+                              HorizontalAlignment="Left"
+                              Stretch="Fill"
+                              StrokeThickness="2.3"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Fill="Transparent"
+                              Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    </Grid>
+                </Button>
+
+                <!-- 中间：固定区 + 可滚动区 -->
+                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="6,0" ClipToBounds="True">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer x:Name="TopMenuScrollViewer"
+                                  Grid.Column="0"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False"
+                                  PanningMode="HorizontalOnly"
+                                  PreviewMouseWheel="TopMenuScrollViewer_PreviewMouseWheel"
+                                  ScrollChanged="TopMenuScrollViewer_ScrollChanged"
+                                  SizeChanged="TopMenuScrollViewer_SizeChanged"
+                                  Loaded="TopMenuScrollViewer_Loaded">
+                        <StackPanel x:Name="TopMenuOverflowPanel" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 基础功能按钮 -->
                     <Button x:Name="BtnImport" Style="{StaticResource MenuButtonStyle}" 
                             ToolTip="导入图片或文件夹" Click="BtnImport_Click" MouseEnter="BtnImport_MouseEnter" MouseLeave="BtnImport_MouseLeave">
@@ -113,7 +165,7 @@
                     </Button>
 
                     <!-- 分隔线 -->
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Separator x:Name="TopMenuSeparator1" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
 
                     <!-- 关键帧控制按钮 -->
                     <Button x:Name="BtnAddKeyframe" Style="{StaticResource SuccessButtonStyle}"
@@ -149,7 +201,7 @@
                     </Button>
 
                     <!-- 分隔线 -->
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
+                    <Separator x:Name="TopMenuSeparator2" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="8,0"/>
                     <Button x:Name="BtnPlay" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="开始/停止自动播放" Click="BtnPlay_Click">
                         <StackPanel Orientation="Horizontal">
@@ -190,7 +242,7 @@
                     </Button>
 
                     <!-- 分隔线 -->
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="3,0"/>
+                    <Separator x:Name="TopMenuSeparator3" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="3,0"/>
                     <Button x:Name="BtnPauseResume" Style="{StaticResource MenuButtonStyle}"
                             ToolTip="暂停/继续播放" Click="BtnPauseResume_Click" Margin="-1,0,0,0">
                         <StackPanel Orientation="Horizontal">
@@ -210,11 +262,60 @@
                     </Border>
 
                     <!-- 暂停/继续按钮 -->
-                    
-                    <!-- 登录按钮（使用联系按钮样式） -->
                     <Button x:Name="BtnLogin" Content="登录" Style="{StaticResource BreathingContactButtonStyle}"
                             ToolTip="登录账号解除投影限制" Click="BtnLogin_Click" Margin="15,0,4,0"/>
-                </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- 左右遮罩：隐藏被裁切按钮的边框残影（如蓝色竖边） -->
+                    <Border Width="10"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Stretch"
+                            Background="#FAFAFA"
+                            IsHitTestVisible="False"/>
+                    <Border Width="10"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Stretch"
+                            Background="#FAFAFA"
+                            IsHitTestVisible="False"/>
+                </Grid>
+
+                <!-- 最右：大箭头（无边框） -->
+                <Button x:Name="BtnTopMenuScrollRight"
+                        Grid.Column="2"
+                        ToolTip="向右滚动"
+                        Style="{StaticResource TopMenuScrollArrowButtonStyle}"
+                        Visibility="Collapsed"
+                        Click="TopMenuScrollRight_Click"
+                        PreviewMouseLeftButtonDown="TopMenuScrollRight_PreviewMouseLeftButtonDown"
+                        PreviewMouseLeftButtonUp="TopMenuScrollArrow_PreviewMouseLeftButtonUp"
+                        MouseLeave="TopMenuScrollArrow_MouseLeave">
+                    <Grid Width="12" Height="24">
+                        <Path Data="{StaticResource IconLucideChevronRight}"
+                              Width="6"
+                              Height="24"
+                              HorizontalAlignment="Left"
+                              Stretch="Fill"
+                              StrokeThickness="2.3"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Fill="Transparent"
+                              Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource IconLucideChevronRight}"
+                              Width="6"
+                              Height="24"
+                              Margin="4,0,0,0"
+                              HorizontalAlignment="Left"
+                              Stretch="Fill"
+                              StrokeThickness="2.3"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Fill="Transparent"
+                              Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    </Grid>
+                </Button>
 
             </Grid>
         </Border>

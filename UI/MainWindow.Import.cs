@@ -15,7 +15,9 @@ namespace ImageColorChanger.UI
         private DispatcherTimer _importMenuAutoCloseTimer;
         private ContextMenu _activeImportMenu;
         private DateTime _importMenuLastKeepAliveUtc = DateTime.MinValue;
+        private DateTime _suppressImportHoverUntilUtc = DateTime.MinValue;
         private const double ImportMenuCloseGracePeriodMs = 420;
+        private const double ImportHoverSuppressAfterTopMenuScrollMs = 420;
         private static void LogImportExportInfo(string message)
         {
             // System.Diagnostics.Debug.WriteLine($"{ImportExportLogPrefix} {message}");
@@ -30,6 +32,11 @@ namespace ImageColorChanger.UI
 
         private void BtnImport_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (IsImportHoverAutoPopupSuppressed())
+            {
+                return;
+            }
+
             StopImportMenuAutoCloseTimer();
 
             // 悬浮即弹出，避免重复创建弹窗造成闪烁
@@ -39,6 +46,21 @@ namespace ImageColorChanger.UI
             }
 
             BtnImport_Click(sender, new RoutedEventArgs());
+        }
+
+        internal void SuppressImportHoverAutoPopupAfterTopMenuScroll()
+        {
+            _suppressImportHoverUntilUtc = DateTime.UtcNow.AddMilliseconds(ImportHoverSuppressAfterTopMenuScrollMs);
+        }
+
+        private bool IsImportHoverAutoPopupSuppressed()
+        {
+            if (DateTime.UtcNow < _suppressImportHoverUntilUtc)
+            {
+                return true;
+            }
+
+            return IsMouseInsideElement(BtnTopMenuScrollLeft) || IsMouseInsideElement(BtnTopMenuScrollRight);
         }
 
         private void BtnImport_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
@@ -162,7 +184,7 @@ namespace ImageColorChanger.UI
                 {
                     Header = $"{size}",
                     IsCheckable = true,
-                    IsChecked = Math.Abs(_configManager.MenuFontSize - size) < 0.1
+                    IsChecked = Math.Abs(_configManager.TopMenuFontSize - size) < 0.1
                 };
                 menuItem.Click += (s, args) => SetMenuFontSize(size);
                 menuFontSizeItem.Items.Add(menuItem);
@@ -990,7 +1012,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 设置当前值
-                double currentSize = _configManager.MenuFontSize;
+                double currentSize = _configManager.TopMenuFontSize;
                 if (comboBox.Items.Contains(currentSize))
                 {
                     comboBox.SelectedItem = currentSize;

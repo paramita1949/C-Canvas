@@ -418,19 +418,72 @@ namespace ImageColorChanger.Core
         }
         
         /// <summary>
-        /// 菜单栏字号（12-40，扩展范围以适配小型笔记本）
+        /// 顶部菜单字号（12-40，优先读取 TopMenuFontSize，兼容旧版 MenuFontSize）
         /// </summary>
-        public double MenuFontSize
+        public double TopMenuFontSize
         {
-            get => _config.MenuFontSize;
+            get
+            {
+                if (_config.TopMenuFontSize > 0.001)
+                {
+                    return _config.TopMenuFontSize;
+                }
+
+                if (_config.MenuFontSize > 0.001)
+                {
+                    return _config.MenuFontSize;
+                }
+
+                return 22.0;
+            }
             set
             {
-                if (Math.Abs(_config.MenuFontSize - value) > 0.001)
+                double next = Math.Max(12, Math.Min(40, value));
+                bool changed =
+                    Math.Abs((_config.TopMenuFontSize <= 0.001 ? TopMenuFontSize : _config.TopMenuFontSize) - next) > 0.001 ||
+                    Math.Abs(_config.MenuFontSize - next) > 0.001;
+
+                if (changed)
                 {
-                    _config.MenuFontSize = value;
+                    _config.TopMenuFontSize = next;
+                    _config.MenuFontSize = next; // 兼容旧字段
                     SaveConfig();
                 }
             }
+        }
+
+        /// <summary>
+        /// 文本编辑器工具栏字号（12-40，默认跟随顶部菜单字号）
+        /// </summary>
+        public double EditorToolbarFontSize
+        {
+            get
+            {
+                if (_config.EditorToolbarFontSize > 0.001)
+                {
+                    return _config.EditorToolbarFontSize;
+                }
+
+                return TopMenuFontSize;
+            }
+            set
+            {
+                double next = Math.Max(12, Math.Min(40, value));
+                if (Math.Abs((_config.EditorToolbarFontSize <= 0.001 ? EditorToolbarFontSize : _config.EditorToolbarFontSize) - next) > 0.001)
+                {
+                    _config.EditorToolbarFontSize = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 菜单栏字号（兼容旧逻辑，映射到 TopMenuFontSize）
+        /// </summary>
+        public double MenuFontSize
+        {
+            get => TopMenuFontSize;
+            set => TopMenuFontSize = value;
         }
 
         /// <summary>
@@ -1400,6 +1453,16 @@ namespace ImageColorChanger.Core
         /// 菜单栏字号（默认：22，范围12-40，扩展以适配小型笔记本）
         /// </summary>
         public double MenuFontSize { get; set; } = 22.0;
+
+        /// <summary>
+        /// 顶部菜单字号（默认：22，未设置时回退到 MenuFontSize）
+        /// </summary>
+        public double TopMenuFontSize { get; set; } = 0.0;
+
+        /// <summary>
+        /// 文本编辑器工具栏字号（默认：0，表示跟随 TopMenuFontSize）
+        /// </summary>
+        public double EditorToolbarFontSize { get; set; } = 0.0;
 
         /// <summary>
         /// 投影动画是否启用（默认：true）

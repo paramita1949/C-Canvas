@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -11,6 +13,11 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private const double TopMenuHorizontalScrollRatio = 0.85;
+        private const int TopMenuContinuousScrollIntervalMs = 24;
+        private System.Windows.Threading.DispatcherTimer _topMenuContinuousScrollTimer;
+        private int _topMenuContinuousScrollDirection;
+
         private void BtnSync_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -109,6 +116,177 @@ namespace ImageColorChanger.UI
 
             ClearImageDisplay();
             UpdateFloatingCompositePlayButton();
+        }
+
+        private void TopMenuScrollLeft_Click(object sender, RoutedEventArgs e)
+        {
+            ScrollTopMenuBy(-GetTopMenuScrollStep());
+        }
+
+        private void TopMenuScrollRight_Click(object sender, RoutedEventArgs e)
+        {
+            ScrollTopMenuBy(GetTopMenuScrollStep());
+        }
+
+        private void TopMenuScrollLeft_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            StartTopMenuContinuousScroll(-1);
+        }
+
+        private void TopMenuScrollRight_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            StartTopMenuContinuousScroll(1);
+        }
+
+        private void TopMenuScrollArrow_PreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            StopTopMenuContinuousScroll();
+        }
+
+        private void TopMenuScrollArrow_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.LeftButton != System.Windows.Input.MouseButtonState.Pressed)
+            {
+                StopTopMenuContinuousScroll();
+            }
+        }
+
+        private void TopMenuScrollViewer_Loaded(object sender, RoutedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(UpdateTopMenuScrollButtonState), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void TopMenuHostGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateTopMenuScrollButtonState();
+        }
+
+        private void TopMenuScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateTopMenuScrollButtonState();
+        }
+
+        private void TopMenuScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            UpdateTopMenuScrollButtonState();
+        }
+
+        private void TopMenuScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (TopMenuScrollViewer == null || TopMenuScrollViewer.ScrollableWidth <= 1)
+            {
+                return;
+            }
+
+            double direction = e.Delta > 0 ? -1 : 1;
+            double step = Math.Max(48, GetTopMenuScrollStep() * 0.22);
+            ScrollTopMenuBy(direction * step);
+            e.Handled = true;
+        }
+
+        private void ScrollTopMenuBy(double delta)
+        {
+            if (TopMenuScrollViewer == null)
+            {
+                return;
+            }
+
+            double next = TopMenuScrollViewer.HorizontalOffset + delta;
+            next = Math.Max(0, Math.Min(TopMenuScrollViewer.ScrollableWidth, next));
+            if (Math.Abs(next - TopMenuScrollViewer.HorizontalOffset) > 0.1)
+            {
+                SuppressImportHoverAutoPopupAfterTopMenuScroll();
+            }
+            TopMenuScrollViewer.ScrollToHorizontalOffset(next);
+            UpdateTopMenuScrollButtonState();
+        }
+
+        private void StartTopMenuContinuousScroll(int direction)
+        {
+            if (direction == 0 || TopMenuScrollViewer == null)
+            {
+                return;
+            }
+
+            if ((direction < 0 && !BtnTopMenuScrollLeft.IsEnabled) || (direction > 0 && !BtnTopMenuScrollRight.IsEnabled))
+            {
+                return;
+            }
+
+            _topMenuContinuousScrollDirection = direction;
+            SuppressImportHoverAutoPopupAfterTopMenuScroll();
+            _topMenuContinuousScrollTimer ??= new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromMilliseconds(TopMenuContinuousScrollIntervalMs),
+                System.Windows.Threading.DispatcherPriority.Background,
+                (_, _) => TickTopMenuContinuousScroll(),
+                Dispatcher);
+
+            if (!_topMenuContinuousScrollTimer.IsEnabled)
+            {
+                _topMenuContinuousScrollTimer.Start();
+            }
+        }
+
+        private void TickTopMenuContinuousScroll()
+        {
+            if (_topMenuContinuousScrollDirection == 0)
+            {
+                StopTopMenuContinuousScroll();
+                return;
+            }
+
+            double step = Math.Max(22, GetTopMenuScrollStep() * 0.09);
+            ScrollTopMenuBy(_topMenuContinuousScrollDirection * step);
+        }
+
+        private void StopTopMenuContinuousScroll()
+        {
+            _topMenuContinuousScrollDirection = 0;
+            _topMenuContinuousScrollTimer?.Stop();
+        }
+
+        private double GetTopMenuScrollStep()
+        {
+            if (TopMenuScrollViewer == null || TopMenuScrollViewer.ViewportWidth <= 0)
+            {
+                return 260;
+            }
+
+            return Math.Max(180, TopMenuScrollViewer.ViewportWidth * TopMenuHorizontalScrollRatio);
+        }
+
+        private void UpdateTopMenuScrollButtonState()
+        {
+            if (TopMenuScrollViewer == null || BtnTopMenuScrollLeft == null || BtnTopMenuScrollRight == null)
+            {
+                return;
+            }
+
+            bool hasOverflowContent = TopMenuOverflowPanel.Children
+                .Cast<UIElement>()
+                .Any(element => element.Visibility != Visibility.Collapsed);
+            bool hasOverflow = hasOverflowContent && TopMenuScrollViewer.ScrollableWidth > 1;
+            bool canScrollLeft = TopMenuScrollViewer.HorizontalOffset > 1;
+            bool canScrollRight = TopMenuScrollViewer.HorizontalOffset < TopMenuScrollViewer.ScrollableWidth - 1;
+
+            if (!hasOverflow)
+            {
+                BtnTopMenuScrollLeft.Visibility = Visibility.Collapsed;
+                BtnTopMenuScrollRight.Visibility = Visibility.Collapsed;
+                BtnTopMenuScrollLeft.IsEnabled = false;
+                BtnTopMenuScrollRight.IsEnabled = false;
+                return;
+            }
+
+            // 仅在对应方向可滚动时显示箭头；不可滚动时折叠，避免留下空白占位。
+            BtnTopMenuScrollLeft.Visibility = canScrollLeft ? Visibility.Visible : Visibility.Collapsed;
+            BtnTopMenuScrollRight.Visibility = canScrollRight ? Visibility.Visible : Visibility.Collapsed;
+
+            BtnTopMenuScrollLeft.IsEnabled = canScrollLeft;
+            BtnTopMenuScrollRight.IsEnabled = canScrollRight;
+
+            BtnTopMenuScrollLeft.Opacity = canScrollLeft ? 1.0 : 0.45;
+            BtnTopMenuScrollRight.Opacity = canScrollRight ? 1.0 : 0.45;
         }
     }
 }

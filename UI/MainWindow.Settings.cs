@@ -48,8 +48,9 @@ namespace ImageColorChanger.UI
                 
                 // 加载圣经历史记录区域高度（在Window_Loaded中恢复）
                 
-                // 加载菜单栏字号
-                ApplyMenuFontSize(_configManager.MenuFontSize);
+                // 加载顶部菜单和编辑器工具栏字号（已解耦）
+                ApplyTopMenuFontSize(_configManager.TopMenuFontSize);
+                ApplyEditorToolbarFontSize(_configManager.EditorToolbarFontSize);
                 
                 // 加载投影动画设置
                 LoadProjectionAnimationSettings();
@@ -123,7 +124,7 @@ namespace ImageColorChanger.UI
                 // 使用 ConfigManager 的统一方法保存目标颜色
                 _configManager.SetCurrentColor(_currentTargetColor.Red, _currentTargetColor.Green, _currentTargetColor.Blue, _currentTargetColorName);
                 
-                // 保存菜单栏字号（在ApplyMenuFontSize中已保存到_configManager）
+                // 保存字号设置（在 ApplyTopMenuFontSize / ApplyEditorToolbarFontSize 中已保存到 _configManager）
                 _configManager.SaveConfig();
                 
                 // System.Diagnostics.Debug.WriteLine($" 已保存设置到 config.json (颜色: {_currentTargetColorName})");
@@ -165,128 +166,140 @@ namespace ImageColorChanger.UI
         }
         
         /// <summary>
-        /// 应用菜单栏字号设置 - 扩展字号范围以适配小型笔记本
+        /// 应用顶部菜单字号（只影响顶部菜单）
         /// </summary>
-        private void ApplyMenuFontSize(double fontSize)
+        private void ApplyTopMenuFontSize(double fontSize)
         {
-            // 限制范围：12-40，扩展到更小字号以适配小型笔记本
+            // 限制范围：12-40
             fontSize = Math.Max(12, Math.Min(40, fontSize));
 
-            // Python版本逻辑：主字号22，菜单字号=主字号*0.8=17.6≈18
-            // 这里fontSize是主字号，实际显示字号是fontSize*0.8
             double displayFontSize = fontSize * 0.8;
-            
-            // 获取屏幕信息进行自适应调整
-            var screenWidth = SystemParameters.PrimaryScreenWidth;
-            var screenHeight = SystemParameters.PrimaryScreenHeight;
-            var dpiScale = SystemParameters.PrimaryScreenWidth / 1920.0; // 以1920为基准
-            
-            // 根据屏幕尺寸调整字号
+            var screenWidth = MainWindowRoot?.ActualWidth > 0 ? MainWindowRoot.ActualWidth : SystemParameters.PrimaryScreenWidth;
+            var dpiScale = screenWidth / 1920.0;
             double adaptiveFontSize = CalculateAdaptiveFontSize(displayFontSize, screenWidth, dpiScale);
-            
-            // 计算按钮尺寸参数（使用主字号计算，按Python版本逻辑）
             var buttonParams = CalculateButtonParameters(fontSize, adaptiveFontSize, screenWidth);
-            
-            // 主菜单按钮：自动收集顶部菜单栏按钮，避免新增按钮时漏掉尺寸同步
-            var mainMenuButtons = GetTopMenuButtons();
-            
-            // 文本编辑器按钮（应用缩小比例）
-            var textEditorButtons = new[]
-            {
-                BtnAddText, BtnBackgroundImage, BtnBackgroundColor, BtnSplitView, BtnSplitStretchMode, BtnSlideOutputMode,
-                BtnDecreaseFontSize, BtnIncreaseFontSize, BtnBold, BtnTextColor, BtnSaveTextProject,
-                BtnLockProjection, BtnUpdateProjection, BtnCloseTextEditorInPanel
-            };
-            
-            // 更新主菜单按钮
-            foreach (var btn in mainMenuButtons)
-            {
-                if (btn != null)
-                {
-                    btn.FontSize = adaptiveFontSize;
-                    btn.Height = buttonParams.Height;
-                    btn.Padding = buttonParams.Padding;
-                    btn.Margin = buttonParams.Margin;
-                    btn.VerticalAlignment = VerticalAlignment.Center;
-                }
-            }
-            
-            // 更新文本编辑器按钮（按比例缩小0.75倍）
-            double textEditorScale = 0.75;
-            foreach (var btn in textEditorButtons)
-            {
-                if (btn != null)
-                {
-                    btn.FontSize = adaptiveFontSize * textEditorScale;
-                    btn.Height = buttonParams.Height * textEditorScale;
 
-                    // A+、A-、B、A 按钮设置为紧凑样式（0间距、小内边距）
-                    if (btn == BtnIncreaseFontSize || btn == BtnDecreaseFontSize ||
-                        btn == BtnBold || btn == BtnTextColor)
-                    {
-                        btn.Margin = new Thickness(0);
-                        btn.Padding = new Thickness(2); // 紧凑内边距
-                    }
-                    else
-                    {
-                        btn.Padding = new Thickness(
-                            buttonParams.Padding.Left * textEditorScale,
-                            buttonParams.Padding.Top * textEditorScale,
-                            buttonParams.Padding.Right * textEditorScale,
-                            buttonParams.Padding.Bottom * textEditorScale
-                        );
-                        btn.Margin = new Thickness(
-                            buttonParams.Margin.Left * textEditorScale,
-                            buttonParams.Margin.Top * textEditorScale,
-                            buttonParams.Margin.Right * textEditorScale,
-                            buttonParams.Margin.Bottom * textEditorScale
-                        );
-                    }
-
-                    btn.VerticalAlignment = VerticalAlignment.Center;
+            foreach (var btn in GetTopMenuButtons())
+            {
+                if (btn == null)
+                {
+                    continue;
                 }
+
+                btn.FontSize = adaptiveFontSize;
+                btn.Height = buttonParams.Height;
+                btn.Padding = buttonParams.Padding;
+                btn.Margin = buttonParams.Margin;
+                btn.VerticalAlignment = VerticalAlignment.Center;
             }
-            
-            // 调整倒计时Border的高度和字号，使其与按钮对齐
+
             if (CountdownBorder != null && CountdownText != null)
             {
                 CountdownBorder.Height = buttonParams.Height;
-                // 倒计时字号与按钮字号相同，确保清晰可读
                 CountdownText.FontSize = Math.Max(14, adaptiveFontSize);
-                
-                #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"⏱ 倒计时Border: 高度={CountdownBorder.Height:F1}, 字号={CountdownText.FontSize:F1}, VerticalAlignment={CountdownBorder.VerticalAlignment}");
-                #endif
             }
-            
-            // 调整菜单栏高度（传入主字号，根据比例放大）
+
             AdjustMenuBarHeight(fontSize);
-            
-            // 保存到配置
-            _configManager.MenuFontSize = fontSize;
-            
-            #if DEBUG
-            // System.Diagnostics.Debug.WriteLine($" 应用Python风格字号: 主字号={fontSize}, 显示字号={displayFontSize:F1}, 自适应={adaptiveFontSize:F1}, 屏幕宽度={screenWidth}, DPI缩放={dpiScale:F2}");
-            #endif
+            _configManager.TopMenuFontSize = fontSize;
+        }
+
+        /// <summary>
+        /// 应用编辑器工具栏字号（只影响文本编辑器工具栏）
+        /// </summary>
+        private void ApplyEditorToolbarFontSize(double fontSize)
+        {
+            fontSize = Math.Max(12, Math.Min(40, fontSize));
+
+            double displayFontSize = fontSize * 0.8;
+            var screenWidth = MainWindowRoot?.ActualWidth > 0 ? MainWindowRoot.ActualWidth : SystemParameters.PrimaryScreenWidth;
+            var dpiScale = screenWidth / 1920.0;
+            double adaptiveFontSize = CalculateAdaptiveFontSize(displayFontSize, screenWidth, dpiScale);
+            var buttonParams = CalculateButtonParameters(fontSize, adaptiveFontSize, screenWidth);
+
+            double textEditorScale = 0.75;
+            foreach (var btn in GetTextEditorToolbarButtons())
+            {
+                if (btn == null)
+                {
+                    continue;
+                }
+
+                btn.FontSize = adaptiveFontSize * textEditorScale;
+                btn.Height = buttonParams.Height * textEditorScale;
+
+                if (btn == BtnIncreaseFontSize || btn == BtnDecreaseFontSize || btn == BtnBold || btn == BtnTextColor)
+                {
+                    btn.Margin = new Thickness(0);
+                    btn.Padding = new Thickness(2);
+                }
+                else
+                {
+                    btn.Padding = new Thickness(
+                        buttonParams.Padding.Left * textEditorScale,
+                        buttonParams.Padding.Top * textEditorScale,
+                        buttonParams.Padding.Right * textEditorScale,
+                        buttonParams.Padding.Bottom * textEditorScale);
+                    btn.Margin = new Thickness(
+                        buttonParams.Margin.Left * textEditorScale,
+                        buttonParams.Margin.Top * textEditorScale,
+                        buttonParams.Margin.Right * textEditorScale,
+                        buttonParams.Margin.Bottom * textEditorScale);
+                }
+
+                btn.VerticalAlignment = VerticalAlignment.Center;
+            }
+
+            _configManager.EditorToolbarFontSize = fontSize;
+        }
+
+        /// <summary>
+        /// 兼容旧入口：菜单字号仅调整顶部菜单。
+        /// </summary>
+        private void ApplyMenuFontSize(double fontSize)
+        {
+            ApplyTopMenuFontSize(fontSize);
         }
 
         private System.Collections.Generic.List<System.Windows.Controls.Button> GetTopMenuButtons()
         {
             var buttons = new System.Collections.Generic.List<System.Windows.Controls.Button>();
-            if (TopMenuButtonPanel == null)
+            void CollectButtons(System.Windows.Controls.Panel panel)
             {
-                return buttons;
-            }
-
-            foreach (var child in TopMenuButtonPanel.Children)
-            {
-                if (child is System.Windows.Controls.Button button)
+                if (panel == null)
                 {
-                    buttons.Add(button);
+                    return;
+                }
+
+                foreach (var child in panel.Children)
+                {
+                    if (child is System.Windows.Controls.Button button)
+                    {
+                        buttons.Add(button);
+                    }
                 }
             }
 
+            CollectButtons(TopMenuOverflowPanel);
+
             return buttons;
+        }
+
+        private System.Collections.Generic.IEnumerable<System.Windows.Controls.Button> GetTextEditorToolbarButtons()
+        {
+            yield return BtnAddText;
+            yield return BtnBackgroundImage;
+            yield return BtnBackgroundColor;
+            yield return BtnSplitView;
+            yield return BtnSplitStretchMode;
+            yield return BtnSlideOutputMode;
+            yield return BtnDecreaseFontSize;
+            yield return BtnIncreaseFontSize;
+            yield return BtnBold;
+            yield return BtnTextColor;
+            yield return BtnSaveTextProject;
+            yield return BtnLockProjection;
+            yield return BtnUpdateProjection;
+            yield return BtnCloseTextEditorInPanel;
         }
         
         /// <summary>
@@ -396,14 +409,14 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 获取当前配置的字号
-                double currentFontSize = _configManager.MenuFontSize;
-                
-                // 应用自适应字体设置
-                ApplyMenuFontSize(currentFontSize);
+                double topMenuFontSize = _configManager.TopMenuFontSize;
+                double editorToolbarFontSize = _configManager.EditorToolbarFontSize;
+
+                ApplyTopMenuFontSize(topMenuFontSize);
+                ApplyEditorToolbarFontSize(editorToolbarFontSize);
                 
                 #if DEBUG
-                // System.Diagnostics.Debug.WriteLine($"自适应字体系统初始化完成，字号: {currentFontSize}");
+                // System.Diagnostics.Debug.WriteLine($"自适应字体系统初始化完成，顶部菜单字号: {topMenuFontSize}, 编辑器字号: {editorToolbarFontSize}");
                 #endif
             }
             catch
