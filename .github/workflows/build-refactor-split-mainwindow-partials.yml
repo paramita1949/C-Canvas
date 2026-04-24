@@ -421,14 +421,14 @@ jobs:
       with:
         name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.full_zip_name }}
-        retention-days: 7
+        retention-days: 60
 
     - name: 上传更新包
       uses: actions/upload-artifact@v4
       with:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
-        retention-days: 7
+        retention-days: 60
     
     - name: 上传资源包
       if: ${{ steps.create_package.outputs.resources_zip_name != '' }}
@@ -436,14 +436,14 @@ jobs:
       with:
         name: Canvas-Cast-Resources-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.resources_zip_name }}
-        retention-days: 7
+        retention-days: 60
 
     - name: 上传新增文件包
       uses: actions/upload-artifact@v4
       with:
         name: Canvas-Cast-Added-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.added_zip_name }}
-        retention-days: 7
+        retention-days: 60
 
     - name: 调试Release信息
       shell: pwsh
@@ -586,5 +586,6 @@ jobs:
           $addedSize = [math]::Round((Get-Item "${{ steps.create_package.outputs.added_zip_name }}").Length / 1MB, 2)
           echo "- **新增文件包**: ``${{ steps.create_package.outputs.added_zip_name }}`` - $addedSize MB" >> $env:GITHUB_STEP_SUMMARY
         }
+
 
 
