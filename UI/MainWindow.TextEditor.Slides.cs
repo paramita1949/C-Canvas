@@ -925,11 +925,64 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 文本编辑器面板键盘事件（处理PageUp/PageDown切换幻灯片）
         /// </summary>
-        private void TextEditorPanel_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private async void TextEditorPanel_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             // 只在文本编辑器可见时处理
             if (TextEditorPanel.Visibility != Visibility.Visible)
                 return;
+
+            int selectedCount = GetActiveSelectedTextBoxes().Count;
+            bool isBatchSelection = selectedCount > 1;
+
+            // 文本框编辑状态下交由 RichTextBox 自己处理复制粘贴等文本快捷键
+            if (!isBatchSelection && _selectedTextBox?.IsInEditMode == true)
+            {
+                return;
+            }
+
+            bool ctrlPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+            if (ctrlPressed && e.Key == Key.A)
+            {
+                SelectMultipleTextBoxes(_textBoxes);
+                foreach (var tb in _textBoxes)
+                {
+                    if (tb.IsInEditMode)
+                    {
+                        tb.ExitEditMode();
+                    }
+                }
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrlPressed && e.Key == Key.C)
+            {
+                await CopyTextBoxToClipboardAsync(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrlPressed && e.Key == Key.X)
+            {
+                await CopyTextBoxToClipboardAsync(null);
+                await DeleteSelectedTextBoxesAsync();
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrlPressed && e.Key == Key.V)
+            {
+                await PasteTextBoxFromClipboardAsync(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Delete)
+            {
+                await DeleteSelectedTextBoxesAsync();
+                e.Handled = true;
+                return;
+            }
 
             // PageUp: 切换到上一张幻灯片
             if (e.Key == System.Windows.Input.Key.PageUp)

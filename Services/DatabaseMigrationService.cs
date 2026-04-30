@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Threading.Tasks;
+using ImageColorChanger.Database;
+using ImageColorChanger.Database.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Services
 {
@@ -11,6 +15,12 @@ namespace ImageColorChanger.Services
         Info,
         Warning,
         Error
+    }
+
+    public enum DatabaseImportMode
+    {
+        Replace = 0,
+        IncrementalMerge = 1
     }
 
     public class DatabaseMigrationResult
@@ -201,8 +211,13 @@ namespace ImageColorChanger.Services
         /// </summary>
         /// <param name="sourcePath">源文件路径（.zip 压缩包或 .db 文件）</param>
         /// <returns>导入结果</returns>
-        public async Task<DatabaseMigrationResult> ImportDatabaseAsync(string sourcePath)
+        public async Task<DatabaseMigrationResult> ImportDatabaseAsync(string sourcePath, DatabaseImportMode importMode = DatabaseImportMode.Replace)
         {
+            if (importMode == DatabaseImportMode.IncrementalMerge)
+            {
+                return await ImportDatabaseIncrementalAsync(sourcePath);
+            }
+
             LogInfo($"[Import-Begin] source={sourcePath}, db={_defaultDbPath}");
             string backupPath = string.Empty;
             bool stagedForRestart = false;
@@ -437,6 +452,903 @@ namespace ImageColorChanger.Services
             }
 
             return stagedForRestart;
+        }
+
+        private sealed class IncrementalMergeStats
+        {
+            public int AddedFolders { get; set; }
+            public int AddedMediaFiles { get; set; }
+            public int AddedFolderLinks { get; set; }
+            public int AddedImageDisplayLocations { get; set; }
+            public int AddedManualSortFolders { get; set; }
+            public int AddedTextProjects { get; set; }
+            public int AddedSlides { get; set; }
+            public int AddedTextElements { get; set; }
+            public int AddedRichTextSpans { get; set; }
+            public int AddedKeyframes { get; set; }
+            public int AddedKeyframeTimings { get; set; }
+            public int AddedOriginalMarks { get; set; }
+            public int AddedOriginalModeTimings { get; set; }
+            public int AddedCompositeScripts { get; set; }
+            public int AddedLyricsGroups { get; set; }
+            public int AddedLyricsProjects { get; set; }
+            public int AddedBibleHistoryRecords { get; set; }
+            public int AddedSettings { get; set; }
+            public int AddedUiSettings { get; set; }
+        }
+
+        private async Task<DatabaseMigrationResult> ImportDatabaseIncrementalAsync(string sourcePath)
+        {
+            LogInfo($"[ImportMerge-Begin] source={sourcePath}, db={_defaultDbPath}");
+            string tempDir = string.Empty;
+            try
+            {
+                if (!File.Exists(sourcePath))
+                {
+                    return DatabaseMigrationResult.Fail("增量导入失败", "选择的数据库文件不存在。", DatabaseMigrationMessageLevel.Warning);
+                }
+
+                string extension = Path.GetExtension(sourcePath).ToLowerInvariant();
+                string sourceDbPath = sourcePath;
+
+                if (extension == ".zip")
+                {
+                    tempDir = Path.Combine(Path.GetTempPath(), $"db_merge_{Guid.NewGuid()}");
+                    Directory.CreateDirectory(tempDir);
+                    await Task.Run(() => ZipFile.ExtractToDirectory(sourcePath, tempDir));
+                    sourceDbPath = FindDatabaseFileFromExtractedPackage(tempDir);
+                    if (string.IsNullOrWhiteSpace(sourceDbPath))
+                    {
+                        return DatabaseMigrationResult.Fail("增量导入失败", "压缩包中未找到可用的数据库文件（.db）。");
+                    }
+                }
+                else if (extension != ".db")
+                {
+                    return DatabaseMigrationResult.Fail("增量导入失败", "不支持的文件格式，请选择 .zip 或 .db 文件。", DatabaseMigrationMessageLevel.Warning);
+                }
+
+                if (!IsValidSqliteDatabase(sourceDbPath))
+                {
+                    return DatabaseMigrationResult.Fail("增量导入失败", "选择的文件不是有效的SQLite数据库文件。", DatabaseMigrationMessageLevel.Warning);
+                }
+
+                string sourceFullPath = Path.GetFullPath(sourceDbPath);
+                string targetFullPath = Path.GetFullPath(_defaultDbPath);
+                if (string.Equals(sourceFullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return DatabaseMigrationResult.Fail("增量导入失败", "源数据库与当前数据库相同，无需导入。", DatabaseMigrationMessageLevel.Warning);
+                }
+
+                CloseAllDatabaseConnections();
+
+                IncrementalMergeStats stats = await MergeDatabaseIncrementallyAsync(sourceDbPath);
+                List<string> companionImported = await TryImportCompanionArtifactsForDbAsync(sourceDbPath);
+                string companionMessage = BuildCompanionImportMessage(companionImported);
+
+                string message =
+                    "增量导入完成（保留本机数据）。\n\n" +
+                    $"新增文件夹: {stats.AddedFolders}\n" +
+                    $"新增媒体: {stats.AddedMediaFiles}\n" +
+                    $"新增目录素材关联: {stats.AddedFolderLinks}\n" +
+                    $"新增显示位置: {stats.AddedImageDisplayLocations}\n" +
+                    $"新增手动排序目录: {stats.AddedManualSortFolders}\n" +
+                    $"新增幻灯片项目: {stats.AddedTextProjects}\n" +
+                    $"新增幻灯片: {stats.AddedSlides}\n" +
+                    $"新增文本元素: {stats.AddedTextElements}\n" +
+                    $"新增富文本片段: {stats.AddedRichTextSpans}\n" +
+                    $"新增关键帧: {stats.AddedKeyframes}\n" +
+                    $"新增关键帧时序: {stats.AddedKeyframeTimings}\n" +
+                    $"新增原图标记: {stats.AddedOriginalMarks}\n" +
+                    $"新增原图模式时序: {stats.AddedOriginalModeTimings}\n" +
+                    $"新增合成脚本: {stats.AddedCompositeScripts}\n" +
+                    $"新增歌词分组: {stats.AddedLyricsGroups}\n" +
+                    $"新增歌词: {stats.AddedLyricsProjects}\n" +
+                    $"新增经文历史槽位: {stats.AddedBibleHistoryRecords}\n" +
+                    $"新增通用设置键: {stats.AddedSettings}\n" +
+                    $"新增UI设置键: {stats.AddedUiSettings}" +
+                    companionMessage +
+                    "\n\n建议重启应用以刷新缓存和界面状态。";
+
+                return DatabaseMigrationResult.Ok("增量导入成功", message, requiresRestart: true);
+            }
+            catch (Exception ex)
+            {
+                LogError($"[ImportMerge-Fail] {ex}");
+                return DatabaseMigrationResult.Fail("增量导入失败", $"增量导入失败：{ex.Message}");
+            }
+            finally
+            {
+                if (!string.IsNullOrWhiteSpace(tempDir) && Directory.Exists(tempDir))
+                {
+                    try
+                    {
+                        Directory.Delete(tempDir, recursive: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogWarn($"[ImportMerge] temp cleanup failed: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private async Task<IncrementalMergeStats> MergeDatabaseIncrementallyAsync(string sourceDbPath)
+        {
+            var stats = new IncrementalMergeStats();
+            var pathComparer = StringComparer.OrdinalIgnoreCase;
+            var sourceToTargetFolderMap = new Dictionary<int, int>();
+            var sourceToTargetMediaMap = new Dictionary<int, int>();
+            var sourceToTargetProjectMap = new Dictionary<int, int>();
+            var sourceToTargetSlideMap = new Dictionary<int, int>();
+            var sourceToTargetElementMap = new Dictionary<int, int>();
+            var sourceToTargetLyricsGroupMap = new Dictionary<int, int>();
+            var sourceToTargetKeyframeMap = new Dictionary<int, int>();
+
+            await using var target = new CanvasDbContext(_defaultDbPath);
+            await using var source = new CanvasDbContext(sourceDbPath);
+
+            await target.Database.OpenConnectionAsync();
+            await source.Database.OpenConnectionAsync();
+
+            // folders + media_files
+            var targetFolders = await target.Folders.ToListAsync();
+            var targetFoldersByPath = targetFolders
+                .Where(f => !string.IsNullOrWhiteSpace(f.Path))
+                .GroupBy(f => f.Path, pathComparer)
+                .ToDictionary(g => g.Key, g => g.First(), pathComparer);
+
+            var sourceFolders = await source.Folders.AsNoTracking().ToListAsync();
+            foreach (var sourceFolder in sourceFolders)
+            {
+                Folder targetFolder = null;
+                if (!string.IsNullOrWhiteSpace(sourceFolder.Path) &&
+                    targetFoldersByPath.TryGetValue(sourceFolder.Path, out var existing))
+                {
+                    targetFolder = existing;
+                }
+
+                if (targetFolder == null)
+                {
+                    targetFolder = new Folder
+                    {
+                        Name = sourceFolder.Name,
+                        Path = sourceFolder.Path,
+                        OrderIndex = sourceFolder.OrderIndex,
+                        CreatedTime = sourceFolder.CreatedTime,
+                        VideoPlayMode = sourceFolder.VideoPlayMode,
+                        AutoColorEffect = sourceFolder.AutoColorEffect,
+                        HighlightColor = sourceFolder.HighlightColor,
+                        NormalizedPath = sourceFolder.NormalizedPath,
+                        ScanPolicy = sourceFolder.ScanPolicy,
+                        LastScanTime = sourceFolder.LastScanTime,
+                        LastScanStatus = sourceFolder.LastScanStatus,
+                        LastScanError = sourceFolder.LastScanError
+                    };
+                    target.Folders.Add(targetFolder);
+                    await target.SaveChangesAsync();
+                    targetFoldersByPath[sourceFolder.Path] = targetFolder;
+                    stats.AddedFolders++;
+                }
+
+                sourceToTargetFolderMap[sourceFolder.Id] = targetFolder.Id;
+            }
+
+            var targetMedia = await target.MediaFiles.ToListAsync();
+            var targetMediaByPath = targetMedia
+                .Where(m => !string.IsNullOrWhiteSpace(m.Path))
+                .GroupBy(m => m.Path, pathComparer)
+                .ToDictionary(g => g.Key, g => g.First(), pathComparer);
+
+            var sourceMediaFiles = await source.MediaFiles.AsNoTracking().ToListAsync();
+            foreach (var sourceMedia in sourceMediaFiles)
+            {
+                MediaFile targetMediaFile = null;
+                if (!string.IsNullOrWhiteSpace(sourceMedia.Path) &&
+                    targetMediaByPath.TryGetValue(sourceMedia.Path, out var existingMedia))
+                {
+                    targetMediaFile = existingMedia;
+                }
+
+                if (targetMediaFile == null)
+                {
+                    targetMediaFile = new MediaFile
+                    {
+                        Name = sourceMedia.Name,
+                        Path = sourceMedia.Path,
+                        FolderId = sourceMedia.FolderId.HasValue && sourceToTargetFolderMap.TryGetValue(sourceMedia.FolderId.Value, out int mappedFolderId) ? mappedFolderId : null,
+                        LastModified = sourceMedia.LastModified,
+                        OrderIndex = sourceMedia.OrderIndex,
+                        FileTypeString = sourceMedia.FileTypeString,
+                        CompositePlaybackEnabled = sourceMedia.CompositePlaybackEnabled
+                    };
+                    target.MediaFiles.Add(targetMediaFile);
+                    await target.SaveChangesAsync();
+                    targetMediaByPath[sourceMedia.Path] = targetMediaFile;
+                    stats.AddedMediaFiles++;
+                }
+
+                sourceToTargetMediaMap[sourceMedia.Id] = targetMediaFile.Id;
+            }
+
+            // folder_images
+            var targetFolderLinks = await target.FolderImages.AsNoTracking()
+                .Select(fi => new { fi.FolderId, fi.ImageId })
+                .ToListAsync();
+            var linkKeySet = new HashSet<string>(targetFolderLinks.Select(v => $"{v.FolderId}:{v.ImageId}"), StringComparer.Ordinal);
+            var sourceFolderLinks = await source.FolderImages.AsNoTracking().ToListAsync();
+
+            foreach (var sourceLink in sourceFolderLinks)
+            {
+                if (!sourceToTargetFolderMap.TryGetValue(sourceLink.FolderId, out int mappedFolderId) ||
+                    !sourceToTargetMediaMap.TryGetValue(sourceLink.ImageId, out int mappedMediaId))
+                {
+                    continue;
+                }
+
+                string key = $"{mappedFolderId}:{mappedMediaId}";
+                if (linkKeySet.Contains(key))
+                {
+                    continue;
+                }
+
+                target.FolderImages.Add(new FolderImage
+                {
+                    FolderId = mappedFolderId,
+                    ImageId = mappedMediaId,
+                    OrderIndex = sourceLink.OrderIndex
+                });
+                await target.SaveChangesAsync();
+                linkKeySet.Add(key);
+                stats.AddedFolderLinks++;
+            }
+
+            // image_display_locations
+            var targetDisplayLocationKeys = new HashSet<string>(
+                (await target.ImageDisplayLocations.AsNoTracking()
+                    .Select(l => new { l.ImageId, l.LocationTypeString, l.FolderId })
+                    .ToListAsync())
+                .Select(v => $"{v.ImageId}:{(v.LocationTypeString ?? string.Empty).Trim().ToLowerInvariant()}:{(v.FolderId.HasValue ? v.FolderId.Value.ToString() : "null")}"),
+                StringComparer.Ordinal);
+            var sourceDisplayLocations = await source.ImageDisplayLocations.AsNoTracking().ToListAsync();
+            foreach (var sourceLocation in sourceDisplayLocations)
+            {
+                if (!sourceToTargetMediaMap.TryGetValue(sourceLocation.ImageId, out int mappedImageId))
+                {
+                    continue;
+                }
+
+                int? mappedFolderId = null;
+                if (sourceLocation.FolderId.HasValue)
+                {
+                    if (!sourceToTargetFolderMap.TryGetValue(sourceLocation.FolderId.Value, out int mappedFolder))
+                    {
+                        continue;
+                    }
+                    mappedFolderId = mappedFolder;
+                }
+
+                string normalizedLocationType = (sourceLocation.LocationTypeString ?? string.Empty).Trim().ToLowerInvariant();
+                string displayLocationKey = $"{mappedImageId}:{normalizedLocationType}:{(mappedFolderId.HasValue ? mappedFolderId.Value.ToString() : "null")}";
+                if (targetDisplayLocationKeys.Contains(displayLocationKey))
+                {
+                    continue;
+                }
+
+                target.ImageDisplayLocations.Add(new ImageDisplayLocation
+                {
+                    ImageId = mappedImageId,
+                    LocationTypeString = sourceLocation.LocationTypeString,
+                    FolderId = mappedFolderId,
+                    OrderIndex = sourceLocation.OrderIndex,
+                    CreatedTime = sourceLocation.CreatedTime
+                });
+                await target.SaveChangesAsync();
+                targetDisplayLocationKeys.Add(displayLocationKey);
+                stats.AddedImageDisplayLocations++;
+            }
+
+            // manual_sort_folders
+            var targetManualSortFolderIds = new HashSet<int>(
+                await target.ManualSortFolders.AsNoTracking().Select(m => m.FolderId).ToListAsync());
+            var sourceManualSortFolders = await source.ManualSortFolders.AsNoTracking().ToListAsync();
+            foreach (var sourceManualSort in sourceManualSortFolders)
+            {
+                if (!sourceToTargetFolderMap.TryGetValue(sourceManualSort.FolderId, out int mappedFolderId) ||
+                    targetManualSortFolderIds.Contains(mappedFolderId))
+                {
+                    continue;
+                }
+
+                target.ManualSortFolders.Add(new ManualSortFolder
+                {
+                    FolderId = mappedFolderId,
+                    IsManualSort = sourceManualSort.IsManualSort,
+                    LastManualSortTime = sourceManualSort.LastManualSortTime
+                });
+                await target.SaveChangesAsync();
+                targetManualSortFolderIds.Add(mappedFolderId);
+                stats.AddedManualSortFolders++;
+            }
+
+            // original_marks
+            var targetOriginalMarkKeys = new HashSet<string>(
+                (await target.OriginalMarks.AsNoTracking()
+                    .Select(m => new { m.ItemTypeString, m.ItemId })
+                    .ToListAsync())
+                .Select(v => $"{(v.ItemTypeString ?? string.Empty).Trim().ToLowerInvariant()}:{v.ItemId}"),
+                StringComparer.Ordinal);
+            var sourceOriginalMarks = await source.OriginalMarks.AsNoTracking().ToListAsync();
+            foreach (var sourceMark in sourceOriginalMarks)
+            {
+                string itemType = (sourceMark.ItemTypeString ?? string.Empty).Trim().ToLowerInvariant();
+                int mappedItemId;
+                if (itemType == "folder")
+                {
+                    if (!sourceToTargetFolderMap.TryGetValue(sourceMark.ItemId, out mappedItemId))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (!sourceToTargetMediaMap.TryGetValue(sourceMark.ItemId, out mappedItemId))
+                    {
+                        continue;
+                    }
+                }
+
+                string key = $"{itemType}:{mappedItemId}";
+                if (targetOriginalMarkKeys.Contains(key))
+                {
+                    continue;
+                }
+
+                target.OriginalMarks.Add(new OriginalMark
+                {
+                    ItemTypeString = sourceMark.ItemTypeString,
+                    ItemId = mappedItemId,
+                    MarkTypeString = sourceMark.MarkTypeString,
+                    CreatedTime = sourceMark.CreatedTime
+                });
+                await target.SaveChangesAsync();
+                targetOriginalMarkKeys.Add(key);
+                stats.AddedOriginalMarks++;
+            }
+
+            // keyframes
+            var targetKeyframeKeys = new HashSet<string>(
+                (await target.Keyframes.AsNoTracking()
+                    .Select(k => new { k.ImageId, k.Position, k.YPosition, k.OrderIndex })
+                    .ToListAsync())
+                .Select(v => $"{v.ImageId}:{v.Position:R}:{v.YPosition}:{(v.OrderIndex.HasValue ? v.OrderIndex.Value.ToString() : "null")}"),
+                StringComparer.Ordinal);
+            var sourceKeyframes = await source.Keyframes.AsNoTracking().ToListAsync();
+            foreach (var sourceKeyframe in sourceKeyframes)
+            {
+                if (!sourceToTargetMediaMap.TryGetValue(sourceKeyframe.ImageId, out int mappedImageId))
+                {
+                    continue;
+                }
+
+                string key = $"{mappedImageId}:{sourceKeyframe.Position:R}:{sourceKeyframe.YPosition}:{(sourceKeyframe.OrderIndex.HasValue ? sourceKeyframe.OrderIndex.Value.ToString() : "null")}";
+                Keyframe targetKeyframe = null;
+                if (targetKeyframeKeys.Contains(key))
+                {
+                    targetKeyframe = await target.Keyframes.FirstOrDefaultAsync(k =>
+                        k.ImageId == mappedImageId &&
+                        k.Position == sourceKeyframe.Position &&
+                        k.YPosition == sourceKeyframe.YPosition &&
+                        k.OrderIndex == sourceKeyframe.OrderIndex);
+                }
+
+                if (targetKeyframe == null)
+                {
+                    targetKeyframe = new Keyframe
+                    {
+                        ImageId = mappedImageId,
+                        Position = sourceKeyframe.Position,
+                        YPosition = sourceKeyframe.YPosition,
+                        OrderIndex = sourceKeyframe.OrderIndex,
+                        LoopCount = sourceKeyframe.LoopCount,
+                        AutoPause = sourceKeyframe.AutoPause
+                    };
+
+                    target.Keyframes.Add(targetKeyframe);
+                    await target.SaveChangesAsync();
+                    targetKeyframeKeys.Add(key);
+                    stats.AddedKeyframes++;
+                }
+
+                sourceToTargetKeyframeMap[sourceKeyframe.Id] = targetKeyframe.Id;
+            }
+
+            // keyframe_timings
+            var targetTimingKeys = new HashSet<string>(
+                (await target.KeyframeTimings.AsNoTracking()
+                    .Select(t => new { t.ImageId, t.KeyframeId, t.SequenceOrder })
+                    .ToListAsync())
+                .Select(v => $"{v.ImageId}:{v.KeyframeId}:{v.SequenceOrder}"),
+                StringComparer.Ordinal);
+            var sourceTimings = await source.KeyframeTimings.AsNoTracking().ToListAsync();
+            foreach (var sourceTiming in sourceTimings)
+            {
+                if (!sourceToTargetMediaMap.TryGetValue(sourceTiming.ImageId, out int mappedImageId) ||
+                    !sourceToTargetKeyframeMap.TryGetValue(sourceTiming.KeyframeId, out int mappedKeyframeId))
+                {
+                    continue;
+                }
+
+                string timingKey = $"{mappedImageId}:{mappedKeyframeId}:{sourceTiming.SequenceOrder}";
+                if (targetTimingKeys.Contains(timingKey))
+                {
+                    continue;
+                }
+
+                target.KeyframeTimings.Add(new KeyframeTiming
+                {
+                    ImageId = mappedImageId,
+                    KeyframeId = mappedKeyframeId,
+                    Duration = sourceTiming.Duration,
+                    SequenceOrder = sourceTiming.SequenceOrder,
+                    CreatedAt = sourceTiming.CreatedAt
+                });
+                stats.AddedKeyframeTimings++;
+                targetTimingKeys.Add(timingKey);
+            }
+            await target.SaveChangesAsync();
+
+            // original_mode_timings
+            var targetOriginalTimingKeys = new HashSet<string>(
+                (await target.OriginalModeTimings.AsNoTracking()
+                    .Select(t => new { t.BaseImageId, t.FromImageId, t.ToImageId, t.SequenceOrder, t.MarkTypeString })
+                    .ToListAsync())
+                .Select(v => $"{v.BaseImageId}:{v.FromImageId}:{v.ToImageId}:{v.SequenceOrder}:{(v.MarkTypeString ?? string.Empty).Trim().ToLowerInvariant()}"),
+                StringComparer.Ordinal);
+            var sourceOriginalTimings = await source.OriginalModeTimings.AsNoTracking().ToListAsync();
+            foreach (var sourceTiming in sourceOriginalTimings)
+            {
+                if (!sourceToTargetMediaMap.TryGetValue(sourceTiming.BaseImageId, out int mappedBaseId) ||
+                    !sourceToTargetMediaMap.TryGetValue(sourceTiming.FromImageId, out int mappedFromId) ||
+                    !sourceToTargetMediaMap.TryGetValue(sourceTiming.ToImageId, out int mappedToId))
+                {
+                    continue;
+                }
+
+                string key = $"{mappedBaseId}:{mappedFromId}:{mappedToId}:{sourceTiming.SequenceOrder}:{(sourceTiming.MarkTypeString ?? string.Empty).Trim().ToLowerInvariant()}";
+                if (targetOriginalTimingKeys.Contains(key))
+                {
+                    continue;
+                }
+
+                target.OriginalModeTimings.Add(new OriginalModeTiming
+                {
+                    BaseImageId = mappedBaseId,
+                    FromImageId = mappedFromId,
+                    ToImageId = mappedToId,
+                    Duration = sourceTiming.Duration,
+                    SequenceOrder = sourceTiming.SequenceOrder,
+                    MarkTypeString = sourceTiming.MarkTypeString,
+                    CreatedAt = sourceTiming.CreatedAt
+                });
+                stats.AddedOriginalModeTimings++;
+                targetOriginalTimingKeys.Add(key);
+            }
+            await target.SaveChangesAsync();
+
+            // composite_scripts
+            var targetCompositeScriptImageIds = new HashSet<int>(
+                await target.CompositeScripts.AsNoTracking().Select(s => s.ImageId).ToListAsync());
+            var sourceCompositeScripts = await source.CompositeScripts.AsNoTracking().ToListAsync();
+            foreach (var sourceScript in sourceCompositeScripts)
+            {
+                if (!sourceToTargetMediaMap.TryGetValue(sourceScript.ImageId, out int mappedImageId) ||
+                    targetCompositeScriptImageIds.Contains(mappedImageId))
+                {
+                    continue;
+                }
+
+                target.CompositeScripts.Add(new CompositeScript
+                {
+                    ImageId = mappedImageId,
+                    TotalDuration = sourceScript.TotalDuration,
+                    AutoCalculate = sourceScript.AutoCalculate,
+                    CreatedAt = sourceScript.CreatedAt,
+                    UpdatedAt = sourceScript.UpdatedAt
+                });
+                stats.AddedCompositeScripts++;
+                targetCompositeScriptImageIds.Add(mappedImageId);
+            }
+            await target.SaveChangesAsync();
+
+            // text projects + slides + text elements + rich text spans
+            var targetProjectNames = new HashSet<string>(
+                await target.TextProjects.AsNoTracking().Select(p => p.Name).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
+
+            var sourceProjects = await source.TextProjects.AsNoTracking().ToListAsync();
+            foreach (var sourceProject in sourceProjects)
+            {
+                string uniqueProjectName = GetUniqueName(sourceProject.Name, targetProjectNames);
+                var newProject = new TextProject
+                {
+                    Name = uniqueProjectName,
+                    BackgroundImagePath = sourceProject.BackgroundImagePath,
+                    CanvasWidth = sourceProject.CanvasWidth,
+                    CanvasHeight = sourceProject.CanvasHeight,
+                    CreatedTime = sourceProject.CreatedTime,
+                    ModifiedTime = sourceProject.ModifiedTime,
+                    SortOrder = sourceProject.SortOrder
+                };
+
+                target.TextProjects.Add(newProject);
+                await target.SaveChangesAsync();
+                sourceToTargetProjectMap[sourceProject.Id] = newProject.Id;
+                targetProjectNames.Add(uniqueProjectName);
+                stats.AddedTextProjects++;
+            }
+
+            var sourceSlides = await source.Slides.AsNoTracking()
+                .OrderBy(s => s.ProjectId)
+                .ThenBy(s => s.SortOrder)
+                .ToListAsync();
+            foreach (var sourceSlide in sourceSlides)
+            {
+                if (!sourceToTargetProjectMap.TryGetValue(sourceSlide.ProjectId, out int mappedProjectId))
+                {
+                    continue;
+                }
+
+                var newSlide = new Slide
+                {
+                    ProjectId = mappedProjectId,
+                    Title = sourceSlide.Title,
+                    SortOrder = sourceSlide.SortOrder,
+                    BackgroundImagePath = sourceSlide.BackgroundImagePath,
+                    BackgroundColor = sourceSlide.BackgroundColor,
+                    BackgroundGradientEnabled = sourceSlide.BackgroundGradientEnabled,
+                    BackgroundGradientStartColor = sourceSlide.BackgroundGradientStartColor,
+                    BackgroundGradientEndColor = sourceSlide.BackgroundGradientEndColor,
+                    BackgroundGradientDirection = sourceSlide.BackgroundGradientDirection,
+                    BackgroundOpacity = sourceSlide.BackgroundOpacity,
+                    SplitMode = sourceSlide.SplitMode,
+                    SplitRegionsData = sourceSlide.SplitRegionsData,
+                    SplitStretchMode = sourceSlide.SplitStretchMode,
+                    VideoBackgroundEnabled = sourceSlide.VideoBackgroundEnabled,
+                    VideoLoopEnabled = sourceSlide.VideoLoopEnabled,
+                    VideoVolume = sourceSlide.VideoVolume,
+                    OutputMode = sourceSlide.OutputMode,
+                    CreatedTime = sourceSlide.CreatedTime,
+                    ModifiedTime = sourceSlide.ModifiedTime
+                };
+
+                target.Slides.Add(newSlide);
+                await target.SaveChangesAsync();
+                sourceToTargetSlideMap[sourceSlide.Id] = newSlide.Id;
+                stats.AddedSlides++;
+            }
+
+            var sourceElements = await source.TextElements.AsNoTracking()
+                .Where(e => e.SlideId.HasValue)
+                .ToListAsync();
+            foreach (var sourceElement in sourceElements)
+            {
+                if (!sourceElement.SlideId.HasValue || !sourceToTargetSlideMap.TryGetValue(sourceElement.SlideId.Value, out int mappedSlideId))
+                {
+                    continue;
+                }
+
+                var newElement = new TextElement
+                {
+                    ProjectId = null,
+                    SlideId = mappedSlideId,
+                    X = sourceElement.X,
+                    Y = sourceElement.Y,
+                    Width = sourceElement.Width,
+                    Height = sourceElement.Height,
+                    ZIndex = sourceElement.ZIndex,
+                    Content = sourceElement.Content,
+                    ComponentType = sourceElement.ComponentType,
+                    ComponentConfigJson = sourceElement.ComponentConfigJson,
+                    FontFamily = sourceElement.FontFamily,
+                    FontSize = sourceElement.FontSize,
+                    FontColor = sourceElement.FontColor,
+                    IsBold = sourceElement.IsBold,
+                    TextAlign = sourceElement.TextAlign,
+                    TextVerticalAlign = sourceElement.TextVerticalAlign,
+                    IsUnderline = sourceElement.IsUnderline,
+                    IsItalic = sourceElement.IsItalic,
+                    BorderColor = sourceElement.BorderColor,
+                    BorderWidth = sourceElement.BorderWidth,
+                    BorderRadius = sourceElement.BorderRadius,
+                    BorderOpacity = sourceElement.BorderOpacity,
+                    BackgroundColor = sourceElement.BackgroundColor,
+                    BackgroundRadius = sourceElement.BackgroundRadius,
+                    BackgroundOpacity = sourceElement.BackgroundOpacity,
+                    ShadowType = sourceElement.ShadowType,
+                    ShadowPreset = sourceElement.ShadowPreset,
+                    ShadowColor = sourceElement.ShadowColor,
+                    ShadowOffsetX = sourceElement.ShadowOffsetX,
+                    ShadowOffsetY = sourceElement.ShadowOffsetY,
+                    ShadowBlur = sourceElement.ShadowBlur,
+                    ShadowOpacity = sourceElement.ShadowOpacity,
+                    LineSpacing = sourceElement.LineSpacing,
+                    LetterSpacing = sourceElement.LetterSpacing,
+                    IsSymmetric = sourceElement.IsSymmetric,
+                    SymmetricType = sourceElement.SymmetricType
+                };
+
+                target.TextElements.Add(newElement);
+                await target.SaveChangesAsync();
+                sourceToTargetElementMap[sourceElement.Id] = newElement.Id;
+                stats.AddedTextElements++;
+            }
+
+            foreach (var sourceElement in sourceElements)
+            {
+                if (!sourceElement.SymmetricPairId.HasValue ||
+                    !sourceToTargetElementMap.TryGetValue(sourceElement.Id, out int mappedElementId) ||
+                    !sourceToTargetElementMap.TryGetValue(sourceElement.SymmetricPairId.Value, out int mappedSymmetricId))
+                {
+                    continue;
+                }
+
+                var targetElement = await target.TextElements.FirstOrDefaultAsync(e => e.Id == mappedElementId);
+                if (targetElement == null)
+                {
+                    continue;
+                }
+
+                targetElement.SymmetricPairId = mappedSymmetricId;
+                targetElement.SymmetricType = sourceElement.SymmetricType;
+                await target.SaveChangesAsync();
+            }
+
+            var sourceSpans = await source.RichTextSpans.AsNoTracking().ToListAsync();
+            foreach (var sourceSpan in sourceSpans)
+            {
+                if (!sourceToTargetElementMap.TryGetValue(sourceSpan.TextElementId, out int mappedElementId))
+                {
+                    continue;
+                }
+
+                target.RichTextSpans.Add(new RichTextSpan
+                {
+                    TextElementId = mappedElementId,
+                    SpanOrder = sourceSpan.SpanOrder,
+                    Text = sourceSpan.Text,
+                    ParagraphIndex = sourceSpan.ParagraphIndex,
+                    RunIndex = sourceSpan.RunIndex,
+                    FormatVersion = sourceSpan.FormatVersion,
+                    FontFamily = sourceSpan.FontFamily,
+                    FontSize = sourceSpan.FontSize,
+                    FontColor = sourceSpan.FontColor,
+                    IsBold = sourceSpan.IsBold,
+                    IsItalic = sourceSpan.IsItalic,
+                    IsUnderline = sourceSpan.IsUnderline,
+                    BorderColor = sourceSpan.BorderColor,
+                    BorderWidth = sourceSpan.BorderWidth,
+                    BorderRadius = sourceSpan.BorderRadius,
+                    BorderOpacity = sourceSpan.BorderOpacity,
+                    BackgroundColor = sourceSpan.BackgroundColor,
+                    BackgroundRadius = sourceSpan.BackgroundRadius,
+                    BackgroundOpacity = sourceSpan.BackgroundOpacity,
+                    ShadowColor = sourceSpan.ShadowColor,
+                    ShadowOffsetX = sourceSpan.ShadowOffsetX,
+                    ShadowOffsetY = sourceSpan.ShadowOffsetY,
+                    ShadowBlur = sourceSpan.ShadowBlur,
+                    ShadowOpacity = sourceSpan.ShadowOpacity
+                });
+                stats.AddedRichTextSpans++;
+            }
+            await target.SaveChangesAsync();
+
+            // lyrics groups + lyrics projects
+            var targetGroups = await target.LyricsGroups.ToListAsync();
+            var targetGroupByExternalId = targetGroups
+                .Where(g => !string.IsNullOrWhiteSpace(g.ExternalId))
+                .GroupBy(g => g.ExternalId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var targetGroupNames = new HashSet<string>(targetGroups.Select(g => g.Name), StringComparer.OrdinalIgnoreCase);
+
+            var sourceGroups = await source.LyricsGroups.AsNoTracking().ToListAsync();
+            foreach (var sourceGroup in sourceGroups)
+            {
+                LyricsGroup targetGroup = null;
+                if (!string.IsNullOrWhiteSpace(sourceGroup.ExternalId) &&
+                    targetGroupByExternalId.TryGetValue(sourceGroup.ExternalId, out var existingGroup))
+                {
+                    targetGroup = existingGroup;
+                }
+                else
+                {
+                    string uniqueGroupName = GetUniqueName(sourceGroup.Name, targetGroupNames);
+                    targetGroup = new LyricsGroup
+                    {
+                        Name = uniqueGroupName,
+                        ExternalId = string.IsNullOrWhiteSpace(sourceGroup.ExternalId) ? Guid.NewGuid().ToString() : sourceGroup.ExternalId,
+                        SortOrder = sourceGroup.SortOrder,
+                        CreatedTime = sourceGroup.CreatedTime,
+                        ModifiedTime = sourceGroup.ModifiedTime,
+                        HighlightColor = sourceGroup.HighlightColor,
+                        IsSystem = sourceGroup.IsSystem
+                    };
+                    target.LyricsGroups.Add(targetGroup);
+                    await target.SaveChangesAsync();
+                    targetGroupNames.Add(uniqueGroupName);
+                    if (!string.IsNullOrWhiteSpace(targetGroup.ExternalId))
+                    {
+                        targetGroupByExternalId[targetGroup.ExternalId] = targetGroup;
+                    }
+                    stats.AddedLyricsGroups++;
+                }
+
+                sourceToTargetLyricsGroupMap[sourceGroup.Id] = targetGroup.Id;
+            }
+
+            var targetLyricsExternalIds = new HashSet<string>(
+                (await target.LyricsProjects.AsNoTracking()
+                    .Where(p => !string.IsNullOrWhiteSpace(p.ExternalId))
+                    .Select(p => p.ExternalId)
+                    .ToListAsync()),
+                StringComparer.OrdinalIgnoreCase);
+
+            var sourceLyrics = await source.LyricsProjects.AsNoTracking().ToListAsync();
+            foreach (var sourceLyric in sourceLyrics)
+            {
+                if (!string.IsNullOrWhiteSpace(sourceLyric.ExternalId) &&
+                    targetLyricsExternalIds.Contains(sourceLyric.ExternalId))
+                {
+                    continue;
+                }
+
+                int? mappedGroupId = null;
+                if (sourceLyric.GroupId.HasValue && sourceToTargetLyricsGroupMap.TryGetValue(sourceLyric.GroupId.Value, out int mappedGroup))
+                {
+                    mappedGroupId = mappedGroup;
+                }
+
+                int? mappedImageId = null;
+                if (sourceLyric.ImageId.HasValue && sourceToTargetMediaMap.TryGetValue(sourceLyric.ImageId.Value, out int mappedMedia))
+                {
+                    mappedImageId = mappedMedia;
+                }
+
+                var newLyric = new LyricsProject
+                {
+                    Name = sourceLyric.Name,
+                    ImageId = mappedImageId,
+                    GroupId = mappedGroupId,
+                    ExternalId = string.IsNullOrWhiteSpace(sourceLyric.ExternalId) ? Guid.NewGuid().ToString() : sourceLyric.ExternalId,
+                    SortOrder = sourceLyric.SortOrder,
+                    SourceType = sourceLyric.SourceType,
+                    Content = sourceLyric.Content,
+                    FontSize = sourceLyric.FontSize,
+                    TextAlign = sourceLyric.TextAlign,
+                    ViewMode = sourceLyric.ViewMode,
+                    ProjectionWatermarkPath = sourceLyric.ProjectionWatermarkPath,
+                    CreatedTime = sourceLyric.CreatedTime,
+                    ModifiedTime = sourceLyric.ModifiedTime
+                };
+
+                target.LyricsProjects.Add(newLyric);
+                await target.SaveChangesAsync();
+                if (!string.IsNullOrWhiteSpace(newLyric.ExternalId))
+                {
+                    targetLyricsExternalIds.Add(newLyric.ExternalId);
+                }
+                stats.AddedLyricsProjects++;
+            }
+
+            // bible_history：仅补充缺失槽位；已有槽位仅在本机为空且导入值非空时补齐
+            var targetHistoryBySlot = (await target.BibleHistory.AsNoTracking().ToListAsync())
+                .ToDictionary(r => r.SlotIndex, r => r);
+            var sourceHistory = await source.BibleHistory.AsNoTracking().ToListAsync();
+            foreach (var sourceRecord in sourceHistory)
+            {
+                if (!targetHistoryBySlot.TryGetValue(sourceRecord.SlotIndex, out var existingRecord))
+                {
+                    target.BibleHistory.Add(new BibleHistoryRecord
+                    {
+                        SlotIndex = sourceRecord.SlotIndex,
+                        DisplayText = sourceRecord.DisplayText,
+                        BookId = sourceRecord.BookId,
+                        Chapter = sourceRecord.Chapter,
+                        StartVerse = sourceRecord.StartVerse,
+                        EndVerse = sourceRecord.EndVerse,
+                        IsChecked = sourceRecord.IsChecked,
+                        IsLocked = sourceRecord.IsLocked,
+                        UpdatedTime = sourceRecord.UpdatedTime
+                    });
+                    stats.AddedBibleHistoryRecords++;
+                    continue;
+                }
+
+                bool targetDisplayEmpty = string.IsNullOrWhiteSpace(existingRecord.DisplayText);
+                bool sourceDisplayHasValue = !string.IsNullOrWhiteSpace(sourceRecord.DisplayText);
+                if (!targetDisplayEmpty || !sourceDisplayHasValue)
+                {
+                    continue;
+                }
+
+                var updateRecord = await target.BibleHistory.FirstOrDefaultAsync(r => r.SlotIndex == sourceRecord.SlotIndex);
+                if (updateRecord == null)
+                {
+                    continue;
+                }
+
+                updateRecord.DisplayText = sourceRecord.DisplayText;
+                updateRecord.BookId = sourceRecord.BookId;
+                updateRecord.Chapter = sourceRecord.Chapter;
+                updateRecord.StartVerse = sourceRecord.StartVerse;
+                updateRecord.EndVerse = sourceRecord.EndVerse;
+                updateRecord.IsChecked = sourceRecord.IsChecked;
+                updateRecord.IsLocked = sourceRecord.IsLocked;
+                updateRecord.UpdatedTime = sourceRecord.UpdatedTime;
+            }
+            await target.SaveChangesAsync();
+
+            // settings / ui_settings：仅补充缺失键，不覆盖本机值
+            var targetSettingsKeys = new HashSet<string>(
+                await target.Settings.AsNoTracking().Select(s => s.Key).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
+            var sourceSettings = await source.Settings.AsNoTracking().ToListAsync();
+            foreach (var sourceSetting in sourceSettings)
+            {
+                if (string.IsNullOrWhiteSpace(sourceSetting.Key) || targetSettingsKeys.Contains(sourceSetting.Key))
+                {
+                    continue;
+                }
+
+                target.Settings.Add(new Setting
+                {
+                    Key = sourceSetting.Key,
+                    Value = sourceSetting.Value ?? string.Empty
+                });
+                targetSettingsKeys.Add(sourceSetting.Key);
+                stats.AddedSettings++;
+            }
+
+            var targetUiSettingKeys = new HashSet<string>(
+                await target.UISettings.AsNoTracking().Select(s => s.Key).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
+            var sourceUiSettings = await source.UISettings.AsNoTracking().ToListAsync();
+            foreach (var sourceUiSetting in sourceUiSettings)
+            {
+                if (string.IsNullOrWhiteSpace(sourceUiSetting.Key) || targetUiSettingKeys.Contains(sourceUiSetting.Key))
+                {
+                    continue;
+                }
+
+                target.UISettings.Add(new UISetting
+                {
+                    Key = sourceUiSetting.Key,
+                    Value = sourceUiSetting.Value ?? string.Empty
+                });
+                targetUiSettingKeys.Add(sourceUiSetting.Key);
+                stats.AddedUiSettings++;
+            }
+
+            await target.SaveChangesAsync();
+            return stats;
+        }
+
+        private static string GetUniqueName(string baseName, HashSet<string> existingNames)
+        {
+            string normalizedBase = string.IsNullOrWhiteSpace(baseName) ? "未命名" : baseName.Trim();
+            if (!existingNames.Contains(normalizedBase))
+            {
+                return normalizedBase;
+            }
+
+            int suffix = 1;
+            string candidate;
+            do
+            {
+                candidate = $"{normalizedBase} ({suffix})";
+                suffix++;
+            } while (existingNames.Contains(candidate));
+
+            return candidate;
         }
 
         private async Task<List<string>> TryImportCompanionArtifactsForDbAsync(string sourceDbPath)

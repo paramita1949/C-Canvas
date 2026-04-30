@@ -140,6 +140,8 @@ namespace ImageColorChanger.UI.Controls
         {
             Focus();
             SetSelected(true);
+            int selectedCount = Math.Max(1, SelectedCountProvider?.Invoke() ?? 1);
+            bool isBatch = selectedCount > 1;
 
             var contextMenu = new System.Windows.Controls.ContextMenu
             {
@@ -164,7 +166,7 @@ namespace ImageColorChanger.UI.Controls
 
             var copyItem = new System.Windows.Controls.MenuItem
             {
-                Header = BuildContextMenuHeader("复制", "IconLucideCopy2")
+                Header = BuildContextMenuHeader(isBatch ? $"复制 {selectedCount} 项" : "复制", "IconLucideCopy2")
             };
             copyItem.Click += (s, args) =>
             {
@@ -174,7 +176,7 @@ namespace ImageColorChanger.UI.Controls
 
             var deleteItem = new System.Windows.Controls.MenuItem
             {
-                Header = BuildContextMenuHeader("删除", "IconLucideX")
+                Header = BuildContextMenuHeader(isBatch ? $"删除 {selectedCount} 项" : "删除", "IconLucideX")
             };
             deleteItem.Click += (s, args) =>
             {

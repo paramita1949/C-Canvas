@@ -322,6 +322,11 @@ namespace ImageColorChanger.UI.Controls
         public Func<bool> CanPasteProvider { get; set; }
 
         /// <summary>
+        /// 提供当前选中数量（由宿主注入，用于右键菜单文案）。
+        /// </summary>
+        public Func<int> SelectedCountProvider { get; set; }
+
+        /// <summary>
         ///  文本选择改变事件（用于更新工具栏按钮状态）
         /// </summary>
         public event EventHandler TextSelectionChanged;

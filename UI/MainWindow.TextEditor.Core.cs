@@ -42,8 +42,16 @@ namespace ImageColorChanger.UI
         private TextProject _currentTextProject;
         private List<DraggableTextBox> _textBoxes = new List<DraggableTextBox>();
         private DraggableTextBox _selectedTextBox;
+        private readonly List<DraggableTextBox> _selectedTextBoxes = new List<DraggableTextBox>();
+        private bool _isSelectionToolActive;
+        private bool _isMarqueeSelecting;
+        private bool _isApplyingMultiSelection;
+        private System.Windows.Point _marqueeStartPoint;
+        private WpfRectangle _marqueeSelectionRect;
         private TextElement _textBoxClipboardElement;
         private List<RichTextSpan> _textBoxClipboardSpans = new List<RichTextSpan>();
+        private List<TextElement> _textBoxClipboardElements = new List<TextElement>();
+        private List<List<RichTextSpan>> _textBoxClipboardSpanGroups = new List<List<RichTextSpan>>();
         private int _textBoxPasteOffsetStep = 1;
         private string _currentTextColor = "#000000";
         private ITextBoxEditSessionService _textBoxEditSessionService;
@@ -157,6 +165,10 @@ namespace ImageColorChanger.UI
             // 右键空白画布菜单（复制/粘贴）
             if (EditorCanvas != null)
             {
+                EditorCanvas.MouseMove -= EditorCanvas_MouseMove;
+                EditorCanvas.MouseMove += EditorCanvas_MouseMove;
+                EditorCanvas.MouseLeftButtonUp -= EditorCanvas_MouseUp;
+                EditorCanvas.MouseLeftButtonUp += EditorCanvas_MouseUp;
                 EditorCanvas.MouseRightButtonDown -= EditorCanvas_MouseRightButtonDown;
                 EditorCanvas.MouseRightButtonDown += EditorCanvas_MouseRightButtonDown;
                 EditorCanvas.MouseRightButtonUp -= EditorCanvas_MouseRightButtonUp;

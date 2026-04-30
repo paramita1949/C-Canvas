@@ -49,6 +49,11 @@ namespace ImageColorChanger.UI.Controls
 
         public void SetSelected(bool selected)
         {
+            if (IsSelected == selected)
+            {
+                return;
+            }
+
             IsSelected = selected;
 
             if (selected)

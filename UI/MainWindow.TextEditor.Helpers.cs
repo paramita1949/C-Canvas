@@ -65,17 +65,18 @@ namespace ImageColorChanger.UI
 
                 if (isSelected)
                 {
-                    BringTextBoxToFront(textBox);
-
-                    // 取消其他文本框的选中状态
-                    foreach (var tb in _textBoxes)
+                    if (_isApplyingMultiSelection)
                     {
-                        if (tb != textBox && tb.IsSelected)
+                        if (!_selectedTextBoxes.Contains(textBox))
                         {
-                            tb.SetSelected(false);
+                            _selectedTextBoxes.Add(textBox);
                         }
                     }
-                    _selectedTextBox = textBox;
+                    else
+                    {
+                        BringTextBoxToFront(textBox);
+                        SelectSingleTextBox(textBox);
+                    }
 
                     // 更新工具栏状态
                     UpdateToolbarFromSelection();
@@ -85,6 +86,12 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
+                    _selectedTextBoxes.Remove(textBox);
+                    if (_selectedTextBox == textBox)
+                    {
+                        _selectedTextBox = _selectedTextBoxes.LastOrDefault();
+                    }
+
                     // 取消选中时隐藏浮动工具栏
                     HideBibleFloatingToolbar();
                 }
@@ -124,22 +131,35 @@ namespace ImageColorChanger.UI
             // 监听删除请求（右键菜单或DEL键）
             textBox.RequestDelete += async (s, e) =>
             {
+                var selected = GetActiveSelectedTextBoxes();
+                bool useBatch = selected.Count > 1 && selected.Contains(textBox);
+                if (useBatch)
+                {
+                    await DeleteSelectedTextBoxesAsync();
+                    return;
+                }
+
                 await DeleteTextBoxAsync(textBox);
             };
 
             // 监听复制请求（右键菜单 - 复制到缓冲区）
             textBox.RequestCopy += async (s, e) =>
             {
-                await CopyTextBoxToClipboardAsync(textBox);
+                var selected = GetActiveSelectedTextBoxes();
+                bool useBatch = selected.Count > 1 && selected.Contains(textBox);
+                await CopyTextBoxToClipboardAsync(useBatch ? null : textBox);
             };
 
             // 监听粘贴请求（右键菜单 - 从缓冲区粘贴）
             textBox.RequestPaste += async (s, e) =>
             {
-                await PasteTextBoxFromClipboardAsync(textBox);
+                var selected = GetActiveSelectedTextBoxes();
+                bool useBatch = selected.Count > 1 && selected.Contains(textBox);
+                await PasteTextBoxFromClipboardAsync(useBatch ? null : textBox);
             };
 
             textBox.CanPasteProvider = () => _textBoxClipboardElement != null;
+            textBox.SelectedCountProvider = () => GetActiveSelectedTextBoxes().Count;
 
             //  监听文本选择改变事件（更新工具栏按钮状态）
             textBox.TextSelectionChanged += (s, e) =>
@@ -233,6 +253,74 @@ namespace ImageColorChanger.UI
             double height = textBox.ActualHeight > 0 ? textBox.ActualHeight : (textBox.Data?.Height ?? 0);
 
             return new Rect(x, y, width, height);
+        }
+
+        private void SelectSingleTextBox(DraggableTextBox target)
+        {
+            _isApplyingMultiSelection = true;
+            try
+            {
+                foreach (var tb in _textBoxes)
+                {
+                    bool shouldSelect = tb == target;
+                    if (tb.IsSelected != shouldSelect)
+                    {
+                        tb.SetSelected(shouldSelect);
+                    }
+                }
+            }
+            finally
+            {
+                _isApplyingMultiSelection = false;
+            }
+
+            _selectedTextBoxes.Clear();
+            if (target != null)
+            {
+                _selectedTextBoxes.Add(target);
+            }
+            _selectedTextBox = target;
+        }
+
+        private void SelectMultipleTextBoxes(IEnumerable<DraggableTextBox> targets)
+        {
+            var targetSet = new HashSet<DraggableTextBox>((targets ?? Enumerable.Empty<DraggableTextBox>()).Where(tb => tb != null));
+
+            _isApplyingMultiSelection = true;
+            try
+            {
+                foreach (var tb in _textBoxes)
+                {
+                    bool shouldSelect = targetSet.Contains(tb);
+                    if (tb.IsSelected != shouldSelect)
+                    {
+                        tb.SetSelected(shouldSelect);
+                    }
+                }
+            }
+            finally
+            {
+                _isApplyingMultiSelection = false;
+            }
+
+            _selectedTextBoxes.Clear();
+            _selectedTextBoxes.AddRange(targetSet);
+            _selectedTextBox = _selectedTextBoxes.LastOrDefault();
+        }
+
+        private IReadOnlyList<DraggableTextBox> GetActiveSelectedTextBoxes()
+        {
+            if (_selectedTextBoxes.Count > 0)
+            {
+                return _selectedTextBoxes.ToList();
+            }
+
+            if (_selectedTextBox != null)
+            {
+                return new[] { _selectedTextBox };
+            }
+
+            return Array.Empty<DraggableTextBox>();
         }
 
         private List<TextBoxSnapshot> CaptureTextBoxSnapshotsForSave(IEnumerable<DraggableTextBox> sourceTextBoxes = null)

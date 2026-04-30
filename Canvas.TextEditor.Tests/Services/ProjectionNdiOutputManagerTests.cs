@@ -54,6 +54,10 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             public bool ProjectionNdiPreferAlpha => true;
             public bool ProjectionNdiLyricsTransparentEnabled => true;
             public bool ProjectionNdiBibleTransparentEnabled => true;
+            public string ProjectionNdiIdleFrameWatermarkText => string.Empty;
+            public string ProjectionNdiIdleFrameWatermarkPosition => "RightBottom";
+            public double ProjectionNdiIdleFrameWatermarkFontSize => 48.0;
+            public string ProjectionNdiIdleFrameWatermarkFontFamily => "Microsoft YaHei UI";
         }
 
         private sealed class FixedResolver : IProjectionNdiModeResolver

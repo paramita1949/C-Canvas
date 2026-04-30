@@ -39,6 +39,23 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void EditorCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (_isSelectionToolActive && e.LeftButton == MouseButtonState.Pressed)
+            {
+                DependencyObject source = e.OriginalSource as DependencyObject;
+                while (source != null)
+                {
+                    if (source is DraggableTextBox)
+                    {
+                        return;
+                    }
+                    source = GetDependencyParent(source);
+                }
+
+                StartMarqueeSelection(e.GetPosition(EditorCanvas));
+                e.Handled = true;
+                return;
+            }
+
             //System.Diagnostics.Debug.WriteLine($"[EditorCanvas_MouseDown] 开始处理");
             //System.Diagnostics.Debug.WriteLine($"   - OriginalSource: {e.OriginalSource?.GetType().Name}");
 
@@ -70,6 +87,105 @@ namespace ImageColorChanger.UI
             }
 
             //System.Diagnostics.Debug.WriteLine($"[EditorCanvas_MouseDown] 处理完成");
+        }
+
+        private void EditorCanvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_isMarqueeSelecting || _marqueeSelectionRect == null)
+            {
+                return;
+            }
+
+            var currentPoint = e.GetPosition(EditorCanvas);
+            UpdateMarqueeSelectionVisual(currentPoint);
+            UpdateMarqueeSelectionResult();
+            e.Handled = true;
+        }
+
+        private void EditorCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isMarqueeSelecting || e.ChangedButton != MouseButton.Left)
+            {
+                return;
+            }
+
+            EndMarqueeSelection();
+            e.Handled = true;
+        }
+
+        private void StartMarqueeSelection(System.Windows.Point startPoint)
+        {
+            _marqueeStartPoint = startPoint;
+            _isMarqueeSelecting = true;
+
+            DeselectAllTextBoxes(false);
+
+            _marqueeSelectionRect = new WpfRectangle
+            {
+                Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243)),
+                StrokeThickness = 1.5,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(48, 33, 150, 243)),
+                StrokeDashArray = new DoubleCollection { 4, 2 },
+                IsHitTestVisible = false
+            };
+
+            Canvas.SetLeft(_marqueeSelectionRect, startPoint.X);
+            Canvas.SetTop(_marqueeSelectionRect, startPoint.Y);
+            System.Windows.Controls.Panel.SetZIndex(_marqueeSelectionRect, 5000);
+            EditorCanvas.Children.Add(_marqueeSelectionRect);
+            EditorCanvas.CaptureMouse();
+        }
+
+        private void UpdateMarqueeSelectionVisual(System.Windows.Point currentPoint)
+        {
+            if (_marqueeSelectionRect == null)
+            {
+                return;
+            }
+
+            double left = Math.Min(_marqueeStartPoint.X, currentPoint.X);
+            double top = Math.Min(_marqueeStartPoint.Y, currentPoint.Y);
+            double width = Math.Abs(currentPoint.X - _marqueeStartPoint.X);
+            double height = Math.Abs(currentPoint.Y - _marqueeStartPoint.Y);
+
+            Canvas.SetLeft(_marqueeSelectionRect, left);
+            Canvas.SetTop(_marqueeSelectionRect, top);
+            _marqueeSelectionRect.Width = width;
+            _marqueeSelectionRect.Height = height;
+        }
+
+        private void UpdateMarqueeSelectionResult()
+        {
+            if (_marqueeSelectionRect == null)
+            {
+                return;
+            }
+
+            var rect = new Rect(
+                Canvas.GetLeft(_marqueeSelectionRect),
+                Canvas.GetTop(_marqueeSelectionRect),
+                _marqueeSelectionRect.Width,
+                _marqueeSelectionRect.Height);
+
+            var hits = _textBoxes.Where(tb => rect.IntersectsWith(GetTextBoxBounds(tb))).ToList();
+            SelectMultipleTextBoxes(hits);
+        }
+
+        private void EndMarqueeSelection()
+        {
+            _isMarqueeSelecting = false;
+            EditorCanvas.ReleaseMouseCapture();
+
+            if (_marqueeSelectionRect != null)
+            {
+                EditorCanvas.Children.Remove(_marqueeSelectionRect);
+                _marqueeSelectionRect = null;
+            }
+
+            if (_selectedTextBoxes.Count == 0)
+            {
+                HideBibleFloatingToolbar();
+            }
         }
         
         /// <summary>
@@ -127,6 +243,11 @@ namespace ImageColorChanger.UI
                     //}
                     //#endif
                 }
+                else
+                {
+                    await DeleteSelectedTextBoxesAsync();
+                    e.Handled = true;
+                }
                 //#if DEBUG
                 //else
                 //{
@@ -182,6 +303,23 @@ namespace ImageColorChanger.UI
             }
             catch
             {
+            }
+
+            var selected = GetActiveSelectedTextBoxes();
+            if (selected.Count > 0)
+            {
+                var copySelectedItem = CreateIconMenuItem(
+                    selected.Count > 1 ? $"复制 {selected.Count} 项" : "复制",
+                    "IconLucideCopy2",
+                    async () => { await CopyTextBoxToClipboardAsync(null); });
+                contextMenu.Items.Add(copySelectedItem);
+
+                var deleteSelectedItem = CreateIconMenuItem(
+                    selected.Count > 1 ? $"删除 {selected.Count} 项" : "删除",
+                    "IconLucideX",
+                    async () => { await DeleteSelectedTextBoxesAsync(); });
+                contextMenu.Items.Add(deleteSelectedItem);
+                contextMenu.Items.Add(new Separator());
             }
 
             var pasteItem = CreateIconMenuItem("粘贴", "IconLucideFileText", async () =>

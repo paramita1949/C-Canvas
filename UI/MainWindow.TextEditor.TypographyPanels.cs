@@ -592,6 +592,7 @@ namespace ImageColorChanger.UI
                 }
                 textBox.SetSelected(false);
             }
+            _selectedTextBoxes.Clear();
             _selectedTextBox = null;
             HideBibleFloatingToolbar();
 

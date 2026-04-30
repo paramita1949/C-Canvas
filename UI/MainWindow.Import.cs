@@ -609,18 +609,22 @@ namespace ImageColorChanger.UI
                 if (openDialog.ShowDialog() == true)
                 {
                     LogImportExportInfo($"[ImportDB-Select] source={openDialog.FileName}");
-                    // 确认导入操作
+                    // 选择导入模式
                     var confirmResult = System.Windows.MessageBox.Show(
-                        "导入数据库将覆盖当前数据库（会自动备份当前数据库和缩略图）。\n\n确定要继续吗？",
-                        "确认导入",
-                        System.Windows.MessageBoxButton.YesNo,
+                        "请选择导入模式：\n\n是：整库覆盖导入（会覆盖当前数据库）\n否：增量合并导入（保留本机数据，追加导入）\n取消：放弃导入",
+                        "导入数据库",
+                        System.Windows.MessageBoxButton.YesNoCancel,
                         System.Windows.MessageBoxImage.Warning);
 
-                    if (confirmResult == System.Windows.MessageBoxResult.Yes)
+                    if (confirmResult != System.Windows.MessageBoxResult.Cancel)
                     {
-                        LogImportExportInfo("[ImportDB-Confirm] user confirmed import");
+                        var importMode = confirmResult == System.Windows.MessageBoxResult.Yes
+                            ? Services.DatabaseImportMode.Replace
+                            : Services.DatabaseImportMode.IncrementalMerge;
+
+                        LogImportExportInfo($"[ImportDB-Confirm] mode={importMode}");
                         var migrationService = new Services.DatabaseMigrationService();
-                        var result = await migrationService.ImportDatabaseAsync(openDialog.FileName);
+                        var result = await migrationService.ImportDatabaseAsync(openDialog.FileName, importMode);
                         LogImportExportInfo($"[ImportDB-End] success={result?.Success}, requiresRestart={result?.RequiresRestart}");
                         ShowMigrationResult(result);
 

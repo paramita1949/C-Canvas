@@ -1274,8 +1274,11 @@ namespace ImageColorChanger.UI
                 await _textProjectService.AddElementAsync(textElement);
 
                 // 创建富文本片段（RichTextSpan）
+                // 统一使用 V2 段落/Run 元数据，不再写入 "\n" span，
+                // 避免后续按 Content 分段时出现样式游标错位。
                 var richTextSpans = new List<Database.Models.RichTextSpan>();
                 int spanOrder = 0;
+                int paragraphIndex = 0;
 
                 //#if DEBUG
                 //Debug.WriteLine($"[CreateRichTextVerseElement] 开始创建富文本片段，经文数量: {verses.Count}");
@@ -1300,7 +1303,10 @@ namespace ImageColorChanger.UI
                         FontFamily = config.FontFamily,
                         FontSize = verseNumberFontSize,
                         FontColor = config.VerseNumberStyle.ColorHex,
-                        IsBold = config.VerseNumberStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseNumberStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = paragraphIndex,
+                        RunIndex = 0,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
 
                     // 空格片段
@@ -1312,7 +1318,10 @@ namespace ImageColorChanger.UI
                         FontFamily = config.FontFamily,
                         FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
-                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = paragraphIndex,
+                        RunIndex = 1,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
 
                     // 经文内容片段
@@ -1324,23 +1333,12 @@ namespace ImageColorChanger.UI
                         FontFamily = config.FontFamily,
                         FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
-                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = paragraphIndex,
+                        RunIndex = 2,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
-
-                    // 换行片段（除了最后一节）
-                    if (verse != verses.Last())
-                    {
-                        richTextSpans.Add(new Database.Models.RichTextSpan
-                        {
-                            TextElementId = textElement.Id,
-                            SpanOrder = spanOrder++,
-                            Text = "\n",
-                            FontFamily = config.FontFamily,
-                            FontSize = verseFontSize,
-                            FontColor = config.VerseStyle.ColorHex,
-                            IsBold = config.VerseStyle.IsBold ? 1 : 0
-                        });
-                    }
+                    paragraphIndex++;
                 }
 
                 // 保存富文本片段到数据库
@@ -1466,12 +1464,12 @@ namespace ImageColorChanger.UI
                 var richTextSpans = new List<Database.Models.RichTextSpan>();
                 int spanOrder = 0;
 
-                foreach (var verse in verses)
+                foreach (var verse in verses.Select((value, index) => new { value, index }))
                 {
                     // 节号（优先使用DisplayVerseNumber，支持"-"节合并显示）
-                    var verseNumber = string.IsNullOrEmpty(verse.DisplayVerseNumber)
-                        ? verse.Verse.ToString()
-                        : verse.DisplayVerseNumber;
+                    var verseNumber = string.IsNullOrEmpty(verse.value.DisplayVerseNumber)
+                        ? verse.value.Verse.ToString()
+                        : verse.value.DisplayVerseNumber;
 
                     richTextSpans.Add(new Database.Models.RichTextSpan
                     {
@@ -1481,7 +1479,10 @@ namespace ImageColorChanger.UI
                         FontFamily = config.FontFamily,
                         FontSize = verseNumberFontSize,
                         FontColor = config.VerseNumberStyle.ColorHex,
-                        IsBold = config.VerseNumberStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseNumberStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = 0,
+                        RunIndex = spanOrder,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
 
                     // 空格
@@ -1493,7 +1494,10 @@ namespace ImageColorChanger.UI
                         FontFamily = config.FontFamily,
                         FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
-                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = 0,
+                        RunIndex = spanOrder,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
 
                     // 经文内容
@@ -1501,15 +1505,18 @@ namespace ImageColorChanger.UI
                     {
                         TextElementId = textElement.Id,
                         SpanOrder = spanOrder++,
-                        Text = verse.Scripture,
+                        Text = verse.value.Scripture,
                         FontFamily = config.FontFamily,
                         FontSize = verseFontSize,
                         FontColor = config.VerseStyle.ColorHex,
-                        IsBold = config.VerseStyle.IsBold ? 1 : 0
+                        IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                        ParagraphIndex = 0,
+                        RunIndex = spanOrder,
+                        FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                     });
 
                     // 空格（除了最后一节）
-                    if (verse != verses.Last())
+                    if (verse.index < verses.Count - 1)
                     {
                         richTextSpans.Add(new Database.Models.RichTextSpan
                         {
@@ -1519,7 +1526,10 @@ namespace ImageColorChanger.UI
                             FontFamily = config.FontFamily,
                             FontSize = verseFontSize,
                             FontColor = config.VerseStyle.ColorHex,
-                            IsBold = config.VerseStyle.IsBold ? 1 : 0
+                            IsBold = config.VerseStyle.IsBold ? 1 : 0,
+                            ParagraphIndex = 0,
+                            RunIndex = spanOrder,
+                            FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                         });
                     }
                 }
@@ -1533,7 +1543,10 @@ namespace ImageColorChanger.UI
                     FontFamily = config.FontFamily,
                     FontSize = titleFontSize,
                     FontColor = config.TitleStyle.ColorHex,
-                    IsBold = config.TitleStyle.IsBold ? 1 : 0
+                    IsBold = config.TitleStyle.IsBold ? 1 : 0,
+                    ParagraphIndex = 0,
+                    RunIndex = spanOrder,
+                    FormatVersion = ImageColorChanger.Services.TextEditor.Models.RichTextDocumentV2.CurrentFormatVersion
                 });
 
                 // 保存富文本片段

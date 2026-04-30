@@ -133,20 +133,32 @@ namespace ImageColorChanger.UI
         /// </summary>
         private Task CopyTextBoxToClipboardAsync(DraggableTextBox sourceTextBox)
         {
-            if (sourceTextBox == null)
+            var selected = GetActiveSelectedTextBoxes();
+            if (sourceTextBox == null && selected.Count == 0)
                 return Task.CompletedTask;
 
             try
             {
-                // 先同步文本内容，确保复制的是最新状态
-                sourceTextBox.SyncTextFromRichTextBox();
+                var sources = sourceTextBox != null
+                    ? new List<DraggableTextBox> { sourceTextBox }
+                    : selected.ToList();
 
-                var sourceElement = sourceTextBox.Data;
-                _textBoxClipboardElement = _textProjectService.CloneElement(sourceElement);
-                _textBoxClipboardSpans = CloneRichTextSpans(sourceElement.RichTextSpans);
+                _textBoxClipboardElements.Clear();
+                _textBoxClipboardSpanGroups.Clear();
+
+                foreach (var item in sources)
+                {
+                    item.SyncTextFromRichTextBox();
+                    _textBoxClipboardElements.Add(_textProjectService.CloneElement(item.Data));
+                    _textBoxClipboardSpanGroups.Add(CloneRichTextSpans(item.Data.RichTextSpans));
+                }
+
+                var first = _textBoxClipboardElements.FirstOrDefault();
+                _textBoxClipboardElement = first;
+                _textBoxClipboardSpans = _textBoxClipboardSpanGroups.FirstOrDefault() ?? new List<RichTextSpan>();
                 _textBoxPasteOffsetStep = 1;
 
-                ShowToast("已复制文本框");
+                ShowToast(_textBoxClipboardElements.Count > 1 ? $"已复制 {_textBoxClipboardElements.Count} 个文本框" : "已复制文本框");
             }
             catch (Exception ex)
             {
@@ -165,7 +177,13 @@ namespace ImageColorChanger.UI
             if (_currentSlide == null)
                 return;
 
-            if (_textBoxClipboardElement == null)
+            if (_textBoxClipboardElements.Count == 0 && _textBoxClipboardElement != null)
+            {
+                _textBoxClipboardElements = new List<TextElement> { _textBoxClipboardElement };
+                _textBoxClipboardSpanGroups = new List<List<RichTextSpan>> { _textBoxClipboardSpans ?? new List<RichTextSpan>() };
+            }
+
+            if (_textBoxClipboardElements.Count == 0)
             {
                 ShowToast("没有可粘贴的文本框");
                 return;
@@ -174,67 +192,79 @@ namespace ImageColorChanger.UI
             try
             {
                 int maxZIndex = _textBoxes.Count > 0 ? _textBoxes.Max(tb => tb.Data.ZIndex) : 0;
-                var newElement = _textProjectService.CloneElement(_textBoxClipboardElement);
 
                 // 位置策略：优先锚点文本框，否则当前选中文本框，再否则默认位置
                 double baseX = anchorTextBox?.Data.X ?? _selectedTextBox?.Data.X ?? 100;
                 double baseY = anchorTextBox?.Data.Y ?? _selectedTextBox?.Data.Y ?? 100;
                 double step = 20 * _textBoxPasteOffsetStep;
+                double minX = _textBoxClipboardElements.Min(e => e.X);
+                double minY = _textBoxClipboardElements.Min(e => e.Y);
+                var pastedTextBoxes = new List<DraggableTextBox>();
 
-                newElement.SlideId = _currentSlide.Id;
-                newElement.ProjectId = null;
-                newElement.X = baseX + step;
-                newElement.Y = baseY + step;
-                newElement.ZIndex = maxZIndex + 1;
-
-                await _textProjectService.AddElementAsync(newElement);
-
-                if (_textBoxClipboardSpans != null && _textBoxClipboardSpans.Count > 0)
+                for (int i = 0; i < _textBoxClipboardElements.Count; i++)
                 {
-                    var spansToSave = _textBoxClipboardSpans
-                        .OrderBy(s => s.SpanOrder)
-                        .Select((span, index) => new Database.Models.RichTextSpan
-                        {
-                            TextElementId = newElement.Id,
-                            SpanOrder = index,
-                            Text = span.Text,
-                            FontFamily = span.FontFamily,
-                            FontSize = span.FontSize,
-                            FontColor = span.FontColor,
-                            IsBold = span.IsBold,
-                            IsItalic = span.IsItalic,
-                            IsUnderline = span.IsUnderline,
-                            BorderColor = span.BorderColor,
-                            BorderWidth = span.BorderWidth,
-                            BorderRadius = span.BorderRadius,
-                            BorderOpacity = span.BorderOpacity,
-                            BackgroundColor = span.BackgroundColor,
-                            BackgroundRadius = span.BackgroundRadius,
-                            BackgroundOpacity = span.BackgroundOpacity,
-                            ShadowColor = span.ShadowColor,
-                            ShadowOffsetX = span.ShadowOffsetX,
-                            ShadowOffsetY = span.ShadowOffsetY,
-                            ShadowBlur = span.ShadowBlur,
-                            ShadowOpacity = span.ShadowOpacity,
-                            ParagraphIndex = span.ParagraphIndex,
-                            RunIndex = span.RunIndex,
-                            FormatVersion = span.FormatVersion
-                        })
-                        .ToList();
+                    var template = _textBoxClipboardElements[i];
+                    var newElement = _textProjectService.CloneElement(template);
+                    newElement.SlideId = _currentSlide.Id;
+                    newElement.ProjectId = null;
+                    newElement.X = baseX + step + (template.X - minX);
+                    newElement.Y = baseY + step + (template.Y - minY);
+                    newElement.ZIndex = ++maxZIndex;
 
-                    await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, spansToSave);
-                    newElement.RichTextSpans = spansToSave;
+                    await _textProjectService.AddElementAsync(newElement);
+
+                    var group = i < _textBoxClipboardSpanGroups.Count ? _textBoxClipboardSpanGroups[i] : null;
+                    if (group != null && group.Count > 0)
+                    {
+                        var spansToSave = group
+                            .OrderBy(s => s.SpanOrder)
+                            .Select((span, index) => new Database.Models.RichTextSpan
+                            {
+                                TextElementId = newElement.Id,
+                                SpanOrder = index,
+                                Text = span.Text,
+                                FontFamily = span.FontFamily,
+                                FontSize = span.FontSize,
+                                FontColor = span.FontColor,
+                                IsBold = span.IsBold,
+                                IsItalic = span.IsItalic,
+                                IsUnderline = span.IsUnderline,
+                                BorderColor = span.BorderColor,
+                                BorderWidth = span.BorderWidth,
+                                BorderRadius = span.BorderRadius,
+                                BorderOpacity = span.BorderOpacity,
+                                BackgroundColor = span.BackgroundColor,
+                                BackgroundRadius = span.BackgroundRadius,
+                                BackgroundOpacity = span.BackgroundOpacity,
+                                ShadowColor = span.ShadowColor,
+                                ShadowOffsetX = span.ShadowOffsetX,
+                                ShadowOffsetY = span.ShadowOffsetY,
+                                ShadowBlur = span.ShadowBlur,
+                                ShadowOpacity = span.ShadowOpacity,
+                                ParagraphIndex = span.ParagraphIndex,
+                                RunIndex = span.RunIndex,
+                                FormatVersion = span.FormatVersion
+                            })
+                            .ToList();
+
+                        await _richTextSpanRepository.SaveForTextElementAsync(newElement.Id, spansToSave);
+                        newElement.RichTextSpans = spansToSave;
+                    }
+
+                    var textBox = new DraggableTextBox(newElement);
+                    AddTextBoxToCanvas(textBox);
+                    pastedTextBoxes.Add(textBox);
                 }
 
-                var textBox = new DraggableTextBox(newElement);
-                AddTextBoxToCanvas(textBox);
-                textBox.SetSelected(true);
-                _selectedTextBox = textBox;
-                ShowTextBoxFloatingToolbar(textBox);
+                SelectMultipleTextBoxes(pastedTextBoxes);
+                if (_selectedTextBox != null)
+                {
+                    ShowTextBoxFloatingToolbar(_selectedTextBox);
+                }
                 MarkContentAsModified();
 
                 _textBoxPasteOffsetStep++;
-                ShowToast("已粘贴文本框");
+                ShowToast(pastedTextBoxes.Count > 1 ? $"已粘贴 {pastedTextBoxes.Count} 个文本框" : "已粘贴文本框");
             }
             catch (Exception ex)
             {
@@ -295,6 +325,7 @@ namespace ImageColorChanger.UI
                 // 从画布移除
                 EditorCanvas.Children.Remove(textBox);
                 _textBoxes.Remove(textBox);
+                _selectedTextBoxes.Remove(textBox);
                 _noticeRuntimeService.RemoveState(textBox.Data.Id);
                 EnsureNoticeAnimationLoopState();
 
@@ -320,6 +351,20 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($" 删除文本框失败: {ex.Message}");
                 WpfMessageBox.Show($"删除文本框失败: {ex.Message}", "错误", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task DeleteSelectedTextBoxesAsync()
+        {
+            var selected = GetActiveSelectedTextBoxes();
+            if (selected.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var tb in selected.ToList())
+            {
+                await DeleteTextBoxAsync(tb);
             }
         }
 
@@ -1137,22 +1182,21 @@ namespace ImageColorChanger.UI
 
         private void BtnSecondLayerSelect_Click(object sender, RoutedEventArgs e)
         {
-            _ = sender;
-            _ = e;
+            _isSelectionToolActive = !_isSelectionToolActive;
+            EditorCanvas.Cursor = System.Windows.Input.Cursors.Arrow;
 
-            if (_textBoxes == null || _textBoxes.Count == 0)
+            if (_isSelectionToolActive)
             {
-                ShowToast("当前无可选文本框");
-                return;
+                ShowToast("已进入框选模式：拖动鼠标可框选多个文本框");
             }
-
-            foreach (var tb in _textBoxes)
+            else
             {
-                tb.SetSelected(true);
+                if (_isMarqueeSelecting)
+                {
+                    EndMarqueeSelection();
+                }
+                ShowToast("已退出框选模式");
             }
-
-            _selectedTextBox = _textBoxes.LastOrDefault();
-            ShowToast($"已选中 {_textBoxes.Count} 个文本框");
         }
 
         private static Database.Models.Enums.ViewSplitMode? ParseSplitModeTag(object tag)
