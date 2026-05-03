@@ -46,6 +46,7 @@ namespace ImageColorChanger.UI
                     _projectionManager.ProjectionVideoViewLoaded -= OnProjectionVideoViewLoaded;
                 }
 
+                _ndiRouter?.StopAll();
                 _projectionNdiOutputManager?.Stop();
                 StopVideoNdiTimer();
                 StopNdiDiscoveryTimer();

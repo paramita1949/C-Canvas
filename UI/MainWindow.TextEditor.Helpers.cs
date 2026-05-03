@@ -17,6 +17,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.Services.TextEditor.Application.Models;
@@ -1697,6 +1698,11 @@ namespace ImageColorChanger.UI
 
         private void PublishSlideFrameToNdi(SKBitmap frame, int projectionWidth = 0, int projectionHeight = 0)
         {
+            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Slide) != true)
+            {
+                return;
+            }
+
             if (_projectionNdiOutputManager == null || frame == null)
             {
                 return;

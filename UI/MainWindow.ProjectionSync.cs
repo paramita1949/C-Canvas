@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 
 namespace ImageColorChanger.UI
@@ -52,9 +53,13 @@ namespace ImageColorChanger.UI
                         _originalTopScalePercent
                     );
 
-                    _projectionNdiOutputManager?.PublishFrame(
-                        _imageProcessor.CurrentImage,
-                        ProjectionNdiContentType.Image);
+                    // 媒体 NDI 通道暂时下线，等待与主投影同源链路重构完成后再恢复。
+                    if (_ndiRouter?.IsChannelEnabled(NdiChannel.Media) == true)
+                    {
+                        _projectionNdiOutputManager?.PublishFrame(
+                            _imageProcessor.CurrentImage,
+                            ProjectionNdiContentType.Image);
+                    }
                 }
             }
         }

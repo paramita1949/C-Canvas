@@ -1,0 +1,208 @@
+<Window x:Class="ImageColorChanger.UI.NdiControlCenterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NDI网络流控制台"
+        Height="620"
+        Width="860"
+        MinHeight="620"
+        MinWidth="860"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F4F7FC"
+        FontFamily="Microsoft YaHei UI">
+    <Window.Resources>
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E6EDF5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="18,16,18,16"/>
+        </Style>
+        <Style x:Key="ToggleStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="MinWidth" Value="132"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="MinWidth" Value="112"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="22,18,22,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                CornerRadius="14"
+                Padding="16,12,16,12"
+                Background="#0F172A">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="NDI网络流控制台"
+                               FontSize="23"
+                               FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="统一管理歌词、字幕、水印与连接状态"
+                               Margin="0,3,0,0"
+                               FontSize="13"
+                               Foreground="#BFDBFE"/>
+                </StackPanel>
+                <Border x:Name="RuntimeBadge"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        CornerRadius="999"
+                        BorderThickness="1"
+                        Padding="12,6,12,6">
+                    <TextBlock x:Name="RuntimeBadgeText"
+                               FontSize="12"
+                               FontWeight="SemiBold"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="总开关" FontSize="13" Foreground="#64748B"/>
+                    <TextBlock x:Name="MasterSummaryText"
+                               Margin="0,6,0,0"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               Foreground="#0F172A"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="客户端连接数" FontSize="13" Foreground="#64748B"/>
+                    <TextBlock x:Name="ConnectionSummaryText"
+                               Margin="0,6,0,0"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               Foreground="#0F172A"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="通道状态" FontSize="13" Foreground="#64748B"/>
+                    <TextBlock x:Name="ChannelSummaryText"
+                               Margin="0,6,0,0"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="#0F172A"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="0.9*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="投放控制" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B"/>
+                    <TextBlock Text="主流程从上到下：总开关 -> 通道开关 -> 透明设置"
+                               Margin="0,4,0,14"
+                               FontSize="12"
+                               Foreground="#64748B"/>
+
+                    <CheckBox x:Name="MasterToggle"
+                              Content="启用 NDI 网络流"
+                              Style="{StaticResource ToggleStyle}"
+                              Click="MasterToggle_Click"/>
+                    <CheckBox x:Name="LyricsToggle"
+                              Content="启用歌词通道"
+                              Style="{StaticResource ToggleStyle}"
+                              Click="LyricsToggle_Click"/>
+                    <CheckBox x:Name="CaptionToggle"
+                              Content="启用字幕通道"
+                              Style="{StaticResource ToggleStyle}"
+                              Click="CaptionToggle_Click"/>
+                    <CheckBox x:Name="TransparentToggle"
+                              Content="歌词透明（仅歌词模式）"
+                              Style="{StaticResource ToggleStyle}"
+                              Click="TransparentToggle_Click"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="状态与工具" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B"/>
+                    <TextBlock Text="建议先确认连接状态，再进入帧水印设置"
+                               Margin="0,4,0,14"
+                               FontSize="12"
+                               Foreground="#64748B"/>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="帧水印设置"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="WatermarkButton_Click"/>
+                        <Button Content="刷新状态"
+                                Margin="10,0,0,0"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="RefreshButton_Click"/>
+                    </StackPanel>
+
+                    <Border Margin="0,14,0,0"
+                            BorderThickness="1"
+                            BorderBrush="#E2E8F0"
+                            Background="#F8FAFC"
+                            CornerRadius="10"
+                            Padding="12,10,12,10">
+                        <TextBlock x:Name="StatusText"
+                                   FontSize="13"
+                                   Foreground="#334155"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="关闭"
+                    Width="96"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Click="CloseButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

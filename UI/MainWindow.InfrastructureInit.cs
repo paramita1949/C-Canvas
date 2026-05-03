@@ -8,6 +8,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.Projection.Output;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Utils;
 using MessageBox = System.Windows.MessageBox;
 
@@ -39,6 +40,7 @@ namespace ImageColorChanger.UI
                 _configManager.ProjectionNdiEnabled = false;
                 _configManager.LiveCaptionNdiEnabled = false;
                 _projectionNdiOutputManager = _mainWindowServices.GetRequired<ProjectionNdiOutputManager>();
+                _ndiRouter = _mainWindowServices.GetRequired<INdiRouter>();
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
                 dbManager.NormalizeFolderVideoPlayModes("random");

@@ -156,7 +156,8 @@ namespace ImageColorChanger.Services.Projection.Output
                     _configProvider.ProjectionNdiIdleFrameWatermarkText,
                     _configProvider.ProjectionNdiIdleFrameWatermarkPosition,
                     _configProvider.ProjectionNdiIdleFrameWatermarkFontSize,
-                    _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily);
+                    _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily,
+                    _configProvider.ProjectionNdiIdleFrameWatermarkOpacity);
                 _sender.SendFrame(transparent);
             }
             catch
@@ -181,7 +182,8 @@ namespace ImageColorChanger.Services.Projection.Output
                 _configProvider.ProjectionNdiIdleFrameWatermarkText,
                 _configProvider.ProjectionNdiIdleFrameWatermarkPosition,
                 _configProvider.ProjectionNdiIdleFrameWatermarkFontSize,
-                _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily);
+                _configProvider.ProjectionNdiIdleFrameWatermarkFontFamily,
+                _configProvider.ProjectionNdiIdleFrameWatermarkOpacity);
             return output;
         }
 
@@ -190,7 +192,8 @@ namespace ImageColorChanger.Services.Projection.Output
             string watermark,
             string position,
             double fontSize,
-            string fontFamily)
+            string fontFamily,
+            double opacityPercent)
         {
             if (target == null || string.IsNullOrWhiteSpace(watermark))
             {
@@ -205,10 +208,11 @@ namespace ImageColorChanger.Services.Projection.Output
 
             using var canvas = new SKCanvas(target);
             float resolvedFontSize = (float)System.Math.Clamp(fontSize, 10d, 220d);
+            byte alpha = (byte)System.Math.Round(System.Math.Clamp(opacityPercent, 0d, 100d) * 255d / 100d);
             using var paint = new SKPaint
             {
                 IsAntialias = true,
-                Color = new SKColor(255, 255, 255, 110)
+                Color = new SKColor(255, 255, 255, alpha)
             };
             using var typeface = ResolveTypeface(fontFamily);
             using var font = new SKFont(typeface, resolvedFontSize);

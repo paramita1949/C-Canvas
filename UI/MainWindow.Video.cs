@@ -25,6 +25,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Utils;
 using LibVLCSharp.WPF;
@@ -614,6 +615,11 @@ namespace ImageColorChanger.UI
 
         private void TryPublishVideoProjectionFrameToNdi()
         {
+            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Video) != true)
+            {
+                return;
+            }
+
             if (_projectionNdiOutputManager == null || _videoPlayerManager == null || !_videoPlayerManager.IsPlaying)
             {
                 return;

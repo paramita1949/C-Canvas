@@ -8,6 +8,7 @@ using ImageColorChanger.Managers.Keyframes;
 using ImageColorChanger.Services;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.Services.Lyrics.Output;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.StateMachine;
 
@@ -106,6 +107,7 @@ namespace ImageColorChanger.Core
             services.AddSingleton<IProjectionNdiModeResolver, ProjectionNdiModeResolver>();
             services.AddSingleton<LyricsNdiOutputManager>();
             services.AddSingleton<ProjectionNdiOutputManager>();
+            services.AddSingleton<INdiRouter, NdiRouter>();
             services.AddSingleton<IVideoBackgroundManager, VideoBackgroundManager>();
             services.AddSingleton<PakManager>();
             services.AddSingleton<GPUContext>();

@@ -58,6 +58,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             public string ProjectionNdiIdleFrameWatermarkPosition => "RightBottom";
             public double ProjectionNdiIdleFrameWatermarkFontSize => 48.0;
             public string ProjectionNdiIdleFrameWatermarkFontFamily => "Microsoft YaHei UI";
+            public double ProjectionNdiIdleFrameWatermarkOpacity => 43.0;
         }
 
         private sealed class FixedResolver : IProjectionNdiModeResolver

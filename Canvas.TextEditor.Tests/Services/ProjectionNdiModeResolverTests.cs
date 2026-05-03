@@ -45,6 +45,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
             public string ProjectionNdiIdleFrameWatermarkPosition { get; set; } = "RightBottom";
             public double ProjectionNdiIdleFrameWatermarkFontSize { get; set; } = 48.0;
             public string ProjectionNdiIdleFrameWatermarkFontFamily { get; set; } = "Microsoft YaHei UI";
+            public double ProjectionNdiIdleFrameWatermarkOpacity { get; set; } = 43.0;
         }
     }
 }

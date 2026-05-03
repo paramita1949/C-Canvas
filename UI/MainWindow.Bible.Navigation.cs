@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.UI.Modules;
@@ -734,6 +735,11 @@ namespace ImageColorChanger.UI
 
         private void PublishBibleFrameToNdi(List<BibleVerse> verses)
         {
+            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Bible) != true)
+            {
+                return;
+            }
+
             if (_projectionNdiOutputManager == null || verses == null || verses.Count == 0)
             {
                 LogBibleNdiDebug("PublishBibleFrameToNdi skipped: manager null or verses empty.");

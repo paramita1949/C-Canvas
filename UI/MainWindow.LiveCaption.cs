@@ -524,7 +524,7 @@ namespace ImageColorChanger.UI
                 UpdateLiveCaptionProjectionActionState();
                 UpdateLiveCaptionNdiActionState();
                 _projectionManager?.HideProjectionCaptionOverlay();
-                _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
+                _ndiRouter?.PushCaptionIdleFrame();
                 StopProjectionNdiSenderIfUnused();
                 ApplyMainWindowLiveCaptionReservation();
                 UnregisterLiveCaptionF4HotKey();
@@ -1209,7 +1209,7 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionProjectionCaptionHidden = true;
             _projectionManager?.HideProjectionCaptionOverlay();
-            _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
+            _ndiRouter?.PushCaptionIdleFrame();
             StopProjectionNdiSenderIfUnused();
             _liveCaptionNdiComposer.Reset();
             ApplyMainWindowLiveCaptionReservation();
@@ -2187,7 +2187,7 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
+                    _ndiRouter?.PushCaptionIdleFrame();
                     StopProjectionNdiSenderIfUnused();
                     ShowStatus("字幕NDI已关闭");
                 }
@@ -2233,14 +2233,14 @@ namespace ImageColorChanger.UI
 
         private void PublishLiveCaptionToNdi(string captionText, int highlightStart)
         {
-            if (_projectionNdiOutputManager == null || _configManager?.LiveCaptionNdiEnabled != true)
+            if (_ndiRouter == null || _configManager?.LiveCaptionNdiEnabled != true)
             {
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(captionText))
             {
-                _projectionNdiOutputManager.PushTransparentIdleFrame();
+                _ndiRouter.PushCaptionIdleFrame();
                 return;
             }
 
@@ -2249,10 +2249,7 @@ namespace ImageColorChanger.UI
                 int width = Math.Max(320, _configManager.ProjectionNdiWidth);
                 int height = Math.Max(180, _configManager.ProjectionNdiHeight);
                 using var frame = BuildLiveCaptionNdiFrame(width, height, captionText, highlightStart);
-                _projectionNdiOutputManager.PublishFrameDirect(
-                    frame,
-                    transparent: false,
-                    transparencyKeyColor: null);
+                _ndiRouter.PublishCaptionFrame(frame);
             }
             catch (Exception ex)
             {
@@ -2262,7 +2259,7 @@ namespace ImageColorChanger.UI
 
         private void StopProjectionNdiSenderIfUnused()
         {
-            if (_projectionNdiOutputManager == null || _configManager == null)
+            if (_ndiRouter == null || _configManager == null)
             {
                 return;
             }
@@ -2272,7 +2269,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _projectionNdiOutputManager.Stop();
+            _ndiRouter.StopAll();
         }
 
         private SKBitmap BuildLiveCaptionNdiFrame(int width, int height, string captionText, int highlightStart)

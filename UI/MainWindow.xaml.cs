@@ -25,6 +25,7 @@ using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.UI.Composition;
 using ImageColorChanger.UI.Modules;
@@ -170,6 +171,7 @@ namespace ImageColorChanger.UI
         private Repositories.Interfaces.IOriginalModeRepository _originalModeRepository;
         private Repositories.Interfaces.ICompositeScriptRepository _compositeScriptRepository;
         private ProjectionNdiOutputManager _projectionNdiOutputManager;
+        private INdiRouter _ndiRouter;
         private Microsoft.Extensions.Caching.Memory.IMemoryCache _memoryCache;
         private Repositories.Interfaces.IMediaFileRepository _mediaFileRepository;
         private EventHandler<Services.Interfaces.CountdownUpdateEventArgs> _countdownUpdatedHandler;

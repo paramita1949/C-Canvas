@@ -1631,6 +1631,11 @@ namespace ImageColorChanger.Core
         public string ProjectionNdiIdleFrameWatermarkFontFamily { get; set; } = "Microsoft YaHei UI";
 
         /// <summary>
+        /// 全投影 NDI 空气帧文字水印透明度（0-100，默认：43）
+        /// </summary>
+        public double ProjectionNdiIdleFrameWatermarkOpacity { get; set; } = 43.0;
+
+        /// <summary>
         /// 画布宽高比（默认：16:9）
         /// 可选值："16:9" 或 "4:3"
         /// </summary>
@@ -2095,6 +2100,23 @@ namespace ImageColorChanger.Core
                 if (!string.Equals(_config.ProjectionNdiIdleFrameWatermarkFontFamily ?? string.Empty, next, StringComparison.Ordinal))
                 {
                     _config.ProjectionNdiIdleFrameWatermarkFontFamily = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全投影 NDI 空气帧文字水印透明度
+        /// </summary>
+        public double ProjectionNdiIdleFrameWatermarkOpacity
+        {
+            get => Math.Clamp(_config.ProjectionNdiIdleFrameWatermarkOpacity, 0, 100);
+            set
+            {
+                double next = Math.Clamp(value, 0, 100);
+                if (Math.Abs(_config.ProjectionNdiIdleFrameWatermarkOpacity - next) > 0.001)
+                {
+                    _config.ProjectionNdiIdleFrameWatermarkOpacity = next;
                     SaveConfig();
                 }
             }

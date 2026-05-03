@@ -22,6 +22,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
             Assert.Equal("YongMu-NDI", config.ProjectionNdiSenderName);
             Assert.True(config.ProjectionNdiLyricsTransparentEnabled);
             Assert.True(config.ProjectionNdiBibleTransparentEnabled);
+            Assert.Equal(43.0, config.ProjectionNdiIdleFrameWatermarkOpacity);
         }
 
         [Fact]
@@ -82,6 +83,29 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
 
                 var manager = new ConfigManager(tempFile);
                 Assert.Equal($"YongMu-NDI-{Environment.MachineName}", manager.ProjectionNdiSenderName);
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+        }
+
+        [Fact]
+        public void ConfigManager_ProjectionNdiIdleFrameWatermarkOpacity_IsClamped()
+        {
+            string tempFile = Path.Combine(Path.GetTempPath(), $"canvas_config_{Guid.NewGuid():N}.json");
+            try
+            {
+                var manager = new ConfigManager(tempFile);
+
+                manager.ProjectionNdiIdleFrameWatermarkOpacity = 135;
+                Assert.Equal(100, manager.ProjectionNdiIdleFrameWatermarkOpacity);
+
+                manager.ProjectionNdiIdleFrameWatermarkOpacity = -10;
+                Assert.Equal(0, manager.ProjectionNdiIdleFrameWatermarkOpacity);
             }
             finally
             {

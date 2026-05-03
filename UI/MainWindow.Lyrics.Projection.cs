@@ -193,7 +193,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_projectionNdiOutputManager == null || frame == null)
+                if (_ndiRouter == null || frame == null)
                 {
                     return;
                 }
@@ -213,16 +213,19 @@ namespace ImageColorChanger.UI
                 if (transparentLyricsMode)
                 {
                     var bg = GetCurrentLyricsThemeBackgroundColor();
-                    _projectionNdiOutputManager.PublishFrame(
+                    _lyricsTransparentIdleFramePushed = !_ndiRouter.PublishLyricsFrame(
                         frame,
-                        ProjectionNdiContentType.Lyrics,
+                        transparentEnabled: true,
+                        transparentLyricsMode: true,
                         new SKColor(bg.R, bg.G, bg.B, bg.A));
-                    _lyricsTransparentIdleFramePushed = false;
                 }
                 else
                 {
-                    _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Slide);
-                    _lyricsTransparentIdleFramePushed = false;
+                    _lyricsTransparentIdleFramePushed = !_ndiRouter.PublishLyricsFrame(
+                        frame,
+                        transparentEnabled,
+                        transparentLyricsMode: false,
+                        default);
                 }
             }
             catch
@@ -233,18 +236,12 @@ namespace ImageColorChanger.UI
 
         private void PushTransparentIdleFrameToNdi(SKBitmap referenceFrame)
         {
-            if (_lyricsTransparentIdleFramePushed || referenceFrame == null || _projectionNdiOutputManager == null)
+            if (_lyricsTransparentIdleFramePushed || referenceFrame == null || _ndiRouter == null)
             {
                 return;
             }
 
-            using var transparentFrame = new SKBitmap(
-                referenceFrame.Width,
-                referenceFrame.Height,
-                SKColorType.Bgra8888,
-                SKAlphaType.Premul);
-            transparentFrame.Erase(new SKColor(0, 0, 0, 0));
-            _projectionNdiOutputManager.PublishFrame(transparentFrame, ProjectionNdiContentType.Lyrics);
+            _ndiRouter.PushLyricsTransparentIdleFrame();
             _lyricsTransparentIdleFramePushed = true;
         }
 

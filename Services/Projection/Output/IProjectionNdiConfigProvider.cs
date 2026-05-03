@@ -14,6 +14,7 @@ namespace ImageColorChanger.Services.Projection.Output
         string ProjectionNdiIdleFrameWatermarkPosition { get; }
         double ProjectionNdiIdleFrameWatermarkFontSize { get; }
         string ProjectionNdiIdleFrameWatermarkFontFamily { get; }
+        double ProjectionNdiIdleFrameWatermarkOpacity { get; }
     }
 }
 
