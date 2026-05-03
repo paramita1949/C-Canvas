@@ -68,7 +68,11 @@ namespace ImageColorChanger.UI
                     LyricsEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Lyrics) == true,
                     CaptionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Caption) == true,
                     LyricsTransparentEnabled = _configManager?.ProjectionNdiLyricsTransparentEnabled == true,
-                    ConnectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0
+                    ConnectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0,
+                    WatermarkPosition = _configManager?.ProjectionNdiIdleFrameWatermarkPosition,
+                    WatermarkFontFamily = _configManager?.ProjectionNdiIdleFrameWatermarkFontFamily,
+                    WatermarkFontSize = _configManager?.ProjectionNdiIdleFrameWatermarkFontSize ?? 48,
+                    WatermarkOpacity = _configManager?.ProjectionNdiIdleFrameWatermarkOpacity ?? 43
                 },
                 setMaster: enabled => SetNdiMasterEnabled(enabled),
                 setLyrics: enabled =>
@@ -96,11 +100,41 @@ namespace ImageColorChanger.UI
                     _configManager.ProjectionNdiLyricsTransparentEnabled = enabled;
                     ShowStatus(enabled ? "歌词透明已开启" : "歌词透明已关闭");
                 },
-                openWatermarkSettings: () =>
+                setWatermarkPosition: position =>
                 {
-                    ShowNdiFrameWatermarkSettingsDialog(
-                        onChanged: () => _projectionNdiOutputManager?.PushTransparentIdleFrame(),
-                        refreshUi: () => { });
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiIdleFrameWatermarkPosition = position;
+                },
+                setWatermarkFontFamily: fontFamily =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiIdleFrameWatermarkFontFamily = string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily;
+                },
+                setWatermarkFontSize: fontSize =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiIdleFrameWatermarkFontSize = Math.Clamp(fontSize, 10, 220);
+                },
+                setWatermarkOpacity: opacity =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiIdleFrameWatermarkOpacity = Math.Clamp(opacity, 0, 100);
+                },
+                pushWatermarkFrame: () =>
+                {
+                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
                 })
             {
                 Owner = this
@@ -183,45 +217,6 @@ namespace ImageColorChanger.UI
             separator.Template = template;
             return separator;
         }
-
-        private void ShowNdiFrameWatermarkSettingsDialog(Action onChanged, Action refreshUi)
-        {
-            if (_configManager == null)
-            {
-                return;
-            }
-
-            var dialog = new NdiWatermarkSettingsWindow(new NdiWatermarkSettingsWindow.Input
-            {
-                Text = _configManager.ProjectionNdiIdleFrameWatermarkText ?? string.Empty,
-                Position = _configManager.ProjectionNdiIdleFrameWatermarkPosition,
-                FontSize = _configManager.ProjectionNdiIdleFrameWatermarkFontSize,
-                FontFamily = _configManager.ProjectionNdiIdleFrameWatermarkFontFamily,
-                Opacity = _configManager.ProjectionNdiIdleFrameWatermarkOpacity
-            })
-            {
-                Owner = this
-            };
-
-            bool? accepted = dialog.ShowDialog();
-            if (accepted != true || dialog.Result == null)
-            {
-                return;
-            }
-
-            _configManager.ProjectionNdiIdleFrameWatermarkText = dialog.Result.Text;
-            _configManager.ProjectionNdiIdleFrameWatermarkPosition = dialog.Result.Position;
-            _configManager.ProjectionNdiIdleFrameWatermarkFontSize = dialog.Result.FontSize;
-            _configManager.ProjectionNdiIdleFrameWatermarkFontFamily = dialog.Result.FontFamily;
-            _configManager.ProjectionNdiIdleFrameWatermarkOpacity = dialog.Result.Opacity;
-
-            onChanged?.Invoke();
-            refreshUi?.Invoke();
-
-            string saved = _configManager.ProjectionNdiIdleFrameWatermarkText ?? string.Empty;
-            ShowStatus(string.IsNullOrWhiteSpace(saved) ? "帧水印已清空（无文字时不显示）" : $"帧水印已更新: {saved}");
-        }
-
         private static bool TryLaunchNdiRuntimeInstaller()
         {
             try
@@ -362,6 +357,7 @@ namespace ImageColorChanger.UI
 
     }
 }
+
 
 
 
