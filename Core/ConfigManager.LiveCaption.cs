@@ -15,7 +15,7 @@ namespace ImageColorChanger.Core
         {
             get
             {
-                var current = string.IsNullOrWhiteSpace(_config.LiveCaptionAsrProvider) ? "baidu" : _config.LiveCaptionAsrProvider;
+                var current = string.IsNullOrWhiteSpace(_config.LiveCaptionAsrProvider) ? "xfyun" : _config.LiveCaptionAsrProvider;
                 return NormalizeLiveCaptionAsrProvider(current);
             }
             set
@@ -140,13 +140,11 @@ namespace ImageColorChanger.Core
             return normalized switch
             {
                 "baidu" => "baidu",
-                "tencent" => "tencent",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 // 迁移历史本地模式：统一切回云端豆包。
                 "funasr" => "doubao",
-                _ => "baidu"
+                _ => "xfyun"
             };
         }
 
@@ -163,12 +161,26 @@ namespace ImageColorChanger.Core
         {
             return NormalizeLiveCaptionAsrProvider(provider) switch
             {
-                "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
                 "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
-                "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
-                _ => "wss://vop.baidu.com/realtime_asr"
+                _ => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1"
             };
+        }
+
+        private static bool IsRemovedProviderUrl(string value)
+        {
+            string current = (value ?? string.Empty).Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(current))
+            {
+                return false;
+            }
+
+            return current.Contains("aliyuncs.com", StringComparison.Ordinal)
+                || current.Contains("aliyun", StringComparison.Ordinal)
+                || current.Contains("asr.cloud.tencent.com", StringComparison.Ordinal)
+                || current.Contains("asr.tencentcloudapi.com", StringComparison.Ordinal)
+                || current.Contains("tencentcloud", StringComparison.Ordinal)
+                || current.Contains("tencent", StringComparison.Ordinal);
         }
 
         private static bool IsLegacyCustomProxyUrl(string value)
@@ -215,7 +227,9 @@ namespace ImageColorChanger.Core
             get
             {
                 string current = _config.LiveCaptionRealtimeProxyBaseUrl ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(current) || IsLegacyCustomProxyUrl(current))
+                if (string.IsNullOrWhiteSpace(current)
+                    || IsLegacyCustomProxyUrl(current)
+                    || IsRemovedProviderUrl(current))
                 {
                     return GetDefaultRealtimeBaseUrl(LiveCaptionRealtimeAsrProvider);
                 }
@@ -227,6 +241,10 @@ namespace ImageColorChanger.Core
                 string next = string.IsNullOrWhiteSpace(value)
                     ? GetDefaultRealtimeBaseUrl(LiveCaptionRealtimeAsrProvider)
                     : value.Trim();
+                if (IsRemovedProviderUrl(next))
+                {
+                    next = GetDefaultRealtimeBaseUrl(LiveCaptionRealtimeAsrProvider);
+                }
                 if (!string.Equals(_config.LiveCaptionRealtimeProxyBaseUrl, next, StringComparison.Ordinal))
                 {
                     _config.LiveCaptionRealtimeProxyBaseUrl = next;
@@ -270,7 +288,7 @@ namespace ImageColorChanger.Core
             get
             {
                 string current = string.IsNullOrWhiteSpace(_config.LiveCaptionShortAsrProvider)
-                    ? "baidu"
+                    ? "xfyun"
                     : _config.LiveCaptionShortAsrProvider;
                 return NormalizeLiveCaptionAsrProvider(current);
             }
@@ -287,12 +305,23 @@ namespace ImageColorChanger.Core
 
         public string LiveCaptionShortProxyBaseUrl
         {
-            get => string.IsNullOrWhiteSpace(_config.LiveCaptionShortProxyBaseUrl)
-                ? "http://vop.baidu.com/server_api"
-                : _config.LiveCaptionShortProxyBaseUrl;
+            get
+            {
+                string current = _config.LiveCaptionShortProxyBaseUrl ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(current) || IsRemovedProviderUrl(current))
+                {
+                    return "wss://iat.xf-yun.com/v1";
+                }
+
+                return current;
+            }
             set
             {
-                string next = string.IsNullOrWhiteSpace(value) ? "http://vop.baidu.com/server_api" : value.Trim();
+                string next = string.IsNullOrWhiteSpace(value) ? "wss://iat.xf-yun.com/v1" : value.Trim();
+                if (IsRemovedProviderUrl(next))
+                {
+                    next = "wss://iat.xf-yun.com/v1";
+                }
                 if (!string.Equals(_config.LiveCaptionShortProxyBaseUrl, next, StringComparison.Ordinal))
                 {
                     _config.LiveCaptionShortProxyBaseUrl = next;
@@ -1287,14 +1316,14 @@ namespace ImageColorChanger.Core
         /// 经文识别文本来源：shortPhrase=短语ASR, realtime=实时语音ASR, both=双路
         /// </summary>
         public string LiveCaptionVerseSource { get; set; } = "shortPhrase";
-        public string LiveCaptionAsrProvider { get; set; } = "baidu";
-        public string LiveCaptionRealtimeAsrProvider { get; set; } = "baidu";
+        public string LiveCaptionAsrProvider { get; set; } = "xfyun";
+        public string LiveCaptionRealtimeAsrProvider { get; set; } = "xfyun";
         public string LiveCaptionRealtimeProxyBaseUrl { get; set; } = "http://localhost:8317/v1";
-        public string LiveCaptionRealtimeAsrModel { get; set; } = "baidu-realtime";
+        public string LiveCaptionRealtimeAsrModel { get; set; } = "xfyun-rtasr-llm";
         public int LiveCaptionRealtimeBaiduDevPid { get; set; } = 1537;
-        public string LiveCaptionShortAsrProvider { get; set; } = "baidu";
-        public string LiveCaptionShortProxyBaseUrl { get; set; } = "http://vop.baidu.com/server_api";
-        public string LiveCaptionShortAsrModel { get; set; } = "baidu-short-standard";
+        public string LiveCaptionShortAsrProvider { get; set; } = "xfyun";
+        public string LiveCaptionShortProxyBaseUrl { get; set; } = "wss://iat.xf-yun.com/v1";
+        public string LiveCaptionShortAsrModel { get; set; } = "xfyun-short";
         public int LiveCaptionShortBaiduDevPid { get; set; } = 1537;
         public string LiveCaptionAudioInputMode { get; set; } = "system";
         public string LiveCaptionInputDeviceId { get; set; } = "";

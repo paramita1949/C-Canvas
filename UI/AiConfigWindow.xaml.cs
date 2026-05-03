@@ -30,11 +30,11 @@ namespace ImageColorChanger.UI
         private bool _isApplyingProviderSelection;
         private SpeechMode _speechMode = SpeechMode.Realtime;
         private string _baseHint = string.Empty;
-        private string _draftRealtimeProvider = "baidu";
+        private string _draftRealtimeProvider = "xfyun";
         private string _draftRealtimeBaseUrl = string.Empty;
         private string _draftRealtimeModel = string.Empty;
         private string _draftRealtimeDialect = "default";
-        private string _draftShortProvider = "baidu";
+        private string _draftShortProvider = "xfyun";
         private string _draftShortBaseUrl = string.Empty;
         private string _draftShortModel = string.Empty;
         private string _draftShortDialect = "default";
@@ -60,7 +60,7 @@ namespace ImageColorChanger.UI
 
         private sealed class ProviderPreset
         {
-            public string Provider { get; set; } = "baidu";
+            public string Provider { get; set; } = "xfyun";
             public string Label1 { get; set; } = "凭证1";
             public string Label2 { get; set; } = "凭证2";
             public string Label3 { get; set; } = "凭证3";
@@ -490,10 +490,8 @@ namespace ImageColorChanger.UI
         {
             return NormalizeProvider(provider) switch
             {
-                "aliyun" => "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
                 "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
-                "tencent" => "wss://asr.cloud.tencent.com/asr/v2",
                 _ => "wss://vop.baidu.com/realtime_asr"
             };
         }
@@ -504,9 +502,7 @@ namespace ImageColorChanger.UI
             {
                 return NormalizeProvider(provider) switch
                 {
-                    "aliyun" => "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/asr",
                     "doubao" => "wss://openspeech.bytedance.com/api/v2/asr",
-                    "tencent" => "https://asr.tencentcloudapi.com",
                     "xfyun" => "wss://iat.xf-yun.com/v1",
                     _ => "http://vop.baidu.com/server_api"
                 };
@@ -529,12 +525,10 @@ namespace ImageColorChanger.UI
             return p switch
             {
                 "baidu" => "baidu",
-                "tencent" => "tencent",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
-                _ => "baidu"
+                _ => "xfyun"
             };
         }
 
@@ -1777,25 +1771,11 @@ namespace ImageColorChanger.UI
 
         private static ProviderOption[] GetProviderOptions(SpeechMode mode)
         {
-            if (mode == SpeechMode.ShortPhrase)
-            {
-                return new[]
-                {
-                    new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
-                    new ProviderOption { Provider = "aliyun", DisplayName = "阿里云语音" },
-                    new ProviderOption { Provider = "xfyun", DisplayName = "飞讯语音" },
-                    new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
-                    new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
-                };
-            }
-
             return new[]
             {
                 new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
-                new ProviderOption { Provider = "aliyun", DisplayName = "阿里云语音" },
                 new ProviderOption { Provider = "xfyun", DisplayName = "飞讯语音" },
-                new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
-                new ProviderOption { Provider = "tencent", DisplayName = "腾讯云语音" }
+                new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" }
             };
         }
 

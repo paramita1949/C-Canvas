@@ -30,9 +30,9 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
 
                 using var client = new CliProxyApiClient(config, useRealtimeSettings: true);
 
-                Assert.Equal("aliyun", client.AsrProvider);
+                Assert.Equal("xfyun", client.AsrProvider);
                 Assert.Equal("qwen3-asr-flash", client.AsrModel);
-                Assert.Equal("wss://realtime-aliyun/ws/v1", ReadPrivateField<string>(client, "_baseUrl"));
+                Assert.Equal("wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1", ReadPrivateField<string>(client, "_baseUrl"));
                 Assert.Equal(1936, ReadPrivateField<int>(client, "_baiduDevPid"));
                 Assert.Equal("realtime-custom", ReadPrivateField<string>(client, "_tencentCustomizationId"));
             }
@@ -88,8 +88,8 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
                 config.LiveCaptionAsrModel = "legacy-model";
                 config.LiveCaptionBaiduDevPid = 80001;
 
-                config.LiveCaptionRealtimeAsrProvider = "aliyun";
-                config.LiveCaptionRealtimeProxyBaseUrl = "wss://realtime-aliyun/ws/v1";
+                config.LiveCaptionRealtimeAsrProvider = "baidu";
+                config.LiveCaptionRealtimeProxyBaseUrl = "wss://vop.baidu.com/realtime_asr";
                 config.LiveCaptionRealtimeAsrModel = "qwen3-asr-flash";
                 config.LiveCaptionRealtimeBaiduDevPid = 1936;
                 config.LiveCaptionTencentCustomizationId = "legacy-custom";

@@ -16,6 +16,8 @@ namespace ImageColorChanger.Core
     /// </summary>
     public partial class ConfigManager : ILyricsNdiConfigProvider, IProjectionNdiConfigProvider
     {
+        private const string LegacyProjectionNdiSenderName = "CanvasCast-Projection";
+        private const string StaticProjectionNdiSenderName = "YongMu-NDI";
         private static ConfigManager _instance;
         private static readonly object _lock = new object();
         
@@ -1284,9 +1286,13 @@ namespace ImageColorChanger.Core
             }
 
             bool changed = false;
+            bool projectionSenderIsLegacyDefault =
+                string.IsNullOrWhiteSpace(_config.ProjectionNdiSenderName) ||
+                string.Equals(_config.ProjectionNdiSenderName, LegacyProjectionNdiSenderName, StringComparison.Ordinal) ||
+                string.Equals(_config.ProjectionNdiSenderName, StaticProjectionNdiSenderName, StringComparison.Ordinal);
             bool projectionLooksDefault =
                 !_config.ProjectionNdiEnabled &&
-                string.Equals(_config.ProjectionNdiSenderName ?? "CanvasCast-Projection", "CanvasCast-Projection", StringComparison.Ordinal) &&
+                projectionSenderIsLegacyDefault &&
                 _config.ProjectionNdiWidth == 1920 &&
                 _config.ProjectionNdiHeight == 1080 &&
                 _config.ProjectionNdiFps == 30 &&
@@ -1331,7 +1337,42 @@ namespace ImageColorChanger.Core
                 changed = true;
             }
 
+            string normalizedProjectionSender = NormalizeProjectionNdiSenderName(_config.ProjectionNdiSenderName);
+            if (!string.Equals(_config.ProjectionNdiSenderName, normalizedProjectionSender, StringComparison.Ordinal))
+            {
+                _config.ProjectionNdiSenderName = normalizedProjectionSender;
+                changed = true;
+            }
+
             return changed;
+        }
+
+        private static string GetDefaultProjectionNdiSenderName()
+        {
+            string machineName = (Environment.MachineName ?? string.Empty).Trim();
+            if (machineName.Length == 0)
+            {
+                return StaticProjectionNdiSenderName;
+            }
+
+            return $"{StaticProjectionNdiSenderName}-{machineName}";
+        }
+
+        private static string NormalizeProjectionNdiSenderName(string senderName)
+        {
+            if (string.IsNullOrWhiteSpace(senderName))
+            {
+                return GetDefaultProjectionNdiSenderName();
+            }
+
+            string trimmed = senderName.Trim();
+            if (string.Equals(trimmed, LegacyProjectionNdiSenderName, StringComparison.Ordinal) ||
+                string.Equals(trimmed, StaticProjectionNdiSenderName, StringComparison.Ordinal))
+            {
+                return GetDefaultProjectionNdiSenderName();
+            }
+
+            return trimmed;
         }
     }
 
@@ -1844,19 +1885,10 @@ namespace ImageColorChanger.Core
         /// </summary>
         public string ProjectionNdiSenderName
         {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(_config.ProjectionNdiSenderName) ||
-                    string.Equals(_config.ProjectionNdiSenderName, "CanvasCast-Projection", StringComparison.Ordinal))
-                {
-                    return "YongMu-NDI";
-                }
-
-                return _config.ProjectionNdiSenderName;
-            }
+            get => NormalizeProjectionNdiSenderName(_config.ProjectionNdiSenderName);
             set
             {
-                var next = string.IsNullOrWhiteSpace(value) ? "YongMu-NDI" : value.Trim();
+                var next = NormalizeProjectionNdiSenderName(value);
                 if (!string.Equals(_config.ProjectionNdiSenderName, next, StringComparison.Ordinal))
                 {
                     _config.ProjectionNdiSenderName = next;

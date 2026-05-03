@@ -3545,8 +3545,6 @@ namespace ImageColorChanger.Services.LiveCaption
             return normalized switch
             {
                 "baidu" => "baidu",
-                "tencent" => "tencent",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",

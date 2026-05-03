@@ -13,7 +13,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
     public sealed class AiConfigWindowProviderSelectionTests
     {
         [Fact]
-        public void ProviderSelectionChanged_WhenSwitchingToAliyun_BaseUrlShouldUseAliyunDefault()
+        public void ProviderSelectionChanged_WhenSwitchingToDoubao_BaseUrlShouldUseDoubaoRealtimeDefault()
         {
             RunInSta(() =>
             {
@@ -26,13 +26,13 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
                     config.LiveCaptionRealtimeProxyBaseUrl = "wss://vop.baidu.com/realtime_asr";
 
                     var window = new AiConfigWindow(config);
-                    ComboBoxItem aliyunItem = window.ProviderComboBox.Items
+                    ComboBoxItem doubaoItem = window.ProviderComboBox.Items
                         .OfType<ComboBoxItem>()
-                        .First(item => string.Equals(item.Tag?.ToString(), "aliyun", StringComparison.OrdinalIgnoreCase));
+                        .First(item => string.Equals(item.Tag?.ToString(), "doubao", StringComparison.OrdinalIgnoreCase));
 
-                    window.ProviderComboBox.SelectedItem = aliyunItem;
+                    window.ProviderComboBox.SelectedItem = doubaoItem;
 
-                    Assert.Equal("wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1", window.BaseUrlTextBox.Text);
+                    Assert.Equal("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", window.BaseUrlTextBox.Text);
                 }
                 finally
                 {
@@ -129,16 +129,16 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
                     window = new AiConfigWindow(config);
                     window.Show();
 
-                    ComboBoxItem aliyunItem = window.ProviderComboBox.Items
+                    ComboBoxItem doubaoItem = window.ProviderComboBox.Items
                         .OfType<ComboBoxItem>()
-                        .First(item => string.Equals(item.Tag?.ToString(), "aliyun", StringComparison.OrdinalIgnoreCase));
-                    window.ProviderComboBox.SelectedItem = aliyunItem;
-                    Assert.Equal("wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1", window.BaseUrlTextBox.Text);
+                        .First(item => string.Equals(item.Tag?.ToString(), "doubao", StringComparison.OrdinalIgnoreCase));
+                    window.ProviderComboBox.SelectedItem = doubaoItem;
+                    Assert.Equal("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", window.BaseUrlTextBox.Text);
 
                     window.ShortSpeechModeToggle.IsChecked = true;
                     window.RealtimeSpeechModeToggle.IsChecked = true;
 
-                    Assert.Equal("wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1", window.BaseUrlTextBox.Text);
+                    Assert.Equal("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", window.BaseUrlTextBox.Text);
                 }
                 finally
                 {

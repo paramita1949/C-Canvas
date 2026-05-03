@@ -62,13 +62,8 @@ namespace ImageColorChanger.Services
         public bool IsConfigured =>
             GetShortSpeechProvider() switch
             {
-                "tencent" => !string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretId) &&
-                             !string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretKey),
                 "doubao" => !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey) &&
                              !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey),
-                "aliyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAppKey) &&
-                            !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeyId) &&
-                            !string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret),
                 "xfyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunAppId) &&
                            !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiKey) &&
                            !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiSecret),
@@ -83,18 +78,7 @@ namespace ImageColorChanger.Services
             {
                 var missing = new System.Collections.Generic.List<string>();
                 string provider = GetShortSpeechProvider();
-                if (string.Equals(provider, "tencent", StringComparison.Ordinal))
-                {
-                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretId))
-                    {
-                        missing.Add("SecretId");
-                    }
-                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionTencentSecretKey))
-                    {
-                        missing.Add("SecretKey");
-                    }
-                }
-                else if (string.Equals(provider, "doubao", StringComparison.Ordinal))
+                if (string.Equals(provider, "doubao", StringComparison.Ordinal))
                 {
                     if (string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey))
                     {
@@ -104,15 +88,6 @@ namespace ImageColorChanger.Services
                     {
                         missing.Add("Token");
                     }
-                }
-                else if (string.Equals(provider, "aliyun", StringComparison.Ordinal))
-                {
-                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAppKey))
-                        missing.Add("AppKey");
-                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeyId))
-                        missing.Add("AccessKeyId");
-                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionAliAccessKeySecret))
-                        missing.Add("AccessKeySecret");
                 }
                 else if (string.Equals(provider, "xfyun", StringComparison.Ordinal))
                 {
@@ -158,9 +133,7 @@ namespace ImageColorChanger.Services
             Debug.WriteLine($"[BibleVoice][{shortTag}] request: wavBytes={wavBytes.Length}");
             return provider switch
             {
-                "tencent" => await TranscribeWithTencentAsync(wavBytes, cancellationToken),
                 "doubao" => await TranscribeWithDoubaoAsync(wavBytes, cancellationToken),
-                "aliyun" => await TranscribeWithAliyunAsync(wavBytes, cancellationToken),
                 "xfyun" => await TranscribeWithXfyunAsync(wavBytes, cancellationToken),
                 _ => await TranscribeWithBaiduAsync(wavBytes, cancellationToken)
             };
@@ -943,12 +916,10 @@ namespace ImageColorChanger.Services
         {
             return (_config.LiveCaptionShortAsrProvider ?? string.Empty).Trim().ToLowerInvariant() switch
             {
-                "tencent" => "tencent",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
-                _ => "baidu"
+                _ => "xfyun"
             };
         }
 

@@ -70,9 +70,6 @@ namespace ImageColorChanger.Services.LiveCaption
         private DateTime _realtimeConnectGraceUntilUtc = DateTime.MinValue;
         private volatile bool _isDisposing;
         private volatile bool _isDisposed;
-        private const int AliyunFinalMergeWindowMs = 1300;
-        private readonly List<string> _aliyunPendingFinalSegments = new();
-        private DateTime _aliyunLastFinalUtc = DateTime.MinValue;
 
         public event Action<LiveCaptionAsrText> SubtitleUpdated;
         public event Action<string> StatusChanged;
@@ -94,12 +91,6 @@ namespace ImageColorChanger.Services.LiveCaption
             // - 百度：100ms 包（3200 bytes），降低首字延迟
             // - 腾讯：40ms 包（1280 bytes，官方实时建议）
             if (string.Equals(_client.AsrProvider, "baidu", StringComparison.OrdinalIgnoreCase))
-            {
-                _realtimeTickMs = 100;
-                _realtimePacketBytes = 3200;
-                _realtimeMaxQueueBytes = _realtimePacketBytes * 40;
-            }
-            else if (string.Equals(_client.AsrProvider, "aliyun", StringComparison.OrdinalIgnoreCase))
             {
                 _realtimeTickMs = 100;
                 _realtimePacketBytes = 3200;
@@ -240,11 +231,6 @@ namespace ImageColorChanger.Services.LiveCaption
             _useRealtimeSession = _client.SupportsRealtimeSession;
             ConfigureRealtimeProfile();
             _lastSubtitle = string.Empty;
-            lock (_subtitleGate)
-            {
-                _aliyunPendingFinalSegments.Clear();
-                _aliyunLastFinalUtc = DateTime.MinValue;
-            }
             _chunkCount = 0;
             _chunkSentCount = 0;
             _chunkTextCount = 0;
@@ -331,7 +317,6 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            TryFlushAliyunMergedFinal(force: true);
             _isRunning = false;
             _flushTimer.Stop();
             _cts?.Cancel();
@@ -715,11 +700,9 @@ namespace ImageColorChanger.Services.LiveCaption
         {
             if (!_isRunning || _cts == null || _cts.IsCancellationRequested)
             {
-                TryFlushAliyunMergedFinal(force: false);
                 return;
             }
 
-            TryFlushAliyunMergedFinal(force: false);
             if (!_client.IsRealtimeConnected)
             {
                 LiveCaptionDebugLogger.Log($"ReconnectDiag: disconnected detected, startInFlight={_realtimeSessionStartInFlight}, graceUntil={_realtimeConnectGraceUntilUtc:O}, now={DateTime.UtcNow:O}, lastError={_client.LastError}");
@@ -968,12 +951,6 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             string normalized = update.Text.Trim();
-            if (string.Equals(_client.AsrProvider, "aliyun", StringComparison.OrdinalIgnoreCase))
-            {
-                HandleAliyunRealtimeText(normalized, update.IsFinal);
-                return;
-            }
-
             lock (_subtitleGate)
             {
                 if (update.IsFinal && string.Equals(_lastSubtitle, normalized, StringComparison.Ordinal))
@@ -992,116 +969,6 @@ namespace ImageColorChanger.Services.LiveCaption
             PublishDebugInfo("realtime-subtitle");
         }
 
-        private void HandleAliyunRealtimeText(string normalized, bool isFinal)
-        {
-            if (isFinal)
-            {
-                string mergedPreview;
-                lock (_subtitleGate)
-                {
-                    if (_aliyunPendingFinalSegments.Count == 0
-                        || !string.Equals(_aliyunPendingFinalSegments[^1], normalized, StringComparison.Ordinal))
-                    {
-                        _aliyunPendingFinalSegments.Add(normalized);
-                    }
-
-                    _aliyunLastFinalUtc = DateTime.UtcNow;
-                    mergedPreview = MergeAliyunSegments(_aliyunPendingFinalSegments);
-                }
-
-                if (!string.IsNullOrWhiteSpace(mergedPreview))
-                {
-                    _chunkTextCount++;
-                    SubtitleUpdated?.Invoke(new LiveCaptionAsrText(mergedPreview, isFinal: false));
-                    PublishDebugInfo("realtime-subtitle-aliyun-merge");
-                }
-
-                return;
-            }
-
-            SubtitleUpdated?.Invoke(new LiveCaptionAsrText(normalized, isFinal: false));
-            PublishDebugInfo("realtime-subtitle");
-        }
-
-        private void TryFlushAliyunMergedFinal(bool force)
-        {
-            if (!string.Equals(_client.AsrProvider, "aliyun", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            string mergedFinal = string.Empty;
-            lock (_subtitleGate)
-            {
-                if (_aliyunPendingFinalSegments.Count == 0)
-                {
-                    return;
-                }
-
-                bool timeoutReached = _aliyunLastFinalUtc != DateTime.MinValue
-                    && (DateTime.UtcNow - _aliyunLastFinalUtc).TotalMilliseconds >= AliyunFinalMergeWindowMs;
-                if (!force && !timeoutReached)
-                {
-                    return;
-                }
-
-                mergedFinal = MergeAliyunSegments(_aliyunPendingFinalSegments);
-                _aliyunPendingFinalSegments.Clear();
-                _aliyunLastFinalUtc = DateTime.MinValue;
-                if (!string.IsNullOrWhiteSpace(mergedFinal))
-                {
-                    _lastSubtitle = mergedFinal;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(mergedFinal))
-            {
-                return;
-            }
-
-            _chunkTextCount++;
-            SubtitleUpdated?.Invoke(new LiveCaptionAsrText(mergedFinal, isFinal: true));
-            PublishDebugInfo("realtime-subtitle-aliyun-final");
-        }
-
-        private static string MergeAliyunSegments(IReadOnlyList<string> segments)
-        {
-            if (segments == null || segments.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            string merged = string.Empty;
-            foreach (var raw in segments)
-            {
-                string current = raw?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(current))
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(merged))
-                {
-                    merged = current;
-                    continue;
-                }
-
-                if (current.StartsWith(merged, StringComparison.Ordinal))
-                {
-                    merged = current;
-                    continue;
-                }
-
-                if (merged.EndsWith(current, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                merged += current;
-            }
-
-            return merged.Trim();
-        }
 
         private void PublishDebugInfo(string stage, long queuedBytes = -1, long sentBytes = -1)
         {

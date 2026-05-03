@@ -2539,20 +2539,6 @@ namespace ImageColorChanger.UI
             baiduItem.Click += (_, _) => SetLiveCaptionPlatform("baidu", "百度");
             platformMenu.Items.Add(baiduItem);
 
-            var tencentItem = new MenuItem
-            {
-                Header = BuildSelectedMenuHeader("腾讯", string.Equals(provider, "tencent", StringComparison.OrdinalIgnoreCase))
-            };
-            tencentItem.Click += (_, _) => SetLiveCaptionPlatform("tencent", "腾讯");
-            platformMenu.Items.Add(tencentItem);
-
-            var aliyunItem = new MenuItem
-            {
-                Header = BuildSelectedMenuHeader("阿里", string.Equals(provider, "aliyun", StringComparison.OrdinalIgnoreCase))
-            };
-            aliyunItem.Click += (_, _) => SetLiveCaptionPlatform("aliyun", "阿里");
-            platformMenu.Items.Add(aliyunItem);
-
             var xfyunItem = new MenuItem
             {
                 Header = BuildSelectedMenuHeader("飞讯语音", string.Equals(provider, "xfyun", StringComparison.OrdinalIgnoreCase))
@@ -2815,12 +2801,10 @@ namespace ImageColorChanger.UI
             return normalized switch
             {
                 "baidu" => "baidu",
-                "tencent" => "tencent",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "doubao",
-                _ => "baidu"
+                _ => "xfyun"
             };
         }
 

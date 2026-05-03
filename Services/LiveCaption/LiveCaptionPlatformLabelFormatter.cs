@@ -19,12 +19,10 @@ namespace ImageColorChanger.Services.LiveCaption
             return NormalizeProvider(provider) switch
             {
                 "baidu" => "百度",
-                "tencent" => "腾讯",
-                "aliyun" => "阿里",
                 "xfyun" => "飞讯语音",
                 "doubao" => "豆包",
                 "funasr" => "FunASR",
-                _ => "百度"
+                _ => "飞讯语音"
             };
         }
 
@@ -34,12 +32,10 @@ namespace ImageColorChanger.Services.LiveCaption
             return normalized switch
             {
                 "baidu" => "baidu",
-                "tencent" => "tencent",
-                "aliyun" => "aliyun",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
                 "funasr" => "funasr",
-                _ => "baidu"
+                _ => "xfyun"
             };
         }
     }
