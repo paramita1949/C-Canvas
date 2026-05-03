@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using Forms = System.Windows.Forms;
 
 namespace ImageColorChanger.UI
@@ -46,7 +45,6 @@ namespace ImageColorChanger.UI
             FontFamilyTextBox.Text = string.IsNullOrWhiteSpace(input.FontFamily) ? "Microsoft YaHei UI" : input.FontFamily;
 
             UpdatePositionButtons();
-            UpdateFontSizePreview();
         }
 
         private void BuildPositionButtons()
@@ -108,7 +106,6 @@ namespace ImageColorChanger.UI
             {
                 FontSizeTextBox.Text = FontSizeSlider.Value.ToString("0.#");
             }
-            UpdateFontSizePreview();
         }
 
         private void FontSizeTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -125,7 +122,6 @@ namespace ImageColorChanger.UI
             {
                 FontSizeSlider.Value = val;
             }
-            UpdateFontSizePreview();
         }
 
         private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -178,57 +174,10 @@ namespace ImageColorChanger.UI
 
                 FontFamilyTextBox.Text = fontDialog.Font.FontFamily.Name;
                 FontSizeTextBox.Text = fontDialog.Font.Size.ToString("0.#");
-                UpdateFontSizePreview();
             }
             catch
             {
             }
-        }
-
-        private void UpdateFontSizePreview()
-        {
-            if (FontSizePreviewText == null)
-            {
-                return;
-            }
-
-            double size = Math.Clamp(FontSizeSlider.Value, 10, 220);
-            FontSizePreviewText.FontSize = size;
-            try
-            {
-                FontSizePreviewText.FontFamily = new System.Windows.Media.FontFamily(FontFamilyTextBox.Text);
-            }
-            catch
-            {
-                FontSizePreviewText.FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI");
-            }
-
-            ApplyPreviewFitScale();
-        }
-
-        private void FontSizePreviewHost_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            ApplyPreviewFitScale();
-        }
-
-        private void ApplyPreviewFitScale()
-        {
-            if (FontSizePreviewHost == null || FontSizePreviewText == null)
-            {
-                return;
-            }
-
-            double availableWidth = Math.Max(1, FontSizePreviewHost.ActualWidth - 64);
-            double availableHeight = Math.Max(1, FontSizePreviewHost.ActualHeight - 88);
-
-            FontSizePreviewText.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-            double desiredWidth = Math.Max(1, FontSizePreviewText.DesiredSize.Width);
-            double desiredHeight = Math.Max(1, FontSizePreviewText.DesiredSize.Height);
-
-            double scale = Math.Min(1.0, Math.Min(availableWidth / desiredWidth, availableHeight / desiredHeight));
-            FontSizePreviewText.LayoutTransform = new ScaleTransform(scale, scale);
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)

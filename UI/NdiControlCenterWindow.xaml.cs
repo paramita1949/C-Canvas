@@ -83,10 +83,6 @@ namespace ImageColorChanger.UI
             CaptionToggle.IsChecked = state.CaptionEnabled;
             TransparentToggle.IsChecked = state.LyricsTransparentEnabled;
 
-            LyricsToggle.IsEnabled = state.MasterEnabled;
-            CaptionToggle.IsEnabled = state.MasterEnabled;
-            TransparentToggle.IsEnabled = state.MasterEnabled;
-
             bool connected = state.MasterEnabled && state.ConnectionCount > 0;
             RuntimeBadgeText.Text = connected ? "已连接" : "未连接";
             RuntimeBadge.Background = connected ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 252, 231)) : new SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 244, 246));
@@ -97,9 +93,25 @@ namespace ImageColorChanger.UI
             ConnectionSummaryText.Text = state.ConnectionCount.ToString();
             ChannelSummaryText.Text = $"{(state.LyricsEnabled ? "歌词开" : "歌词关")} / {(state.CaptionEnabled ? "字幕开" : "字幕关")}";
 
+            if (state.LyricsTransparentEnabled && state.LyricsEnabled)
+            {
+                LyricsTransparentStateText.Text = "已生效";
+                LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(22, 163, 74));
+            }
+            else if (state.LyricsTransparentEnabled && !state.LyricsEnabled)
+            {
+                LyricsTransparentStateText.Text = "待生效（需开启歌词 NDI 输出）";
+                LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(14, 165, 233));
+            }
+            else
+            {
+                LyricsTransparentStateText.Text = "未启用";
+                LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139));
+            }
+
             StatusText.Text = connected
                 ? $"当前有 {state.ConnectionCount} 台客户端在线。\n你可以同时输出歌词与字幕，建议在接收端分别选择通道源。"
-                : "当前没有客户端连接。\n请在接收端设备中确认已选择本机 NDI 源并保持同一局域网。";
+                : "当前没有客户端连接。\n可先配置通道与透明选项，开启 NDI 后会立即按当前配置生效。";
         }
     }
 }
