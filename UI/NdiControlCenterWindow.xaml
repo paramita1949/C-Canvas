@@ -184,6 +184,18 @@
             <Setter Property="Background" Value="#F8FBFF"/>
             <Setter Property="Foreground" Value="#1E3A8A"/>
         </Style>
+        <Style x:Key="WatermarkLabelStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,10,0,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+        </Style>
+        <Style x:Key="WatermarkInputStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FBFDFF"/>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20,16,20,16">
@@ -375,7 +387,7 @@
                 <StackPanel>
                     <TextBlock Text="水印（实时）" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B"/>
 
-                    <TextBlock Text="位置" Margin="0,8,0,6" FontSize="12" Foreground="#64748B"/>
+                    <TextBlock Text="位置" Style="{StaticResource WatermarkLabelStyle}"/>
                     <Border BorderBrush="#CBD5E1" BorderThickness="0" CornerRadius="10" Background="Transparent">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="PosLeftTopButton" Content="左上" Style="{StaticResource SegmentPosButtonLeftStyle}" Click="PosLeftTopButton_Click"/>
@@ -386,7 +398,7 @@
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="字体" Margin="0,8,0,6" FontSize="12" Foreground="#64748B"/>
+                    <TextBlock Text="字体" Style="{StaticResource WatermarkLabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -394,25 +406,22 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="WatermarkFontTextBox"
-                                 Height="34"
+                                 Style="{StaticResource WatermarkInputStyle}"
                                  IsReadOnly="True"
-                                 VerticalContentAlignment="Center"
                                  Padding="10,0,10,0"
-                                 BorderBrush="#CBD5E1"
-                                 BorderThickness="1"
-                                 Background="#FBFDFF"/>
+                                 MinWidth="150"/>
                         <Button Grid.Column="2"
                                 Content="选择字体"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="ChooseFontButton_Click"/>
                     </Grid>
 
-                    <TextBlock Text="字号" Margin="0,8,0,6" FontSize="12" Foreground="#64748B"/>
+                    <TextBlock Text="字号" Style="{StaticResource WatermarkLabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="78"/>
                         </Grid.ColumnDefinitions>
                         <Slider x:Name="WatermarkSizeSlider"
                                 Minimum="10"
@@ -422,21 +431,17 @@
                                 ValueChanged="WatermarkSizeSlider_ValueChanged"/>
                         <TextBox x:Name="WatermarkSizeTextBox"
                                  Grid.Column="2"
-                                 Height="34"
+                                 Style="{StaticResource WatermarkInputStyle}"
                                  TextAlignment="Center"
-                                 VerticalContentAlignment="Center"
-                                 BorderBrush="#CBD5E1"
-                                 BorderThickness="1"
-                                 Background="#FBFDFF"
                                  TextChanged="WatermarkSizeTextBox_TextChanged"/>
                     </Grid>
 
-                    <TextBlock Text="透明度" Margin="0,8,0,6" FontSize="12" Foreground="#64748B"/>
+                    <TextBlock Text="透明度" Style="{StaticResource WatermarkLabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="78"/>
                         </Grid.ColumnDefinitions>
                         <Slider x:Name="WatermarkOpacitySlider"
                                 Minimum="0"
@@ -446,12 +451,8 @@
                                 ValueChanged="WatermarkOpacitySlider_ValueChanged"/>
                         <TextBox x:Name="WatermarkOpacityTextBox"
                                  Grid.Column="2"
-                                 Height="34"
+                                 Style="{StaticResource WatermarkInputStyle}"
                                  TextAlignment="Center"
-                                 VerticalContentAlignment="Center"
-                                 BorderBrush="#CBD5E1"
-                                 BorderThickness="1"
-                                 Background="#FBFDFF"
                                  TextChanged="WatermarkOpacityTextBox_TextChanged"/>
                     </Grid>
 
