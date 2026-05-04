@@ -40,17 +40,6 @@
                                 <Button.ContextMenu>
                                     <ContextMenu x:Name="ToolbarMenuContext"
                                                  Style="{StaticResource NoBorderContextMenuStyle}">
-                                        <MenuItem Header="NDI网络"
-                                                  SubmenuOpened="MenuNdiOutput_SubmenuOpened">
-                                            <MenuItem Header="完整画面"
-                                                      Tag="Normal"
-                                                      IsCheckable="True"
-                                                      Click="BtnMenuNdiComplete_Click"/>
-                                            <MenuItem Header="透明画面"
-                                                      Tag="Transparent"
-                                                      IsCheckable="True"
-                                                      Click="BtnMenuNdiTransparent_Click"/>
-                                        </MenuItem>
                                         <MenuItem Header="主题"
                                                   SubmenuOpened="MenuSlideTheme_SubmenuOpened">
                                             <MenuItem Header="黑底白字"

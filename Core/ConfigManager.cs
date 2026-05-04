@@ -1606,6 +1606,21 @@ namespace ImageColorChanger.Core
         public bool ProjectionNdiLyricsTransparentEnabled { get; set; } = true;
 
         /// <summary>
+        /// 是否启用幻灯片 NDI 通道（默认：关闭）
+        /// </summary>
+        public bool ProjectionNdiSlideEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 是否启用圣经 NDI 通道（默认：关闭）
+        /// </summary>
+        public bool ProjectionNdiBibleEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 是否启用图片 NDI 通道（默认：关闭）
+        /// </summary>
+        public bool ProjectionNdiImageEnabled { get; set; } = false;
+
+        /// <summary>
         /// 圣经投影是否允许透明输出（可选）
         /// </summary>
         public bool ProjectionNdiBibleTransparentEnabled { get; set; } = true;
@@ -1980,6 +1995,54 @@ namespace ImageColorChanger.Core
                 if (_config.ProjectionNdiLyricsTransparentEnabled != value)
                 {
                     _config.ProjectionNdiLyricsTransparentEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 幻灯片 NDI 通道开关
+        /// </summary>
+        public bool ProjectionNdiSlideEnabled
+        {
+            get => _config.ProjectionNdiSlideEnabled;
+            set
+            {
+                if (_config.ProjectionNdiSlideEnabled != value)
+                {
+                    _config.ProjectionNdiSlideEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经 NDI 通道开关
+        /// </summary>
+        public bool ProjectionNdiBibleEnabled
+        {
+            get => _config.ProjectionNdiBibleEnabled;
+            set
+            {
+                if (_config.ProjectionNdiBibleEnabled != value)
+                {
+                    _config.ProjectionNdiBibleEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 图片 NDI 通道开关
+        /// </summary>
+        public bool ProjectionNdiImageEnabled
+        {
+            get => _config.ProjectionNdiImageEnabled;
+            set
+            {
+                if (_config.ProjectionNdiImageEnabled != value)
+                {
+                    _config.ProjectionNdiImageEnabled = value;
                     SaveConfig();
                 }
             }

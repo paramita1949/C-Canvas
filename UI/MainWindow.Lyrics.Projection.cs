@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
@@ -52,26 +53,22 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                SKBitmap ndiBitmap = skBitmap;
-                SKBitmap ndiOwnedBitmap = null;
+                SKBitmap transparentNdiFrame = null;
                 try
                 {
                     _projectionManager?.UpdateProjectionText(skBitmap);
 
                     if (ShouldUseNdiInvertedLyricsLayout())
                     {
-                        ndiOwnedBitmap = BuildSingleLyricsProjectionBitmap(physicalWidth, physicalHeight, ndiInvertedLayout: true);
-                        if (ndiOwnedBitmap != null)
-                        {
-                            ndiBitmap = ndiOwnedBitmap;
-                        }
+                        // 透明通道单独使用反向布局帧；主投影通道始终使用正常布局帧。
+                        transparentNdiFrame = BuildSingleLyricsProjectionBitmap(physicalWidth, physicalHeight, ndiInvertedLayout: true);
                     }
 
-                    TryPublishLyricsFrameToNdi(ndiBitmap);
+                    TryPublishLyricsFrameToNdi(skBitmap, transparentNdiFrame);
                 }
                 finally
                 {
-                    ndiOwnedBitmap?.Dispose();
+                    transparentNdiFrame?.Dispose();
                     skBitmap.Dispose();
                 }
             }
@@ -189,7 +186,7 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void TryPublishLyricsFrameToNdi(SKBitmap frame)
+        private void TryPublishLyricsFrameToNdi(SKBitmap frame, SKBitmap transparentFrame = null)
         {
             try
             {
@@ -199,33 +196,33 @@ namespace ImageColorChanger.UI
                 }
 
                 bool transparentEnabled = _configManager?.ProjectionNdiEnabled == true
-                    && _configManager.ProjectionNdiLyricsTransparentEnabled;
+                    && (_ndiRouter?.IsChannelEnabled(NdiChannel.Transparent) == true);
+                ProjectionNdiDiagnostics.Log(
+                    $"LyricsNDI route: transparentEnabled={transparentEnabled}, frame={frame.Width}x{frame.Height}");
 
-                bool transparentLyricsMode = IsLyricsTransparentNdiMode();
-
-                // 透明已开启但未进入“歌词切片透明模式”时，不发送歌词内容，仅保持透明空帧通道。
-                if (transparentEnabled && !transparentLyricsMode)
-                {
-                    PushTransparentIdleFrameToNdi(frame);
-                    return;
-                }
-
-                if (transparentLyricsMode)
+                if (transparentEnabled)
                 {
                     var bg = GetCurrentLyricsThemeBackgroundColor();
-                    _lyricsTransparentIdleFramePushed = !_ndiRouter.PublishLyricsFrame(
+                    var frameForTransparent = transparentFrame ?? frame;
+                    bool sent = _ndiRouter.PublishLyricsFrame(
                         frame,
+                        frameForTransparent,
                         transparentEnabled: true,
                         transparentLyricsMode: true,
                         new SKColor(bg.R, bg.G, bg.B, bg.A));
+                    _lyricsTransparentIdleFramePushed = !sent;
+                    ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=TransparentDual, sent={sent}");
                 }
                 else
                 {
-                    _lyricsTransparentIdleFramePushed = !_ndiRouter.PublishLyricsFrame(
+                    bool sent = _ndiRouter.PublishLyricsFrame(
                         frame,
+                        null,
                         transparentEnabled,
                         transparentLyricsMode: false,
                         default);
+                    _lyricsTransparentIdleFramePushed = !sent;
+                    ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=SlideNormal, sent={sent}");
                 }
             }
             catch
@@ -534,14 +531,6 @@ namespace ImageColorChanger.UI
             {
                 // 水印加载失败不影响歌词投影
             }
-        }
-
-        private bool IsLyricsTransparentNdiMode()
-        {
-            return _configManager?.ProjectionNdiEnabled == true
-                && _configManager.ProjectionNdiLyricsTransparentEnabled
-                && _lyricsSliceModeEnabled
-                && _lyricsSplitMode == (int)ViewSplitMode.Single;
         }
 
         private IEnumerable<(Rect Rect, WpfTextBox Editor, string Text, int RegionIndex)> GetSplitRenderRegions(double width, double height)

@@ -47,7 +47,7 @@ namespace ImageColorChanger.UI
                 }
 
                 _ndiRouter?.StopAll();
-                _projectionNdiOutputManager?.Stop();
+                _ndiTransportCoordinator?.StopAll();
                 StopVideoNdiTimer();
                 StopNdiDiscoveryTimer();
 

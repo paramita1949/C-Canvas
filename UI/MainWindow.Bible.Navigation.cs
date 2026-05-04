@@ -735,12 +735,12 @@ namespace ImageColorChanger.UI
 
         private void PublishBibleFrameToNdi(List<BibleVerse> verses)
         {
-            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Bible) != true)
+            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Slide) != true)
             {
                 return;
             }
 
-            if (_projectionNdiOutputManager == null || verses == null || verses.Count == 0)
+            if (_bibleNdiModule == null || verses == null || verses.Count == 0)
             {
                 LogBibleNdiDebug("PublishBibleFrameToNdi skipped: manager null or verses empty.");
                 return;
@@ -798,9 +798,8 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                bool sent = _projectionNdiOutputManager.PublishFrame(
+                bool sent = _bibleNdiModule.PublishBibleFrame(
                     frameToSend,
-                    ProjectionNdiContentType.Bible,
                     new SKColor(key.R, key.G, key.B, key.A));
                 if (projectionViewportFrame != null)
                 {

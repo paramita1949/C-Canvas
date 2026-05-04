@@ -75,6 +75,7 @@ namespace ImageColorChanger.UI
             {
                 if (isActive)
                 {
+                    StartProjectionNdiMirror();
                     SetProjectionButtonContent(true);
                     BtnProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(144, 238, 144)); // 淡绿色
                     ShowStatus("投影已开启");
@@ -179,10 +180,11 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
+                    StopProjectionNdiMirror();
                     SetProjectionButtonContent(false);
                     BtnProjection.Background = System.Windows.Media.Brushes.Transparent;
                     DisableGlobalHotKeys();
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame(startSenderIfNeeded: false);
+                    _ndiTransportCoordinator?.PushTransparentIdleFrame(Services.Ndi.NdiChannel.Slide, startSenderIfNeeded: false);
                     StopVideoNdiTimer();
 
                     if (_projectionTimeoutTimer != null)

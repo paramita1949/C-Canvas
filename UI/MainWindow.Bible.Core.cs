@@ -1627,7 +1627,7 @@ namespace ImageColorChanger.UI
                 _projectionManager.SyncBibleScroll(BibleVerseScrollViewer);
 
                 // 滚动后在渲染阶段补发一帧 NDI，避免“投影已滚动但 NDI 还没滚动”的时序差。
-                if (_projectionNdiOutputManager != null && _configManager?.ProjectionNdiEnabled == true)
+                if (_bibleNdiModule?.IsEnabled() == true && _configManager?.ProjectionNdiEnabled == true)
                 {
                     long now = Environment.TickCount64;
                     if (now - _lastBibleNdiScrollPublishTick < 25)

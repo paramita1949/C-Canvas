@@ -620,7 +620,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (_projectionNdiOutputManager == null || _videoPlayerManager == null || !_videoPlayerManager.IsPlaying)
+            if (_ndiTransportCoordinator == null || _videoPlayerManager == null || !_videoPlayerManager.IsPlaying)
             {
                 return;
             }
@@ -654,7 +654,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Video);
+                _ndiTransportCoordinator.PublishFrame(NdiChannel.Video, frame, ProjectionNdiContentType.Video);
             }
             catch
             {

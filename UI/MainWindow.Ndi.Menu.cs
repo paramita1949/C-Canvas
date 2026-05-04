@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
 using WpfBrushes = System.Windows.Media.Brushes;
 
@@ -22,9 +23,9 @@ namespace ImageColorChanger.UI
         internal MenuItem BuildNdiSubMenu()
         {
             var ndiMenu = new MenuItem { Header = "NDI网络流" };
-            var openControlCenterItem = new MenuItem { Header = "打开 NDI 控制台..." };
-            var quickEnableItem = new MenuItem { Header = "快速开关：启用NDI", IsCheckable = true };
-            var runtimeStatusItem = new MenuItem { Header = "NDI状态：未连接", IsEnabled = false, Foreground = WpfBrushes.Gray };
+            var openControlCenterItem = new MenuItem { Header = "NDI控制台" };
+            var quickEnableItem = new MenuItem { Header = "NDI开启", IsCheckable = true };
+            var runtimeStatusItem = new MenuItem { Header = "未连接", IsEnabled = false, Foreground = WpfBrushes.Gray };
 
             void RefreshUi()
             {
@@ -65,20 +66,26 @@ namespace ImageColorChanger.UI
                 loadState: () => new NdiControlCenterWindow.State
                 {
                     MasterEnabled = _configManager?.ProjectionNdiEnabled == true,
-                    LyricsEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Lyrics) == true,
+                    ProjectionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true,
+                    TransparentEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Transparent) == true,
                     CaptionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Caption) == true,
-                    LyricsTransparentEnabled = _configManager?.ProjectionNdiLyricsTransparentEnabled == true,
-                    ConnectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0,
+                    WatermarkEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Watermark) == true,
+                    ConnectionCount = GetTotalNdiConnectionCount(),
+                    WatermarkText = _configManager?.ProjectionNdiIdleFrameWatermarkText ?? string.Empty,
                     WatermarkPosition = _configManager?.ProjectionNdiIdleFrameWatermarkPosition,
                     WatermarkFontFamily = _configManager?.ProjectionNdiIdleFrameWatermarkFontFamily,
                     WatermarkFontSize = _configManager?.ProjectionNdiIdleFrameWatermarkFontSize ?? 48,
                     WatermarkOpacity = _configManager?.ProjectionNdiIdleFrameWatermarkOpacity ?? 43
                 },
                 setMaster: enabled => SetNdiMasterEnabled(enabled),
-                setLyrics: enabled =>
+                setProjection: enabled =>
                 {
-                    _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Lyrics, enabled);
-                    ShowStatus(enabled ? "歌词NDI已开启" : "歌词NDI已关闭");
+                    _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Slide, enabled);
+                    if (enabled && _configManager?.ProjectionNdiEnabled == true)
+                    {
+                        _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Slide);
+                    }
+                    ShowStatus(enabled ? "投影通道已开启" : "投影通道已关闭");
                 },
                 setCaption: enabled =>
                 {
@@ -92,13 +99,29 @@ namespace ImageColorChanger.UI
                 },
                 setTransparent: enabled =>
                 {
+                    _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Transparent, enabled);
+                    if (enabled && _configManager?.ProjectionNdiEnabled == true)
+                    {
+                        _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Transparent);
+                    }
+                    ShowStatus(enabled ? "透明通道已开启" : "透明通道已关闭");
+                },
+                setWatermark: enabled =>
+                {
+                    _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Watermark, enabled);
+                    if (enabled && _configManager?.ProjectionNdiEnabled == true)
+                    {
+                        _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Watermark);
+                    }
+                    ShowStatus(enabled ? "水印通道已开启" : "水印通道已关闭");
+                },
+                setWatermarkText: text =>
+                {
                     if (_configManager == null)
                     {
                         return;
                     }
-
-                    _configManager.ProjectionNdiLyricsTransparentEnabled = enabled;
-                    ShowStatus(enabled ? "歌词透明已开启" : "歌词透明已关闭");
+                    _configManager.ProjectionNdiIdleFrameWatermarkText = text ?? string.Empty;
                 },
                 setWatermarkPosition: position =>
                 {
@@ -134,7 +157,11 @@ namespace ImageColorChanger.UI
                 },
                 pushWatermarkFrame: () =>
                 {
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
+                    if (_configManager?.ProjectionNdiEnabled != true)
+                    {
+                        return;
+                    }
+                    _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Watermark);
                 })
             {
                 Owner = this
@@ -149,9 +176,9 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            int connectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0;
+            int connectionCount = GetTotalNdiConnectionCount();
             bool connected = _configManager.ProjectionNdiEnabled && connectionCount > 0;
-            statusItem.Header = connected ? $"NDI状态：已连接（{connectionCount}台）" : "NDI状态：未连接";
+            statusItem.Header = connected ? $"已连接（{connectionCount}）" : "未连接";
             statusItem.Foreground = connected ? WpfBrushes.LimeGreen : WpfBrushes.Gray;
         }
 
@@ -165,7 +192,7 @@ namespace ImageColorChanger.UI
             _configManager.ProjectionNdiEnabled = enabled;
             if (!enabled)
             {
-                _projectionNdiOutputManager?.Stop();
+                _ndiTransportCoordinator?.StopAll();
                 StopVideoNdiTimer();
                 StopNdiDiscoveryTimer();
                 ShowStatus("NDI输出已关闭");
@@ -195,7 +222,8 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _projectionNdiOutputManager?.PushTransparentIdleFrame();
+            PushWatermarkIdleFramesForEnabledChannels();
+            _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Watermark);
             StartNdiDiscoveryTimer(resetWindow: true);
             ShowStatus("NDI已开启，等待客户端连接");
         }
@@ -325,34 +353,76 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                int connectionCount = _projectionNdiOutputManager?.GetClientConnectionCount() ?? 0;
-                if (connectionCount > 0)
-                {
-                    StopNdiDiscoveryTimer();
-                    return;
-                }
+                int connectionCount = GetTotalNdiConnectionCount();
 
                 bool discoveryExpired = _ndiDiscoveryStartedAtUtc != DateTime.MinValue
                     && (DateTime.UtcNow - _ndiDiscoveryStartedAtUtc) >= NdiDiscoveryDuration;
-                if (discoveryExpired)
+                if (discoveryExpired && connectionCount <= 0)
                 {
                     _configManager.ProjectionNdiEnabled = false;
-                    _projectionNdiOutputManager?.Stop();
+                    _ndiTransportCoordinator?.StopAll();
                     StopVideoNdiTimer();
                     StopNdiDiscoveryTimer();
                     ShowStatus("2分钟内无客户端连接，NDI输出已自动关闭");
                     return;
                 }
 
-                // 只在未投影时发送透明心跳，避免覆盖正在投影的静态内容。
+                // 主开关开启后持续发送空闲水印心跳（未投影时），
+                // 让圣经/图片等未进入物理投影时也能在 NDI 侧保持可见。
                 if (_projectionManager?.IsProjectionActive != true)
                 {
-                    _projectionNdiOutputManager?.PushTransparentIdleFrame();
+                    PushWatermarkIdleFramesForEnabledChannels();
                 }
             }
             catch
             {
             }
+        }
+
+        private int GetTotalNdiConnectionCount()
+        {
+            if (_ndiTransportCoordinator == null)
+            {
+                return 0;
+            }
+
+            int total = 0;
+            total += _ndiTransportCoordinator.GetConnectionCount(NdiChannel.Slide);
+            total += _ndiTransportCoordinator.GetConnectionCount(NdiChannel.Caption);
+            total += _ndiTransportCoordinator.GetConnectionCount(NdiChannel.Video);
+            total += _ndiTransportCoordinator.GetConnectionCount(NdiChannel.Watermark);
+            total += _ndiTransportCoordinator.GetConnectionCount(NdiChannel.Transparent);
+            return total;
+        }
+
+        private void PushWatermarkIdleFramesForEnabledChannels()
+        {
+            if (_ndiTransportCoordinator == null || _ndiRouter == null)
+            {
+                return;
+            }
+
+            bool projectionChannelEnabled =
+                _ndiRouter.IsChannelEnabled(NdiChannel.Slide);
+            if (projectionChannelEnabled)
+            {
+                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Slide);
+                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Transparent);
+            }
+
+            if (_ndiRouter.IsChannelEnabled(NdiChannel.Caption))
+            {
+                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Caption);
+            }
+
+            if (_ndiRouter.IsChannelEnabled(NdiChannel.Video))
+            {
+                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Video);
+            }
+
+            _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Watermark);
+
+            ShowStatus("NDI已刷新");
         }
 
     }

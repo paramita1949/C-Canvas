@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    全局临时构建目录清理规则：
+    - WPF 在编译阶段会生成 *_wpftmp 临时工程，属于 SDK 内部行为，不能直接禁用。
+    - 这里统一在构建后清理，避免仓库里残留这类目录。
+  -->
+  <Target Name="CleanupTemporaryBuildArtifacts" AfterTargets="Build">
+    <ItemGroup>
+      <_TempBuildDirs Include="$(MSBuildProjectDirectory)\obj\**\*_wpftmp*" />
+      <_TempBuildDirs Include="$(MSBuildProjectDirectory)\obj\**\*.tmp" />
+      <_TempBuildDirs Include="$(MSBuildProjectDirectory)\bin\**\*.tmp" />
+    </ItemGroup>
+
+    <Message Text="[全局清理] 清理临时构建目录: @(_TempBuildDirs)" Importance="low" Condition="'@(_TempBuildDirs)' != ''" />
+    <RemoveDir Directories="@(_TempBuildDirs)" Condition="'@(_TempBuildDirs)' != ''" />
+  </Target>
+</Project>

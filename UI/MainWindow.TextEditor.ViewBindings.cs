@@ -134,9 +134,6 @@ namespace ImageColorChanger.UI
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutTitleBody_Click), BtnMenuLayoutTitleBody_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutTitleTopOnly_Click), BtnMenuLayoutTitleTopOnly_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuLayoutBodyKeyPoints_Click), BtnMenuLayoutBodyKeyPoints_Click);
-            BindTextEditorEvent<RoutedEventArgs>(nameof(MenuNdiOutput_SubmenuOpened), MenuNdiOutput_SubmenuOpened);
-            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiComplete_Click), BtnMenuNdiComplete_Click);
-            BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuNdiTransparent_Click), BtnMenuNdiTransparent_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(MenuSlideTheme_SubmenuOpened), MenuSlideTheme_SubmenuOpened);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSlideThemeDark_Click), BtnMenuSlideThemeDark_Click);
             BindTextEditorEvent<RoutedEventArgs>(nameof(BtnMenuSlideThemeLight_Click), BtnMenuSlideThemeLight_Click);

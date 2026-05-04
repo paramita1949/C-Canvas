@@ -9,6 +9,7 @@ using ImageColorChanger.Database.Migrations;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.Ndi;
+using ImageColorChanger.Services.Ndi.Modules;
 using ImageColorChanger.Utils;
 using MessageBox = System.Windows.MessageBox;
 
@@ -36,11 +37,14 @@ namespace ImageColorChanger.UI
                 }
 
                 _configManager = _mainWindowServices.GetRequired<ConfigManager>();
-                // NDI 开关改为会话级：每次启动强制回到关闭状态，需手动重新开启。
+                // NDI 总开关为会话级：每次启动默认关闭，需手动开启。
+                // 具体功能开关（歌词/字幕/幻灯片/圣经/图片等）保持持久化。
                 _configManager.ProjectionNdiEnabled = false;
-                _configManager.LiveCaptionNdiEnabled = false;
-                _projectionNdiOutputManager = _mainWindowServices.GetRequired<ProjectionNdiOutputManager>();
+                _ndiTransportCoordinator = _mainWindowServices.GetRequired<INdiTransportCoordinator>();
                 _ndiRouter = _mainWindowServices.GetRequired<INdiRouter>();
+                _slideNdiModule = _mainWindowServices.GetRequired<ISlideNdiModule>();
+                _bibleNdiModule = _mainWindowServices.GetRequired<IBibleNdiModule>();
+                _imageNdiModule = _mainWindowServices.GetRequired<IImageNdiModule>();
                 var dbManager = DatabaseManagerService;
                 _dbContext = dbManager.GetDbContext();
                 dbManager.NormalizeFolderVideoPlayModes("random");

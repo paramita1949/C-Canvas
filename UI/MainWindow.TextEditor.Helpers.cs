@@ -1698,17 +1698,26 @@ namespace ImageColorChanger.UI
 
         private void PublishSlideFrameToNdi(SKBitmap frame, int projectionWidth = 0, int projectionHeight = 0)
         {
-            if (_ndiRouter?.IsChannelEnabled(NdiChannel.Slide) != true)
+            if (_slideNdiModule?.IsEnabled() != true)
             {
                 return;
             }
 
-            if (_projectionNdiOutputManager == null || frame == null)
+            if (frame == null)
             {
                 return;
             }
 
-            if (_currentSlide?.OutputMode == SlideOutputMode.Transparent)
+            bool transparentChannelEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Transparent) == true;
+            bool transparentRequested = IsSlideTransparentOutputRequested();
+            bool publishTransparentAnyway = transparentChannelEnabled;
+            ProjectionNdiDiagnostics.Log(
+                $"SlideNDI route: requestedTransparent={transparentRequested}, publishTransparentAnyway={publishTransparentAnyway}, " +
+                $"currentSlideMode={_currentSlide?.OutputMode}, slideId={_currentSlide?.Id}, " +
+                $"projectionActive={_projectionManager?.IsProjectionActive == true}, " +
+                $"transparentChannelEnabled={transparentChannelEnabled}");
+
+            if (transparentRequested || publishTransparentAnyway)
             {
                 int targetWidth = projectionWidth > 0 ? projectionWidth : frame.Width;
                 int targetHeight = projectionHeight > 0 ? projectionHeight : frame.Height;
@@ -1718,11 +1727,50 @@ namespace ImageColorChanger.UI
                     transparentBackground: true,
                     textOnlyOverlay: true,
                     hideNoticeComponents: _hideNoticeOnProjection);
-                _projectionNdiOutputManager.PublishFrame(transparentFrame, ProjectionNdiContentType.SlideTransparent);
+
+                // 透明模式下与歌词保持一致：同时发布“投影主源 + 透明源”，
+                // 避免接收端仍选投影源时误判为“透明没生效”。
+                bool fullSent = _slideNdiModule.PublishSlideFrame(frame, transparentOutput: false);
+                bool transparentSent = _slideNdiModule.PublishSlideFrame(transparentFrame, transparentOutput: true);
+                ProjectionNdiDiagnostics.Log(
+                    $"SlideTransparent publish: fullSent={fullSent}, transparentSent={transparentSent}, " +
+                    $"full={frame.Width}x{frame.Height}, transparent={transparentFrame.Width}x{transparentFrame.Height}, " +
+                    $"slideEnabled={_ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true}, " +
+                    $"transparentEnabled={transparentChannelEnabled}");
                 return;
             }
 
-            _projectionNdiOutputManager.PublishFrame(frame, ProjectionNdiContentType.Slide);
+            bool sent = _slideNdiModule.PublishSlideFrame(frame, transparentOutput: false);
+            ProjectionNdiDiagnostics.Log(
+                $"SlideNormal publish: sent={sent}, size={frame.Width}x{frame.Height}, " +
+                $"slideEnabled={_ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true}");
+        }
+
+        private bool IsSlideTransparentOutputRequested()
+        {
+            if (_currentSlide?.OutputMode == SlideOutputMode.Transparent)
+            {
+                return true;
+            }
+
+            try
+            {
+                // 兜底：部分路径下 currentSlide 可能滞后，按钮文本仍能反映当前输出模式。
+                if (BtnSlideOutputMode?.Content is StackPanel panel)
+                {
+                    var label = panel.Children.OfType<TextBlock>().LastOrDefault()?.Text;
+                    if (!string.IsNullOrWhiteSpace(label) &&
+                        label.Contains("透明", StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
 
         /// <summary>

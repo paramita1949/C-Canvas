@@ -23,9 +23,7 @@ namespace ImageColorChanger.Services.Projection.Output
 
             return contentType switch
             {
-                ProjectionNdiContentType.Lyrics => _config.ProjectionNdiLyricsTransparentEnabled
-                    ? ProjectionNdiTransmissionMode.Transparent
-                    : ProjectionNdiTransmissionMode.FullFrame,
+                ProjectionNdiContentType.Lyrics => ProjectionNdiTransmissionMode.Transparent,
                 ProjectionNdiContentType.Bible => ProjectionNdiTransmissionMode.FullFrame,
                 ProjectionNdiContentType.SlideTransparent => ProjectionNdiTransmissionMode.Transparent,
                 _ => ProjectionNdiTransmissionMode.FullFrame

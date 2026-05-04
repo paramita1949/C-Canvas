@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Forms = System.Windows.Forms;
 
 namespace ImageColorChanger.UI
@@ -10,10 +11,12 @@ namespace ImageColorChanger.UI
         public sealed class State
         {
             public bool MasterEnabled { get; set; }
-            public bool LyricsEnabled { get; set; }
+            public bool ProjectionEnabled { get; set; }
+            public bool TransparentEnabled { get; set; }
             public bool CaptionEnabled { get; set; }
-            public bool LyricsTransparentEnabled { get; set; }
+            public bool WatermarkEnabled { get; set; }
             public int ConnectionCount { get; set; }
+            public string WatermarkText { get; set; } = string.Empty;
             public string WatermarkPosition { get; set; } = "RightBottom";
             public string WatermarkFontFamily { get; set; } = "Microsoft YaHei UI";
             public double WatermarkFontSize { get; set; } = 48;
@@ -22,9 +25,11 @@ namespace ImageColorChanger.UI
 
         private readonly Func<State> _loadState;
         private readonly Action<bool> _setMaster;
-        private readonly Action<bool> _setLyrics;
-        private readonly Action<bool> _setCaption;
+        private readonly Action<bool> _setProjection;
         private readonly Action<bool> _setTransparent;
+        private readonly Action<bool> _setCaption;
+        private readonly Action<bool> _setWatermark;
+        private readonly Action<string> _setWatermarkText;
         private readonly Action<string> _setWatermarkPosition;
         private readonly Action<string> _setWatermarkFontFamily;
         private readonly Action<double> _setWatermarkFontSize;
@@ -32,13 +37,16 @@ namespace ImageColorChanger.UI
         private readonly Action _pushWatermarkFrame;
         private bool _syncingUi;
         private string _selectedWatermarkPosition = "RightBottom";
+        private bool _scrollHintDismissed;
 
         public NdiControlCenterWindow(
             Func<State> loadState,
             Action<bool> setMaster,
-            Action<bool> setLyrics,
-            Action<bool> setCaption,
+            Action<bool> setProjection,
             Action<bool> setTransparent,
+            Action<bool> setCaption,
+            Action<bool> setWatermark,
+            Action<string> setWatermarkText,
             Action<string> setWatermarkPosition,
             Action<string> setWatermarkFontFamily,
             Action<double> setWatermarkFontSize,
@@ -47,9 +55,11 @@ namespace ImageColorChanger.UI
         {
             _loadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
             _setMaster = setMaster ?? throw new ArgumentNullException(nameof(setMaster));
-            _setLyrics = setLyrics ?? throw new ArgumentNullException(nameof(setLyrics));
-            _setCaption = setCaption ?? throw new ArgumentNullException(nameof(setCaption));
+            _setProjection = setProjection ?? throw new ArgumentNullException(nameof(setProjection));
             _setTransparent = setTransparent ?? throw new ArgumentNullException(nameof(setTransparent));
+            _setCaption = setCaption ?? throw new ArgumentNullException(nameof(setCaption));
+            _setWatermark = setWatermark ?? throw new ArgumentNullException(nameof(setWatermark));
+            _setWatermarkText = setWatermarkText ?? throw new ArgumentNullException(nameof(setWatermarkText));
             _setWatermarkPosition = setWatermarkPosition ?? throw new ArgumentNullException(nameof(setWatermarkPosition));
             _setWatermarkFontFamily = setWatermarkFontFamily ?? throw new ArgumentNullException(nameof(setWatermarkFontFamily));
             _setWatermarkFontSize = setWatermarkFontSize ?? throw new ArgumentNullException(nameof(setWatermarkFontSize));
@@ -60,15 +70,36 @@ namespace ImageColorChanger.UI
             Loaded += (_, _) => RefreshUi();
         }
 
+        private void ControlListScrollViewer_ScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            if (ControlListScrollViewer.VerticalOffset > 3)
+            {
+                _scrollHintDismissed = true;
+            }
+            else if (ControlListScrollViewer.VerticalOffset <= 1)
+            {
+                _scrollHintDismissed = false;
+            }
+
+            UpdateScrollHintVisibility();
+        }
+
         private void MasterToggle_Click(object sender, RoutedEventArgs e)
         {
             _setMaster(MasterToggle.IsChecked == true);
             RefreshUi();
         }
 
-        private void LyricsToggle_Click(object sender, RoutedEventArgs e)
+        private void SlideToggle_Click(object sender, RoutedEventArgs e)
         {
-            _setLyrics(LyricsToggle.IsChecked == true);
+            _setProjection(SlideToggle.IsChecked == true);
             RefreshUi();
         }
 
@@ -81,6 +112,12 @@ namespace ImageColorChanger.UI
         private void TransparentToggle_Click(object sender, RoutedEventArgs e)
         {
             _setTransparent(TransparentToggle.IsChecked == true);
+            RefreshUi();
+        }
+
+        private void WatermarkToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _setWatermark(WatermarkToggle.IsChecked == true);
             RefreshUi();
         }
 
@@ -136,6 +173,19 @@ namespace ImageColorChanger.UI
 
             WatermarkSizeTextBox.Text = WatermarkSizeSlider.Value.ToString("0.#");
             _setWatermarkFontSize(WatermarkSizeSlider.Value);
+            _pushWatermarkFrame();
+        }
+
+        private void WatermarkTextTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            if (_syncingUi || !IsLoaded)
+            {
+                return;
+            }
+
+            _setWatermarkText(WatermarkTextTextBox.Text ?? string.Empty);
             _pushWatermarkFrame();
         }
 
@@ -204,9 +254,11 @@ namespace ImageColorChanger.UI
             State state = _loadState();
             _syncingUi = true;
             MasterToggle.IsChecked = state.MasterEnabled;
-            LyricsToggle.IsChecked = state.LyricsEnabled;
+            SlideToggle.IsChecked = state.ProjectionEnabled;
             CaptionToggle.IsChecked = state.CaptionEnabled;
-            TransparentToggle.IsChecked = state.LyricsTransparentEnabled;
+            TransparentToggle.IsChecked = state.TransparentEnabled;
+            WatermarkToggle.IsChecked = state.WatermarkEnabled;
+            WatermarkTextTextBox.Text = state.WatermarkText ?? string.Empty;
             WatermarkFontTextBox.Text = state.WatermarkFontFamily;
             WatermarkSizeSlider.Value = Math.Clamp(state.WatermarkFontSize, 10, 220);
             WatermarkSizeTextBox.Text = WatermarkSizeSlider.Value.ToString("0.#");
@@ -224,17 +276,10 @@ namespace ImageColorChanger.UI
 
             MasterSummaryText.Text = state.MasterEnabled ? "已开启" : "已关闭";
             ConnectionSummaryText.Text = state.ConnectionCount.ToString();
-            ChannelSummaryText.Text = $"{(state.LyricsEnabled ? "歌词开" : "歌词关")} / {(state.CaptionEnabled ? "字幕开" : "字幕关")}";
-
-            if (state.LyricsTransparentEnabled && state.LyricsEnabled)
+            if (state.TransparentEnabled)
             {
                 LyricsTransparentStateText.Text = "已生效";
                 LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(22, 163, 74));
-            }
-            else if (state.LyricsTransparentEnabled && !state.LyricsEnabled)
-            {
-                LyricsTransparentStateText.Text = "待生效（需开启歌词 NDI 输出）";
-                LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(14, 165, 233));
             }
             else
             {
@@ -242,9 +287,7 @@ namespace ImageColorChanger.UI
                 LyricsTransparentStateText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139));
             }
 
-            StatusText.Text = connected
-                ? $"当前有 {state.ConnectionCount} 台客户端在线。\n你可以同时输出歌词与字幕，建议在接收端分别选择通道源。"
-                : "当前没有客户端连接。\n可先配置通道与透明选项，开启 NDI 后会立即按当前配置生效。";
+            Dispatcher.BeginInvoke(new Action(UpdateScrollHintVisibility), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void SetWatermarkPosition(string position)
@@ -278,6 +321,59 @@ namespace ImageColorChanger.UI
                 button.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 65, 85));
                 button.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225));
             }
+        }
+
+        private void UpdateScrollHintVisibility()
+        {
+            if (ControlListScrollViewer == null || ScrollHintOverlay == null)
+            {
+                return;
+            }
+
+            bool canScrollMore = ControlListScrollViewer.ScrollableHeight > 2
+                                 && ControlListScrollViewer.VerticalOffset < (ControlListScrollViewer.ScrollableHeight - 2);
+            bool shouldShow = canScrollMore && !_scrollHintDismissed;
+
+            ScrollHintOverlay.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
+            ScrollHintChip.BeginAnimation(OpacityProperty, null);
+            ScrollHintArrowTransform.BeginAnimation(TranslateTransform.YProperty, null);
+            ScrollHintArrow.BeginAnimation(OpacityProperty, null);
+
+            if (!shouldShow)
+            {
+                return;
+            }
+
+            var chipPulse = new DoubleAnimation
+            {
+                From = 0.72,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(1200),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+            ScrollHintChip.BeginAnimation(OpacityProperty, chipPulse);
+
+            var arrowFloat = new DoubleAnimation
+            {
+                From = 0,
+                To = 4,
+                Duration = TimeSpan.FromMilliseconds(700),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+            };
+            ScrollHintArrowTransform.BeginAnimation(TranslateTransform.YProperty, arrowFloat);
+
+            var arrowFade = new DoubleAnimation
+            {
+                From = 0.55,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(700),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+            ScrollHintArrow.BeginAnimation(OpacityProperty, arrowFade);
         }
     }
 }

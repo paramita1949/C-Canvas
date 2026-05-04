@@ -147,9 +147,6 @@ namespace ImageColorChanger.UI.Views
         private void BtnMenuLayoutTitleBody_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutTitleBody_Click), sender, e);
         private void BtnMenuLayoutTitleTopOnly_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutTitleTopOnly_Click), sender, e);
         private void BtnMenuLayoutBodyKeyPoints_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuLayoutBodyKeyPoints_Click), sender, e);
-        private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuNdiOutput_SubmenuOpened), sender, e);
-        private void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiComplete_Click), sender, e);
-        private void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuNdiTransparent_Click), sender, e);
         private void MenuSlideTheme_SubmenuOpened(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(MenuSlideTheme_SubmenuOpened), sender, e);
         private void BtnMenuSlideThemeDark_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSlideThemeDark_Click), sender, e);
         private void BtnMenuSlideThemeLight_Click(object sender, RoutedEventArgs e) => ForwardToMainWindow(nameof(BtnMenuSlideThemeLight_Click), sender, e);

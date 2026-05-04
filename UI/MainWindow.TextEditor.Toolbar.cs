@@ -460,44 +460,6 @@ namespace ImageColorChanger.UI
             _ = ToggleCurrentSlideOutputModeAsync();
         }
 
-        private async void BtnMenuNdiComplete_Click(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            await SetCurrentSlideOutputModeAsync(SlideOutputMode.Normal);
-        }
-
-        private async void BtnMenuNdiTransparent_Click(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            await SetCurrentSlideOutputModeAsync(SlideOutputMode.Transparent);
-        }
-
-        private void MenuNdiOutput_SubmenuOpened(object sender, RoutedEventArgs e)
-        {
-            if (sender is not MenuItem ndiRoot)
-            {
-                return;
-            }
-
-            var currentMode = _currentSlide?.OutputMode ?? SlideOutputMode.Normal;
-            foreach (var itemObj in ndiRoot.Items)
-            {
-                if (itemObj is not MenuItem item)
-                {
-                    continue;
-                }
-
-                var mode = (item.Tag as string) switch
-                {
-                    "Transparent" => SlideOutputMode.Transparent,
-                    _ => SlideOutputMode.Normal
-                };
-                item.IsChecked = currentMode == mode;
-            }
-        }
-
         private async void BtnMenuSlideThemeDark_Click(object sender, RoutedEventArgs e)
         {
             _ = sender;
@@ -1305,7 +1267,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_projectionNdiOutputManager == null || !(_configManager?.ProjectionNdiEnabled ?? false))
+                if (_ndiTransportCoordinator == null || !(_configManager?.ProjectionNdiEnabled ?? false))
                 {
                     return;
                 }

@@ -7,6 +7,8 @@ namespace ImageColorChanger.Services.Ndi
         Bible = 2,
         Lyrics = 3,
         Caption = 4,
-        Video = 5
+        Video = 5,
+        Watermark = 6,
+        Transparent = 7
     }
 }
