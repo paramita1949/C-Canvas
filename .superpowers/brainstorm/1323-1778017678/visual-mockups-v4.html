@@ -1,0 +1,81 @@
+<h2>B 框架可视化对比（真实 UI 稿）</h2>
+<p class="subtitle">同一结构下，仅对比密度、按钮形态、标题语言。请选择更顺眼的一版。</p>
+
+<div class="cards" style="display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:14px;">
+  <div class="card option" data-choice="v1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>V1 标准紧凑</h3>
+      <div style="background:#f6f8fb;border:1px solid #dde4ef;border-radius:12px;padding:10px;">
+        <div style="font-size:18px;font-weight:700;color:#0f172a;">字号控制台</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">拖动或输入，按 0.5 调整</div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:10px;">
+          <div style="font-size:13px;font-weight:600;color:#1e293b;margin-bottom:8px;">文件树显示</div>
+          <div style="display:grid;grid-template-columns:74px 1fr 24px 44px 24px;gap:6px;align-items:center;margin-bottom:8px;">
+            <div style="font-size:12px;color:#475569;">文件夹</div><div style="height:4px;background:#bfdbfe;border-radius:99px;position:relative;"><span style="position:absolute;left:56%;top:-4px;width:12px;height:12px;border-radius:50%;background:#3b82f6;"></span></div><button style="height:24px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">-</button><input value="26" style="height:24px;border:1px solid #cbd5e1;border-radius:8px;text-align:center;width:100%;"/><button style="height:24px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">+</button>
+          </div>
+          <div style="display:grid;grid-template-columns:74px 1fr 24px 44px 24px;gap:6px;align-items:center;">
+            <div style="font-size:12px;color:#475569;">文件</div><div style="height:4px;background:#bfdbfe;border-radius:99px;position:relative;"><span style="position:absolute;left:56%;top:-4px;width:12px;height:12px;border-radius:50%;background:#3b82f6;"></span></div><button style="height:24px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">-</button><input value="26" style="height:24px;border:1px solid #cbd5e1;border-radius:8px;text-align:center;width:100%;"/><button style="height:24px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">+</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
+          <button style="height:28px;padding:0 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;">恢复默认</button>
+          <button style="height:28px;padding:0 10px;border:0;border-radius:9px;background:#2563eb;color:#fff;">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card option" data-choice="v2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>V2 现代轻量（建议）</h3>
+      <div style="background:linear-gradient(180deg,#f8fbff,#f2f6fc);border:1px solid #d9e2ef;border-radius:14px;padding:10px;">
+        <div style="font-size:18px;font-weight:700;color:#0b1f44;">字体与字号</div>
+        <div style="font-size:12px;color:#607089;margin-top:4px;">拖动滑条或输入数值，步长 0.5</div>
+        <div style="background:#fff;border:1px solid #dde6f3;border-radius:11px;padding:10px;margin-top:10px;">
+          <div style="font-size:13px;font-weight:600;color:#172b4d;margin-bottom:8px;">文件树</div>
+          <div style="display:grid;grid-template-columns:70px 1fr 26px 46px 26px;gap:6px;align-items:center;margin-bottom:8px;">
+            <div style="font-size:12px;color:#4b5f7a;">文件夹</div><div style="height:6px;background:#d9e7ff;border-radius:99px;position:relative;"><span style="position:absolute;left:0;top:0;height:6px;width:56%;border-radius:99px;background:#2f7df6;"></span><span style="position:absolute;left:56%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#2f7df6;box-shadow:0 0 0 2px #fff;"></span></div><button style="height:26px;border:1px solid #c5d3e8;border-radius:10px;background:#fff;color:#2b436a;">−</button><input value="26" style="height:26px;border:1px solid #c5d3e8;border-radius:10px;text-align:center;width:100%;"/><button style="height:26px;border:1px solid #c5d3e8;border-radius:10px;background:#fff;color:#2b436a;">＋</button>
+          </div>
+          <div style="display:grid;grid-template-columns:70px 1fr 26px 46px 26px;gap:6px;align-items:center;">
+            <div style="font-size:12px;color:#4b5f7a;">标签</div><div style="height:6px;background:#d9e7ff;border-radius:99px;position:relative;"><span style="position:absolute;left:0;top:0;height:6px;width:40%;border-radius:99px;background:#2f7df6;"></span><span style="position:absolute;left:40%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#2f7df6;box-shadow:0 0 0 2px #fff;"></span></div><button style="height:26px;border:1px solid #c5d3e8;border-radius:10px;background:#fff;color:#2b436a;">−</button><input value="18" style="height:26px;border:1px solid #c5d3e8;border-radius:10px;text-align:center;width:100%;"/><button style="height:26px;border:1px solid #c5d3e8;border-radius:10px;background:#fff;color:#2b436a;">＋</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
+          <button style="height:28px;padding:0 10px;border:1px solid #c5d3e8;border-radius:10px;background:#fff;color:#35507a;">恢复默认</button>
+          <button style="height:28px;padding:0 10px;border:0;border-radius:10px;background:#2f7df6;color:#fff;">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card option" data-choice="v3" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>V3 极简高密</h3>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;">
+        <div style="font-size:16px;font-weight:700;color:#0f172a;">字号</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;">步长 0.5</div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-top:8px;">
+          <div style="display:grid;grid-template-columns:58px 1fr 22px 36px 22px;gap:5px;align-items:center;margin-bottom:6px;">
+            <div style="font-size:11px;color:#475569;">文件夹</div><div style="height:3px;background:#bfdbfe;border-radius:99px;position:relative;"><span style="position:absolute;left:56%;top:-4px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span></div><button style="height:22px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">-</button><input value="26" style="height:22px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;width:100%;"/><button style="height:22px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">+</button>
+          </div>
+          <div style="display:grid;grid-template-columns:58px 1fr 22px 36px 22px;gap:5px;align-items:center;">
+            <div style="font-size:11px;color:#475569;">文件</div><div style="height:3px;background:#bfdbfe;border-radius:99px;position:relative;"><span style="position:absolute;left:56%;top:-4px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span></div><button style="height:22px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">-</button><input value="26" style="height:22px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;width:100%;"/><button style="height:22px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">+</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;">
+          <button style="height:24px;padding:0 8px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#334155;font-size:11px;">恢复默认</button>
+          <button style="height:24px;padding:0 8px;border:0;border-radius:7px;background:#2563eb;color:#fff;font-size:11px;">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:14px;">
+  <div class="mockup-header">你当前提出的问题，我会在实现里直接解决</div>
+  <div class="mockup-body">
+    <p>1. 底部按钮区固定，不跟参数区一起滚动。</p>
+    <p>2. 参数区单独滚动，保证小高度时不遮挡。</p>
+    <p>3. 统一 `- / + / 输入框` 对齐，避免视觉歪斜和压迫感。</p>
+  </div>
+</div>

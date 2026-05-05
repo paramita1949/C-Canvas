@@ -1,0 +1,56 @@
+<h2>B2 最终规格确认</h2>
+<p class="subtitle">确认后即可进入实现：本页只讨论尺寸、间距、最小高度和防遮挡策略。</p>
+
+<div class="options">
+  <div class="option" data-choice="s1" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>标准紧凑（推荐）</h3>
+      <p>视觉轻、可读性稳，适配 768p/900p 常见窗口高度。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="s2" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>更紧凑</h3>
+      <p>更小行高，减少滚动，但触控命中面积更小。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="s3" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>更舒展</h3>
+      <p>更大留白和按钮，观感高级，但高度压力更大。</p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">固定结构（B2）</div>
+  <div class="mockup-body">
+    <p><strong>Window:</strong> 680x520，MinHeight 500（防止底栏被挤压）</p>
+    <p><strong>Header:</strong> 标题 32px，副标题 16px，Header 总高 96</p>
+    <p><strong>Body Card:</strong> 圆角 12，Padding 16，内部行间距 10</p>
+    <p><strong>Row:</strong> 标签列 92，滑条列 *，按钮列 30 / 输入列 64 / 按钮列 30</p>
+    <p><strong>Controls:</strong> 行高 34，`- / +` 按钮 30x30，输入框高 30</p>
+    <p><strong>Footer:</strong> 固定高 64，右对齐，主次按钮宽 108 / 高 36</p>
+    <p><strong>Scrolling:</strong> 仅 Body 参数区滚动，Footer 永远可见</p>
+  </div>
+</div>
+
+<div class="split section">
+  <div class="mockup">
+    <div class="mockup-header">A 标准紧凑（推荐）</div>
+    <div class="mockup-body">
+      <p>Row 高 52，分组间距 12，标题间距 10</p>
+      <p>适合当前功能量，避免“压扁”与“拥挤”两端问题</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">B 更紧凑 / C 更舒展</div>
+    <div class="mockup-body">
+      <p>B：Row 高 46，按钮 28，高度最省</p>
+      <p>C：Row 高 58，按钮 34，视觉更松</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,65 @@
+<h2>字号控制台：下一步布局方向</h2>
+<p class="subtitle">目标：消除遮挡，保证不同窗口高度下按钮区稳定可见，同时提升现代感。</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>双区固定底栏（推荐）</h3>
+      <p>顶部为标题说明，中间为可滚动参数区，底部为固定操作栏。内容再多，底栏不被顶走。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>单卡片紧凑版</h3>
+      <p>所有控件放入一张卡片，缩小行高与间距，减少滚动。视觉简单，但扩展性一般。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>左右分栏版</h3>
+      <p>左侧参数滑条，右侧实时预览与说明。信息丰富，但窗口最小尺寸需要更大。</p>
+    </div>
+  </div>
+</div>
+
+<div class="split section">
+  <div class="mockup">
+    <div class="mockup-header">A: 双区固定底栏</div>
+    <div class="mockup-body">
+      <div class="mock-nav">字号控制台</div>
+      <div class="placeholder" style="height:210px;margin-top:10px;">可滚动参数区（文件夹字号 / 文件字号 / 标签字号 / 菜单字号）</div>
+      <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="mock-button">恢复默认</button>
+        <button class="mock-button">关闭</button>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">B: 单卡片紧凑版</div>
+    <div class="mockup-body">
+      <div class="mock-nav">字号控制台</div>
+      <div class="placeholder" style="height:250px;margin-top:10px;">紧凑参数区（低行高，低间距）</div>
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="mock-button">恢复默认</button>
+        <button class="mock-button">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">C: 左右分栏版</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:12px;">
+      <div class="placeholder" style="height:220px;">左：参数编辑</div>
+      <div class="placeholder" style="height:220px;">右：预览/说明</div>
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px;">
+      <button class="mock-button">恢复默认</button>
+      <button class="mock-button">关闭</button>
+    </div>
+  </div>
+</div>
