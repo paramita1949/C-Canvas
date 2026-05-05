@@ -365,6 +365,8 @@ namespace ImageColorChanger.UI
             contextMenu.MinWidth = 168;
             contextMenu.FontSize = 14;
 
+            contextMenu.Items.Add(CreateIconMenuItem("导入幻灯片项目", "IconLucideUpload", async () => await ImportSlideProjectsAsync()));
+            contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(CreateIconMenuItem("重命名", "IconLucidePencil", () => RenameTextProjectAsync(item)));
             contextMenu.Items.Add(CreateIconMenuItem("删除", "IconLucideX", async () => await DeleteTextProjectAsync(item)));
             contextMenu.Items.Add(CreateIconMenuItem("复制", "IconLucideCopy2", async () => await CopyTextProjectAsync(item)));
