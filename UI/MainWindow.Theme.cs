@@ -116,6 +116,61 @@ namespace ImageColorChanger.UI
                     (byte)Math.Max(0, Math.Min(255, color.R * 0.82)),
                     (byte)Math.Max(0, Math.Min(255, color.G * 0.82)),
                     (byte)Math.Max(0, Math.Min(255, color.B * 0.82)));
+
+                // FontSizeControlCenterWindow theme tokens
+                static byte Blend(byte baseValue, byte target, double factor)
+                {
+                    return (byte)Math.Max(0, Math.Min(255, (baseValue * (1.0 - factor)) + (target * factor)));
+                }
+
+                WpfColor accent = color;
+                WpfColor accentSoft = WpfColor.FromRgb(
+                    Blend(color.R, 255, 0.82),
+                    Blend(color.G, 255, 0.82),
+                    Blend(color.B, 255, 0.82));
+                WpfColor border = WpfColor.FromRgb(
+                    Blend(color.R, 255, 0.84),
+                    Blend(color.G, 255, 0.84),
+                    Blend(color.B, 255, 0.84));
+                WpfColor strongText = WpfColor.FromRgb(
+                    Blend(color.R, 18, 0.55),
+                    Blend(color.G, 28, 0.55),
+                    Blend(color.B, 44, 0.55));
+                WpfColor mutedText = WpfColor.FromRgb(
+                    Blend(color.R, 86, 0.72),
+                    Blend(color.G, 114, 0.72),
+                    Blend(color.B, 149, 0.72));
+
+                appResources["ColorControlPanelAccent"] = accent;
+                appResources["ColorControlPanelAccentSoft"] = accentSoft;
+                appResources["ColorControlPanelBackground"] = WpfColor.FromRgb(242, 246, 252);
+                appResources["ColorControlPanelCardBackground"] = WpfColor.FromRgb(248, 251, 255);
+                appResources["ColorControlPanelBorder"] = border;
+                appResources["ColorControlPanelSubCardA"] = WpfColor.FromRgb(255, 255, 255);
+                appResources["ColorControlPanelSubCardB"] = WpfColor.FromRgb(247, 250, 255);
+                appResources["ColorControlPanelTextStrong"] = strongText;
+                appResources["ColorControlPanelTextMuted"] = mutedText;
+                appResources["ColorControlPanelInputBorder"] = border;
+                appResources["ColorControlPanelStepBg"] = WpfColor.FromRgb(247, 250, 255);
+                appResources["ColorControlPanelStepBorder"] = border;
+                appResources["ColorControlPanelStepText"] = strongText;
+                appResources["ColorControlPanelSecondaryText"] = mutedText;
+
+                appResources["BrushControlPanelAccent"] = new SolidColorBrush(accent);
+                appResources["BrushControlPanelAccentSoft"] = new SolidColorBrush(accentSoft);
+                appResources["BrushControlPanelBackground"] = new SolidColorBrush((WpfColor)appResources["ColorControlPanelBackground"]);
+                appResources["BrushControlPanelCardBackground"] = new SolidColorBrush((WpfColor)appResources["ColorControlPanelCardBackground"]);
+                appResources["BrushControlPanelBorder"] = new SolidColorBrush(border);
+                appResources["BrushControlPanelSubCardA"] = new SolidColorBrush((WpfColor)appResources["ColorControlPanelSubCardA"]);
+                appResources["BrushControlPanelSubCardB"] = new SolidColorBrush((WpfColor)appResources["ColorControlPanelSubCardB"]);
+                appResources["BrushControlPanelTextStrong"] = new SolidColorBrush(strongText);
+                appResources["BrushControlPanelTextMuted"] = new SolidColorBrush(mutedText);
+                appResources["BrushControlPanelInputBorder"] = new SolidColorBrush(border);
+                appResources["BrushControlPanelStepBg"] = new SolidColorBrush((WpfColor)appResources["ColorControlPanelStepBg"]);
+                appResources["BrushControlPanelStepBorder"] = new SolidColorBrush(border);
+                appResources["BrushControlPanelStepText"] = new SolidColorBrush(strongText);
+                appResources["BrushControlPanelSecondaryText"] = new SolidColorBrush(mutedText);
+
                 ApplyScrollBarTrackThemeResources(appResources);
                 ApplyScrollBarBrushThemeResources(appResources);
             }

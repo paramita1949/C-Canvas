@@ -3,10 +3,38 @@
     <Color x:Key="ColorDialogBrandPrimary">#2563EB</Color>
     <Color x:Key="ColorDialogBrandHover">#1D4ED8</Color>
     <Color x:Key="ColorDialogBrandPressed">#1E40AF</Color>
+    <Color x:Key="ColorControlPanelAccent">#2D78ED</Color>
+    <Color x:Key="ColorControlPanelAccentSoft">#D6E6FF</Color>
+    <Color x:Key="ColorControlPanelBackground">#F2F6FC</Color>
+    <Color x:Key="ColorControlPanelCardBackground">#F8FBFF</Color>
+    <Color x:Key="ColorControlPanelBorder">#D9E3F0</Color>
+    <Color x:Key="ColorControlPanelSubCardA">#FFFFFF</Color>
+    <Color x:Key="ColorControlPanelSubCardB">#F7FAFF</Color>
+    <Color x:Key="ColorControlPanelTextStrong">#102A4D</Color>
+    <Color x:Key="ColorControlPanelTextMuted">#567295</Color>
+    <Color x:Key="ColorControlPanelInputBorder">#C5D3E8</Color>
+    <Color x:Key="ColorControlPanelStepBg">#F7FAFF</Color>
+    <Color x:Key="ColorControlPanelStepBorder">#B8CCE8</Color>
+    <Color x:Key="ColorControlPanelStepText">#2A4E84</Color>
+    <Color x:Key="ColorControlPanelSecondaryText">#35507A</Color>
 
     <SolidColorBrush x:Key="BrushDialogBrandPrimary" Color="{StaticResource ColorDialogBrandPrimary}"/>
     <SolidColorBrush x:Key="BrushDialogBrandHover" Color="{StaticResource ColorDialogBrandHover}"/>
     <SolidColorBrush x:Key="BrushDialogBrandPressed" Color="{StaticResource ColorDialogBrandPressed}"/>
+    <SolidColorBrush x:Key="BrushControlPanelAccent" Color="{DynamicResource ColorControlPanelAccent}"/>
+    <SolidColorBrush x:Key="BrushControlPanelAccentSoft" Color="{DynamicResource ColorControlPanelAccentSoft}"/>
+    <SolidColorBrush x:Key="BrushControlPanelBackground" Color="{DynamicResource ColorControlPanelBackground}"/>
+    <SolidColorBrush x:Key="BrushControlPanelCardBackground" Color="{DynamicResource ColorControlPanelCardBackground}"/>
+    <SolidColorBrush x:Key="BrushControlPanelBorder" Color="{DynamicResource ColorControlPanelBorder}"/>
+    <SolidColorBrush x:Key="BrushControlPanelSubCardA" Color="{DynamicResource ColorControlPanelSubCardA}"/>
+    <SolidColorBrush x:Key="BrushControlPanelSubCardB" Color="{DynamicResource ColorControlPanelSubCardB}"/>
+    <SolidColorBrush x:Key="BrushControlPanelTextStrong" Color="{DynamicResource ColorControlPanelTextStrong}"/>
+    <SolidColorBrush x:Key="BrushControlPanelTextMuted" Color="{DynamicResource ColorControlPanelTextMuted}"/>
+    <SolidColorBrush x:Key="BrushControlPanelInputBorder" Color="{DynamicResource ColorControlPanelInputBorder}"/>
+    <SolidColorBrush x:Key="BrushControlPanelStepBg" Color="{DynamicResource ColorControlPanelStepBg}"/>
+    <SolidColorBrush x:Key="BrushControlPanelStepBorder" Color="{DynamicResource ColorControlPanelStepBorder}"/>
+    <SolidColorBrush x:Key="BrushControlPanelStepText" Color="{DynamicResource ColorControlPanelStepText}"/>
+    <SolidColorBrush x:Key="BrushControlPanelSecondaryText" Color="{DynamicResource ColorControlPanelSecondaryText}"/>
 
     <Style x:Key="CommonIconPathStyle" TargetType="Path">
         <Setter Property="StrokeThickness" Value="2"/>

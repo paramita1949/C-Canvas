@@ -130,77 +130,7 @@ namespace ImageColorChanger.UI
 
             // 字号设置
             var fontSizeItem = new MenuItem { Header = "字号设置" };
-            
-            // 文件夹字号子菜单
-            var folderFontSizeItem = new MenuItem { Header = "文件夹字号" };
-            foreach (var size in new[] { 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0 })
-            {
-                var menuItem = new MenuItem 
-                { 
-                    Header = $"{size}",
-                    IsCheckable = true,
-                    IsChecked = Math.Abs(_configManager.FolderFontSize - size) < 0.1
-                };
-                menuItem.Click += (s, args) => SetFolderFontSize(size);
-                folderFontSizeItem.Items.Add(menuItem);
-            }
-            fontSizeItem.Items.Add(folderFontSizeItem);
-
-            // 文件字号子菜单
-            var fileFontSizeItem = new MenuItem { Header = "文件字号" };
-            foreach (var size in new[] { 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0 })
-            {
-                var menuItem = new MenuItem 
-                { 
-                    Header = $"{size}",
-                    IsCheckable = true,
-                    IsChecked = Math.Abs(_configManager.FileFontSize - size) < 0.1
-                };
-                menuItem.Click += (s, args) => SetFileFontSize(size);
-                fileFontSizeItem.Items.Add(menuItem);
-            }
-            fontSizeItem.Items.Add(fileFontSizeItem);
-
-            // 文件夹标签字号子菜单（搜索结果显示）
-            var folderTagFontSizeItem = new MenuItem { Header = "文件夹标签字号" };
-            foreach (var size in new[] { 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0 })
-            {
-                var menuItem = new MenuItem 
-                { 
-                    Header = $"{size}",
-                    IsCheckable = true,
-                    IsChecked = Math.Abs(_configManager.FolderTagFontSize - size) < 0.1
-                };
-                menuItem.Click += (s, args) => SetFolderTagFontSize(size);
-                folderTagFontSizeItem.Items.Add(menuItem);
-            }
-            fontSizeItem.Items.Add(folderTagFontSizeItem);
-
-            // 菜单字号子菜单（扩展范围：12-40，适配小型笔记本）
-            var menuFontSizeItem = new MenuItem { Header = "菜单字号" };
-            foreach (var size in new[] { 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 29.0, 30.0, 35.0, 40.0 })
-            {
-                var menuItem = new MenuItem
-                {
-                    Header = $"{size}",
-                    IsCheckable = true,
-                    IsChecked = Math.Abs(_configManager.TopMenuFontSize - size) < 0.1
-                };
-                menuItem.Click += (s, args) => SetMenuFontSize(size);
-                menuFontSizeItem.Items.Add(menuItem);
-            }
-
-
-            // 添加分隔符
-            menuFontSizeItem.Items.Add(new Separator());
-
-            // 自定义字号选项（下拉框，步长 0.5）
-            var customFontSizeItem = new MenuItem { Header = "自定义..." };
-            customFontSizeItem.Click += (s, args) => ShowCustomMenuFontSizeComboBox();
-            menuFontSizeItem.Items.Add(customFontSizeItem);
-
-            fontSizeItem.Items.Add(menuFontSizeItem);
-
+            fontSizeItem.Click += (s, args) => ShowFontSizeControlCenter();
             contextMenu.Items.Add(fontSizeItem);
 
             contextMenu.Items.Add(new Separator());
@@ -963,6 +893,42 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"自动重启失败，请手动重启应用程序。\n\n错误：{ex.Message}", "重启失败", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 显示 NDI 风格字号控制台（滑条步长 0.5）
+        /// </summary>
+        private void ShowFontSizeControlCenter()
+        {
+            try
+            {
+                var dialog = new FontSizeControlCenterWindow(
+                    () => new FontSizeControlCenterWindow.State
+                    {
+                        FolderFontSize = _configManager.FolderFontSize,
+                        FileFontSize = _configManager.FileFontSize,
+                        FolderTagFontSize = _configManager.FolderTagFontSize,
+                        TopMenuFontSize = _configManager.TopMenuFontSize
+                    },
+                    SetFolderFontSize,
+                    SetFileFontSize,
+                    SetFolderTagFontSize,
+                    SetMenuFontSize)
+                {
+                    Owner = this
+                };
+
+                dialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" 显示字号控制台异常: {ex}");
+                System.Windows.MessageBox.Show(
+                    $"打开字号控制台失败：{ex.Message}",
+                    "字号控制台",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
             }
         }
 
