@@ -1,0 +1,355 @@
+<Window x:Class="ImageColorChanger.UI.LiveCaptionStyleControlCenterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="字幕样式"
+        Width="720"
+        Height="475"
+        MinWidth="680"
+        MinHeight="430"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="{DynamicResource BrushControlPanelBackground}"
+        FontFamily="Microsoft YaHei UI">
+    <Window.Resources>
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrushControlPanelTextStrong}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrushControlPanelTextMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ModernInputStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Width" Value="72"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelInputBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrushControlPanelTextStrong}"/>
+        </Style>
+
+        <Style x:Key="StepButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Background" Value="{DynamicResource BrushControlPanelStepBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrushControlPanelStepText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelStepBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="10"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinWidth" Value="78"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrushControlPanelSecondaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelInputBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="12"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource BrushControlPanelAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelAccent}"/>
+        </Style>
+
+        <Style x:Key="ModernSliderStyle" TargetType="Slider">
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton IsEnabled="False" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="8" CornerRadius="999" Background="{DynamicResource BrushControlPanelAccent}" VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="16" Height="16" Background="{DynamicResource BrushControlPanelAccent}" BorderBrush="White" BorderThickness="2">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Fill="{TemplateBinding Background}"
+                                                         Stroke="{TemplateBinding BorderBrush}"
+                                                         StrokeThickness="{TemplateBinding BorderThickness}">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.2"/>
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton IsEnabled="False" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="8" CornerRadius="999" Background="#C7D4E8" VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="SegmentButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="MinWidth" Value="46"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style x:Key="CompactSegmentButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="MinWidth" Value="38"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="Height" Value="28"/>
+        </Style>
+
+        <Style x:Key="CompactMoreButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="MinWidth" Value="56"/>
+            <Setter Property="Padding" Value="9,0"/>
+            <Setter Property="Height" Value="28"/>
+        </Style>
+
+        <Style x:Key="ColorSwatchButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushControlPanelInputBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock x:Name="TitleTextBlock" Text="字幕样式" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource BrushControlPanelTextStrong}"/>
+            <TextBlock x:Name="SubtitleTextBlock" Text="拖动滑条或输入数值，步长 0.5。"
+                       Margin="0,4,0,0"
+                       FontSize="12"
+                       Foreground="{DynamicResource BrushControlPanelTextMuted}"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Background="{DynamicResource BrushControlPanelCardBackground}">
+                <StackPanel>
+                    <Border Background="{DynamicResource BrushControlPanelSubCardA}"
+                            BorderBrush="{DynamicResource BrushControlPanelBorder}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="10"
+                            Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="文字样式" Style="{StaticResource SectionTitleStyle}"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="92"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="字体" Style="{StaticResource FieldLabelStyle}"/>
+                                <ComboBox x:Name="FontFamilyComboBox"
+                                          Grid.Column="1"
+                                          Height="28"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Value"
+                                          VerticalContentAlignment="Center"
+                                          SelectionChanged="FontFamilyComboBox_SelectionChanged"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="92"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="34"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="34"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="字号" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="FontSizeSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="20" Maximum="112" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="Slider_ValueChanged"/>
+                                <Button x:Name="FontSizeMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                                <TextBox x:Name="FontSizeTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" LostFocus="ValueTextBox_LostFocus" KeyDown="ValueTextBox_KeyDown"/>
+                                <Button x:Name="FontSizePlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="92"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="34"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="34"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="字间距" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="LetterSpacingSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="0" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="Slider_ValueChanged"/>
+                                <Button x:Name="LetterSpacingMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                                <TextBox x:Name="LetterSpacingTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" LostFocus="ValueTextBox_LostFocus" KeyDown="ValueTextBox_KeyDown"/>
+                                <Button x:Name="LetterSpacingPlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="92"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="34"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="34"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="段间距" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="LineGapSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="0" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="Slider_ValueChanged"/>
+                                <Button x:Name="LineGapMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                                <TextBox x:Name="LineGapTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" LostFocus="ValueTextBox_LostFocus" KeyDown="ValueTextBox_KeyDown"/>
+                                <Button x:Name="LineGapPlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                            </Grid>
+
+                            <Grid x:Name="NdiLineCharRow" Margin="0,0,0,6" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="92"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="34"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="34"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="每行字数" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="NdiLineCharSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="8" Maximum="80" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Slider_ValueChanged"/>
+                                <Button x:Name="NdiLineCharMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                                <TextBox x:Name="NdiLineCharTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" LostFocus="ValueTextBox_LostFocus" KeyDown="ValueTextBox_KeyDown"/>
+                                <Button x:Name="NdiLineCharPlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
+                            </Grid>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource BrushControlPanelSubCardB}"
+                            BorderBrush="{DynamicResource BrushControlPanelBorder}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="快速控制" Style="{StaticResource SectionTitleStyle}"/>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel x:Name="ProjectionLayoutRow" Orientation="Horizontal" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,0,18,0">
+                                    <TextBlock Text="方向" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="OrientationHorizontalButton" Content="横" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,3,0" Click="ProjectionLayoutButton_Click"/>
+                                    <Button x:Name="OrientationVerticalButton" Content="竖" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,14,0" Click="ProjectionLayoutButton_Click"/>
+
+                                    <TextBlock x:Name="ProjectionPositionLabel" Text="位置" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="ProjectionPosAButton" Content="上" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,3,0" Click="ProjectionLayoutButton_Click"/>
+                                    <Button x:Name="ProjectionPosBButton" Content="中" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,3,0" Click="ProjectionLayoutButton_Click"/>
+                                    <Button x:Name="ProjectionPosCButton" Content="下" Style="{StaticResource CompactSegmentButtonStyle}" Click="ProjectionLayoutButton_Click"/>
+                                </StackPanel>
+
+                                <StackPanel x:Name="NdiAlignInlinePanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed" Margin="0,0,18,0">
+                                    <TextBlock Text="对齐" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="AlignLeftButton" Content="左" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,3,0" Click="AlignButton_Click"/>
+                                    <Button x:Name="AlignCenterButton" Content="中" Style="{StaticResource CompactSegmentButtonStyle}" Margin="0,0,3,0" Click="AlignButton_Click"/>
+                                    <Button x:Name="AlignRightButton" Content="右" Style="{StaticResource CompactSegmentButtonStyle}" Click="AlignButton_Click"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0">
+                                    <TextBlock Text="字幕色" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <WrapPanel x:Name="TextColorSwatchPanel" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="TextColorMoreButton" Content="更多" Style="{StaticResource CompactMoreButtonStyle}" Click="PickColorButton_Click"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="最新色" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <WrapPanel x:Name="LatestColorSwatchPanel" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="LatestColorMoreButton" Content="更多" Style="{StaticResource CompactMoreButtonStyle}" Click="PickColorButton_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+        </Border>
+
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
+                <Button Content="关闭" Style="{StaticResource PrimaryButtonStyle}" Click="CloseButton_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

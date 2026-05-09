@@ -95,11 +95,7 @@ namespace ImageColorChanger.UI
         private readonly Border _ndiAction;
         private readonly Border _ndiStyleAction;
         private readonly Border _localStyleAction;
-        private readonly Border _orientationAction;
-        private readonly Border _positionAction;
         private readonly StackPanel _actionPanel;
-        private readonly TextBlock _orientationActionText;
-        private readonly TextBlock _positionActionText;
         private readonly Border _styleAction;
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
@@ -301,9 +297,9 @@ namespace ImageColorChanger.UI
             };
             SetProjectionToggleState(hidden: false);
 
-            _ndiAction = CreateTextActionItem("NDI", out _ndiActionText);
+            _ndiAction = CreateTextActionItem("NDI投影", out _ndiActionText);
             _ndiAction.Margin = new Thickness(6, 0, 0, 0);
-            _ndiAction.ToolTip = "NDI转发（点击开启）";
+            _ndiAction.ToolTip = "NDI投影（点击开启）";
             _ndiAction.PreviewMouseLeftButtonDown += (_, e) =>
             {
                 e.Handled = true;
@@ -328,26 +324,6 @@ namespace ImageColorChanger.UI
                 e.Handled = true;
                 LocalStyleRequested?.Invoke();
             };
-
-            _orientationAction = CreateTextActionItem("横着", out _orientationActionText);
-            _orientationAction.Margin = new Thickness(6, 0, 0, 0);
-            _orientationAction.ToolTip = "字幕方向";
-            _orientationAction.PreviewMouseLeftButtonDown += (_, e) =>
-            {
-                e.Handled = true;
-                ToggleCaptionOrientation();
-            };
-            SetCaptionOrientationState(_captionOrientation);
-
-            _positionAction = CreateTextActionItem("位置:中", out _positionActionText);
-            _positionAction.Margin = new Thickness(6, 0, 0, 0);
-            _positionAction.ToolTip = "字幕位置";
-            _positionAction.PreviewMouseLeftButtonDown += (_, e) =>
-            {
-                e.Handled = true;
-                OpenCaptionPositionMenu();
-            };
-            SetCaptionPositionState(_captionHorizontalAnchor, _captionVerticalAnchor);
 
             _styleAction = CreateTextActionItem("投影样式", out _);
             _styleAction.Margin = new Thickness(6, 0, 0, 0);
@@ -383,8 +359,6 @@ namespace ImageColorChanger.UI
             _actionPanel.Children.Add(_ndiStyleAction);
             _actionPanel.Children.Add(_localStyleAction);
             _actionPanel.Children.Add(_styleAction);
-            _actionPanel.Children.Add(_orientationAction);
-            _actionPanel.Children.Add(_positionAction);
             _actionPanel.Children.Add(_settingsAction);
             _actionPanel.Children.Add(_closeAction);
             Grid.SetColumn(_actionPanel, 1);
@@ -643,8 +617,8 @@ namespace ImageColorChanger.UI
                 + _captionText.Margin.Bottom;
 
             double actionNeed = Math.Max(
-                Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_orientationAction)),
-                Math.Max(GetActionHeight(_positionAction), Math.Max(GetActionHeight(_styleAction), Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)))));
+                Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_styleAction)),
+                Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)));
 
             double bodyNeed = Math.Max(textAreaNeed, actionNeed);
 
@@ -743,7 +717,7 @@ namespace ImageColorChanger.UI
             DependencyObject current = source;
             while (current != null)
             {
-                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _orientationAction) || ReferenceEquals(current, _positionAction) || ReferenceEquals(current, _styleAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
+                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _styleAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
                 {
                     return true;
                 }
@@ -1086,20 +1060,20 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _ndiActionText.Text = "NDI";
+            _ndiActionText.Text = "NDI投影";
             if (enabled)
             {
                 _ndiAction.Background = new WpfSolidColorBrush(WpfColor.FromRgb(22, 163, 74));
                 _ndiAction.BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(21, 128, 61));
                 _ndiActionText.Foreground = WpfBrushes.White;
-                _ndiAction.ToolTip = "NDI已开启（点击关闭）";
+                _ndiAction.ToolTip = "NDI投影已开启（点击关闭）";
                 return;
             }
 
             _ndiAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
             _ndiAction.SetResourceReference(Border.BorderBrushProperty, "BrushMenuBorder");
             _ndiActionText.SetResourceReference(TextBlock.ForegroundProperty, "BrushMenuText");
-            _ndiAction.ToolTip = "NDI已关闭（点击开启）";
+            _ndiAction.ToolTip = "NDI投影已关闭（点击开启）";
         }
 
         private void ToggleCaptionOrientation()
@@ -1129,7 +1103,7 @@ namespace ImageColorChanger.UI
                 AddCaptionPositionItem(menu, "下", _captionVerticalAnchor == ProjectionCaptionVerticalAnchor.Bottom, () => ApplyCaptionPositionSelection(_captionHorizontalAnchor, ProjectionCaptionVerticalAnchor.Bottom));
             }
 
-            menu.PlacementTarget = _positionAction;
+            menu.PlacementTarget = _styleAction;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             menu.HorizontalOffset = 0;
             menu.VerticalOffset = 2;
@@ -1169,41 +1143,12 @@ namespace ImageColorChanger.UI
 
         private void UpdateCaptionOrientationActionState()
         {
-            if (_orientationAction == null || _orientationActionText == null)
-            {
-                return;
-            }
-
-            bool isHorizontal = _captionOrientation == ProjectionCaptionOrientation.Horizontal;
-            _orientationAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
-            _orientationAction.SetResourceReference(Border.BorderBrushProperty, isHorizontal ? "BrushMenuBorder" : "BrushGlobalIcon");
-            _orientationActionText.Text = isHorizontal ? "横着" : "竖着";
-            _orientationActionText.SetResourceReference(TextBlock.ForegroundProperty, isHorizontal ? "BrushMenuText" : "BrushGlobalIcon");
-            _orientationAction.ToolTip = isHorizontal
-                ? "字幕方向：横着（点击切到竖着）"
-                : "字幕方向：竖着（点击切到横着）";
+            // 方向入口已并入投影样式控制台，悬浮条不再展示该按钮。
         }
 
         private void UpdateCaptionPositionActionState()
         {
-            if (_positionAction == null || _positionActionText == null)
-            {
-                return;
-            }
-
-            _positionAction.SetResourceReference(Border.BackgroundProperty, "BrushMenuSubSurface");
-            _positionAction.SetResourceReference(Border.BorderBrushProperty, "BrushGlobalIcon");
-            _positionActionText.SetResourceReference(TextBlock.ForegroundProperty, "BrushGlobalIcon");
-            if (_captionOrientation == ProjectionCaptionOrientation.Vertical)
-            {
-                _positionActionText.Text = $"位置:{GetHorizontalAnchorShortName(_captionHorizontalAnchor)}";
-                _positionAction.ToolTip = $"字幕位置：{GetHorizontalAnchorDisplayName(_captionHorizontalAnchor)}";
-            }
-            else
-            {
-                _positionActionText.Text = $"位置:{GetVerticalAnchorShortName(_captionVerticalAnchor)}";
-                _positionAction.ToolTip = $"字幕位置：{GetVerticalAnchorDisplayName(_captionVerticalAnchor)}";
-            }
+            // 位置入口已并入投影样式控制台，悬浮条不再展示该按钮。
         }
 
         private static ProjectionCaptionHorizontalAnchor NormalizeCaptionHorizontalAnchor(ProjectionCaptionHorizontalAnchor anchor)

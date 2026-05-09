@@ -49,6 +49,7 @@
     <Geometry x:Key="IconLucideTextDecrease">M4 20L8 8L12 20 M6 15H10 M14 12H20</Geometry>
     <Geometry x:Key="IconLucideBold">M6 5H12A4 4 0 0 1 12 13H6V5Z M6 13H13A4 4 0 0 1 13 21H6V13Z</Geometry>
     <Geometry x:Key="IconLucideUpload">M12 16V4 M7 9L12 4L17 9 M4 20H20</Geometry>
+    <Geometry x:Key="IconLucideDownload">M12 4V16 M7 11L12 16L17 11 M4 20H20</Geometry>
     <Geometry x:Key="IconLucidePalette">M12 4C7.6 4 4 7.4 4 11.5C4 15.1 6.8 18 10.3 18H12.5C13.6 18 14.5 18.9 14.5 20C14.5 21.1 15.4 22 16.5 22C19.5 22 22 19.5 22 16.5C22 9.6 17 4 12 4Z M7.5 12A1.2 1.2 0 1 1 7.5 9.6A1.2 1.2 0 1 1 7.5 12 M11 9A1.2 1.2 0 1 1 11 6.6A1.2 1.2 0 1 1 11 9 M15 9A1.2 1.2 0 1 1 15 6.6A1.2 1.2 0 1 1 15 9</Geometry>
     <Geometry x:Key="IconLucideImage">M3 5H21V19H3V5Z M8.5 11.5A1.5 1.5 0 1 0 8.5 8.5A1.5 1.5 0 1 0 8.5 11.5 M21 16L16 11L7 19</Geometry>
     <Geometry x:Key="IconLucideRuler">M4 20L20 4 M7 17L9 19 M10 14L12 16 M13 11L15 13 M16 8L18 10</Geometry>
