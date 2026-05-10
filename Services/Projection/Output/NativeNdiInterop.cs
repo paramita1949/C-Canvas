@@ -49,6 +49,17 @@ namespace ImageColorChanger.Services.Projection.Output
             NDIlib_FourCC_audio_type_FLTP = 0x504C5446 // 'FLTP'
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct NDIlib_audio_frame_interleaved_16s_t
+        {
+            public int sample_rate;
+            public int no_channels;
+            public int no_samples;
+            public long timecode;
+            public int reference_level;
+            public IntPtr p_data;
+        }
+
         internal enum NDIlib_frame_format_type_e
         {
             NDIlib_frame_format_type_progressive = 1
@@ -106,6 +117,9 @@ namespace ImageColorChanger.Services.Projection.Output
 
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_audio_v3", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void SendSendAudioV3(IntPtr p_instance, ref NDIlib_audio_frame_v3_t p_audio_data);
+
+        [DllImport(NdiLibrary, EntryPoint = "NDIlib_util_send_send_audio_interleaved_16s", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void SendSendAudioInterleaved16s(IntPtr p_instance, ref NDIlib_audio_frame_interleaved_16s_t p_audio_data);
 
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_get_no_connections", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int SendGetNoConnections(IntPtr p_instance, uint timeout_in_ms);

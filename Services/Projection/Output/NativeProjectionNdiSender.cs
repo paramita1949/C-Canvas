@@ -14,6 +14,7 @@ namespace ImageColorChanger.Services.Projection.Output
         private static readonly object InitLock = new object();
         private static int _ndiInitRefCount;
         private static bool _ndiAvailable;
+        private static bool _audioFormatLogged;
         private const int AsyncBufferCount = 3;
 
         private IntPtr _senderHandle = IntPtr.Zero;
@@ -21,6 +22,7 @@ namespace ImageColorChanger.Services.Projection.Output
         private readonly IntPtr[] _asyncBuffers = new IntPtr[AsyncBufferCount];
         private int _asyncBufferSize;
         private int _asyncBufferIndex;
+        private short[] _audioInterleaved16Buffer = Array.Empty<short>();
         private int _lastConnectionCount = -1;
         private ProjectionNdiOutputOptions _options;
 
@@ -198,23 +200,33 @@ namespace ImageColorChanger.Services.Projection.Output
                         return false;
                     }
 
-                    var handle = GCHandle.Alloc(audioFrame.PlanarSamples, GCHandleType.Pinned);
+                    short[] interleavedPcm16 = EnsureInterleavedAudioBuffer(expectedLength);
+                    ConvertPlanarFloatToInterleaved16(
+                        audioFrame.PlanarSamples,
+                        interleavedPcm16,
+                        channelCount,
+                        samplesPerChannel);
+
+                    var handle = GCHandle.Alloc(interleavedPcm16, GCHandleType.Pinned);
                     try
                     {
-                        var audioFrameNative = new NativeNdiInterop.NDIlib_audio_frame_v3_t
+                        if (!_audioFormatLogged)
+                        {
+                            _audioFormatLogged = true;
+                            ProjectionNdiDiagnostics.Log("NDI audio send format: interleaved16s, referenceLevel=0");
+                        }
+
+                        var audioFrameNative = new NativeNdiInterop.NDIlib_audio_frame_interleaved_16s_t
                         {
                             sample_rate = sampleRate,
                             no_channels = channelCount,
                             no_samples = samplesPerChannel,
                             timecode = NativeNdiInterop.NDIlib_send_timecode_synthesize,
-                            FourCC = NativeNdiInterop.NDIlib_FourCC_audio_type_e.NDIlib_FourCC_audio_type_FLTP,
+                            reference_level = 0,
                             p_data = handle.AddrOfPinnedObject(),
-                            channel_stride_in_bytes = audioFrame.ChannelStrideInBytes,
-                            p_metadata = IntPtr.Zero,
-                            timestamp = 0
                         };
 
-                        NativeNdiInterop.SendSendAudioV3(_senderHandle, ref audioFrameNative);
+                        NativeNdiInterop.SendSendAudioInterleaved16s(_senderHandle, ref audioFrameNative);
                     }
                     finally
                     {
@@ -408,6 +420,32 @@ namespace ImageColorChanger.Services.Projection.Output
             IntPtr ptr = Marshal.AllocHGlobal(bytes.Length);
             Marshal.Copy(bytes, 0, ptr, bytes.Length);
             return ptr;
+        }
+
+        private short[] EnsureInterleavedAudioBuffer(int requiredLength)
+        {
+            if (_audioInterleaved16Buffer.Length == requiredLength)
+            {
+                return _audioInterleaved16Buffer;
+            }
+
+            _audioInterleaved16Buffer = new short[Math.Max(1, requiredLength)];
+            return _audioInterleaved16Buffer;
+        }
+
+        private static void ConvertPlanarFloatToInterleaved16(float[] planar, short[] interleaved, int channels, int samplesPerChannel)
+        {
+            int writeIndex = 0;
+            for (int sample = 0; sample < samplesPerChannel; sample++)
+            {
+                for (int channel = 0; channel < channels; channel++)
+                {
+                    float value = planar[channel * samplesPerChannel + sample];
+                    value = Math.Clamp(value, -1f, 1f);
+                    int pcm = (int)Math.Round(value * 32767f);
+                    interleaved[writeIndex++] = (short)Math.Clamp(pcm, short.MinValue, short.MaxValue);
+                }
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ namespace ImageColorChanger.Services.Ndi
         private readonly IServiceProvider _services;
         private readonly object _sync = new();
         private readonly Dictionary<NdiChannel, ProjectionNdiOutputManager> _channelManagers = new();
+        private readonly Dictionary<NdiChannel, long> _lastIdleFrameLogTicks = new();
         private long _lastAudioRouteLogTick;
 
         public NdiTransportCoordinator(
@@ -106,9 +107,7 @@ namespace ImageColorChanger.Services.Ndi
         {
             var manager = GetOrCreateManager(channel);
             manager?.PushTransparentIdleFrame(startSenderIfNeeded);
-            var cfg = GetChannelConfig(channel);
-            ProjectionNdiDiagnostics.Log(
-                $"IdleFrame pushed: channel={channel}, sender={cfg.SenderName}, size={cfg.Width}x{cfg.Height}, watermark=\"{_configManager?.ProjectionNdiIdleFrameWatermarkText}\"");
+            LogIdleFrameIfDue(channel);
         }
 
         public void StopChannel(NdiChannel channel)
@@ -185,6 +184,25 @@ namespace ImageColorChanger.Services.Ndi
 
             _lastAudioRouteLogTick = now;
             ProjectionNdiDiagnostics.Log("PublishAudio route: target=Watermark");
+        }
+
+        private void LogIdleFrameIfDue(NdiChannel channel)
+        {
+            long now = Environment.TickCount64;
+            lock (_sync)
+            {
+                if (_lastIdleFrameLogTicks.TryGetValue(channel, out long last)
+                    && now - last < 5000)
+                {
+                    return;
+                }
+
+                _lastIdleFrameLogTicks[channel] = now;
+            }
+
+            var cfg = GetChannelConfig(channel);
+            ProjectionNdiDiagnostics.Log(
+                $"IdleFrame pushed: channel={channel}, sender={cfg.SenderName}, size={cfg.Width}x{cfg.Height}, watermark=\"{_configManager?.ProjectionNdiIdleFrameWatermarkText}\"");
         }
 
         private IProjectionNdiSender CreateSenderInstance()

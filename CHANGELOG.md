@@ -1,5 +1,18 @@
 # Changelog
 
+## 6.0.5.7 (2026-05-10)
+
+### Added
+
+- 新增 NDI 透明空帧日志节流：按通道 5 秒窗口输出一次，减少高频刷屏。
+- 新增 NDI 原生 `interleaved 16-bit PCM` 音频结构与发送接口绑定。
+
+### Changed
+
+- NDI 音频发送格式由 `planar float` 调整为 `interleaved16s`，并增加采样格式诊断日志。
+- NDI 发送端增加复用音频缓冲与 planar->interleaved 转换逻辑，降低音频发送路径开销。
+- 透明空帧日志由每次推送改为节流输出，保留关键状态信息。
+
 ## 6.0.5.6 (2026-05-10)
 
 ### Added
