@@ -51,7 +51,7 @@ namespace ImageColorChanger.Services.Projection.Output
                     p_ndi_name = senderNamePtr,
                     p_groups = IntPtr.Zero,
                     clock_video = true,
-                    clock_audio = false
+                    clock_audio = true
                 };
 
                 try
@@ -169,6 +169,64 @@ namespace ImageColorChanger.Services.Projection.Output
             catch
             {
                 ProjectionNdiDiagnostics.Log("SendFrame failed: unknown exception.");
+                return false;
+            }
+        }
+
+        public bool SendAudio(ProjectionNdiAudioFrame audioFrame)
+        {
+            if (!IsRunning || audioFrame == null || audioFrame.PlanarSamples == null || audioFrame.PlanarSamples.Length == 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                int sampleRate = Math.Max(1, audioFrame.SampleRate);
+                int channelCount = Math.Max(1, audioFrame.ChannelCount);
+                int samplesPerChannel = Math.Max(1, audioFrame.SamplesPerChannel);
+                int expectedLength = channelCount * samplesPerChannel;
+                if (audioFrame.PlanarSamples.Length < expectedLength)
+                {
+                    return false;
+                }
+
+                lock (_sync)
+                {
+                    if (_senderHandle == IntPtr.Zero)
+                    {
+                        return false;
+                    }
+
+                    var handle = GCHandle.Alloc(audioFrame.PlanarSamples, GCHandleType.Pinned);
+                    try
+                    {
+                        var audioFrameNative = new NativeNdiInterop.NDIlib_audio_frame_v3_t
+                        {
+                            sample_rate = sampleRate,
+                            no_channels = channelCount,
+                            no_samples = samplesPerChannel,
+                            timecode = NativeNdiInterop.NDIlib_send_timecode_synthesize,
+                            FourCC = NativeNdiInterop.NDIlib_FourCC_audio_type_e.NDIlib_FourCC_audio_type_FLTP,
+                            p_data = handle.AddrOfPinnedObject(),
+                            channel_stride_in_bytes = audioFrame.ChannelStrideInBytes,
+                            p_metadata = IntPtr.Zero,
+                            timestamp = 0
+                        };
+
+                        NativeNdiInterop.SendSendAudioV3(_senderHandle, ref audioFrameNative);
+                    }
+                    finally
+                    {
+                        handle.Free();
+                    }
+                }
+
+                return true;
+            }
+            catch
+            {
+                ProjectionNdiDiagnostics.Log("SendAudio failed: unknown exception.");
                 return false;
             }
         }

@@ -9,6 +9,7 @@ using ImageColorChanger.Services;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.Services.Lyrics.Output;
 using ImageColorChanger.Services.Ndi;
+using ImageColorChanger.Services.Ndi.Audio;
 using ImageColorChanger.Services.Ndi.Modules;
 using ImageColorChanger.Services.Projection.Output;
 using ImageColorChanger.Services.StateMachine;
@@ -108,6 +109,7 @@ namespace ImageColorChanger.Core
             services.AddSingleton<IProjectionNdiModeResolver, ProjectionNdiModeResolver>();
             services.AddSingleton<LyricsNdiOutputManager>();
             services.AddSingleton<INdiTransportCoordinator, NdiTransportCoordinator>();
+            services.AddSingleton<INdiAudioCaptureService, NdiAudioCaptureService>();
             services.AddSingleton<INdiRouter, NdiRouter>();
             services.AddSingleton<ISlideNdiModule, SlideNdiModule>();
             services.AddSingleton<IBibleNdiModule, BibleNdiModule>();

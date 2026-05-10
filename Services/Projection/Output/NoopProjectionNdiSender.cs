@@ -21,6 +21,11 @@ namespace ImageColorChanger.Services.Projection.Output
             return IsRunning && frame != null;
         }
 
+        public bool SendAudio(ProjectionNdiAudioFrame audioFrame)
+        {
+            return IsRunning && audioFrame != null && audioFrame.PlanarSamples.Length > 0;
+        }
+
         public void Stop()
         {
             IsRunning = false;

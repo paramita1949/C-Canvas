@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.Ndi.Audio;
 using ImageColorChanger.Services.Projection.Output;
 using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
@@ -75,6 +76,29 @@ namespace ImageColorChanger.Services.Ndi
             return sent;
         }
 
+        public bool PublishAudio(ProjectionNdiAudioFrame audioFrame)
+        {
+            if (audioFrame == null)
+            {
+                return false;
+            }
+
+            var manager = GetExistingManager(NdiChannel.Slide);
+            if (manager == null)
+            {
+                ProjectionNdiDiagnostics.Log("PublishAudio skipped: Slide manager not created yet.");
+                return false;
+            }
+
+            bool sent = manager?.PublishAudio(audioFrame) == true;
+            if (!sent)
+            {
+                ProjectionNdiDiagnostics.Log("PublishAudio failed: channel=Slide");
+            }
+
+            return sent;
+        }
+
         public void PushTransparentIdleFrame(NdiChannel channel, bool startSenderIfNeeded = true)
         {
             var manager = GetOrCreateManager(channel);
@@ -137,6 +161,14 @@ namespace ImageColorChanger.Services.Ndi
                 _channelManagers[channel] = manager;
                 ProjectionNdiDiagnostics.Log($"Channel manager created: channel={channel}, sender={provider.ProjectionNdiSenderName}");
                 return manager;
+            }
+        }
+
+        private ProjectionNdiOutputManager GetExistingManager(NdiChannel channel)
+        {
+            lock (_sync)
+            {
+                return _channelManagers.TryGetValue(channel, out var existing) ? existing : null;
             }
         }
 
@@ -203,6 +235,10 @@ namespace ImageColorChanger.Services.Ndi
             public double ProjectionNdiIdleFrameWatermarkFontSize => _config?.ProjectionNdiIdleFrameWatermarkFontSize ?? 48d;
             public string ProjectionNdiIdleFrameWatermarkFontFamily => _config?.ProjectionNdiIdleFrameWatermarkFontFamily ?? "Microsoft YaHei UI";
             public double ProjectionNdiIdleFrameWatermarkOpacity => _config?.ProjectionNdiIdleFrameWatermarkOpacity ?? 43d;
+            public bool ProjectionNdiAudioEnabled => _config?.ProjectionNdiAudioEnabled == true;
+            public string ProjectionNdiAudioSourceMode => _config?.ProjectionNdiAudioSourceMode ?? "system";
+            public string ProjectionNdiAudioInputDeviceId => _config?.ProjectionNdiAudioInputDeviceId ?? string.Empty;
+            public string ProjectionNdiAudioSystemDeviceId => _config?.ProjectionNdiAudioSystemDeviceId ?? string.Empty;
         }
     }
 }

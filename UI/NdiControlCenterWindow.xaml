@@ -196,6 +196,14 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="#FBFDFF"/>
         </Style>
+        <Style x:Key="CompactComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FBFDFF"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+        </Style>
         <Style x:Key="ChromeLessScrollViewerStyle" TargetType="ScrollViewer">
             <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
             <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
@@ -533,6 +541,63 @@
                                  TextAlignment="Center"
                                  TextChanged="WatermarkOpacityTextBox_TextChanged"/>
                     </Grid>
+
+                    <Border Margin="0,12,0,0"
+                            Padding="12,10,12,10"
+                            CornerRadius="12"
+                            Background="#F8FBFF"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="音频"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="#1E293B"/>
+                                    <TextBlock x:Name="AudioSectionSummaryText"
+                                               Margin="0,2,0,0"
+                                               FontSize="11.5"
+                                               Foreground="#64748B"/>
+                                </StackPanel>
+                                <primitives:ToggleButton x:Name="AudioToggle"
+                                                         Grid.Column="1"
+                                                         Style="{StaticResource SwitchStyle}"
+                                                         Click="AudioToggle_Click"/>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="116"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="AudioSourceComboBox"
+                                          Style="{StaticResource CompactComboBoxStyle}"
+                                          SelectedValuePath="Tag"
+                                          SelectionChanged="AudioSourceComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="系统声音" Tag="system"/>
+                                    <ComboBoxItem Content="输入设备" Tag="input"/>
+                                </ComboBox>
+                                <ComboBox x:Name="AudioDeviceComboBox"
+                                          Grid.Column="2"
+                                          Style="{StaticResource CompactComboBoxStyle}"
+                                          DisplayMemberPath="Name"
+                                          SelectedValuePath="Id"
+                                          SelectionChanged="AudioDeviceComboBox_SelectionChanged"/>
+                            </Grid>
+
+                            <TextBlock x:Name="AudioStatusTextBlock"
+                                       Margin="0,6,0,0"
+                                       FontSize="11.5"
+                                       TextWrapping="Wrap"
+                                       Foreground="#64748B"/>
+                        </StackPanel>
+                    </Border>
 
                 </StackPanel>
             </Border>

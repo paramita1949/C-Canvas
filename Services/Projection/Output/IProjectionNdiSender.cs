@@ -7,6 +7,7 @@ namespace ImageColorChanger.Services.Projection.Output
         bool IsRunning { get; }
         bool Start(ProjectionNdiOutputOptions options);
         bool SendFrame(SKBitmap frame);
+        bool SendAudio(ProjectionNdiAudioFrame audioFrame);
         void Stop();
     }
 }

@@ -44,6 +44,11 @@ namespace ImageColorChanger.Services.Projection.Output
             NDIlib_FourCC_video_type_BGRA = 0x41524742 // 'BGRA'
         }
 
+        internal enum NDIlib_FourCC_audio_type_e : uint
+        {
+            NDIlib_FourCC_audio_type_FLTP = 0x504C5446 // 'FLTP'
+        }
+
         internal enum NDIlib_frame_format_type_e
         {
             NDIlib_frame_format_type_progressive = 1
@@ -66,6 +71,20 @@ namespace ImageColorChanger.Services.Projection.Output
             public long timestamp;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct NDIlib_audio_frame_v3_t
+        {
+            public int sample_rate;
+            public int no_channels;
+            public int no_samples;
+            public long timecode;
+            public NDIlib_FourCC_audio_type_e FourCC;
+            public IntPtr p_data;
+            public int channel_stride_in_bytes;
+            public IntPtr p_metadata;
+            public long timestamp;
+        }
+
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_initialize", CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
         internal static extern bool Initialize();
@@ -84,6 +103,9 @@ namespace ImageColorChanger.Services.Projection.Output
 
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_video_async_v2", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void SendSendVideoAsyncV2(IntPtr p_instance, ref NDIlib_video_frame_v2_t p_video_data);
+
+        [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_audio_v3", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void SendSendAudioV3(IntPtr p_instance, ref NDIlib_audio_frame_v3_t p_audio_data);
 
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_get_no_connections", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int SendGetNoConnections(IntPtr p_instance, uint timeout_in_ms);

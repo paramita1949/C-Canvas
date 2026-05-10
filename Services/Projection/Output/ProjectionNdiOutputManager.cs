@@ -40,6 +40,7 @@ namespace ImageColorChanger.Services.Projection.Output
 
             SKBitmap frameToSend = frame;
             SKBitmap transformed = null;
+            SKBitmap opaque = null;
             SKBitmap watermarked = null;
             try
             {
@@ -47,6 +48,11 @@ namespace ImageColorChanger.Services.Projection.Output
                 {
                     transformed = BuildColorKeyTransparentFrame(frame, transparencyKeyColor.Value, tolerance: 8);
                     frameToSend = transformed ?? frame;
+                }
+                else if (mode == ProjectionNdiTransmissionMode.FullFrame)
+                {
+                    opaque = BuildOpaqueFrame(frameToSend);
+                    frameToSend = opaque ?? frameToSend;
                 }
 
                 watermarked = BuildWatermarkedFrameIfNeeded(frameToSend);
@@ -57,6 +63,7 @@ namespace ImageColorChanger.Services.Projection.Output
             finally
             {
                 transformed?.Dispose();
+                opaque?.Dispose();
                 watermarked?.Dispose();
             }
         }
@@ -95,6 +102,22 @@ namespace ImageColorChanger.Services.Projection.Output
                 transformed?.Dispose();
                 watermarked?.Dispose();
             }
+        }
+
+        public bool PublishAudio(ProjectionNdiAudioFrame audioFrame)
+        {
+            if (audioFrame == null)
+            {
+                return false;
+            }
+
+            if (!_sender.IsRunning && !_sender.Start(CreateOptions()))
+            {
+                ThrottledLog(ref _lastStartFailLogTick, "PublishAudio failed: sender start returned false.");
+                return false;
+            }
+
+            return _sender.SendAudio(audioFrame);
         }
 
         public void Stop()
@@ -299,6 +322,15 @@ namespace ImageColorChanger.Services.Projection.Output
                 }
             }
 
+            return output;
+        }
+
+        private static SKBitmap BuildOpaqueFrame(SKBitmap source)
+        {
+            var output = new SKBitmap(source.Info);
+            using var canvas = new SKCanvas(output);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(source, 0, 0);
             return output;
         }
 

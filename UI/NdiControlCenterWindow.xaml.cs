@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using ImageColorChanger.Services.Ndi.Audio;
 using Forms = System.Windows.Forms;
 
 namespace ImageColorChanger.UI
@@ -21,6 +23,19 @@ namespace ImageColorChanger.UI
             public string WatermarkFontFamily { get; set; } = "Microsoft YaHei UI";
             public double WatermarkFontSize { get; set; } = 48;
             public double WatermarkOpacity { get; set; } = 43;
+            public bool AudioEnabled { get; set; }
+            public string AudioSourceMode { get; set; } = "system";
+            public string AudioDeviceId { get; set; } = string.Empty;
+            public string AudioDeviceName { get; set; } = string.Empty;
+            public string AudioStatusText { get; set; } = string.Empty;
+            public IReadOnlyList<AudioDeviceOption> AudioDevices { get; set; } = Array.Empty<AudioDeviceOption>();
+        }
+
+        public sealed class AudioDeviceOption
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public bool IsDefault { get; set; }
         }
 
         private readonly Func<State> _loadState;
@@ -34,6 +49,11 @@ namespace ImageColorChanger.UI
         private readonly Action<string> _setWatermarkFontFamily;
         private readonly Action<double> _setWatermarkFontSize;
         private readonly Action<double> _setWatermarkOpacity;
+        private readonly Action<bool> _setAudioEnabled;
+        private readonly Action<string> _setAudioSourceMode;
+        private readonly Action<string> _setAudioInputDeviceId;
+        private readonly Action<string> _setAudioSystemDeviceId;
+        private readonly Action _applyAudioConfiguration;
         private readonly Action _pushWatermarkFrame;
         private bool _syncingUi;
         private string _selectedWatermarkPosition = "RightBottom";
@@ -51,6 +71,11 @@ namespace ImageColorChanger.UI
             Action<string> setWatermarkFontFamily,
             Action<double> setWatermarkFontSize,
             Action<double> setWatermarkOpacity,
+            Action<bool> setAudioEnabled,
+            Action<string> setAudioSourceMode,
+            Action<string> setAudioInputDeviceId,
+            Action<string> setAudioSystemDeviceId,
+            Action applyAudioConfiguration,
             Action pushWatermarkFrame)
         {
             _loadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
@@ -64,6 +89,11 @@ namespace ImageColorChanger.UI
             _setWatermarkFontFamily = setWatermarkFontFamily ?? throw new ArgumentNullException(nameof(setWatermarkFontFamily));
             _setWatermarkFontSize = setWatermarkFontSize ?? throw new ArgumentNullException(nameof(setWatermarkFontSize));
             _setWatermarkOpacity = setWatermarkOpacity ?? throw new ArgumentNullException(nameof(setWatermarkOpacity));
+            _setAudioEnabled = setAudioEnabled ?? throw new ArgumentNullException(nameof(setAudioEnabled));
+            _setAudioSourceMode = setAudioSourceMode ?? throw new ArgumentNullException(nameof(setAudioSourceMode));
+            _setAudioInputDeviceId = setAudioInputDeviceId ?? throw new ArgumentNullException(nameof(setAudioInputDeviceId));
+            _setAudioSystemDeviceId = setAudioSystemDeviceId ?? throw new ArgumentNullException(nameof(setAudioSystemDeviceId));
+            _applyAudioConfiguration = applyAudioConfiguration ?? throw new ArgumentNullException(nameof(applyAudioConfiguration));
             _pushWatermarkFrame = pushWatermarkFrame ?? throw new ArgumentNullException(nameof(pushWatermarkFrame));
 
             InitializeComponent();
@@ -249,6 +279,57 @@ namespace ImageColorChanger.UI
             _pushWatermarkFrame();
         }
 
+        private void AudioToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _setAudioEnabled(AudioToggle.IsChecked == true);
+            _applyAudioConfiguration();
+            RefreshUi();
+        }
+
+        private void AudioSourceComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            if (_syncingUi || !IsLoaded || AudioSourceComboBox == null)
+            {
+                return;
+            }
+
+            string mode = GetSelectedAudioSourceMode();
+            _setAudioSourceMode(mode);
+            _applyAudioConfiguration();
+            RefreshUi();
+        }
+
+        private void AudioDeviceComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            if (_syncingUi || !IsLoaded || AudioDeviceComboBox == null)
+            {
+                return;
+            }
+
+            string deviceId = AudioDeviceComboBox.SelectedValue as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(deviceId))
+            {
+                return;
+            }
+
+            string mode = GetSelectedAudioSourceMode();
+            if (mode == "input")
+            {
+                _setAudioInputDeviceId(deviceId);
+            }
+            else if (mode == "system")
+            {
+                _setAudioSystemDeviceId(deviceId);
+            }
+
+            _applyAudioConfiguration();
+            RefreshUi();
+        }
+
         private void RefreshUi()
         {
             State state = _loadState();
@@ -266,6 +347,17 @@ namespace ImageColorChanger.UI
             WatermarkOpacityTextBox.Text = WatermarkOpacitySlider.Value.ToString("0.#");
             _selectedWatermarkPosition = string.IsNullOrWhiteSpace(state.WatermarkPosition) ? "RightBottom" : state.WatermarkPosition;
             ApplyPositionButtonStyle();
+
+            AudioToggle.IsChecked = state.AudioEnabled;
+            if (AudioSourceComboBox != null)
+            {
+                AudioSourceComboBox.SelectedValue = string.IsNullOrWhiteSpace(state.AudioSourceMode) ? "system" : state.AudioSourceMode;
+            }
+            AudioDeviceComboBox.ItemsSource = state.AudioDevices ?? Array.Empty<AudioDeviceOption>();
+            AudioDeviceComboBox.SelectedValue = state.AudioDeviceId ?? string.Empty;
+            AudioSectionSummaryText.Text = BuildAudioSummaryText(state);
+            AudioStatusTextBlock.Text = string.IsNullOrWhiteSpace(state.AudioStatusText) ? " " : state.AudioStatusText;
+            AudioDeviceComboBox.IsEnabled = state.AudioEnabled && !string.Equals(state.AudioSourceMode, "none", StringComparison.OrdinalIgnoreCase);
             _syncingUi = false;
 
             bool connected = state.MasterEnabled && state.ConnectionCount > 0;
@@ -288,6 +380,34 @@ namespace ImageColorChanger.UI
             }
 
             Dispatcher.BeginInvoke(new Action(UpdateScrollHintVisibility), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private static string BuildAudioSummaryText(State state)
+        {
+            if (state == null || !state.AudioEnabled)
+            {
+                return "声音关闭";
+            }
+
+            string mode = state.AudioSourceMode switch
+            {
+                "input" => "输入设备",
+                "system" => "系统声音",
+                _ => "关闭"
+            };
+
+            string name = string.IsNullOrWhiteSpace(state.AudioDeviceName) ? "默认设备" : state.AudioDeviceName.Trim();
+            return $"{mode} · {name}";
+        }
+
+        private string GetSelectedAudioSourceMode()
+        {
+            if (AudioSourceComboBox?.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is string tag)
+            {
+                return tag;
+            }
+
+            return "system";
         }
 
         private void SetWatermarkPosition(string position)

@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.Ndi.Audio;
 
 namespace ImageColorChanger.UI
 {
@@ -47,6 +48,7 @@ namespace ImageColorChanger.UI
                 }
 
                 _ndiRouter?.StopAll();
+                _mainWindowServices?.GetRequired<INdiAudioCaptureService>()?.Stop();
                 _ndiTransportCoordinator?.StopAll();
                 StopVideoNdiTimer();
                 StopNdiDiscoveryTimer();

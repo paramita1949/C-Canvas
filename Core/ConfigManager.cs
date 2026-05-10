@@ -1651,6 +1651,26 @@ namespace ImageColorChanger.Core
         public double ProjectionNdiIdleFrameWatermarkOpacity { get; set; } = 43.0;
 
         /// <summary>
+        /// NDI 音频传输是否启用（默认：false）
+        /// </summary>
+        public bool ProjectionNdiAudioEnabled { get; set; } = false;
+
+        /// <summary>
+        /// NDI 音频来源模式（默认：system）
+        /// </summary>
+        public string ProjectionNdiAudioSourceMode { get; set; } = "system";
+
+        /// <summary>
+        /// NDI 音频输入设备 ID（默认：空）
+        /// </summary>
+        public string ProjectionNdiAudioInputDeviceId { get; set; } = "";
+
+        /// <summary>
+        /// NDI 系统音频输出设备 ID（默认：空）
+        /// </summary>
+        public string ProjectionNdiAudioSystemDeviceId { get; set; } = "";
+
+        /// <summary>
         /// 画布宽高比（默认：16:9）
         /// 可选值："16:9" 或 "4:3"
         /// </summary>
@@ -2180,6 +2200,78 @@ namespace ImageColorChanger.Core
                 if (Math.Abs(_config.ProjectionNdiIdleFrameWatermarkOpacity - next) > 0.001)
                 {
                     _config.ProjectionNdiIdleFrameWatermarkOpacity = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 是否启用 NDI 音频传输
+        /// </summary>
+        public bool ProjectionNdiAudioEnabled
+        {
+            get => _config.ProjectionNdiAudioEnabled;
+            set
+            {
+                if (_config.ProjectionNdiAudioEnabled != value)
+                {
+                    _config.ProjectionNdiAudioEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// NDI 音频来源模式（system|input|none）
+        /// </summary>
+        public string ProjectionNdiAudioSourceMode
+        {
+            get => string.IsNullOrWhiteSpace(_config.ProjectionNdiAudioSourceMode) ? "system" : _config.ProjectionNdiAudioSourceMode;
+            set
+            {
+                string next = (value ?? string.Empty).Trim().ToLowerInvariant() switch
+                {
+                    "input" => "input",
+                    "none" => "none",
+                    _ => "system"
+                };
+                if (!string.Equals(_config.ProjectionNdiAudioSourceMode ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiAudioSourceMode = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// NDI 音频输入设备 ID
+        /// </summary>
+        public string ProjectionNdiAudioInputDeviceId
+        {
+            get => _config.ProjectionNdiAudioInputDeviceId ?? string.Empty;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (!string.Equals(_config.ProjectionNdiAudioInputDeviceId ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiAudioInputDeviceId = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// NDI 系统音频输出设备 ID
+        /// </summary>
+        public string ProjectionNdiAudioSystemDeviceId
+        {
+            get => _config.ProjectionNdiAudioSystemDeviceId ?? string.Empty;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (!string.Equals(_config.ProjectionNdiAudioSystemDeviceId ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiAudioSystemDeviceId = next;
                     SaveConfig();
                 }
             }

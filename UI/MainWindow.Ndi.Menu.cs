@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using ImageColorChanger.Core;
 using ImageColorChanger.Services.Ndi;
+using ImageColorChanger.Services.Ndi.Audio;
 using ImageColorChanger.Services.Projection.Output;
 using WpfBrushes = System.Windows.Media.Brushes;
 
@@ -62,20 +66,32 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            var ndiAudioService = _mainWindowServices.GetRequired<INdiAudioCaptureService>();
             var dialog = new NdiControlCenterWindow(
-                loadState: () => new NdiControlCenterWindow.State
+                loadState: () =>
                 {
-                    MasterEnabled = _configManager?.ProjectionNdiEnabled == true,
-                    ProjectionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true,
-                    TransparentEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Transparent) == true,
-                    CaptionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Caption) == true,
-                    WatermarkEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Watermark) == true,
-                    ConnectionCount = GetTotalNdiConnectionCount(),
-                    WatermarkText = _configManager?.ProjectionNdiIdleFrameWatermarkText ?? string.Empty,
-                    WatermarkPosition = _configManager?.ProjectionNdiIdleFrameWatermarkPosition,
-                    WatermarkFontFamily = _configManager?.ProjectionNdiIdleFrameWatermarkFontFamily,
-                    WatermarkFontSize = _configManager?.ProjectionNdiIdleFrameWatermarkFontSize ?? 48,
-                    WatermarkOpacity = _configManager?.ProjectionNdiIdleFrameWatermarkOpacity ?? 43
+                    string audioMode = _configManager?.ProjectionNdiAudioSourceMode ?? "system";
+                    var audioDevices = BuildNdiAudioDeviceOptions(ndiAudioService, audioMode);
+                    return new NdiControlCenterWindow.State
+                    {
+                        MasterEnabled = _configManager?.ProjectionNdiEnabled == true,
+                        ProjectionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true,
+                        TransparentEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Transparent) == true,
+                        CaptionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Caption) == true,
+                        WatermarkEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Watermark) == true,
+                        ConnectionCount = GetTotalNdiConnectionCount(),
+                        WatermarkText = _configManager?.ProjectionNdiIdleFrameWatermarkText ?? string.Empty,
+                        WatermarkPosition = _configManager?.ProjectionNdiIdleFrameWatermarkPosition,
+                        WatermarkFontFamily = _configManager?.ProjectionNdiIdleFrameWatermarkFontFamily,
+                        WatermarkFontSize = _configManager?.ProjectionNdiIdleFrameWatermarkFontSize ?? 48,
+                        WatermarkOpacity = _configManager?.ProjectionNdiIdleFrameWatermarkOpacity ?? 43,
+                        AudioEnabled = _configManager?.ProjectionNdiAudioEnabled == true,
+                        AudioSourceMode = audioMode,
+                        AudioDevices = audioDevices,
+                        AudioDeviceId = ResolveNdiAudioSelectedDeviceId(audioDevices, _configManager, audioMode),
+                        AudioDeviceName = ResolveNdiAudioSelectedDeviceName(audioDevices, _configManager, audioMode, ndiAudioService),
+                        AudioStatusText = BuildNdiAudioStatusText(ndiAudioService, _configManager)
+                    };
                 },
                 setMaster: enabled => SetNdiMasterEnabled(enabled),
                 setProjection: enabled =>
@@ -85,6 +101,7 @@ namespace ImageColorChanger.UI
                     {
                         _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Slide);
                     }
+                    ApplyNdiAudioConfiguration();
                     ShowStatus(enabled ? "投影通道已开启" : "投影通道已关闭");
                 },
                 setCaption: enabled =>
@@ -155,6 +172,44 @@ namespace ImageColorChanger.UI
                     }
                     _configManager.ProjectionNdiIdleFrameWatermarkOpacity = Math.Clamp(opacity, 0, 100);
                 },
+                setAudioEnabled: enabled =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiAudioEnabled = enabled;
+                    ShowStatus(enabled ? "NDI音频已开启" : "NDI音频已关闭");
+                },
+                setAudioSourceMode: mode =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiAudioSourceMode = mode;
+                    if (string.Equals(mode, "none", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _configManager.ProjectionNdiAudioEnabled = false;
+                    }
+                },
+                setAudioInputDeviceId: deviceId =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiAudioInputDeviceId = deviceId ?? string.Empty;
+                },
+                setAudioSystemDeviceId: deviceId =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+                    _configManager.ProjectionNdiAudioSystemDeviceId = deviceId ?? string.Empty;
+                },
+                applyAudioConfiguration: () => ApplyNdiAudioConfiguration(),
                 pushWatermarkFrame: () =>
                 {
                     if (_configManager?.ProjectionNdiEnabled != true)
@@ -167,6 +222,98 @@ namespace ImageColorChanger.UI
                 Owner = this
             };
             dialog.ShowDialog();
+        }
+
+        private static IReadOnlyList<NdiControlCenterWindow.AudioDeviceOption> BuildNdiAudioDeviceOptions(
+            INdiAudioCaptureService audioService,
+            string mode)
+        {
+            if (audioService == null)
+            {
+                return Array.Empty<NdiControlCenterWindow.AudioDeviceOption>();
+            }
+
+            NdiAudioSourceMode sourceMode = ParseNdiAudioSourceMode(mode);
+            if (sourceMode == NdiAudioSourceMode.None)
+            {
+                return Array.Empty<NdiControlCenterWindow.AudioDeviceOption>();
+            }
+
+            return audioService.EnumerateDevices(sourceMode)
+                .Select(device => new NdiControlCenterWindow.AudioDeviceOption
+                {
+                    Id = device.Id,
+                    Name = device.IsDefault ? $"{device.Name}（默认）" : device.Name,
+                    IsDefault = device.IsDefault
+                })
+                .ToArray();
+        }
+
+        private static string ResolveNdiAudioSelectedDeviceId(
+            IReadOnlyList<NdiControlCenterWindow.AudioDeviceOption> devices,
+            ConfigManager config,
+            string mode)
+        {
+            string configured = string.Equals(mode, "input", StringComparison.OrdinalIgnoreCase)
+                ? config?.ProjectionNdiAudioInputDeviceId
+                : config?.ProjectionNdiAudioSystemDeviceId;
+
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return configured;
+            }
+
+            return devices?.FirstOrDefault(device => device.IsDefault)?.Id
+                   ?? devices?.FirstOrDefault()?.Id
+                   ?? string.Empty;
+        }
+
+        private static string ResolveNdiAudioSelectedDeviceName(
+            IReadOnlyList<NdiControlCenterWindow.AudioDeviceOption> devices,
+            ConfigManager config,
+            string mode,
+            INdiAudioCaptureService audioService)
+        {
+            if (audioService?.IsRunning == true && !string.IsNullOrWhiteSpace(audioService.CurrentDeviceName))
+            {
+                return audioService.CurrentDeviceName;
+            }
+
+            string selectedId = ResolveNdiAudioSelectedDeviceId(devices, config, mode);
+            return devices?.FirstOrDefault(device => string.Equals(device.Id, selectedId, StringComparison.OrdinalIgnoreCase))?.Name
+                   ?? string.Empty;
+        }
+
+        private static string BuildNdiAudioStatusText(INdiAudioCaptureService audioService, ConfigManager config)
+        {
+            if (audioService == null)
+            {
+                return "音频服务未初始化。";
+            }
+
+            if (config?.ProjectionNdiAudioEnabled != true)
+            {
+                return "声音已关闭。";
+            }
+
+            if (!string.IsNullOrWhiteSpace(audioService.LastError))
+            {
+                return audioService.LastError;
+            }
+
+            return audioService.IsRunning
+                ? $"正在传输：{audioService.CurrentDeviceName}"
+                : "启用总开关和音频后开始传输声音。";
+        }
+
+        private static NdiAudioSourceMode ParseNdiAudioSourceMode(string mode)
+        {
+            return mode?.Trim().ToLowerInvariant() switch
+            {
+                "input" => NdiAudioSourceMode.Input,
+                "system" => NdiAudioSourceMode.System,
+                _ => NdiAudioSourceMode.None
+            };
         }
 
         private void UpdateNdiRuntimeStatusItem(MenuItem statusItem)
@@ -192,6 +339,7 @@ namespace ImageColorChanger.UI
             _configManager.ProjectionNdiEnabled = enabled;
             if (!enabled)
             {
+                ApplyNdiAudioConfiguration();
                 _ndiTransportCoordinator?.StopAll();
                 StopVideoNdiTimer();
                 StopNdiDiscoveryTimer();
@@ -224,8 +372,20 @@ namespace ImageColorChanger.UI
 
             PushWatermarkIdleFramesForEnabledChannels();
             _ndiTransportCoordinator?.PushTransparentIdleFrame(NdiChannel.Watermark);
+            ApplyNdiAudioConfiguration();
             StartNdiDiscoveryTimer(resetWindow: true);
             ShowStatus("NDI已开启，等待客户端连接");
+        }
+
+        private void ApplyNdiAudioConfiguration()
+        {
+            try
+            {
+                _mainWindowServices?.GetRequired<INdiAudioCaptureService>()?.ApplyConfiguration();
+            }
+            catch
+            {
+            }
         }
 
         private static Separator CreateNdiMenuSeparator()
