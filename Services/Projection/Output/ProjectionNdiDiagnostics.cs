@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 namespace ImageColorChanger.Services.Projection.Output
 {
     internal static class ProjectionNdiDiagnostics
@@ -10,7 +11,12 @@ namespace ImageColorChanger.Services.Projection.Output
 
         public static void Log(string message)
         {
-            _ = message;
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            Trace.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}");
         }
 
         public static void LogException(string title, Exception ex)

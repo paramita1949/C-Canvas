@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         Title="NDI网络流控制台"
-        Height="640"
+        Height="580"
         Width="860"
-        MinHeight="640"
+        MinHeight="580"
         MinWidth="860"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
@@ -17,14 +17,14 @@
             <Setter Property="BorderBrush" Value="#E6EDF5"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="14"/>
-            <Setter Property="Padding" Value="18,16,18,16"/>
+            <Setter Property="Padding" Value="14,12,14,12"/>
         </Style>
         <Style x:Key="OptionRowStyle" TargetType="Border">
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="BorderBrush" Value="#E5ECF4"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="#FBFDFF"/>
-            <Setter Property="Padding" Value="10,6,10,6"/>
+            <Setter Property="Padding" Value="10,5,10,5"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
         <Style x:Key="SwitchStyle" TargetType="primitives:ToggleButton">
@@ -61,7 +61,7 @@
             </Setter>
         </Style>
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="34"/>
             <Setter Property="MinWidth" Value="132"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Background" Value="#2563EB"/>
@@ -71,7 +71,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="34"/>
             <Setter Property="MinWidth" Value="112"/>
             <Setter Property="Padding" Value="14,0"/>
             <Setter Property="Background" Value="White"/>
@@ -82,7 +82,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style x:Key="MiniPosButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="32"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="MinWidth" Value="58"/>
             <Setter Property="Padding" Value="10,0"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
@@ -185,19 +185,19 @@
             <Setter Property="Foreground" Value="#1E3A8A"/>
         </Style>
         <Style x:Key="WatermarkLabelStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,10,0,5"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="#64748B"/>
         </Style>
         <Style x:Key="WatermarkInputStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="36"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="#CBD5E1"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="#FBFDFF"/>
         </Style>
         <Style x:Key="CompactComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="#CBD5E1"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -229,18 +229,18 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20,16,20,16">
+    <Grid Margin="20,10,20,10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="10"/>
+            <RowDefinition Height="6"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="10"/>
+            <RowDefinition Height="6"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
                 CornerRadius="14"
-                Padding="16,12,16,12"
+                Padding="16,10,16,10"
                 Background="#0F172A">
             <Grid>
                 <Grid.RowDefinitions>
@@ -254,12 +254,12 @@
 
                 <StackPanel Grid.Row="0" Grid.Column="0">
                     <TextBlock Text="NDI网络流控制台"
-                               FontSize="23"
+                               FontSize="21"
                                FontWeight="Bold"
                                Foreground="White"/>
                     <TextBlock Text="统一管理投影、透明、字幕、水印"
-                               Margin="0,3,0,0"
-                               FontSize="13"
+                               Margin="0,2,0,0"
+                               FontSize="12"
                                Foreground="#BFDBFE"/>
                 </StackPanel>
                 <StackPanel Grid.Row="0"
@@ -271,7 +271,7 @@
                             VerticalAlignment="Center"
                             CornerRadius="999"
                             BorderThickness="1"
-                            Padding="12,6,12,6">
+                            Padding="12,5,12,5">
                         <TextBlock x:Name="RuntimeBadgeText"
                                    FontSize="12"
                                    FontWeight="SemiBold"/>
@@ -285,12 +285,12 @@
 
                 <Border Grid.Row="1"
                         Grid.ColumnSpan="2"
-                        Margin="0,12,0,0"
+                        Margin="0,8,0,0"
                         CornerRadius="10"
                         Background="#142447"
                         BorderBrush="#1D335E"
                         BorderThickness="1"
-                        Padding="10,8,10,8">
+                        Padding="10,6,10,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -300,13 +300,13 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="总开关 " FontSize="12" Foreground="#93C5FD"/>
-                            <TextBlock x:Name="MasterSummaryText" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="总开关 " FontSize="11.5" Foreground="#93C5FD"/>
+                            <TextBlock x:Name="MasterSummaryText" FontSize="13" FontWeight="Bold" Foreground="White"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="连接数 " FontSize="12" Foreground="#93C5FD"/>
-                            <TextBlock x:Name="ConnectionSummaryText" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="连接数 " FontSize="11.5" Foreground="#93C5FD"/>
+                            <TextBlock x:Name="ConnectionSummaryText" FontSize="13" FontWeight="Bold" Foreground="White"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -328,9 +328,9 @@
                         <RowDefinition Height="8"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="投放控制" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B"/>
+                    <TextBlock Grid.Row="0" Text="投放控制" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B"/>
                     <TextBlock Grid.Row="1" Text="按通道独立开关，支持实时生效"
-                               Margin="0,4,0,0"
+                               Margin="0,2,0,0"
                                FontSize="12"
                                Foreground="#64748B"/>
 
@@ -465,147 +465,174 @@
 
             <Border Grid.Column="2" Style="{StaticResource CardStyle}">
                 <StackPanel>
-                    <TextBlock Text="水印（实时）" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B"/>
-
-                    <TextBlock Text="文字" Style="{StaticResource WatermarkLabelStyle}"/>
-                    <TextBox x:Name="WatermarkTextTextBox"
-                             Style="{StaticResource WatermarkInputStyle}"
-                             Padding="10,0,10,0"
-                             TextChanged="WatermarkTextTextBox_TextChanged"/>
-
-                    <TextBlock Text="位置" Style="{StaticResource WatermarkLabelStyle}"/>
-                    <Border BorderBrush="#CBD5E1" BorderThickness="0" CornerRadius="10" Background="Transparent">
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="PosLeftTopButton" Content="左上" Style="{StaticResource SegmentPosButtonLeftStyle}" Click="PosLeftTopButton_Click"/>
-                            <Button x:Name="PosRightTopButton" Content="右上" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosRightTopButton_Click"/>
-                            <Button x:Name="PosLeftBottomButton" Content="左下" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosLeftBottomButton_Click"/>
-                            <Button x:Name="PosRightBottomButton" Content="右下" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosRightBottomButton_Click"/>
-                            <Button x:Name="PosCenterButton" Content="居中" Style="{StaticResource SegmentPosButtonRightStyle}" Click="PosCenterButton_Click"/>
-                        </StackPanel>
-                    </Border>
-
-                    <TextBlock Text="字体" Style="{StaticResource WatermarkLabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="WatermarkFontTextBox"
-                                 Style="{StaticResource WatermarkInputStyle}"
-                                 IsReadOnly="True"
-                                 Padding="10,0,10,0"
-                                 MinWidth="150"/>
-                        <Button Grid.Column="2"
-                                Content="选择字体"
+
+                        <Button x:Name="WatermarkTabButton"
+                                Grid.Column="0"
+                                Content="水印设置"
                                 Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ChooseFontButton_Click"/>
+                                Height="40"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Click="WatermarkTabButton_Click"/>
+                        <Button x:Name="AudioTabButton"
+                                Grid.Column="2"
+                                Content="音频设置"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Height="40"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Click="AudioTabButton_Click"/>
                     </Grid>
 
-                    <TextBlock Text="字号" Style="{StaticResource WatermarkLabelStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="78"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider x:Name="WatermarkSizeSlider"
-                                Minimum="10"
-                                Maximum="220"
-                                TickFrequency="2"
-                                VerticalAlignment="Center"
-                                ValueChanged="WatermarkSizeSlider_ValueChanged"/>
-                        <TextBox x:Name="WatermarkSizeTextBox"
-                                 Grid.Column="2"
-                                 Style="{StaticResource WatermarkInputStyle}"
-                                 TextAlignment="Center"
-                                 TextChanged="WatermarkSizeTextBox_TextChanged"/>
-                    </Grid>
+                    <StackPanel x:Name="WatermarkSectionPanel" Margin="0,6,0,0">
+                            <TextBlock Text="文字" Style="{StaticResource WatermarkLabelStyle}"/>
+                            <TextBox x:Name="WatermarkTextTextBox"
+                                     Style="{StaticResource WatermarkInputStyle}"
+                                     Padding="10,0,10,0"
+                                     TextChanged="WatermarkTextTextBox_TextChanged"/>
 
-                    <TextBlock Text="透明度" Style="{StaticResource WatermarkLabelStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="78"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider x:Name="WatermarkOpacitySlider"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="1"
-                                VerticalAlignment="Center"
-                                ValueChanged="WatermarkOpacitySlider_ValueChanged"/>
-                        <TextBox x:Name="WatermarkOpacityTextBox"
-                                 Grid.Column="2"
-                                 Style="{StaticResource WatermarkInputStyle}"
-                                 TextAlignment="Center"
-                                 TextChanged="WatermarkOpacityTextBox_TextChanged"/>
-                    </Grid>
+                            <TextBlock Text="位置" Style="{StaticResource WatermarkLabelStyle}"/>
+                            <Border BorderBrush="#CBD5E1" BorderThickness="0" CornerRadius="10" Background="Transparent">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="PosLeftTopButton" Content="左上" Style="{StaticResource SegmentPosButtonLeftStyle}" Click="PosLeftTopButton_Click"/>
+                                    <Button x:Name="PosRightTopButton" Content="右上" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosRightTopButton_Click"/>
+                                    <Button x:Name="PosLeftBottomButton" Content="左下" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosLeftBottomButton_Click"/>
+                                    <Button x:Name="PosRightBottomButton" Content="右下" Style="{StaticResource SegmentPosButtonMidStyle}" Click="PosRightBottomButton_Click"/>
+                                    <Button x:Name="PosCenterButton" Content="居中" Style="{StaticResource SegmentPosButtonRightStyle}" Click="PosCenterButton_Click"/>
+                                </StackPanel>
+                            </Border>
 
-                    <Border Margin="0,12,0,0"
-                            Padding="12,10,12,10"
+                            <TextBlock Text="字体" Style="{StaticResource WatermarkLabelStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="WatermarkFontTextBox"
+                                         Style="{StaticResource WatermarkInputStyle}"
+                                         IsReadOnly="True"
+                                         Padding="10,0,10,0"
+                                         MinWidth="150"/>
+                                <Button Grid.Column="2"
+                                        Content="选择字体"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Click="ChooseFontButton_Click"/>
+                            </Grid>
+
+                            <TextBlock Text="字号" Style="{StaticResource WatermarkLabelStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="78"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="WatermarkSizeSlider"
+                                        Minimum="10"
+                                        Maximum="220"
+                                        TickFrequency="2"
+                                        VerticalAlignment="Center"
+                                        ValueChanged="WatermarkSizeSlider_ValueChanged"/>
+                                <TextBox x:Name="WatermarkSizeTextBox"
+                                         Grid.Column="2"
+                                         Style="{StaticResource WatermarkInputStyle}"
+                                         TextAlignment="Center"
+                                         TextChanged="WatermarkSizeTextBox_TextChanged"/>
+                            </Grid>
+
+                            <TextBlock Text="透明度" Style="{StaticResource WatermarkLabelStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="78"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="WatermarkOpacitySlider"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        TickFrequency="1"
+                                        VerticalAlignment="Center"
+                                        ValueChanged="WatermarkOpacitySlider_ValueChanged"/>
+                                <TextBox x:Name="WatermarkOpacityTextBox"
+                                         Grid.Column="2"
+                                         Style="{StaticResource WatermarkInputStyle}"
+                                         TextAlignment="Center"
+                                         TextChanged="WatermarkOpacityTextBox_TextChanged"/>
+                            </Grid>
+                    </StackPanel>
+
+                    <Border x:Name="AudioSectionPanel"
+                            Margin="0,6,0,0"
+                            Visibility="Collapsed"
+                            Padding="12,8,12,8"
                             CornerRadius="12"
                             Background="#F8FBFF"
                             BorderBrush="#E2E8F0"
                             BorderThickness="1">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="音频"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="#1E293B"/>
-                                    <TextBlock x:Name="AudioSectionSummaryText"
-                                               Margin="0,2,0,0"
-                                               FontSize="11.5"
-                                               Foreground="#64748B"/>
-                                </StackPanel>
-                                <primitives:ToggleButton x:Name="AudioToggle"
-                                                         Grid.Column="1"
-                                                         Style="{StaticResource SwitchStyle}"
-                                                         Click="AudioToggle_Click"/>
-                            </Grid>
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="音频"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#1E293B"/>
+                                        <TextBlock x:Name="AudioSectionSummaryText"
+                                                   Margin="0,2,0,0"
+                                                   FontSize="11.5"
+                                                   Foreground="#64748B"/>
+                                    </StackPanel>
+                                    <primitives:ToggleButton x:Name="AudioToggle"
+                                                             Grid.Column="1"
+                                                             Style="{StaticResource SwitchStyle}"
+                                                             Click="AudioToggle_Click"/>
+                                </Grid>
 
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="116"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="AudioSourceComboBox"
-                                          Style="{StaticResource CompactComboBoxStyle}"
-                                          SelectedValuePath="Tag"
-                                          SelectionChanged="AudioSourceComboBox_SelectionChanged">
-                                    <ComboBoxItem Content="系统声音" Tag="system"/>
-                                    <ComboBoxItem Content="输入设备" Tag="input"/>
-                                </ComboBox>
-                                <ComboBox x:Name="AudioDeviceComboBox"
-                                          Grid.Column="2"
-                                          Style="{StaticResource CompactComboBoxStyle}"
-                                          DisplayMemberPath="Name"
-                                          SelectedValuePath="Id"
-                                          SelectionChanged="AudioDeviceComboBox_SelectionChanged"/>
-                            </Grid>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="116"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="AudioSourceComboBox"
+                                              Style="{StaticResource CompactComboBoxStyle}"
+                                              SelectedValuePath="Tag"
+                                              SelectionChanged="AudioSourceComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="系统声音" Tag="system"/>
+                                        <ComboBoxItem Content="输入设备" Tag="input"/>
+                                    </ComboBox>
+                                    <ComboBox x:Name="AudioDeviceComboBox"
+                                              Grid.Column="2"
+                                              Style="{StaticResource CompactComboBoxStyle}"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Id"
+                                              SelectionChanged="AudioDeviceComboBox_SelectionChanged"/>
+                                </Grid>
 
-                            <TextBlock x:Name="AudioStatusTextBlock"
-                                       Margin="0,6,0,0"
-                                       FontSize="11.5"
-                                       TextWrapping="Wrap"
-                                       Foreground="#64748B"/>
-                        </StackPanel>
-                    </Border>
-
+                                <TextBlock x:Name="AudioStatusTextBlock"
+                                           Margin="0,6,0,0"
+                                           FontSize="11.5"
+                                           TextWrapping="Wrap"
+                                           Foreground="#64748B"/>
+                            </StackPanel>
+                        </Border>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,2">
             <Button Content="关闭"
                     Width="96"
+                    Height="32"
                     Style="{StaticResource SecondaryButtonStyle}"
                     Click="CloseButton_Click"/>
         </StackPanel>

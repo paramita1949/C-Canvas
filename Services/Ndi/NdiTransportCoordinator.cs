@@ -18,6 +18,7 @@ namespace ImageColorChanger.Services.Ndi
         private readonly IServiceProvider _services;
         private readonly object _sync = new();
         private readonly Dictionary<NdiChannel, ProjectionNdiOutputManager> _channelManagers = new();
+        private long _lastAudioRouteLogTick;
 
         public NdiTransportCoordinator(
             ConfigManager configManager,
@@ -83,19 +84,21 @@ namespace ImageColorChanger.Services.Ndi
                 return false;
             }
 
-            var manager = GetExistingManager(NdiChannel.Slide);
+            var manager = GetExistingManager(NdiChannel.Watermark);
             if (manager == null)
             {
-                ProjectionNdiDiagnostics.Log("PublishAudio skipped: Slide manager not created yet.");
+                ProjectionNdiDiagnostics.Log(
+                    $"PublishAudio skipped: Watermark manager not created. master={_configManager?.ProjectionNdiEnabled}, watermarkChannel=off");
                 return false;
             }
 
-            bool sent = manager?.PublishAudio(audioFrame) == true;
+            LogAudioRouteIfDue();
+            bool sent = manager.PublishAudio(audioFrame);
             if (!sent)
             {
-                ProjectionNdiDiagnostics.Log("PublishAudio failed: channel=Slide");
+                ProjectionNdiDiagnostics.Log(
+                    $"PublishAudio failed: channel={NdiChannel.Watermark}, sampleRate={audioFrame.SampleRate}, channels={audioFrame.ChannelCount}, samplesPerChannel={audioFrame.SamplesPerChannel}");
             }
-
             return sent;
         }
 
@@ -170,6 +173,18 @@ namespace ImageColorChanger.Services.Ndi
             {
                 return _channelManagers.TryGetValue(channel, out var existing) ? existing : null;
             }
+        }
+
+        private void LogAudioRouteIfDue()
+        {
+            long now = Environment.TickCount64;
+            if (now - _lastAudioRouteLogTick < 5000)
+            {
+                return;
+            }
+
+            _lastAudioRouteLogTick = now;
+            ProjectionNdiDiagnostics.Log("PublishAudio route: target=Watermark");
         }
 
         private IProjectionNdiSender CreateSenderInstance()

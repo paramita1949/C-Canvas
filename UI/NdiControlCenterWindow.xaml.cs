@@ -58,6 +58,7 @@ namespace ImageColorChanger.UI
         private bool _syncingUi;
         private string _selectedWatermarkPosition = "RightBottom";
         private bool _scrollHintDismissed;
+        private bool _showWatermarkSection = true;
 
         public NdiControlCenterWindow(
             Func<State> loadState,
@@ -380,6 +381,58 @@ namespace ImageColorChanger.UI
             }
 
             Dispatcher.BeginInvoke(new Action(UpdateScrollHintVisibility), System.Windows.Threading.DispatcherPriority.Loaded);
+            ApplyDetailSectionState();
+        }
+
+        private void WatermarkTabButton_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            _showWatermarkSection = true;
+            ApplyDetailSectionState();
+        }
+
+        private void AudioTabButton_Click(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            _showWatermarkSection = false;
+            ApplyDetailSectionState();
+        }
+
+        private void ApplyDetailSectionState()
+        {
+            if (WatermarkSectionPanel != null)
+            {
+                WatermarkSectionPanel.Visibility = _showWatermarkSection ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (AudioSectionPanel != null)
+            {
+                AudioSectionPanel.Visibility = _showWatermarkSection ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            if (WatermarkTabButton != null)
+            {
+                WatermarkTabButton.Background = _showWatermarkSection
+                    ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235))
+                    : System.Windows.Media.Brushes.White;
+                WatermarkTabButton.Foreground = _showWatermarkSection
+                    ? System.Windows.Media.Brushes.White
+                    : new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59));
+                WatermarkTabButton.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225));
+            }
+
+            if (AudioTabButton != null)
+            {
+                AudioTabButton.Background = _showWatermarkSection
+                    ? System.Windows.Media.Brushes.White
+                    : new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235));
+                AudioTabButton.Foreground = _showWatermarkSection
+                    ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59))
+                    : System.Windows.Media.Brushes.White;
+                AudioTabButton.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225));
+            }
         }
 
         private static string BuildAudioSummaryText(State state)
