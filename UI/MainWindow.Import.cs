@@ -142,16 +142,24 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
-            // AI字幕
-            var aiItem = new MenuItem { Header = "AI字幕" };
+            // AI平台
+            var aiItem = new MenuItem { Header = "AI平台" };
 
-            var aiConfigItem = new MenuItem { Header = "配置" };
-            aiConfigItem.Click += (s, args) => OpenAiConfigFile();
-            aiItem.Items.Add(aiConfigItem);
+            var aiPanelItem = new MenuItem { Header = "AI面板" };
+            aiPanelItem.Click += (s, args) => OpenAiSubtitlePanel();
+            aiItem.Items.Add(aiPanelItem);
 
-            var aiStartItem = new MenuItem { Header = "开启" };
-            aiStartItem.Click += (s, args) => StartLiveCaption(_liveCaptionCurrentSource);
-            aiItem.Items.Add(aiStartItem);
+            var panelConfigItem = new MenuItem { Header = "面板配置" };
+            panelConfigItem.Click += (s, args) => OpenAiPlatformWindow(focusDeepSeekConfig: true);
+            aiItem.Items.Add(panelConfigItem);
+
+            var aiCaptionItem = new MenuItem { Header = "AI字幕" };
+            aiCaptionItem.Click += (s, args) => OpenAiRealtimeSubtitle();
+            aiItem.Items.Add(aiCaptionItem);
+
+            var subtitleConfigItem = new MenuItem { Header = "字幕配置" };
+            subtitleConfigItem.Click += (s, args) => OpenAiConfigFile();
+            aiItem.Items.Add(subtitleConfigItem);
 
             contextMenu.Items.Add(aiItem);
 

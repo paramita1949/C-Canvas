@@ -1208,7 +1208,11 @@ namespace ImageColorChanger.Services.LiveCaption
                 await _xfyunRealtimeWs.ConnectAsync(new Uri(url), cancellationToken);
                 sw.Stop();
                 LastTranscribeElapsedMs = sw.ElapsedMilliseconds;
-                _xfyunRealtimeReceiveTask = Task.Run(() => ReceiveXfyunRealtimeLoopAsync(_xfyunRealtimeWs, cancellationToken), cancellationToken);
+                var receiveSocket = _xfyunRealtimeWs;
+                _xfyunRealtimeReceiveTask = StartWebSocketReceiveLoopAsync(
+                    receiveSocket,
+                    cancellationToken,
+                    ReceiveXfyunRealtimeLoopAsync);
                 _xfyunRealtimeStatusHandler?.Invoke("讯飞实时ASR连接成功");
                 LogXfyunDiag($"connect ok, elapsedMs={LastTranscribeElapsedMs}, state={_xfyunRealtimeWs.State}, host={XfyunRealtimeHost}, path={XfyunRealtimePath}");
                 return true;
@@ -1852,6 +1856,19 @@ namespace ImageColorChanger.Services.LiveCaption
                 LogXfyunDiag($"recv fail, ex={ex.GetType().Name}, msg={ex.Message}, state={ws.State}, closeStatus={ws.CloseStatus}, closeDesc={ws.CloseStatusDescription}");
                 _xfyunRealtimeStatusHandler?.Invoke(LastError);
             }
+        }
+
+        internal static Task StartWebSocketReceiveLoopAsync(
+            ClientWebSocket socketSnapshot,
+            CancellationToken cancellationToken,
+            Func<ClientWebSocket, CancellationToken, Task> receiveLoopAsync)
+        {
+            if (socketSnapshot == null || receiveLoopAsync == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Task.Run(() => receiveLoopAsync(socketSnapshot, cancellationToken), cancellationToken);
         }
 
         private async Task ReceiveDoubaoRealtimeLoopAsync(ClientWebSocket ws, CancellationToken cancellationToken)

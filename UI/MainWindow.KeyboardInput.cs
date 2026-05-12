@@ -60,6 +60,15 @@ namespace ImageColorChanger.UI
                 }
             }
 
+            if (key == Key.F5 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                if (ToggleAiAssistantPanelVisibilityByShortcut())
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if (Keyboard.Modifiers == ModifierKeys.Control && (key == Key.C || key == Key.V))
             {
                 if (SlideListBox?.IsKeyboardFocusWithin == true)

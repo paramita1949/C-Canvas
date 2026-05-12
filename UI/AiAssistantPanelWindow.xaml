@@ -1,0 +1,246 @@
+<Window x:Class="ImageColorChanger.UI.AiAssistantPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
+        Title="AI面板"
+        Width="340"
+        Height="430"
+        MinWidth="280"
+        MinHeight="64"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Microsoft YaHei UI"
+        Topmost="False"
+        ShowInTaskbar="False"
+        SizeChanged="Window_SizeChanged"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Window.Resources>
+        <Style x:Key="HudIconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="#2200B8FF"/>
+            <Setter Property="Foreground" Value="#EAF9FF"/>
+            <Setter Property="BorderBrush" Value="#447DE7FF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="HudThresholdButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#EAF9FF"/>
+            <Setter Property="Background" Value="#132D44"/>
+            <Setter Property="BorderBrush" Value="#4D90C4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="MinWidth" Value="26"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1C4160"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#2F8CD7"/>
+                    <Setter Property="BorderBrush" Value="#88CAFF"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="PanelChromeBorder"
+            Background="#C0101A28"
+            BorderBrush="#8896E6FF"
+            BorderThickness="1"
+            CornerRadius="16"
+            Padding="10">
+        <Border.Effect>
+            <DropShadowEffect Color="#206EA8FF"
+                              BlurRadius="18"
+                              ShadowDepth="0"
+                              Opacity="0.45"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0"
+                  Margin="0,0,0,8"
+                  MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Fill="#55E7FF" Margin="0,0,8,0"/>
+                    <TextBlock Text="AI面板"
+                               Foreground="#F4FBFF"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <Border Background="#223CD7FF"
+                            BorderBrush="#558DEAFF"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="7,2"
+                            Margin="8,0,0,0">
+                        <TextBlock x:Name="ModelNameText"
+                                   Text="DeepSeek"
+                                   Foreground="#BFEFFF"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="CollapseButton"
+                            Content="▾"
+                            ToolTip="折叠/展开"
+                            Style="{StaticResource HudIconButtonStyle}"
+                            Click="CollapseButton_Click"/>
+                    <Button Content="清"
+                            ToolTip="清空信息流"
+                            Style="{StaticResource HudIconButtonStyle}"
+                            Margin="6,0,0,0"
+                            Click="ClearButton_Click"/>
+                    <Button Content="×"
+                            ToolTip="关闭"
+                            Style="{StaticResource HudIconButtonStyle}"
+                            Margin="6,0,0,0"
+                            Click="CloseButton_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid x:Name="MetaSectionGrid"
+                  Grid.Row="1"
+                  Margin="0,0,0,10"
+                  MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock x:Name="ProjectTitleText"
+                               Text="未读取主题"
+                               Foreground="#F4FBFF"
+                               FontSize="13"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="StatusText"
+                               Text="等待AI解读或ASR字幕"
+                               Foreground="#A9C8DD"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="阈值"
+                                       Foreground="#B7D3E8"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0"/>
+                            <Border BorderBrush="#4D90C4"
+                                    BorderThickness="1"
+                                    CornerRadius="7"
+                                    Background="#132D44">
+                                <UniformGrid Rows="1" Columns="3">
+                                    <ToggleButton x:Name="ThresholdLowButton"
+                                                  Content="低"
+                                                  ToolTipService.ShowDuration="20000"
+                                                  Style="{StaticResource HudThresholdButtonStyle}"
+                                                  Checked="ThresholdToggleButton_Checked"/>
+                                    <ToggleButton x:Name="ThresholdMidButton"
+                                                  Content="中"
+                                                  ToolTipService.ShowDuration="20000"
+                                                  Style="{StaticResource HudThresholdButtonStyle}"
+                                                  Checked="ThresholdToggleButton_Checked"/>
+                                    <ToggleButton x:Name="ThresholdHighButton"
+                                                  Content="高"
+                                                  ToolTipService.ShowDuration="20000"
+                                                  Style="{StaticResource HudThresholdButtonStyle}"
+                                                  Checked="ThresholdToggleButton_Checked"/>
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Right">
+                            <TextBlock Text="透明"
+                                       Foreground="#B7D3E8"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0"/>
+                            <Slider x:Name="PanelOpacitySlider"
+                                    Width="76"
+                                    Minimum="35"
+                                    Maximum="100"
+                                    TickFrequency="5"
+                                    Value="80"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip="调节面板背景透明度"
+                                    ValueChanged="PanelOpacitySlider_ValueChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <Border x:Name="MessageContainerBorder"
+                    Grid.Row="2"
+                    Background="#9C091423"
+                    BorderBrush="#5C93E2FF"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="8">
+                <Grid>
+                    <ScrollViewer x:Name="MessageScrollViewer"
+                                  SizeChanged="MessageScrollViewer_SizeChanged"
+                                  VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Hidden">
+                        <StackPanel x:Name="MessageStackPanel"/>
+                    </ScrollViewer>
+                    <StackPanel x:Name="EmptyStatePanel"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Width="220">
+                        <TextBlock Text="AI信息流"
+                                   Foreground="#F4FBFF"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   TextAlignment="Center"/>
+                        <TextBlock Text="主题、字幕、经文候选和写入状态会显示在这里。"
+                                   Foreground="#93B4CC"
+                                   FontSize="12"
+                                   LineHeight="18"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid x:Name="FooterHintGrid" Grid.Row="3" Margin="0,8,0,0">
+                <TextBlock Text="拖动空白处移动 · 右下角缩放"
+                           Foreground="#7FA8C0"
+                           FontSize="10"
+                           VerticalAlignment="Center"/>
+                <primitives:ResizeGrip Width="16"
+                                        Height="16"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Bottom"
+                                        Opacity="0.65"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

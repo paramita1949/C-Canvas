@@ -350,6 +350,7 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
+            _configManager.LiveCaptionRealtimeEnabled = true;
             StartLiveCaption(_liveCaptionCurrentSource);
         }
 
@@ -475,10 +476,11 @@ namespace ImageColorChanger.UI
             bool shortPhraseEnabled = _configManager.LiveCaptionShortPhraseEnabled;
             if (!LiveCaptionStartupPolicy.ShouldAutoStartRecognition(realtimeEnabled, shortPhraseEnabled))
             {
-                LiveCaptionDebugLogger.Log("Start: no recognition mode enabled, panel opened without starting engines.");
-                ShowStatus("请选择实时语音或经文识别");
-                RegisterLiveCaptionF4HotKey();
-                return;
+                _configManager.LiveCaptionRealtimeEnabled = true;
+                realtimeEnabled = true;
+                _liveCaptionOverlayWindow.SetRecognitionToggleStates(realtimeEnabled, shortPhraseEnabled);
+                LiveCaptionDebugLogger.Log("Start: no recognition mode enabled, auto-enabled realtime recognition.");
+                ShowStatus("已自动启用实时语音识别");
             }
 
             RegisterLiveCaptionF4HotKey();
@@ -733,6 +735,8 @@ namespace ImageColorChanger.UI
                 {
                     TouchLiveCaptionRecognitionActivity();
                 }
+
+                ForwardLiveCaptionAsrToAi(update);
 
                 // 经文匹配：不依赖 overlay 窗口，静默运行也能触发
                 // 策略分层：
@@ -3258,7 +3262,15 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                LiveCaptionDebugLogger.Log($"F4: hide ignored source={source}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}.");
+                // 第二次按 F4：从手动隐藏状态恢复显示，不要求先点菜单。
+                _liveCaptionOverlayManuallyHidden = false;
+                _liveCaptionOverlayWindow.Show();
+                _liveCaptionOverlayWindow.RefreshDockLayoutNow();
+                _liveCaptionOverlayWindow.UpdateCaption(
+                    _liveCaptionComposer?.CurrentDisplay ?? string.Empty,
+                    _liveCaptionComposer?.CurrentHighlightStart ?? -1);
+                ApplyMainWindowLiveCaptionReservation();
+                LiveCaptionDebugLogger.Log($"F4: overlay shown source={source}.");
             }
             finally
             {

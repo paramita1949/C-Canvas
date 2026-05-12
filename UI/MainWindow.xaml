@@ -156,8 +156,8 @@
                     </Button>
 
                     <Button x:Name="BtnAiCaption" Style="{StaticResource MenuButtonStyle}"
-                            Width="{Binding ElementName=BtnColorEffect, Path=ActualWidth}"
-                            ToolTip="AI字幕" Click="BtnAiCaption_Click">
+                            MinWidth="92"
+                            ToolTip="打开 字幕" Click="BtnAiCaption_Click">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucideCaptions}" Style="{StaticResource LucideIconPathStyle}" Margin="0,0,6,0"/>
                             <TextBlock Text="字幕" VerticalAlignment="Center"/>
@@ -1646,4 +1646,3 @@
         </Border>
     </Grid>
 </Window>
-

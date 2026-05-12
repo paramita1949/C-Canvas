@@ -914,13 +914,64 @@ namespace ImageColorChanger.Services
 
         private string GetShortSpeechProvider()
         {
-            return (_config.LiveCaptionShortAsrProvider ?? string.Empty).Trim().ToLowerInvariant() switch
+            string configured = (_config.LiveCaptionShortAsrProvider ?? string.Empty).Trim().ToLowerInvariant() switch
             {
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 "xfyun" => "xfyun",
                 _ => "xfyun"
             };
+
+            if (string.Equals(configured, "xfyun", StringComparison.Ordinal))
+            {
+                if (HasXfyunCredentials())
+                {
+                    return "xfyun";
+                }
+
+                if (HasBaiduCredentials())
+                {
+                    // 兼容老配置：默认切到讯飞但未配置讯飞凭据时，回退百度短语识别。
+                    return "baidu";
+                }
+            }
+
+            if (string.Equals(configured, "doubao", StringComparison.Ordinal) && HasDoubaoCredentials())
+            {
+                return "doubao";
+            }
+
+            if (HasBaiduCredentials())
+            {
+                return "baidu";
+            }
+
+            if (HasXfyunCredentials())
+            {
+                return "xfyun";
+            }
+
+            return configured;
+        }
+
+        private bool HasBaiduCredentials()
+        {
+            return !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduAppId)
+                && !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduApiKey)
+                && !string.IsNullOrWhiteSpace(_config.LiveCaptionBaiduSecretKey);
+        }
+
+        private bool HasXfyunCredentials()
+        {
+            return !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunAppId)
+                && !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiKey)
+                && !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiSecret);
+        }
+
+        private bool HasDoubaoCredentials()
+        {
+            return !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey)
+                && !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey);
         }
 
         private static string ResolveXfyunShortSpeechWsUrl(string configuredUrl)

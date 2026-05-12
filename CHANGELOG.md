@@ -1,5 +1,19 @@
 # Changelog
 
+## 6.0.5.8 (2026-05-12)
+
+### Added
+
+- 新增 AI 讲章相关配置与服务模块（`Core/ConfigManager.AiSermon.cs`、`Services/Ai/`）。
+- 新增 AI 平台与 AI 助手窗口（`UI/AiPlatformWindow*`、`UI/AiAssistantPanelWindow*`）及主窗口入口（`MainWindow.AiSermon.cs`）。
+- 新增 AI/语音链路测试用例（`Canvas.TextEditor.Tests/Ai/` 与实时接收快照测试）。
+
+### Changed
+
+- 主窗口导入菜单、快捷键和键盘输入链路扩展，支持 AI 相关入口与唤起行为。
+- 实时字幕与语音接口调用链路增强，优化百度短语识别与 CLI 代理请求稳定性。
+- 项目树右键菜单与主界面布局细节同步调整，保持入口一致性。
+
 ## 6.0.5.7 (2026-05-10)
 
 ### Added

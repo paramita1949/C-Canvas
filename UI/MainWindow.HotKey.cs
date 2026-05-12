@@ -122,6 +122,7 @@ namespace ImageColorChanger.UI
                 
                 // 创建快捷键业务逻辑处理器（投影和非投影共享）
                 _shortcutActionHandler = new Utils.ShortcutActionHandler(this);
+                RegisterAiPanelF5HotKey();
             }
             catch (Exception ex)
             {

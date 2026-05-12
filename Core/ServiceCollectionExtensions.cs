@@ -126,6 +126,9 @@ namespace ImageColorChanger.Core
             services.AddScoped<Services.TextEditor.ITextElementPersistenceService, Services.TextEditor.TextElementPersistenceService>();
             services.AddScoped<Services.TextEditor.Application.ITextProjectService, Services.TextEditor.Application.TextProjectService>();
             services.AddScoped<Services.TextEditor.Application.ITextEditorSaveOrchestrator, Services.TextEditor.Application.TextEditorSaveOrchestrator>();
+            services.AddScoped<Services.Ai.AiSermonContextBuilder>();
+            services.AddScoped<Services.Ai.IDeepSeekChatClient, Services.Ai.DeepSeekChatClient>();
+            services.AddScoped<Services.Ai.AiSermonConversationCoordinator>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionComposer, Services.TextEditor.Rendering.TextEditorProjectionComposer>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionRenderStateService, Services.TextEditor.Rendering.TextEditorProjectionRenderStateService>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorRenderSafetyService, Services.TextEditor.Rendering.TextEditorRenderSafetyService>();
