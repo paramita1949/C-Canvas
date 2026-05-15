@@ -122,6 +122,11 @@ namespace ImageColorChanger.UI
             EnsureAiAsrFlushTimer();
             SetAiSermonReceiveAsr(true);
             _aiAssistantPanelWindow.DebugModeChanged += enabled => _aiSermonDebugEnabled = enabled;
+            _aiAssistantPanelWindow.ModelChanged += model =>
+            {
+                _aiAssistantPanelWindow.SetModelName(model);
+                ShowStatus($"AI模型已切换：{model}");
+            };
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.OutputModeChanged += mode => _ = _aiSermonCoordinator?.SetOutputModeAsync(mode);
@@ -256,6 +261,10 @@ namespace ImageColorChanger.UI
                 speaker.Trim(),
                 StringComparison.Ordinal);
             await _aiSermonCoordinator.DeleteSpeakerAsync(speaker.Trim());
+            var remainingBindings = _configManager.AiSermonSpeakerDialectBindings
+                .Where(entry => !string.Equals(entry?.Speaker?.Trim(), speaker.Trim(), StringComparison.Ordinal))
+                .ToArray();
+            _configManager.AiSermonSpeakerDialectBindings = remainingBindings;
             string nextSpeaker = deletingCurrent ? "未标记讲师" : _aiSermonCoordinator.CurrentSpeakerName;
             if (deletingCurrent)
             {

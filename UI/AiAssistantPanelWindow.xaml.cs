@@ -28,6 +28,7 @@ namespace ImageColorChanger.UI
         private System.Windows.Controls.TextBox _speakerSearchBox;
         private readonly List<string> _speakerNames = new();
         private readonly List<string> _dialectTags = new();
+        private readonly Dictionary<string, HashSet<string>> _speakerDialectBindings = new(StringComparer.Ordinal);
         private bool _dialectSchemeEnabled;
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private double _expandedHeight = 500;
@@ -36,6 +37,7 @@ namespace ImageColorChanger.UI
         public event Action<string> SpeakerApplied;
         public event Action<string> SpeakerDeleteRequested;
         public event Action<string> OutputModeChanged;
+        public event Action<string> ModelChanged;
         public event Action<bool, IReadOnlyList<string>> DialectSchemeChanged;
         public event Action HistoryRequested;
         public event Action<int> HistorySessionDeleteRequested;
@@ -59,6 +61,7 @@ namespace ImageColorChanger.UI
             _dialectSchemeEnabled = _configManager.AiSermonDialectSchemeEnabled;
             _dialectTags.Clear();
             _selectedDialectTags.Clear();
+            _speakerDialectBindings.Clear();
             foreach (string tag in _configManager.AiSermonDialectTags)
             {
                 if (!string.IsNullOrWhiteSpace(tag) && !_dialectTags.Contains(tag, StringComparer.Ordinal))
@@ -95,6 +98,27 @@ namespace ImageColorChanger.UI
             {
                 _selectedDialectTags.Add("国语");
             }
+
+            foreach (var entry in _configManager.AiSermonSpeakerDialectBindings)
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.Speaker))
+                {
+                    continue;
+                }
+
+                string speaker = entry.Speaker.Trim();
+                var tags = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string tag in entry.Tags ?? Array.Empty<string>())
+                {
+                    string value = (tag ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        tags.Add(value);
+                    }
+                }
+
+                _speakerDialectBindings[speaker] = tags;
+            }
         }
 
         public void SetProjectTitle(string title)
@@ -114,10 +138,25 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.Invoke(() =>
             {
-                ModelNameText.Text = string.IsNullOrWhiteSpace(modelName)
+                string value = string.IsNullOrWhiteSpace(modelName)
                     ? "DeepSeek"
                     : modelName.Trim();
+                ModelNameText.Text = value;
+                UpdateModelOptionVisual(value);
             });
+        }
+
+        private void UpdateModelOptionVisual(string modelName)
+        {
+            if (ModelOptionFlash == null || ModelOptionPro == null)
+            {
+                return;
+            }
+
+            bool isFlash = string.Equals(modelName, "deepseek-v4-flash", StringComparison.OrdinalIgnoreCase);
+            bool isPro = string.Equals(modelName, "deepseek-v4-pro", StringComparison.OrdinalIgnoreCase);
+            ModelOptionFlash.Background = isFlash ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
+            ModelOptionPro.Background = isPro ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
         }
 
         public void SetSpeakerNames(IEnumerable<string> speakerNames, string currentSpeaker = "")
@@ -155,6 +194,8 @@ namespace ImageColorChanger.UI
                 }
 
                 _lastAppliedSpeaker = next;
+                LoadDialectTagsForSpeaker(next);
+                DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());
                 UpdateSpeakerSelectionVisual(next);
                 RebuildSpeakerMenu(next);
             });
@@ -476,6 +517,39 @@ namespace ImageColorChanger.UI
             Close();
         }
 
+        private void ModelMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ModelPopup == null)
+            {
+                return;
+            }
+
+            ModelPopup.IsOpen = true;
+        }
+
+        private void ModelOptionFlash_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ApplyModelSelection("deepseek-v4-flash");
+        }
+
+        private void ModelOptionPro_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ApplyModelSelection("deepseek-v4-pro");
+        }
+
+        private void ApplyModelSelection(string model)
+        {
+            string next = string.IsNullOrWhiteSpace(model) ? "deepseek-v4-flash" : model.Trim();
+            _configManager.DeepSeekModel = next;
+            SetModelName(next);
+            if (ModelPopup != null)
+            {
+                ModelPopup.IsOpen = false;
+            }
+
+            ModelChanged?.Invoke(next);
+        }
+
         private void CollapseButton_Click(object sender, RoutedEventArgs e)
         {
             if (!_isCollapsed)
@@ -687,11 +761,32 @@ namespace ImageColorChanger.UI
 
             bool changed = !string.Equals(speaker, _lastAppliedSpeaker, StringComparison.Ordinal);
             _lastAppliedSpeaker = speaker;
+            LoadDialectTagsForSpeaker(speaker);
             UpdateSpeakerSelectionVisual(speaker);
             RebuildSpeakerMenu(speaker);
             if (raiseEvent && changed)
             {
                 SpeakerApplied?.Invoke(speaker);
+                DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());
+            }
+        }
+
+        private void LoadDialectTagsForSpeaker(string speaker)
+        {
+            _selectedDialectTags.Clear();
+            if (!string.IsNullOrWhiteSpace(speaker) &&
+                !string.Equals(speaker, UnlabeledSpeakerName, StringComparison.Ordinal) &&
+                _speakerDialectBindings.TryGetValue(speaker, out var tags))
+            {
+                foreach (string tag in tags)
+                {
+                    _selectedDialectTags.Add(tag);
+                }
+            }
+
+            if (_selectedDialectTags.Count == 0)
+            {
+                _selectedDialectTags.Add("国语");
             }
         }
 
@@ -947,6 +1042,10 @@ namespace ImageColorChanger.UI
                 {
                     if (_selectedDialectTags.Contains(tag))
                     {
+                        if (string.Equals(tag, "国语", StringComparison.Ordinal) && _selectedDialectTags.Count == 1)
+                        {
+                            return;
+                        }
                         _selectedDialectTags.Remove(tag);
                     }
                     else
@@ -984,20 +1083,6 @@ namespace ImageColorChanger.UI
 
             dialectPanel.Children.Add(wrap);
             SpeakerPopupStack.Children.Add(dialectPanel);
-        }
-
-        private void SetDialectSchemeEnabled(bool enabled, string selectedSpeaker)
-        {
-            if (_dialectSchemeEnabled == enabled)
-            {
-                return;
-            }
-
-            _dialectSchemeEnabled = enabled;
-            PersistDialectSchemeToConfig();
-            DialectSchemeChanged?.Invoke(_dialectSchemeEnabled, _selectedDialectTags.ToList());
-            RebuildSpeakerMenu(selectedSpeaker);
-            FocusSpeakerSearchBox();
         }
 
         private void AddDialectTagFromMenu(string selectedSpeaker)
@@ -1113,10 +1198,23 @@ namespace ImageColorChanger.UI
 
         private void PersistDialectSchemeToConfig()
         {
+            if (!string.IsNullOrWhiteSpace(_lastAppliedSpeaker) &&
+                !string.Equals(_lastAppliedSpeaker, UnlabeledSpeakerName, StringComparison.Ordinal))
+            {
+                _speakerDialectBindings[_lastAppliedSpeaker] = new HashSet<string>(_selectedDialectTags, StringComparer.Ordinal);
+            }
+
             _dialectSchemeEnabled = _selectedDialectTags.Count > 0;
             _configManager.AiSermonDialectSchemeEnabled = _dialectSchemeEnabled;
             _configManager.AiSermonDialectTags = _dialectTags.ToArray();
             _configManager.AiSermonSelectedDialectTags = _selectedDialectTags.ToArray();
+            _configManager.AiSermonSpeakerDialectBindings = _speakerDialectBindings
+                .Select(kvp => new AiSpeakerDialectBindingEntry
+                {
+                    Speaker = kvp.Key,
+                    Tags = kvp.Value.ToArray()
+                })
+                .ToArray();
         }
 
         private void FocusSpeakerSearchBox()

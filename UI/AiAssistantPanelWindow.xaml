@@ -235,18 +235,72 @@
                                FontSize="15"
                                FontWeight="Bold"
                                VerticalAlignment="Center"/>
-                    <Border Background="#223CD7FF"
-                            BorderBrush="#558DEAFF"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="7,2"
-                            Margin="8,0,0,0">
-                        <TextBlock x:Name="ModelNameText"
-                                   Text="DeepSeek"
-                                   Foreground="#BFEFFF"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"/>
-                    </Border>
+                    <Button x:Name="ModelMenuButton"
+                            Margin="8,0,0,0"
+                            Padding="0"
+                            BorderThickness="0"
+                            Background="Transparent"
+                            Cursor="Hand"
+                            ToolTip="点击切换模型"
+                            Click="ModelMenuButton_Click">
+                        <Border Background="#223CD7FF"
+                                BorderBrush="#558DEAFF"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="7,2">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="ModelNameText"
+                                           Text="DeepSeek"
+                                           Foreground="#BFEFFF"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text=" ▾"
+                                           Foreground="#8ED7FF"
+                                           FontSize="11"
+                                           FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                    </Button>
+
+                    <primitives:Popup x:Name="ModelPopup"
+                                      PlacementTarget="{Binding ElementName=ModelMenuButton}"
+                                      Placement="Bottom"
+                                      VerticalOffset="6"
+                                      AllowsTransparency="True"
+                                      StaysOpen="False"
+                                      PopupAnimation="Fade">
+                        <Border Background="#071C30"
+                                BorderBrush="#7366B8EA"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                Padding="6">
+                            <StackPanel>
+                                <Border x:Name="ModelOptionFlash"
+                                        Padding="8,6"
+                                        Margin="0,0,0,2"
+                                        Background="Transparent"
+                                        CornerRadius="5"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="ModelOptionFlash_MouseLeftButtonUp">
+                                    <TextBlock Text="deepseek-v4-flash"
+                                               Foreground="#EAF9FF"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                                <Border x:Name="ModelOptionPro"
+                                        Padding="8,6"
+                                        Background="Transparent"
+                                        CornerRadius="5"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="ModelOptionPro_MouseLeftButtonUp">
+                                    <TextBlock Text="deepseek-v4-pro"
+                                               Foreground="#EAF9FF"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </primitives:Popup>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

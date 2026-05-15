@@ -73,6 +73,7 @@ namespace ImageColorChanger.Services.Ai
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
             var speaker = await _historyStore.GetOrCreateSpeakerAsync(_selectedSpeakerName).ConfigureAwait(false);
             _selectedSpeakerName = speaker.Name;
+            LoadDialectTagsForSpeaker(_selectedSpeakerName);
             var historySession = await _historyStore.CreateSessionAsync(
                 speaker.Id,
                 context.ProjectId,
@@ -109,6 +110,7 @@ namespace ImageColorChanger.Services.Ai
         {
             var speaker = await _historyStore.GetOrCreateSpeakerAsync(speakerName).ConfigureAwait(false);
             _selectedSpeakerName = speaker.Name;
+            LoadDialectTagsForSpeaker(_selectedSpeakerName);
             if (_session == null)
             {
                 StatusChanged?.Invoke($"已选择讲师标签：{speaker.Name}");
@@ -552,6 +554,34 @@ namespace ImageColorChanger.Services.Ai
             return _selectedDialectTags
                 .Where(tag => !string.Equals(tag, "国语", StringComparison.Ordinal))
                 .ToList();
+        }
+
+        private void LoadDialectTagsForSpeaker(string speaker)
+        {
+            _selectedDialectTags.Clear();
+            var bindings = _config.AiSermonSpeakerDialectBindings ?? Array.Empty<AiSpeakerDialectBindingEntry>();
+            var binding = bindings.FirstOrDefault(entry =>
+                entry != null && string.Equals(entry.Speaker?.Trim(), speaker, StringComparison.Ordinal));
+            if (binding?.Tags != null)
+            {
+                foreach (string tag in binding.Tags)
+                {
+                    string value = (tag ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        _selectedDialectTags.Add(value);
+                    }
+                }
+            }
+
+            if (_selectedDialectTags.Count == 0)
+            {
+                _selectedDialectTags.Add("国语");
+            }
+
+            _config.AiSermonSelectedDialectTags = _selectedDialectTags.ToArray();
+            _dialectSchemeEnabled = GetActiveDialectTags().Count > 0;
+            _config.AiSermonDialectSchemeEnabled = _dialectSchemeEnabled;
         }
 
         private void AppendHistoricalSignal(string signal)
