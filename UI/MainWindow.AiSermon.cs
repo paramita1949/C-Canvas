@@ -95,6 +95,8 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
+            _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
+            _ = RefreshAiHistoryInPanelAsync();
         }
 
         private void OpenAiRealtimeSubtitle()
@@ -163,6 +165,8 @@ namespace ImageColorChanger.UI
             {
                 _aiAssistantPanelWindow.Show();
                 _aiAssistantPanelWindow.Activate();
+                _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
+                _ = RefreshAiHistoryInPanelAsync();
             }
 
             return true;

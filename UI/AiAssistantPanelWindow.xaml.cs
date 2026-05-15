@@ -15,6 +15,7 @@ namespace ImageColorChanger.UI
 {
     public partial class AiAssistantPanelWindow : Window
     {
+        private const string UnlabeledSpeakerName = "未标记讲师";
         private readonly ConfigManager _configManager;
         private TextBlock _currentAssistantText;
         private bool _isUpdatingThresholdUi;
@@ -81,24 +82,26 @@ namespace ImageColorChanger.UI
                 }
 
                 string currentText = string.IsNullOrWhiteSpace(currentSpeaker)
-                    ? (SpeakerSelectionText.Text ?? string.Empty)
+                    ? _lastAppliedSpeaker
                     : currentSpeaker.Trim();
                 _speakerNames.Clear();
-                _speakerNames.Add("未标记讲师");
                 if (speakerNames != null)
                 {
                     foreach (string name in speakerNames)
                     {
                         string value = (name ?? string.Empty).Trim();
-                        if (!string.IsNullOrWhiteSpace(value) && !_speakerNames.Contains(value, StringComparer.Ordinal))
+                        if (!string.IsNullOrWhiteSpace(value) &&
+                            !string.Equals(value, UnlabeledSpeakerName, StringComparison.Ordinal) &&
+                            !_speakerNames.Contains(value, StringComparer.Ordinal))
                         {
                             _speakerNames.Add(value);
                         }
                     }
                 }
 
-                string next = string.IsNullOrWhiteSpace(currentText) ? "未标记讲师" : currentText;
-                if (!_speakerNames.Contains(next, StringComparer.Ordinal))
+                string next = string.IsNullOrWhiteSpace(currentText) ? UnlabeledSpeakerName : currentText;
+                if (!string.Equals(next, UnlabeledSpeakerName, StringComparison.Ordinal) &&
+                    !_speakerNames.Contains(next, StringComparer.Ordinal))
                 {
                     _speakerNames.Add(next);
                 }
@@ -283,7 +286,7 @@ namespace ImageColorChanger.UI
 
             stack.Children.Add(new TextBlock
             {
-                Text = string.IsNullOrWhiteSpace(group.SpeakerName) ? "未标记讲师" : group.SpeakerName,
+                Text = DisplaySpeakerName(group.SpeakerName),
                 Foreground = CreateBrush("#F4FBFF"),
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
@@ -631,7 +634,7 @@ namespace ImageColorChanger.UI
             speaker = (speaker ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(speaker))
             {
-                speaker = "未标记讲师";
+                speaker = UnlabeledSpeakerName;
             }
 
             bool changed = !string.Equals(speaker, _lastAppliedSpeaker, StringComparison.Ordinal);
@@ -651,9 +654,21 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string value = string.IsNullOrWhiteSpace(speaker) ? "未标记讲师" : speaker.Trim();
+            string value = DisplaySpeakerSelectionText(speaker);
             SpeakerSelectionText.Text = value;
             SpeakerSelectionText.ToolTip = value;
+        }
+
+        private static string DisplaySpeakerSelectionText(string speaker)
+        {
+            string value = DisplaySpeakerName(speaker);
+            return string.IsNullOrWhiteSpace(value) ? "选择讲师" : value;
+        }
+
+        private static string DisplaySpeakerName(string speaker)
+        {
+            string value = (speaker ?? string.Empty).Trim();
+            return string.Equals(value, UnlabeledSpeakerName, StringComparison.Ordinal) ? string.Empty : value;
         }
 
         private void RebuildSpeakerMenu(string selectedSpeaker)
@@ -731,11 +746,13 @@ namespace ImageColorChanger.UI
 
             var listPanel = new StackPanel
             {
-                Margin = new Thickness(8, 7, 8, 5)
+                Margin = new Thickness(8, 6, 8, 4)
             };
             string filter = (_speakerFilterText ?? string.Empty).Trim();
             var visibleSpeakers = _speakerNames
-                .Where(speaker => string.IsNullOrWhiteSpace(filter) || speaker.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                .Where(speaker =>
+                    !string.Equals(speaker, UnlabeledSpeakerName, StringComparison.Ordinal) &&
+                    (string.IsNullOrWhiteSpace(filter) || speaker.Contains(filter, StringComparison.OrdinalIgnoreCase)))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
@@ -745,15 +762,31 @@ namespace ImageColorChanger.UI
                 bool isSelected = string.Equals(value, selectedSpeaker, StringComparison.Ordinal);
                 var item = new Border
                 {
-                    Height = 32,
+                    Height = 30,
                     Padding = new Thickness(8, 0, 8, 0),
                     Margin = new Thickness(0, 0, 0, 2),
                     CornerRadius = new CornerRadius(4),
                     Background = isSelected
                         ? CreateBrush("#2F8CD7")
                         : System.Windows.Media.Brushes.Transparent,
+                    BorderBrush = isSelected ? CreateBrush("#88CAFF") : System.Windows.Media.Brushes.Transparent,
+                    BorderThickness = isSelected ? new Thickness(1) : new Thickness(0),
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Child = CreateSpeakerMenuOptionContent(value, isSelected, CanDeleteSpeaker(value))
+                };
+                item.MouseEnter += (_, _) =>
+                {
+                    if (!isSelected)
+                    {
+                        item.Background = CreateBrush("#143B58");
+                    }
+                };
+                item.MouseLeave += (_, _) =>
+                {
+                    if (!isSelected)
+                    {
+                        item.Background = System.Windows.Media.Brushes.Transparent;
+                    }
                 };
                 item.MouseLeftButtonUp += (_, e) =>
                 {
@@ -772,7 +805,7 @@ namespace ImageColorChanger.UI
             }
             var listScroll = new ScrollViewer
             {
-                MaxHeight = 78,
+                MaxHeight = 150,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 CanContentScroll = true,
@@ -782,9 +815,9 @@ namespace ImageColorChanger.UI
 
             var addButton = new Border
             {
-                Height = 36,
+                Height = 34,
                 Padding = new Thickness(14, 0, 10, 0),
-                Margin = new Thickness(8, 0, 8, 8),
+                Margin = new Thickness(8, 0, 8, 6),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 BorderBrush = CreateBrush("#7366B8EA"),
                 Background = System.Windows.Media.Brushes.Transparent,
@@ -824,40 +857,40 @@ namespace ImageColorChanger.UI
         private bool CanDeleteSpeaker(string speaker)
         {
             return !string.IsNullOrWhiteSpace(speaker) &&
-                   !string.Equals(speaker, "未标记讲师", StringComparison.Ordinal);
+                   !string.Equals(speaker, UnlabeledSpeakerName, StringComparison.Ordinal);
         }
 
         private Grid CreateSpeakerMenuOptionContent(string speaker, bool selected, bool canDelete)
         {
+            string displaySpeaker = DisplaySpeakerName(speaker);
             var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            grid.Children.Add(new TextBlock
+            var accent = new Border
             {
-                Text = speaker,
+                Width = 3,
+                Height = 16,
+                CornerRadius = new CornerRadius(2),
+                Background = selected ? CreateBrush("#54C4FF") : System.Windows.Media.Brushes.Transparent,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            grid.Children.Add(accent);
+
+            var speakerText = new TextBlock
+            {
+                Text = displaySpeaker,
                 Foreground = CreateBrush("#DDF4FF"),
                 FontSize = 13,
                 FontWeight = selected ? FontWeights.Bold : FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
-            });
-
-            if (selected)
-            {
-                var check = new TextBlock
-                {
-                    Text = "✓",
-                    Foreground = CreateBrush("#54C4FF"),
-                    FontSize = 16,
-                    FontWeight = FontWeights.Bold,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(8, 0, 0, 0)
-                };
-                Grid.SetColumn(check, 1);
-                grid.Children.Add(check);
-            }
+            };
+            Grid.SetColumn(speakerText, 1);
+            grid.Children.Add(speakerText);
 
             if (canDelete)
             {

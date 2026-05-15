@@ -326,7 +326,7 @@
                             </Viewbox>
                             <TextBlock x:Name="SpeakerSelectionText"
                                        Grid.Column="2"
-                                       Text="未标记讲师"
+                                       Text=""
                                        Foreground="#F4FBFF"
                                        FontSize="12"
                                        FontWeight="Bold"
@@ -344,7 +344,7 @@
                                       PopupAnimation="Fade">
                         <Border x:Name="SpeakerPopupRoot"
                                 Width="170"
-                                MaxHeight="176"
+                                MaxHeight="250"
                                 Background="#071C30"
                                 BorderBrush="#7366B8EA"
                                 BorderThickness="1"
