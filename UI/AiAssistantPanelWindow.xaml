@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         Title="AI面板"
-        Width="340"
-        Height="430"
-        MinWidth="280"
+        Width="360"
+        Height="500"
+        MinWidth="300"
         MinHeight="64"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
@@ -40,6 +40,30 @@
             <Setter Property="Padding" Value="8,2"/>
             <Setter Property="MinWidth" Value="26"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ButtonChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#1C4160"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#2F8CD7"/>
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#88CAFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#1C4160"/>
@@ -48,6 +72,128 @@
                     <Setter Property="Background" Value="#2F8CD7"/>
                     <Setter Property="BorderBrush" Value="#88CAFF"/>
                     <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="HudViewSwitchButtonStyle" BasedOn="{StaticResource HudThresholdButtonStyle}" TargetType="ToggleButton">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,4"/>
+            <Setter Property="MinWidth" Value="58"/>
+        </Style>
+        <Style x:Key="HudViewSwitchLeftButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#EAF9FF"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#4D90C4"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,4"/>
+            <Setter Property="MinWidth" Value="54"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ButtonChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8,0,0,8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#1C4160"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#2F8CD7"/>
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#88CAFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HudViewSwitchRightButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource HudViewSwitchLeftButtonStyle}">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ButtonChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0,8,8,0">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#1C4160"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#2F8CD7"/>
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#88CAFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HudSpeakerPillButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="122"/>
+            <Setter Property="MaxWidth" Value="170"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Foreground" Value="#F4FBFF"/>
+            <Setter Property="Background" Value="#132D44"/>
+            <Setter Property="BorderBrush" Value="#4D90C4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9">
+                            <ContentPresenter HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#1C4160"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#2F8CD7"/>
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#88CAFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SpeakerMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#DDF4FF"/>
+            <Setter Property="Background" Value="#102234"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1E4261"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#2F8CD7"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -103,14 +249,14 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="CollapseButton"
                             Content="▾"
                             ToolTip="折叠/展开"
                             Style="{StaticResource HudIconButtonStyle}"
                             Click="CollapseButton_Click"/>
                     <Button Content="清"
-                            ToolTip="清空信息流"
+                            ToolTip="清空实时信息流"
                             Style="{StaticResource HudIconButtonStyle}"
                             Margin="6,0,0,0"
                             Click="ClearButton_Click"/>
@@ -126,72 +272,208 @@
                   Grid.Row="1"
                   Margin="0,0,0,10"
                   MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel>
+                <Grid Grid.Row="0"
+                      Grid.ColumnSpan="2"
+                      Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="SpeakerMenuButton"
+                            ToolTip="切换讲师"
+                            Style="{StaticResource HudSpeakerPillButtonStyle}"
+                            Click="SpeakerMenuButton_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Viewbox Width="15"
+                                     Height="15"
+                                     VerticalAlignment="Center">
+                                <Canvas Width="24" Height="24">
+                                    <Ellipse Canvas.Left="8"
+                                             Canvas.Top="4"
+                                             Width="8"
+                                             Height="8"
+                                             Stroke="#8FB8D1"
+                                             StrokeThickness="2"/>
+                                    <Path Data="M4,21 C5.5,16 18.5,16 20,21"
+                                          Stroke="#8FB8D1"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Fill="Transparent"/>
+                                    <Path Data="M18.5,5.5 L21,3 M21,3 L21,7 M21,3 L17,3"
+                                          Stroke="#8FB8D1"
+                                          StrokeThickness="1.7"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"/>
+                                </Canvas>
+                            </Viewbox>
+                            <TextBlock x:Name="SpeakerSelectionText"
+                                       Grid.Column="2"
+                                       Text="未标记讲师"
+                                       Foreground="#F4FBFF"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+                    </Button>
+
+                    <primitives:Popup x:Name="SpeakerPopup"
+                                      PlacementTarget="{Binding ElementName=SpeakerMenuButton}"
+                                      Placement="Bottom"
+                                      VerticalOffset="6"
+                                      AllowsTransparency="True"
+                                      StaysOpen="False"
+                                      PopupAnimation="Fade">
+                        <Border x:Name="SpeakerPopupRoot"
+                                Width="170"
+                                MaxHeight="176"
+                                Background="#071C30"
+                                BorderBrush="#7366B8EA"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#99000000"
+                                                  BlurRadius="14"
+                                                  ShadowDepth="4"
+                                                  Opacity="0.45"/>
+                            </Border.Effect>
+                            <StackPanel x:Name="SpeakerPopupStack"/>
+                        </Border>
+                    </primitives:Popup>
+
+                    <Border Grid.Column="1"
+                            BorderBrush="#4D90C4"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Background="#132D44"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Height="32"
+                            ClipToBounds="True">
+                        <UniformGrid Rows="1" Columns="2">
+                            <ToggleButton x:Name="RealtimeViewButton"
+                                          Content="实时"
+                                          IsChecked="True"
+                                          MinWidth="54"
+                                          Height="30"
+                                          Style="{StaticResource HudViewSwitchLeftButtonStyle}"
+                                          Checked="ViewModeToggleButton_Checked"/>
+                            <ToggleButton x:Name="HistoryViewButton"
+                                          Content="历史"
+                                          MinWidth="54"
+                                          Height="30"
+                                          Style="{StaticResource HudViewSwitchRightButtonStyle}"
+                                          Checked="ViewModeToggleButton_Checked"/>
+                        </UniformGrid>
+                    </Border>
+                </Grid>
+
+                <StackPanel Grid.Row="1" Grid.Column="0">
                     <TextBlock x:Name="ProjectTitleText"
                                Text="未读取主题"
                                Foreground="#F4FBFF"
                                FontSize="13"
-                               FontWeight="SemiBold"/>
+                               FontWeight="Bold"
+                               Margin="0,2,0,0"/>
                     <TextBlock x:Name="StatusText"
                                Text="等待AI解读或ASR字幕"
                                Foreground="#A9C8DD"
                                FontSize="11"
                                TextWrapping="Wrap"
                                Margin="0,3,0,0"/>
+                    <WrapPanel Margin="0,8,0,0" VerticalAlignment="Center">
+                        <Border Background="#132D44"
+                                BorderBrush="#4D90C4"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="0"
+                                Margin="0,0,6,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="输出"
+                                           Foreground="#8FB8D1"
+                                           FontSize="11"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,4,0"/>
+                                <UniformGrid Rows="1" Columns="2">
+                                    <ToggleButton x:Name="ConciseModeButton"
+                                                  Content="简洁"
+                                                  IsChecked="True"
+                                                  Style="{StaticResource HudThresholdButtonStyle}"
+                                                  Checked="OutputModeToggleButton_Checked"/>
+                                    <ToggleButton x:Name="DetailedModeButton"
+                                                  Content="详细"
+                                                  Style="{StaticResource HudThresholdButtonStyle}"
+                                                  Checked="OutputModeToggleButton_Checked"/>
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="阈值"
-                                       Foreground="#B7D3E8"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,6,0"/>
-                            <Border BorderBrush="#4D90C4"
-                                    BorderThickness="1"
-                                    CornerRadius="7"
-                                    Background="#132D44">
-                                <UniformGrid Rows="1" Columns="3">
-                                    <ToggleButton x:Name="ThresholdLowButton"
-                                                  Content="低"
-                                                  ToolTipService.ShowDuration="20000"
-                                                  Style="{StaticResource HudThresholdButtonStyle}"
-                                                  Checked="ThresholdToggleButton_Checked"/>
-                                    <ToggleButton x:Name="ThresholdMidButton"
-                                                  Content="中"
-                                                  ToolTipService.ShowDuration="20000"
-                                                  Style="{StaticResource HudThresholdButtonStyle}"
-                                                  Checked="ThresholdToggleButton_Checked"/>
-                                    <ToggleButton x:Name="ThresholdHighButton"
-                                                  Content="高"
-                                                  ToolTipService.ShowDuration="20000"
-                                                  Style="{StaticResource HudThresholdButtonStyle}"
-                                                  Checked="ThresholdToggleButton_Checked"/>
-                                </UniformGrid>
-                            </Border>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Right">
-                            <TextBlock Text="透明"
-                                       Foreground="#B7D3E8"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,6,0"/>
-                            <Slider x:Name="PanelOpacitySlider"
-                                    Width="76"
-                                    Minimum="35"
-                                    Maximum="100"
-                                    TickFrequency="5"
-                                    Value="80"
-                                    IsSnapToTickEnabled="True"
-                                    ToolTip="调节面板背景透明度"
-                                    ValueChanged="PanelOpacitySlider_ValueChanged"/>
-                        </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="阈值"
+                                   Foreground="#B7D3E8"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0"/>
+                        <Border BorderBrush="#4D90C4"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                Background="#132D44">
+                            <UniformGrid Rows="1" Columns="3">
+                                <ToggleButton x:Name="ThresholdLowButton"
+                                              Content="低"
+                                              ToolTipService.ShowDuration="20000"
+                                              Style="{StaticResource HudThresholdButtonStyle}"
+                                              Checked="ThresholdToggleButton_Checked"/>
+                                <ToggleButton x:Name="ThresholdMidButton"
+                                              Content="中"
+                                              ToolTipService.ShowDuration="20000"
+                                              Style="{StaticResource HudThresholdButtonStyle}"
+                                              Checked="ThresholdToggleButton_Checked"/>
+                                <ToggleButton x:Name="ThresholdHighButton"
+                                              Content="高"
+                                              ToolTipService.ShowDuration="20000"
+                                              Style="{StaticResource HudThresholdButtonStyle}"
+                                              Checked="ThresholdToggleButton_Checked"/>
+                            </UniformGrid>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Right">
+                        <TextBlock Text="透明"
+                                   Foreground="#B7D3E8"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0"/>
+                        <Slider x:Name="PanelOpacitySlider"
+                                Width="76"
+                                Minimum="35"
+                                Maximum="100"
+                                TickFrequency="5"
+                                Value="80"
+                                IsSnapToTickEnabled="True"
+                                ToolTip="调节面板背景透明度"
+                                ValueChanged="PanelOpacitySlider_ValueChanged"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
@@ -204,29 +486,55 @@
                     CornerRadius="12"
                     Padding="8">
                 <Grid>
-                    <ScrollViewer x:Name="MessageScrollViewer"
-                                  SizeChanged="MessageScrollViewer_SizeChanged"
-                                  VerticalScrollBarVisibility="Hidden"
-                                  HorizontalScrollBarVisibility="Hidden">
-                        <StackPanel x:Name="MessageStackPanel"/>
-                    </ScrollViewer>
-                    <StackPanel x:Name="EmptyStatePanel"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Width="220">
-                        <TextBlock Text="AI信息流"
-                                   Foreground="#F4FBFF"
-                                   FontSize="16"
-                                   FontWeight="Bold"
-                                   TextAlignment="Center"/>
-                        <TextBlock Text="主题、字幕、经文候选和写入状态会显示在这里。"
-                                   Foreground="#93B4CC"
-                                   FontSize="12"
-                                   LineHeight="18"
-                                   TextWrapping="Wrap"
-                                   TextAlignment="Center"
-                                   Margin="0,8,0,0"/>
-                    </StackPanel>
+                    <Grid x:Name="RealtimeContentGrid">
+                        <ScrollViewer x:Name="MessageScrollViewer"
+                                      SizeChanged="MessageScrollViewer_SizeChanged"
+                                      VerticalScrollBarVisibility="Hidden"
+                                      HorizontalScrollBarVisibility="Hidden">
+                            <StackPanel x:Name="MessageStackPanel"/>
+                        </ScrollViewer>
+                        <StackPanel x:Name="EmptyStatePanel"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Width="220">
+                            <TextBlock Text="AI信息流"
+                                       Foreground="#F4FBFF"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       TextAlignment="Center"/>
+                            <TextBlock Text="主题、字幕、经文候选和写入状态会显示在这里。"
+                                       Foreground="#93B4CC"
+                                       FontSize="12"
+                                       LineHeight="18"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid x:Name="HistoryContentGrid" Visibility="Collapsed">
+                        <ScrollViewer x:Name="HistoryScrollViewer"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel x:Name="HistoryStackPanel"/>
+                        </ScrollViewer>
+                        <StackPanel x:Name="HistoryEmptyStatePanel"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Width="230">
+                            <TextBlock Text="暂无历史"
+                                       Foreground="#F4FBFF"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       TextAlignment="Center"/>
+                            <TextBlock Text="开启AI解读后，会按讲师标签沉淀本场摘要和对话记录。"
+                                       Foreground="#93B4CC"
+                                       FontSize="12"
+                                       LineHeight="18"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </Border>
 

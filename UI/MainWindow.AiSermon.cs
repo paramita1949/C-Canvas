@@ -36,6 +36,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.Activate();
 
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
+            await RefreshAiSpeakerListAsync();
 
             if (startAsr)
             {
@@ -60,6 +61,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
+            await RefreshAiSpeakerListAsync();
             ShowStatus($"AI字幕已读取本场主题：{item.Name}");
         }
 
@@ -118,6 +120,12 @@ namespace ImageColorChanger.UI
             EnsureAiAsrFlushTimer();
             SetAiSermonReceiveAsr(true);
             _aiAssistantPanelWindow.DebugModeChanged += enabled => _aiSermonDebugEnabled = enabled;
+            _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
+            _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
+            _aiAssistantPanelWindow.OutputModeChanged += mode => _ = _aiSermonCoordinator?.SetOutputModeAsync(mode);
+            _aiAssistantPanelWindow.HistoryRequested += () => _ = RefreshAiHistoryInPanelAsync();
+            _aiAssistantPanelWindow.HistorySessionDeleteRequested += sessionId => _ = DeleteAiHistorySessionAsync(sessionId);
+            _aiAssistantPanelWindow.HistoryMessageDeleteRequested += messageId => _ = DeleteAiHistoryMessageAsync(messageId);
             _aiAssistantPanelWindow.Closed += (_, _) =>
             {
                 _aiAssistantPanelWindow = null;
@@ -219,6 +227,70 @@ namespace ImageColorChanger.UI
                     ShowStatus(msg);
                 }));
             };
+        }
+
+        private async Task ApplyAiSpeakerAsync(string speaker)
+        {
+            EnsureAiSermonCoordinator();
+            await _aiSermonCoordinator.SetSpeakerAsync(speaker, CancellationToken.None);
+            await RefreshAiSpeakerListAsync(speaker);
+            await RefreshAiHistoryInPanelAsync();
+        }
+
+        private async Task DeleteAiSpeakerAsync(string speaker)
+        {
+            EnsureAiSermonCoordinator();
+            if (string.IsNullOrWhiteSpace(speaker) ||
+                string.Equals(speaker.Trim(), "未标记讲师", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            bool deletingCurrent = string.Equals(
+                _aiSermonCoordinator.CurrentSpeakerName,
+                speaker.Trim(),
+                StringComparison.Ordinal);
+            await _aiSermonCoordinator.DeleteSpeakerAsync(speaker.Trim());
+            string nextSpeaker = deletingCurrent ? "未标记讲师" : _aiSermonCoordinator.CurrentSpeakerName;
+            if (deletingCurrent)
+            {
+                await _aiSermonCoordinator.SetSpeakerAsync(nextSpeaker, CancellationToken.None);
+            }
+
+            await RefreshAiSpeakerListAsync(nextSpeaker);
+            await RefreshAiHistoryInPanelAsync();
+        }
+
+        private async Task RefreshAiSpeakerListAsync(string currentSpeaker = "")
+        {
+            if (_aiSermonCoordinator == null || _aiAssistantPanelWindow == null)
+            {
+                return;
+            }
+
+            var names = await _aiSermonCoordinator.GetSpeakerNamesAsync();
+            _aiAssistantPanelWindow.SetSpeakerNames(names, currentSpeaker);
+        }
+
+        private async Task RefreshAiHistoryInPanelAsync()
+        {
+            EnsureAiSermonCoordinator();
+            var groups = await _aiSermonCoordinator.GetHistoryGroupsAsync();
+            _aiAssistantPanelWindow?.SetHistoryGroups(groups);
+        }
+
+        private async Task DeleteAiHistorySessionAsync(int sessionId)
+        {
+            EnsureAiSermonCoordinator();
+            await _aiSermonCoordinator.DeleteHistorySessionAsync(sessionId);
+            await RefreshAiHistoryInPanelAsync();
+        }
+
+        private async Task DeleteAiHistoryMessageAsync(int messageId)
+        {
+            EnsureAiSermonCoordinator();
+            await _aiSermonCoordinator.DeleteHistoryMessageAsync(messageId);
+            await RefreshAiHistoryInPanelAsync();
         }
 
         private void SetAiSermonReceiveAsr(bool enabled)

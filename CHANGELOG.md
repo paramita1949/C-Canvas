@@ -1,5 +1,19 @@
 # Changelog
 
+## 6.0.5.9 (2026-05-16)
+
+### Added
+
+- 新增 AI 讲章理解调度、语义窗口与摘要服务（`AiRealtimeUnderstandingScheduler`、`AiAsrSemanticWindow`、`AiSermonSummaryService`）。
+- 新增 AI 讲章历史存储模型与服务（`Database/Models/Ai/`、`AiSermonHistoryStore`），并接入 `CanvasDbContext`。
+- 新增 AI 讲章相关测试用例（实时理解调度、历史存储、摘要服务）。
+
+### Changed
+
+- AI 助手面板 UI 重构：说话人视图、交互布局与状态呈现优化。
+- AI 讲章会话协调器与主窗口接线增强，完善会话理解与落库流程。
+- 依赖注入注册扩展，统一纳入新增 AI 服务组件。
+
 ## 6.0.5.8 (2026-05-12)
 
 ### Added

@@ -1,0 +1,47 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e9]: AI面板
+          - generic [ref=e10]: deepseek-v4-flash
+        - generic [ref=e11]:
+          - button "▼" [ref=e12]
+          - button "清" [ref=e13]
+          - button "×" [ref=e14]
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic "视图切换" [ref=e17]:
+            - button "实时" [ref=e18] [cursor=pointer]
+            - button "历史" [ref=e19] [cursor=pointer]
+          - generic [ref=e20]:
+            - generic [ref=e21]: 讲师
+            - generic "讲师A" [ref=e52]
+            - button "切换" [ref=e23] [cursor=pointer]
+            - button "+" [ref=e24] [cursor=pointer]
+          - generic [ref=e25]: 未读取主题
+          - generic [ref=e26]: 等待AI解读或ASR字幕
+          - generic [ref=e28]:
+            - generic [ref=e29]: 输出
+            - button "简洁" [ref=e30]
+            - button "详细" [ref=e31]
+        - complementary [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: 阈值
+            - generic [ref=e35]:
+              - button "低" [ref=e36]
+              - button "中" [ref=e37]
+              - button "高" [ref=e38]
+          - generic [ref=e39]:
+            - generic [ref=e40]: 透明
+            - generic "透明度" [ref=e41]
+      - generic [ref=e43]:
+        - heading "AI信息流" [level=2] [ref=e44]
+        - paragraph [ref=e45]: 主题、字幕、经文候选和写入状态会显示在这里。
+      - generic [ref=e46]: 拖动空白处移动 · 右下角缩放
+  - dialog "请输入讲师名称" [ref=e54]:
+    - generic [ref=e55]: 请输入讲师名称
+    - textbox "请输入讲师名称" [active] [ref=e56]
+    - generic [ref=e57]:
+      - button "确定" [ref=e58] [cursor=pointer]
+      - button "取消" [ref=e59] [cursor=pointer]

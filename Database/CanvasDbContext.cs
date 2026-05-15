@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Database.Models.Ai;
 using System;
 using System.Data;
 using System.IO;
@@ -149,6 +150,12 @@ namespace ImageColorChanger.Database
         /// 圣经历史记录表（20个槽位）
         /// </summary>
         public DbSet<BibleHistoryRecord> BibleHistory { get; set; }
+
+        public DbSet<AiSpeakerProfile> AiSpeakers { get; set; }
+
+        public DbSet<AiSermonSessionRecord> AiSermonSessions { get; set; }
+
+        public DbSet<AiConversationRecord> AiConversationRecords { get; set; }
 
         /// <summary>
         /// 配置数据库连接
@@ -487,6 +494,26 @@ namespace ImageColorChanger.Database
                     .HasForeignKey(s => s.ImageId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            modelBuilder.Entity<AiSpeakerProfile>(entity =>
+            {
+                entity.HasIndex(e => e.Name).HasDatabaseName("idx_ai_speakers_name");
+                entity.HasIndex(e => e.IsArchived).HasDatabaseName("idx_ai_speakers_archived");
+            });
+
+            modelBuilder.Entity<AiSermonSessionRecord>(entity =>
+            {
+                entity.HasIndex(e => e.SpeakerId).HasDatabaseName("idx_ai_sermon_sessions_speaker");
+                entity.HasIndex(e => e.StartedAt).HasDatabaseName("idx_ai_sermon_sessions_started");
+                entity.HasIndex(e => e.IsDeleted).HasDatabaseName("idx_ai_sermon_sessions_deleted");
+            });
+
+            modelBuilder.Entity<AiConversationRecord>(entity =>
+            {
+                entity.HasIndex(e => e.SessionId).HasDatabaseName("idx_ai_conversation_records_session");
+                entity.HasIndex(e => e.CreatedAt).HasDatabaseName("idx_ai_conversation_records_created");
+                entity.HasIndex(e => e.IsDeleted).HasDatabaseName("idx_ai_conversation_records_deleted");
+            });
         }
 
         /// <summary>
@@ -520,6 +547,7 @@ namespace ImageColorChanger.Database
                 if (hasBootstrapStamp)
                 {
                     // 快速路径：数据库文件与 schema 版本戳均已就绪，跳过 EnsureCreated/兼容检查。
+                    EnsureAiSermonSchemaExists();
                     EnsureDefaultProjectExists();
                     ApplyStartupPragmas();
                     return;
@@ -569,6 +597,9 @@ namespace ImageColorChanger.Database
                     EnsureSlideBackgroundGradientSchemaExists();
                     // 文本元素组件字段兼容升级
                     EnsureTextElementComponentSchemaExists();
+
+                    // AI讲章会话、讲师画像与历史记录兼容升级
+                    EnsureAiSermonSchemaExists();
 
                     SaveStartupSchemaBootstrapStamp(StartupSchemaBootstrapVersion);
                     SaveStartupSchemaBootstrapUserVersion(StartupSchemaBootstrapUserVersion);
@@ -1300,6 +1331,64 @@ namespace ImageColorChanger.Database
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($" EnsureTextElementComponentSchemaExists 失败: {ex.Message}");
+            }
+        }
+
+        public void EnsureAiSermonSchemaExists()
+        {
+            try
+            {
+                Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS ai_speakers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        style_summary TEXT NOT NULL DEFAULT '',
+                        common_books TEXT NOT NULL DEFAULT '',
+                        common_phrases TEXT NOT NULL DEFAULT '',
+                        asr_confusions TEXT NOT NULL DEFAULT '',
+                        is_archived INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+
+                    CREATE INDEX IF NOT EXISTS idx_ai_speakers_name ON ai_speakers(name);
+                    CREATE INDEX IF NOT EXISTS idx_ai_speakers_archived ON ai_speakers(is_archived);
+
+                    CREATE TABLE IF NOT EXISTS ai_sermon_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        speaker_id INTEGER NOT NULL DEFAULT 0,
+                        project_id INTEGER NOT NULL DEFAULT 0,
+                        title TEXT NOT NULL DEFAULT '',
+                        summary TEXT NOT NULL DEFAULT '',
+                        confirmed_scriptures TEXT NOT NULL DEFAULT '',
+                        output_mode TEXT NOT NULL DEFAULT 'concise',
+                        started_at TEXT NOT NULL,
+                        ended_at TEXT NULL,
+                        is_deleted INTEGER NOT NULL DEFAULT 0
+                    );
+
+                    CREATE INDEX IF NOT EXISTS idx_ai_sermon_sessions_speaker ON ai_sermon_sessions(speaker_id);
+                    CREATE INDEX IF NOT EXISTS idx_ai_sermon_sessions_started ON ai_sermon_sessions(started_at);
+                    CREATE INDEX IF NOT EXISTS idx_ai_sermon_sessions_deleted ON ai_sermon_sessions(is_deleted);
+
+                    CREATE TABLE IF NOT EXISTS ai_conversation_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL,
+                        role TEXT NOT NULL,
+                        name TEXT NOT NULL DEFAULT '',
+                        content TEXT NOT NULL DEFAULT '',
+                        created_at TEXT NOT NULL,
+                        is_deleted INTEGER NOT NULL DEFAULT 0
+                    );
+
+                    CREATE INDEX IF NOT EXISTS idx_ai_conversation_records_session ON ai_conversation_records(session_id);
+                    CREATE INDEX IF NOT EXISTS idx_ai_conversation_records_created ON ai_conversation_records(created_at);
+                    CREATE INDEX IF NOT EXISTS idx_ai_conversation_records_deleted ON ai_conversation_records(is_deleted);
+                ");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" EnsureAiSermonSchemaExists 失败: {ex.Message}");
             }
         }
 

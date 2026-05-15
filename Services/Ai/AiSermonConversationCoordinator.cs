@@ -14,6 +14,9 @@ namespace ImageColorChanger.Services.Ai
         private readonly IDeepSeekChatClient _chatClient;
         private readonly IBibleService _bibleService;
         private readonly ConfigManager _config;
+        private readonly AiSermonHistoryStore _historyStore;
+        private readonly AiSermonSummaryService _summaryService;
+        private readonly AiRealtimeUnderstandingScheduler _asrScheduler;
         private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly SemaphoreSlim _asrSendGate = new(2, 2);
         private readonly SemaphoreSlim _assistantRenderLock = new(1, 1);
@@ -24,6 +27,7 @@ namespace ImageColorChanger.Services.Ai
         private const int MaxHistoricalSignalCount = 800;
         private const int MaxHistoricalSignalLineLength = 180;
         private const int MaxAsrPendingWindow = 2;
+        private string _selectedSpeakerName = "未标记讲师";
         private AiSermonSessionState _session;
 
         public event Action<AiConversationMessage> MessageAppended;
@@ -36,25 +40,46 @@ namespace ImageColorChanger.Services.Ai
             AiSermonContextBuilder contextBuilder,
             IDeepSeekChatClient chatClient,
             IBibleService bibleService,
-            ConfigManager config)
+            ConfigManager config,
+            AiSermonHistoryStore historyStore,
+            AiSermonSummaryService summaryService,
+            AiRealtimeUnderstandingScheduler asrScheduler)
         {
             _contextBuilder = contextBuilder ?? throw new ArgumentNullException(nameof(contextBuilder));
             _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
             _bibleService = bibleService ?? throw new ArgumentNullException(nameof(bibleService));
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
+            _summaryService = summaryService ?? throw new ArgumentNullException(nameof(summaryService));
+            _asrScheduler = asrScheduler ?? throw new ArgumentNullException(nameof(asrScheduler));
+            _asrScheduler.ProcessingFailed += ex => StatusChanged?.Invoke($"AI实时理解异常：{ex.Message}");
         }
 
         public bool HasActiveSession => _session != null;
+        public string CurrentSpeakerName => _session?.SpeakerName ?? _selectedSpeakerName;
 
         public async Task StartProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
+            var speaker = await _historyStore.GetOrCreateSpeakerAsync(_selectedSpeakerName).ConfigureAwait(false);
+            _selectedSpeakerName = speaker.Name;
+            var historySession = await _historyStore.CreateSessionAsync(
+                speaker.Id,
+                context.ProjectId,
+                context.ProjectName,
+                "concise").ConfigureAwait(false);
             _session = new AiSermonSessionState
             {
                 ProjectId = context.ProjectId,
                 ProjectName = context.ProjectName,
                 ProjectContext = context.ContextText,
                 RuntimeContext = context.RuntimeContextText,
+                SpeakerId = speaker.Id,
+                SpeakerName = speaker.Name,
+                HistorySessionId = historySession.Id,
+                OutputMode = historySession.OutputMode,
+                SpeakerStyleSummary = speaker.StyleSummary,
+                SessionSummary = historySession.Summary,
                 StartedAt = DateTimeOffset.Now
             };
             lock (_stateLock)
@@ -68,6 +93,78 @@ namespace ImageColorChanger.Services.Ai
                 "请解析这个幻灯片项目，建立今天讲章的上下文。请用正常对话简短说明今日主题、显式经文、后续 ASR 应重点关注的经文线索。\n\n" +
                 context.ContextText;
             await SendVisibleUserMessageAsync("project_context", prompt, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task SetSpeakerAsync(string speakerName, CancellationToken cancellationToken = default)
+        {
+            var speaker = await _historyStore.GetOrCreateSpeakerAsync(speakerName).ConfigureAwait(false);
+            _selectedSpeakerName = speaker.Name;
+            if (_session == null)
+            {
+                StatusChanged?.Invoke($"已选择讲师标签：{speaker.Name}");
+                return;
+            }
+
+            _session.SpeakerId = speaker.Id;
+            _session.SpeakerName = speaker.Name;
+            _session.SpeakerStyleSummary = speaker.StyleSummary;
+            if (_session.HistorySessionId > 0)
+            {
+                await _historyStore.UpdateSessionSpeakerAsync(_session.HistorySessionId, speaker.Id).ConfigureAwait(false);
+            }
+            StatusChanged?.Invoke($"已切换讲师标签：{speaker.Name}");
+        }
+
+        public async Task SetOutputModeAsync(string outputMode)
+        {
+            if (_session == null)
+            {
+                return;
+            }
+
+            string normalized = string.Equals(outputMode, "detailed", StringComparison.OrdinalIgnoreCase)
+                ? "detailed"
+                : "concise";
+            _session.OutputMode = normalized;
+            if (_session.HistorySessionId > 0)
+            {
+                await _historyStore.UpdateSessionOutputModeAsync(_session.HistorySessionId, normalized).ConfigureAwait(false);
+            }
+            StatusChanged?.Invoke(normalized == "detailed" ? "AI输出模式：详细" : "AI输出模式：简洁");
+        }
+
+        public Task<IReadOnlyList<AiSpeakerSessionGroup>> GetHistoryGroupsAsync()
+        {
+            return _historyStore.GetSessionGroupsBySpeakerAsync();
+        }
+
+        public async Task<IReadOnlyList<string>> GetSpeakerNamesAsync()
+        {
+            var names = (await _historyStore.GetSpeakerNamesAsync().ConfigureAwait(false))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(n => n)
+                .ToList();
+            if (!names.Contains("未标记讲师", StringComparer.Ordinal))
+            {
+                names.Insert(0, "未标记讲师");
+            }
+
+            return names;
+        }
+
+        public Task DeleteSpeakerAsync(string speakerName)
+        {
+            return _historyStore.ArchiveSpeakerAsync(speakerName);
+        }
+
+        public Task DeleteHistoryMessageAsync(int messageId)
+        {
+            return _historyStore.DeleteMessageAsync(messageId);
+        }
+
+        public Task DeleteHistorySessionAsync(int sessionId)
+        {
+            return _historyStore.DeleteSessionAsync(sessionId);
         }
 
         public Task SendUserMessageAsync(string text, CancellationToken cancellationToken = default)
@@ -85,17 +182,31 @@ namespace ImageColorChanger.Services.Ai
             long asrSeq = Interlocked.Increment(ref _latestAsrSequence);
 
             AppendHistoricalSignal($"ASR: {NormalizeSignal(turn.Text)}");
+            return _asrScheduler.EnqueueAsync(
+                turn,
+                ProcessAsrWindowAsync,
+                cancellationToken);
+        }
+
+        private async Task ProcessAsrWindowAsync(AiAsrSemanticWindowSnapshot snapshot, CancellationToken cancellationToken)
+        {
+            if (snapshot == null || string.IsNullOrWhiteSpace(snapshot.WindowText))
+            {
+                return;
+            }
 
             string prompt = _session == null
                 ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请先纠错理解为可能的普通话语义，再判断讲员可能在讲什么。" +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
-                  $"raw_asr：{turn.Text}"
+                  $"raw_asr_window：\n{snapshot.WindowText}"
                 : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
-                  "请结合今日幻灯片上下文、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断讲员当前可能在讲什么。" +
+                  "请结合今日幻灯片上下文、讲师长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断讲员当前可能在讲什么。" +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
-                  $"raw_asr：{turn.Text}";
-            return SendVisibleUserMessageAsync("asr", prompt, cancellationToken, asrSeq);
+                  $"raw_asr_window_version：{snapshot.Version}\n" +
+                  $"raw_asr_window：\n{snapshot.WindowText}";
+            await UpdateSessionSummaryAsync(snapshot).ConfigureAwait(false);
+            await SendVisibleUserMessageAsync("asr", prompt, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task SendVisibleUserMessageAsync(string name, string content, CancellationToken cancellationToken, long asrSeq = 0)
@@ -125,6 +236,7 @@ namespace ImageColorChanger.Services.Ai
                 _visibleMessages.Add(message);
             }
             MessageAppended?.Invoke(message);
+            await SaveHistoryMessageAsync(message).ConfigureAwait(false);
 
             bool isAsr = string.Equals(name, "asr", StringComparison.Ordinal);
             if (isAsr && IsStaleAsrRequest(asrSeq))
@@ -173,14 +285,17 @@ namespace ImageColorChanger.Services.Ai
 
                 if (!string.IsNullOrWhiteSpace(result.Content))
                 {
+                    AiConversationMessage assistantMessage;
                     lock (_stateLock)
                     {
-                        _visibleMessages.Add(new AiConversationMessage
+                        assistantMessage = new AiConversationMessage
                         {
                             Role = "assistant",
                             Content = result.Content
-                        });
+                        };
+                        _visibleMessages.Add(assistantMessage);
                     }
+                    await SaveHistoryMessageAsync(assistantMessage).ConfigureAwait(false);
 
                     if (isAsr)
                     {
@@ -246,7 +361,7 @@ namespace ImageColorChanger.Services.Ai
                 {
                     Role = "user",
                     Name = "project_context",
-                    Content = $"今日讲章稳定上下文：\n{sessionSnapshot.RuntimeContext}"
+                    Content = BuildStableRuntimeContext(sessionSnapshot)
                 });
             }
 
@@ -296,6 +411,7 @@ namespace ImageColorChanger.Services.Ai
                 {
                     AppendHistoricalSignal(
                         $"经文候选确认: {result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}-{result.Candidate.EndVerse}节");
+                    await UpdateSpeakerStyleSummaryAsync(result.Candidate).ConfigureAwait(false);
                     ScriptureCandidateAccepted?.Invoke(result.Candidate);
                     StatusChanged?.Invoke($"AI经文候选已确认：{result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}节");
                 }
@@ -322,6 +438,30 @@ namespace ImageColorChanger.Services.Ai
                 "不确定时必须说明不确定，不要强行猜测具体章节。\n" +
                 "如果只是普通讲道内容，没有足够证据，不要调用工具。\n" +
                 "允许合理推测候选：当上下文与历史线索能支持时，可以提交 confidence >= 0.55 的候选。";
+        }
+
+        private static string BuildStableRuntimeContext(AiSermonSessionState session)
+        {
+            var parts = new List<string>
+            {
+                $"今日讲章稳定上下文：\n{session.RuntimeContext}",
+                $"讲师标签：{session.SpeakerName}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
+            {
+                parts.Add($"讲师长期风格摘要：\n{session.SpeakerStyleSummary}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(session.SessionSummary))
+            {
+                parts.Add($"本场已形成摘要：\n{session.SessionSummary}");
+            }
+
+            parts.Add(string.Equals(session.OutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
+                ? "输出偏好：详细说明判断理由、历史线索和不确定点。"
+                : "输出偏好：简洁给出当前理解、候选经文和必要提醒。");
+            return string.Join("\n\n", parts);
         }
 
         private void AppendHistoricalSignal(string signal)
@@ -368,6 +508,56 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return "全历史线索（按时间）:\n" + string.Join("\n", historySnapshot);
+        }
+
+        private async Task SaveHistoryMessageAsync(AiConversationMessage message)
+        {
+            if (_session == null || _session.HistorySessionId <= 0 || message == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await _historyStore.AppendMessageAsync(
+                    _session.HistorySessionId,
+                    message.Role,
+                    message.Content,
+                    message.Name).ConfigureAwait(false);
+            }
+            catch
+            {
+                // 历史记录不能影响实时 ASR 理解链路。
+            }
+        }
+
+        private async Task UpdateSessionSummaryAsync(AiAsrSemanticWindowSnapshot snapshot)
+        {
+            if (_session == null || _session.HistorySessionId <= 0)
+            {
+                return;
+            }
+
+            string summary = _summaryService.BuildSessionSummary(_session.SessionSummary, snapshot);
+            _session.SessionSummary = summary;
+            await _historyStore.UpdateSessionSummaryAsync(_session.HistorySessionId, summary).ConfigureAwait(false);
+        }
+
+        private async Task UpdateSpeakerStyleSummaryAsync(AiScriptureCandidate candidate)
+        {
+            if (_session == null || _session.SpeakerId <= 0)
+            {
+                return;
+            }
+
+            string summary = _summaryService.BuildSpeakerStyleSummary(_session.SpeakerStyleSummary, candidate);
+            if (string.Equals(summary, _session.SpeakerStyleSummary, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _session.SpeakerStyleSummary = summary;
+            await _historyStore.UpdateSpeakerStyleSummaryAsync(_session.SpeakerId, summary).ConfigureAwait(false);
         }
 
         private static string NormalizeSignal(string value)

@@ -75,6 +75,12 @@ namespace ImageColorChanger.Services.Ai
         public string ProjectName { get; init; } = string.Empty;
         public string ProjectContext { get; init; } = string.Empty;
         public string RuntimeContext { get; init; } = string.Empty;
+        public int SpeakerId { get; set; }
+        public string SpeakerName { get; set; } = "未标记讲师";
+        public int HistorySessionId { get; set; }
+        public string OutputMode { get; set; } = "concise";
+        public string SpeakerStyleSummary { get; set; } = string.Empty;
+        public string SessionSummary { get; set; } = string.Empty;
         public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.Now;
     }
 }
