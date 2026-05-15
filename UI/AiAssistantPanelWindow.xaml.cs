@@ -27,12 +27,16 @@ namespace ImageColorChanger.UI
         private string _speakerFilterText = string.Empty;
         private System.Windows.Controls.TextBox _speakerSearchBox;
         private readonly List<string> _speakerNames = new();
+        private readonly List<string> _dialectTags = new();
+        private bool _dialectSchemeEnabled;
+        private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private double _expandedHeight = 500;
 
         public event Action<bool> DebugModeChanged;
         public event Action<string> SpeakerApplied;
         public event Action<string> SpeakerDeleteRequested;
         public event Action<string> OutputModeChanged;
+        public event Action<bool, IReadOnlyList<string>> DialectSchemeChanged;
         public event Action HistoryRequested;
         public event Action<int> HistorySessionDeleteRequested;
         public event Action<int> HistoryMessageDeleteRequested;
@@ -42,11 +46,55 @@ namespace ImageColorChanger.UI
             _configManager = configManager ?? throw new ArgumentNullException(nameof(configManager));
             InitializeComponent();
             SetModelName(_configManager.DeepSeekModel);
+            LoadDialectSchemeFromConfig();
             SyncWriteThresholdUiFromConfig();
             SyncPanelOpacityUiFromConfig();
             ApplyPanelOpacityFromSlider();
             SetActiveView(showHistory: false, requestRefresh: false);
             _uiReady = true;
+        }
+
+        private void LoadDialectSchemeFromConfig()
+        {
+            _dialectSchemeEnabled = _configManager.AiSermonDialectSchemeEnabled;
+            _dialectTags.Clear();
+            _selectedDialectTags.Clear();
+            foreach (string tag in _configManager.AiSermonDialectTags)
+            {
+                if (!string.IsNullOrWhiteSpace(tag) && !_dialectTags.Contains(tag, StringComparer.Ordinal))
+                {
+                    _dialectTags.Add(tag.Trim());
+                }
+            }
+
+            if (_dialectTags.Count == 0)
+            {
+                _dialectTags.Add("国语");
+                _dialectTags.Add("吴语");
+                _dialectTags.Add("宁波话");
+                _dialectTags.Add("绍兴话");
+            }
+
+            foreach (string selected in _configManager.AiSermonSelectedDialectTags)
+            {
+                if (string.IsNullOrWhiteSpace(selected))
+                {
+                    continue;
+                }
+
+                string value = selected.Trim();
+                if (!_dialectTags.Contains(value, StringComparer.Ordinal))
+                {
+                    _dialectTags.Insert(0, value);
+                }
+
+                _selectedDialectTags.Add(value);
+            }
+
+            if (_selectedDialectTags.Count == 0)
+            {
+                _selectedDialectTags.Add("国语");
+            }
         }
 
         public void SetProjectTitle(string title)
@@ -680,6 +728,7 @@ namespace ImageColorChanger.UI
 
             _speakerSearchBox = null;
             SpeakerPopupStack.Children.Clear();
+            BuildDialectSchemeSection(selectedSpeaker);
 
             var searchRow = new Border
             {
@@ -833,6 +882,241 @@ namespace ImageColorChanger.UI
             };
             addButton.MouseLeftButtonUp += (_, _) => AddSpeakerFromMenu();
             SpeakerPopupStack.Children.Add(addButton);
+        }
+
+        private void BuildDialectSchemeSection(string selectedSpeaker)
+        {
+            var header = new Border
+            {
+                Padding = new Thickness(10, 8, 10, 8),
+                BorderBrush = CreateBrush("#3866B8EA"),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Background = CreateBrush("#071C30")
+            };
+
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.Child = row;
+
+            row.Children.Add(new TextBlock
+            {
+                Text = "语言",
+                Foreground = CreateBrush("#DFF5FF"),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            SpeakerPopupStack.Children.Add(header);
+
+            var dialectPanel = new StackPanel
+            {
+                Margin = new Thickness(10, 6, 10, 6)
+            };
+            dialectPanel.Children.Add(new TextBlock
+            {
+                Text = "语言标签",
+                Foreground = CreateBrush("#8FB8D1"),
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            var wrap = new WrapPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            foreach (string tag in _dialectTags)
+            {
+                bool selected = _selectedDialectTags.Contains(tag);
+                var chip = new Border
+                {
+                    Height = 24,
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Padding = new Thickness(8, 0, 8, 0),
+                    CornerRadius = new CornerRadius(12),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    BorderBrush = selected ? CreateBrush("#88CAFF") : CreateBrush("#2F5C78"),
+                    BorderThickness = new Thickness(1),
+                    Background = selected ? CreateBrush("#2F8CD7") : CreateBrush("#102A40"),
+                    Child = new TextBlock
+                    {
+                        Text = tag,
+                        Foreground = CreateBrush("#EAF9FF"),
+                        FontSize = 11,
+                        FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                };
+                chip.MouseLeftButtonUp += (_, _) =>
+                {
+                    if (_selectedDialectTags.Contains(tag))
+                    {
+                        _selectedDialectTags.Remove(tag);
+                    }
+                    else
+                    {
+                        _selectedDialectTags.Add(tag);
+                    }
+
+                    PersistDialectSchemeToConfig();
+                    DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());
+                    RebuildSpeakerMenu(selectedSpeaker);
+                };
+                wrap.Children.Add(chip);
+            }
+
+            var addChip = new Border
+            {
+                Height = 24,
+                Margin = new Thickness(0, 0, 6, 6),
+                Padding = new Thickness(8, 0, 8, 0),
+                CornerRadius = new CornerRadius(12),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                BorderBrush = CreateBrush("#3F7EA6"),
+                BorderThickness = new Thickness(1),
+                Background = CreateBrush("#0D2438"),
+                Child = new TextBlock
+                {
+                    Text = "+ 添加语言",
+                    Foreground = CreateBrush("#BFEFFF"),
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            addChip.MouseLeftButtonUp += (_, _) => AddDialectTagFromMenu(selectedSpeaker);
+            wrap.Children.Add(addChip);
+
+            dialectPanel.Children.Add(wrap);
+            SpeakerPopupStack.Children.Add(dialectPanel);
+        }
+
+        private void SetDialectSchemeEnabled(bool enabled, string selectedSpeaker)
+        {
+            if (_dialectSchemeEnabled == enabled)
+            {
+                return;
+            }
+
+            _dialectSchemeEnabled = enabled;
+            PersistDialectSchemeToConfig();
+            DialectSchemeChanged?.Invoke(_dialectSchemeEnabled, _selectedDialectTags.ToList());
+            RebuildSpeakerMenu(selectedSpeaker);
+            FocusSpeakerSearchBox();
+        }
+
+        private void AddDialectTagFromMenu(string selectedSpeaker)
+        {
+            string tag = PromptDialectTagName();
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                return;
+            }
+
+            tag = tag.Trim();
+            if (!_dialectTags.Contains(tag, StringComparer.Ordinal))
+            {
+                _dialectTags.Add(tag);
+            }
+
+            _selectedDialectTags.Add(tag);
+            PersistDialectSchemeToConfig();
+            DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());
+            RebuildSpeakerMenu(selectedSpeaker);
+            FocusSpeakerSearchBox();
+        }
+
+        private string PromptDialectTagName()
+        {
+            var dialog = new Window
+            {
+                Title = "新增语言标签",
+                Width = 340,
+                Height = 160,
+                MinWidth = 320,
+                MinHeight = 145,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                Owner = this,
+                Background = CreateBrush("#101A28"),
+                Foreground = CreateBrush("#EAF9FF"),
+                FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI")
+            };
+
+            var panel = new Grid { Margin = new Thickness(14) };
+            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = "输入语言标签（如：宁波话）",
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 8),
+                Foreground = CreateBrush("#D7EEFF")
+            });
+
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                Height = 30,
+                FontSize = 12,
+                Padding = new Thickness(8, 3, 8, 3),
+                Background = CreateBrush("#EAF3FA"),
+                Foreground = CreateBrush("#0F172A"),
+                BorderBrush = CreateBrush("#4D90C4")
+            };
+            Grid.SetRow(textBox, 1);
+            panel.Children.Add(textBox);
+
+            var buttons = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+            Grid.SetRow(buttons, 2);
+            panel.Children.Add(buttons);
+
+            var okButton = new System.Windows.Controls.Button
+            {
+                Content = "确定",
+                Width = 68,
+                Height = 28,
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = CreateBrush("#2F8CD7"),
+                Foreground = CreateBrush("#FFFFFF"),
+                BorderBrush = CreateBrush("#88CAFF"),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                IsDefault = true
+            };
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "取消",
+                Width = 68,
+                Height = 28,
+                Background = CreateBrush("#1E4261"),
+                Foreground = CreateBrush("#EAF9FF"),
+                BorderBrush = CreateBrush("#4D90C4"),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                IsCancel = true
+            };
+            buttons.Children.Add(okButton);
+            buttons.Children.Add(cancelButton);
+
+            string result = string.Empty;
+            okButton.Click += (_, _) =>
+            {
+                result = (textBox.Text ?? string.Empty).Trim();
+                dialog.DialogResult = true;
+            };
+            cancelButton.Click += (_, _) => dialog.DialogResult = false;
+
+            dialog.Content = panel;
+            dialog.Loaded += (_, _) => textBox.Focus();
+            return dialog.ShowDialog() == true ? result : string.Empty;
+        }
+
+        private void PersistDialectSchemeToConfig()
+        {
+            _dialectSchemeEnabled = _selectedDialectTags.Count > 0;
+            _configManager.AiSermonDialectSchemeEnabled = _dialectSchemeEnabled;
+            _configManager.AiSermonDialectTags = _dialectTags.ToArray();
+            _configManager.AiSermonSelectedDialectTags = _selectedDialectTags.ToArray();
         }
 
         private void FocusSpeakerSearchBox()

@@ -343,8 +343,8 @@
                                       StaysOpen="False"
                                       PopupAnimation="Fade">
                         <Border x:Name="SpeakerPopupRoot"
-                                Width="170"
-                                MaxHeight="250"
+                                Width="248"
+                                MaxHeight="340"
                                 Background="#071C30"
                                 BorderBrush="#7366B8EA"
                                 BorderThickness="1"

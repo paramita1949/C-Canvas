@@ -28,6 +28,8 @@ namespace ImageColorChanger.Services.Ai
         private const int MaxHistoricalSignalLineLength = 180;
         private const int MaxAsrPendingWindow = 2;
         private string _selectedSpeakerName = "未标记讲师";
+        private bool _dialectSchemeEnabled;
+        private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private AiSermonSessionState _session;
 
         public event Action<AiConversationMessage> MessageAppended;
@@ -53,6 +55,14 @@ namespace ImageColorChanger.Services.Ai
             _summaryService = summaryService ?? throw new ArgumentNullException(nameof(summaryService));
             _asrScheduler = asrScheduler ?? throw new ArgumentNullException(nameof(asrScheduler));
             _asrScheduler.ProcessingFailed += ex => StatusChanged?.Invoke($"AI实时理解异常：{ex.Message}");
+            _dialectSchemeEnabled = _config.AiSermonDialectSchemeEnabled;
+            foreach (string tag in _config.AiSermonSelectedDialectTags)
+            {
+                if (!string.IsNullOrWhiteSpace(tag))
+                {
+                    _selectedDialectTags.Add(tag.Trim());
+                }
+            }
         }
 
         public bool HasActiveSession => _session != null;
@@ -133,6 +143,42 @@ namespace ImageColorChanger.Services.Ai
             StatusChanged?.Invoke(normalized == "detailed" ? "AI输出模式：详细" : "AI输出模式：简洁");
         }
 
+        public Task SetDialectSchemeAsync(bool enabled, IReadOnlyList<string> dialectTags)
+        {
+            _dialectSchemeEnabled = enabled;
+            _selectedDialectTags.Clear();
+            if (dialectTags != null)
+            {
+                foreach (string tag in dialectTags)
+                {
+                    string value = (tag ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        _selectedDialectTags.Add(value);
+                    }
+                }
+            }
+
+            var activeDialectTags = GetActiveDialectTags();
+            _dialectSchemeEnabled = activeDialectTags.Count > 0;
+            _config.AiSermonDialectSchemeEnabled = _dialectSchemeEnabled;
+            _config.AiSermonSelectedDialectTags = _selectedDialectTags.ToArray();
+            if (_selectedDialectTags.Count == 0)
+            {
+                StatusChanged?.Invoke("语言：未选择");
+            }
+            else if (activeDialectTags.Count == 0)
+            {
+                StatusChanged?.Invoke("语言：国语");
+            }
+            else
+            {
+                StatusChanged?.Invoke($"语言：国语 + {string.Join("、", activeDialectTags)}");
+            }
+
+            return Task.CompletedTask;
+        }
+
         public Task<IReadOnlyList<AiSpeakerSessionGroup>> GetHistoryGroupsAsync()
         {
             return _historyStore.GetSessionGroupsBySpeakerAsync();
@@ -198,10 +244,12 @@ namespace ImageColorChanger.Services.Ai
             string prompt = _session == null
                 ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请先纠错理解为可能的普通话语义，再判断讲员可能在讲什么。" +
+                  BuildDialectPromptHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}"
                 : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请结合今日幻灯片上下文、讲师长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断讲员当前可能在讲什么。" +
+                  BuildDialectPromptHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window_version：{snapshot.Version}\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}";
@@ -350,7 +398,7 @@ namespace ImageColorChanger.Services.Ai
                 new()
                 {
                     Role = "system",
-                    Content = BuildSystemPrompt()
+                    Content = BuildSystemPrompt(GetActiveDialectTags())
                 }
             };
 
@@ -422,7 +470,7 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
-        private static string BuildSystemPrompt()
+        private static string BuildSystemPrompt(IReadOnlyCollection<string> activeDialectTags)
         {
             return
                 "你是 Canvas 程序内置的讲章经文理解助手。\n" +
@@ -437,7 +485,8 @@ namespace ImageColorChanger.Services.Ai
                 "你只能提出候选，不能声称已经写入历史记录。\n" +
                 "不确定时必须说明不确定，不要强行猜测具体章节。\n" +
                 "如果只是普通讲道内容，没有足够证据，不要调用工具。\n" +
-                "允许合理推测候选：当上下文与历史线索能支持时，可以提交 confidence >= 0.55 的候选。";
+                "允许合理推测候选：当上下文与历史线索能支持时，可以提交 confidence >= 0.55 的候选。\n" +
+                BuildDialectSystemHint(activeDialectTags);
         }
 
         private static string BuildStableRuntimeContext(AiSermonSessionState session)
@@ -462,6 +511,47 @@ namespace ImageColorChanger.Services.Ai
                 ? "输出偏好：详细说明判断理由、历史线索和不确定点。"
                 : "输出偏好：简洁给出当前理解、候选经文和必要提醒。");
             return string.Join("\n\n", parts);
+        }
+
+        private string BuildDialectPromptHint()
+        {
+            if (!_dialectSchemeEnabled)
+            {
+                return string.Empty;
+            }
+
+            var activeDialectTags = GetActiveDialectTags();
+            if (activeDialectTags.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            string labels = string.Join("、", activeDialectTags);
+            string perDialect = string.Join(
+                "；",
+                activeDialectTags.Select(tag => $"若文本疑似{tag}音系，优先尝试{tag}同音/近音映射后再判经文"));
+            return $"已启用方言增强，当前标签：{labels}。{perDialect}。";
+        }
+
+        private static string BuildDialectSystemHint(IReadOnlyCollection<string> activeDialectTags)
+        {
+            if (activeDialectTags == null || activeDialectTags.Count == 0)
+            {
+                return "语言基线：国语。";
+            }
+
+            string labels = string.Join("、", activeDialectTags);
+            string bullets = string.Join(
+                "\n",
+                activeDialectTags.Select(tag => $"- {tag}：优先进行该方言口音的同音、近音和连读纠错，再回归普通话语义"));
+            return $"语言基线：国语；方言增强标签={labels}。\n方言纠错策略：\n{bullets}";
+        }
+
+        private List<string> GetActiveDialectTags()
+        {
+            return _selectedDialectTags
+                .Where(tag => !string.Equals(tag, "国语", StringComparison.Ordinal))
+                .ToList();
         }
 
         private void AppendHistoricalSignal(string signal)

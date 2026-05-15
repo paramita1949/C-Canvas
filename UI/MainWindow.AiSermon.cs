@@ -125,6 +125,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.OutputModeChanged += mode => _ = _aiSermonCoordinator?.SetOutputModeAsync(mode);
+            _aiAssistantPanelWindow.DialectSchemeChanged += (enabled, tags) => _ = _aiSermonCoordinator?.SetDialectSchemeAsync(enabled, tags);
             _aiAssistantPanelWindow.HistoryRequested += () => _ = RefreshAiHistoryInPanelAsync();
             _aiAssistantPanelWindow.HistorySessionDeleteRequested += sessionId => _ = DeleteAiHistorySessionAsync(sessionId);
             _aiAssistantPanelWindow.HistoryMessageDeleteRequested += messageId => _ = DeleteAiHistoryMessageAsync(messageId);
