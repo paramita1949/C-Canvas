@@ -5,13 +5,18 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
     public sealed class LiveCaptionDebugLoggerTests
     {
         [Fact]
-        public void Enabled_IsTrueInDebugBuildUnlessExplicitlyDisabled()
+        public void IsEnabledForEnvironment_DefaultsToFalseEvenInDebugBuild()
         {
-#if DEBUG
-            Assert.True(LiveCaptionDebugLogger.Enabled);
-#else
-            Assert.False(LiveCaptionDebugLogger.Enabled);
-#endif
+            Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment(null, debugBuild: true));
+            Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment(string.Empty, debugBuild: true));
+            Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment("0", debugBuild: true));
+        }
+
+        [Fact]
+        public void IsEnabledForEnvironment_RequiresExplicitOptIn()
+        {
+            Assert.True(LiveCaptionDebugLogger.IsEnabledForEnvironment("1", debugBuild: true));
+            Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment("1", debugBuild: false));
         }
     }
 }

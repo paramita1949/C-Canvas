@@ -10,5 +10,7 @@ namespace ImageColorChanger.Services.Ai
             AiChatRequest request,
             Action<string> onContentDelta,
             CancellationToken cancellationToken);
+
+        Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken);
     }
 }

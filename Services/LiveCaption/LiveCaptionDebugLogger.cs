@@ -5,12 +5,18 @@ namespace ImageColorChanger.Services.LiveCaption
 {
     internal static class LiveCaptionDebugLogger
     {
-        internal static readonly bool Enabled =
+        internal static readonly bool Enabled = IsEnabledForEnvironment(
+            Environment.GetEnvironmentVariable("CANVAS_LIVECAPTION_DEBUG"),
 #if DEBUG
-            !string.Equals(Environment.GetEnvironmentVariable("CANVAS_LIVECAPTION_DEBUG"), "0", StringComparison.Ordinal);
+            debugBuild: true);
 #else
-            false;
+            debugBuild: false);
 #endif
+
+        internal static bool IsEnabledForEnvironment(string value, bool debugBuild)
+        {
+            return debugBuild && string.Equals(value, "1", StringComparison.Ordinal);
+        }
 
         public static void Log(string message)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -35,12 +36,14 @@ namespace ImageColorChanger.Services.Ai
         private bool _dialectSchemeEnabled;
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private AiSermonSessionState _session;
+        private DeepSeekBalanceSnapshot _sessionStartBalance;
 
         public event Action<AiConversationMessage> MessageAppended;
         public event Action AssistantMessageStarted;
         public event Action<string> AssistantDeltaReceived;
         public event Action<string> StatusChanged;
         public event Action<string> DebugMessageEmitted;
+        public event Action<string> BalanceStatusChanged;
         public event Action<AiScriptureCandidate> ScriptureCandidateAccepted;
 
         public AiSermonConversationCoordinator(
@@ -104,6 +107,7 @@ namespace ImageColorChanger.Services.Ai
                 _historicalSignals.Clear();
             }
             StatusChanged?.Invoke($"已绑定项目：{context.ProjectName}");
+            await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);
 
             string prompt =
                 "请解析这个幻灯片项目，建立今天讲章的上下文。请用正常对话简短说明今日主题、显式经文、后续 ASR 应重点关注的经文线索。\n\n" +
@@ -393,6 +397,7 @@ namespace ImageColorChanger.Services.Ai
                     DebugMessageEmitted?.Invoke(
                         $"缓存统计：hit={result.PromptCacheHitTokens}, miss={result.PromptCacheMissTokens}, hitRate={hitRate}%, total={totalCacheTokens}");
                 }
+                await RefreshBalanceStatusAsync(setBaseline: false, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -757,8 +762,57 @@ namespace ImageColorChanger.Services.Ai
                     return $"{index}:{name}:chars={chars},estTok={estimatedTokens},hash={hash}";
                 });
             string layout = "缓存分段：" + string.Join(" | ", parts);
-            Debug.WriteLine("[AiSermon][CacheLayout] " + layout);
+            if (IsCacheLayoutDebugOutputEnabled(
+                    Environment.GetEnvironmentVariable("CANVAS_AI_CACHE_LAYOUT_DEBUG")))
+            {
+                Debug.WriteLine("[AiSermon][CacheLayout] " + layout);
+            }
             DebugMessageEmitted?.Invoke(layout);
+        }
+
+        internal static bool IsCacheLayoutDebugOutputEnabled(string value)
+        {
+            return string.Equals(value, "1", StringComparison.Ordinal);
+        }
+
+        internal static string FormatBalanceStatus(
+            DeepSeekBalanceSnapshot start,
+            DeepSeekBalanceSnapshot current)
+        {
+            if (current == null || string.IsNullOrWhiteSpace(current.Currency))
+            {
+                return "余额：读取失败，消耗：待计算";
+            }
+
+            string currency = current.Currency.Trim();
+            string account = $"{currency} {current.TotalBalance.ToString("0.00", CultureInfo.InvariantCulture)}";
+            if (start == null ||
+                !string.Equals(start.Currency, current.Currency, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"余额：{account}，消耗：待计算";
+            }
+
+            decimal spent = Math.Max(0m, start.TotalBalance - current.TotalBalance);
+            return $"余额：{account}，消耗：{currency} {spent.ToString("0.00", CultureInfo.InvariantCulture)}";
+        }
+
+        private async Task RefreshBalanceStatusAsync(bool setBaseline, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var balance = await _chatClient.GetBalanceAsync(cancellationToken).ConfigureAwait(false);
+                if (setBaseline || _sessionStartBalance == null)
+                {
+                    _sessionStartBalance = balance;
+                }
+
+                BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                BalanceStatusChanged?.Invoke("余额：读取失败，消耗：待计算");
+                DebugMessageEmitted?.Invoke($"余额查询失败：{ex.Message}");
+            }
         }
 
         private static int EstimatePromptTokens(string text)
@@ -911,6 +965,7 @@ namespace ImageColorChanger.Services.Ai
                 };
 
                 StatusChanged?.Invoke("已自动创建实时历史会话");
+                await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

@@ -48,22 +48,42 @@ namespace Canvas.TextEditor.Tests.Ai
             Assert.Equal(5, result.PromptCacheMissTokens);
         }
 
+        [Fact]
+        public async Task GetBalanceAsync_ParsesCnyTotalBalance()
+        {
+            var config = new TestConfigManager();
+            config.DeepSeekApiKey = "valid";
+            using var httpClient = new HttpClient(new StaticResponseHandler(
+                HttpStatusCode.OK,
+                "{\"is_available\":true,\"balance_infos\":[{\"currency\":\"CNY\",\"total_balance\":\"110.25\",\"granted_balance\":\"10.00\",\"topped_up_balance\":\"100.25\"}]}",
+                "application/json"));
+            using var client = new DeepSeekChatClient(config, httpClient);
+
+            var balance = await client.GetBalanceAsync(CancellationToken.None);
+
+            Assert.True(balance.IsAvailable);
+            Assert.Equal("CNY", balance.Currency);
+            Assert.Equal(110.25m, balance.TotalBalance);
+        }
+
         private sealed class StaticResponseHandler : HttpMessageHandler
         {
             private readonly HttpStatusCode _statusCode;
             private readonly string _content;
+            private readonly string _mediaType;
 
-            public StaticResponseHandler(HttpStatusCode statusCode, string content)
+            public StaticResponseHandler(HttpStatusCode statusCode, string content, string mediaType = "text/event-stream")
             {
                 _statusCode = statusCode;
                 _content = content;
+                _mediaType = mediaType;
             }
 
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 return Task.FromResult(new HttpResponseMessage(_statusCode)
                 {
-                    Content = new StringContent(_content, Encoding.UTF8, "text/event-stream")
+                    Content = new StringContent(_content, Encoding.UTF8, _mediaType)
                 });
             }
         }

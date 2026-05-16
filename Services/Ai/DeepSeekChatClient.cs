@@ -68,6 +68,32 @@ namespace ImageColorChanger.Services.Ai
             return await ReadStreamAsync(response, onContentDelta, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+        {
+            string apiKey = (_config.DeepSeekApiKey ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("DeepSeek API Key 未配置");
+            }
+
+            using var message = new HttpRequestMessage(HttpMethod.Get, $"{_config.DeepSeekBaseUrl}/user/balance");
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var response = await _httpClient.SendAsync(
+                message,
+                HttpCompletionOption.ResponseContentRead,
+                cancellationToken).ConfigureAwait(false);
+
+            string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException(BuildErrorMessage(response.StatusCode, response.ReasonPhrase, body));
+            }
+
+            return ParseBalanceSnapshot(body);
+        }
+
         private object BuildPayload(AiChatRequest request)
         {
             var messages = (request?.Messages ?? Array.Empty<AiConversationMessage>())
@@ -249,6 +275,57 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return candidates;
+        }
+
+        private static DeepSeekBalanceSnapshot ParseBalanceSnapshot(string json)
+        {
+            using JsonDocument doc = JsonDocument.Parse(json ?? "{}");
+            bool available = doc.RootElement.TryGetProperty("is_available", out var availableElement) &&
+                             availableElement.ValueKind == JsonValueKind.True;
+
+            if (doc.RootElement.TryGetProperty("balance_infos", out var infos) &&
+                infos.ValueKind == JsonValueKind.Array)
+            {
+                JsonElement? selected = null;
+                foreach (var info in infos.EnumerateArray())
+                {
+                    if (info.TryGetProperty("currency", out var currencyElement) &&
+                        string.Equals(currencyElement.GetString(), "CNY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selected = info;
+                        break;
+                    }
+
+                    selected ??= info;
+                }
+
+                if (selected.HasValue)
+                {
+                    var item = selected.Value;
+                    string currency = item.TryGetProperty("currency", out var currencyElement)
+                        ? currencyElement.GetString() ?? string.Empty
+                        : string.Empty;
+                    decimal total = 0m;
+                    if (item.TryGetProperty("total_balance", out var totalElement) &&
+                        totalElement.ValueKind == JsonValueKind.String)
+                    {
+                        decimal.TryParse(
+                            totalElement.GetString(),
+                            System.Globalization.NumberStyles.Number,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out total);
+                    }
+
+                    return new DeepSeekBalanceSnapshot
+                    {
+                        IsAvailable = available,
+                        Currency = currency,
+                        TotalBalance = total
+                    };
+                }
+            }
+
+            return new DeepSeekBalanceSnapshot { IsAvailable = available };
         }
 
         private static int GetInt32OrZero(JsonElement element, string propertyName)

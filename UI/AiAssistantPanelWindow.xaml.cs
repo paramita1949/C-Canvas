@@ -146,6 +146,19 @@ namespace ImageColorChanger.UI
             });
         }
 
+        public void SetBalanceStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                BalanceStatusText.Text = status.Trim();
+            });
+        }
+
         private void UpdateModelOptionVisual(string modelName)
         {
             if (ModelOptionFlash == null || ModelOptionPro == null)
@@ -313,14 +326,31 @@ namespace ImageColorChanger.UI
                 string text = status.Trim();
                 StatusText.Text = text;
 
-                if (string.Equals(text, "DeepSeek请求已发送，处理中…", StringComparison.Ordinal) ||
-                    string.Equals(text, "DeepSeek已返回结果。", StringComparison.Ordinal))
+                if (!ShouldAppendStatusToTimeline(text))
                 {
                     return;
                 }
 
                 AddMessage("系统", text, "#BFEFFF");
             });
+        }
+
+        public static bool ShouldAppendStatusToTimeline(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return false;
+            }
+
+            string text = status.Trim();
+            if (string.Equals(text, "DeepSeek请求已发送，处理中…", StringComparison.Ordinal) ||
+                string.Equals(text, "DeepSeek已返回结果。", StringComparison.Ordinal) ||
+                text.StartsWith("AI缓存：", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public void AppendDebug(string message)

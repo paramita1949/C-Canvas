@@ -454,6 +454,12 @@
                                FontSize="11"
                                TextWrapping="Wrap"
                                Margin="0,3,0,0"/>
+                    <TextBlock x:Name="BalanceStatusText"
+                               Text="余额：待查询，消耗：待计算"
+                               Foreground="#7FEAFF"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,3,0,0"/>
                     <WrapPanel Margin="0,8,0,0" VerticalAlignment="Center">
                         <Border Background="#132D44"
                                 BorderBrush="#4D90C4"

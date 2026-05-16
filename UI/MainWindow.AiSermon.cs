@@ -17,7 +17,6 @@ namespace ImageColorChanger.UI
         private System.Windows.Threading.DispatcherTimer _aiAsrFlushTimer;
         private bool _aiSermonReceiveAsr;
         private bool _aiSermonDebugEnabled;
-        private DateTimeOffset _lastInterimDebugAt = DateTimeOffset.MinValue;
         private int _aiPanelF5HotKeyId = -1;
 
         private async Task AnalyzeTextProjectWithAiAsync(ProjectTreeItem item, bool startAsr)
@@ -223,6 +222,13 @@ namespace ImageColorChanger.UI
                     ShowStatus(status);
                 }));
             };
+            _aiSermonCoordinator.BalanceStatusChanged += status =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _aiAssistantPanelWindow?.SetBalanceStatus(status);
+                }));
+            };
             _aiSermonCoordinator.DebugMessageEmitted += message =>
             {
                 Dispatcher.BeginInvoke(new Action(() =>
@@ -345,29 +351,12 @@ namespace ImageColorChanger.UI
 
             if (!_aiSermonReceiveAsr)
             {
-                if (_aiSermonDebugEnabled && update.IsFinal && !string.IsNullOrWhiteSpace(update.Text))
-                {
-                    _aiAssistantPanelWindow?.AppendDebug("ASR已收到，但 AI 面板未开启 ASR 接收。");
-                }
                 return;
             }
 
             if (_aiAsrTurnAggregator.TryAccept(update.Text, update.IsFinal, DateTimeOffset.Now, out var turn))
             {
                 SubmitAsrTurnToAi(turn);
-            }
-            else if (_aiSermonDebugEnabled && update.IsFinal && !string.IsNullOrWhiteSpace(update.Text))
-            {
-                _aiAssistantPanelWindow?.AppendDebug("ASR未转发：被聚合器过滤（重复/过短/无效）。");
-            }
-            else if (_aiSermonDebugEnabled && !update.IsFinal && !string.IsNullOrWhiteSpace(update.Text))
-            {
-                var now = DateTimeOffset.Now;
-                if (now - _lastInterimDebugAt >= TimeSpan.FromSeconds(6))
-                {
-                    _lastInterimDebugAt = now;
-                    _aiAssistantPanelWindow?.AppendDebug("收到 interim ASR，正在等待聚合阈值或 final 结果。");
-                }
             }
         }
 
@@ -386,25 +375,7 @@ namespace ImageColorChanger.UI
 
         private void SubmitAsrTurnToAi(AiAsrTurnEnvelope turn)
         {
-            if (_aiSermonDebugEnabled)
-            {
-                string preview = TrimDebugPreview(turn.Text);
-                string source = turn.IsFinal ? "final" : "interim-silence";
-                _aiAssistantPanelWindow?.AppendDebug($"ASR已转发到DeepSeek（{source}）：{preview}");
-            }
-
             _ = _aiSermonCoordinator.SendAsrTurnAsync(turn, CancellationToken.None);
-        }
-
-        private static string TrimDebugPreview(string text)
-        {
-            string value = (text ?? string.Empty).Trim();
-            if (value.Length <= 36)
-            {
-                return value;
-            }
-
-            return value.Substring(0, 36) + "...";
         }
     }
 }
