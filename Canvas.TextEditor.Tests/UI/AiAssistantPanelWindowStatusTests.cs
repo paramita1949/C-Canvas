@@ -16,7 +16,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         [Fact]
         public void ShouldAppendStatusToTimeline_KeepsUserMeaningfulStatus()
         {
-            Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline("已选择讲师标签：B"));
+            Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline("已选择传道人：B"));
         }
     }
 }

@@ -125,7 +125,7 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.Invoke(() =>
             {
-                ProjectTitleText.Text = string.IsNullOrWhiteSpace(title) ? "未绑定幻灯片项目" : title.Trim();
+                ProjectTitleText.Text = string.IsNullOrWhiteSpace(title) ? "主题待读取" : title.Trim();
             });
         }
 
@@ -394,7 +394,7 @@ namespace ImageColorChanger.UI
             string speakerName = DisplaySpeakerName(group.SpeakerName);
             if (string.IsNullOrWhiteSpace(speakerName))
             {
-                speakerName = "未标记";
+                speakerName = "传道人";
             }
 
             var root = new Border
@@ -578,7 +578,7 @@ namespace ImageColorChanger.UI
             MessageStackPanel.Children.Clear();
             _currentAssistantText = null;
             EmptyStatePanel.Visibility = Visibility.Visible;
-            StatusText.Text = "等待AI解读或ASR字幕";
+            StatusText.Text = "等待幻灯片 / 实时识别";
             DebugModeChanged?.Invoke(false);
         }
 
@@ -729,7 +729,7 @@ namespace ImageColorChanger.UI
         {
             var dialog = new Window
             {
-                Title = "添加讲师",
+                Title = "添加传道人",
                 Width = 360,
                 Height = 165,
                 MinWidth = 320,
@@ -749,7 +749,7 @@ namespace ImageColorChanger.UI
 
             panel.Children.Add(new TextBlock
             {
-                Text = "请输入讲师名称",
+                Text = "请输入传道人名称",
                 FontSize = 13,
                 Margin = new Thickness(0, 0, 0, 8),
                 Foreground = CreateBrush("#D7EEFF")
@@ -868,6 +868,7 @@ namespace ImageColorChanger.UI
             {
                 _selectedDialectTags.Add("国语");
             }
+            UpdateLanguageBadgeVisual();
         }
 
         private void UpdateSpeakerSelectionVisual(string speaker)
@@ -885,7 +886,7 @@ namespace ImageColorChanger.UI
         private static string DisplaySpeakerSelectionText(string speaker)
         {
             string value = DisplaySpeakerName(speaker);
-            return string.IsNullOrWhiteSpace(value) ? "选择讲师" : value;
+            return string.IsNullOrWhiteSpace(value) ? "选择传道人" : value;
         }
 
         private static string DisplaySpeakerName(string speaker)
@@ -944,14 +945,14 @@ namespace ImageColorChanger.UI
                 Padding = new Thickness(0),
                 MinWidth = 130,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "搜索讲师"
+                ToolTip = "搜索传道人"
             };
             _speakerSearchBox = searchBox;
             inputHost.Children.Add(searchBox);
 
             var placeholder = new TextBlock
             {
-                Text = "搜索讲师",
+                Text = "搜索传道人",
                 Foreground = CreateBrush("#7294AA"),
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
@@ -1048,7 +1049,7 @@ namespace ImageColorChanger.UI
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Child = new TextBlock
                 {
-                    Text = "+  新增讲师",
+                    Text = "+  新增传道人",
                     Foreground = CreateBrush("#EAF9FF"),
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
@@ -1295,6 +1296,34 @@ namespace ImageColorChanger.UI
                     Tags = kvp.Value.ToArray()
                 })
                 .ToArray();
+            UpdateLanguageBadgeVisual();
+        }
+
+        private void UpdateLanguageBadgeVisual()
+        {
+            if (LanguageBadgeText == null)
+            {
+                return;
+            }
+
+            var tags = _selectedDialectTags
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (tags.Count == 0)
+            {
+                LanguageBadgeText.Text = "国语";
+            }
+            else if (tags.Count <= 2)
+            {
+                LanguageBadgeText.Text = string.Join("、", tags);
+            }
+            else
+            {
+                LanguageBadgeText.Text = $"{tags[0]} +{tags.Count - 1}";
+            }
         }
 
         private void FocusSpeakerSearchBox()
@@ -1370,7 +1399,7 @@ namespace ImageColorChanger.UI
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
                     Cursor = System.Windows.Input.Cursors.Hand,
-                    ToolTip = "删除讲师标签"
+                    ToolTip = "删除传道人"
                 };
                 deleteButton.Click += (_, e) =>
                 {

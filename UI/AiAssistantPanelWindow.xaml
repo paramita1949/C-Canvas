@@ -335,159 +335,222 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Grid Grid.Row="0"
-                      Grid.ColumnSpan="2"
-                      Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                <Border Grid.Row="0"
+                        Grid.RowSpan="2"
+                        Grid.Column="0"
+                        Margin="0,0,10,0"
+                        Padding="0"
+                        BorderBrush="#4D90C4"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Background="#0E2A43"
+                        ClipToBounds="True">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                    <Button x:Name="SpeakerMenuButton"
-                            ToolTip="切换讲师"
-                            Style="{StaticResource HudSpeakerPillButtonStyle}"
-                            Click="SpeakerMenuButton_Click">
-                        <Grid>
+                        <Grid Grid.Row="0"
+                              Background="#123A59"
+                              MinHeight="42">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="8"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Viewbox Width="15"
-                                     Height="15"
-                                     VerticalAlignment="Center">
-                                <Canvas Width="24" Height="24">
-                                    <Ellipse Canvas.Left="8"
-                                             Canvas.Top="4"
-                                             Width="8"
-                                             Height="8"
-                                             Stroke="#8FB8D1"
-                                             StrokeThickness="2"/>
-                                    <Path Data="M4,21 C5.5,16 18.5,16 20,21"
-                                          Stroke="#8FB8D1"
-                                          StrokeThickness="2"
-                                          StrokeStartLineCap="Round"
-                                          StrokeEndLineCap="Round"
-                                          Fill="Transparent"/>
-                                    <Path Data="M18.5,5.5 L21,3 M21,3 L21,7 M21,3 L17,3"
-                                          Stroke="#8FB8D1"
-                                          StrokeThickness="1.7"
-                                          StrokeStartLineCap="Round"
-                                          StrokeEndLineCap="Round"
-                                          StrokeLineJoin="Round"
-                                          Fill="Transparent"/>
-                                </Canvas>
-                            </Viewbox>
-                            <TextBlock x:Name="SpeakerSelectionText"
-                                       Grid.Column="2"
-                                       Text=""
-                                       Foreground="#F4FBFF"
-                                       FontSize="12"
-                                       FontWeight="Bold"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </Grid>
-                    </Button>
 
-                    <primitives:Popup x:Name="SpeakerPopup"
-                                      PlacementTarget="{Binding ElementName=SpeakerMenuButton}"
-                                      Placement="Bottom"
-                                      VerticalOffset="6"
-                                      AllowsTransparency="True"
-                                      StaysOpen="False"
-                                      PopupAnimation="Fade">
-                        <Border x:Name="SpeakerPopupRoot"
-                                Width="248"
-                                MaxHeight="340"
-                                Background="#071C30"
-                                BorderBrush="#7366B8EA"
-                                BorderThickness="1"
-                                CornerRadius="7"
-                                SnapsToDevicePixels="True">
-                            <Border.Effect>
-                                <DropShadowEffect Color="#99000000"
-                                                  BlurRadius="14"
-                                                  ShadowDepth="4"
-                                                  Opacity="0.45"/>
-                            </Border.Effect>
-                            <StackPanel x:Name="SpeakerPopupStack"/>
-                        </Border>
-                    </primitives:Popup>
+                            <Button x:Name="SpeakerMenuButton"
+                                    ToolTip="切换传道人"
+                                    Style="{StaticResource HudSpeakerPillButtonStyle}"
+                                    Margin="10,5,0,5"
+                                    Click="SpeakerMenuButton_Click">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox Width="15"
+                                             Height="15"
+                                             VerticalAlignment="Center">
+                                        <Canvas Width="24" Height="24">
+                                            <Ellipse Canvas.Left="8"
+                                                     Canvas.Top="4"
+                                                     Width="8"
+                                                     Height="8"
+                                                     Stroke="#8FB8D1"
+                                                     StrokeThickness="2"/>
+                                            <Path Data="M4,21 C5.5,16 18.5,16 20,21"
+                                                  Stroke="#8FB8D1"
+                                                  StrokeThickness="2"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  Fill="Transparent"/>
+                                            <Path Data="M18.5,5.5 L21,3 M21,3 L21,7 M21,3 L17,3"
+                                                  Stroke="#8FB8D1"
+                                                  StrokeThickness="1.7"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock x:Name="SpeakerSelectionText"
+                                               Grid.Column="2"
+                                               Text=""
+                                               Foreground="#F4FBFF"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </Button>
 
-                    <Border Grid.Column="1"
-                            BorderBrush="#4D90C4"
-                            BorderThickness="1"
-                            CornerRadius="9"
-                            Background="#132D44"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Height="32"
-                            ClipToBounds="True">
-                        <UniformGrid Rows="1" Columns="2">
-                            <ToggleButton x:Name="RealtimeViewButton"
-                                          Content="实时"
-                                          IsChecked="True"
-                                          MinWidth="54"
-                                          Height="30"
-                                          Style="{StaticResource HudViewSwitchLeftButtonStyle}"
-                                          Checked="ViewModeToggleButton_Checked"/>
-                            <ToggleButton x:Name="HistoryViewButton"
-                                          Content="历史"
-                                          MinWidth="54"
-                                          Height="30"
-                                          Style="{StaticResource HudViewSwitchRightButtonStyle}"
-                                          Checked="ViewModeToggleButton_Checked"/>
-                        </UniformGrid>
-                    </Border>
-                </Grid>
-
-                <StackPanel Grid.Row="1" Grid.Column="0">
-                    <TextBlock x:Name="ProjectTitleText"
-                               Text="未读取主题"
-                               Foreground="#F4FBFF"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Margin="0,2,0,0"/>
-                    <TextBlock x:Name="StatusText"
-                               Text="等待AI解读或ASR字幕"
-                               Foreground="#A9C8DD"
-                               FontSize="11"
-                               TextWrapping="Wrap"
-                               Margin="0,3,0,0"/>
-                    <TextBlock x:Name="BalanceStatusText"
-                               Text="余额：待查询，消耗：待计算"
-                               Foreground="#7FEAFF"
-                               FontSize="11"
-                               TextWrapping="Wrap"
-                               Margin="0,3,0,0"/>
-                    <WrapPanel Margin="0,8,0,0" VerticalAlignment="Center">
-                        <Border Background="#132D44"
-                                BorderBrush="#4D90C4"
-                                BorderThickness="1"
-                                CornerRadius="9"
-                                Padding="0"
-                                Margin="0,0,6,6">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="输出"
-                                           Foreground="#8FB8D1"
+                            <Border Grid.Column="1"
+                                    BorderBrush="#315F86"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Background="#0B2035"
+                                    Padding="8,3"
+                                    Margin="0,5,10,5"
+                                    VerticalAlignment="Center">
+                                <TextBlock x:Name="LanguageBadgeText"
+                                           Text="国语"
+                                           Foreground="#BFEFFF"
                                            FontSize="11"
+                                           FontWeight="Bold"/>
+                            </Border>
+
+                            <primitives:Popup x:Name="SpeakerPopup"
+                                              PlacementTarget="{Binding ElementName=SpeakerMenuButton}"
+                                              Placement="Bottom"
+                                              VerticalOffset="6"
+                                              AllowsTransparency="True"
+                                              StaysOpen="False"
+                                              PopupAnimation="Fade">
+                                <Border x:Name="SpeakerPopupRoot"
+                                        Width="248"
+                                        MaxHeight="340"
+                                        Background="#071C30"
+                                        BorderBrush="#7366B8EA"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        SnapsToDevicePixels="True">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#99000000"
+                                                          BlurRadius="14"
+                                                          ShadowDepth="4"
+                                                          Opacity="0.45"/>
+                                    </Border.Effect>
+                                    <StackPanel x:Name="SpeakerPopupStack"/>
+                                </Border>
+                            </primitives:Popup>
+                        </Grid>
+
+                        <Grid Grid.Row="1"
+                              Margin="12,10,12,12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ProjectTitleText"
+                                           Text="主题待读取"
+                                           Foreground="#F4FBFF"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="StatusText"
+                                           Grid.Column="1"
+                                           Text="等待幻灯片 / 实时识别"
+                                           Foreground="#9FC0D6"
+                                           FontSize="11"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           HorizontalAlignment="Right"
                                            VerticalAlignment="Center"
-                                           Margin="8,0,4,0"/>
-                                <UniformGrid Rows="1" Columns="2">
-                                    <ToggleButton x:Name="ConciseModeButton"
-                                                  Content="简洁"
-                                                  IsChecked="True"
-                                                  Style="{StaticResource HudThresholdButtonStyle}"
-                                                  Checked="OutputModeToggleButton_Checked"/>
-                                    <ToggleButton x:Name="DetailedModeButton"
-                                                  Content="详细"
-                                                  Style="{StaticResource HudThresholdButtonStyle}"
-                                                  Checked="OutputModeToggleButton_Checked"/>
-                                </UniformGrid>
-                            </StackPanel>
-                        </Border>
-                    </WrapPanel>
-                </StackPanel>
+                                           Margin="10,1,0,0"/>
+                            </Grid>
+
+                            <Grid Grid.Row="1"
+                                  Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="输出"
+                                               Foreground="#8FB8D1"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0"/>
+                                    <Border Background="#132D44"
+                                            BorderBrush="#4D90C4"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Padding="0">
+                                        <UniformGrid Rows="1" Columns="2">
+                                            <ToggleButton x:Name="ConciseModeButton"
+                                                          Content="简洁"
+                                                          IsChecked="True"
+                                                          Style="{StaticResource HudThresholdButtonStyle}"
+                                                          Checked="OutputModeToggleButton_Checked"/>
+                                            <ToggleButton x:Name="DetailedModeButton"
+                                                          Content="详细"
+                                                          Style="{StaticResource HudThresholdButtonStyle}"
+                                                          Checked="OutputModeToggleButton_Checked"/>
+                                        </UniformGrid>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock x:Name="BalanceStatusText"
+                                           Grid.Column="1"
+                                           Text="余额：待查询，消耗：待计算"
+                                           Foreground="#9FC0D6"
+                                           FontSize="11"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="0"
+                        Grid.Column="1"
+                        BorderBrush="#4D90C4"
+                        BorderThickness="1"
+                        CornerRadius="9"
+                        Background="#132D44"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Height="32"
+                        ClipToBounds="True">
+                    <UniformGrid Rows="1" Columns="2">
+                        <ToggleButton x:Name="RealtimeViewButton"
+                                      Content="实时"
+                                      IsChecked="True"
+                                      MinWidth="54"
+                                      Height="30"
+                                      Style="{StaticResource HudViewSwitchLeftButtonStyle}"
+                                      Checked="ViewModeToggleButton_Checked"/>
+                        <ToggleButton x:Name="HistoryViewButton"
+                                      Content="历史"
+                                      MinWidth="54"
+                                      Height="30"
+                                      Style="{StaticResource HudViewSwitchRightButtonStyle}"
+                                      Checked="ViewModeToggleButton_Checked"/>
+                    </UniformGrid>
+                </Border>
 
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="8,0,0,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -586,7 +649,7 @@
                                        FontSize="16"
                                        FontWeight="Bold"
                                        TextAlignment="Center"/>
-                            <TextBlock Text="开启AI解读后，会按讲师标签沉淀本场摘要和对话记录。"
+                            <TextBlock Text="开启AI解读后，会按传道人沉淀本场摘要和对话记录。"
                                        Foreground="#93B4CC"
                                        FontSize="12"
                                        LineHeight="18"

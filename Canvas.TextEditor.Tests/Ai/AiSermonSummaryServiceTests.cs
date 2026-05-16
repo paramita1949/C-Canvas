@@ -73,7 +73,7 @@ namespace Canvas.TextEditor.Tests.Ai
             string first = service.BuildSpeakerStyleSummary("", "", null, romanCandidate);
             string second = service.BuildSpeakerStyleSummary(first, "", null, johnCandidate);
 
-            Assert.Contains("讲师画像", second, StringComparison.Ordinal);
+            Assert.Contains("传道人画像", second, StringComparison.Ordinal);
             Assert.Contains("经文倾向", second, StringComparison.Ordinal);
             Assert.Contains("新约", second, StringComparison.Ordinal);
             Assert.Contains("高频书卷", second, StringComparison.Ordinal);

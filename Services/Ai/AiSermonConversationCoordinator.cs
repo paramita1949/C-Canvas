@@ -32,6 +32,7 @@ namespace ImageColorChanger.Services.Ai
         private const int MaxHistoricalSignalCount = 800;
         private const int MaxHistoricalSignalLineLength = 180;
         private const int MaxAsrPendingWindow = 2;
+        private const string UnlabeledSpeakerName = "未标记讲师";
         private string _selectedSpeakerName = "未标记讲师";
         private bool _dialectSchemeEnabled;
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
@@ -76,10 +77,27 @@ namespace ImageColorChanger.Services.Ai
         public bool HasActiveSession => _session != null;
         public string CurrentSpeakerName => _session?.SpeakerName ?? _selectedSpeakerName;
 
+        public Task RefreshBalanceAsync(CancellationToken cancellationToken = default)
+        {
+            return RefreshBalanceStatusAsync(setBaseline: false, cancellationToken);
+        }
+
+        internal static string ResolveSpeakerNameForSession(string speakerName)
+        {
+            string value = (speakerName ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !string.Equals(value, UnlabeledSpeakerName, StringComparison.Ordinal))
+            {
+                return value;
+            }
+
+            return "传道人" + DateTime.Now.ToString("MMddHHmm", CultureInfo.InvariantCulture);
+        }
+
         public async Task StartProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
-            var speaker = await _historyStore.GetOrCreateSpeakerAsync(_selectedSpeakerName).ConfigureAwait(false);
+            var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
             _selectedSpeakerName = speaker.Name;
             LoadDialectTagsForSpeaker(_selectedSpeakerName);
             var historySession = await _historyStore.CreateSessionAsync(
@@ -117,12 +135,12 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task SetSpeakerAsync(string speakerName, CancellationToken cancellationToken = default)
         {
-            var speaker = await _historyStore.GetOrCreateSpeakerAsync(speakerName).ConfigureAwait(false);
+            var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(speakerName)).ConfigureAwait(false);
             _selectedSpeakerName = speaker.Name;
             LoadDialectTagsForSpeaker(_selectedSpeakerName);
             if (_session == null)
             {
-                StatusChanged?.Invoke($"已选择讲师标签：{speaker.Name}");
+                StatusChanged?.Invoke($"已选择传道人：{speaker.Name}");
                 return;
             }
 
@@ -133,7 +151,7 @@ namespace ImageColorChanger.Services.Ai
             {
                 await _historyStore.UpdateSessionSpeakerAsync(_session.HistorySessionId, speaker.Id).ConfigureAwait(false);
             }
-            StatusChanged?.Invoke($"已切换讲师标签：{speaker.Name}");
+            StatusChanged?.Invoke($"已切换传道人：{speaker.Name}");
         }
 
         public async Task SetOutputModeAsync(string outputMode)
@@ -198,13 +216,10 @@ namespace ImageColorChanger.Services.Ai
         public async Task<IReadOnlyList<string>> GetSpeakerNamesAsync()
         {
             var names = (await _historyStore.GetSpeakerNamesAsync().ConfigureAwait(false))
+                .Where(name => !string.Equals(name, UnlabeledSpeakerName, StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(n => n)
                 .ToList();
-            if (!names.Contains("未标记讲师", StringComparer.Ordinal))
-            {
-                names.Insert(0, "未标记讲师");
-            }
 
             return names;
         }
@@ -254,13 +269,13 @@ namespace ImageColorChanger.Services.Ai
 
             string prompt = _session == null
                 ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
-                  "请先纠错理解为可能的普通话语义，再判断讲员可能在讲什么。" +
+                  "请先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
                   BuildDialectPromptHint() +
                   BuildCurrentOutputHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}"
                 : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
-                  "请结合今日幻灯片上下文、讲师长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断讲员当前可能在讲什么。" +
+                  "请结合今日幻灯片上下文、传道人长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
                   BuildDialectPromptHint() +
                   BuildCurrentOutputHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
@@ -526,11 +541,11 @@ namespace ImageColorChanger.Services.Ai
         {
             return
                 "你是 Canvas 程序内置的讲章经文理解助手。\n" +
-                "你的任务：根据今日幻灯片项目上下文和实时 ASR 字幕，理解讲员当前可能在讲的主题、经卷、章节、经文。\n" +
+                "你的任务：根据今日幻灯片项目上下文和实时 ASR 字幕，理解当前传道人可能在讲的主题、经卷、章节、经文。\n" +
                 "你会额外收到按时间累计的全历史线索，请把这些线索与当前输入联合判断，不要只依据最新一句话。\n" +
                 "ASR 可能来自任意语音识别平台，现场语言可能包含普通话、方言、地方口音、吴语、宁波话、余姚话、绍兴话或混合表达。\n" +
                 "ASR 文本不一定可靠，可能存在方言或口音导致的误识别、同音词、近音词、断句错误、圣经书卷名/人物名/地名/神学词汇误写、现场噪音、重复、残句和口语化表达。\n" +
-                "不要机械相信 ASR 字面文本。你必须先结合今日主题、幻灯片上下文、历史 ASR、已确认经文候选和圣经常识，推断讲员真实想表达的普通话语义，再判断是否指向经文。\n" +
+                "不要机械相信 ASR 字面文本。你必须先结合今日主题、幻灯片上下文、历史 ASR、已确认经文候选和圣经常识，推断当前传道人真实想表达的普通话语义，再判断是否指向经文。\n" +
                 "像正常 AI 对话一样用简洁中文流式反馈理解。\n" +
                 "当你认为某段 ASR 明确指向某处经文时，调用 propose_scripture_candidate 提出候选。\n" +
                 "候选字段规则：只识别到经卷时只填 bookName；识别到章节时填 bookName+chapter；识别到具体经文时再填 startVerse/endVerse。\n" +
@@ -546,7 +561,7 @@ namespace ImageColorChanger.Services.Ai
             var parts = new List<string>
             {
                 $"今日讲章稳定上下文：\n{session.RuntimeContext}",
-                $"讲师标签：{session.SpeakerName}"
+                $"传道人：{session.SpeakerName}"
             };
 
             parts.Add(BuildOutputModeInstruction(session.OutputMode));
@@ -559,7 +574,7 @@ namespace ImageColorChanger.Services.Ai
             {
                 return
                     "输出模式：详细。\n" +
-                    "请按 4 段输出：1) 当前理解；2) 判断依据（ASR、幻灯片、讲师画像、历史线索分别说明）；3) 可能经文与候选理由；4) 不确定点。\n" +
+                    "请按 4 段输出：1) 当前理解；2) 判断依据（ASR、幻灯片、传道人画像、历史线索分别说明）；3) 可能经文与候选理由；4) 不确定点。\n" +
                     "详细模式允许解释推理路径，但不要编造经文，不要声称已写入历史槽。";
             }
 
@@ -573,7 +588,7 @@ namespace ImageColorChanger.Services.Ai
             if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
             {
                 return
-                    "讲师长期画像摘要（用于预测该讲师下一步可能引用的经文范围、常见章节、讲道习惯和表达偏好）：\n" +
+                    "传道人长期画像摘要（用于预测该传道人下一步可能引用的经文范围、常见章节、讲道习惯和表达偏好）：\n" +
                     session.SpeakerStyleSummary;
             }
 
@@ -784,8 +799,7 @@ namespace ImageColorChanger.Services.Ai
                 return "余额：读取失败，消耗：待计算";
             }
 
-            string currency = current.Currency.Trim();
-            string account = $"{currency} {current.TotalBalance.ToString("0.00", CultureInfo.InvariantCulture)}";
+            string account = current.TotalBalance.ToString("0.00", CultureInfo.InvariantCulture);
             if (start == null ||
                 !string.Equals(start.Currency, current.Currency, StringComparison.OrdinalIgnoreCase))
             {
@@ -793,7 +807,7 @@ namespace ImageColorChanger.Services.Ai
             }
 
             decimal spent = Math.Max(0m, start.TotalBalance - current.TotalBalance);
-            return $"余额：{account}，消耗：{currency} {spent.ToString("0.00", CultureInfo.InvariantCulture)}";
+            return $"余额：{account}，消耗：{spent.ToString("0.00", CultureInfo.InvariantCulture)}";
         }
 
         private async Task RefreshBalanceStatusAsync(bool setBaseline, CancellationToken cancellationToken)
@@ -939,7 +953,7 @@ namespace ImageColorChanger.Services.Ai
                     return;
                 }
 
-                var speaker = await _historyStore.GetOrCreateSpeakerAsync(_selectedSpeakerName).ConfigureAwait(false);
+                var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
                 _selectedSpeakerName = speaker.Name;
                 LoadDialectTagsForSpeaker(_selectedSpeakerName);
 

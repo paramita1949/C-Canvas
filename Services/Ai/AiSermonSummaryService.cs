@@ -132,7 +132,7 @@ namespace ImageColorChanger.Services.Ai
             IReadOnlyList<string> styleEvidence)
         {
             var builder = new StringBuilder();
-            builder.AppendLine("讲师画像：");
+            builder.AppendLine("传道人画像：");
             builder.AppendLine("- " + BuildScripturePreference(scriptureEvidence));
             builder.AppendLine("- " + BuildStylePreference(styleEvidence));
             builder.AppendLine("- " + BuildPredictionHint(scriptureEvidence, styleEvidence));
@@ -220,7 +220,7 @@ namespace ImageColorChanger.Services.Ai
             string style = BuildStylePreference(styleEvidence)
                 .Replace("讲章风格：", string.Empty)
                 .TrimEnd('。');
-            return $"预测提示：触发该讲师时，优先结合{scripture}，并留意其{style}的表达习惯。";
+            return $"预测提示：触发该传道人时，优先结合{scripture}，并留意其{style}的表达习惯。";
         }
 
         private static string BuildScriptureEvidenceLine(AiScriptureCandidate candidate)

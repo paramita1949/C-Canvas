@@ -94,6 +94,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
+            _ = _aiSermonCoordinator.RefreshBalanceAsync(CancellationToken.None);
             _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
             _ = RefreshAiHistoryInPanelAsync();
         }
@@ -170,6 +171,7 @@ namespace ImageColorChanger.UI
             {
                 _aiAssistantPanelWindow.Show();
                 _aiAssistantPanelWindow.Activate();
+                _ = _aiSermonCoordinator.RefreshBalanceAsync(CancellationToken.None);
                 _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
                 _ = RefreshAiHistoryInPanelAsync();
             }
@@ -281,7 +283,7 @@ namespace ImageColorChanger.UI
                 .Where(entry => !string.Equals(entry?.Speaker?.Trim(), speaker.Trim(), StringComparison.Ordinal))
                 .ToArray();
             _configManager.AiSermonSpeakerDialectBindings = remainingBindings;
-            string nextSpeaker = deletingCurrent ? "未标记讲师" : _aiSermonCoordinator.CurrentSpeakerName;
+            string nextSpeaker = deletingCurrent ? string.Empty : _aiSermonCoordinator.CurrentSpeakerName;
             if (deletingCurrent)
             {
                 await _aiSermonCoordinator.SetSpeakerAsync(nextSpeaker, CancellationToken.None);

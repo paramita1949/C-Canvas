@@ -12,7 +12,7 @@ namespace Canvas.TextEditor.Tests.Ai
 
             string status = AiSermonConversationCoordinator.FormatBalanceStatus(start, current);
 
-            Assert.Equal("余额：CNY 109.80，消耗：CNY 0.45", status);
+            Assert.Equal("余额：109.80，消耗：0.45", status);
         }
 
         [Fact]
@@ -22,7 +22,7 @@ namespace Canvas.TextEditor.Tests.Ai
 
             string status = AiSermonConversationCoordinator.FormatBalanceStatus(null, current);
 
-            Assert.Equal("余额：CNY 109.80，消耗：待计算", status);
+            Assert.Equal("余额：109.80，消耗：待计算", status);
         }
     }
 }
