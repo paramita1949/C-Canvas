@@ -361,43 +361,65 @@ namespace ImageColorChanger.UI
 
         private FrameworkElement CreateSpeakerHistoryBlock(AiSpeakerSessionGroup group)
         {
+            string speakerName = DisplaySpeakerName(group.SpeakerName);
+            if (string.IsNullOrWhiteSpace(speakerName))
+            {
+                speakerName = "未标记";
+            }
+
             var root = new Border
             {
                 Background = CreateBrush("#24192E3F"),
                 BorderBrush = CreateBrush("#365A78"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(10),
+                Padding = new Thickness(8),
                 Margin = new Thickness(0, 0, 0, 10)
             };
-            var stack = new StackPanel();
-            root.Child = stack;
-
-            stack.Children.Add(new TextBlock
+            var speakerExpander = new Expander
             {
-                Text = DisplaySpeakerName(group.SpeakerName),
-                Foreground = CreateBrush("#F4FBFF"),
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                TextWrapping = TextWrapping.Wrap
-            });
+                IsExpanded = false,
+                Background = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Header = new TextBlock
+                {
+                    Text = $"{speakerName} · {group.Sessions.Count} 场",
+                    Foreground = CreateBrush("#F4FBFF"),
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    TextWrapping = TextWrapping.Wrap
+                }
+            };
+            root.Child = speakerExpander;
+
+            var body = new StackPanel { Margin = new Thickness(4, 6, 4, 2) };
+            speakerExpander.Content = body;
 
             if (!string.IsNullOrWhiteSpace(group.StyleSummary))
             {
-                stack.Children.Add(new TextBlock
+                var summaryBorder = new Border
                 {
-                    Text = "风格摘要：" + TrimForPanel(group.StyleSummary, 160),
+                    Background = CreateBrush("#1C0B1524"),
+                    BorderBrush = CreateBrush("#2C4A63"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+                summaryBorder.Child = new TextBlock
+                {
+                    Text = "总摘要：" + TrimForPanel(group.StyleSummary, 280),
                     Foreground = CreateBrush("#A9C8DD"),
                     FontSize = 11,
                     LineHeight = 17,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 5, 0, 8)
-                });
+                    TextWrapping = TextWrapping.Wrap
+                };
+                body.Children.Add(summaryBorder);
             }
 
             foreach (var session in group.Sessions.Take(8))
             {
-                stack.Children.Add(CreateSessionHistoryBlock(session));
+                body.Children.Add(CreateSessionHistoryBlock(session));
             }
 
             return root;
@@ -411,11 +433,16 @@ namespace ImageColorChanger.UI
                 BorderBrush = CreateBrush("#2C4A63"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(9),
+                Padding = new Thickness(6),
                 Margin = new Thickness(0, 8, 0, 0)
             };
-            var stack = new StackPanel();
-            root.Child = stack;
+            var sessionExpander = new Expander
+            {
+                IsExpanded = false,
+                Background = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(0)
+            };
+            root.Child = sessionExpander;
 
             var header = new DockPanel { LastChildFill = true };
             var deleteButton = CreateInlineDeleteButton("删除本场", () => HistorySessionDeleteRequested?.Invoke(session.Id));
@@ -429,13 +456,16 @@ namespace ImageColorChanger.UI
                 FontWeight = FontWeights.SemiBold,
                 TextWrapping = TextWrapping.Wrap
             });
-            stack.Children.Add(header);
+            sessionExpander.Header = header;
+
+            var stack = new StackPanel { Margin = new Thickness(4, 4, 4, 0) };
+            sessionExpander.Content = stack;
 
             if (!string.IsNullOrWhiteSpace(session.Summary))
             {
                 stack.Children.Add(new TextBlock
                 {
-                    Text = "本场摘要：" + TrimForPanel(session.Summary, 180),
+                    Text = "本场摘要：" + TrimForPanel(session.Summary, 220),
                     Foreground = CreateBrush("#A9C8DD"),
                     FontSize = 11,
                     LineHeight = 17,
@@ -444,9 +474,29 @@ namespace ImageColorChanger.UI
                 });
             }
 
-            foreach (var message in session.Messages.TakeLast(5))
+            if (session.Messages.Count > 0)
             {
-                stack.Children.Add(CreateMessageHistoryLine(message));
+                var detailsExpander = new Expander
+                {
+                    IsExpanded = false,
+                    Header = new TextBlock
+                    {
+                        Text = $"会话明细（{Math.Min(session.Messages.Count, 5)}）",
+                        Foreground = CreateBrush("#A9C8DD"),
+                        FontSize = 10,
+                        FontWeight = FontWeights.SemiBold
+                    },
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+
+                var detailStack = new StackPanel();
+                foreach (var message in session.Messages.TakeLast(5))
+                {
+                    detailStack.Children.Add(CreateMessageHistoryLine(message));
+                }
+
+                detailsExpander.Content = detailStack;
+                stack.Children.Add(detailsExpander);
             }
 
             return root;
@@ -1568,3 +1618,5 @@ namespace ImageColorChanger.UI
         }
     }
 }
+
+

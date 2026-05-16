@@ -525,8 +525,14 @@ namespace ImageColorChanger.UI
                 // 只在首次加载时初始化
                 if (!_bibleNavigationInitialized)
                 {
-                    // 初始化20个历史槽位
-                    InitializeHistorySlots();
+                    // AI实时识别可能在圣经页首次打开前已经写入历史槽。
+                    // 这里不能无条件重建槽位，否则会出现“提示已插入，但打开圣经页没有记录”。
+                    bool hasPreloadedHistory = HasBibleHistorySlotContent();
+                    if (_historySlots == null || _historySlots.Count == 0)
+                    {
+                        InitializeHistorySlots();
+                    }
+
                     BibleHistoryList.ItemsSource = _historySlots;
                     
                     // 订阅锁定状态变化事件
@@ -538,7 +544,7 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"   SaveBibleHistory配置: {_configManager.SaveBibleHistory}");
                     //#endif
                     
-                    if (_configManager.SaveBibleHistory)
+                    if (_configManager.SaveBibleHistory && !hasPreloadedHistory)
                     {
                         LoadBibleHistoryFromConfig();
                     }

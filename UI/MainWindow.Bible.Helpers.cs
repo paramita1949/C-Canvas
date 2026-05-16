@@ -1071,6 +1071,11 @@ namespace ImageColorChanger.UI
                 if (_historySlots.Count == 0)
                 {
                     InitializeHistorySlots();
+                    if (_configManager.SaveBibleHistory)
+                    {
+                        LoadBibleHistoryFromConfig();
+                    }
+
                     LogBibleQuickLocateDebug("AddPinyinHistory", "historySlots was empty, initialized default 20 slots");
                 }
 
@@ -1219,6 +1224,14 @@ namespace ImageColorChanger.UI
             {
                 LogBibleQuickLocateDebug("AddPinyinHistory", $"exception: {ex.Message}");
             }
+        }
+
+        private bool HasBibleHistorySlotContent()
+        {
+            return _historySlots != null &&
+                   _historySlots.Any(slot =>
+                       slot != null &&
+                       (slot.BookId > 0 || !string.IsNullOrWhiteSpace(slot.DisplayText)));
         }
 
         private static int NormalizeVerseRangeEnd(int startVerse, int endVerse)

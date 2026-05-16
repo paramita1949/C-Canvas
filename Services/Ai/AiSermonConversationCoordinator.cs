@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ImageColorChanger.Core;
@@ -256,11 +259,15 @@ namespace ImageColorChanger.Services.Ai
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window_version：{snapshot.Version}\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}";
-            await UpdateSessionSummaryAsync(snapshot).ConfigureAwait(false);
-            await SendVisibleUserMessageAsync("asr", prompt, cancellationToken).ConfigureAwait(false);
+            await SendVisibleUserMessageAsync("asr", prompt, cancellationToken, asrSummarySnapshot: snapshot).ConfigureAwait(false);
         }
 
-        private async Task SendVisibleUserMessageAsync(string name, string content, CancellationToken cancellationToken, long asrSeq = 0)
+        private async Task SendVisibleUserMessageAsync(
+            string name,
+            string content,
+            CancellationToken cancellationToken,
+            long asrSeq = 0,
+            AiAsrSemanticWindowSnapshot asrSummarySnapshot = null)
         {
             if (!_config.AiSermonEnabled)
             {
@@ -321,6 +328,7 @@ namespace ImageColorChanger.Services.Ai
                     UserId = _session == null ? "canvas-sermon" : $"canvas-sermon-{_session.ProjectId}",
                     EnableScriptureTool = true
                 };
+                TracePromptCacheLayout(request.Messages);
 
                 bool receivedAnyDelta = false;
                 var result = await _chatClient.StreamChatAsync(
@@ -357,10 +365,13 @@ namespace ImageColorChanger.Services.Ai
                     {
                         await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
                     }
+
+                    await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
                 }
                 else if (!receivedAnyDelta)
                 {
                     StatusChanged?.Invoke("DeepSeek已响应（本次无文本输出）。");
+                    await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
                 }
 
                 if (receivedAnyDelta)
@@ -371,7 +382,11 @@ namespace ImageColorChanger.Services.Ai
                 await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
                 if (result.PromptCacheHitTokens > 0 || result.PromptCacheMissTokens > 0)
                 {
-                    StatusChanged?.Invoke($"AI缓存：hit={result.PromptCacheHitTokens}, miss={result.PromptCacheMissTokens}");
+                    int totalCacheTokens = result.PromptCacheHitTokens + result.PromptCacheMissTokens;
+                    int hitRate = totalCacheTokens <= 0
+                        ? 0
+                        : (int)Math.Round(result.PromptCacheHitTokens * 100d / totalCacheTokens);
+                    StatusChanged?.Invoke($"AI缓存：hit={result.PromptCacheHitTokens}, miss={result.PromptCacheMissTokens}, 命中率={hitRate}%");
                 }
             }
             catch (OperationCanceledException)
@@ -417,7 +432,35 @@ namespace ImageColorChanger.Services.Ai
                 {
                     Role = "user",
                     Name = "project_context",
-                    Content = BuildStableRuntimeContext(sessionSnapshot)
+                    Content = BuildStableProjectContext(sessionSnapshot)
+                });
+
+                string speakerProfile = BuildSpeakerProfileContext(sessionSnapshot);
+                if (!string.IsNullOrWhiteSpace(speakerProfile))
+                {
+                    messages.Add(new AiConversationMessage
+                    {
+                        Role = "user",
+                        Name = "speaker_profile",
+                        Content = speakerProfile
+                    });
+                }
+            }
+
+            List<AiConversationMessage> visibleSnapshot;
+            lock (_stateLock)
+            {
+                visibleSnapshot = _visibleMessages.ToList();
+            }
+
+            string sessionContext = BuildSessionRuntimeContext(sessionSnapshot);
+            if (!string.IsNullOrWhiteSpace(sessionContext))
+            {
+                messages.Add(new AiConversationMessage
+                {
+                    Role = "user",
+                    Name = "session_context",
+                    Content = sessionContext
                 });
             }
 
@@ -432,16 +475,7 @@ namespace ImageColorChanger.Services.Ai
                 });
             }
 
-            List<AiConversationMessage> visibleSnapshot;
-            lock (_stateLock)
-            {
-                visibleSnapshot = _visibleMessages.ToList();
-            }
-
-            var visibleWindow = visibleSnapshot
-                .Where(m => string.Equals(currentMessageName, "project_context", StringComparison.Ordinal) ||
-                            !string.Equals(m.Name, "project_context", StringComparison.Ordinal))
-                .TakeLast(10);
+            var visibleWindow = BuildVisibleTailMessages(visibleSnapshot, currentMessageName);
             messages.AddRange(visibleWindow);
             return messages;
         }
@@ -467,7 +501,7 @@ namespace ImageColorChanger.Services.Ai
                 {
                     AppendHistoricalSignal(
                         $"经文候选确认: {result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}-{result.Candidate.EndVerse}节");
-                    await UpdateSpeakerStyleSummaryAsync(result.Candidate).ConfigureAwait(false);
+                    await UpdateSpeakerStyleSummaryAsync(string.Empty, null, result.Candidate).ConfigureAwait(false);
                     ScriptureCandidateAccepted?.Invoke(result.Candidate);
                     StatusChanged?.Invoke($"AI经文候选已确认：{result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}节");
                 }
@@ -497,7 +531,7 @@ namespace ImageColorChanger.Services.Ai
                 BuildDialectSystemHint(activeDialectTags);
         }
 
-        private static string BuildStableRuntimeContext(AiSermonSessionState session)
+        private static string BuildStableProjectContext(AiSermonSessionState session)
         {
             var parts = new List<string>
             {
@@ -505,20 +539,66 @@ namespace ImageColorChanger.Services.Ai
                 $"讲师标签：{session.SpeakerName}"
             };
 
-            if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
-            {
-                parts.Add($"讲师长期风格摘要：\n{session.SpeakerStyleSummary}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(session.SessionSummary))
-            {
-                parts.Add($"本场已形成摘要：\n{session.SessionSummary}");
-            }
-
             parts.Add(string.Equals(session.OutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
                 ? "输出偏好：详细说明判断理由、历史线索和不确定点。"
                 : "输出偏好：简洁给出当前理解、候选经文和必要提醒。");
             return string.Join("\n\n", parts);
+        }
+
+        private static string BuildSpeakerProfileContext(AiSermonSessionState session)
+        {
+            if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
+            {
+                return
+                    "讲师长期画像摘要（用于预测该讲师下一步可能引用的经文范围、常见章节、讲道习惯和表达偏好）：\n" +
+                    session.SpeakerStyleSummary;
+            }
+
+            return string.Empty;
+        }
+
+        private static string BuildSessionRuntimeContext(AiSermonSessionState session)
+        {
+            if (session == null)
+            {
+                return string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(session.SessionSummary))
+            {
+                return $"本场动态摘要：\n{session.SessionSummary}";
+            }
+
+            return string.Empty;
+        }
+
+        private static IReadOnlyList<AiConversationMessage> BuildVisibleTailMessages(
+            IReadOnlyList<AiConversationMessage> visibleSnapshot,
+            string currentMessageName)
+        {
+            if (visibleSnapshot == null || visibleSnapshot.Count == 0)
+            {
+                return Array.Empty<AiConversationMessage>();
+            }
+
+            var tail = visibleSnapshot
+                .Where(m => string.Equals(currentMessageName, "project_context", StringComparison.Ordinal) ||
+                            !string.Equals(m.Name, "project_context", StringComparison.Ordinal))
+                .Where(m => !string.Equals(m.Name, "asr", StringComparison.Ordinal))
+                .TakeLast(8)
+                .ToList();
+
+            if (string.Equals(currentMessageName, "asr", StringComparison.Ordinal))
+            {
+                var currentAsr = visibleSnapshot
+                    .LastOrDefault(m => string.Equals(m.Name, "asr", StringComparison.Ordinal));
+                if (currentAsr != null)
+                {
+                    tail.Add(currentAsr);
+                }
+            }
+
+            return tail;
         }
 
         private string BuildDialectPromptHint()
@@ -545,7 +625,7 @@ namespace ImageColorChanger.Services.Ai
         {
             if (activeDialectTags == null || activeDialectTags.Count == 0)
             {
-                return "语言基线：国语。";
+                return "语言基线：国语。若仅国语场景，不要输出任何方言增强策略。";
             }
 
             string labels = string.Join("、", activeDialectTags);
@@ -603,16 +683,15 @@ namespace ImageColorChanger.Services.Ai
                 trimmed = trimmed.Substring(0, MaxHistoricalSignalLineLength) + "...";
             }
 
-            string stamped = $"{DateTime.Now:HH:mm:ss} {trimmed}";
             lock (_stateLock)
             {
                 if (_historicalSignals.Count > 0 &&
-                    string.Equals(_historicalSignals[^1], stamped, StringComparison.Ordinal))
+                    string.Equals(_historicalSignals[^1], trimmed, StringComparison.Ordinal))
                 {
                     return;
                 }
 
-                _historicalSignals.Add(stamped);
+                _historicalSignals.Add(trimmed);
                 if (_historicalSignals.Count > MaxHistoricalSignalCount)
                 {
                     _historicalSignals.RemoveAt(0);
@@ -633,7 +712,31 @@ namespace ImageColorChanger.Services.Ai
                 return string.Empty;
             }
 
-            return "全历史线索（按时间）:\n" + string.Join("\n", historySnapshot);
+            return "全历史线索（按顺序，已去除秒级时间以提升缓存稳定性）:\n" + string.Join("\n", historySnapshot.TakeLast(80));
+        }
+
+        private static void TracePromptCacheLayout(IReadOnlyList<AiConversationMessage> messages)
+        {
+            if (messages == null || messages.Count == 0)
+            {
+                return;
+            }
+
+            var parts = messages
+                .Select((message, index) =>
+                {
+                    string name = string.IsNullOrWhiteSpace(message.Name) ? message.Role : message.Name;
+                    string hash = StableShortHash(message.Content);
+                    return $"{index}:{name}:{(message.Content ?? string.Empty).Length}:{hash}";
+                });
+            Debug.WriteLine("[AiSermon][CacheLayout] " + string.Join(" | ", parts));
+        }
+
+        private static string StableShortHash(string text)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(text ?? string.Empty);
+            byte[] hash = SHA256.HashData(bytes);
+            return Convert.ToHexString(hash, 0, 4);
         }
 
         private async Task SaveHistoryMessageAsync(AiConversationMessage message)
@@ -657,26 +760,21 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
-        private async Task UpdateSessionSummaryAsync(AiAsrSemanticWindowSnapshot snapshot)
-        {
-            if (_session == null || _session.HistorySessionId <= 0)
-            {
-                return;
-            }
-
-            string summary = _summaryService.BuildSessionSummary(_session.SessionSummary, snapshot);
-            _session.SessionSummary = summary;
-            await _historyStore.UpdateSessionSummaryAsync(_session.HistorySessionId, summary).ConfigureAwait(false);
-        }
-
-        private async Task UpdateSpeakerStyleSummaryAsync(AiScriptureCandidate candidate)
+        private async Task UpdateSpeakerStyleSummaryAsync(
+            string assistantContent,
+            AiAsrSemanticWindowSnapshot snapshot,
+            AiScriptureCandidate scriptureCandidate = null)
         {
             if (_session == null || _session.SpeakerId <= 0)
             {
                 return;
             }
 
-            string summary = _summaryService.BuildSpeakerStyleSummary(_session.SpeakerStyleSummary, candidate);
+            string summary = _summaryService.BuildSpeakerStyleSummary(
+                _session.SpeakerStyleSummary,
+                assistantContent,
+                snapshot,
+                scriptureCandidate);
             if (string.Equals(summary, _session.SpeakerStyleSummary, StringComparison.Ordinal))
             {
                 return;
@@ -684,6 +782,25 @@ namespace ImageColorChanger.Services.Ai
 
             _session.SpeakerStyleSummary = summary;
             await _historyStore.UpdateSpeakerStyleSummaryAsync(_session.SpeakerId, summary).ConfigureAwait(false);
+        }
+
+        private async Task UpdateSummariesAfterAssistantAsync(
+            AiAsrSemanticWindowSnapshot snapshot,
+            string assistantContent)
+        {
+            if (_session == null || _session.HistorySessionId <= 0)
+            {
+                return;
+            }
+
+            string sessionSummary = _summaryService.BuildSessionSummary(_session.SessionSummary, snapshot, assistantContent);
+            if (!string.Equals(sessionSummary, _session.SessionSummary, StringComparison.Ordinal))
+            {
+                _session.SessionSummary = sessionSummary;
+                await _historyStore.UpdateSessionSummaryAsync(_session.HistorySessionId, sessionSummary).ConfigureAwait(false);
+            }
+
+            await UpdateSpeakerStyleSummaryAsync(assistantContent, snapshot).ConfigureAwait(false);
         }
 
         private static string NormalizeSignal(string value)
