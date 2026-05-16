@@ -20,6 +20,7 @@ namespace ImageColorChanger.Services.Ai
         private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly SemaphoreSlim _asrSendGate = new(2, 2);
         private readonly SemaphoreSlim _assistantRenderLock = new(1, 1);
+        private readonly SemaphoreSlim _sessionInitLock = new(1, 1);
         private readonly List<AiConversationMessage> _visibleMessages = new();
         private readonly List<string> _historicalSignals = new();
         private readonly object _stateLock = new();
@@ -265,6 +266,11 @@ namespace ImageColorChanger.Services.Ai
             {
                 StatusChanged?.Invoke("AI讲章理解未启用");
                 return;
+            }
+
+            if (string.Equals(name, "asr", StringComparison.Ordinal))
+            {
+                await EnsureSessionForAsrAsync(cancellationToken).ConfigureAwait(false);
             }
 
             if (_session == null &&
@@ -704,6 +710,54 @@ namespace ImageColorChanger.Services.Ai
             finally
             {
                 _assistantRenderLock.Release();
+            }
+        }
+
+        private async Task EnsureSessionForAsrAsync(CancellationToken cancellationToken)
+        {
+            if (_session != null)
+            {
+                return;
+            }
+
+            await _sessionInitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_session != null)
+                {
+                    return;
+                }
+
+                var speaker = await _historyStore.GetOrCreateSpeakerAsync(_selectedSpeakerName).ConfigureAwait(false);
+                _selectedSpeakerName = speaker.Name;
+                LoadDialectTagsForSpeaker(_selectedSpeakerName);
+
+                var historySession = await _historyStore.CreateSessionAsync(
+                    speaker.Id,
+                    projectId: 0,
+                    title: $"实时会话 {DateTime.Now:MM-dd HH:mm}",
+                    outputMode: "concise").ConfigureAwait(false);
+
+                _session = new AiSermonSessionState
+                {
+                    ProjectId = 0,
+                    ProjectName = "未绑定项目",
+                    ProjectContext = string.Empty,
+                    RuntimeContext = "当前会话由实时识别自动创建，尚未绑定幻灯片项目。",
+                    SpeakerId = speaker.Id,
+                    SpeakerName = speaker.Name,
+                    HistorySessionId = historySession.Id,
+                    OutputMode = historySession.OutputMode,
+                    SpeakerStyleSummary = speaker.StyleSummary,
+                    SessionSummary = historySession.Summary,
+                    StartedAt = DateTimeOffset.Now
+                };
+
+                StatusChanged?.Invoke("已自动创建实时历史会话");
+            }
+            finally
+            {
+                _sessionInitLock.Release();
             }
         }
     }
